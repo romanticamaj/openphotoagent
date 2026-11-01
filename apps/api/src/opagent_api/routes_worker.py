@@ -9,6 +9,7 @@ from typing import Any
 from fastapi import APIRouter, Request, Response
 from opagent_core.state_machine import JobStatus
 from opagent_db.schema import (
+    event,
     job,
     journal_mirror,
     output_action,
@@ -17,7 +18,7 @@ from opagent_db.schema import (
     worker_task,
 )
 from pydantic import BaseModel
-from sqlalchemy import select, text, update
+from sqlalchemy import insert, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from . import organize
@@ -84,7 +85,7 @@ def _lease_one(st: AppState, worker_id: str) -> dict[str, Any] | None:
         row = c.execute(
             text(
                 "SELECT id FROM worker_task WHERE status='pending' AND (worker_id IS NULL OR worker_id=:w) "
-                "ORDER BY created_at, id LIMIT 1 FOR UPDATE SKIP LOCKED"
+                "ORDER BY (lane = 'interactive') DESC, created_at, id LIMIT 1 FOR UPDATE SKIP LOCKED"
             ),
             {"w": worker_id},
         ).first()
@@ -223,6 +224,7 @@ def mirror_journal(body: JournalIn, req: Request) -> dict[str, int]:
 
 
 class ProgressIn(BaseModel):
+    events: list[dict[str, Any]] = []  # streamed stage events (ORG-008 try-one)
     entries: list[dict[str, Any]] = []
     cursor: str | None = None
     waiting_reason: str | None = None
@@ -236,6 +238,8 @@ def task_progress(task_id: str, body: ProgressIn, req: Request) -> dict[str, str
         t = c.execute(select(worker_task).where(worker_task.c.id == task_id).with_for_update()).first()
         if t is None or t.status != "leased":
             return {"status": "ignored"}
+        for ev in body.events:
+            c.execute(insert(event).values(kind="preview.stage", payload={**ev, "task_id": task_id}))
         if body.entries:
             organize.upsert_entries(st, c, t.payload["source_id"], body.entries)
         payload = dict(t.payload)

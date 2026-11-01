@@ -453,6 +453,54 @@ def get_preview(preview_id: str, req: Request) -> dict[str, Any]:
     }
 
 
+class TryIn(BaseModel):
+    asset_id: str
+
+
+@router.post("/previews/{preview_id}/try", status_code=201)
+def try_one(preview_id: str, body: TryIn, req: Request) -> dict[str, Any]:
+    """「試跑這張」: one photo through the cascade on the interactive lane; stages stream as SSE ``preview.stage``."""
+    from opagent_db.schema import asset_location
+
+    st = _st(req)
+    with st.engine.begin() as c:
+        j = c.execute(select(job).where(job.c.id == preview_id, job.c.kind == "preview")).first()
+        if j is None:
+            raise HTTPException(404, detail={"code": "NOT_FOUND"})
+        s = c.execute(select(source).where(source.c.id == j.params["source_id"])).first()
+        loc = c.execute(
+            select(asset_location.c.rel_path).where(
+                asset_location.c.asset_id == body.asset_id, asset_location.c.source_id == s.id
+            )
+        ).first()
+        if loc is None:
+            raise HTTPException(404, detail={"code": "NOT_FOUND"})
+        tid = uuid7(st.clock)
+        tc = j.params.get("task_config") or organize.task_config_for(j.params.get("preset", "by-content-12"))
+        c.execute(
+            insert(worker_task).values(
+                id=tid,
+                kind="try_one",
+                lane="interactive",
+                job_id=preview_id,
+                worker_id=s.worker_id,
+                payload={"root_alias": s.root_alias, "rel": loc.rel_path, "asset_id": body.asset_id, "task_config": tc},
+            )
+        )
+    return {"id": tid, "lane": "interactive", "status": "pending"}
+
+
+@router.get("/previews/{preview_id}/try/{task_id}")
+def get_try(preview_id: str, task_id: str, req: Request) -> dict[str, Any]:
+    with _st(req).engine.begin() as c:
+        t = c.execute(
+            select(worker_task).where(worker_task.c.id == task_id, worker_task.c.job_id == preview_id)
+        ).first()
+    if t is None:
+        raise HTTPException(404, detail={"code": "NOT_FOUND"})
+    return {"id": t.id, "status": t.status, "result": t.result}
+
+
 @router.post("/previews/{preview_id}/rerender")
 def rerender_preview(preview_id: str, body: RerenderIn, req: Request) -> dict[str, Any]:
     """Changing thresholds or the path template re-renders from stored results: no inference (Q-024)."""

@@ -14,14 +14,24 @@ from .test_by_content import _drain, _photos, _src
 def test_org_008_try_one_streams_stages_on_interactive_lane(embedded_pg, sandbox_tree, tmp_path):
     _photos(sandbox_tree.photos, "t", 6)
     client = TestClient(create_app(dsn=embedded_pg.dsn))
-    w = WorkerAgent(client, roots=sandbox_tree.roots, home=tmp_path / "w", backend=FakeBackend(vlm_p=0.9), embedder=FakeBackend(scores="low"), worker_id="w1")
+    w = WorkerAgent(
+        client,
+        roots=sandbox_tree.roots,
+        home=tmp_path / "w",
+        backend=FakeBackend(vlm_p=0.9),
+        embedder=FakeBackend(scores="low"),
+        worker_id="w1",
+    )
     w.register()
     src = _src(client)
     pv = client.post("/api/v1/previews", json={"source_id": src, "k": 3}).json()
     _drain(w)
     aid = client.get(f"/api/v1/previews/{pv['id']}").json()["items"][0]["asset_id"]
     # a normal-lane job is queued first; the interactive "try" must still run before its scan
-    client.post("/api/v1/jobs", json={"kind": "organize", "preset": "by-content-12", "source_id": src, "target": {"root_alias": "sorted"}})
+    client.post(
+        "/api/v1/jobs",
+        json={"kind": "organize", "preset": "by-content-12", "source_id": src, "target": {"root_alias": "sorted"}},
+    )
     t = client.post(f"/api/v1/previews/{pv['id']}/try", json={"asset_id": aid}).json()
     assert t["lane"] == "interactive"
     assert w.run_once() is True

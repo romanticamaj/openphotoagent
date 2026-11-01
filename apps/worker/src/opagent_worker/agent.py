@@ -414,6 +414,41 @@ class WorkerAgent:
         res = self.executor.undo(p["plan_id"])
         return {"results": [r.__dict__ for r in res]}
 
+    def _do_try_one(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """One photo through the cascade, streaming each stage to the UI (ORG-008)."""
+        import asyncio
+
+        from opagent_inference.cascade import Cascade, Item
+
+        def send(stage: str, **data: Any) -> None:
+            self.client.post(f"/worker-api/v1/tasks/{task_id}/progress", json={"events": [{"stage": stage, **data}]})
+
+        inp, _fail = self._prepare({"id": "try", "root_alias": p["root_alias"], "rel": p["rel"], "attempt": 1})
+        facts = self._facts.pop("try", {})
+        if inp is None:
+            send("decision", decision="failed", error="DECODE_FAILED")
+            return {"decision": "failed", "error": "DECODE_FAILED"}
+        send("rules")
+        cas = Cascade(self.embedder, self.backend, on_stage=send)
+        if self._cascade is not None:  # share caches with the batch cascade
+            cas.image_cache, cas.text_cache, cas.vlm_cache = (
+                self._cascade.image_cache,
+                self._cascade.text_cache,
+                self._cascade.vlm_cache,
+            )
+        [r] = asyncio.run(cas.run([Item(inp, facts)], _taxonomy(p["task_config"])))
+        out = {
+            "asset_id": p["asset_id"],
+            "decision": r.outcome.decision,
+            "category": r.outcome.category,
+            "confidence": r.outcome.confidence,
+            "source": r.outcome.source,
+            "caption": r.caption,
+            "tags": r.tags,
+        }
+        send("decision", **{k: v for k, v in out.items() if k != "asset_id"})
+        return out
+
     def _do_estimate(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         import asyncio
 

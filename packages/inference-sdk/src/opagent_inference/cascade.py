@@ -139,7 +139,9 @@ class Cascade:
         policy: Policy = Policy(),
         mode: str = "concurrent",
         on_event: Callable[[tuple[str, str]], None] | None = None,
+        on_stage: Callable[[str], None] | None = None,
     ) -> None:
+        self.on_stage = on_stage or (lambda _s: None)
         self.embedder, self.vlm, self.policy, self.mode = embedder, vlm, policy, mode
         self.events: list[tuple[str, str]] = []
         self.on_event = on_event
@@ -210,6 +212,7 @@ class Cascade:
             return [results[it.image.item_id] for it in items]
 
         # 1. embedding stage
+        self.on_stage("embedding")
         emb_fp = self.embedder.describe().model_fingerprint
         self._ev("load", "embed")
         await self.embedder.load(LoadOptions())
@@ -233,6 +236,7 @@ class Cascade:
         errors: dict[str, str] = {}
         vlm_fp = ""
         if to_vlm and self.vlm is not None:
+            self.on_stage("vlm")
             vlm_fp = self.vlm.describe().model_fingerprint
             self._ev("load", "vlm")
             await self.vlm.load(LoadOptions())

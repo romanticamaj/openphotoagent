@@ -287,6 +287,7 @@ worker_task = Table(
     Column("status", Text, nullable=False, server_default="pending"),
     Column("worker_id", Text),
     Column("job_id", Text),
+    Column("lane", Text, nullable=False, server_default="normal"),  # interactive tasks jump the queue (ORG-008)
     _ts("lease_expires_at"),
     Column("result", JSONB),
     _ts("created_at", server_default=func.now()),
