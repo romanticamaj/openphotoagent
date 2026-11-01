@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Literal
+import math
+from collections.abc import Callable
+from dataclasses import dataclass, field, replace
+from typing import Any, Literal
 
 Decision = Literal["accepted", "other", "needs_review"]
 Source = Literal["rule", "embedding", "vlm", "consensus"]
@@ -81,8 +83,32 @@ def _by_thresholds(cat: str | None, p: float, source: Source, policy: Policy, re
     return Outcome("other", None, p, source)
 
 
+def _clean(p: float) -> tuple[float, bool]:
+    if math.isnan(p):
+        return 0.0, True
+    return min(1.0, max(0.0, p)), False
+
+
 def decide(emb: Stage | None = None, vlm: VlmResult | None = None, rule_category: str | None = None,
            n_examples: int = 0, policy: Policy = Policy()) -> Outcome:
+    """Exactly one outcome per photo; NaN scores count as 0 and set ``flags=("nan_score",)`` (CORE-THR-016)."""
+    nan = False
+    if emb is not None:
+        cleaned = {}
+        for k, v in emb.scores.items():
+            cleaned[k], bad = _clean(v)
+            nan |= bad
+        emb = Stage(cleaned)
+    if vlm is not None:
+        p, bad = _clean(vlm.p)
+        nan |= bad
+        vlm = VlmResult(vlm.category, p)
+    out = _decide(emb, vlm, rule_category, n_examples, policy)
+    return replace(out, flags=(*out.flags, "nan_score")) if nan else out
+
+
+def _decide(emb: Stage | None, vlm: VlmResult | None, rule_category: str | None,
+            n_examples: int, policy: Policy) -> Outcome:
     """Final decision for one photo.
 
     * rule hit wins (confidence 1.0);
@@ -120,17 +146,38 @@ class TaxonomyEntry:
     display: str
 
 
+LOGPROB_FLOOR = 1e-6  # probability for candidates absent from top_logprobs (CORE-THR-013, 待 M0 確認)
+
+
 def temperature_softmax(sims: list[float], t: float) -> list[float]:
-    return []
+    """softmax(s / T), numerically stable (03 §3.3.3 embedding margin; default T=0.05)."""
+    if not sims:
+        return []
+    m = max(sims)
+    ex = [math.exp((x - m) / t) for x in sims]
+    tot = sum(ex)
+    return [e / tot for e in ex]
 
 
 def normalize_logprobs(first_token_logprobs: dict[str, float], candidates: list[str]) -> dict[str, float]:
-    return {}
+    raw = {c: (math.exp(first_token_logprobs[c]) if c in first_token_logprobs else LOGPROB_FLOOR) for c in candidates}
+    tot = sum(raw.values())
+    return {c: v / tot for c, v in raw.items()}
 
 
-def build_taxonomy(classes: list[tuple[str, str]], first_token: object) -> list[TaxonomyEntry]:
-    return []
+def build_taxonomy(classes: list[tuple[str, str]], first_token: Callable[[str], str]) -> list[TaxonomyEntry]:
+    """Class ids whose first tokens collide get a ``c<n>_`` prefix so first-token logprobs stay unambiguous."""
+    toks = [first_token(k) for k, _ in classes]
+    out = []
+    for i, (key, display) in enumerate(classes):
+        cid = f"c{i + 1}_{key}" if toks.count(toks[i]) > 1 else key
+        out.append(TaxonomyEntry(cid, key, display))
+    return out
 
 
-def redecide(stages: dict[str, object], policy: Policy) -> Outcome:
-    return Outcome("other", None, 0.0, "embedding")
+def redecide(stages: dict[str, Any], policy: Policy) -> Outcome:
+    """Re-apply thresholds from stored stages without any backend call (CORE-THR-017)."""
+    emb = Stage(stages["emb"]) if stages.get("emb") is not None else None
+    vlm = VlmResult(**stages["vlm"]) if stages.get("vlm") is not None else None
+    return decide(emb=emb, vlm=vlm, rule_category=stages.get("rule"), n_examples=int(stages.get("n_examples", 0)),
+                  policy=policy)
