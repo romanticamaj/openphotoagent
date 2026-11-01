@@ -9,7 +9,10 @@ from __future__ import annotations
 
 import hashlib
 
+from typing import Any
+
 from .types import (
+    InferenceError,
     BackendInfo,
     BatchRequest,
     HealthStatus,
@@ -45,6 +48,7 @@ class FakeBackend:
         self.loaded = False
         self.load_count = 0
         self._calls: list[dict[str, object]] = []
+        self._faults: list[dict[str, Any]] = []
 
     def describe(self) -> BackendInfo:
         fp = hashlib.sha256(f"fake:{self.seed}:{self.embedding_dim}".encode()).hexdigest()[:16]
@@ -71,7 +75,8 @@ class FakeBackend:
         return HealthStatus(ok=self.loaded, vram_used_mb=self.est_vram_mb if self.loaded else 0)
 
     def inject(self, code: str, times: int = 10**9, on_batch_size_at_least: int = 1) -> None:
-        pass
+        """Fail the next ``times`` batches of at least ``on_batch_size_at_least`` items (09 §3.1 fault injection)."""
+        self._faults.append({"code": code, "times": times, "min": on_batch_size_at_least})
 
     def calls(self, task: str | None = None) -> list[dict[str, object]]:
         return [c for c in self._calls if task is None or c["task"] == task]
@@ -81,6 +86,11 @@ class FakeBackend:
             return []
         if not self.loaded:
             raise ModelUnavailable("fake backend not loaded")
+        for f in self._faults:
+            if f["times"] > 0 and len(req.items) >= f["min"]:
+                f["times"] -= 1
+                code = f["code"]
+                raise InferenceError(code, retryable=code != "BAD_INPUT", message=f"injected {code}")
         self._calls.append({"task": req.task_type, "n": len(req.items)})
         cats = tuple(req.variables.get("categories") or DEFAULT_CATEGORIES)
         out: list[ItemOutput] = []

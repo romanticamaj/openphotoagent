@@ -182,11 +182,18 @@ def create_job(body: JobIn, req: Request) -> dict[str, Any]:
 
 @router.get("/jobs/{job_id}")
 def get_job(job_id: str, req: Request) -> dict[str, Any]:
+    from . import queue as q
+
     with _st(req).engine.begin() as c:
         r = c.execute(select(job).where(job.c.id == job_id)).first()
+        cnt = q.counters(c, job_id)
     if r is None:
         raise HTTPException(404, detail={"code": "NOT_FOUND"})
     d = dict(r._mapping)
+    if cnt["total"]:
+        d["counters"] = {**(d.get("counters") or {}), **cnt}
+        to_infer = cnt["total"] - cnt["cached"]
+        d["phases"] = {"cache_lookup": "done", "infer": "skipped" if to_infer == 0 else "running"}
     return {k: (v.isoformat() if hasattr(v, "isoformat") else v) for k, v in d.items()}
 
 

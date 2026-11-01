@@ -3,6 +3,8 @@ all filesystem work is delegated to the Worker over the worker protocol (worker_
 
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import FastAPI
 from opagent_core.clock import Clock, SystemClock
 from opagent_db.schema import engine_for
@@ -22,6 +24,17 @@ def create_app(
     install_problem_handlers(app)
     app.include_router(routes_public.router, prefix="/api/v1")
     app.include_router(routes_worker.router, prefix="/worker-api/v1")
+    @app.get("/metrics", include_in_schema=False)
+    def metrics() -> Any:
+        from fastapi.responses import PlainTextResponse
+        from sqlalchemy import select
+
+        from opagent_db.schema import metric
+
+        with st.engine.begin() as c:
+            rows = c.execute(select(metric.c.name, metric.c.value)).all()
+        return PlainTextResponse("".join(f"{n} {v}\n" for n, v in rows))
+
     if static_dir:
         from fastapi.staticfiles import StaticFiles
 

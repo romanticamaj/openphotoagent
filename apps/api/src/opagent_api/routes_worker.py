@@ -25,6 +25,7 @@ from pydantic import BaseModel
 from sqlalchemy import insert, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
+from . import queue as q
 from .db import offset_minutes, set_job_status, to_aware
 from .state import DEFAULT_WS, AppState
 
@@ -106,6 +107,60 @@ def lease(body: LeaseIn, req: Request) -> Any:
 class JournalIn(BaseModel):
     worker_id: str
     entries: list[dict[str, Any]]
+
+
+class LeasesIn(BaseModel):
+    worker_id: str
+    max_items: int = 16
+    loaded_models: list[str] = []
+    lanes: list[str] | None = None
+
+
+@router.post("/leases")
+def leases(body: LeasesIn, req: Request) -> Any:
+    st = _st(req)
+    with st.engine.begin() as c:
+        items = q.lease(c, st.clock, body.worker_id, body.max_items, body.loaded_models, body.lanes)
+    if not items:
+        return Response(status_code=204)
+    return {"items": items}
+
+
+class HeartbeatIn(BaseModel):
+    worker_id: str
+    lease_ids: list[str] = []
+
+
+@router.post("/heartbeat")
+def heartbeat(body: HeartbeatIn, req: Request) -> dict[str, int]:
+    st = _st(req)
+    with st.engine.begin() as c:
+        return {"extended": q.heartbeat(c, st.clock, body.worker_id, body.lease_ids)}
+
+
+class ResultsIn(BaseModel):
+    worker_id: str
+    items: list[dict[str, Any]]
+
+
+@router.post("/results")
+def results(body: ResultsIn, req: Request) -> dict[str, int]:
+    st = _st(req)
+    with st.engine.begin() as c:
+        return q.report(c, st.clock, body.worker_id, body.items)
+
+
+@router.post("/release")
+def release(body: HeartbeatIn, req: Request) -> dict[str, int]:
+    with _st(req).engine.begin() as c:
+        return {"released": q.release(c, body.worker_id, body.lease_ids)}
+
+
+@router.post("/sweep")
+def sweep(req: Request) -> dict[str, int]:
+    st = _st(req)
+    with st.engine.begin() as c:
+        return {"expired": q.sweep(c, st.clock)}
 
 
 @router.post("/journal")
