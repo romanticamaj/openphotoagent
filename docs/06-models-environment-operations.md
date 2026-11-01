@@ -868,6 +868,14 @@ Fix 共有欄位：`fix_id`、`type`、`label`、`primary`、`requires_permissio
 | 60 | `MCP_DISABLED` | B | MCP 伺服器尚未啟用 | 啟用 MCP | Enable MCP |
 | 61 | `MCP_TOKEN_INVALID` | B | MCP token 無效或已過期 | 重新產生 token | Regenerate token |
 | 62 | `CHECK_CRASHED` | W | 環境檢查「{check}」本身失敗 | 重新檢查（複製診斷報告） | Re-run (copy diagnostics) |
+| 63 | `PACK_SIGNATURE_INVALID` | B | 「{pack}」執行套件的簽章驗證失敗，已拒絕安裝 | 從其他鏡像重試（回報問題） | Retry from another mirror (report issue) |
+| 64 | `PACK_INCOMPATIBLE` | B | 「{pack}」版本 {v} 與此 app 不相容（需要 pack_api {range}） | 安裝相容版本 {locked} | Install compatible version {locked} |
+| 65 | `FS_FILE_LOCKED` | W／T | 「{path}」正被其他程式使用，已重試 {n} 次 | 關閉該程式後重試 | Retry after closing the other app |
+| 66 | `DL_REMOTE_CHANGED` | W | 遠端檔案在續傳期間被更新，已從頭重新下載 | 查看下載 | View download |
+| 67 | `DL_MIRROR_FAILED` | B／T | 鏡像 {mirror} 無法下載，已改回官方來源 | 重試（更換鏡像） | Retry (change mirror) |
+| 68 | `VRAM_OFFLOAD` | W | VRAM 不足以全部放進 GPU，{model} 部分層改在 CPU 執行（約慢 {pct}%） | 改用較小模型（仍要繼續） | Use smaller model (continue anyway) |
+
+> （回寫 W-1，09 §9）#63–#68 由 09 的 PF-063～PF-066 與 OUT-EXE-016 提出；08 §10 的 `PACK_MISSING`、`DRIVER_TOO_OLD` 分別對應本表的 `RUNTIME_PACK_MISSING`、`GPU_DRIVER_TOO_OLD`。
 
 ---
 ## 5. Operation 模型（統一長任務）

@@ -475,7 +475,7 @@ jobs:
 | C-24 | 05 §1.2 | `embedding_space.modality` 只有 image、text | 人臉向量 | 增加 `face`；`search_doc` 增加 `person_ids int[]`（GIN），讓 facet 與 MCP 可以用人物過濾。07 細節另外定義 | P0 |
 | C-25 | 05 §3.2.3 scope | 沒有人臉相關 scope | 生物特徵屬高敏感資料 | ~~新增 `people:read`~~ → **（審查補充）統一採 07 §5.1 的 `faces:read`**（以人物搜尋、列出已命名的人物，**預設不授予**，且 workspace 需 `mcp.faces_enabled=true`）；人臉 crop 影像改用獨立的 **`faces:media`**（受 `mcp_face_media_policy`，預設 `none`），不併入 `photos:media`；「未命名的臉群」不暴露給 MCP。已寫回 05 §3.2.3 | P1 ✅ |
 | C-26 | VERSIONING | §3、§4、§5 | 桌面 v1.0+；里程碑舊 | 照 §5.4 修改；新增 Runtime pack 與 data dir layout 的版本規則 | P0 |
-| C-27 | `.github/workflows` | release-please、release-on-tag | 沒有建置 job；GITHUB_TOKEN 打的 tag 不會觸發 workflow | 新增 `desktop-build.yml`（workflow_call）、`packs-build.yml`、`nightly-desktop.yml`；release-please job 輸出 `release_created` 給後續 job | P0 |
+| C-27 | `.github/workflows` | release-please、release-on-tag | 沒有建置 job；GITHUB_TOKEN 打的 tag 不會觸發 workflow | 新增 `desktop-build.yml`（workflow_call）、`packs-build.yml`、`nightly-desktop.yml`；（回寫 W-4，09 §5.1）另加 `ci.yml`、`nightly.yml`、`nightly-gpu.yml`、`release-gate.yml`、`m0-spike.yml`；release-please job 輸出 `release_created` 給後續 job | P0 |
 | C-28 | README / README.zh-TW | Roadmap、Models、Self-hosted 徽章 | 「self-hosted web console」 | 主打「下載即用的桌面 app，也能 Docker 自架」；路線圖照 §9 更新；Models 表依 C-02 修改 | P1 |
 | C-29 | 00 §8 Q1、02 標頭 | CLI `opl` 暫名 | 桌面安裝後 CLI 名稱會寫進使用者的 MCP 設定 | **已定案（審查補充）：CLI 為 `opagent`**，環境變數前綴 `OPAGENT_`，全部文件已替換；不保留 `opl` 別名（避免寫進使用者 MCP 設定後產生兩種寫法） | P0 ✅ |
 | C-30 | 03 §4.2、02 §4.3 | 閒置卸載、GPU 排程 | 沒有電池、遊戲、外部占用的策略 | 依 §6 增加 `pause_on_battery`、`pause_on_contention`、`only_when_idle`；Worker heartbeat 帶 `paused_reason` | P1 |
