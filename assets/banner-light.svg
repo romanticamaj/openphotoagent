@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420" role="img" aria-label="OpenPhotoAgent — caption, tag, classify, organize and search your photos on your own GPU">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FBF8F3"/>
+      <stop offset="1" stop-color="#F0E9DF"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.78" cy="0.45" r="0.55">
+      <stop offset="0" stop-color="#F5A524" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#F5A524" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="p1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3B5B6E"/><stop offset="1" stop-color="#C98A4B"/></linearGradient>
+    <linearGradient id="p2" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#2F4A35"/><stop offset="1" stop-color="#9DB06A"/></linearGradient>
+    <linearGradient id="p3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E6B980"/><stop offset="1" stop-color="#7A3E2B"/></linearGradient>
+    <linearGradient id="p4" x1="1" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5A4E7A"/><stop offset="1" stop-color="#D9837A"/></linearGradient>
+    <linearGradient id="p5" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1F3A57"/><stop offset="1" stop-color="#6FA3C7"/></linearGradient>
+    <linearGradient id="p6" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#6B5A3A"/><stop offset="1" stop-color="#E8D7A8"/></linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#000" flood-opacity="0.18"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="420" fill="url(#bg)"/>
+  <rect width="1280" height="420" fill="url(#glow)"/>
+
+  <!-- left: wordmark -->
+  <g font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+    <!-- aperture mark -->
+    <g transform="translate(84 120)">
+      <circle r="30" fill="none" stroke="#C77A00" stroke-width="3"/>
+      <g fill="#C77A00" opacity="0.95">
+        <path d="M0 -30 L9 -6 L-14 -10 Z"/>
+        <path d="M26 -15 L9 -6 L5 -24 Z" opacity="0.8"/>
+        <path d="M26 15 L10 6 L24 -6 Z" opacity="0.65"/>
+        <path d="M0 30 L-9 6 L14 10 Z" opacity="0.8"/>
+        <path d="M-26 15 L-9 6 L-5 24 Z" opacity="0.65"/>
+        <path d="M-26 -15 L-10 -6 L-24 6 Z" opacity="0.8"/>
+      </g>
+      <circle r="7" fill="#FBF8F3"/>
+    </g>
+    <text x="132" y="136" font-size="50" font-weight="700" fill="#1C1712" letter-spacing="-1">Open<tspan fill="#C77A00">Photo</tspan>Agent</text>
+    <text x="64" y="208" font-size="25" font-weight="500" fill="#3A3129">Caption · Tag · Classify · Organize · Search</text>
+    <text x="64" y="244" font-size="20" fill="#6E645A">Open-source photo AI that runs on <tspan fill="#1C1712" font-weight="600">your own GPU</tspan>.</text>
+    <text x="64" y="272" font-size="20" fill="#6E645A">Your originals never leave your machine.</text>
+
+    <!-- pills -->
+    <g font-size="15" font-weight="600">
+      <rect x="64" y="310" width="132" height="34" rx="17" fill="#FFFFFF" stroke="#E2D8CB"/>
+      <text x="130" y="332" text-anchor="middle" fill="#3A3129">Self-hosted</text>
+      <rect x="206" y="310" width="132" height="34" rx="17" fill="#FFFFFF" stroke="#E2D8CB"/>
+      <text x="272" y="332" text-anchor="middle" fill="#3A3129">Any VLM</text>
+      <rect x="348" y="310" width="132" height="34" rx="17" fill="#FFFFFF" stroke="#E2D8CB"/>
+      <text x="414" y="332" text-anchor="middle" fill="#3A3129">MCP server</text>
+      <rect x="490" y="310" width="116" height="34" rx="17" fill="#FFF3DC" stroke="#C77A00" stroke-opacity="0.6"/>
+      <text x="548" y="332" text-anchor="middle" fill="#9A5E00">16 GB ready</text>
+    </g>
+  </g>
+
+  <!-- right: lightbox grid -->
+  <g transform="translate(700 46)" filter="url(#shadow)">
+    <rect x="0"   y="0"   width="168" height="122" rx="10" fill="url(#p1)"/>
+    <rect x="180" y="0"   width="120" height="122" rx="10" fill="url(#p3)"/>
+    <rect x="312" y="0"   width="200" height="122" rx="10" fill="url(#p5)"/>
+    <rect x="0"   y="134" width="120" height="150" rx="10" fill="url(#p2)"/>
+    <rect x="132" y="134" width="208" height="150" rx="10" fill="url(#p4)"/>
+    <rect x="352" y="134" width="160" height="150" rx="10" fill="url(#p6)"/>
+    <!-- selection ring -->
+    <rect x="128" y="130" width="216" height="158" rx="13" fill="none" stroke="#F5A524" stroke-width="3"/>
+  </g>
+
+  <!-- labels on tiles -->
+  <g font-family="'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13" font-weight="600">
+    <g transform="translate(712 142)">
+      <rect width="104" height="24" rx="6" fill="#0E0C0A" fill-opacity="0.78"/>
+      <text x="10" y="16" fill="#F4EFE8">sunset <tspan fill="#F5A524">0.96</tspan></text>
+    </g>
+    <g transform="translate(1024 142)">
+      <rect width="112" height="24" rx="6" fill="#0E0C0A" fill-opacity="0.78"/>
+      <text x="10" y="16" fill="#F4EFE8">harbor <tspan fill="#F5A524">0.91</tspan></text>
+    </g>
+    <g transform="translate(844 296)">
+      <rect width="186" height="24" rx="6" fill="#F5A524"/>
+      <text x="10" y="16" fill="#1A140C">→ travel/2024/Japan/</text>
+    </g>
+    <g transform="translate(712 304)">
+      <rect width="96" height="24" rx="6" fill="#0E0C0A" fill-opacity="0.78"/>
+      <text x="10" y="16" fill="#F4EFE8">forest <tspan fill="#F5A524">0.88</tspan></text>
+    </g>
+    <g transform="translate(1064 304)">
+      <rect width="72" height="24" rx="6" fill="#0E0C0A" fill-opacity="0.78"/>
+      <text x="10" y="16" fill="#F4EFE8">#food</text>
+    </g>
+  </g>
+
+  <!-- caption strip -->
+  <g transform="translate(700 352)" font-family="Inter, -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif">
+    <rect width="512" height="40" rx="10" fill="#FFFFFF" stroke="#E2D8CB"/>
+    <circle cx="20" cy="20" r="5" fill="#F5A524"/>
+    <text x="36" y="26" font-size="15" fill="#3A3129">“A cat napping on a sunlit windowsill in Kyoto.”</text>
+  </g>
+</svg>

@@ -1,0 +1,12 @@
+name: ✨ Feature / design suggestion
+description: Propose a feature or a change to the design specs
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes: { label: Problem / use case }
+    validations: { required: true }
+  - type: textarea
+    id: proposal
+    attributes: { label: Proposal, description: "Reference spec sections if relevant, e.g. docs/02 §4.3" }
+    validations: { required: true }

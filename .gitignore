@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+dist/
+build/
+*.egg-info/
+
+# Node
+node_modules/
+.pnpm-store/
+.vite/
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+
+# Models, caches & data (never commit weights or photos)
+models/
+*.gguf
+*.safetensors
+data/
+thumbnails/
+fixtures/photos/private/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

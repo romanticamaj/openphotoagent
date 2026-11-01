@@ -1,0 +1,25 @@
+name: 🧪 Benchmark report
+description: Share model speed / VRAM / quality numbers from your GPU
+labels: [benchmark]
+body:
+  - type: input
+    id: gpu
+    attributes: { label: GPU & VRAM, placeholder: "RTX 5070 Ti 16GB" }
+    validations: { required: true }
+  - type: input
+    id: stack
+    attributes: { label: Runtime & versions, placeholder: "vLLM 0.x, CUDA 12.8, driver 5xx" }
+    validations: { required: true }
+  - type: input
+    id: model
+    attributes: { label: Model & quantization, placeholder: "Qwen3-VL-8B-Instruct FP8" }
+    validations: { required: true }
+  - type: textarea
+    id: results
+    attributes:
+      label: Results
+      description: images/sec, peak VRAM, accuracy on your set (if any), image resolution
+    validations: { required: true }
+  - type: textarea
+    id: notes
+    attributes: { label: Notes / issues hit }
