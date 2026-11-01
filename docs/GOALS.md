@@ -127,6 +127,14 @@
 
 ---
 
+## ALL · 一條 goal 從 M0 連續做到 v1.0
+
+> 不等每個里程碑的 PR 合併，直接以**疊加分支**往下做。需要硬體、手動驗證或發版的項目一律標記 pending，留給你之後處理。過程中會多次自動 compact，每一段的進度都會記錄在 `CLAUDE.md` §8 和 `docs/BLOCKERS.md`，方便接續。
+
+```
+/goal 在 /home/user/openphotoagent 依 CLAUDE.md 與 docs/GOALS.md，按順序連續完成里程碑 0（M0-cloud）→ 1A → 1B → 1C → 1D → 2A → 2B → 2C → 3 → 4 → 5 → 6，不要等待 PR 合併：每個里程碑開始前重讀 CLAUDE.md、GOALS.md 該節列出的規格章節、CLAUDE.md §8 進度紀錄與 docs/BLOCKERS.md；每個里程碑從上一個里程碑的分支開出自己的分支（第一個從 claude/spec-expansion 開出），完成時 push 並開一個以上一個分支為 base 的疊加 PR，PR 描述列出已完成、pending-hardware、需要人工驗證的項目，然後立刻開始下一個里程碑；全程嚴格 TDD（測試標註 09a/09b 的 ID，先紅再綠，禁止刪除、跳過或弱化測試，禁止修改測試去配合實作），遵守 CLAUDE.md §4 全部不變量；推論與硬體一律使用 FakeInferenceBackend 和 fixtures/hw profiles，需要實體 GPU、Windows、macOS 的實驗或驗證只寫腳本並標記 pending-hardware，絕不捏造數據；發版（tag/Release）與參考機手動驗證不做，記為待使用者處理；遇到規格衝突、做不到的門檻或 CLAUDE.md §8 列出的待決事項時，不要停下整個流程：記錄到 docs/BLOCKERS.md（里程碑、測試 ID、問題、建議的選項），能用規格已寫明的預設值就採用並註明，不能就跳過該項，繼續下一個不受影響的工作；違反不變量的風險則必須停下來回報；每完成一個切片就執行 just tc-status、更新 CLAUDE.md §8 進度紀錄並 commit、push，確保中途 compact 後可以從紀錄接續；v0.4～v1.0 先細化 09b §7 的測試案例再實作。完成條件：GOALS.md 中里程碑 0 至 6 每一條的完成條件都已達成（pending-hardware、人工驗證與發版項目除外，且這些項目都已在 BLOCKERS.md 與各 PR 中列出）；每個里程碑都有對應的疊加 PR；最終分支上 just lint、just test、just test-int、just e2e 全綠；docs/BLOCKERS.md 彙整所有待使用者決定或驗證的事項。
+```
+
 ## 附註
 
 - **一次跑完 v0.1 的替代指令**：如果想讓一個 goal 連續做完切片 0–12，可以改用 `CLAUDE.md` handoff 時提供的那條 v0.1 總指令。不過分成 1A–1D，每段都有 PR 可以 review，比較不容易偏離規格。
