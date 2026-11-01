@@ -59,3 +59,17 @@
 **影響的測試 ID**：INF-REG-001、INF-REG-002（文字精確化，不放寬）；新增 INF-REG-013（G）、INF-RT-012（U）；DL-* 使用 fake HF 伺服器的 fixture bytes 與對應的 fixture lock（真實 sha256）。
 
 **同步修改的規格**：03 §1.1／§7、06 §1.1、06 §2 `resolve`、06 §2.6、06 §4.7 #69、09a §6.1／INF-RT、09 §5.5、08 C-27、11 §5.5。
+
+## ADR-0003：元件文件與元件級測試用 Storybook 10（不是 8），以 addon-vitest + Playwright 執行
+
+- 日期：2026-11-01｜狀態：已採納｜審議：1 個獨立 sub-agent（題目、04 §5.2、09 §2 測試層表、VIS-001／VIS-003／PF-080、apps/web 的套件版本）
+
+**背景**：04 §5.2 寫「Storybook 8」，09 寫「Storybook test-runner」。實際檢查 npm：`@storybook/react-vite@8.x` 只接受 Vite ^4–^6，而本專案已是 Vite 8；目前的 `@storybook/test-runner` 又要求 Storybook ≥ 10 並帶入 Jest 30。規格原字面無法安裝。
+
+**選項**：(A) Storybook 10（`@storybook/react-vite@10`，接受 Vite 8／React 19）+ `@storybook/addon-vitest`（Vitest 5 browser mode）+ Playwright `toHaveScreenshot`；(B) 自建 `/__gallery` 路由以 Playwright 驅動。
+
+**決定**：採用 (A)，版本釘選、僅為 devDependency。VIS-001 以 Playwright 對建置後 Storybook 的 `iframe.html?id=…` 截圖（`maxDiffPixelRatio 0.001`、Linux Chromium、字型釘選）；VIS-003 由 `packages/i18n/errors.*.json` 自動產生每個錯誤碼一個 ProblemCard story，並以 contract 測試斷言 story 數 = 錯誤碼數；PF-080 以 `play` 函式經 addon-vitest 執行，另有測試列舉所有 GatedButton 停用狀態 story。
+
+**理由**：符合規格原意（6 處提及 Storybook），提供設計系統文件與 a11y addon，stories 不進產品 bundle；(B) 需自建 story 列舉、主題／語系切換與隔離渲染，且測試碼留在產品原始碼樹。兩者測試強度相同，關鍵在執行方式。
+
+**影響的測試 ID**：VIS-001、VIS-003、PF-080 的文字與門檻不變（不弱化）。**同步修改的規格**：04 §5.2（Storybook 8 → 10）、09 §2 測試層表（test-runner → addon-vitest + Playwright）。
