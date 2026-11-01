@@ -39,3 +39,33 @@ def _isolated_home(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest
     monkeypatch.setenv("OPAGENT_HOME", str(home))
     monkeypatch.setenv("OPAGENT_TEST_MODE", "1")
     os.environ.setdefault("OPAGENT_TC_RESULTS", ".tc/py.json")
+
+
+@pytest.fixture
+def clk():  # type: ignore[no-untyped-def]
+    from opagent_testing.clock import FakeClock
+
+    return FakeClock()
+
+
+class SandboxTree:
+    """tmp tree with roots/photos (ro), roots/sorted (rw) and outside/ (docs/09 §3.3)."""
+
+    def __init__(self, base: os.PathLike[str]) -> None:
+        from pathlib import Path
+
+        self.base = Path(base)
+        self.photos = self.base / "roots" / "photos"
+        self.sorted = self.base / "roots" / "sorted"
+        self.outside = self.base / "outside"
+        for p in (self.photos, self.sorted, self.outside):
+            p.mkdir(parents=True, exist_ok=True)
+        self.roots = [
+            {"alias": "photos", "path": str(self.photos), "mode": "ro"},
+            {"alias": "sorted", "path": str(self.sorted), "mode": "rw"},
+        ]
+
+
+@pytest.fixture
+def sandbox_tree(tmp_path):  # type: ignore[no-untyped-def]
+    return SandboxTree(tmp_path)

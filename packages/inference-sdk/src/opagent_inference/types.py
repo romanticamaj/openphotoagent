@@ -28,7 +28,7 @@ class InferenceError(Exception):
         return ERROR_CODE_MAP[self.code]
 
 
-class ModelUnavailable(Exception):  # noqa: N818 - name from 03 §2.3
+class ModelUnavailable(Exception):
     """Model not loaded / not installed."""
 
 

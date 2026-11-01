@@ -19,8 +19,20 @@ from .types import (
     PreferredInput,
 )
 
-DEFAULT_CATEGORIES = ("people", "pets", "food", "landscape", "city", "documents", "screenshots", "events",
-                      "travel", "nature", "vehicles", "objects")
+DEFAULT_CATEGORIES = (
+    "people",
+    "pets",
+    "food",
+    "landscape",
+    "city",
+    "documents",
+    "screenshots",
+    "events",
+    "travel",
+    "nature",
+    "vehicles",
+    "objects",
+)
 
 
 class FakeBackend:
@@ -73,13 +85,15 @@ class FakeBackend:
             h = hashlib.sha256(f"{it.content_hash}:{self.seed}".encode()).digest()
             cat = str(it.labels.get("category") or cats[h[0] % len(cats)])
             conf = float(it.labels.get("confidence", 0.5 + (h[1] / 255) * 0.5))
-            out.append(ItemOutput(
-                item_id=it.item_id,
-                caption=str(it.labels.get("caption") or f"a {cat} photo"),
-                tags=[(str(t), 0.9) for t in it.labels.get("tags", [cat])],
-                category=cat,
-                confidence=conf,
-                raw={"backend": "fake"},
-                usage={"latency_ms": 0},
-            ))
+            out.append(
+                ItemOutput(
+                    item_id=it.item_id,
+                    caption=str(it.labels.get("caption") or f"a {cat} photo"),
+                    tags=[(str(t), 0.9) for t in it.labels.get("tags", [cat])],
+                    category=cat,
+                    confidence=conf,
+                    raw={"backend": "fake"},
+                    usage={"latency_ms": 0},
+                )
+            )
         return out

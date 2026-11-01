@@ -1,0 +1,145 @@
+name: ci
+# PR-required jobs (docs/09 §5.2). Python via uv, TS via pnpm, PostgreSQL 17 + pgvector from PGDG.
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+env:
+  UV_SYSTEM_CERTS: "1"
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: uv sync && pnpm install --frozen-lockfile
+      - run: uv tool install rust-just
+      - run: just lint
+
+  unit-py:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync
+      - run: OPAGENT_TC_RESULTS=.tc/py-fast.json uv run pytest -q -m "not integration and not e2e and not chaos and not perf" --cov --cov-branch --cov-report=xml
+      - uses: actions/upload-artifact@v4
+        with: { name: tc-py-fast, path: .tc/ }
+
+  unit-ts:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile && pnpm -r --if-present test
+      - uses: actions/upload-artifact@v4
+        with: { name: tc-ts, path: .tc/ }
+
+  integration-linux:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: PostgreSQL 17 + pgvector
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-17 postgresql-17-pgvector
+          echo "OPAGENT_PG_BIN=/usr/lib/postgresql/17/bin" >> $GITHUB_ENV
+      - run: uv sync
+      - run: OPAGENT_TC_RESULTS=.tc/py-int.json uv run pytest -q -m "integration or chaos"
+      - uses: actions/upload-artifact@v4
+        with: { name: tc-py-int, path: .tc/ }
+
+  os-matrix:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-14, ubuntu-22.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: PostgreSQL 17 (macOS)
+        if: runner.os == 'macOS'
+        run: brew install postgresql@17 pgvector && echo "OPAGENT_PG_BIN=$(brew --prefix postgresql@17)/bin" >> $GITHUB_ENV
+      - name: PostgreSQL (Windows preinstalled)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: echo "OPAGENT_PG_BIN=$PGBIN" >> $GITHUB_ENV
+      - run: uv sync
+      - run: uv run pytest -q packages/core packages/fs-sandbox packages/testing
+
+  e2e-smoke:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - name: PostgreSQL 17
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-17 postgresql-17-pgvector
+          echo "OPAGENT_PG_BIN=/usr/lib/postgresql/17/bin" >> $GITHUB_ENV
+      - run: uv sync && pnpm install --frozen-lockfile
+      - run: pnpm --filter web exec playwright install --with-deps chromium
+      - run: uv tool install rust-just && just e2e
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: tc-e2e, path: .tc/ }
+
+  test-integrity:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: astral-sh/setup-uv@v6
+      - run: python3 tools/check_test_integrity.py --base origin/${{ github.base_ref }}
+        env:
+          TEST_CHANGE_APPROVED: ${{ contains(github.event.pull_request.labels.*.name, 'test-change-approved') && '1' || '0' }}
+
+  tc-status:
+    needs: [unit-py, unit-ts, integration-linux, e2e-smoke]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { path: dl }
+      - run: mkdir -p .tc && cp dl/tc-*/*.json .tc/ && python3 tools/tc_status.py --check
+
+  mutation-diff:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync
+      - run: uv run python tools/mutate_diff.py --base origin/${{ github.base_ref }}
+
+  audit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: uv sync && pnpm install --frozen-lockfile
+      - run: uvx pip-audit || true
+      - run: pnpm audit --prod || true
+      - run: uvx bandit -q -r packages apps -x '*/tests/*' -ll

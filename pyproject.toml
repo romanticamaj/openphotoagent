@@ -9,7 +9,7 @@ dependencies = []
 package = false
 
 [tool.uv.workspace]
-members = ["packages/*", "apps/api", "apps/worker", "apps/cli", "tools/pytest_tc"]
+members = ["packages/core", "packages/fs-sandbox", "packages/inference-sdk", "packages/testing", "packages/schemas", "packages/db", "apps/api", "apps/worker", "apps/cli", "tools/pytest_tc"]
 
 [tool.uv.sources]
 opagent-core = { workspace = true }
@@ -47,7 +47,7 @@ norecursedirs = ["node_modules", ".venv", "spikes", "apps/web", "fixtures", "doc
 [tool.ruff]
 line-length = 120
 target-version = "py312"
-extend-exclude = ["spikes", "apps/web", "node_modules"]
+extend-exclude = ["spikes", "apps/web", "node_modules", "docs", "*.md"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "S", "DTZ", "TID", "SIM", "RUF"]

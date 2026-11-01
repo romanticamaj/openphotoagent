@@ -9,7 +9,15 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
-PKGS = ["opagent_api", "opagent_worker", "opagent_db", "opagent_core", "opagent_fs", "opagent_inference", "opagent_schemas"]
+PKGS = [
+    "opagent_api",
+    "opagent_worker",
+    "opagent_db",
+    "opagent_core",
+    "opagent_fs",
+    "opagent_inference",
+    "opagent_schemas",
+]
 
 
 def _lint(cfg_dir: Path, pythonpath: Path | None = None) -> subprocess.CompletedProcess[str]:
@@ -19,8 +27,14 @@ def _lint(cfg_dir: Path, pythonpath: Path | None = None) -> subprocess.Completed
         import os
 
         env = {**os.environ, "PYTHONPATH": str(pythonpath)}
-    return subprocess.run([exe, "--config", str(cfg_dir / "pyproject.toml")], capture_output=True, text=True,
-                          env=env, cwd=cfg_dir, check=False)
+    return subprocess.run(
+        [exe, "--config", str(cfg_dir / "pyproject.toml")],
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=cfg_dir,
+        check=False,
+    )
 
 
 def _fake_tree(tmp_path: Path, violation: tuple[str, str] | None) -> Path:
@@ -52,8 +66,12 @@ def test_fs_026_repo_satisfies_import_contracts():
 @pytest.mark.tc("FS-026")
 @pytest.mark.parametrize(
     "violation",
-    [("opagent_api", "opagent_fs"), ("opagent_api", "opagent_inference"), ("opagent_db", "opagent_fs"),
-     ("opagent_db", "opagent_inference")],
+    [
+        ("opagent_api", "opagent_fs"),
+        ("opagent_api", "opagent_inference"),
+        ("opagent_db", "opagent_fs"),
+        ("opagent_db", "opagent_inference"),
+    ],
 )
 def test_fs_026_violation_fails_lint(tmp_path, violation):
     src = _fake_tree(tmp_path, violation)

@@ -75,13 +75,25 @@ def start_cluster(base_dir: str, init_schema: Callable[[str], None] | None = Non
         prefix = ["runuser", "-u", user, "--"]
         shutil.chown(base_dir, user, user)
     data = str(Path(base_dir) / "data")
-    _run(prefix, [str(bin_dir / "initdb"), "-D", data, "-U", "opagent", "-A", "trust", "--no-sync", "-E", "UTF8",
-                  "--locale=C"])
+    _run(
+        prefix,
+        [str(bin_dir / "initdb"), "-D", data, "-U", "opagent", "-A", "trust", "--no-sync", "-E", "UTF8", "--locale=C"],
+    )
     port = _free_port()
-    opts = f"-p {port} -k {base_dir} -c listen_addresses=127.0.0.1 -c fsync=off -c synchronous_commit=off -c full_page_writes=off"
+    opts = (
+        f"-p {port} -k {base_dir} -c listen_addresses=127.0.0.1 "
+        "-c fsync=off -c synchronous_commit=off -c full_page_writes=off"
+    )
     _run(prefix, [str(bin_dir / "pg_ctl"), "-D", data, "-o", opts, "-l", str(Path(base_dir) / "pg.log"), "-w", "start"])
-    cluster = PgCluster(host="127.0.0.1", port=port, user="opagent", template="opagent_tmpl", data_dir=data,
-                        bin_dir=str(bin_dir), _prefix=prefix)
+    cluster = PgCluster(
+        host="127.0.0.1",
+        port=port,
+        user="opagent",
+        template="opagent_tmpl",
+        data_dir=data,
+        bin_dir=str(bin_dir),
+        _prefix=prefix,
+    )
     with psycopg.connect(cluster.dsn("postgres"), autocommit=True) as c:
         c.execute("CREATE DATABASE opagent_tmpl")
     if init_schema is not None:
@@ -106,5 +118,8 @@ def drop(cluster: PgCluster, db: ClonedDb) -> None:
 
 
 def stop_cluster(cluster: PgCluster) -> None:
-    subprocess.run(cluster._prefix + [str(Path(cluster.bin_dir) / "pg_ctl"), "-D", cluster.data_dir, "-m", "immediate",
-                                      "stop"], check=False, capture_output=True)
+    subprocess.run(
+        [*cluster._prefix, str(Path(cluster.bin_dir) / "pg_ctl"), "-D", cluster.data_dir, "-m", "immediate", "stop"],
+        check=False,
+        capture_output=True,
+    )

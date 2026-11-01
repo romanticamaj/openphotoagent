@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from opagent_inference.types import BatchRequest, ImageInput, InferenceBackend, LoadOptions, ModelUnavailable
 
 from .backends import FACTORIES
