@@ -972,6 +972,10 @@ stateDiagram-v2
   waiting --> running
   queued --> running
   running --> waiting: 執行中失去依賴（Worker 斷線、磁碟滿 auto-pause）
+  waiting --> pausing: 使用者暫停，Worker 仍持有 lease（ADR-0004）
+  waiting --> cancelling: 使用者取消，Worker 仍持有 lease（ADR-0004）
+  waiting --> paused: 使用者暫停，沒有 lease（ADR-0004）
+  waiting --> cancelled: 使用者取消，沒有 lease（ADR-0004）
   running --> pausing --> paused
   paused --> queued: 繼續
   running --> cancelling --> cancelled
@@ -985,6 +989,7 @@ stateDiagram-v2
   interrupted --> cancelled: 捨棄
 ```
 
+- **等待中也能暫停／取消（ADR-0004）**：Worker 持有 lease 時（例如下載退避重試中）走 `pausing`／`cancelling`，由 Worker 確認後才到 `paused`／`cancelled`，確保「已取消」代表工作真的停了（下載的 `.part` 由 Worker 刪除）；沒有 lease 時（例如 WORKER_OFFLINE、尚未被 lease）直接到 `paused`／`cancelled`。從 `waiting` 暫停時，`waiting_reason` 改為 `PAUSED_BY_USER`。下載退避期間 Operation 顯示 `waiting: NET_UNREACHABLE`，並每秒回報一次，讓控制通道在 2 秒內送達。
 - `pausing`／`cancelling` 是可見的狀態，附上預估：「取消中…等目前批次完成（約 4 秒）· 立即中止」。immediate 模式會中止當前 batch 並歸還 lease（02 §4.3）。
 - 暫停時，如果要丟棄的進度超過 1 分鐘，會先確認：「立即中止會丟掉目前這批 16 張的結果（約 5 秒工作量）」。
 

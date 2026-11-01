@@ -473,6 +473,7 @@
 | DL-020 | onboarding 下載順序 | 推薦組合含 SigLIP2 + VLM | SigLIP2 排第一；完成後立即開始建索引，以文搜圖在 VLM 完成前可用 | I/E | DoD 5.2 |
 | DL-021 | 限速 | 設定 20 MB/s | 10 秒平均 ∈ [18, 22] MB/s | I | — |
 | DL-022 | 優先下載 | 佇列第 2 位按「優先下載」 | 目前下載暫停（保留斷點），被提升者開始 | I | — |
+| DL-023 | 退避中取消（ADR-0004） | 來源連線被拒，下載在退避重試中（`waiting: NET_UNREACHABLE`）→ 取消 | Operation 顯示 `waiting` + NET_UNREACHABLE 問題卡（retry／鏡像／代理）；取消後 ≤ 2 s 到 `cancelled`；不再對來源發出請求；`.part` 已刪除 | I | #24、#32 |
 
 ### 7.3 DOC：Environment Doctor（`hw:<profile>` 探針注入，09 §3.4）
 
@@ -630,6 +631,7 @@
 | OP-015 | 完成回寫觀測 | Operation 成功 | 寫 `perf_observation`（吞吐、載入時間、頻寬）與 `eta_calibration(actual/predicted_p50)` | I | #30 |
 | OP-016 | 同 lane 重新排序 | `POST /operations/reorder` | 只在同 worker × lane 生效；跨 lane 回 400 | I | — |
 | OP-017 | 等待原因目錄 | 參數化 13 個 code：QUEUED_BEHIND、WAITING_GPU_SLOT、WAITING_MODEL_DOWNLOAD、WAITING_MODEL_LOAD、WORKER_OFFLINE、DISK_INSUFFICIENT_*、NET_UNREACHABLE、PAUSED_BY_USER、PAUSED_ERROR_RATE、PAUSED_ON_BATTERY、PAUSED_GPU_CONTENDED、PAUSED_NOT_IDLE、SOURCE_OFFLINE | 每個都有 zh-TW/en 顯示文字與 CTA；`status=waiting` 或自動 paused 時 `waiting_reason` 必填（schema 驗證） | C/E | #32、DoD 5.2 |
+| OP-018 | 等待中暫停／取消（ADR-0004，回歸） | `waiting` 的 Operation：(a) Worker 持有 lease；(b) 沒有 lease | (a) 暫停 → `pausing`、取消 → `cancelling`，Worker 確認後才到 `paused`／`cancelled`；(b) 直接到 `paused`（`waiting_reason=PAUSED_BY_USER`）／`cancelled`；兩者狀態都真的改變 | I | #32、#47 |
 
 ### 9.2 ETA：估算（FakeClock 驅動，06 §2.3、§5.5）
 

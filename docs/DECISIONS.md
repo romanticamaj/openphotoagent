@@ -73,3 +73,18 @@
 **理由**：符合規格原意（6 處提及 Storybook），提供設計系統文件與 a11y addon，stories 不進產品 bundle；(B) 需自建 story 列舉、主題／語系切換與隔離渲染，且測試碼留在產品原始碼樹。兩者測試強度相同，關鍵在執行方式。
 
 **影響的測試 ID**：VIS-001、VIS-003、PF-080 的文字與門檻不變（不弱化）。**同步修改的規格**：04 §5.2（Storybook 8 → 10）、09 §2 測試層表（test-runner → addon-vitest + Playwright）。
+
+
+## ADR-0004：等待中的 Operation 可以暫停與取消
+
+- 日期：2026-11-01｜狀態：已採納｜審議：1 個獨立 sub-agent（題目、06 §2.9／§5.2／§5.3、DL-005、CORE-SM-006、OP-011／012／017、相關程式位置）
+
+**背景**：06 §5.3 狀態圖中 `waiting` 只能轉到 `running`。實作 onboarding 離線情境時發現：下載退避重試（06 §2.9，2／8／30／120／300 秒）期間 Operation 應顯示 `waiting: NET_UNREACHABLE`，但使用者按取消或暫停時沒有合法轉移；API 照常回應，狀態卻不變（審議中確認為現存 bug）。
+
+**選項**：(A) 新增 `waiting→pausing／cancelling`（Worker 持有 lease 時，由 Worker 確認），與 `waiting→paused／cancelled`（沒有 lease 時）；(B) 一律由控制平面直接轉為 `paused／cancelled`；(C) 維持狀態圖，等待中隱藏取消鈕。
+
+**決定**：採用 (A)，並以「是否持有 lease」判斷，而不是依 `waiting_reason` 列舉。從 `waiting` 暫停時 `waiting_reason` 改為 `PAUSED_BY_USER`。下載退避期間每秒回報一次 waiting 心跳，讓控制通道在 2 秒內送達；退避的等待本身可被取消中斷。
+
+**理由**：只有 Worker 能真正停止工作並刪除 `.part`（不變量 1、DL-005）；(B) 可能讓 Worker 從退避醒來後又對已取消的操作發出請求，破壞「已取消＝真的停了」。(C) 違反不變量 8（停用必附理由與修復）與 06 §5.2「所有類型可取消」，且可能把使用者卡住 5 分鐘。
+
+**影響的測試 ID**：CORE-SM-006 的合法轉移表依新狀態圖加入 4 條邊（其餘非法轉移不變，`waiting→succeeded／failed` 仍非法）；新增 OP-018（回歸）、DL-023。**同步修改的規格**：06 §5.3 狀態圖與說明、09a（DL-023、OP-018）。
