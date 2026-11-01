@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 from opagent_testing.clock import AutoClock
-from opagent_worker.downloads import CancelToken, DlFile, Downloader, DownloadError
 from opagent_testing.hfserver import HfFile, HfServer
+from opagent_worker.downloads import CancelToken, DlFile, Downloader, DownloadError
 
 REPO = "org/model"
 MB = 1024 * 1024
@@ -185,7 +185,9 @@ def test_dl_008_429_honours_retry_after_and_reduces_segments(server, tmp_path):
 
 @pytest.mark.integration
 @pytest.mark.tc("DL-009")
-@pytest.mark.parametrize("scenario,code", [("401", "HF_AUTH_REQUIRED"), ("403-gated", "HF_GATED_ACCESS_PENDING"), ("404", "DL_NOT_FOUND")])
+@pytest.mark.parametrize(
+    "scenario,code", [("401", "HF_AUTH_REQUIRED"), ("403-gated", "HF_GATED_ACCESS_PENDING"), ("404", "DL_NOT_FOUND")]
+)
 def test_dl_009_permanent_http_errors(server, tmp_path, scenario, code):
     srv = server([HfFile("w.onnx", 1000)], scenario=scenario)
     clk = AutoClock()
@@ -247,7 +249,10 @@ def test_dl_013_part_json_tracks_each_segment(server, tmp_path):
     segs = meta["segments"]
     assert len(segs) == 4 and sum(s["written"] for s in segs) == meta["written"]
     assert all(0 <= s["written"] <= s["end"] - s["start"] + 1 for s in segs)
-    assert run(mk(srv, tmp_path, segment_threshold=MB, segments=4).download("op13b", files_for(srv), CancelToken())).status == "done"
+    assert (
+        run(mk(srv, tmp_path, segment_threshold=MB, segments=4).download("op13b", files_for(srv), CancelToken())).status
+        == "done"
+    )
 
 
 @pytest.mark.integration
@@ -258,7 +263,9 @@ def test_dl_015_switches_to_mirror_after_3_failures(server, tmp_path):
     mirror = server(files)
     primary._count["5xx"] = -10  # keep failing
     clk = AutoClock()
-    d = Downloader(Path(tmp_path), sources=[primary.url, mirror.url], reserve_floor=0, disk_free=Disk(10**12), clock=clk)
+    d = Downloader(
+        Path(tmp_path), sources=[primary.url, mirror.url], reserve_floor=0, disk_free=Disk(10**12), clock=clk
+    )
     res = run(d.download("op15", files_for(primary), CancelToken()))
     assert res.status == "done"
     assert any(w.startswith("DL_SOURCE_SWITCHED") or w == "DL_SOURCE_SWITCHED" for w in res.warnings)

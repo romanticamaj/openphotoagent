@@ -27,7 +27,7 @@ class HfFile:
     seed: int = 0
 
     def content(self) -> bytes:
-        return random.Random(f"{self.path}:{self.seed}").randbytes(self.size)
+        return random.Random(f"{self.path}:{self.seed}").randbytes(self.size)  # noqa: S311 - seeded test bytes
 
     @property
     def sha256(self) -> str:
@@ -97,7 +97,7 @@ class HfServer:
                     srv.max_active = max(srv.max_active, srv._active)
                 try:
                     self._route(rec)
-                except (BrokenPipeError, ConnectionResetError, socket.timeout):
+                except (TimeoutError, BrokenPipeError, ConnectionResetError):
                     rec["aborted"] = True
                 finally:
                     rec["closed"] = time.monotonic()
