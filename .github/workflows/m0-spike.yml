@@ -1,0 +1,57 @@
+name: m0-spike
+# Manual: runs the M0 experiments that work on hosted runners (docs/09 §6) and uploads results.
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  hosted:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest, macos-14]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Install PostgreSQL (17)
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            sudo apt-get update && sudo apt-get install -y postgresql-common
+            sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+            sudo apt-get install -y postgresql-17 postgresql-17-pgvector
+            echo "OPAGENT_PG_BIN=/usr/lib/postgresql/17/bin" >> $GITHUB_ENV
+          elif [ "$RUNNER_OS" = "macOS" ]; then
+            brew install postgresql@17
+            echo "OPAGENT_PG_BIN=$(brew --prefix postgresql@17)/bin" >> $GITHUB_ENV
+          else
+            echo "OPAGENT_PG_BIN=$PGBIN" >> $GITHUB_ENV
+          fi
+      - name: M0-S1a embedded PG start
+        env: { OPAGENT_M0_MACHINE: "gha-${{ matrix.os }}" }
+        run: uv run --no-project python spikes/m0/S1a/run.py --runs 50
+      - name: M0-T1 (a) template clone
+        env: { OPAGENT_M0_MACHINE: "gha-${{ matrix.os }}" }
+        run: uv run --no-project python spikes/m0/T1/run.py --clones 100
+      - name: M0-T1 (c) Windows FS feasibility
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: ./spikes/m0/T1/c_windows.ps1
+      - name: Rename results per OS
+        shell: bash
+        run: |
+          mkdir -p out && for f in spikes/m0/results/M0-S1a.json spikes/m0/results/M0-T1.json spikes/m0/results/M0-T1c.json; do
+            [ -f "$f" ] && cp "$f" "out/$(basename $f .json)-${{ matrix.os }}.json"; done
+      - uses: actions/upload-artifact@v4
+        with: { name: "m0-${{ matrix.os }}", path: out/ }
+  summarize:
+    needs: hosted
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { path: dl }
+      - run: |
+          cp dl/*/*.json spikes/m0/results/ || true
+          python3 spikes/m0/summarize.py >> "$GITHUB_STEP_SUMMARY"

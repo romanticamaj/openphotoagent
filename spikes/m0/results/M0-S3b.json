@@ -1,0 +1,10 @@
+{
+  "id": "M0-S3b",
+  "status": "pending-hardware",
+  "machine": {
+    "hostname_label": "not-run"
+  },
+  "metrics": {},
+  "pass": null,
+  "notes": "Key-order comparison runs with S3 on the reference machine."
+}

@@ -1,0 +1,29 @@
+{
+  "id": "M0-S1b",
+  "status": "partial",
+  "machine": {
+    "hostname_label": "unlabeled",
+    "os": "Linux",
+    "os_release": "6.18.44-fc-v185",
+    "arch": "x86_64",
+    "python": "3.13.18",
+    "cpu_count": 4,
+    "mem_total_kb": 16477352
+  },
+  "metrics": {
+    "target": "postgres",
+    "kills": 20,
+    "recovery_s": {
+      "n": 20,
+      "min": 1.478281149000054,
+      "p50": 1.5130984754999872,
+      "p95": 1.5551694791999753,
+      "max": 1.7859990009999365,
+      "mean": 1.5246005404499954
+    },
+    "committed_rows": 1000,
+    "lost_rows": 0
+  },
+  "pass": null,
+  "notes": "postgres-only kill -9 + restart on Linux (recovery time includes 0.2 s child-exit wait). api/worker/llama-server under the Tauri supervisor and Windows/macOS: pending-hardware/pending slice 11."
+}

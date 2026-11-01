@@ -149,6 +149,7 @@ just dev            # all-in-one 開發模式（api + worker + PG + web）
 - **雲端 session 沒有 GPU、Windows 或 macOS。** 推論一律使用 `FakeInferenceBackend`（決定性輸出，可注入 OOM／timeout／parse error），硬體則用 `fixtures/hw/*.yaml` 的探針 profile 模擬，例如 5070 Ti、M2 16GB、無 GPU、驅動過舊。
 - **真模型與真硬體的測試**只在 nightly GPU runner 或使用者本機（RTX 5070 Ti 16GB, Windows 11）執行。需要硬體的 M0 實驗見 09 §6：S1 嵌入式 PG（Windows／Defender）、S3 llama.cpp Qwen3-VL 結構化輸出、S4 SigLIP2 ONNX、S7 tool-calling、V7 ETA 涵蓋率。**不要捏造實驗結果。** 沒有硬體可跑的實驗，在 `spikes/m0/results/` 標為 `pending-hardware`，並寫好可直接執行的腳本與說明。
 - macOS／Windows 安裝包的建置與簽章由 GitHub Actions matrix 負責，本地無法驗證時以 CI 結果為準。
+- 雲端網路政策：Hugging Face、PGDG apt、GitHub release 下載被擋；PyPI、npm、crates.io、GitHub git 協定可用。雲端只有 Ubuntu 的 **PG 16 + pgvector 0.6**（`apt install postgresql-16-pgvector`），整合測試的 `embedded_pg` 以 `OPAGENT_PG_BIN` 找二進位；CI 用 PG 17。程式碼不得使用 PG 17 專屬語法。`just` 以 `uv tool install rust-just` 安裝。
 - 這個雲端 session 不能 push tag、建立 Release 或觸發 workflow。發版走 release-please（合併 Release PR）；需要手動操作時，請使用者處理。
 
 ---
@@ -179,6 +180,7 @@ just dev            # all-in-one 開發模式（api + worker + PG + web）
 | 日期 | 切片 | 狀態 | 備註 |
 |---|---|---|---|
 | 2026-11-01 | 規劃 | ✅ | 規格 00–11、測試 840 條、v0.0.1 |
+| 2026-11-01 | M0-cloud（`spike/m0`） | ✅ | W-1～W-6 回寫；17 個結果檔（S1a/S1b/T1a/V8 實測、S2/S4-pipeline/S5 部分、其餘 pending-hardware）；`docs/research/m0-results.md`、`docs/BLOCKERS.md`、`docs/DECISIONS.md` |
 
 ### 仍待決定／待驗證（可用 sub-agent 討論的依 §5.8 處理；屬於使用者本人決定的記到 `docs/BLOCKERS.md`）
 - 人臉測試影像的授權來源（09 Q-T1）；中文日期表達的精確範圍，例如「過年」（Q-T5）。

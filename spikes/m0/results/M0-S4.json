@@ -1,0 +1,10 @@
+{
+  "id": "M0-S4",
+  "status": "pending-hardware",
+  "machine": {
+    "hostname_label": "not-run"
+  },
+  "metrics": {},
+  "pass": null,
+  "notes": "Real SigLIP2 so400m weights unavailable in cloud (huggingface.co 403). Export/compare pipeline validated on a random-init tiny model: see M0-S4-pipeline.json."
+}
