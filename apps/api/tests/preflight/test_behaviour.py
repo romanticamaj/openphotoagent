@@ -133,9 +133,11 @@ def test_pf_075_cached_preflight_p95(env):
     first = env.preflight("job.start", params)
     durs = []
     for _ in range(1000):
-        t0 = time.perf_counter()  # noqa: TID251 - measuring a latency budget
-        env.client.post("/api/v1/preflight", json={"action": "job.start", "params": params, "fingerprint": first["fingerprint"]})
-        durs.append(time.perf_counter() - t0)  # noqa: TID251
+        t0 = time.perf_counter()
+        env.client.post(
+            "/api/v1/preflight", json={"action": "job.start", "params": params, "fingerprint": first["fingerprint"]}
+        )
+        durs.append(time.perf_counter() - t0)
     p95 = statistics.quantiles(durs, n=100)[94]
     assert p95 < 0.050, p95
 
@@ -144,7 +146,9 @@ def test_pf_075_cached_preflight_p95(env):
 @pytest.mark.tc("PF-076")
 def test_pf_076_worker_rpc_gate_timeout(env):
     env.worker()  # registered but its agent loop is not running: the readability RPC never answers
-    pf = env.client.post("/api/v1/preflight", json={"action": "scan", "params": {"source_id": env.source(), "probe": True}}).json()
+    pf = env.client.post(
+        "/api/v1/preflight", json={"action": "scan", "params": {"source_id": env.source(), "probe": True}}
+    ).json()
     gate = next(g for g in pf["gates"] if g["id"] == "source_readable")
     assert gate["status"] == "unknown" and gate["after_s"] == 2
     assert [f["type"] for f in gate["fixes"]] == ["retry"]

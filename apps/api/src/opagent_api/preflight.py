@@ -44,6 +44,7 @@ DOWNLOAD_FAILURE_CODES = {
     "DL_REMOTE_CHANGED",
     "DL_MIRROR_FAILED",
 }
+RPC_TIMEOUT_S = 2.0
 COMPAT_WARNINGS = {"VRAM_SEQUENTIAL", "VRAM_OFFLOAD", "PERF_CPU_ONLY_SLOW"}
 
 
@@ -334,6 +335,8 @@ class Pre:
         alias = s.root_alias if s is not None else self.p.get("root_alias")
         if alias is None or not self._root_status(str(alias)):
             return
+        if self.p.get("probe"):
+            self._probe_readable(str(alias), s.sub_path if s is not None else "")
         if s is not None:
             files = int(self._last_scan(s.id).get("files") or 0)
             disk = self.caps.get("disk_free") or (self.w.disk_free or {})
@@ -343,6 +346,53 @@ class Pre:
                 self.add("DISK_INSUFFICIENT_THUMBS", {"req": need, "free": free}, "disk")
             elif free is not None and total and (free - need) / total < 0.10:
                 self.add("DISK_LOW_THUMBS", {"free": free, "pct": 10}, "disk")
+
+    def _probe_readable(self, alias: str, sub: str) -> None:
+        """Live gate via a Worker RPC; after 2 s without an answer the gate is ``unknown`` with a retry (PF-076)."""
+        import time
+        import uuid
+
+        tid = "rpc-" + uuid.uuid4().hex[:12]
+        with self.st.engine.begin() as c2:
+            c2.execute(
+                worker_task.insert().values(
+                    id=tid,
+                    kind="probe_root",
+                    lane="interactive",
+                    worker_id=self.w.id,
+                    payload={"root_alias": alias, "sub_path": sub},
+                )
+            )
+        deadline = time.monotonic() + RPC_TIMEOUT_S  # noqa: TID251 - waits on a real worker over the wire
+        res = None
+        while time.monotonic() < deadline:  # noqa: TID251
+            with self.st.engine.begin() as c2:
+                row = c2.execute(
+                    select(worker_task.c.status, worker_task.c.result).where(worker_task.c.id == tid)
+                ).first()
+            if row is not None and row.status in ("done", "failed"):
+                res = row.result or {}
+                break
+            time.sleep(0.05)  # noqa: TID251
+        if res is None:
+            with self.st.engine.begin() as c2:  # nobody will read a late answer
+                c2.execute(worker_task.delete().where(worker_task.c.id == tid, worker_task.c.status == "pending"))
+            self.gates.append(
+                {
+                    "id": "source_readable",
+                    "status": "unknown",
+                    "after_s": int(RPC_TIMEOUT_S),
+                    "fixes": [{"id": "retry", "type": "retry", "primary": True, "label_key": "fix.retry"}],
+                }
+            )
+            return
+        state = res.get("state", "ok")
+        if state in ("EPERM", "EACCES"):
+            self.add("FS_PERMISSION_DENIED", {"path": alias}, "source_readable")
+        elif state == "ENOENT":
+            self.add("FS_ROOT_UNAVAILABLE", {"root": alias}, "source_readable")
+        else:
+            self.gates.append({"id": "source_readable", "status": "ok"})
 
     def model_download(self) -> None:
         key = str(self.p.get("variant") or "")

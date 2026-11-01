@@ -490,6 +490,19 @@ class WorkerAgent:
             "waiting_reason": res.waiting_reason,
         }
 
+    def _do_probe_root(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """Preflight RPC: can this source be read right now? (first 10 entries, 06 §3.3 fs.roots)"""
+        try:
+            sp = self.sb.resolve(p["root_alias"], p.get("sub_path") or "")
+            with os.scandir(sp.real) as it:
+                for _i, _e in zip(range(10), it, strict=False):
+                    pass
+            return {"state": "ok"}
+        except PermissionError:
+            return {"state": "EACCES"}
+        except (FileNotFoundError, RootUnavailable):
+            return {"state": "ENOENT"}
+
     def _do_fix(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         """Whitelisted auto-fixes executed on this machine (06 §3.6). Desktop-shell actions (open a system settings
         panel, switch the API port) are forwarded to the shell, which owns those capabilities."""
