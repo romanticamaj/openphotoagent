@@ -33,6 +33,7 @@ class WorkerAgent:
         roots: list[dict[str, str]],
         home: Path,
         backend: Any = None,
+        embedder: Any = None,
         worker_id: str | None = None,
         name: str = "local",
         clock: Any = None,
