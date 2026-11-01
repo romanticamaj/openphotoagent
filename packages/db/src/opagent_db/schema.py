@@ -139,6 +139,19 @@ worker_task = Table(
     Column("result", JSONB),
     _ts("created_at", server_default=func.now()),
 )
+journal_mirror = Table(  # CP mirror of the worker-local journal (02 §3.2 journal_entry); worker copy wins
+    "journal_mirror", metadata,
+    Column("id", BigInteger, primary_key=True, autoincrement=True),
+    Column("worker_id", Text, nullable=False),
+    Column("plan_id", Text, nullable=False),
+    Column("seq", BigInteger, nullable=False),
+    Column("action_id", Text, nullable=False),
+    Column("op", Text, nullable=False),
+    Column("phase", Text, nullable=False),
+    Column("args", JSONB, nullable=False),
+    Column("pre_state", JSONB, nullable=False),
+    Column("post_state", JSONB),
+)
 event = Table(
     "event",
     metadata,
