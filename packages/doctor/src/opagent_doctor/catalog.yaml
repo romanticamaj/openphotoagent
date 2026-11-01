@@ -489,3 +489,15 @@ WSL_GPU_UNAVAILABLE:
     type: choose_alternative
   severity: blocker
   transient: false
+PACK_CHECKSUM_MISMATCH:
+  fixes:
+  - target: other_mirror
+    type: retry
+  severity: blocker
+  transient: false
+PACK_UNSAFE_ARCHIVE:
+  fixes:
+  - target: report-issue
+    type: open_docs
+  severity: blocker
+  transient: false

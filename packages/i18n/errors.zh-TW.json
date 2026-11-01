@@ -287,6 +287,12 @@
     "severity": "B",
     "title": "輸出位置位於來源資料夾內"
   },
+  "PACK_CHECKSUM_MISMATCH": {
+    "cta": "重試（換來源）",
+    "message": "「{pack}」執行套件檔案的雜湊與簽章索引不符，已拒絕並清除暫存",
+    "severity": "B",
+    "title": "「{pack}」執行套件檔案的雜湊與簽章索引不符"
+  },
   "PACK_INCOMPATIBLE": {
     "cta": "安裝相容版本 {locked}",
     "message": "「{pack}」版本 {v} 與此 app 不相容（需要 pack_api {range}）",
@@ -298,6 +304,12 @@
     "message": "「{pack}」執行套件的簽章驗證失敗，已拒絕安裝",
     "severity": "B",
     "title": "「{pack}」執行套件的簽章驗證失敗"
+  },
+  "PACK_UNSAFE_ARCHIVE": {
+    "cta": "回報問題",
+    "message": "「{pack}」執行套件內容不安全（{reason}），已拒絕安裝",
+    "severity": "B",
+    "title": "「{pack}」執行套件內容不安全（{reason}）"
   },
   "PERF_CPU_ONLY_SLOW": {
     "cta": "改用外部 endpoint（仍要繼續）",

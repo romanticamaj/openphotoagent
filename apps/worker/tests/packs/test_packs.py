@@ -2,10 +2,12 @@ import json
 
 import pytest
 from opagent_testing.packserver import PackServer, TestKey
-
 from opagent_worker.packs import PackError, PackInstaller, smoke_fallback
 
-ENTRIES = [{"name": "bin/llama-server", "data": b"#!/bin/sh\necho version b7001\n"}, {"name": "LICENSE", "data": b"MIT"}]
+ENTRIES = [
+    {"name": "bin/llama-server", "data": b"#!/bin/sh\necho version b7001\n"},
+    {"name": "LICENSE", "data": b"MIT"},
+]
 
 
 @pytest.fixture
@@ -18,7 +20,9 @@ def srv(tmp_path):
 def inst(srv, tmp_path, **kw):
     kw.setdefault("lock", {"llamacpp-cpu": {"pack_api": [1]}})
     kw.setdefault("self_test", lambda d: (d / "bin/llama-server").exists())
-    return PackInstaller(tmp_path / "packs", public_key=srv.key.public_minisign(), index_url=srv.url + "/packs-index.json", **kw)
+    return PackInstaller(
+        tmp_path / "packs", public_key=srv.key.public_minisign(), index_url=srv.url + "/packs-index.json", **kw
+    )
 
 
 def files_outside(root, allowed):
@@ -88,10 +92,10 @@ def test_pack_004_tar_traversal(srv, tmp_path, entries):
 @pytest.mark.parametrize("kind", ["extra_file", "bomb"])
 def test_pack_005_size_and_manifest(srv, tmp_path, kind):
     if kind == "extra_file":
-        p = srv.add("llamacpp-cpu", "b7001-1", ENTRIES + [{"name": "extra.so", "data": b"1"}])
+        p = srv.add("llamacpp-cpu", "b7001-1", [*ENTRIES, {"name": "extra.so", "data": b"1"}])
         p["files_manifest"] = [m for m in p["files_manifest"] if m["path"] != "extra.so"]
     else:
-        p = srv.add("llamacpp-cpu", "b7001-1", ENTRIES + [{"name": "zeros.bin", "data": b"\0" * 2_000_000}])
+        p = srv.add("llamacpp-cpu", "b7001-1", [*ENTRIES, {"name": "zeros.bin", "data": b"\0" * 2_000_000}])
         p["unpacked_size"] = 1000
     srv.publish()
     with pytest.raises(PackError) as e:
@@ -193,4 +197,3 @@ def test_pack_011_smoke_fallback():
     assert res.chosen == "llamacpp-cpu"
     assert [r["pack"] for r in res.failures] == ["llamacpp-cuda13", "llamacpp-vulkan"]
     assert all(r["code"] == "RUNTIME_PACK_BROKEN" for r in res.failures)
-

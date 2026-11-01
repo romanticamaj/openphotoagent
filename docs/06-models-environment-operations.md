@@ -877,6 +877,8 @@ Fix 共有欄位：`fix_id`、`type`、`label`、`primary`、`requires_permissio
 | 67 | `DL_MIRROR_FAILED` | B／T | 鏡像 {mirror} 無法下載，已改回官方來源 | 重試（更換鏡像） | Retry (change mirror) |
 | 68 | `VRAM_OFFLOAD` | W | VRAM 不足以全部放進 GPU，{model} 部分層改在 CPU 執行（約慢 {pct}%） | 改用較小模型（仍要繼續） | Use smaller model (continue anyway) |
 | 69 | `MODEL_NOT_PINNED` | B | 這個 variant 尚未完成雜湊釘選，為了安全暫不提供下載 | 更新模型目錄／改用其他 variant | Update model catalog / Use another variant |
+| 70 | `PACK_CHECKSUM_MISMATCH` | B | 「{pack}」執行套件檔案的雜湊與簽章索引不符，已拒絕並清除暫存 | 重試（換來源） | Retry (other source) |
+| 71 | `PACK_UNSAFE_ARCHIVE` | B | 「{pack}」執行套件內容不安全（{reason}），已拒絕安裝 | 回報問題 | Report the problem |
 
 > （回寫 W-1，09 §9）#63–#68 由 09 的 PF-063～PF-066 與 OUT-EXE-016 提出；08 §10 的 `PACK_MISSING`、`DRIVER_TOO_OLD` 分別對應本表的 `RUNTIME_PACK_MISSING`、`GPU_DRIVER_TOO_OLD`。
 

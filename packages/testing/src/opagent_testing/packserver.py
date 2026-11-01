@@ -88,7 +88,15 @@ class PackServer:
         root.mkdir(parents=True, exist_ok=True)
         self._httpd: ThreadingHTTPServer | None = None
 
-    def add(self, pid: str, version: str, entries: list[dict[str, Any]], pack_api: int = 1, numerics_epoch: int = 3, **over: Any) -> dict[str, Any]:
+    def add(
+        self,
+        pid: str,
+        version: str,
+        entries: list[dict[str, Any]],
+        pack_api: int = 1,
+        numerics_epoch: int = 3,
+        **over: Any,
+    ) -> dict[str, Any]:
         blob = build_tar(entries)
         name = f"{pid}-{version}.tar.zst"
         (self.root / name).write_bytes(blob)
@@ -111,7 +119,9 @@ class PackServer:
         return p
 
     def publish(self, tamper: bool = False) -> None:
-        idx = json.dumps({"schema_version": 1, "packs": [{**p, "url": p["url"].replace("{base}", self.url)} for p in self.packs]}).encode()
+        idx = json.dumps(
+            {"schema_version": 1, "packs": [{**p, "url": p["url"].replace("{base}", self.url)} for p in self.packs]}
+        ).encode()
         sig = self.key.sign(idx)
         if tamper:
             idx = idx[:-2] + (b"X" if idx[-2:-1] != b"X" else b"Y") + idx[-1:]

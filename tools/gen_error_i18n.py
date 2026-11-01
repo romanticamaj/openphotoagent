@@ -85,6 +85,8 @@ EN = {
     "DL_MIRROR_FAILED": "The mirror {mirror} failed; switched back to the official source",
     "VRAM_OFFLOAD": "Not enough VRAM to fit {model} on the GPU; some layers run on the CPU (about {pct}% slower)",
     "MODEL_NOT_PINNED": "This variant has not been hash-pinned yet, so it cannot be downloaded safely",
+    "PACK_CHECKSUM_MISMATCH": "The “{pack}” runtime pack file does not match the signed index; it was rejected and the staging area cleaned",
+    "PACK_UNSAFE_ARCHIVE": "The “{pack}” runtime pack contents are unsafe ({reason}); installation was refused",
 }
 
 ROW = re.compile(r"^\| (\d+) \| `([A-Z_]+)` \| ([^|]+) \| ([^|]+) \| ([^|]+) \| ([^|]+) \|$")

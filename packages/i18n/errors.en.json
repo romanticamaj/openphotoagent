@@ -287,6 +287,12 @@
     "severity": "B",
     "title": "The output folder is inside the source folder, which would process files twice"
   },
+  "PACK_CHECKSUM_MISMATCH": {
+    "cta": "Retry (other source)",
+    "message": "The “{pack}” runtime pack file does not match the signed index; it was rejected and the staging area cleaned",
+    "severity": "B",
+    "title": "The “{pack}” runtime pack file does not match the signed index"
+  },
   "PACK_INCOMPATIBLE": {
     "cta": "Install compatible version {locked}",
     "message": "“{pack}” version {v} is not compatible with this app (needs pack_api {range})",
@@ -298,6 +304,12 @@
     "message": "The signature of the “{pack}” runtime pack is invalid; installation was refused",
     "severity": "B",
     "title": "The signature of the “{pack}” runtime pack is invalid"
+  },
+  "PACK_UNSAFE_ARCHIVE": {
+    "cta": "Report the problem",
+    "message": "The “{pack}” runtime pack contents are unsafe ({reason}); installation was refused",
+    "severity": "B",
+    "title": "The “{pack}” runtime pack contents are unsafe ({reason})"
   },
   "PERF_CPU_ONLY_SLOW": {
     "cta": "Use external endpoint (continue anyway)",
