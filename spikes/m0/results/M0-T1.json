@@ -1,0 +1,29 @@
+{
+  "id": "M0-T1",
+  "status": "partial",
+  "machine": {
+    "hostname_label": "unlabeled",
+    "os": "Linux",
+    "os_release": "6.18.44-fc-v185",
+    "arch": "x86_64",
+    "python": "3.13.18",
+    "cpu_count": 4,
+    "mem_total_kb": 16477352
+  },
+  "metrics": {
+    "a_template_clone_ms": {
+      "n": 100,
+      "min": 22.980087999940224,
+      "p50": 27.32943000000887,
+      "p95": 39.470333849959616,
+      "max": 48.54819199999838,
+      "mean": 29.736438169996973
+    },
+    "a_note": "includes psql client spawn per call (upper bound); 30-table schema; fsync=off as in test profile",
+    "b_tiny_models": "pending: huggingface.co blocked by cloud network policy; candidates listed in README",
+    "c_windows_fs": "pending-hardware: run c_windows.ps1 on windows-latest runner",
+    "d_playwright_desktop_mock": "pending-implementation: verified by e2e-smoke once apps/web exists"
+  },
+  "pass": null,
+  "notes": "(a) measured on Linux; macOS/Windows runners pending (run via m0-spike.yml)."
+}

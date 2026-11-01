@@ -19,6 +19,8 @@
 
 ## 1. 功能覆蓋矩陣
 
+> （回寫 W-5，09 §9）每個能力的驗收標準對應的測試 ID 與目前狀態（未開始／紅／綠／部分），見自動產生的 [`docs/generated/coverage-status.md`](generated/coverage-status.md)（由 `just tc-status` 更新）。
+
 ### 1.1 交付形態與平台
 
 | # | 能力 | 規格位置 | 深度 | 版本 | 驗收標準（可測） |

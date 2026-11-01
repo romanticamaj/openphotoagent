@@ -258,7 +258,7 @@ erDiagram
 | `pipeline` | id, workspace_id, name, current_revision_id |
 | `pipeline_revision` | id, pipeline_id, rev_no, spec(jsonb 完整快照), spec_hash, created_by — **不可變**，Job 綁 revision |
 | `task_config` | id, revision_id, step_no, task_type(`caption/tag/classify/embed`), model_version_id, prompt_template_ref, generation_params(jsonb), label_set_id, thresholds(jsonb：accept/review/reject), structured_output_schema(jsonb), run_if(jsonb 條件，如「前一步 confidence < 0.6」), **config_hash** |
-| `output_rule` | id, revision_id, priority, when(jsonb 條件 DSL), action(`copy/move/symlink/hardlink/sidecar_xmp/sidecar_json/csv_export/none`), target_id, path_template（如 `{category}/{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}`）, conflict_policy(`skip/rename/overwrite_if_same_hash/fail`), require_reviewed(bool) |
+| `output_rule` | id, revision_id, priority, when(jsonb 條件 DSL), action(`copy/move/trash/symlink/hardlink/sidecar_xmp/sidecar_json/csv_export/none`；`trash` 為 v0.2，移到 `.opagent-trash/`、可 undo，11 D-2), target_id, path_template（如 `{category}/{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}`；（回寫 W-2）UI 別名 `{date:YYYY}`、`{date:YYYY-MM}`、`{date:MM}`、`{date:DD}` 等同 `{taken_at:%Y}` 等 strftime 形式；`{category}` 渲染**顯示名稱**、`{category_key}` 渲染穩定 key）, conflict_policy(`skip/rename/overwrite_if_same_hash/fail`), require_reviewed(bool) |
 
 `task_config` 範例（片段）：
 

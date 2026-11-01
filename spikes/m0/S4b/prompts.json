@@ -1,0 +1,30 @@
+{
+  "zh": {
+    "people": "人像：一個或多個人物的照片",
+    "pets": "寵物：貓、狗等家中寵物",
+    "food": "美食：餐點、飲料、甜點",
+    "landscape": "風景：山、海、天空等自然景觀",
+    "city": "城市：街道、建築、夜景",
+    "documents": "文件：收據、表單、紙本文件、白板",
+    "screenshots": "截圖：手機或電腦的螢幕截圖",
+    "events": "活動：生日、婚禮、聚會、演唱會",
+    "travel": "旅行：景點、地標、旅途中的照片",
+    "nature": "自然：植物、花、野生動物",
+    "vehicles": "交通工具：汽車、機車、火車、飛機",
+    "objects": "物品：商品、日常用品、收藏"
+  },
+  "en": {
+    "people": "a photo of people",
+    "pets": "a photo of a pet such as a cat or dog",
+    "food": "a photo of food or drinks",
+    "landscape": "a landscape photo of mountains, sea or sky",
+    "city": "a photo of a city street or buildings",
+    "documents": "a photo of a document, receipt, form or whiteboard",
+    "screenshots": "a screenshot of a phone or computer screen",
+    "events": "a photo of an event such as a birthday, wedding or party",
+    "travel": "a travel photo of a landmark or sightseeing spot",
+    "nature": "a photo of plants, flowers or wildlife",
+    "vehicles": "a photo of a vehicle such as a car, motorcycle, train or plane",
+    "objects": "a photo of an everyday object or product"
+  }
+}

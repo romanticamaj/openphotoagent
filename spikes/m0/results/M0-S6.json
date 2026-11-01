@@ -1,0 +1,10 @@
+{
+  "id": "M0-S6",
+  "status": "blocked",
+  "machine": {
+    "hostname_label": "not-run"
+  },
+  "metrics": {},
+  "pass": null,
+  "notes": "Needs Apple Developer account/certificates and SignPath application — user-owned accounts (docs/BLOCKERS.md)."
+}

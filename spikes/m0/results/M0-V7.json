@@ -1,0 +1,10 @@
+{
+  "id": "M0-V7",
+  "status": "pending-hardware",
+  "machine": {
+    "hostname_label": "not-run"
+  },
+  "metrics": {},
+  "pass": null,
+  "notes": "Needs slice-6 Operation/ETA plus reference machines 1 and 3; simulated coverage is covered by ETA-016."
+}

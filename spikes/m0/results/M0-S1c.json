@@ -1,0 +1,10 @@
+{
+  "id": "M0-S1c",
+  "status": "pending-hardware",
+  "machine": {
+    "hostname_label": "not-run"
+  },
+  "metrics": {},
+  "pass": null,
+  "notes": "Windows AF_UNIX: run spikes/m0/S1c on the Windows reference PC."
+}

@@ -1,0 +1,10 @@
+{
+  "id": "M0-S3",
+  "status": "pending-hardware",
+  "machine": {
+    "hostname_label": "not-run"
+  },
+  "metrics": {},
+  "pass": null,
+  "notes": "Needs GPU reference machines (5070 Ti CUDA13, 4060 CUDA, AMD/Intel Vulkan, M2 Metal) and Qwen3-VL GGUF; HF blocked in cloud."
+}

@@ -1,0 +1,20 @@
+# Python dependencies bundled with the desktop sidecar (08 §4.1). procrastinate omitted:
+# the queue uses SKIP LOCKED directly (02 §4). mcp SDK from v0.2.
+fastapi
+uvicorn
+pydantic
+sqlalchemy
+asyncpg
+psycopg[binary]
+alembic
+pillow
+pillow-heif
+numpy
+blake3
+jieba
+opencc-python-reimplemented
+tokenizers
+huggingface_hub
+structlog
+onnxruntime
+mcp

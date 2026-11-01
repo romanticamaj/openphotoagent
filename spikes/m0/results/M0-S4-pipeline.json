@@ -1,0 +1,30 @@
+{
+  "id": "M0-S4-pipeline",
+  "status": "partial",
+  "machine": {
+    "hostname_label": "unlabeled",
+    "os": "Linux",
+    "os_release": "6.18.44-fc-v185",
+    "arch": "x86_64",
+    "python": "3.12.3",
+    "cpu_count": 4,
+    "mem_total_kb": 16477352
+  },
+  "metrics": {
+    "model": "tiny-random",
+    "n_images": 64,
+    "n_texts": 64,
+    "available_providers": [
+      "AzureExecutionProvider",
+      "CPUExecutionProvider"
+    ],
+    "CPU": {
+      "image_cos_min": 0.9999998807907104,
+      "image_cos_mean": 1.0,
+      "text_cos_min": 0.9999998807907104,
+      "text_cos_mean": 1.0
+    }
+  },
+  "pass": null,
+  "notes": "Random-init tiny SigLIP: validates the export/compare pipeline only, NOT real-weight parity. Real so400m weights pending (HF blocked in cloud) — run on reference machines."
+}

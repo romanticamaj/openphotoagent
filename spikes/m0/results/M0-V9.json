@@ -1,0 +1,10 @@
+{
+  "id": "M0-V9",
+  "status": "pending-hardware",
+  "machine": {
+    "hostname_label": "not-run"
+  },
+  "metrics": {},
+  "pass": null,
+  "notes": "Needs the slice-11 desktop shell on Windows/Linux with tauri-driver."
+}

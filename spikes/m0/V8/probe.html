@@ -1,0 +1,34 @@
+<!doctype html><meta charset="utf-8"><title>probe</title>
+<script>
+(async () => {
+  const r = {};
+  r.userAgent = navigator.userAgent;
+  r.viewTransitions = typeof document.startViewTransition === "function";
+  r.intlDurationFormat = typeof Intl.DurationFormat === "function";
+  if (r.intlDurationFormat) {
+    try { r.durationFormatZhTW = new Intl.DurationFormat("zh-TW", { style: "narrow" }).format({ minutes: 3, seconds: 5 }); } catch (e) { r.durationFormatZhTW = "error: " + e; }
+  }
+  r.intlRelativeTimeFormat = typeof Intl.RelativeTimeFormat === "function";
+  r.createImageBitmap = typeof createImageBitmap === "function";
+  try {
+    const c = document.createElement("canvas"); c.width = 4; c.height = 4;
+    const b = await createImageBitmap(c, { resizeWidth: 2, resizeHeight: 2, resizeQuality: "high" });
+    r.createImageBitmapResize = b.width === 2;
+  } catch (e) { r.createImageBitmapResize = "error: " + e; }
+  r.fetchStreaming = typeof ReadableStream === "function" && "body" in Response.prototype;
+  try {
+    const resp = new Response(new ReadableStream({ start(c) { c.enqueue(new TextEncoder().encode("data: x\n\n")); c.close(); } }));
+    const rd = resp.body.getReader(); const { value } = await rd.read(); r.responseBodyReader = value.length > 0;
+  } catch (e) { r.responseBodyReader = "error: " + e; }
+  r.eventSource = typeof EventSource === "function";
+  r.offscreenCanvas = typeof OffscreenCanvas === "function";
+  r.resizeObserver = typeof ResizeObserver === "function";
+  r.cssContainerQueries = CSS.supports("container-type: inline-size");
+  r.cssHas = CSS.supports("selector(:has(a))");
+  r.webAnimations = typeof Element.prototype.animate === "function";
+  r.structuredClone = typeof structuredClone === "function";
+  r.decodeAvif = await new Promise(res => { const i = new Image(); i.onload = () => res(true); i.onerror = () => res(false);
+    i.src = "data:image/avif;base64,AAAAIGZ0eXBhdmlmAAAAAGF2aWZtaWYxbWlhZk1BMUIAAADybWV0YQAAAAAAAAAoaGRscgAAAAAAAAAAcGljdAAAAAAAAAAAAAAAAGxpYmF2aWYAAAAADnBpdG0AAAAAAAEAAAAeaWxvYwAAAABEAAABAAEAAAABAAABGgAAAB0AAAAoaWluZgAAAAAAAQAAABppbmZlAgAAAAABAABhdjAxQ29sb3IAAAAAamlwcnAAAABLaXBjbwAAABRpc3BlAAAAAAAAAAIAAAACAAAAEHBpeGkAAAAAAwgICAAAAAxhdjFDgQ0MAAAAABNjb2xybmNseAACAAIAAYAAAAAXaXBtYQAAAAAAAAABAAEEAQKDBAAAACVtZGF0EgAKCBgANogQEAwgMg8f8D///8WfhwB8+ErK42A="; });
+  document.title = "RESULT:" + JSON.stringify(r);
+})();
+</script>

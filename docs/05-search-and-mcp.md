@@ -430,6 +430,8 @@ sequenceDiagram
 | `faces:read`（審查補充，07 §5.1，v0.2） | face:read | list_people, get_person, find_photos_of_person；search_photos 的 `persons_*` filter 與 `person` facet；`PhotoSummary.people` | **否**；workspace 還必須設定 `mcp.faces_enabled=true`（預設 false） |
 | `faces:media`（審查補充，07 §5.1，v0.2） | face:read + media | 人臉裁切縮圖（`person://{id}/cover`、`face://{id}/thumb`） | 否；受 `mcp_face_media_policy` 限制（預設 `none`） |
 
+> （回寫 W-3，09 §9，已採納）**`tools/list` 一律依 token scope 過濾**：token 不具備某 tool 所需 scope 時，該 tool 不出現在 `tools/list`，直接呼叫回 `-32601`（Method not found 語意的 tool not found），不洩漏 tool 的存在；適用全部 tools，不只 faces 類（MCP-SCOPE-001）。
+>
 > 刻意**沒有**的能力：刪除照片、寫入原檔 EXIF、改 Source/Worker/Pipeline 設定、管理成員與 token、任意路徑讀取。這些只在 UI 進行。（審查補充）另外也沒有：**新增或刪除 Worker 允許根目錄**（只能經由桌面殼 IPC 或本機 CLI，08 C-09）、**上傳參考臉找人**、**取得任何 embedding**、命名／合併／刪除人物、修改人臉設定（07 §5.1）。
 >
 > **（審查補充）scope 命名統一**：08 C-25 與 10 §10.4 寫的 `people:read` 一律改為 07 定義的 `faces:read`（人臉縮圖另需 `faces:media`）。

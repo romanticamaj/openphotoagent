@@ -1,0 +1,39 @@
+{
+  "id": "M0-V8",
+  "status": "measured",
+  "machine": {
+    "hostname_label": "unlabeled",
+    "os": "Linux",
+    "os_release": "6.18.44-fc-v185",
+    "arch": "x86_64",
+    "python": "3.12.3",
+    "cpu_count": 4,
+    "mem_total_kb": 16477352
+  },
+  "metrics": {
+    "userAgent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/60.5 Safari/605.1.15",
+    "viewTransitions": true,
+    "intlDurationFormat": true,
+    "durationFormatZhTW": "3 分鐘5 秒",
+    "intlRelativeTimeFormat": true,
+    "createImageBitmap": true,
+    "createImageBitmapResize": true,
+    "fetchStreaming": true,
+    "responseBodyReader": true,
+    "eventSource": true,
+    "offscreenCanvas": true,
+    "resizeObserver": true,
+    "cssContainerQueries": true,
+    "cssHas": true,
+    "webAnimations": true,
+    "structuredClone": true,
+    "decodeAvif": false,
+    "webkitgtk_version": "2.52.6",
+    "decisions": {
+      "VIEW-007_flip_fallback_needed": false,
+      "I18N-006_duration_fallback_needed": false
+    }
+  },
+  "pass": null,
+  "notes": "Record-only experiment (no pass threshold). Ubuntu 24.04 WebKitGTK; 09 §6 names Ubuntu 22.04 — 22.04 ships an older WebKitGTK, so re-run there before relying on features absent in older versions."
+}

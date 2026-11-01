@@ -1,0 +1,10 @@
+{
+  "id": "M0-S4b",
+  "status": "pending-hardware",
+  "machine": {
+    "hostname_label": "not-run"
+  },
+  "metrics": {},
+  "pass": null,
+  "notes": "Needs SigLIP2 weights and img:by-content-12-large (600 CC0 images)."
+}

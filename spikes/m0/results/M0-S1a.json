@@ -1,0 +1,38 @@
+{
+  "id": "M0-S1a",
+  "status": "partial",
+  "machine": {
+    "hostname_label": "unlabeled",
+    "os": "Linux",
+    "os_release": "6.18.44-fc-v185",
+    "arch": "x86_64",
+    "python": "3.13.18",
+    "cpu_count": 4,
+    "mem_total_kb": 16477352
+  },
+  "metrics": {
+    "pg_version": "postgres (PostgreSQL) 16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)",
+    "runs": 50,
+    "cold_start_s": {
+      "n": 50,
+      "min": 0.5263651899999786,
+      "p50": 0.6048760625000114,
+      "p95": 0.70976790039997,
+      "max": 0.7544106069999543,
+      "mean": 0.6146020242600002
+    },
+    "warm_start_s": {
+      "n": 50,
+      "min": 0.12049846700006128,
+      "p50": 0.1233710215000201,
+      "p95": 0.12680663200001163,
+      "max": 0.13015787000006185,
+      "mean": 0.12352944534000926
+    },
+    "failures": 0,
+    "failure_samples": [],
+    "platform_scope": "Linux"
+  },
+  "pass": null,
+  "notes": "Cold = initdb(--no-sync)+first start until pg_isready; warm = restart existing cluster. Linux-only measurement; Windows (normal + admin account, Defender on) and macOS pending-hardware. Desktop ships PG 17; this run used the PG binaries available on the machine (see pg_version)."
+}
