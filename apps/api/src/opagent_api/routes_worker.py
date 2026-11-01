@@ -112,14 +112,28 @@ class JournalIn(BaseModel):
 def mirror_journal(body: JournalIn, req: Request) -> dict[str, int]:
     """Idempotent CP mirror of the worker journal (OUT-JRN-005). The worker copy is authoritative:
     re-delivered entries are ignored, never rewritten."""
-    rows = [{"worker_id": body.worker_id, "plan_id": e["plan_id"], "seq": e["seq"], "action_id": e["action_id"],
-             "op": e["op"], "phase": e["phase"], "args": e.get("args") or {}, "pre_state": e.get("pre_state") or {},
-             "post_state": e.get("post_state")} for e in body.entries]
+    rows = [
+        {
+            "worker_id": body.worker_id,
+            "plan_id": e["plan_id"],
+            "seq": e["seq"],
+            "action_id": e["action_id"],
+            "op": e["op"],
+            "phase": e["phase"],
+            "args": e.get("args") or {},
+            "pre_state": e.get("pre_state") or {},
+            "post_state": e.get("post_state"),
+        }
+        for e in body.entries
+    ]
     if not rows:
         return {"inserted": 0}
     with _st(req).engine.begin() as c:
-        res = c.execute(pg_insert(journal_mirror).values(rows).on_conflict_do_nothing(
-            index_elements=["worker_id", "plan_id", "seq"]))
+        res = c.execute(
+            pg_insert(journal_mirror)
+            .values(rows)
+            .on_conflict_do_nothing(index_elements=["worker_id", "plan_id", "seq"])
+        )
     return {"inserted": res.rowcount or 0}
 
 
@@ -159,7 +173,9 @@ def _on_scan(st: AppState, c: Any, t: Any, result: dict[str, Any]) -> None:
                 taken_at=taken,
                 taken_at_offset_min=offset_minutes(taken) if taken else None,
                 date_source=e.get("date_source"),
-            )
+            width=e.get("width"), height=e.get("height"), thumbhash=e.get("thumbhash"), phash=e.get("phash"),
+            dhash=e.get("dhash"),
+        )
             .on_conflict_do_update(index_elements=["workspace_id", "content_hash"], set_={"size_bytes": e["size"]})
             .returning(asset.c.id)
         ).scalar_one()
@@ -185,8 +201,9 @@ def _on_scan(st: AppState, c: Any, t: Any, result: dict[str, Any]) -> None:
     params = j.params
     set_job_status(c, j.id, JobStatus.planning)
     target = params["target"]
-    planned = assign_collisions(plan(items, params["preset"], target.get("sub_path", "").strip("/")),
-                                case_insensitive=True)  # target FS may be case-insensitive (OUT-EXE-010)
+    planned = assign_collisions(
+        plan(items, params["preset"], target.get("sub_path", "").strip("/")), case_insensitive=True
+    )  # target FS may be case-insensitive (OUT-EXE-010)
     pid = uuid7(st.clock)
     c.execute(insert(output_plan).values(id=pid, job_id=j.id, status="draft", summary=summarize(planned)))
     for i, a in enumerate(planned):

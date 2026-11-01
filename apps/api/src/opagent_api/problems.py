@@ -23,8 +23,9 @@ def install_problem_handlers(app: FastAPI) -> None:
         d = exc.detail
         if isinstance(d, dict) and "code" in d:
             return problem(exc.status_code, **d)
-        return problem(exc.status_code, "NOT_FOUND" if exc.status_code == 404 else f"HTTP_{exc.status_code}",
-                       detail=str(d))
+        return problem(
+            exc.status_code, "NOT_FOUND" if exc.status_code == 404 else f"HTTP_{exc.status_code}", detail=str(d)
+        )
 
     @app.exception_handler(RequestValidationError)
     async def _validation(_: Request, exc: RequestValidationError) -> JSONResponse:

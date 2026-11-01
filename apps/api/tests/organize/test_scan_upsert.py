@@ -14,8 +14,15 @@ FX = Path(__file__).resolve().parents[4] / "fixtures/photos"
 
 def _scan(client, worker, sub):
     src = client.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": sub}).json()
-    job = client.post("/api/v1/jobs", json={"kind": "organize", "source_id": src["id"], "preset": "by-date",
-                                            "target": {"root_alias": "sorted", "sub_path": ""}}).json()
+    job = client.post(
+        "/api/v1/jobs",
+        json={
+            "kind": "organize",
+            "source_id": src["id"],
+            "preset": "by-date",
+            "target": {"root_alias": "sorted", "sub_path": ""},
+        },
+    ).json()
     worker.run_until_idle()
     return client.get(f"/api/v1/jobs/{job['id']}").json()
 
@@ -51,8 +58,9 @@ def test_scan_005_location_points_to_new_asset(embedded_pg, sandbox_tree, tmp_pa
     _scan(client, worker, "c")
     eng = engine_for(embedded_pg.dsn)
     with eng.begin() as c:
-        rows = c.execute(select(asset_location.c.asset_id, asset.c.content_hash).join(
-            asset, asset.c.id == asset_location.c.asset_id)).all()
+        rows = c.execute(
+            select(asset_location.c.asset_id, asset.c.content_hash).join(asset, asset.c.id == asset_location.c.asset_id)
+        ).all()
     eng.dispose()
     from opagent_worker.scanner import content_hash
 

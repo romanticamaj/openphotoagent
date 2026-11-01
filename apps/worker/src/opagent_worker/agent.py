@@ -88,21 +88,42 @@ class WorkerAgent:
 
     # ---- task handlers -------------------------------------------------
     def _do_scan(self, p: dict[str, Any]) -> dict[str, Any]:
-        res = scan(self.sb, p["root_alias"], p.get("sub_path", ""), p["include"], p["exclude"], tz=self.tz,  # type: ignore[arg-type]
-                   cache=self.cache, exclude_subtrees=p.get("exclude_subtrees") or [])
-        entries = [{
-            "rel": e.rel, "size": e.size, "mtime": e.mtime.isoformat(), "content_hash": e.content_hash,
-            "taken_at": e.taken_at.isoformat() if e.taken_at and e.date_source != "mtime" else None,
-            "date_source": e.date_source, **e.extra,
-        } for e in res.entries]
-        return {"entries": entries, "skipped": [{"rel": s.rel, "reason": s.reason} for s in res.skipped],
-                "bytes_read": res.bytes_read}
+        res = scan(
+            self.sb,
+            p["root_alias"],
+            p.get("sub_path", ""),
+            p["include"],
+            p["exclude"],
+            tz=self.tz,  # type: ignore[arg-type]
+            cache=self.cache,
+            exclude_subtrees=p.get("exclude_subtrees") or [],
+        )
+        entries = [
+            {
+                "rel": e.rel,
+                "size": e.size,
+                "mtime": e.mtime.isoformat(),
+                "content_hash": e.content_hash,
+                "taken_at": e.taken_at.isoformat() if e.taken_at and e.date_source != "mtime" else None,
+                "date_source": e.date_source,
+                **e.extra,
+            }
+            for e in res.entries
+        ]
+        return {
+            "entries": entries,
+            "skipped": [{"rel": s.rel, "reason": s.reason} for s in res.skipped],
+            "bytes_read": res.bytes_read,
+        }
 
     def _do_apply(self, p: dict[str, Any]) -> dict[str, Any]:
         actions = [Action(**a) for a in p["actions"]]
         rep = self.executor.apply(p["plan_id"], actions, move_confirmed=bool(p.get("move_confirmed")))
-        return {"results": [r.__dict__ for r in rep.results], "status": rep.status,
-                "waiting_reason": rep.waiting_reason}
+        return {
+            "results": [r.__dict__ for r in rep.results],
+            "status": rep.status,
+            "waiting_reason": rep.waiting_reason,
+        }
 
     def _do_undo(self, p: dict[str, Any]) -> dict[str, Any]:
         res = self.executor.undo(p["plan_id"])

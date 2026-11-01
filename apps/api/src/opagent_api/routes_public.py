@@ -106,8 +106,9 @@ def create_source(body: SourceIn, req: Request) -> dict[str, Any]:
         if owner is None:
             raise HTTPException(409, detail={"code": "FS_ROOT_NOT_ALLOWED", "root_alias": body.root_alias})
         existing = c.execute(
-            select(source.c.id).where(source.c.root_alias == body.root_alias,
-                                      source.c.sub_path == body.sub_path.strip("/"))
+            select(source.c.id).where(
+                source.c.root_alias == body.root_alias, source.c.sub_path == body.sub_path.strip("/")
+            )
         ).scalar()
         if existing is not None:  # one source per folder: rescans update locations in place (SCAN-005)
             return {"id": existing, "root_alias": body.root_alias, "sub_path": body.sub_path.strip("/")}
@@ -170,9 +171,10 @@ def create_job(body: JobIn, req: Request) -> dict[str, Any]:
                     "source_id": s.id,
                     "root_alias": s.root_alias,
                     "sub_path": s.sub_path,
-                    "include": s.include,
-                    "exclude": s.exclude,
-                },
+                    "include": s.include, "exclude": s.exclude,
+                     # never index the output folder when it lives inside the source (SCAN-024)
+                     "exclude_subtrees": [body.target.sub_path.strip("/")]
+                     if body.target.root_alias == s.root_alias and body.target.sub_path.strip("/") else []},
             )
         )
     return get_job(jid, req)
@@ -230,8 +232,11 @@ def approve(plan_id: str, req: Request, body: ApproveIn | None = None) -> dict[s
         p, j = _plan_job(c, plan_id)
         if p.status != "draft":
             raise HTTPException(409, detail={"code": "PLAN_NOT_DRAFT", "status": p.status})
-        moves = c.execute(select(func.count()).select_from(output_action).where(
-            output_action.c.plan_id == plan_id, output_action.c.action == "move")).scalar_one()
+        moves = c.execute(
+            select(func.count())
+            .select_from(output_action)
+            .where(output_action.c.plan_id == plan_id, output_action.c.action == "move")
+        ).scalar_one()
         if moves and not body.move_confirmed:
             raise HTTPException(409, detail={"code": "MOVE_NOT_CONFIRMED", "moves": moves})
         if moves > MOVE_CONFIRM_TEXT_ABOVE and body.confirm_text != f"MOVE {moves}":

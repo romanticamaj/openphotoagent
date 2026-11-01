@@ -6,6 +6,8 @@ from a local cache keyed by (abs path, size, mtime_ns, file id) so a rescan read
 
 from __future__ import annotations
 
+import base64
+import errno
 import json
 import os
 import re
@@ -21,15 +23,29 @@ from typing import Any
 import blake3
 from opagent_core.path_template import DateSource
 from opagent_fs.safepath import Sandbox
-from PIL import Image
+
+from .imaging import RawPreviewMissing, dhash, open_image, oriented, phash, thumbhash_encode, write_thumbnails
+
+from PIL import Image  # noqa: E402
+
+__all__ = ["Image", "dhash", "phash", "thumbhash_encode"]
 
 EXIF_IFD = 0x8769
 GPS_IFD = 0x8825
 DATETIME_ORIGINAL = 0x9003
 OFFSET_TIME_ORIGINAL = 0x9011
 CHUNK = 1 << 20
-ALWAYS_EXCLUDE = ["**/.DS_Store", "**/Thumbs.db", "**/desktop.ini", "**/.opagent-trash/**", "**/.opagent-tmp-*",
-                  "**/@eaDir/**", ".DS_Store", "Thumbs.db", "desktop.ini"]
+ALWAYS_EXCLUDE = [
+    "**/.DS_Store",
+    "**/Thumbs.db",
+    "**/desktop.ini",
+    "**/.opagent-trash/**",
+    "**/.opagent-tmp-*",
+    "**/@eaDir/**",
+    ".DS_Store",
+    "Thumbs.db",
+    "desktop.ini",
+]
 VIDEO_EXT = {".mp4", ".mov", ".m4v", ".avi", ".mkv", ".mts", ".3gp"}
 PACKAGE_DIR_SUFFIXES = {".photoslibrary": "photos_library_package"}
 # Windows cloud-file placeholders (OneDrive): RECALL_ON_DATA_ACCESS | RECALL_ON_OPEN | OFFLINE
@@ -62,18 +78,6 @@ class Skipped:
 
 def _is_placeholder(st: os.stat_result, path: str) -> bool:
     return bool(getattr(st, "st_file_attributes", 0) & PLACEHOLDER_ATTRS)
-
-
-def thumbhash_encode(im: Image.Image) -> bytes:
-    return b""
-
-
-def phash(im: Image.Image) -> str:
-    return ""
-
-
-def dhash(im: Image.Image) -> str:
-    return ""
 
 
 @dataclass
@@ -123,8 +127,9 @@ def list_files(sb: Sandbox, alias: str, sub: str, include: list[str], exclude: l
     return [r for r, _st in files]
 
 
-def _walk(sb: Sandbox, alias: str, sub: str, include: list[str], exclude: list[str],
-          exclude_subtrees: list[str]) -> tuple[list[tuple[str, os.stat_result]], list[Skipped]]:
+def _walk(
+    sb: Sandbox, alias: str, sub: str, include: list[str], exclude: list[str], exclude_subtrees: list[str]
+) -> tuple[list[tuple[str, os.stat_result]], list[Skipped]]:
     base = sb.resolve(alias, sub)
     root_real = sb.resolve(alias, "").real
     files: list[tuple[str, os.stat_result]] = []
@@ -136,8 +141,10 @@ def _walk(sb: Sandbox, alias: str, sub: str, include: list[str], exclude: list[s
         try:
             with os.scandir(d) as it:
                 ents = sorted(it, key=lambda e: e.name)
-        except PermissionError:
-            skipped.append(Skipped(Path(d).relative_to(root_real).as_posix(), "FS_PERMISSION_DENIED"))
+        except PermissionError as err:
+            # macOS TCC denies with EPERM: point at the doctor's folder-access fix (SCAN-015)
+            fix = "fs.roots" if err.errno == errno.EPERM else None
+            skipped.append(Skipped(Path(d).relative_to(root_real).as_posix(), "FS_PERMISSION_DENIED", fix))
             continue
         for e in reversed(ents):
             rel = unicodedata.normalize("NFC", Path(e.path).relative_to(root_real).as_posix())
@@ -158,7 +165,7 @@ def _walk(sb: Sandbox, alias: str, sub: str, include: list[str], exclude: list[s
             if _matches(rel, excl) or not _matches(rel, include):
                 continue
             st = e.stat(follow_symlinks=False)
-            if getattr(st, "st_file_attributes", 0) & PLACEHOLDER_ATTRS:
+            if _is_placeholder(st, e.path):
                 skipped.append(Skipped(rel, "cloud_placeholder"))  # never open: would trigger a download (SCAN-016)
                 continue
             if Path(rel).suffix.lower() in VIDEO_EXT:
@@ -211,8 +218,7 @@ def _gps_tz(gps: dict[int, Any]) -> tzinfo | None:
 
 
 def exif_of(path: Path) -> Any:
-    _register_heif()
-    with Image.open(path) as im:
+    with open_image(path) as im:
         return im.getexif()
 
 
@@ -240,28 +246,6 @@ def read_meta(path: Path, mtime: datetime, tz: tzinfo) -> PhotoMeta:
         aware = naive.replace(tzinfo=gtz)
         return PhotoMeta(aware.replace(tzinfo=timezone(aware.utcoffset() or timedelta(0))), "exif_gps_tz")
     return PhotoMeta(naive.replace(tzinfo=tz), "exif_local_assumed")
-
-
-_HEIF_DONE = False
-
-
-def _register_heif() -> None:
-    global _HEIF_DONE
-    if not _HEIF_DONE:
-        import pillow_heif
-
-        pillow_heif.register_heif_opener()
-        _HEIF_DONE = True
-
-
-def decodable(path: Path) -> bool:
-    _register_heif()
-    try:
-        with Image.open(path) as im:
-            im.load()
-        return True
-    except Exception:
-        return False
 
 
 class HashCache:
@@ -295,36 +279,95 @@ def _entry_to_json(e: ScanEntry) -> dict[str, Any]:
 
 
 def _entry_from_json(d: dict[str, Any]) -> ScanEntry:
-    return ScanEntry(rel=d["rel"], size=d["size"], mtime=datetime.fromisoformat(d["mtime"]),
-                     content_hash=d["content_hash"],
-                     taken_at=datetime.fromisoformat(d["taken_at"]) if d["taken_at"] else None,
-                     date_source=d["date_source"], extra=d.get("extra") or {})
+    return ScanEntry(
+        rel=d["rel"],
+        size=d["size"],
+        mtime=datetime.fromisoformat(d["mtime"]),
+        content_hash=d["content_hash"],
+        taken_at=datetime.fromisoformat(d["taken_at"]) if d["taken_at"] else None,
+        date_source=d["date_source"],
+        extra=d.get("extra") or {},
+    )
 
 
-def scan(sb: Sandbox, alias: str, sub: str, include: list[str], exclude: list[str], tz: tzinfo,
-         cache: HashCache | None = None, exclude_subtrees: list[str] | None = None, thumbs_dir: Path | None = None,
-         reporter: Any = None, previous_total: int | None = None) -> ScanResult:
+def scan(
+    sb: Sandbox,
+    alias: str,
+    sub: str,
+    include: list[str],
+    exclude: list[str],
+    tz: tzinfo,
+    cache: HashCache | None = None,
+    exclude_subtrees: list[str] | None = None,
+    thumbs_dir: Path | None = None,
+    reporter: Any = None,
+    previous_total: int | None = None,
+) -> ScanResult:
+    """enumerate (indeterminate unless a previous total is known) -> hash/exif/thumbnails (determinate)."""
+    if reporter is not None:
+        reporter.start("scan", previous_total)
+        reporter.phase("enumerate")
     files, skipped = _walk(sb, alias, sub, include, exclude, exclude_subtrees or [])
+    if reporter is not None:
+        reporter.progress(len(files), None)
+        reporter.phase("hash")
     entries: list[ScanEntry] = []
     bytes_read = 0
-    for rel, st in files:
+    total = len(files)
+    for n, (rel, st) in enumerate(files, start=1):
         sp = sb.resolve(alias, rel)
         k = HashCache.key(sp.real, st)
         cached = cache.get(k) if cache is not None else None
         if cached is not None:
             entries.append(_entry_from_json(cached))
-            continue
-        if st.st_size == 0 or not stat_mod.S_ISREG(st.st_mode) or not decodable(sp.real):
-            skipped.append(Skipped(rel, "DECODE_FAILED"))
-            continue
-        mtime = datetime.fromtimestamp(st.st_mtime, tz=tz)
-        h = content_hash(sp.real)
-        bytes_read += st.st_size
-        meta = read_meta(sp.real, mtime, tz)
-        e = ScanEntry(rel=sp.rel, size=st.st_size, mtime=mtime, content_hash=h, taken_at=meta.taken_at,
-                      date_source=meta.date_source)
-        if cache is not None:
-            cache.put(k, _entry_to_json(e))
-        entries.append(e)
+        else:
+            e, reason = _scan_one(sp.real, sp.rel, st, tz, thumbs_dir)
+            if e is None:
+                skipped.append(Skipped(rel, reason or "DECODE_FAILED"))
+            else:
+                bytes_read += st.st_size
+                if cache is not None:
+                    cache.put(k, _entry_to_json(e))
+                entries.append(e)
+        if reporter is not None:
+            reporter.progress(n, total)
     skipped.sort(key=lambda s: s.rel)
+    if reporter is not None:
+        reporter.finish("succeeded")
     return ScanResult(entries, skipped, bytes_read)
+
+
+def _scan_one(
+    path: Path, rel: str, st: os.stat_result, tz: tzinfo, thumbs_dir: Path | None
+) -> tuple[ScanEntry | None, str | None]:
+    if st.st_size == 0 or not stat_mod.S_ISREG(st.st_mode):
+        return None, "DECODE_FAILED"
+    try:
+        with open_image(path) as raw_im:
+            raw_im.load()
+            im = oriented(raw_im)
+            mtime = datetime.fromtimestamp(st.st_mtime, tz=tz)
+            h = content_hash(path)
+            meta = read_meta(path, mtime, tz)
+            extra: dict[str, Any] = {
+                "width": im.width,
+                "height": im.height,
+                "thumbhash": base64.b64encode(thumbhash_encode(im)).decode(),
+                "phash": phash(im),
+                "dhash": dhash(im),
+            }
+            if thumbs_dir is not None:
+                extra["thumbs"] = write_thumbnails(im, Path(thumbs_dir), h)
+    except RawPreviewMissing:
+        return None, "DECODE_RAW_MISSING"
+    except Exception:
+        return None, "DECODE_FAILED"
+    return ScanEntry(
+        rel=rel,
+        size=st.st_size,
+        mtime=mtime,
+        content_hash=h,
+        taken_at=meta.taken_at,
+        date_source=meta.date_source,
+        extra=extra,
+    ), None

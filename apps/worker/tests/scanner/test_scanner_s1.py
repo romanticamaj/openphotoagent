@@ -31,8 +31,16 @@ def put(tree, rel, src=None, data=b"x"):
 @pytest.mark.unit
 @pytest.mark.tc("SCAN-002")
 def test_scan_002_always_excluded(sb, sandbox_tree):
-    for rel in [".DS_Store", "a/Thumbs.db", "desktop.ini", ".opagent-trash/p/x.jpg", "b/.opagent-tmp-123",
-                "@eaDir/x.jpg", "c/@eaDir/SYNOFILE_THUMB_M.jpg", "keep.jpg"]:
+    for rel in [
+        ".DS_Store",
+        "a/Thumbs.db",
+        "desktop.ini",
+        ".opagent-trash/p/x.jpg",
+        "b/.opagent-tmp-123",
+        "@eaDir/x.jpg",
+        "c/@eaDir/SYNOFILE_THUMB_M.jpg",
+        "keep.jpg",
+    ]:
         put(sandbox_tree, rel, FX / "basic/IMG_0001.jpg")
     res = scan(sb, "photos", "", INC, [], tz=TW)
     assert [e.rel for e in res.entries] == ["keep.jpg"]
@@ -73,7 +81,10 @@ def test_scan_010_corrupt_files(sb, sandbox_tree):
     res = scan(sb, "photos", "", INC, [], tz=TW)
     assert [e.rel for e in res.entries] == ["bad_exif.jpg"]
     assert sorted((s.rel, s.reason) for s in res.skipped) == [
-        ("empty.jpg", "DECODE_FAILED"), ("text.jpg", "DECODE_FAILED"), ("truncated.jpg", "DECODE_FAILED")]
+        ("empty.jpg", "DECODE_FAILED"),
+        ("text.jpg", "DECODE_FAILED"),
+        ("truncated.jpg", "DECODE_FAILED"),
+    ]
 
 
 @pytest.mark.unit
@@ -126,5 +137,7 @@ def test_scan_022_videos_skipped_in_v0_1(sb, sandbox_tree):
         put(sandbox_tree, f, FX / "video" / f)
     res = scan(sb, "photos", "", INC, [], tz=TW)
     assert res.entries == []
-    assert sorted((s.rel, s.reason) for s in res.skipped) == [("clip.mov", "video_unsupported_v0_1"),
-                                                              ("clip.mp4", "video_unsupported_v0_1")]
+    assert sorted((s.rel, s.reason) for s in res.skipped) == [
+        ("clip.mov", "video_unsupported_v0_1"),
+        ("clip.mp4", "video_unsupported_v0_1"),
+    ]

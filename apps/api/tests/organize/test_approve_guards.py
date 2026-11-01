@@ -9,14 +9,29 @@ from opagent_db.schema import asset, engine_for, job, output_action, output_plan
 def _plan_with_moves(dsn: str, n_moves: int) -> str:
     eng = engine_for(dsn)
     with eng.begin() as c:
-        c.execute(insert(job).values(id="j1", workspace_id="default", kind="organize", status="awaiting_approval",
-                                     params={}))
+        c.execute(
+            insert(job).values(id="j1", workspace_id="default", kind="organize", status="awaiting_approval", params={})
+        )
         c.execute(insert(output_plan).values(id="p1", job_id="j1", status="draft", summary={"move": n_moves}))
         c.execute(insert(asset).values(id="as1", workspace_id="default", content_hash="h", size_bytes=1))
-        c.execute(insert(output_action), [
-            {"id": f"x{i}", "plan_id": "p1", "seq": i, "asset_id": "as1", "action": "move", "src_alias": "photos",
-             "src_rel": f"{i}.jpg", "dst_alias": "sorted", "dst_rel": f"{i}.jpg", "src_hash": "h"}
-            for i in range(n_moves)])
+        c.execute(
+            insert(output_action),
+            [
+                {
+                    "id": f"x{i}",
+                    "plan_id": "p1",
+                    "seq": i,
+                    "asset_id": "as1",
+                    "action": "move",
+                    "src_alias": "photos",
+                    "src_rel": f"{i}.jpg",
+                    "dst_alias": "sorted",
+                    "dst_rel": f"{i}.jpg",
+                    "src_hash": "h",
+                }
+                for i in range(n_moves)
+            ],
+        )
     eng.dispose()
     return "p1"
 

@@ -67,6 +67,11 @@ asset = Table(
     _ts("taken_at"),
     Column("taken_at_offset_min", Integer),
     Column("date_source", Text),
+    Column("width", Integer),
+    Column("height", Integer),
+    Column("thumbhash", Text),
+    Column("phash", Text),
+    Column("dhash", Text),
     _ts("created_at", server_default=func.now()),
     UniqueConstraint("workspace_id", "content_hash"),
 )

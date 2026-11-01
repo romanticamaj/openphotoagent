@@ -6,12 +6,11 @@ from datetime import timedelta, timezone
 from pathlib import Path
 
 import numpy as np
-import pytest
-from PIL import Image, ImageOps
-
 import opagent_worker.scanner as scanner_mod
+import pytest
 from opagent_fs.safepath import RootConfig, Sandbox
 from opagent_worker.scanner import dhash, phash, scan, thumbhash_encode
+from PIL import Image, ImageOps
 
 ROOT = Path(__file__).resolve().parents[4]
 FX = ROOT / "fixtures/photos"
@@ -68,8 +67,7 @@ def test_scan_009_raw_embedded_preview(sb, sandbox_tree, tmp_path):
     for f in sorted((FX / "raw").iterdir()):
         put(sandbox_tree, f.name, f)
     res = scan(sb, "photos", "", INC, [], tz=TW, thumbs_dir=tmp_path / "t")
-    assert sorted(e.rel for e in res.entries) == ["sample.arw", "sample.cr3", "sample.dng", "sample.nef",
-                                                  "sample.raf"]
+    assert sorted(e.rel for e in res.entries) == ["sample.arw", "sample.cr3", "sample.dng", "sample.nef", "sample.raf"]
     assert [(s.rel, s.reason) for s in res.skipped] == [("no_preview.dng", "DECODE_RAW_MISSING")]
     for e in res.entries:
         assert (e.extra["width"], e.extra["height"]) == (160, 120)
@@ -114,7 +112,9 @@ def test_scan_015_permission_denied_folder_skipped(sb, sandbox_tree, monkeypatch
     res = scan(sb, "photos", "", INC, [], tz=TW)
     assert [e.rel for e in res.entries] == ["ok/a.jpg"]
     assert [(s.rel, s.reason, s.fix) for s in res.skipped] == [
-        ("locked", "FS_PERMISSION_DENIED", None), ("tcc", "FS_PERMISSION_DENIED", "fs.roots")]
+        ("locked", "FS_PERMISSION_DENIED", None),
+        ("tcc", "FS_PERMISSION_DENIED", "fs.roots"),
+    ]
 
 
 @pytest.mark.integration
@@ -160,8 +160,12 @@ def test_scan_021_thumbhash_and_perceptual_hashes():
 @pytest.mark.integration
 @pytest.mark.tc("SCAN-023")
 def test_scan_023_unicode_and_long_names(sb, sandbox_tree):
-    names = [unicodedata.normalize("NFC", "Café.jpg"), unicodedata.normalize("NFD", "Crème.jpg"),
-             "貓" * 81 + ".jpg", "🐱家族👨‍👩‍👧.jpg"]
+    names = [
+        unicodedata.normalize("NFC", "Café.jpg"),
+        unicodedata.normalize("NFD", "Crème.jpg"),
+        "貓" * 81 + ".jpg",
+        "🐱家族👨‍👩‍👧.jpg",
+    ]
     assert len(names[2].encode()) == 247
     for n in names:
         put(sandbox_tree, n, FX / "basic/IMG_0001.jpg")
