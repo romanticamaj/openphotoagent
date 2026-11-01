@@ -9,6 +9,7 @@ CDN. Every request is logged with open/close times so tests can assert "socket c
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import json
 import random
@@ -20,6 +21,16 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
 
+@functools.lru_cache(maxsize=16)
+def _content(path: str, seed: int, size: int) -> bytes:
+    return random.Random(f"{path}:{seed}").randbytes(size)  # noqa: S311 - seeded test bytes
+
+
+@functools.lru_cache(maxsize=64)
+def _sha(path: str, seed: int, size: int) -> str:
+    return hashlib.sha256(_content(path, seed, size)).hexdigest()
+
+
 @dataclass
 class HfFile:
     path: str
@@ -27,11 +38,11 @@ class HfFile:
     seed: int = 0
 
     def content(self) -> bytes:
-        return random.Random(f"{self.path}:{self.seed}").randbytes(self.size)  # noqa: S311 - seeded test bytes
+        return _content(self.path, self.seed, self.size)
 
     @property
     def sha256(self) -> str:
-        return hashlib.sha256(self.content()).hexdigest()
+        return _sha(self.path, self.seed, self.size)
 
 
 @dataclass
@@ -184,6 +195,7 @@ class HfServer:
                         rec["dropped_at"] = i
                         return
                     piece = body[i : i + chunk]
+                    rec.setdefault("first_byte", time.monotonic())
                     self.wfile.write(piece)
                     i += len(piece)
                     rec["sent"] = i

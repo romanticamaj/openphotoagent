@@ -388,5 +388,5 @@ def test_dl_021_rate_limit(server, tmp_path):
     d = mk(srv, tmp_path, clock=SystemClock(), rate_limit_bps=20 * MB)
     assert run(d.download("op21", files_for(srv), CancelToken())).status == "done"
     r = [x for x in srv.gets() if x["path"].startswith("/cdn/")][-1]
-    avg = r["sent"] / (r["closed"] - r["opened"])  # measured by the server
+    avg = r["sent"] / (r["closed"] - r["first_byte"])  # measured by the server over the transfer itself
     assert 18 * MB <= avg <= 22 * MB
