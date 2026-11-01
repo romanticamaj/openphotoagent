@@ -15,7 +15,7 @@
     "noWritableTarget": "No writable output location",
     "output": "Output",
     "preview": "Preview",
-    "summaryCopy": "Will copy {{count}} photos into {{folders}} folders; originals stay untouched. You can undo anytime",
+    "summaryCopy": "Will copy {count} photos into {folders} folders; originals stay untouched. You can undo anytime",
     "approve": "Approve and start",
     "applying": "Organizing…",
     "doneTitle": "All done",
@@ -140,5 +140,83 @@
     "hf_token": "Add Hugging Face token",
     "retry": "Retry",
     "reindex": "Rebuild index"
+  },
+  "nav": {
+    "label": "Main navigation",
+    "photos": "Photos",
+    "organize": "Organize",
+    "review": "To review",
+    "search": "Search",
+    "models": "Models",
+    "doctor": "System",
+    "settings": "Settings",
+    "local": "100% on this computer"
+  },
+  "viewer": {
+    "title": "Photos",
+    "grid": "Photo grid",
+    "empty": "No photos yet. Pick a folder to get started.",
+    "unknownDate": "Unknown date",
+    "dateFromMtime": "From file time",
+    "count_one": "{count} photo",
+    "count_other": "{count} photos",
+    "scrubber": "Timeline",
+    "scrubberValue": "{month}, {count} photos",
+    "today": "Back to newest",
+    "jump": "Jump to date",
+    "jumpLabel": "Year and month, e.g. 2019-03",
+    "jumpGo": "Go",
+    "jumpInvalid": "That date wasn't understood; try e.g. 2019-03",
+    "photoAlt": "Photo, {date}",
+    "loading": "Loading…"
+  },
+  "lightbox": {
+    "label": "Photo viewer",
+    "position": "Photo {n} of {total}",
+    "close": "Close",
+    "prev": "Previous",
+    "next": "Next",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "zoomReset": "Fit to window",
+    "info": "Info",
+    "filmstrip": "Filmstrip",
+    "reveal": "Show in file manager",
+    "exif": {
+      "title": "Camera",
+      "camera": "Camera",
+      "lens": "Lens",
+      "exposure": "Exposure",
+      "date": "Taken",
+      "size": "Dimensions",
+      "fileSize": "File size",
+      "locations": "Locations"
+    },
+    "ai": {
+      "title": "AI results",
+      "category": "Category",
+      "confidence": "Confidence",
+      "model": "Model",
+      "layer": "Decided by",
+      "human": "Your correction",
+      "none": "Not analysed yet"
+    },
+    "layer": {
+      "embedding": "Image similarity",
+      "vlm": "Vision-language model",
+      "consensus": "Both agree",
+      "rule": "Rule",
+      "review": "You confirmed",
+      "human": "You corrected",
+      "review_skip": "Skipped → Other"
+    },
+    "decision": {
+      "accepted": "Accepted",
+      "needs_review": "To review",
+      "other": "Other"
+    },
+    "correct": "Correct category",
+    "correctSave": "Save correction",
+    "correctionSaved": "Correction saved"
   }
 }

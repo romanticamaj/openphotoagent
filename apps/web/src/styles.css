@@ -1,11 +1,293 @@
 @import "tailwindcss";
 
-/* 「暗房裡的燈箱」design tokens (docs/04 §4) — expanded in slice 10 */
-@theme {
-  --color-surface: #141210;
-  --color-panel: #1e1b18;
-  --color-ink: #f2ede6;
-  --color-muted: #a59d93;
-  --color-accent: #e8b04a;
+/* 「暗房裡的燈箱」design tokens (docs/04 §4.2). Dark is the default; light follows the OS or [data-theme]. */
+:root {
+  color-scheme: dark;
+  --bg: oklch(0.17 0.005 60);
+  --surface: oklch(0.21 0.005 60);
+  --surface-2: oklch(0.26 0.006 60);
+  --canvas: oklch(0.13 0 0);
+  --border: oklch(0.32 0.006 60);
+  --text: oklch(0.95 0.004 60);
+  --text-muted: oklch(0.72 0.006 60);
+  --accent: oklch(0.8 0.15 75);
+  --accent-fg: #1a1200;
+  --success: oklch(0.75 0.14 155);
+  --warning: oklch(0.8 0.15 85);
+  --danger: oklch(0.68 0.19 25);
+  --info: oklch(0.72 0.12 245);
+  --agent: oklch(0.72 0.13 300);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-photo: 4px;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --t-micro: 120ms;
+  --t-comp: 200ms;
+  --t-page: 280ms;
+  /* legacy aliases used by slice-1 components */
+  --color-accent: var(--accent);
+  --color-muted: var(--text-muted);
 }
-body { background: var(--color-surface); color: var(--color-ink); font-family: system-ui, "Noto Sans TC", sans-serif; }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    color-scheme: light;
+    --bg: oklch(0.985 0.003 60);
+    --surface: #ffffff;
+    --surface-2: oklch(0.96 0.004 60);
+    --canvas: oklch(0.93 0.003 60);
+    --border: oklch(0.89 0.004 60);
+    --text: oklch(0.22 0.006 60);
+    --text-muted: oklch(0.48 0.008 60);
+    --accent: oklch(0.62 0.15 60);
+    --accent-fg: #1a1200;
+    --success: oklch(0.52 0.13 155);
+    --warning: oklch(0.58 0.14 70);
+    --danger: oklch(0.55 0.2 25);
+    --info: oklch(0.52 0.14 250);
+    --agent: oklch(0.5 0.15 300);
+  }
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: oklch(0.985 0.003 60);
+  --surface: #ffffff;
+  --surface-2: oklch(0.96 0.004 60);
+  --canvas: oklch(0.93 0.003 60);
+  --border: oklch(0.89 0.004 60);
+  --text: oklch(0.22 0.006 60);
+  --text-muted: oklch(0.48 0.008 60);
+  --accent: oklch(0.62 0.15 60);
+  --accent-fg: #1a1200;
+  --success: oklch(0.52 0.13 155);
+  --warning: oklch(0.58 0.14 70);
+  --danger: oklch(0.55 0.2 25);
+  --info: oklch(0.52 0.14 250);
+  --agent: oklch(0.5 0.15 300);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* shell */
+.shell {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  grid-template-rows: 48px 1fr;
+  height: 100vh;
+}
+.topbar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.sidenav {
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  padding: 12px 8px;
+}
+.sidenav a {
+  display: block;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  text-decoration: none;
+}
+.sidenav a[aria-current="page"] {
+  background: var(--surface-2);
+  font-weight: 600;
+}
+.page {
+  overflow: auto;
+  min-width: 0;
+}
+
+/* photo grid */
+.timeline {
+  position: relative;
+  height: 100%;
+  overflow-y: auto;
+  background: var(--canvas);
+}
+.bucket-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: color-mix(in oklch, var(--canvas) 88%, transparent);
+  font-weight: 600;
+}
+.tile {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-photo);
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+  cursor: zoom-in;
+}
+.tile img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.tile[aria-selected="true"] {
+  box-shadow: inset 0 0 0 3px var(--accent);
+}
+@media (forced-colors: active) {
+  .tile[aria-selected="true"] {
+    outline: 3px solid Highlight;
+    outline-offset: -3px;
+  }
+}
+.scrubber {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 56px;
+  touch-action: none;
+  cursor: ns-resize;
+  z-index: 2;
+}
+.scrubber:hover {
+  width: 80px;
+}
+.scrubber .thumb {
+  position: absolute;
+  right: 4px;
+  left: 4px;
+  height: 3px;
+  background: var(--accent);
+}
+.scrubber .bubble {
+  position: absolute;
+  right: 84px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  white-space: nowrap;
+}
+
+/* lightbox */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: 48px 1fr 88px;
+  background: var(--canvas);
+  animation: fade-in var(--t-page) var(--ease);
+}
+.lightbox > :not(.info) {
+  grid-column: 1;
+}
+.lightbox .stage {
+  grid-row: 2;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.lightbox .stage img {
+  position: absolute;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  transform-origin: center;
+}
+.lightbox .info {
+  grid-row: 2 / 4;
+  grid-column: 2;
+  width: 380px;
+  overflow: auto;
+  padding: 16px;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+}
+.filmstrip {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  padding: 8px;
+}
+.filmstrip button {
+  flex: 0 0 auto;
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-photo);
+  background-size: cover;
+  opacity: 0.6;
+}
+.filmstrip button[aria-current="true"] {
+  opacity: 1;
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 100ms !important;
+    transition-duration: 100ms !important;
+  }
+  .lightbox {
+    animation: fade-in 100ms linear;
+  }
+}

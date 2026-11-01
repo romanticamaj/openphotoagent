@@ -14,12 +14,16 @@
   "dependencies": {
     "@opa/i18n": "workspace:*",
     "@tanstack/react-query": "5.105.1",
+    "@tanstack/react-router": "1.170.44",
+    "@tanstack/react-virtual": "3.14.19",
     "i18next": "26.6.0",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "react-i18next": "17.1.10"
+    "react-i18next": "17.1.10",
+    "thumbhash": "0.1.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@playwright/test": "1.63.0",
     "@tailwindcss/vite": "4.3.3",
     "@testing-library/react": "16.3.3",

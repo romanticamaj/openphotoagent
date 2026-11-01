@@ -69,6 +69,22 @@ def create_app(
 
     if static_dir:
         from fastapi.staticfiles import StaticFiles
+        from starlette.exceptions import HTTPException as StarletteHTTPException
 
-        app.mount("/", StaticFiles(directory=static_dir, html=True), name="web")
+        class SpaFiles(StaticFiles):
+            """Client-side routes (``/organize``, ``/review/…``) get index.html; real files are served as-is."""
+
+            async def get_response(self, path: str, scope: Any) -> Any:
+                try:
+                    return await super().get_response(path, scope)
+                except StarletteHTTPException as e:
+                    if (
+                        e.status_code != 404
+                        or path.startswith(("api/", "worker-api/"))
+                        or "." in path.rsplit("/", 1)[-1]
+                    ):
+                        raise
+                    return await super().get_response("index.html", scope)
+
+        app.mount("/", SpaFiles(directory=static_dir, html=True), name="web")
     return app
