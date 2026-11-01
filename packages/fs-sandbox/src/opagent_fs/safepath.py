@@ -36,6 +36,16 @@ class PathViolation(Exception):  # noqa: N818 - name from 09a FS-*
         self.rel = rel
 
 
+class RootNotAllowed(Exception):  # noqa: N818
+    code = "FS_ROOT_NOT_ALLOWED"
+    retryable = False
+
+
+class RootUnavailable(Exception):  # noqa: N818
+    code = "FS_ROOT_UNAVAILABLE"
+    retryable = True
+
+
 @dataclass(frozen=True)
 class RootConfig:
     alias: str
@@ -82,7 +92,8 @@ def check_rel(rel: str, alias: str = "") -> list[str]:
 class Sandbox:
     """Resolves ``alias + relative path`` against the worker's allowlisted roots."""
 
-    def __init__(self, roots: list[RootConfig]) -> None:
+    def __init__(self, roots: list[RootConfig], audit: typing.Callable[[dict[str, str]], None] | None = None) -> None:
+        self.audit = audit
         self.roots = {r.alias: r for r in roots}
         self._real = {r.alias: Path(os.path.realpath(r.path)) for r in roots}
 
@@ -131,6 +142,9 @@ class Sandbox:
         finally:
             os.close(dfd)
         return os.fdopen(fd, "rb")
+
+    def check_overwrite(self, p: SafePath) -> None:
+        pass
 
     def open_write(self, alias: str, rel: str) -> SafePath:
         if self.roots[alias].mode != "rw":

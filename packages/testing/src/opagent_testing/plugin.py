@@ -80,3 +80,17 @@ class SandboxTree:
 @pytest.fixture
 def sandbox_tree(tmp_path):  # type: ignore[no-untyped-def]
     return SandboxTree(tmp_path)
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """OS-specific cases (09a §2 `os` column) only run on their OS; the OS matrix in CI covers the rest."""
+    import sys
+
+    here = {"win32": "os_windows", "darwin": "os_macos"}.get(sys.platform, "os_linux")
+    keep, drop = [], []
+    for it in items:
+        marks = {m.name for m in it.iter_markers() if m.name.startswith("os_")}
+        (drop if marks and here not in marks else keep).append(it)
+    if drop:
+        config.hook.pytest_deselected(items=drop)
+        items[:] = keep

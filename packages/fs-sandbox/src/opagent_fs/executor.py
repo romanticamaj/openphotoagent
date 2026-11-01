@@ -19,7 +19,7 @@ from .safepath import Sandbox
 @dataclass(frozen=True)
 class Action:
     action_id: str
-    op: Literal["copy"]
+    op: Literal["copy", "move"]
     src_alias: str
     src_rel: str
     dst_alias: str
@@ -33,6 +33,10 @@ class ActionResult:
     status: Literal["done", "skipped", "failed", "undone", "conflict"]
     dst_rel: str | None = None
     error: str | None = None
+
+
+def effective_op(sb: Sandbox, a: Action, allow_move_from_ro_roots: bool = False) -> tuple[str, bool]:
+    return a.op, False
 
 
 class Executor:
