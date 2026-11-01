@@ -45,3 +45,6 @@ apps/web/playwright-report/
 .mutmut-cache
 mutants/
 .opagent-dev/
+apps/web/e2e/.run/
+apps/web/dist/
+*.tsbuildinfo
