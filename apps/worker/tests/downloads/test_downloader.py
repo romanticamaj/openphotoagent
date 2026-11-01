@@ -157,10 +157,10 @@ def test_dl_006_bad_sha_retried_once_then_permanent(server, tmp_path):
 @pytest.mark.integration
 @pytest.mark.tc("DL-007")
 def test_dl_007_remote_changed_restarts_file(server, tmp_path):
-    srv = server([HfFile("w.gguf", 2 * MB)], rate_bps=8 * MB)
+    srv = server([HfFile("w.gguf", 4 * MB)], rate_bps=8 * MB)
     tok = CancelToken()
     d = mk(srv, tmp_path)
-    d.on_progress = lambda ev: tok.pause() if ev["done_bytes"] > MB and not tok.requested else None
+    d.on_progress = lambda ev: tok.pause() if ev["done_bytes"] >= MB and not tok.requested else None
     assert run(d.download("op7", files_for(srv), tok)).status == "paused"
     srv.scenario = "etag-changed"
     srv.rate_bps = None
@@ -168,7 +168,7 @@ def test_dl_007_remote_changed_restarts_file(server, tmp_path):
     assert "DL_REMOTE_CHANGED" in res.warnings
     assert res.status == "failed" or res.status == "done"  # content is the same here, so the sha still verifies
     last = [r for r in srv.gets() if r["path"].startswith("/cdn/")][-1]
-    assert last["sent"] == 2 * MB  # whole file re-downloaded after the 200
+    assert last["sent"] == 4 * MB  # whole file re-downloaded after the 200
 
 
 @pytest.mark.integration
