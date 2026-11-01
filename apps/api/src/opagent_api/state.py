@@ -19,6 +19,7 @@ class AppState:
     launch_token: str | None = None
     registry_dir: Path | None = None
     user_models_dir: Path | None = None
+    thumbs_dir: Path | None = None
 
     def registry(self) -> Any:
         """Built-in catalog + pins + the user's YAML (re-read so a new custom model shows up, INF-REG-003)."""

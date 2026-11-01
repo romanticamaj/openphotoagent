@@ -173,25 +173,12 @@ def create_job(body: JobIn, req: Request) -> dict[str, Any]:
                 params=body.model_dump(),
             )
         )
+        # never index the output folder when it lives inside the source (SCAN-024)
+        inside = body.target.root_alias == s.root_alias and body.target.sub_path.strip("/")
+        from .routes_viewer import scan_task
+
         c.execute(
-            insert(worker_task).values(
-                id=uuid7(st.clock),
-                kind="scan",
-                job_id=jid,
-                worker_id=s.worker_id,
-                payload={
-                    "job_id": jid,
-                    "source_id": s.id,
-                    "root_alias": s.root_alias,
-                    "sub_path": s.sub_path,
-                    "include": s.include,
-                    "exclude": s.exclude,
-                    # never index the output folder when it lives inside the source (SCAN-024)
-                    "exclude_subtrees": [body.target.sub_path.strip("/")]
-                    if body.target.root_alias == s.root_alias and body.target.sub_path.strip("/")
-                    else [],
-                },
-            )
+            insert(worker_task).values(**scan_task(st, s, jid, [body.target.sub_path.strip("/")] if inside else []))
         )
     return get_job(jid, req)
 

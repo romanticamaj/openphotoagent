@@ -8,8 +8,10 @@ string constant emptying (non-docstring), `return x` -> `return None`.
 from __future__ import annotations
 
 import ast
+import contextlib
 import os
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -185,17 +187,25 @@ def run(files: list[str], workers: int = 4, timeout: int = 300) -> tuple[float, 
                 "OPAGENT_HYPOTHESIS_PROFILE": "ci",
                 "OPAGENT_TC_RESULTS": str(tmp / "tc.json"),
             }
-            r = subprocess.run(
+            # own process group: a timed-out mutant (often an infinite loop) is killed together with every
+            # subprocess its tests spawned (chaos runners), so nothing is left spinning
+            p = subprocess.Popen(
                 [sys.executable, "-m", "pytest", "-x", "-q", "-p", "no:randomly", *tests],
                 cwd=ROOT,
                 env=env,
-                capture_output=True,
-                timeout=timeout,
-                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
             )
-            return f"{f}:{line}:{site[1]}", r.returncode != 0
-        except subprocess.TimeoutExpired:
-            return f"{f}:{line}:{site[1]}", True
+            try:
+                rc = p.wait(timeout=timeout)
+            except subprocess.TimeoutExpired:
+                os.killpg(p.pid, signal.SIGKILL)
+                p.wait()
+                return f"{f}:{line}:{site[1]}", True
+            with contextlib.suppress(ProcessLookupError):
+                os.killpg(p.pid, signal.SIGKILL)
+            return f"{f}:{line}:{site[1]}", rc != 0
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 

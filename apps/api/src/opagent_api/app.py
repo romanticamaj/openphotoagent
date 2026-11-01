@@ -9,7 +9,16 @@ from fastapi import FastAPI
 from opagent_core.clock import Clock, SystemClock
 from opagent_db.schema import engine_for
 
-from . import routes_doctor, routes_models, routes_ops, routes_public, routes_review, routes_worker, search
+from . import (
+    routes_doctor,
+    routes_models,
+    routes_ops,
+    routes_public,
+    routes_review,
+    routes_viewer,
+    routes_worker,
+    search,
+)
 from .problems import install_problem_handlers
 from .state import AppState
 
@@ -21,6 +30,7 @@ def create_app(
     static_dir: str | None = None,
     registry_dir: Any = None,
     user_models_dir: Any = None,
+    thumbs_dir: Any = None,
 ) -> FastAPI:
     app = FastAPI(title="OpenPhotoAgent API", version="0.1.0-dev")
     from pathlib import Path
@@ -31,6 +41,7 @@ def create_app(
         launch_token=launch_token,
         registry_dir=Path(registry_dir) if registry_dir else None,
         user_models_dir=Path(user_models_dir) if user_models_dir else None,
+        thumbs_dir=Path(thumbs_dir) if thumbs_dir else None,
     )
     st.ensure_workspace()
     app.state.opa = st
@@ -40,6 +51,7 @@ def create_app(
     app.include_router(routes_review.router, prefix="/api/v1")
     app.include_router(routes_models.router, prefix="/api/v1")
     app.include_router(routes_doctor.router, prefix="/api/v1")
+    app.include_router(routes_viewer.router, prefix="/api/v1")
     app.include_router(search.router, prefix="/api/v1")
     app.include_router(search.worker_router, prefix="/worker-api/v1")
     app.include_router(routes_models.worker_router, prefix="/worker-api/v1")

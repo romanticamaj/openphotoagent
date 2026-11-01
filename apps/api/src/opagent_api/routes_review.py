@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Request
-from opagent_db.schema import asset, job, result, review
+from opagent_db.schema import asset, asset_location, job, result, review, source
 from pydantic import BaseModel
 from sqlalchemy import func, insert, select
 
@@ -135,5 +135,11 @@ def get_asset(asset_id: str, req: Request) -> dict[str, Any]:
                 }
             )
         human = labels.human_label(c, asset_id, None)
+        locs = c.execute(
+            select(asset_location.c.source_id, source.c.root_alias, asset_location.c.rel_path, asset_location.c.missing)
+            .join(source, source.c.id == asset_location.c.source_id)
+            .where(asset_location.c.asset_id == asset_id)
+            .order_by(asset_location.c.rel_path)
+        ).all()
         d = {k: (v.isoformat() if hasattr(v, "isoformat") else v) for k, v in a._mapping.items()}
-        return {**d, "labels": out, "human_label": human}
+        return {**d, "labels": out, "human_label": human, "locations": [dict(r._mapping) for r in locs]}

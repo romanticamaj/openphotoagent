@@ -79,8 +79,16 @@ def upsert_entries(st: Any, c: Any, src_id: str, entries: list[dict[str, Any]]) 
                 thumbhash=e.get("thumbhash"),
                 phash=e.get("phash"),
                 dhash=e.get("dhash"),
+                exif=e.get("exif") or {},
+                local_at=(taken or mtime).replace(tzinfo=None),
             )
-            .on_conflict_do_update(index_elements=["workspace_id", "content_hash"], set_={"size_bytes": e["size"]})
+            .on_conflict_do_update(
+                index_elements=["workspace_id", "content_hash"],
+                set_={
+                    "size_bytes": e["size"],
+                    "local_at": func.coalesce(asset.c.local_at, (taken or mtime).replace(tzinfo=None)),
+                },
+            )
             .returning(asset.c.id)
         ).scalar_one()
         c.execute(

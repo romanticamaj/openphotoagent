@@ -8,6 +8,7 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     Column,
+    Computed,
     DateTime,
     Float,
     ForeignKey,
@@ -79,9 +80,14 @@ asset = Table(
     Column("thumbhash", Text),
     Column("phash", Text),
     Column("dhash", Text),
+    Column("exif", JSONB, nullable=False, server_default="{}"),  # display summary (10 §3.5); untrusted data
+    # wall-clock time the photo belongs to (capture time, else file mtime) and its month: the timeline axis (10 §2)
+    Column("local_at", DateTime(timezone=False)),
+    Column("month_at", DateTime(timezone=False), Computed("date_trunc('month', local_at)", persisted=True)),
     _ts("created_at", server_default=func.now()),
     UniqueConstraint("workspace_id", "content_hash"),
 )
+Index("asset_timeline", asset.c.workspace_id, asset.c.month_at, asset.c.local_at.desc())
 asset_location = Table(
     "asset_location",
     metadata,

@@ -431,6 +431,7 @@ class WorkerAgent:
             cache=self.cache,
             exclude_subtrees=p.get("exclude_subtrees") or [],
             after=p.get("cursor"),
+            thumbs_dir=self.home / "thumbs",
         )
 
     def _do_apply(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
