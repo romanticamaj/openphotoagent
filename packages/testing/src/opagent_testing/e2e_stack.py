@@ -106,6 +106,35 @@ class Stack:
 
             return {"ready": True} if self.worker is not None else Response(status_code=503)
 
+        @ctl.get("/stats")
+        def stats() -> dict[str, int]:
+            w = self.worker
+            vlm = len(w.backend.requests()) if w is not None and w.backend is not None else 0
+            emb = len(w.embedder.requests()) if w is not None and w.embedder is not None else 0
+            return {"vlm_requests": vlm, "embed_requests": emb}
+
+        @ctl.post("/slow")
+        def slow(body: dict[str, float]) -> dict[str, bool]:
+            """Make a step observable: VLM latency per item, pause between file actions while applying."""
+            if "vlm_latency_s" in body and self.worker.backend is not None:
+                self.worker.backend.latency_s = float(body["vlm_latency_s"])
+            if "apply_throttle_s" in body:
+                self.worker.apply_throttle_s = float(body["apply_throttle_s"])
+            return {"ok": True}
+
+        @ctl.post("/move-into-sorted")
+        def move_into_sorted() -> dict[str, str]:
+            """Photos in a writable root (sorted/inbox) so a move can be planned (E2E-B-005)."""
+            inbox = self.sorted / "inbox"
+            inbox.mkdir(parents=True, exist_ok=True)
+            for f in sorted((self.photos / "trip").glob("*.jpg")):
+                shutil.copy2(f, inbox / f.name)
+            return {"inbox": str(inbox)}
+
+        @ctl.post("/big-move-plan")
+        def big_move_plan(body: dict[str, int]) -> dict[str, str]:
+            return self._big_move_plan(int(body.get("n", 10_001)))
+
         @ctl.get("/hf")
         def hf() -> dict[str, Any]:
             return {"url": self.hf.url, "gets": len(self.hf.gets())}
@@ -241,6 +270,76 @@ class Stack:
                 w.register()
             if w.embedder is not None and w.backend is not None:
                 return
+
+    def _big_move_plan(self, n: int) -> dict[str, str]:
+        """A draft plan with ``n`` move actions (never applied): the > 10,000-move confirmation (E2E-B-005)."""
+        import uuid
+
+        from opagent_db.schema import asset, engine_for, job, output_action, output_plan, source
+        from sqlalchemy import insert
+
+        eng = engine_for(self.dsn)
+        jid, pid, sid = (uuid.uuid4().hex for _ in range(3))
+        with eng.begin() as c:
+            c.execute(
+                insert(source).values(
+                    id=sid,
+                    workspace_id="default",
+                    worker_id="local",
+                    root_alias="sorted",
+                    sub_path="big",
+                    include=["**/*.jpg"],
+                    exclude=[],
+                )
+            )
+            c.execute(
+                insert(job).values(
+                    id=jid,
+                    workspace_id="default",
+                    kind="organize",
+                    status="awaiting_approval",
+                    mode="dry_run",
+                    plan_id=pid,
+                    params={
+                        "source_id": sid,
+                        "preset": "by-date",
+                        "action": "move",
+                        "target": {"root_alias": "sorted", "sub_path": ""},
+                    },
+                )
+            )
+            c.execute(
+                insert(output_plan).values(
+                    id=pid, job_id=jid, status="draft", summary={"copy": 0, "move": n, "folders": 1, "total": n}
+                )
+            )
+            c.execute(
+                insert(asset),
+                [
+                    {"id": f"big{i}", "workspace_id": "default", "content_hash": f"bighash{i}", "size_bytes": 1}
+                    for i in range(n)
+                ],
+            )
+            c.execute(
+                insert(output_action),
+                [
+                    {
+                        "id": f"{pid}-{i}",
+                        "plan_id": pid,
+                        "seq": i,
+                        "asset_id": f"big{i}",
+                        "action": "move",
+                        "src_alias": "sorted",
+                        "src_rel": f"big/{i}.jpg",
+                        "dst_alias": "sorted",
+                        "dst_rel": f"2024/{i}.jpg",
+                        "src_hash": f"bighash{i}",
+                    }
+                    for i in range(n)
+                ],
+            )
+        eng.dispose()
+        return {"plan_id": pid, "job_id": jid}
 
     def _scan_done(self, src: str) -> bool:
         from opagent_db.schema import engine_for, worker_task

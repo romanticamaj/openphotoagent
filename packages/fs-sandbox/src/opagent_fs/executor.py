@@ -105,7 +105,7 @@ class Executor:
         plan_id: str,
         actions: list[Action],
         move_confirmed: bool = False,
-        control: Callable[[], str] | None = None,
+        control: Callable[[], str | None] | None = None,
     ) -> ApplyReport:
         """Apply actions in order. ``control()`` is consulted between actions: ``pause`` stops with status
         ``paused``; ``cancel`` stops with ``partially_applied`` (OUT-EXE-017/018). A full disk or an unplugged

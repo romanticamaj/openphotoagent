@@ -15,6 +15,7 @@ from opagent_db.schema import (
     operation,
     output_action,
     output_plan,
+    source,
     worker,
     worker_task,
 )
@@ -327,6 +328,8 @@ def task_progress(task_id: str, body: ProgressIn, req: Request) -> dict[str, Any
             c.execute(update(operation).where(operation.c.id == task_id).values(progress=body.progress))
         if body.waiting_reason:
             set_op_status(c, st.clock, task_id, "waiting", body.waiting_reason)
+            if body.waiting_reason == "SOURCE_OFFLINE" and t.payload.get("source_id"):
+                c.execute(update(source).where(source.c.id == t.payload["source_id"]).values(status="offline"))
         elif t.kind in TASK_OP_TYPES and op_status not in ("paused", "pausing", "cancelling", "cancelled"):
             set_op_status(c, st.clock, task_id, "running")
     # control channel: the worker checks this after each progress report (06 §2.2 true pause/cancel)
@@ -386,6 +389,7 @@ def complete(task_id: str, body: CompleteIn, req: Request) -> dict[str, str]:
 
 
 def _on_scan(st: AppState, c: Any, t: Any, result: dict[str, Any]) -> None:
+    c.execute(update(source).where(source.c.id == t.payload["source_id"]).values(status="online"))
     organize.upsert_entries(st, c, t.payload["source_id"], result.get("entries") or [])
     organize.finish_scan(st, c, t)
 

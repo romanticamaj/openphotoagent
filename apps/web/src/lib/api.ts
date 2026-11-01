@@ -38,7 +38,6 @@ export type AssetInfo = {
   human_label: { category: string; source: string } | null;
   locations?: Array<{ source_id: string; root_alias: string; rel_path: string; missing: boolean }>;
 };
-export type Category = { key: string; name: string; description: string };
 export type Variant = "t256" | "t512" | "p1024";
 
 export const mediaUrl = (id: string, variant: Variant) => `/api/v1/assets/${encodeURIComponent(id)}/media?variant=${variant}`;
@@ -64,19 +63,60 @@ export type Operation = {
 };
 
 export type Root = { worker_id: string; alias: string; mode: "ro" | "rw" };
-export type Job = { id: string; status: string; plan_id: string | null };
-export type Plan = { id: string; status: string; summary: { copy: number; folders: number; total: number } };
+export type Job = {
+  id: string;
+  status: string;
+  plan_id: string | null;
+  params?: Record<string, unknown>;
+  waiting_reason?: string | null;
+  source_status?: string | null;
+  reviews_pending?: number;
+};
+export type PlanAction = { id: string; asset_id: string; action: string; src_rel: string; dst_alias: string; dst_rel: string; status: string; conflict: string };
+export type Plan = {
+  id: string;
+  job_id: string;
+  status: string;
+  summary: { copy: number; folders: number; total: number; move?: number };
+  outcome: { done: number; renamed: number; same_skipped: number; skipped: number; failed: number } | null;
+  actions?: PlanAction[];
+};
+export type PreviewItem = { asset_id: string; rel: string; category_key: string; decision: string; confidence: number; source: string; dst_rel: string };
+export type Preview = {
+  id: string;
+  status: "running" | "ready";
+  items: PreviewItem[];
+  estimate: { total: number; distribution: Record<string, number>; time: { p50_s: number } } | null;
+};
+export type Category = { key: string; name: string; description: string; examples?: string[] };
+export type Review = {
+  id: string;
+  asset_id: string;
+  job_id: string;
+  status: string;
+  suggested: { category: string; confidence: number; candidates: Array<string | { id?: string; key?: string }> };
+  final: { category: string } | null;
+};
 
 export const api = {
   roots: () => req<Root[]>("GET", "/roots"),
   browse: (root: string, path: string) =>
     req<{ dirs: string[] }>("GET", `/fs/browse?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`),
   createSource: (root_alias: string, sub_path: string) => req<{ id: string }>("POST", "/sources", { root_alias, sub_path }),
-  createJob: (source_id: string, preset: string, target: { root_alias: string; sub_path: string }) =>
-    req<Job>("POST", "/jobs", { kind: "organize", source_id, preset, target }),
+  createJob: (source_id: string, preset: string, target: { root_alias: string; sub_path: string }, extra: Record<string, unknown> = {}) =>
+    req<Job>("POST", "/jobs", { kind: "organize", source_id, preset, target, ...extra }),
+  cancelJob: (id: string) => req<Job>("POST", `/jobs/${id}/cancel`),
+  reapply: (id: string, thresholds: Record<string, number>) => req<{ plan_id: string }>("POST", `/jobs/${id}/reapply`, { thresholds }),
+  createPreview: (source_id: string, preset: string, categories?: Category[]) =>
+    req<{ id: string }>("POST", "/previews", { source_id, preset, categories, k: 10 }),
+  preview: (id: string) => req<Preview>("GET", `/previews/${id}`),
+  rerender: (id: string, thresholds: Record<string, number>) => req<{ items: PreviewItem[] }>("POST", `/previews/${id}/rerender`, { thresholds }),
+  reviews: (job: string, status = "pending") => req<{ count: number; items: Review[] }>("GET", `/reviews?job_id=${job}&status=${status}`),
+  actReview: (id: string, action: "accept" | "correct" | "skip", category?: string) => req<unknown>("POST", `/reviews/${id}`, { action, category }),
+  skipRest: (job: string) => req<unknown>("POST", `/jobs/${job}/reviews/skip-rest`),
   job: (id: string) => req<Job>("GET", `/jobs/${id}`),
   plan: (id: string) => req<Plan>("GET", `/output-plans/${id}`),
-  approve: (id: string) => req<Plan>("POST", `/output-plans/${id}/approve`, {}),
+  approve: (id: string, body: { move_confirmed?: boolean; confirm_text?: string } = {}) => req<Plan>("POST", `/output-plans/${id}/approve`, body),
   undo: (id: string) => req<Plan>("POST", `/output-plans/${id}/undo`),
   recommendation: (worker_id: string) => req<Recommendation>("GET", `/onboarding/recommendation?worker_id=${encodeURIComponent(worker_id)}`),
   installCombo: (worker_id: string, variants: string[]) =>

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Request
@@ -186,14 +187,29 @@ def create_job(body: JobIn, req: Request) -> dict[str, Any]:
 
 @router.get("/jobs/{job_id}")
 def get_job(job_id: str, req: Request) -> dict[str, Any]:
+    from opagent_db.schema import operation, review
+
     from . import queue as q
 
     with _st(req).engine.begin() as c:
         r = c.execute(select(job).where(job.c.id == job_id)).first()
         cnt = q.counters(c, job_id)
-    if r is None:
-        raise HTTPException(404, detail={"code": "NOT_FOUND"})
+        if r is None:
+            raise HTTPException(404, detail={"code": "NOT_FOUND"})
+        waiting = c.execute(
+            select(operation.c.waiting_reason)
+            .join(worker_task, worker_task.c.id == operation.c.id)
+            .where(worker_task.c.job_id == job_id, operation.c.status == "waiting")
+            .limit(1)
+        ).scalar()
+        src_status = c.execute(select(source.c.status).where(source.c.id == (r.params or {}).get("source_id"))).scalar()
+        pending = c.execute(
+            select(func.count()).select_from(review).where(review.c.job_id == job_id, review.c.status == "pending")
+        ).scalar_one()
     d = dict(r._mapping)
+    d["waiting_reason"] = waiting  # e.g. SOURCE_OFFLINE: waiting, not failed (SCAN-020)
+    d["source_status"] = src_status
+    d["reviews_pending"] = pending
     if cnt["total"]:
         d["counters"] = {**(d.get("counters") or {}), **cnt}
         to_infer = cnt["total"] - cnt["cached"]
@@ -485,7 +501,7 @@ def get_plan(plan_id: str, req: Request) -> dict[str, Any]:
     }
 
 
-def _outcome(acts: list[Any]) -> dict[str, int]:
+def _outcome(acts: Sequence[Any]) -> dict[str, int]:
     """What applying did: copied/moved, renamed because a different file had the name, identical copies skipped."""
     out = {"done": 0, "renamed": 0, "same_skipped": 0, "skipped": 0, "failed": 0}
     for a in acts:

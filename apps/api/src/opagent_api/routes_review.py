@@ -23,8 +23,9 @@ def _st(req: Request) -> AppState:
 @router.get("/reviews")
 def list_reviews(req: Request, job_id: str | None = None, status: str = "pending", limit: int = 200) -> dict[str, Any]:
     with _st(req).engine.begin() as c:
-        q = select(review).where(review.c.status == status)
-        cnt = select(func.count()).select_from(review).where(review.c.status == status)
+        q, cnt = select(review), select(func.count()).select_from(review)
+        if status != "all":
+            q, cnt = q.where(review.c.status == status), cnt.where(review.c.status == status)
         if job_id:
             q, cnt = q.where(review.c.job_id == job_id), cnt.where(review.c.job_id == job_id)
         rows = c.execute(q.order_by(review.c.created_at, review.c.id).limit(limit)).all()

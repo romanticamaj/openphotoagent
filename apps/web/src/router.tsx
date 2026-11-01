@@ -2,6 +2,8 @@ import { Link, Outlet, createRootRoute, createRoute, createRouter, redirect } fr
 import { useTranslation } from "react-i18next";
 import { OrganizeWizard } from "./features/organize/OrganizeWizard";
 import { Welcome } from "./features/onboarding/Welcome";
+import { PlanPage } from "./features/organize/PlanPage";
+import { ReviewPage } from "./features/review/ReviewPage";
 import { SearchBar } from "./features/search/SearchBar";
 import { PhotosPage } from "./features/viewer/PhotosPage";
 import { api } from "./lib/api";
@@ -11,6 +13,7 @@ function Shell() {
   const nav: Array<[string, string]> = [
     ["/", "nav.photos"],
     ["/organize", "nav.organize"],
+    ["/review", "nav.review"],
   ];
   return (
     <div className="shell">
@@ -44,6 +47,23 @@ const photos = createRoute({
     if (sources !== null && sources.length === 0) throw redirect({ to: "/welcome" });
   },
 });
+const plan = createRoute({
+  getParentRoute: () => root,
+  path: "/plans/$planId",
+  component: function PlanRoute() {
+    const { planId } = plan.useParams();
+    return <PlanPage planId={planId} />;
+  },
+});
+const reviewRoute = createRoute({
+  getParentRoute: () => root,
+  path: "/review",
+  validateSearch: (s: Record<string, unknown>) => ({ job: typeof s.job === "string" ? s.job : "" }),
+  component: function ReviewRoute() {
+    const { job } = reviewRoute.useSearch();
+    return <ReviewPage jobId={job} />;
+  },
+});
 const welcome = createRoute({ getParentRoute: () => root, path: "/welcome", component: Welcome });
 const search = createRoute({
   getParentRoute: () => root,
@@ -61,7 +81,7 @@ const organize = createRoute({
   ),
 });
 
-export const router = createRouter({ routeTree: root.addChildren([photos, welcome, organize, search]) });
+export const router = createRouter({ routeTree: root.addChildren([photos, welcome, organize, plan, reviewRoute, search]) });
 
 declare module "@tanstack/react-router" {
   interface Register {
