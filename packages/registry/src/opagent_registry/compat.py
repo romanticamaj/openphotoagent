@@ -166,6 +166,7 @@ def compat(
     consents: Iterable[str] = (),
     observed_need_gb: dict[str, float] | None = None,
     resident_small_gb: float = RESIDENT_SMALL_GB,
+    pack: str | None = None,
 ) -> Compat:
     spec = model.spec
     v = spec.variant(variant)
@@ -175,6 +176,8 @@ def compat(
 
     # 1. platform
     cands = candidate_packs(v, runtimes, hw.pack_ids)
+    if pack is not None:  # the user chose a runtime pack (preflight choose_alternative, PF-083)
+        cands = sorted(cands, key=lambda p: p.id != pack)
     if hw.os not in v.requires.os or not any(p.supports(hw.os, hw.arch) for p in cands):
         c.level = "blocked"
         c.reasons.append(_issue("RUNTIME_UNSUPPORTED_PLATFORM", os=hw.os, arch=hw.arch))

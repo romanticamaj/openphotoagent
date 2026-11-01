@@ -50,6 +50,7 @@ class JobIn(BaseModel):
 class PreflightIn(BaseModel):
     action: str
     params: dict[str, Any] = Field(default_factory=dict)
+    fingerprint: str | None = None
 
 
 @router.get("/capabilities")
@@ -144,7 +145,7 @@ def preflight(body: PreflightIn, req: Request) -> dict[str, Any]:
 
     st = _st(req)
     with st.engine.begin() as c:
-        return run_preflight(c, st, body.action, body.params)
+        return run_preflight(c, st, body.action, body.params, body.fingerprint)
 
 
 @router.post("/jobs", status_code=201)

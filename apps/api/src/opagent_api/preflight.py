@@ -168,8 +168,15 @@ class Pre:
                 code = pack_failure(self.reg.runtimes[pack], hw, self.reg.gpu_classes)
                 if code in ("GPU_DRIVER_TOO_OLD", "GPU_ARCH_UNSUPPORTED"):
                     g = hw.primary_gpu
+                    alt = {"patch": {"pack": "llamacpp-vulkan"}}
                     self.add(
-                        code, {"v": g.driver if g else None, "gpu": g.name if g else None, "pack": pack}, "runtime"
+                        code,
+                        {"v": g.driver if g else None, "gpu": g.name if g else None, "pack": pack},
+                        "runtime",
+                        vulkan=alt,
+                        llamacpp_vulkan=alt,
+                        cpu={"patch": {"pack": "llamacpp-cpu"}},
+                        llamacpp_cuda13={"pack": "llamacpp-cuda13"},
                     )
                     continue
             cp = compat(
@@ -180,6 +187,7 @@ class Pre:
                 gpu_classes=self.reg.gpu_classes,
                 installed=list(installs),
                 consents=consents,
+                pack=pack,
             )
             for r in cp.reasons:
                 if r["code"] == "GPU_NOT_FOUND" and not hw.gpus:
@@ -197,7 +205,13 @@ class Pre:
             if code == "RUNTIME_PACK_MISSING":
                 inst = packs.get(pr["params"]["pack"])
                 if inst is None:
-                    self.add(code, {"pack": pr["params"]["pack"], "size": pr["params"].get("size_bytes")}, "runtime")
+                    pk = pr["params"]["pack"]
+                    self.add(
+                        code,
+                        {"pack": pk, "size": pr["params"].get("size_bytes")},
+                        "runtime",
+                        **{pk.replace("-", "_"): {"pack": pk}},
+                    )
                     self.revalidate.append(f"runtime.installed:{pr['params']['pack']}")
                 elif inst.status == "broken":
                     self.add("RUNTIME_PACK_BROKEN", {"pack": inst.key, "reason": "self-test failed"}, "runtime")
@@ -207,7 +221,9 @@ class Pre:
                 if pct is not None:
                     self.add("MODEL_DOWNLOADING", {"model": key, "pct": pct}, "model")
                 else:
-                    self.add(code, {"model": key, "size": pr["params"].get("size_bytes")}, "model")
+                    self.add(
+                        code, {"model": key, "size": pr["params"].get("size_bytes")}, "model", variant={"variant": key}
+                    )
             elif code == "LICENSE_CONSENT_REQUIRED":
                 self.add(code, {"model": key, "license": pr["params"].get("license")}, "model")
 
@@ -473,6 +489,42 @@ class Pre:
                 handler()
         return self._response()
 
+    def merged_fix(self) -> dict[str, Any] | None:
+        """PF-072: when ≥ 2 blockers can be solved by downloads, offer one "prepare everything" fix."""
+        items, total = [], 0
+        for b in self.blockers:
+            if b["code"] == "MODEL_NOT_INSTALLED" and "@" in str(b["params"].get("model")):
+                items.append({"variant": b["params"]["model"]})
+                total += int(b["params"].get("size") or 0)
+            elif b["code"] == "RUNTIME_PACK_MISSING":
+                items.append({"pack": b["params"]["pack"]})
+                total += int(b["params"].get("size") or 0)
+        if len(items) < 2:
+            return None
+        return {
+            "fix_id": "prepare_all",
+            "id": "prepare_all",
+            "type": "download",
+            "primary": True,
+            "label_key": "fix.prepare_all",
+            "count": len(items),
+            "items": items,
+            "bytes": total,
+        }
+
+    def state_token(self) -> str:
+        """Cheap summary of everything preflight reads (PF-074): when unchanged, the cached answer stands."""
+        ev = self.c.execute(select(func.max(event.c.id))).scalar() or 0
+        ins = self.c.execute(select(func.count()).select_from(installation)).scalar() or 0
+        ops = self.c.execute(select(func.max(operation.c.updated_at))).scalar()
+        hb = self.c.execute(select(func.max(worker.c.last_heartbeat_at))).scalar()
+        online = bool(
+            hb
+            and self.st.clock.now() - (hb if hb.tzinfo else hb.replace(tzinfo=__import__("datetime").UTC))
+            <= timedelta(seconds=OFFLINE_AFTER_S)
+        )
+        return f"{ev}|{ins}|{ops}|{online}"
+
     def _response(self) -> dict[str, Any]:
         fp = hashlib.sha256(
             json.dumps(
@@ -491,11 +543,30 @@ class Pre:
             "warnings": self.warnings,
             "revalidate_on": sorted(set(self.revalidate)),
             "ttl_s": 60,
+            "merged_fix": self.merged_fix(),
+            "cached": False,
         }
 
 
-def run_preflight(c: Any, st: Any, action: str, params: dict[str, Any]) -> dict[str, Any]:
-    return Pre(c, st, action, params).run()
+_CACHE: dict[str, dict[str, Any]] = {}
+
+
+def run_preflight(
+    c: Any, st: Any, action: str, params: dict[str, Any], fingerprint: str | None = None
+) -> dict[str, Any]:
+    pre = Pre(c, st, action, params)
+    key = hashlib.sha256(
+        json.dumps([action, params, pre.state_token()], sort_keys=True, default=str).encode()
+    ).hexdigest()[:16]
+    if fingerprint and fingerprint in _CACHE and _CACHE[fingerprint].get("_key") == key:
+        hit = {k: v for k, v in _CACHE[fingerprint].items() if k != "_key"}
+        return {**hit, "cached": True}  # state unchanged since the client's fingerprint: skip recompute
+    res = pre.run()
+    res["fingerprint"] = f"pf_{key}"
+    _CACHE[res["fingerprint"]] = {**res, "_key": key}
+    if len(_CACHE) > 2000:
+        _CACHE.pop(next(iter(_CACHE)))
+    return res
 
 
 def enforce(c: Any, st: Any, action: str, params: dict[str, Any]) -> dict[str, Any]:

@@ -1,8 +1,7 @@
-import json
 
 import pytest
 
-from .test_catalog import EMB16, Q4, Q5, env  # noqa: F401  (fixture re-export)
+from .test_catalog import EMB16, Q4, Q5
 
 
 @pytest.mark.unit
@@ -60,8 +59,8 @@ def test_pf_074_fingerprint_skips_recompute(env):
 @pytest.mark.unit
 @pytest.mark.tc("PF-081")
 def test_pf_081_inference_error_mapping():
-    from opagent_inference.types import ERROR_CODE_MAP, InferenceError
     from opagent_doctor.codes import CATALOG
+    from opagent_inference.types import ERROR_CODE_MAP, InferenceError
 
     assert ERROR_CODE_MAP["OOM"] == "MODEL_OOM" and ERROR_CODE_MAP["TIMEOUT"] == "RUNTIME_TIMEOUT"
     assert ERROR_CODE_MAP["BAD_INPUT"] == "DECODE_FAILED" and ERROR_CODE_MAP["RUNTIME"] in (
