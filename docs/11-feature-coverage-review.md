@@ -248,8 +248,8 @@
 
 | # | 事項 | 建議 |
 |---|------|------|
-| D-1 | 桌面「連接 AI 助手」建立的本機 PAT 是否預設包含 `photos:media` | 預設**不含**，精靈中提供勾選與外送說明（00 Q5） |
-| D-2 | 是否新增 output 動作 `trash`（重複照片清理，移到 `.opagent-trash/`，可 undo） | 建議 v0.2 與重複照片一起做；需要回寫 02 `output_rule.action` |
+| D-1 | 桌面「連接 AI 助手」建立的本機 PAT 是否預設包含 `photos:media` | **已決定（採建議）**：預設**不含**，精靈中提供勾選與外送說明（00 Q5） |
+| D-2 | 是否新增 output 動作 `trash`（重複照片清理，移到 `.opagent-trash/`，可 undo） | **已決定（採建議）**：新增 `trash`，v0.2 與重複照片清理一起做；實作時回寫 02 `output_rule.action` |
 | D-3 | 簽章經費（Apple 每年 99 美元）與 SignPath 申請 | 盡早送出 SignPath 申請；v0.1 不因此延期（08 §9.3） |
 | D-4 | v0.1 範圍是否過大（三平台安裝包 + doctor + 模型管理 + 整理 + viewer + ETA） | 建議以 §5 的 DoD 為硬門檻，必要時把 Linux deb／rpm、Docker 版延到 v0.1.x，安裝包先保留 Windows 與 macOS |
 | D-5 | 模型目錄更新與新推薦模型通知（矩陣 #36） | 建議 v0.2：registry 隨 app 更新，推薦組合改變時提示，不自動下載 |
