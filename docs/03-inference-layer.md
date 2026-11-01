@@ -914,7 +914,7 @@ UI 選模型 → 檢查 license.requires_acceptance
    - 支援 HF_ENDPOINT 鏡像、hf_transfer / Xet 加速、續傳
 → 驗證：
    - LFS 檔以 HF API 提供的 sha256 比對（snapshot 下載後再算一次）
-   - 內建模型的 registry 可釘選 `revision: <commit>` 與 `sha256` 清單（供應鏈防護）
+   - 內建模型的 `revision: <commit>` 與 size／sha256 清單一律放在 CI 產生的 `registry/pins.lock`（ADR-0002）；未釘選的 variant 不推薦、不可下載（`MODEL_NOT_PINNED`）
 → 註冊為 installed，寫入 ~/.opagent/models/installed.json（路徑、大小、sha、revision、下載時間）
 → 自動跑 smoke test（1 張內建測試圖）
 ```

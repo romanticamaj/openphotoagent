@@ -335,12 +335,13 @@
 
 | ID | 標題 | 前置／輸入 | 預期 | 層 | # |
 |----|------|-----------|------|----|---|
-| INF-REG-001 | 內建 YAML 全部通過 schema | `registry/models/*.yaml`、`registry/runtimes/*.yaml`、`gpu_classes.yaml` | 全部通過 JSON Schema；`variants[].files[]` 皆有 `size` 與 `sha256` | C | #15 |
-| INF-REG-002 | 缺 sha256 拒絕 | 變體檔案缺 sha256 | registry 載入錯誤（內建檔 CI 失敗；使用者檔則該模型標 `invalid` 不影響其他） | U | #24 |
+| INF-REG-001 | 內建 YAML 與 lock 全部通過 schema | `registry/models/*.yaml`、`registry/runtimes/*.yaml`、`gpu_classes.yaml`、`registry/pins.lock` | 全部通過 JSON Schema；catalog 不含 `size`／`sha256`；每個 lock 條目指向存在的 variant 與檔案；合併後每個 `pinned` variant 的每個檔案都有 `size > 0` 與 64-hex `sha256`（ADR-0002） | C | #15 |
+| INF-REG-002 | 缺 sha256 拒絕 | 使用者 YAML 檔案缺 sha256；內建 lock 條目 sha256 缺漏或格式錯；內建 variant 沒有 lock 條目 | 使用者檔：該模型標 `invalid`，不影響其他；內建 lock 條目不完整：載入錯誤（CI 失敗）；內建 variant 無 lock 條目：載入為 `unpinned`（ADR-0002） | U | #24 |
 | INF-REG-003 | 使用者自訂 YAML | 在 `models/custom/` 放合法 YAML | Models 頁出現、跑過 compat；`source=user` | I | #24 |
 | INF-REG-004 | 自訂 YAML 壞掉 | 語法錯誤／欄位錯誤 | 顯示錯誤與檔名行號，registry 其餘照常 | U | #24 |
 | INF-REG-005 | 每任務預設 | `tasks_default_rank` 與 `task_default_model` 覆寫 | caption、classify、embed 各自解析到指定 variant | U | #25 |
 | INF-REG-006 | 預設組合授權 | 檔位預設組合的所有 variant | `license.weights` 皆為 Apache-2.0 或同等寬鬆，`redistributable=true`；否則 CI 失敗 | C | #21 |
+| INF-REG-013 | 發版前全部釘選 | release gate：所有內建 variant 與 runtime pack | 每個內建 variant 都是 `pinned`；每個 runtime pack 都有 sha256；否則 release gate 失敗（與 INF-REG-001 合起來等價於原本的「全部有 sha256」，ADR-0002） | G | #15 |
 
 ### 6.2 INF-CONF：InferenceBackend／Adapter 一致性套件（`packages/inference-sdk/conformance`）
 
@@ -423,6 +424,7 @@
 | INF-RT-009 | Linux NVIDIA | `hw:linux-rtx3090` | cuda13（或 12）pack + 建議 `ort-cuda` | U | #22 |
 | INF-RT-010 | 不支援平台 | `hw:intel-mac`、`hw:linux-arm64` | 明確「不支援」訊息與文件連結；不崩潰 | U | #1 |
 | INF-RT-011 | 性質：永遠有退路 | Hypothesis 組合 hw 探針欄位 | 恰一個推薦組合；必有一條 CPU 可執行路徑（llama.cpp CPU 或 SigLIP 快速模式） | P | #28 |
+| INF-RT-012 | 不推薦未釘選 variant | 最佳 variant 為 `unpinned`，次佳為 `pinned` | 跳過 unpinned，推薦次佳 pinned variant；說明列出「尚未釘選」（ADR-0002） | U | #28 |
 
 ---
 

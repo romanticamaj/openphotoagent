@@ -449,6 +449,7 @@ PR 總牆鐘時間目標 ≤ 15 分鐘（job 並行）。Required checks：上�
 3. 最近 3 次 nightly 與 nightly-gpu 全綠；不可隔離清單（§1.6）中沒有任何 quarantine。
 4. 覆蓋率與 mutation 門檻（§5.6）達標。
 5. 安裝包 ≤ 200 MB；SBOM 與 sha256 產生；四台參考機效能紀錄已附上。
+6. INF-REG-013：所有內建模型 variant 都已在 `registry/pins.lock` 釘選（ADR-0002），`registry-pin.yml` 最近一次 nightly 驗證仍可解析。
 
 ### 5.6 覆蓋率與 mutation testing
 
