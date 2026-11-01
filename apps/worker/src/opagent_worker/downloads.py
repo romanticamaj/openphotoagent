@@ -281,6 +281,23 @@ class Downloader:
             ]
         raise DownloadError("NET_UNREACHABLE", False, host=self.sources[0] if self.sources else "")
 
+    async def _backoff(self, delay: float, prog: dict[str, Any], token: CancelToken) -> None:
+        """Retry backoff (06 §2.9) shown as ``waiting: NET_UNREACHABLE`` with a heartbeat every second, so the
+        Operation explains itself and a pause/cancel arriving on the control channel still ends it within 2 s."""
+
+        async def heartbeat() -> None:
+            while not token.requested:
+                self._emit({**prog, "waiting_reason": "NET_UNREACHABLE", "retry_in_s": round(delay)})
+                await asyncio.sleep(1.0)
+
+        hb = asyncio.create_task(heartbeat())
+        sl = asyncio.create_task(self.clock.sleep(delay))
+        await asyncio.wait({hb, sl}, return_when=asyncio.FIRST_COMPLETED)
+        hb.cancel()
+        sl.cancel()
+        if token.requested:
+            raise _Stop()
+
     def _emit(self, prog: dict[str, Any]) -> None:
         if self.on_progress:
             self.on_progress(dict(prog))
@@ -453,7 +470,7 @@ class Downloader:
                     code = "DL_MIRROR_FAILED" if len(self.sources) > 1 else "NET_UNREACHABLE"
                     raise DownloadError(code, True, path=f.path, error=str(e)) from None
                 base = BACKOFF_S[min(tries - 1, len(BACKOFF_S) - 1)]
-                await self.clock.sleep(base * rng.uniform(0.8, 1.2))
+                await self._backoff(base * rng.uniform(0.8, 1.2), prog, token)
 
 
 class DownloadQueue:

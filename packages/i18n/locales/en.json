@@ -139,7 +139,18 @@
   "fix": {
     "hf_token": "Add Hugging Face token",
     "retry": "Retry",
-    "reindex": "Rebuild index"
+    "reindex": "Rebuild index",
+    "mirrors": "Set a mirror",
+    "proxy": "Set a proxy",
+    "open_docs": "Learn why",
+    "GPU_DRIVER_TOO_OLD": {
+      "open_url": "Open the driver download page",
+      "choose_alternative": "Continue with Vulkan for now"
+    },
+    "GPU_ARCH_UNSUPPORTED": {
+      "download": "Download the CUDA 13 pack",
+      "choose_alternative": "Continue with Vulkan for now"
+    }
   },
   "nav": {
     "label": "Main navigation",
@@ -218,5 +229,49 @@
     "correct": "Correct category",
     "correctSave": "Save correction",
     "correctionSaved": "Correction saved"
+  },
+  "onboarding": {
+    "welcome": "Welcome to OpenPhotoAgent",
+    "tagline": "Organize and search your photos on your own computer. Your photos never leave it.",
+    "start": "Get started",
+    "hwTitle": "Your computer",
+    "checking": "Checking your computer…",
+    "conclusion": {
+      "standard": "Your computer can run standard mode ({gpu} · {vram} GB)",
+      "fast": "No usable GPU found; fast mode is recommended",
+      "unsupported": "This platform isn't supported yet"
+    },
+    "plan": {
+      "standard": "Recommended: standard mode",
+      "fast": "Recommended: fast mode",
+      "download": "Downloads {size}, about {min} min",
+      "per1000": "About {lo}–{hi} min per 1,000 photos (estimate)",
+      "license": "Model licence: {licenses}",
+      "runtime": "Runs on: {runtime}",
+      "other": "Other options",
+      "vulkan": "Vulkan (compatibility)",
+      "cuda": "CUDA",
+      "cpu": "CPU",
+      "metal": "Metal"
+    },
+    "download": "Start download",
+    "pickTitle": "Choose your photo folder",
+    "pickHint": "Models download in the background; pick a folder to start scanning meanwhile.",
+    "downloads": "Downloading models",
+    "scanning": "Scanning…",
+    "collage": "Photos found",
+    "organizeThese": "Organize these photos",
+    "browse": "Browse photos"
+  },
+  "search": {
+    "label": "Search photos",
+    "placeholder": "Search photos…",
+    "unavailable": {
+      "MODEL_NOT_INSTALLED": "The text-to-image search model isn't installed yet",
+      "MODEL_DOWNLOADING": "Search model downloading ({pct}%); search unlocks when it finishes"
+    }
+  },
+  "problem": {
+    "chosen": "Switched to {what}"
   }
 }

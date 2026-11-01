@@ -2,7 +2,9 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../../components/Button";
-import { api, type Job, type Plan } from "../../lib/api";
+import { FolderPicker } from "../../components/FolderPicker";
+import { ProblemCard, type Problem } from "../../components/ProblemCard";
+import { ApiError, api, type Job, type Plan } from "../../lib/api";
 
 type Step = "folder" | "method" | "preview" | "applying" | "done" | "undone";
 
@@ -13,40 +15,6 @@ async function waitFor(jobId: string, statuses: string[]): Promise<Job> {
     if (j.status === "failed") throw new Error("job failed");
     await new Promise((r) => setTimeout(r, 250));
   }
-}
-
-function FolderPicker({ onPick }: { onPick: (root: string, path: string) => void }) {
-  const { t } = useTranslation();
-  const [root, setRoot] = useState<string | null>(null);
-  const [path, setPath] = useState<string[]>([]);
-  const roots = useQuery({ queryKey: ["roots"], queryFn: api.roots });
-  const dirs = useQuery({
-    queryKey: ["browse", root, path.join("/")],
-    queryFn: () => api.browse(root!, path.join("/")),
-    enabled: root !== null,
-  });
-  const sources = (roots.data ?? []).filter((r) => r.mode === "ro" || r.mode === "rw");
-  return (
-    <section aria-labelledby="pick-title" className="space-y-3">
-      <h2 id="pick-title" className="text-lg font-semibold">{t("organize.pickFolder")}</h2>
-      <div className="flex flex-wrap gap-2">
-        {sources.map((r) => (
-          <Button key={r.alias} variant="ghost" onClick={() => { setRoot(r.alias); setPath([]); }}>{r.alias}</Button>
-        ))}
-      </div>
-      {root && (
-        <div className="space-y-2">
-          <p className="text-sm text-[var(--color-muted)]" data-testid="current-path">{[root, ...path].join(" / ")}</p>
-          <div className="flex flex-wrap gap-2">
-            {(dirs.data?.dirs ?? []).map((d) => (
-              <Button key={d} variant="ghost" onClick={() => setPath([...path, d])}>{d}</Button>
-            ))}
-          </div>
-          <Button onClick={() => onPick(root, path.join("/"))}>{t("organize.useThisFolder")}</Button>
-        </div>
-      )}
-    </section>
-  );
 }
 
 export function OrganizeWizard() {
@@ -110,6 +78,7 @@ export function OrganizeWizard() {
           {t("organize.output")}: <strong data-testid="output-target">{target?.alias ?? "—"}</strong>
         </p>
         <Button disabledReason={previewReason} onClick={() => preview.mutate()}>{t("organize.preview")}</Button>
+        {preview.error && <Blockers error={preview.error} />}
       </section>
     );
   }
@@ -137,4 +106,18 @@ export function OrganizeWizard() {
     );
   }
   return <h2 data-testid="undone-title" className="text-xl font-semibold">{t("organize.undoneTitle")}</h2>;
+}
+
+/** A refused action shows why and how to fix it (invariant 8): the server's preflight blockers as ProblemCards. */
+export function Blockers({ error }: { error: unknown }) {
+  const body = error instanceof ApiError ? (error.body as { detail?: { code?: string; blockers?: Problem[] } } | null) : null;
+  const detail = body?.detail ?? (body as { code?: string; blockers?: Problem[] } | null);
+  const list: Problem[] = detail?.blockers ?? (detail?.code ? [{ code: detail.code, params: {}, fixes: [] }] : [{ code: "INTERNAL", params: {}, fixes: [] }]);
+  return (
+    <div className="space-y-2" role="alert">
+      {list.map((p, i) => (
+        <ProblemCard key={`${p.code}-${i}`} problem={p} tone="danger" />
+      ))}
+    </div>
+  );
 }

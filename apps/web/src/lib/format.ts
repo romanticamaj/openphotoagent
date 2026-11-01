@@ -43,3 +43,16 @@ export function formatDuration(ms: number, locale: string): string {
   if (locale.startsWith("zh")) return p.map(([k, v]) => `${nf.format(v)} ${u[k]}`).join(" ");
   return p.map(([k, v]) => `${nf.format(v)} ${u[k]}`).join(", ");
 }
+
+/** Decimal units (what download sizes and disks advertise); one decimal below 10, none above. */
+export function formatBytes(n: number, locale: string): string {
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let i = 0;
+  let v = n;
+  while (v >= 1000 && i < units.length - 1) {
+    v /= 1000;
+    i++;
+  }
+  const digits = i === 0 || v >= 10 ? 0 : 1;
+  return `${new Intl.NumberFormat(locale, { maximumFractionDigits: digits, minimumFractionDigits: 0 }).format(v)} ${units[i]}`;
+}

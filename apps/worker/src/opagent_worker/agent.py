@@ -7,6 +7,7 @@ change through the journaled executor (invariant 3).
 from __future__ import annotations
 
 import os
+import threading
 import uuid
 from pathlib import Path
 from typing import Any
@@ -65,6 +66,7 @@ class WorkerAgent:
         self.page_size = 1000
         self.crash_after_pages: int | None = None  # test hook: simulate kill -9 after N reported pages
         self.last_scan_skipped_before_cursor = 0
+        self._dl_thread: threading.Thread | None = None
 
     @property
     def cascade_fingerprint(self) -> str:
@@ -106,12 +108,13 @@ class WorkerAgent:
         return wid
 
     def register(self) -> None:
-        models = {}
+        models: dict[str, str] = {}
         if self.backend is not None:
             info = self.backend.describe()
             models = {t: info.model_fingerprint for t in info.task_types}
-            if self.embedder is not None:
-                models["embed"] = self.embedder.describe().model_fingerprint
+        if self.embedder is not None:  # an embed-only worker (VLM still downloading) can already search
+            models["embed"] = self.embedder.describe().model_fingerprint
+            if self.backend is not None:
                 models["classify"] = self.cascade_fingerprint
         r = self.client.post(
             "/worker-api/v1/register",
@@ -126,12 +129,22 @@ class WorkerAgent:
         )
         r.raise_for_status()
 
-    def run_once(self, wait_s: float = 0.0) -> bool:
-        r = self.client.post("/worker-api/v1/lease", json={"worker_id": self.worker_id, "wait_s": wait_s})
+    def run_once(self, wait_s: float = 0.0, background_downloads: bool = False) -> bool:
+        """Lease and run one task. With ``background_downloads`` (the long-running loop) a download runs on its own
+        thread — one at a time (06 §2.4) — so browsing, scans and labelling keep going meanwhile (04 §8.2 W6 ∥ W7)."""
+        busy = self._dl_thread is not None and self._dl_thread.is_alive()
+        body: dict[str, Any] = {"worker_id": self.worker_id, "wait_s": wait_s}
+        if background_downloads and busy:
+            body["exclude_kinds"] = ["download"]
+        r = self.client.post("/worker-api/v1/lease", json=body)
         if r.status_code == 204:
             return False
         r.raise_for_status()
         task = r.json()
+        if background_downloads and task["kind"] == "download":
+            self._dl_thread = threading.Thread(target=self._run_task, args=(task,), daemon=True)
+            self._dl_thread.start()
+            return True
         self._run_task(task)
         return True
 
@@ -375,7 +388,7 @@ class WorkerAgent:
     def run_forever(self, stop: Any) -> None:
         while not stop.is_set():
             try:
-                busy = self.run_once(wait_s=0.5)
+                busy = self.run_once(wait_s=0.5, background_downloads=True)
                 if self.backend is not None:
                     busy = bool(self.process_items_once()) or busy
                 self.tick_waiting()
@@ -458,20 +471,22 @@ class WorkerAgent:
 
         def progress(ev: dict[str, Any]) -> None:
             now = self.clock.monotonic()
-            if now - last[0] < 0.25 and ev["done_bytes"] < ev["total_bytes"]:
+            waiting = ev.get("waiting_reason")
+            if not waiting and now - last[0] < 0.25 and ev["done_bytes"] < ev["total_bytes"]:
                 return
             last[0] = now
-            r = self.client.post(
-                f"/worker-api/v1/tasks/{task_id}/progress",
-                json={
-                    "progress": {
-                        "done": ev["done_bytes"],
-                        "total": ev["total_bytes"],
-                        "unit": "bytes",
-                        "file": ev["file"],
-                    }
-                },
-            )
+            body: dict[str, Any] = {
+                "progress": {
+                    "done": ev["done_bytes"],
+                    "total": ev["total_bytes"],
+                    "unit": "bytes",
+                    "file": ev.get("file"),
+                    **({"retry_in_s": ev.get("retry_in_s")} if waiting else {}),
+                }
+            }
+            if waiting:
+                body["waiting_reason"] = waiting
+            r = self.client.post(f"/worker-api/v1/tasks/{task_id}/progress", json=body)
             ctl = r.json().get("control") if r.status_code == 200 else None
             if ctl == "pause":
                 token.pause()

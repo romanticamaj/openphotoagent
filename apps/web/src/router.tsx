@@ -1,7 +1,10 @@
-import { Link, Outlet, createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
+import { Link, Outlet, createRootRoute, createRoute, createRouter, redirect } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { OrganizeWizard } from "./features/organize/OrganizeWizard";
+import { Welcome } from "./features/onboarding/Welcome";
+import { SearchBar } from "./features/search/SearchBar";
 import { PhotosPage } from "./features/viewer/PhotosPage";
+import { api } from "./lib/api";
 
 function Shell() {
   const { t } = useTranslation();
@@ -13,6 +16,7 @@ function Shell() {
     <div className="shell">
       <header className="topbar">
         <strong>{t("app.title")}</strong>
+        <SearchBar />
         <span className="text-xs text-[var(--text-muted)]">🔒 {t("nav.local")}</span>
       </header>
       <nav className="sidenav" aria-label={t("nav.label")}>
@@ -30,7 +34,23 @@ function Shell() {
 }
 
 const root = createRootRoute({ component: Shell });
-const photos = createRoute({ getParentRoute: () => root, path: "/", component: PhotosPage });
+const photos = createRoute({
+  getParentRoute: () => root,
+  path: "/",
+  component: PhotosPage,
+  // an empty library (no folder added yet) starts with onboarding (04 §8.2)
+  beforeLoad: async () => {
+    const sources = await api.sources().catch(() => null);
+    if (sources !== null && sources.length === 0) throw redirect({ to: "/welcome" });
+  },
+});
+const welcome = createRoute({ getParentRoute: () => root, path: "/welcome", component: Welcome });
+const search = createRoute({
+  getParentRoute: () => root,
+  path: "/search",
+  validateSearch: (s: Record<string, unknown>) => ({ q: typeof s.q === "string" ? s.q : "" }),
+  component: () => null,
+});
 const organize = createRoute({
   getParentRoute: () => root,
   path: "/organize",
@@ -41,7 +61,7 @@ const organize = createRoute({
   ),
 });
 
-export const router = createRouter({ routeTree: root.addChildren([photos, organize]) });
+export const router = createRouter({ routeTree: root.addChildren([photos, welcome, organize, search]) });
 
 declare module "@tanstack/react-router" {
   interface Register {

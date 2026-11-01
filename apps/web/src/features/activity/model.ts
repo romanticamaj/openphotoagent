@@ -48,3 +48,10 @@ export function groupOps(ops: Op[]): Group[] {
   }
   return [...groups].map(([key, list]) => ({ key, ops: list }));
 }
+
+/** API Operation row → view model (fraction from byte progress when the server sends only done/total). */
+export function fromApi(o: { progress?: { done?: number; total?: number; fraction?: number } | null; [k: string]: unknown }): Op {
+  const p = o.progress ?? {};
+  const fraction = p.fraction ?? (p.total ? (p.done ?? 0) / p.total : 0);
+  return { ...(o as unknown as Op), fraction };
+}

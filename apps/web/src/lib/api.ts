@@ -43,6 +43,26 @@ export type Variant = "t256" | "t512" | "p1024";
 
 export const mediaUrl = (id: string, variant: Variant) => `/api/v1/assets/${encodeURIComponent(id)}/media?variant=${variant}`;
 
+export type Recommendation = {
+  mode: "standard" | "fast" | "unsupported";
+  hardware: { os: string; gpu: string | null; vram_gb: number | null; ram_gb: number };
+  combo: { variants: string[]; packs: string[]; download_bytes: number; download_minutes: number; estimated: boolean };
+  per_1000_minutes: [number, number] | null;
+  licenses: string[];
+  requires_acceptance: boolean;
+  warnings: Array<{ code: string; params: Record<string, unknown>; fixes: Array<{ type: string; url?: string; pack?: string }> }>;
+};
+export type Operation = {
+  id: string;
+  type: string;
+  status: string;
+  subject: { id?: string; kind?: string } | null;
+  progress: { done?: number; total?: number } | null;
+  waiting_reason: string | null;
+  worker_id?: string | null;
+  error: { code: string; params?: Record<string, unknown>; fixes?: Array<{ id?: string; type: string; target?: string | null }> } | null;
+};
+
 export type Root = { worker_id: string; alias: string; mode: "ro" | "rw" };
 export type Job = { id: string; status: string; plan_id: string | null };
 export type Plan = { id: string; status: string; summary: { copy: number; folders: number; total: number } };
@@ -58,6 +78,14 @@ export const api = {
   plan: (id: string) => req<Plan>("GET", `/output-plans/${id}`),
   approve: (id: string) => req<Plan>("POST", `/output-plans/${id}/approve`, {}),
   undo: (id: string) => req<Plan>("POST", `/output-plans/${id}/undo`),
+  recommendation: (worker_id: string) => req<Recommendation>("GET", `/onboarding/recommendation?worker_id=${encodeURIComponent(worker_id)}`),
+  installCombo: (worker_id: string, variants: string[]) =>
+    req<{ operations: string[]; blocked: Array<{ variant: string; code: string }> }>("POST", "/onboarding/install", { worker_id, variants }),
+  operations: (params = "status=all") => req<Operation[]>("GET", `/operations?${params}`),
+  preflight: (action: string, params: Record<string, unknown> = {}) =>
+    req<{ blockers: Array<{ code: string; params: Record<string, unknown> }>; warnings: unknown[] }>("POST", "/preflight", { action, params }),
+  sources: () => req<Array<{ id: string; root_alias: string; sub_path: string }>>("GET", "/sources"),
+  scanSource: (id: string) => req<{ task_id: string }>("POST", `/sources/${encodeURIComponent(id)}/scan`),
   buckets: () => req<{ buckets: Array<{ month: string; count: number }> }>("GET", "/timeline/buckets"),
   bucket: (month: string) => req<{ month: string; assets: TimelineAsset[] }>("GET", `/timeline/buckets/${month}`),
   asset: (id: string) => req<AssetInfo>("GET", `/assets/${encodeURIComponent(id)}`),

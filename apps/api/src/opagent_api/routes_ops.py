@@ -72,6 +72,12 @@ def _resume_blockers(c: Any, op: Any) -> list[dict[str, Any]]:
     return []
 
 
+def _leased(c: Any, op_id: str) -> bool:
+    from opagent_db.schema import worker_task
+
+    return bool(c.execute(select(worker_task.c.status).where(worker_task.c.id == op_id)).scalar() == "leased")
+
+
 @router.post("/operations/{op_id}/{action}")
 def control(op_id: str, action: str, req: Request) -> dict[str, Any]:
     st = _st(req)
@@ -92,11 +98,14 @@ def control(op_id: str, action: str, req: Request) -> dict[str, Any]:
                 .where(worker_task.c.id == op_id, worker_task.c.status == "done", worker_task.c.kind == "download")
                 .values(status="pending", lease_expires_at=None)
             )
+        elif action == "pause" and op.status == "waiting" and _leased(c, op_id):
+            set_op_status(c, st.clock, op_id, "pausing")  # the worker confirms when it has stopped (ADR-0004)
         elif action == "pause":
             set_op_status(c, st.clock, op_id, "pausing")
             set_op_status(c, st.clock, op_id, "paused", "PAUSED_BY_USER")
         elif action == "cancel":
-            set_op_status(c, st.clock, op_id, "cancelling" if op.status == "running" else "cancelled")
+            held = op.status == "running" or (op.status == "waiting" and _leased(c, op_id))
+            set_op_status(c, st.clock, op_id, "cancelling" if held else "cancelled")
         else:
             raise HTTPException(404, detail={"code": "NOT_FOUND"})
     return get_operation(op_id, req)

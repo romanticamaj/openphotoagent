@@ -61,6 +61,7 @@ class RegisterIn(BaseModel):
 class LeaseIn(BaseModel):
     worker_id: str
     wait_s: float = 0.0
+    exclude_kinds: list[str] = []  # e.g. "download" while the worker's download slot is busy (06 §2.4)
 
 
 class CompleteIn(BaseModel):
@@ -143,7 +144,7 @@ def _recover_downloads(c: Any, st: AppState, worker_id: str) -> None:
         )
 
 
-def _lease_one(st: AppState, worker_id: str) -> dict[str, Any] | None:
+def _lease_one(st: AppState, worker_id: str, exclude: list[str] | None = None) -> dict[str, Any] | None:
     with st.engine.begin() as c:
         c.execute(
             update(worker).where(worker.c.id == worker_id).values(last_heartbeat_at=st.clock.now(), status="online")
@@ -151,9 +152,10 @@ def _lease_one(st: AppState, worker_id: str) -> dict[str, Any] | None:
         row = c.execute(
             text(
                 "SELECT id FROM worker_task WHERE status='pending' AND (worker_id IS NULL OR worker_id=:w) "
+                "AND NOT (kind = ANY(CAST(:ex AS text[]))) "
                 "ORDER BY (lane = 'interactive') DESC, created_at, id LIMIT 1 FOR UPDATE SKIP LOCKED"
             ),
-            {"w": worker_id},
+            {"w": worker_id, "ex": list(exclude or [])},
         ).first()
         if row is None:
             return None
@@ -183,7 +185,7 @@ def lease(body: LeaseIn, req: Request) -> Any:
     st = _st(req)
     deadline = st.clock.monotonic() + body.wait_s
     while True:
-        task = _lease_one(st, body.worker_id)
+        task = _lease_one(st, body.worker_id, body.exclude_kinds)
         if task is not None:
             return task
         if st.clock.monotonic() >= deadline:
@@ -361,8 +363,8 @@ def complete(task_id: str, body: CompleteIn, req: Request) -> dict[str, str]:
             rs = body.result.get("status")
             if rs == "paused" and body.result.get("waiting_reason"):  # paused_auto, e.g. disk full (DL-011)
                 set_op_status(c, st.clock, t.id, "waiting", body.result["waiting_reason"])
-            elif rs == "paused":
-                pass  # stays paused; resume re-queues the task and the download continues from its .part
+            elif rs == "paused":  # resume re-queues the task and the download continues from its .part
+                set_op_status(c, st.clock, t.id, "paused", "PAUSED_BY_USER")  # confirms a pausing op
             elif rs == "cancelled":
                 set_op_status(c, st.clock, t.id, "cancelled")
             else:

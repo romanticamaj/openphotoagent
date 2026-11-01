@@ -48,6 +48,9 @@ RPC_TIMEOUT_S = 2.0
 COMPAT_WARNINGS = {"VRAM_SEQUENTIAL", "VRAM_OFFLOAD", "PERF_CPU_ONLY_SLOW"}
 
 
+DOWNLOAD_ACTIVE = ("queued", "running", "waiting", "paused")
+
+
 class Pre:
     def __init__(self, c: Any, st: Any, action: str, params: dict[str, Any]) -> None:
         self.c, self.st, self.action, self.p = c, st, action, params
@@ -132,8 +135,12 @@ class Pre:
         return True
 
     def doctor_gate(self) -> None:
+        # job.start findings come from model/GPU features; a job that uses no model (by date) is unaffected (PF-084)
+        no_models = (
+            self.action == "job.start" and not self.p.get("models") and self.p.get("preset", "by-date") == "by-date"
+        )
         for d in self.caps.get("doctor") or []:
-            if self.action not in (d.get("affects") or []):
+            if self.action not in (d.get("affects") or []) or no_models:
                 continue
             if d.get("status") == "crashed":
                 self.add("CHECK_CRASHED", {"check": d.get("id")}, "doctor")
@@ -238,7 +245,7 @@ class Pre:
         r = self.c.execute(
             select(operation.c.progress).where(
                 operation.c.type == "model.download",
-                operation.c.status.in_(("queued", "running", "paused")),
+                operation.c.status.in_(DOWNLOAD_ACTIVE),
                 operation.c.subject["id"].astext == key,
             )
         ).first()
@@ -246,6 +253,16 @@ class Pre:
             return None
         p = r.progress or {}
         return int(100 * p.get("done", 0) / p["total"]) if p.get("total") else 0
+
+    def _active_downloads(self) -> list[str]:
+        return [
+            str(k)
+            for (k,) in self.c.execute(
+                select(operation.c.subject["id"].astext).where(
+                    operation.c.type == "model.download", operation.c.status.in_(DOWNLOAD_ACTIVE)
+                )
+            )
+        ]
 
     def _recent_crashes(self, key: str) -> int:
         since = self.st.clock.now() - timedelta(minutes=5)
@@ -510,6 +527,14 @@ class Pre:
     def search(self) -> None:
         from .search import index_status
 
+        if "embed" not in (self.caps.get("models") or {}):  # SigLIP2 not loaded yet (04 §8.2 W6)
+            key = self._downloading_embed()
+            if key:
+                self.add("MODEL_DOWNLOADING", {"model": key[0], "pct": key[1]}, "model")
+            else:
+                self.add("MODEL_NOT_INSTALLED", {"model": "embed"}, "model")
+            self.revalidate.append("model.installed")
+            return
         st = index_status(self.c)
         space = st["space"]
         if space is None:
@@ -524,6 +549,13 @@ class Pre:
                 {"n": missing, "searchable": st["searchable"], "total": st["total"]},
                 "search",
             )
+
+    def _downloading_embed(self) -> tuple[str, int] | None:
+        for key in sorted(self._active_downloads()):
+            m = self.reg.models.get(key.split("@")[0])
+            if m is not None and m.spec.kind == "embedding":
+                return key, int(self._downloading(key) or 0)
+        return None
 
     def runtime_install(self) -> None:
         st = (self.caps.get("packs_status") or {}).get(self.p.get("pack")) or {}

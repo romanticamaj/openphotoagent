@@ -410,3 +410,65 @@ def on_remove_complete(st: AppState, c: Any, t: Any, result: dict[str, Any]) -> 
         "model.removed",
         {"key": t.payload["key"], "worker_id": t.worker_id, "freed_bytes": result.get("freed_bytes")},
     )
+
+
+@router.get("/onboarding/recommendation")
+def onboarding_recommendation(req: Request, worker_id: str) -> dict[str, Any]:
+    """One sentence about the hardware + one recommended combination (04 §8.2 W3–W5, 08 §3.3): embed first,
+    download size/time, the licences shown as a single line (no checkbox unless a model requires acceptance), and
+    each warning with its fixes (driver page, continue with Vulkan…)."""
+    from opagent_registry.recommend import recommend
+
+    st = _st(req)
+    with st.engine.begin() as c:
+        ctx = _ctx(c, st, worker_id)
+    reg: Registry = ctx["reg"]
+    hw = ctx["hw"]
+    r = recommend(reg, hw)
+    variants = [k for k in (r.embed, None if r.fast_mode else r.vlm) if k]
+    mids = [k.split("@")[0] for k in variants]
+    licences = sorted({reg.models[m].spec.license.spdx for m in mids if m in reg.models})
+    accept = any(reg.models[m].spec.license.requires_acceptance for m in mids if m in reg.models)
+    gpu = hw.primary_gpu
+    mode = "unsupported" if r.unsupported else ("fast" if r.fast_mode or r.vlm is None else "standard")
+    # minutes per 1,000 photos from the perf prior of the model that does the work (VLM, or SigLIP in fast mode)
+    per_1000: list[float] | None = None
+    worker_key = variants[-1] if variants else None
+    if worker_key:
+        mid, _, vid = worker_key.partition("@")
+        pp = reg.models[mid].spec.variant(vid).perf_prior
+        rates = (pp or {}).get("items_per_s") or {}
+        rate = rates.get("fused") or rates.get("classify") or rates.get("embed")
+        if rate:
+            per_1000 = [round(1000 / max(rate) / 60, 2), round(1000 / min(rate) / 60, 2)]
+    return {
+        "mode": mode,
+        "hardware": {
+            "os": hw.os,
+            "gpu": gpu.name if gpu else None,
+            "vram_gb": round(gpu.vram_total_gb, 1) if gpu else None,
+            "ram_gb": hw.ram_gb,
+        },
+        "combo": {
+            "variants": variants,
+            "packs": r.packs,
+            "download_bytes": r.download_bytes,
+            "download_minutes": r.download_minutes,
+            "estimated": r.download_estimated,
+        },
+        "per_1000_minutes": per_1000,
+        "licenses": licences,
+        "requires_acceptance": accept,
+        "warnings": [
+            {"code": a.code, "params": _catalog_params(a.code, a.params), "fixes": a.fixes} for a in r.warnings
+        ],
+        "unsupported_reason": r.unsupported_reason,
+        "docs_url": r.docs_url,
+    }
+
+
+def _catalog_params(code: str, p: dict[str, Any]) -> dict[str, Any]:
+    """The error catalog's placeholders for an advice (06 §4.7 uses {v}/{min} for the driver versions)."""
+    if code == "GPU_DRIVER_TOO_OLD":
+        return {**p, "v": p.get("have"), "min": p.get("need")}
+    return p

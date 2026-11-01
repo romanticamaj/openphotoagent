@@ -79,6 +79,11 @@ OP_TRANSITIONS: frozenset[tuple[OpStatus | None, OpStatus]] = frozenset(
         (_O.running, _O.interrupted),
         (_O.interrupted, _O.queued),
         (_O.interrupted, _O.cancelled),
+        # ADR-0004: pause/cancel while waiting — via the worker when it holds the lease, directly otherwise
+        (_O.waiting, _O.pausing),
+        (_O.waiting, _O.cancelling),
+        (_O.waiting, _O.paused),
+        (_O.waiting, _O.cancelled),
     }
 )
 HEARTBEAT_TIMEOUT_S = 60.0

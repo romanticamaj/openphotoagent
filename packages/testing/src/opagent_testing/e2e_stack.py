@@ -6,8 +6,10 @@ Worker on FakeBackend, a recorded HF server holding pinned fixture weights, and 
 Test-only control endpoints live under ``/__e2e`` and exist only in this harness (never in ``create_app``):
 
 * ``POST /__e2e/reset`` ``{"hw": "rtx5070ti-win11", "photos": "trip", "net": "on", "library": false,
-  "organize": null}`` — wipes the DB, the photo tree and the worker home, re-registers a worker with that hardware
-  profile; ``library`` scans the photos root, ``organize`` runs a by-content job until its plan is ready.
+  "organize": null, "models": "ready"}`` — wipes the DB, the photo tree and the worker home, re-registers a
+  worker with that hardware profile; ``library`` scans the photos root, ``organize`` runs a by-content job
+  until its plan is ready;
+  ``models: "none"`` starts without models and attaches each fake model once its download is installed (onboarding).
 * ``GET /__e2e/tree`` — paths of the photo roots (also written to ``<web>/e2e/.run/tree.json``).
 """
 
@@ -34,7 +36,7 @@ QWEN_REPO = "Qwen/Qwen3-VL-8B-Instruct-GGUF"
 REV = "0123456789abcdef0123456789abcdef01234567"
 # small stand-ins for the pinned weights; sizes are what the recorded server really serves
 SIGLIP = [("vision_model_int8.onnx", 600_000), ("text_model_int8.onnx", 400_000), ("tokenizer.json", 20_000)]
-QWEN = [("Qwen3VL-8B-Instruct-Q4_K_M.gguf", 3_000_000), ("mmproj-Qwen3VL-8B-Instruct-F16.gguf", 1_000_000)]
+QWEN = [("Qwen3VL-8B-Instruct-Q4_K_M.gguf", 6_000_000), ("mmproj-Qwen3VL-8B-Instruct-F16.gguf", 1_000_000)]
 DEAD = "http://127.0.0.1:9"  # discard port: connection refused → NET_UNREACHABLE
 
 
@@ -161,6 +163,7 @@ class Stack:
         library: bool = False,
         organize: str | None = None,
         vlm_p: float = 0.9,
+        models: str = "ready",
     ) -> dict[str, Any]:
         from opagent_inference.fake import FakeBackend
         from opagent_worker.agent import WorkerAgent
@@ -180,8 +183,8 @@ class Stack:
             client,
             roots=roots,
             home=wh,
-            backend=FakeBackend(vlm_p=vlm_p, vectors="semantic"),
-            embedder=FakeBackend(scores="mixed", vectors="semantic"),
+            backend=FakeBackend(vlm_p=vlm_p, vectors="semantic") if models == "ready" else None,
+            embedder=FakeBackend(scores="mixed", vectors="semantic") if models == "ready" else None,
             worker_id="local",
             hw_profile=hw,
             models_root=wh / "models",
@@ -190,6 +193,8 @@ class Stack:
         self.worker.register()
         self._thread = threading.Thread(target=self.worker.run_forever, args=(self._stop,), daemon=True)
         self._thread.start()
+        if models == "none":  # onboarding: the fake models "load" once their downloads are installed
+            threading.Thread(target=self._attach_on_install, args=(self.worker, self._stop, vlm_p), daemon=True).start()
         out: dict[str, Any] = {"worker_id": "local", **self.tree()}
         if library or organize:
             src = client.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": ""}).json()["id"]
@@ -217,6 +222,25 @@ class Stack:
                 )
                 out["job_id"] = j["id"]
         return out
+
+    def _attach_on_install(self, w: Any, stop: threading.Event, vlm_p: float) -> None:
+        from opagent_db.schema import engine_for, installation
+        from opagent_inference.fake import FakeBackend
+        from sqlalchemy import select
+
+        eng = engine_for(self.dsn)
+        while not stop.wait(0.2):
+            with eng.connect() as c:
+                keys = {k for (k,) in c.execute(select(installation.c.key).where(installation.c.status == "installed"))}
+            changed = False
+            if w.embedder is None and any(k.startswith("siglip2") for k in keys):
+                w.embedder, changed = FakeBackend(scores="mixed", vectors="semantic"), True
+            if w.backend is None and any(k.startswith("qwen3-vl") for k in keys):
+                w.backend, changed = FakeBackend(vlm_p=vlm_p, vectors="semantic"), True
+            if changed:
+                w.register()
+            if w.embedder is not None and w.backend is not None:
+                return
 
     def _scan_done(self, src: str) -> bool:
         from opagent_db.schema import engine_for, worker_task
@@ -255,6 +279,7 @@ def main() -> None:
     a = ap.parse_args()
     st = Stack(Path(a.base), a.port, a.web_dist, a.rate_bps)
     server = uvicorn.Server(uvicorn.Config(st.app, host="127.0.0.1", port=a.port, log_level="warning"))
+
     def first_reset() -> None:
         time.sleep(1.0)  # noqa: TID251 - let uvicorn bind before the worker registers over HTTP
         st.reset()

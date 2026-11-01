@@ -239,7 +239,26 @@ def _delete_ops(conn: Any, ids: list[str]) -> int:
     return len(ids)
 
 
+def op_problem(d: dict[str, Any]) -> dict[str, Any] | None:
+    """The catalog problem behind a failed or waiting Operation, with its fixes (06 §4.3, §5): the same shape a
+    preflight blocker has, so every surface renders the same ProblemCard."""
+    from opagent_doctor.codes import CATALOG, problem
+
+    if d.get("status") == "failed":
+        res = d.get("result") or {}
+        code = res.get("error_code")
+        if code:
+            return problem(str(code), dict(res.get("details") or {}))
+    if d.get("status") == "waiting" and d.get("waiting_reason") in CATALOG:
+        code = str(d["waiting_reason"])
+        params = {"host": "huggingface.co"} if code.startswith("NET_") else {}
+        return problem(code, params)
+    return None
+
+
 def op_dict(row: Any) -> dict[str, Any]:
     d = dict(row._mapping)
     d["auto_resumed"] = bool((d.get("progress") or {}).get("auto_resumed"))  # Activity Center: 「已自動繼續」
+    if not d.get("error"):
+        d["error"] = op_problem(d)
     return {k: (v.isoformat() if hasattr(v, "isoformat") else v) for k, v in d.items()}
