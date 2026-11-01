@@ -133,7 +133,7 @@ def test_mdl_007_delete_in_use_then_after_job(env):
         )
     r = c.delete(f"/api/v1/workers/w1/installations/{inst['id']}")
     assert r.status_code == 409 and r.json()["blockers"][0]["code"] == "MODEL_IN_USE"
-    assert [f["id"] for f in r.json()["blockers"][0]["fixes"]] == ["delete_after_jobs", "cancel_jobs"]
+    assert [(f["type"], f["id"]) for f in r.json()["blockers"][0]["fixes"]] == [("retry", "after_jobs")]  # PF-044
     with eng.begin() as conn:
         conn.execute(text("update job set status='completed' where id='jx'"))
     eng.dispose()
