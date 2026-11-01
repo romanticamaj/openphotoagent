@@ -1,8 +1,8 @@
 # Controlled vocabulary for hybrid tagging (03 §3.2). Seed set; grows via the "待審詞" review flow.
 id: general-photo-v1
 terms:
-  - { id: animal.dog, zh: 狗, en: dog, group: 物件, synonyms: [犬, 小狗, 狗狗, puppy, doggy, dogs] }
-  - { id: animal.cat, zh: 貓, en: cat, group: 物件, synonyms: [貓咪, 小貓, kitten, cats] }
+  - { id: animal.dog, zh: 狗, en: dog, group: 物件, synonyms: [犬, 小狗, 狗狗, 柴犬, いぬ, puppy, doggy, dogs] }
+  - { id: animal.cat, zh: 貓, en: cat, group: 物件, synonyms: [貓咪, 小貓, 猫, ねこ, 猫咪, kitten, cats] }
   - { id: animal.bird, zh: 鳥, en: bird, group: 物件, synonyms: [鳥類, birds] }
   - { id: scene.beach, zh: 海灘, en: beach, group: 場景, synonyms: [沙灘, 海邊, seaside] }
   - { id: scene.mountain, zh: 山, en: mountain, group: 場景, synonyms: [山脈, 高山, mountains] }

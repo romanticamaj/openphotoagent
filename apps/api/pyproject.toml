@@ -2,7 +2,7 @@
 name = "opagent-api"
 version = "0.0.1"
 requires-python = ">=3.12"
-dependencies = ["opagent-core", "opagent-schemas", "opagent-db", "opagent-registry", "opagent-doctor", "fastapi", "uvicorn"]
+dependencies = ["opagent-core", "opagent-schemas", "opagent-db", "opagent-registry", "opagent-doctor", "opagent-search", "fastapi", "uvicorn"]
 
 [build-system]
 requires = ["hatchling"]

@@ -9,7 +9,7 @@ dependencies = []
 package = false
 
 [tool.uv.workspace]
-members = ["packages/core", "packages/fs-sandbox", "packages/inference-sdk", "packages/inference-adapters", "packages/testing", "packages/schemas", "packages/db", "packages/registry", "packages/doctor", "apps/api", "apps/worker", "apps/cli", "tools/pytest_tc"]
+members = ["packages/core", "packages/fs-sandbox", "packages/inference-sdk", "packages/inference-adapters", "packages/testing", "packages/schemas", "packages/db", "packages/registry", "packages/doctor", "packages/search", "apps/api", "apps/worker", "apps/cli", "tools/pytest_tc"]
 
 [tool.uv.sources]
 opagent-core = { workspace = true }
@@ -21,6 +21,7 @@ opagent-schemas = { workspace = true }
 opagent-db = { workspace = true }
 opagent-registry = { workspace = true }
 opagent-doctor = { workspace = true }
+opagent-search = { workspace = true }
 opagent-api = { workspace = true }
 opagent-worker = { workspace = true }
 opagent-cli = { workspace = true }
@@ -28,7 +29,7 @@ pytest-opagent-tc = { workspace = true }
 
 [dependency-groups]
 dev = [
-  "opagent-core", "opagent-fs-sandbox", "opagent-inference-sdk", "opagent-inference-adapters", "opagent-testing", "opagent-registry", "opagent-doctor",
+  "opagent-core", "opagent-fs-sandbox", "opagent-inference-sdk", "opagent-inference-adapters", "opagent-testing", "opagent-registry", "opagent-doctor", "opagent-search",
   "opagent-schemas", "opagent-db", "opagent-api", "opagent-worker", "opagent-cli", "pytest-opagent-tc",
   "pytest>=8", "pytest-cov", "pytest-randomly", "pytest-socket", "pytest-asyncio", "hypothesis",
   "ruff", "mypy", "import-linter", "httpx", "mutmut", "diff-cover", "onnx",
@@ -93,7 +94,7 @@ patch = ["subprocess"]
 source = ["opagent_core", "opagent_fs", "opagent_inference", "opagent_api", "opagent_worker", "opagent_db"]
 
 [tool.importlinter]
-root_packages = ["opagent_api", "opagent_worker", "opagent_db", "opagent_core", "opagent_fs", "opagent_inference", "opagent_adapters", "opagent_schemas", "opagent_registry", "opagent_doctor"]
+root_packages = ["opagent_api", "opagent_worker", "opagent_db", "opagent_core", "opagent_fs", "opagent_inference", "opagent_adapters", "opagent_schemas", "opagent_registry", "opagent_doctor", "opagent_search"]
 
 [[tool.importlinter.contracts]]
 id = "api-no-files-no-gpu"
