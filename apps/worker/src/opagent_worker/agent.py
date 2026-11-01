@@ -301,7 +301,8 @@ class WorkerAgent:
             raise _Waiting("SOURCE_OFFLINE") from None
         self.last_scan_skipped_before_cursor = res.skipped_before_cursor
         entries = [self._entry(e) for e in res.entries]
-        for pages, i in enumerate(range(0, len(entries), self.page_size), start=1):  # pages with a resume cursor (SCAN-019)
+        # pages with a resume cursor (SCAN-019)
+        for pages, i in enumerate(range(0, len(entries), self.page_size), start=1):
             page = entries[i : i + self.page_size]
             self.client.post(
                 f"/worker-api/v1/tasks/{task_id}/progress", json={"entries": page, "cursor": page[-1]["rel"]}
