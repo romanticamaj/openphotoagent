@@ -1,6 +1,10 @@
 {
-  "app": { "title": "OpenPhotoAgent" },
-  "common": { "working": "Working…" },
+  "app": {
+    "title": "OpenPhotoAgent"
+  },
+  "common": {
+    "working": "Working…"
+  },
   "organize": {
     "pickFolder": "Choose a folder to organize",
     "useThisFolder": "Use this folder",
@@ -17,5 +21,84 @@
     "doneTitle": "All done",
     "undo": "Undo",
     "undoneTitle": "Undone"
+  },
+  "eta": {
+    "slow": {
+      "decode_bottleneck": "Slower than expected: HEIC decoding is the bottleneck",
+      "gpu_busy": "Slower than expected: another app is using the GPU",
+      "generic": "Slower than expected"
+    },
+    "paused": "Paused",
+    "estimating": "Estimating…",
+    "cta": {
+      "view_logs": "View logs",
+      "retry": "Retry"
+    }
+  },
+  "waiting": {
+    "QUEUED_BEHIND": {
+      "text": "Queued #{position} · about {ahead} ahead",
+      "cta": "View jobs ahead"
+    },
+    "WAITING_GPU_SLOT": {
+      "text": "Waiting for GPU: running \"{job}\"",
+      "cta": "Pause that job and run this first"
+    },
+    "WAITING_MODEL_DOWNLOAD": {
+      "text": "Waiting for model download {pct}% · {eta}",
+      "cta": "View download"
+    },
+    "WAITING_MODEL_LOAD": {
+      "text": "Loading model ({eta})",
+      "cta": "View details"
+    },
+    "WORKER_OFFLINE": {
+      "text": "Worker offline; resumes automatically on reconnect",
+      "cta": "Reconnect"
+    },
+    "DISK_INSUFFICIENT_OUTPUT": {
+      "text": "Output location is out of space; paused",
+      "cta": "Manage storage"
+    },
+    "DISK_INSUFFICIENT_MODELS": {
+      "text": "Model folder is out of space; paused",
+      "cta": "Manage models"
+    },
+    "DISK_INSUFFICIENT_THUMBS": {
+      "text": "Thumbnail folder is out of space; paused",
+      "cta": "Change thumbnail location"
+    },
+    "NET_UNREACHABLE": {
+      "text": "Network down; retrying in 30 s",
+      "cta": "Retry now"
+    },
+    "PAUSED_BY_USER": {
+      "text": "Paused ({who}, {when})",
+      "cta": "Resume"
+    },
+    "PAUSED_ERROR_RATE": {
+      "text": "{pct}% failures; paused automatically",
+      "cta": "View failures"
+    },
+    "PAUSED_ON_BATTERY": {
+      "text": "On battery; paused per your settings",
+      "cta": "Continue anyway"
+    },
+    "PAUSED_GPU_CONTENDED": {
+      "text": "Another app is using the GPU; paused until it is free",
+      "cta": "Continue anyway (slower)"
+    },
+    "PAUSED_NOT_IDLE": {
+      "text": "Set to run only while the computer is idle",
+      "cta": "Run now"
+    },
+    "SOURCE_OFFLINE": {
+      "text": "Photo folder \"{source}\" is offline; resumes when reconnected",
+      "cta": "Check again"
+    },
+    "FS_ROOT_UNAVAILABLE": {
+      "text": "\"{root}\" is unavailable; resumes when it is back",
+      "cta": "Retry"
+    }
   }
 }

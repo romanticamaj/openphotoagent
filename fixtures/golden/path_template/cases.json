@@ -1,0 +1,4580 @@
+{
+ "version": 1,
+ "cases": [
+  {
+   "kind": "compile_error",
+   "template": "{foo}/{stem}{ext}",
+   "code": "UNKNOWN_VAR",
+   "pos": 1
+  },
+  {
+   "kind": "compile_error",
+   "template": "/etc/{stem}",
+   "code": "TEMPLATE_PATH_ESCAPE",
+   "pos": 1
+  },
+  {
+   "kind": "compile_error",
+   "template": "C:\\{stem}",
+   "code": "TEMPLATE_PATH_ESCAPE",
+   "pos": 1
+  },
+  {
+   "kind": "compile_error",
+   "template": "../{stem}",
+   "code": "TEMPLATE_PATH_ESCAPE",
+   "pos": 1
+  },
+  {
+   "kind": "compile_error",
+   "template": "{category}/../{stem}",
+   "code": "TEMPLATE_PATH_ESCAPE",
+   "pos": 1
+  },
+  {
+   "kind": "compile_error",
+   "template": "\\\\server\\{stem}",
+   "code": "TEMPLATE_PATH_ESCAPE",
+   "pos": 1
+  },
+  {
+   "kind": "compile_error",
+   "template": "{taken_at:%c}/{stem}",
+   "code": "STRFTIME_NOT_ALLOWED",
+   "pos": 1
+  },
+  {
+   "kind": "compile_error",
+   "template": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa{stem}{ext}",
+   "code": "TEMPLATE_TOO_LONG",
+   "pos": 201
+  },
+  {
+   "kind": "compile_error",
+   "template": "{tag}/{stem}",
+   "code": "TAG_PREFIX_REQUIRED",
+   "pos": 1
+  },
+  {
+   "kind": "compile_error",
+   "template": "a//{stem}",
+   "code": "TEMPLATE_PATH_ESCAPE",
+   "pos": 1
+  },
+  {
+   "kind": "segment",
+   "value": "..",
+   "out": "_"
+  },
+  {
+   "kind": "segment",
+   "value": ".",
+   "out": "_"
+  },
+  {
+   "kind": "segment",
+   "value": "...",
+   "out": "_"
+  },
+  {
+   "kind": "segment",
+   "value": "  旅行. ",
+   "out": "旅行"
+  },
+  {
+   "kind": "segment",
+   "value": "CON",
+   "out": "CON_"
+  },
+  {
+   "kind": "segment",
+   "value": "con",
+   "out": "con_"
+  },
+  {
+   "kind": "segment",
+   "value": "Nul.txt",
+   "out": "Nul_.txt"
+  },
+  {
+   "kind": "segment",
+   "value": "COM1",
+   "out": "COM1_"
+  },
+  {
+   "kind": "segment",
+   "value": "LPT9",
+   "out": "LPT9_"
+  },
+  {
+   "kind": "segment",
+   "value": "AUX ",
+   "out": "AUX_"
+  },
+  {
+   "kind": "segment",
+   "value": "a/b\\c:d*e?f\"g<h>i|j",
+   "out": "a_b_c_d_e_f_g_h_i_j"
+  },
+  {
+   "kind": "segment",
+   "value": "貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓",
+   "out": "貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓貓"
+  },
+  {
+   "kind": "segment",
+   "value": "🐱‍👤家族👨‍👩‍👧🐱‍👤家族👨‍👩‍👧🐱‍👤家族👨‍👩‍👧🐱‍👤家族👨‍👩‍👧🐱‍👤家族👨‍👩‍👧🐱‍👤家族👨‍👩‍👧🐱‍👤家族👨‍👩‍👧🐱‍👤家族👨‍👩‍👧🐱‍👤家族👨‍👩‍👧🐱‍👤家族👨‍👩‍👧🐱‍👤家族👨‍👩‍👧🐱‍👤家族👨‍👩‍👧🐱‍👤家族👨‍👩‍👧🐱‍👤家族👨‍👩‍👧🐱‍👤家族👨‍👩‍👧",
+   "out": "🐱‍👤家族👨‍👩‍👧🐱‍👤家族👨‍👩‍👧🐱‍👤家族👨‍👩‍👧🐱‍👤家族👨‍👩‍👧🐱‍👤家族👨‍👩‍👧🐱‍👤家族👨‍👩‍👧🐱‍👤家族👨‍👩‍👧"
+  },
+  {
+   "kind": "segment",
+   "value": "éééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé",
+   "out": "ééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééééé"
+  },
+  {
+   "kind": "segment",
+   "value": "",
+   "out": "_"
+  },
+  {
+   "kind": "segment",
+   "value": ".-\u001f909<貓‮/\\🐱nul👨‍👩‍👧./a​Z👨‍👩‍👧\u0000_👨‍👩‍👧a*_‮>*ééZ:>／é‮>‍／🏻99🐱🐱:‮👨‍👩‍👧*👨‍👩‍👧‍_\u0000\\nul👨‍👩‍👧👨‍👩‍👧. a-\\CON\\. 👤\"👤‍*\"🏻0:旅行\u001f🏻／‮9-*|ééaCOM1é​​👤∕:0\u0000​",
+   "out": ".-909_貓__🐱nul👨‍👩‍👧._aZ👨‍👩‍👧_👨‍👩‍👧a____ééZ___é_‍_🏻99🐱🐱_👨‍👩‍👧_👨‍👩‍👧‍__nul👨‍👩‍👧👨‍👩‍👧. a-_CON_. 👤_👤‍__🏻0_旅行🏻_9-__ééaCOM1é👤_"
+  },
+  {
+   "kind": "segment",
+   "value": "CONCON∕/🐱-️🏻️🏻0:🏻.👤️: 旅行貓‮-👤COM1*. ",
+   "out": "CONCON__🐱-️🏻️🏻0_🏻.👤️_ 旅行貓-👤COM1_"
+  },
+  {
+   "kind": "segment",
+   "value": "a\u001fé:0. ️nul‍👨‍👩‍👧|∕‍‍👨‍👩‍👧️\\\\ 0Z\u0000?0",
+   "out": "aé_0. ️nul‍👨‍👩‍👧__‍‍👨‍👩‍👧️__ 0Z_0"
+  },
+  {
+   "kind": "segment",
+   "value": "0a🏻‍ \\👤CON​CON貓-CON-\u0000< <é👨‍👩‍👧a*\"0\\9👨‍👩‍👧\u0000﻿*0👤貓\u001f／Z貓️0🏻éé0::﻿COM1COM1🏻_‍",
+   "out": "0a🏻‍ _👤CONCON貓-CON-_ _é👨‍👩‍👧a__0_9👨‍👩‍👧_0👤貓_Z貓️0🏻éé0__COM1COM1🏻_‍"
+  },
+  {
+   "kind": "segment",
+   "value": "CONZ9:️ 旅行\\👤‍🐱\u0000nul|COM1貓／\u0000🐱／️／/Z\"‮é👨‍👩‍👧／‮é :9🏻nul0:‮:9\u001féCOM1​éé . ‮0>\\COM1COM1旅行\"0🏻COM1‮:‮",
+   "out": "CONZ9_️ 旅行_👤‍🐱nul_COM1貓_🐱_️__Z_é👨‍👩‍👧_é _9🏻nul0__9éCOM1éé . 0__COM1COM1旅行_0🏻COM1_"
+  },
+  {
+   "kind": "segment",
+   "value": "é∕／. 9﻿\u0000./🐱\\é​‍\". 🐱\\CON0／é​*9<9/‮nul﻿-|∕／>‮nul-CONénul🐱CON/\u00009👨‍👩‍👧﻿9<é",
+   "out": "é__. 9._🐱_é‍_. 🐱_CON0_é_9_9_nul-____nul-CONénul🐱CON_9👨‍👩‍👧9_é"
+  },
+  {
+   "kind": "segment",
+   "value": "_🏻貓👨‍👩‍👧*aa﻿.é. :∕|👤貓👤／／👨‍👩‍👧\u0000\"Z‮‍‍*\\∕‍>?​|:👨‍👩‍👧👨‍👩‍👧>\u001f\u0000. \u0000️🐱|>\\é\\_ ／COM1nul?COM1 é/旅行️0. ‍-‍9 \\.nulCONCON🏻*\u001f|*\u0000-🏻‍\"\"‮COM1*∕Z",
+   "out": "_🏻貓👨‍👩‍👧_aa.é. ___👤貓👤__👨‍👩‍👧_Z‍‍___‍____👨‍👩‍👧👨‍👩‍👧_. ️🐱___é__ _COM1nul_COM1 é_旅行️0. ‍-‍9 _.nulCONCON🏻___-🏻‍__COM1__Z"
+  },
+  {
+   "kind": "segment",
+   "value": "COM10🐱_?🏻COM1?️Z\u001f",
+   "out": "COM10🐱__🏻COM1_️Z"
+  },
+  {
+   "kind": "segment",
+   "value": " ‍Z\":.\u001f\u0000CONé貓／∕／énulCON‍﻿. éa﻿-​​\u001f／貓>​:\u001f|-🏻é/👤?🐱é\\貓/\u0000/貓🏻\u001f\\.​ <CONZ/.貓a*",
+   "out": "‍Z__.CONé貓___énulCON‍. éa-_貓___-🏻é_👤_🐱é_貓__貓🏻_. _CONZ_.貓a_"
+  },
+  {
+   "kind": "segment",
+   "value": "​\"*️️\\👤旅行️énul_‍",
+   "out": "__️️_👤旅行️énul_‍"
+  },
+  {
+   "kind": "segment",
+   "value": ". ‮:CON∕.a​旅行//0∕. <\u0000👨‍👩‍👧?貓>a",
+   "out": ". _CON_.a旅行__0_. _👨‍👩‍👧_貓_a"
+  },
+  {
+   "kind": "segment",
+   "value": "/ZZ<*|🏻_🐱\\／‮🐱0. ‮?\"旅行／?*旅行旅行?9CON​👤>貓‮.﻿é\u001f／éé\\>",
+   "out": "_ZZ___🏻_🐱__🐱0. __旅行___旅行旅行_9CON👤_貓.é_éé__"
+  },
+  {
+   "kind": "segment",
+   "value": "Znul旅行:?|*🐱_\u001f*\u0000_️\\\\旅行\\:COM1_?<貓_",
+   "out": "Znul旅行____🐱___️__旅行__COM1___貓_"
+  },
+  {
+   "kind": "segment",
+   "value": "Z\u001f️ 🐱👨‍👩‍👧👤\u001fé/|／∕>a‍<\\nul/／9\u001fa. ‍貓|9\"👤<\\?👤.  . ?a‮0",
+   "out": "Z️ 🐱👨‍👩‍👧👤é_____a‍__nul__9a. ‍貓_9_👤___👤.  . _a0"
+  },
+  {
+   "kind": "segment",
+   "value": "CON> 👨‍👩‍👧/∕/>é|é. 旅行∕:é\u001f‍﻿. é∕0🐱🏻nul﻿／>Z\\>?. /旅行 COM1\"／9貓🐱nul|-\u0000éCOM1旅行:::／∕‮🐱‍CON:Z\u001f9|90貓.貓9／🏻énul. ∕*/9​/",
+   "out": "CON_ 👨‍👩‍👧____é_é. 旅行__é‍. é_0🐱🏻nul__Z___. _旅行 COM1__9貓🐱nul_-éCOM1旅行_____🐱‍CON_Z9_90貓.貓9_🏻énul. ___9_"
+  },
+  {
+   "kind": "segment",
+   "value": "éZ90﻿<️a>️.  ._.<_\u001f?|nul<_🏻\"CON*. \\. 9‮éCOM1∕​﻿/ :貓‮‍\u0000️:nul\\>_-/é\u0000貓<0‍﻿﻿0∕0Z\"👤*/:\u0000-a👨‍👩‍👧Z旅行\u001f\u001f\"éé∕é‮<é*|👤90.／COM1🏻|nul旅行-nulZé旅行é️9_-👨‍👩‍👧Z</0\"",
+   "out": "éZ90_️a_️.  ._.____nul__🏻_CON_. _. 9éCOM1__ _貓‍️_nul___-_é貓_0‍0_0Z_👤___-a👨‍👩‍👧Z旅行_éé_é_é__👤90._COM1🏻_nul旅行-nulZé旅行é️9_-👨‍👩‍👧Z__0_"
+  },
+  {
+   "kind": "segment",
+   "value": "CONénul\u001f. <>\u001f旅行貓∕CONCON ​?🏻‍旅行*旅行/?COM1‍<?\u001f9é9👤. ﻿👨‍👩‍👧é‍∕👤Z旅行<>\\🐱👨‍👩‍👧COM1CON:‮貓∕\\>\u0000é>🐱nul​﻿_∕️🐱\u001f貓Z👨‍👩‍👧Z.‮‍9‮🐱\u0000\u001f.é🏻",
+   "out": "CONénul. __旅行貓_CONCON _🏻‍旅行_旅行__COM1‍__9é9👤. 👨‍👩‍👧é‍_👤Z旅行___🐱👨‍👩‍👧COM1CON_貓___é_🐱nul__️🐱貓Z👨‍👩‍👧Z.‍9🐱.é🏻"
+  },
+  {
+   "kind": "segment",
+   "value": ".. ::‍*?<貓‮\u0000／🏻👨‍👩‍👧‮-*.. ?.貓/﻿🐱<👤CON>_COM1:?👤\u0000COM1👨‍👩‍👧🏻️nul. :\"0\". \\\u001f/ \\?",
+   "out": ".. __‍___貓_🏻👨‍👩‍👧-_.. _.貓_🐱_👤CON__COM1__👤COM1👨‍👩‍👧🏻️nul. __0_. __ __"
+  },
+  {
+   "kind": "segment",
+   "value": "é*>​. |\u001f👨‍👩‍👧貓️/COM1 \"9🏻éCONé旅行COM1​:👤nul|?0CON‍貓\u0000旅行. ‮‮旅行:🏻​\u0000貓. 👤\\a/\u0000🐱️🐱CON旅行🏻貓ZCOM1<",
+   "out": "é__. _👨‍👩‍👧貓️_COM1 _9🏻éCONé旅行COM1_👤nul__0CON‍貓旅行. 旅行_🏻貓. 👤_a_🐱️🐱CON旅行🏻貓ZCOM1_"
+  },
+  {
+   "kind": "segment",
+   "value": "∕旅行旅行Z-9:​貓​<\u0000?\\\u001f旅行\u001f旅行旅行:*\u001f. ∕／🏻é﻿\"​／ 貓_/:／ ZCON\u001f️_/\\ ﻿:.9‍👨‍👩‍👧COM1👤\\?*COM1?🏻.️é|:COM1>-9é\u0000\"_|‍貓_COM1a/旅行﻿a. ?🏻é️|🏻:\"‍👤\"9 ‍0>\\\\",
+   "out": "_旅行旅行Z-9_貓___旅行旅行旅行__. __🏻é__ 貓____ ZCON️___ _.9‍👨‍👩‍👧COM1👤___COM1_🏻.️é__COM1_-9é___‍貓_COM1a_旅行a. _🏻é️_🏻__‍👤_9 ‍0___"
+  },
+  {
+   "kind": "segment",
+   "value": ":\"Z/\u001f>\u0000:‮👨‍👩‍👧?‮\u001f\\9\u001f\u001f:*:_\u001f👤a‍／🏻<Z﻿/​nul貓👨‍👩‍👧<CON/0\". ‮👨‍👩‍👧. 9\u00009🏻🏻.a👤a👤\u0000Z*️9／?.  9nul貓/_貓0<🐱-CON\\旅行\u001f\"🏻👤a\u0000.  CON∕‍/\\/貓. .👤👤‮9",
+   "out": "__Z___👨‍👩‍👧__9____👤a‍_🏻_Z_nul貓👨‍👩‍👧_CON_0_. 👨‍👩‍👧. 99🏻🏻.a👤a👤Z_️9__.  9nul貓__貓0_🐱-CON_旅行_🏻👤a.  CON_‍___貓. .👤👤9"
+  },
+  {
+   "kind": "segment",
+   "value": "éa‮-COM1é\u001f.‮nul .é‍貓﻿貓／／﻿:? 0‍",
+   "out": "éa-COM1é.nul .é‍貓貓____ 0‍"
+  },
+  {
+   "kind": "segment",
+   "value": "CON/‍Z旅行🏻🏻_nul\u0000‮é_‍👤a﻿?",
+   "out": "CON_‍Z旅行🏻🏻_nulé_‍👤a_"
+  },
+  {
+   "kind": "segment",
+   "value": "️|​貓CON|. ‍|:\"|﻿👨‍👩‍👧* ?é-貓👤👨‍👩‍👧a_貓COM1.. < . ",
+   "out": "️_貓CON_. ‍____👨‍👩‍👧_ _é-貓👤👨‍👩‍👧a_貓COM1.. _"
+  },
+  {
+   "kind": "segment",
+   "value": ">|‮|_🐱*👨‍👩‍👧>é﻿👨‍👩‍👧​COM10​∕旅行nul<9a／CON🏻／／‍\u001fé>_*:9‍COM1//CON>0-🏻‍>*:🏻旅行-0nul|﻿/aaé👤:COM1‍\\🏻|/👤é0_",
+   "out": "____🐱_👨‍👩‍👧_é👨‍👩‍👧COM10_旅行nul_9a_CON🏻__‍é____9‍COM1__CON_0-🏻‍___🏻旅行-0nul__aaé👤_COM1‍_🏻__👤é0_"
+  },
+  {
+   "kind": "segment",
+   "value": "0👨‍👩‍👧.-099.99\\<﻿?\"🐱*_?0‍\u001f*﻿／->_.COM1﻿anul-\">🏻\\éa️a👨‍👩‍👧><\u001f. 貓",
+   "out": "0👨‍👩‍👧.-099.99____🐱___0‍__-__.COM1anul-__🏻_éa️a👨‍👩‍👧__. 貓"
+  },
+  {
+   "kind": "segment",
+   "value": "\\🐱\u001f\\. ​\\.COM1\u001fCOM1∕CON／\\<<:\u001f旅行﻿‮é\".*貓👨‍👩‍👧<?",
+   "out": "_🐱_. _.COM1COM1_CON_____旅行é_._貓👨‍👩‍👧__"
+  },
+  {
+   "kind": "segment",
+   "value": ":👤?👤貓?️‮👤<9​:0|\u0000éa a/.​é/>:​?é﻿👤*:é👨‍👩‍👧:🐱👨‍👩‍👧9>‍貓️",
+   "out": "_👤_👤貓_️👤_9_0_éa a_.é____é👤__é👨‍👩‍👧_🐱👨‍👩‍👧9_‍貓️"
+  },
+  {
+   "kind": "segment",
+   "value": "nul\u0000|/-_",
+   "out": "nul__-_"
+  },
+  {
+   "kind": "segment",
+   "value": "‮ ‍∕ <貓🐱Za->COM1\"-./-Z-🏻旅行CON9?∕:9. \u0000旅行:Zé-️nul️👨‍👩‍👧旅行<|👤- ️?_CON👨‍👩‍👧​. ​‮貓.👨‍👩‍👧0貓‍\u001f.CONZ|é🏻.🐱﻿🐱‮*旅行.>>\\\u001f\u001f️é:énul",
+   "out": "‍_ _貓🐱Za-_COM1_-._-Z-🏻旅行CON9___9. 旅行_Zé-️nul️👨‍👩‍👧旅行__👤- ️__CON👨‍👩‍👧. 貓.👨‍👩‍👧0貓‍.CONZ_é🏻.🐱🐱_旅行.___️é_énul"
+  },
+  {
+   "kind": "segment",
+   "value": "\"​-∕∕\"0﻿﻿\\Zé🏻9 \"Z0. ‮Z‍﻿​👨‍👩‍👧\u0000*>／éa>﻿旅行‮👤👤旅行／é🏻\u001f|aCOM1. 00-﻿/*>‍‍\u00000\u0000👨‍👩‍👧99∕🏻🐱a／é‮🐱\u0000>/é_|\u0000\u001f👤∕|\" . anul ​／:-",
+   "out": "_-___0_Zé🏻9 _Z0. Z‍👨‍👩‍👧___éa_旅行👤👤旅行_é🏻_aCOM1. 00-___‍‍0👨‍👩‍👧99_🏻🐱a_é🐱__é__👤___ . anul __-"
+  },
+  {
+   "kind": "segment",
+   "value": "️‍\"nul\"‮∕a旅行éCOM1貓0. COM1\u0000​/️‮. ‮‍.::9_0:/∕﻿ 0∕. ∕_a>CON‮\"旅行/👨‍👩‍👧👨‍👩‍👧ééCON",
+   "out": "️‍_nul__a旅行éCOM1貓0. COM1_️. ‍.__9_0___ 0_. __a_CON_旅行_👨‍👩‍👧👨‍👩‍👧ééCON"
+  },
+  {
+   "kind": "segment",
+   "value": "0nul​\"‮<?‮🐱*. - \\\"CON🏻／👤. . nulnulnulCON旅行é \u0000COM1-|CON👤. a／ _貓\\／🏻9. é／9<\\\u001f／_*‮🏻*∕_9COM1*. 旅行👤é>Zé貓‍／/_/éCOM1",
+   "out": "0nul___🐱_. - __CON🏻_👤. . nulnulnulCON旅行é COM1-_CON👤. a_ _貓__🏻9. é_9_____🏻___9COM1_. 旅行👤é_Zé貓‍____éCOM1"
+  },
+  {
+   "kind": "segment",
+   "value": "/:／nulCONZ／貓\\|\u001f9‮|/\u001f‮/ . 貓\\/-nulé🐱é-﻿👨‍👩‍👧🐱/CON／<Z-CON/-.\u001f﻿‍-éCOM1?/CON🏻∕\u0000<. Z",
+   "out": "___nulCONZ_貓__9___ . 貓__-nulé🐱é-👨‍👩‍👧🐱_CON__Z-CON_-.‍-éCOM1__CON🏻__. Z"
+  },
+  {
+   "kind": "segment",
+   "value": "🐱. 🐱👤\\貓. 👤0∕é*﻿Z/-0旅行?\"é_🏻0<aé​_旅行.nul-️é.👤9️🏻-.COM1é 貓貓／﻿90énul🐱?​é‍*",
+   "out": "🐱. 🐱👤_貓. 👤0_é_Z_-0旅行__é_🏻0_aé_旅行.nul-️é.👤9️🏻-.COM1é 貓貓_90énul🐱_é‍_"
+  },
+  {
+   "kind": "segment",
+   "value": "‍CONCOM1️旅行CON/9>貓_🏻旅行️旅行∕👨‍👩‍👧**..a∕:\\-🏻<Z. >👤／0CON️Z- 👨‍👩‍👧​👤Z\u001f?é<é.‍0️COM1∕\"?旅行\u0000🐱 ／👤-／",
+   "out": "‍CONCOM1️旅行CON_9_貓_🏻旅行️旅行_👨‍👩‍👧__..a___-🏻_Z. _👤_0CON️Z- 👨‍👩‍👧👤Z_é_é.‍0️COM1___旅行🐱 _👤-_"
+  },
+  {
+   "kind": "segment",
+   "value": "∕nulé‍/?🏻 COM1\":Z🐱nul-. \u001f/🐱a*‍️COM1🐱∕Z. ﻿Z／?\\🐱_旅行0\"／\u001f/a‮-‮/.nul.|／\u0000. ️貓. 👨‍👩‍👧\\旅行é️nul🐱-  ‍*|éZ‮-.| ∕0Z‍‍>9a/*\"️/CON旅行‍\"️?‍nula|👤.️-?👤nulé﻿éaCOM1️_\\é",
+   "out": "_nulé‍__🏻 COM1__Z🐱nul-. _🐱a_‍️COM1🐱_Z. Z___🐱_旅行0___a-_.nul.__. ️貓. 👨‍👩‍👧_旅行é️nul🐱-  ‍__éZ-._ _0Z‍‍_9a___️_CON旅行‍_️_‍nula_👤.️-_👤nulééaCOM1️__é"
+  },
+  {
+   "kind": "segment",
+   "value": "\u001f貓.:-?🏻.||﻿é*️?0é9<貓​\u0000-_0.‮?​a:_. 👤旅行é?_-?🏻\u0000貓\u0000|.🐱é. :<\" *️貓_貓",
+   "out": "貓._-_🏻.__é_️_0é9_貓-_0._a__. 👤旅行é__-_🏻貓_.🐱é. ___ _️貓_貓"
+  },
+  {
+   "kind": "segment",
+   "value": ">🏻<👤COM1‍​*?_.9👤9é👤CON9COM1‮CONaé​<🐱<﻿9\"\\🐱\u0000*貓.  🐱 nulCON_/ ／a\u0000／🐱9\u001f\\9\u0000\u0000Z‍‍*👨‍👩‍👧",
+   "out": "_🏻_👤COM1‍___.9👤9é👤CON9COM1CONaé_🐱_9__🐱_貓.  🐱 nulCON__ _a_🐱9_9Z‍‍_👨‍👩‍👧"
+  },
+  {
+   "kind": "segment",
+   "value": "a _Z﻿CONCON﻿ééa​>​|∕／旅行‮. ",
+   "out": "a _ZCONCONééa____旅行"
+  },
+  {
+   "kind": "segment",
+   "value": "‍. ‮﻿\u0000a<旅行​a貓貓a??​?é👤:é<CON\\👨‍👩‍👧|\u001f\"<🐱Z|énul>_👨‍👩‍👧|COM1>>貓﻿COM1🐱﻿|COM1​‮‮／ 👨‍👩‍👧‮／\"COM1\\️旅行-|/. ∕​:﻿Z?9COM1COM1a:\"👤‍👤🏻Z\\‮<／:",
+   "out": "‍. a_旅行a貓貓a___é👤_é_CON_👨‍👩‍👧___🐱Z_énul__👨‍👩‍👧_COM1__貓COM1🐱_COM1_ 👨‍👩‍👧__COM1_️旅行-__. __Z_9COM1COM1a__👤‍👤🏻Z____"
+  },
+  {
+   "kind": "segment",
+   "value": "🐱?_nul-‮é﻿﻿0👤​️0\"👤a\u0000|貓‍-﻿:‮é|",
+   "out": "🐱__nul-é0👤️0_👤a_貓‍-_é_"
+  },
+  {
+   "kind": "segment",
+   "value": "0. 0\\️CONCOM1\":Z🏻<🐱‮9∕.​.- ‮🐱CON<CON>é​‮∕﻿a🐱\u0000CON﻿CON|﻿\u0000é​-|. 👨‍👩‍👧‍旅行-é‮‍\u0000/*9<️?﻿👨‍👩‍👧​:0? é\u001f",
+   "out": "0. 0_️CONCOM1__Z🏻_🐱9_..- 🐱CON_CON_é_a🐱CONCON_é-_. 👨‍👩‍👧‍旅行-é‍__9_️_👨‍👩‍👧_0_ é"
+  },
+  {
+   "kind": "segment",
+   "value": "🏻.>.:／:Z.CON∕a∕\\.️\u0000👤<﻿?|9\\é>a<éé👨‍👩‍👧é​️. CON*﻿. \"",
+   "out": "🏻._.___Z.CON_a__.️👤___9_é_a_éé👨‍👩‍👧é️. CON_. _"
+  },
+  {
+   "kind": "segment",
+   "value": "|CON🏻貓‍é0\"nul-.0nul‮ 99貓?Z∕9. ‮/é\\_. \"?🏻👨‍👩‍👧",
+   "out": "_CON🏻貓‍é0_nul-.0nul 99貓_Z_9. _é__. __🏻👨‍👩‍👧"
+  },
+  {
+   "kind": "segment",
+   "value": "﻿/",
+   "out": "_"
+  },
+  {
+   "kind": "segment",
+   "value": "旅行🐱0🏻é🏻<貓9​anul<é:貓ZZZé﻿é‍️\"_／<>é​​Z. CONa🏻?\\>?? <🏻️CON﻿﻿<\"éé\"|‍‮️a..-. |-‮é-|?_CON／貓👨‍👩‍👧nul∕nul. 貓👤貓\u0000🏻‍a0\u0000é️",
+   "out": "旅行🐱0🏻é🏻_貓9anul_é_貓ZZZéé‍️_____éZ. CONa🏻_____ _🏻️CON__éé__‍️a..-. _-é-___CON_貓👨‍👩‍👧nul_nul. 貓👤貓🏻‍a0é️"
+  },
+  {
+   "kind": "segment",
+   "value": "旅行._énul﻿:CON|>‍. Z",
+   "out": "旅行._énul_CON__‍. Z"
+  },
+  {
+   "kind": "segment",
+   "value": "|👤🐱🐱*Z🏻 旅行Z0Z *:\u001f∕0‍‍.:9👨‍👩‍👧<é**_éCOM1aé ‮貓／?🏻CON👨‍👩‍👧貓.\"🏻. . a0\\👨‍👩‍👧\u0000nul \u0000ZZ​‮‮\\\u0000\"0\\éé\u001f️​\"COM1<Zé<9.:👨‍👩‍👧> /*<Z旅行*CON🐱COM1👤/旅行\"﻿ 貓\" . ​ ?\u00000／\u0000﻿COM1_👤nul*🐱a>?é",
+   "out": "_👤🐱🐱_Z🏻 旅行Z0Z ___0‍‍._9👨‍👩‍👧_é___éCOM1aé 貓__🏻CON👨‍👩‍👧貓._🏻. . a0_👨‍👩‍👧nul ZZ__0_éé️_COM1_Zé_9._👨‍👩‍👧_ ___Z旅行_CON🐱COM1👤_旅行_ 貓_ .  _0_COM1_👤nul_🐱a"
+  },
+  {
+   "kind": "segment",
+   "value": "‍️\u001f>>0>‍-ZnulnulCOM1-/👨‍👩‍👧\u001f旅行貓é?／énul‍/|🏻旅行COM1​>nul>👤Z‮<🏻. 9.旅行‮é\\​ >‮👨‍👩‍👧**∕貓​️/貓. nul﻿*\\∕<éé👨‍👩‍👧< 9*-nul🐱COM1/_.‮>／👨‍👩‍👧. COM1‍／COM1\"COM1／. ﻿CON‮COM1CON\u0000∕∕:0\\∕/🐱 👨‍👩‍👧\\\\",
+   "out": "‍️__0_‍-ZnulnulCOM1-_👨‍👩‍👧旅行貓é__énul‍__🏻旅行COM1_nul_👤Z_🏻. 9.旅行é_ _👨‍👩‍👧___貓️_貓. nul____éé👨‍👩‍👧_ 9_-nul🐱COM1__.__👨‍👩‍👧. COM1‍_COM1_COM1_. CONCOM1CON___0___"
+  },
+  {
+   "kind": "segment",
+   "value": "貓.Z/é-/99\u001fénul-<?-nul:/<﻿​‮👤CON.﻿／|.>é_-?CON🏻9\\é️\\👤​-貓?‮\"é🏻\\|／\"|éé. \"*0éé/|‮️\"️9Z﻿∕:‮<> é.   *nul\u0000‍\u001f.\u0000﻿|nul👨‍👩‍👧*0🏻貓**👨‍👩‍👧\u0000nul​_\\.‍|﻿​9éé\"COM1",
+   "out": "貓.Z_é-_99énul-__-nul___👤CON.__._é_-_CON🏻9_é️_👤-貓__é🏻_____éé. __0éé__️_️9Z____ é.   _nul‍._nul👨‍👩‍👧_0🏻貓__👨‍👩‍👧nul__.‍_9éé_COM1"
+  },
+  {
+   "kind": "segment",
+   "value": ".. :👨‍👩‍👧​\u0000/* ‍0a﻿9_ COM1nulé9\\​?.\"é-\"👨‍👩‍👧\"🐱\u001f👨‍👩‍👧:\"-<👤👤:__?nul\u0000::🏻旅行_é👤\\貓a👨‍👩‍👧貓🏻‮. ️/?|∕-🐱👤nul／貓∕🐱‮🐱. >️?👤／🏻\u001f‮👨‍👩‍👧​é.. ‍a?",
+   "out": ".. _👨‍👩‍👧__ ‍0a9_ COM1nulé9__._é-_👨‍👩‍👧_🐱👨‍👩‍👧__-_👤👤____nul__🏻旅行_é👤_貓a👨‍👩‍👧貓🏻. ️____-🐱👤nul_貓_🐱🐱. _️_👤_🏻👨‍👩‍👧é.. ‍a_"
+  },
+  {
+   "kind": "segment",
+   "value": "👨‍👩‍👧​:‮\\﻿.貓.|‮_/<️\u0000️‍ <nul_∕​️\u001fnul_9Z*👨‍👩‍👧<‮CON\u001fCOM1​9‮é\\|a👨‍👩‍👧​_🏻﻿🏻é／0∕‮‮/é. 9👤﻿0/‍Z_*🐱﻿<COM1>﻿\"‍‮:*旅行aé🏻貓 ​∕9Z>0CON∕: >éCON\u001f_aé ",
+   "out": "👨‍👩‍👧__.貓.____️️‍ _nul__️nul_9Z_👨‍👩‍👧_CONCOM19é__a👨‍👩‍👧_🏻🏻é_0__é. 9👤0_‍Z__🐱_COM1__‍__旅行aé🏻貓 _9Z_0CON__ _éCON_aé"
+  },
+  {
+   "kind": "segment",
+   "value": "\"é9__0\u0000éCON️é*\\ é👤CONZé-\u001f貓é​/\\‮️.|*?|-🐱\u0000|👤​é／∕>👤\u001f​ ／👤​a‮‮旅行?0🐱﻿.a👨‍👩‍👧COM1::a／-👤👨‍👩‍👧.\">🏻／:\u0000🏻﻿>Z﻿*​👨‍👩‍👧|COM1é.é|.*\"a／|🐱​. 🏻/️9 | _0nulé﻿",
+   "out": "_é9__0éCON️é__ é👤CONZé-貓é__️.____-🐱_👤é___👤 _👤a旅行_0🐱.a👨‍👩‍👧COM1__a_-👤👨‍👩‍👧.__🏻__🏻_Z_👨‍👩‍👧_COM1é.é_.__a__🐱. 🏻_️9 _ _0nulé"
+  },
+  {
+   "kind": "segment",
+   "value": "∕:a. /旅行:  >_🏻﻿. </／ 👤​COM1Z:_énulZ🏻​👨‍👩‍👧é／\"9.﻿.👨‍👩‍👧👤9nul?COM1旅行\"éZ‍👨‍👩‍👧..éCOM1.>旅行0?貓_",
+   "out": "__a. _旅行_  __🏻. ___ 👤COM1Z__énulZ🏻👨‍👩‍👧é__9..👨‍👩‍👧👤9nul_COM1旅行_éZ‍👨‍👩‍👧..éCOM1._旅行0_貓_"
+  },
+  {
+   "kind": "segment",
+   "value": "\\/旅行CON🐱aé／<​. 👨‍👩‍👧\u0000. \u001f∕∕-nul／*.é旅行 .. ️貓️ ​||貓nul\u001f👨‍👩‍👧//0👤​9旅行9／:\u001f∕貓9∕|👤👨‍👩‍👧>👤|貓旅行貓_/🐱/a🏻é👤️🐱.</9COM19Z\u0000️\u001f\u0000é\\-é_COM1<*/ZZ?a﻿‍.貓👨‍👩‍👧*<",
+   "out": "__旅行CON🐱aé__. 👨‍👩‍👧. __-nul__.é旅行 .. ️貓️ __貓nul👨‍👩‍👧__0👤9旅行9___貓9__👤👨‍👩‍👧_👤_貓旅行貓__🐱_a🏻é👤️🐱.__9COM19Z️é_-é_COM1___ZZ_a‍.貓👨‍👩‍👧__"
+  },
+  {
+   "kind": "segment",
+   "value": "🏻 _:﻿\\ é‮_. \\<0?. é/COM1>//🐱.|\u001f9／👨‍👩‍👧9?👨‍👩‍👧／﻿️👨‍👩‍👧",
+   "out": "🏻 ___ é_. __0_. é_COM1___🐱._9_👨‍👩‍👧9_👨‍👩‍👧_️👨‍👩‍👧"
+  },
+  {
+   "kind": "segment",
+   "value": "aCOM1nul\\é👤.COM10️\u001f\u001fZ 👨‍👩‍👧0-é旅行\u001f:nul:\"👨‍👩‍👧é﻿🏻​∕\"👤nul?*é👨‍👩‍👧旅行／9👤0nul\\9 é​CONnul🐱COM1‍貓0<||​.. ／\"\"",
+   "out": "aCOM1nul_é👤.COM10️Z 👨‍👩‍👧0-é旅行_nul__👨‍👩‍👧é🏻__👤nul__é👨‍👩‍👧旅行_9👤0nul_9 éCONnul🐱COM1‍貓0___.. ___"
+  },
+  {
+   "kind": "segment",
+   "value": "_﻿🏻COM1a>:／👤//\u0000🏻️<\\é🐱nuléCON|CON／\u0000<|👤é-\u001f9貓﻿／🐱️‮é👨‍👩‍👧👤*Znul旅行🐱a️. >👨‍👩‍👧👤\\﻿CONé‍. \"∕*|​﻿COM1<​👤9-貓nul_​🏻/|👨‍👩‍👧nul COM1／貓. a∕a_COM1️🐱\u0000️.\"\"",
+   "out": "_🏻COM1a___👤__🏻️__é🐱nuléCON_CON___👤é-9貓_🐱️é👨‍👩‍👧👤_Znul旅行🐱a️. _👨‍👩‍👧👤_CONé‍. ____COM1_👤9-貓nul_🏻__👨‍👩‍👧nul COM1_貓. a_a_COM1️🐱️.__"
+  },
+  {
+   "kind": "segment",
+   "value": "*旅行‮9\u0000. ️\u001fCOM1/. \\.COM1-",
+   "out": "_旅行9. ️COM1_. _.COM1-"
+  },
+  {
+   "kind": "segment",
+   "value": ".COM1é👤\\‮\\貓a‍‍nulé貓\u0000‍a.／旅行旅行.\\CON\".🏻?- ／／‍👨‍👩‍👧/\u0000-nul9／a️.👤​∕>\"-🏻0\\貓∕👨‍👩‍👧COM1﻿CON👨‍👩‍👧CONCOM1﻿0<>. . CON>\u001f﻿éanul旅行>énul<<﻿／COM1nul-90‍. >🐱\\🐱>0\u00000貓\u001f.?‍9👤\u001fCON／.／​\"COM1",
+   "out": ".COM1é👤__貓a‍‍nulé貓‍a._旅行旅行._CON_.🏻_- __‍👨‍👩‍👧_-nul9_a️.👤___-🏻0_貓_👨‍👩‍👧COM1CON👨‍👩‍👧CONCOM10__. . CON_éanul旅行_énul___COM1nul-90‍. _🐱_🐱_00貓._‍9👤CON_.__COM1"
+  },
+  {
+   "kind": "segment",
+   "value": "貓é.貓\u0000_👨‍👩‍👧​*\"∕*️️.:﻿∕é🐱-:/／-_ |aé‮><*🐱0/​️∕🏻🐱﻿-CON∕CON0🏻／‮👨‍👩‍👧.|\u0000CON﻿👤\u00009﻿\"／ *貓*?nul旅行👨‍👩‍👧\\*_?a9>a﻿\u001f :CON旅行_\\🏻CON‍9Za\\👨‍👩‍👧🏻*👤﻿\u001f🐱",
+   "out": "貓é.貓_👨‍👩‍👧____️️.__é🐱-___-_ _aé___🐱0_️_🏻🐱-CON_CON0🏻_👨‍👩‍👧._CON👤9__ _貓__nul旅行👨‍👩‍👧____a9_a _CON旅行__🏻CON‍9Za_👨‍👩‍👧🏻_👤🐱"
+  },
+  {
+   "kind": "segment",
+   "value": "️️?. 9nulCON.​👨‍👩‍👧​‮nul?. ​∕",
+   "out": "️️_. 9nulCON.👨‍👩‍👧nul_. _"
+  },
+  {
+   "kind": "segment",
+   "value": "CON*\u001f‮旅行.0👤​／9\u001f?? é‮CON​é/∕>*\u001f旅行:é﻿a*0|🏻9:<👨‍👩‍👧\u0000👨‍👩‍👧_0|旅行.0Z. CONénul.COM1::nulZ",
+   "out": "CON_旅行.0👤_9__ éCONé____旅行_éa_0_🏻9__👨‍👩‍👧👨‍👩‍👧_0_旅行.0Z. CONénul.COM1__nulZ"
+  },
+  {
+   "kind": "segment",
+   "value": "🐱\u001f_*👨‍👩‍👧﻿∕>é_‍👨‍👩‍👧👨‍👩‍👧:*🐱\"_\u0000∕_‍_​貓9|CON\"🐱👨‍👩‍👧／0:\u001f‮COM1👨‍👩‍👧\u001f🐱👨‍👩‍👧>9",
+   "out": "🐱__👨‍👩‍👧__é_‍👨‍👩‍👧👨‍👩‍👧__🐱____‍_貓9_CON_🐱👨‍👩‍👧_0_COM1👨‍👩‍👧🐱👨‍👩‍👧_9"
+  },
+  {
+   "kind": "segment",
+   "value": "👤nul",
+   "out": "👤nul"
+  },
+  {
+   "kind": "segment",
+   "value": "nul>|👨‍👩‍👧COM1 ／nul?._／﻿旅行️👤👨‍👩‍👧_0-\"\u001f👨‍👩‍👧️​／. *‮-/‮COM1:/旅行CON9\u0000* |9:nul\u0000 \u001f\"\u0000._>_∕0-./é∕Z/a\u001féCON9*0 ∕.>\"\u001f‮|CONé.nul|0​?\u001fnula",
+   "out": "nul__👨‍👩‍👧COM1 _nul_.__旅行️👤👨‍👩‍👧_0-_👨‍👩‍👧️_. _-_COM1__旅行CON9_ _9_nul _.____0-._é_Z_aéCON9_0 _.___CONé.nul_0_nula"
+  },
+  {
+   "kind": "segment",
+   "value": "🏻",
+   "out": "🏻"
+  },
+  {
+   "kind": "segment",
+   "value": "é_‮a🐱／CONa﻿﻿_?nul∕👤‮️?COM1 ∕👨‍👩‍👧>/\\\u0000é9\u0000?-.0🐱‍_貓\u001f_-\"ZCON️:>_?🏻‮é:. .é/éCON‮. ／\u0000∕∕旅行﻿/é:\u0000Zé.<<旅行>/∕",
+   "out": "é_a🐱_CONa__nul_👤️_COM1 _👨‍👩‍👧___é9_-.0🐱‍_貓_-_ZCON️____🏻é_. .é_éCON. ___旅行_é_Zé.__旅行___"
+  },
+  {
+   "kind": "segment",
+   "value": "0\u001f​.\\",
+   "out": "0._"
+  },
+  {
+   "kind": "segment",
+   "value": "️‮🐱\\\\é​*|_a>🐱|貓?a旅行‮_‮/‮0*\u0000>/é​a*:|nul-0\\️\u0000nul|>**\\\u0000-\"旅行*旅行​旅行👤‮*​\\‍0\"COM1/_旅行nulCON|*.﻿﻿🏻​CONCONCON:∕﻿?é|nul .é‮",
+   "out": "️🐱__é___a_🐱_貓_a旅行__0___éa___nul-0_️nul_____-_旅行_旅行旅行👤__‍0_COM1__旅行nulCON__.🏻CONCONCON___é_nul .é"
+  },
+  {
+   "kind": "segment",
+   "value": "\u001f-. 貓／​<_*\\‍∕\u0000 ‍‮_>貓<-nul👤 ／:‮／-9:👤:éé:*\"?／-||Z👤​:\\∕_. ​ ‮👤貓*?👨‍👩‍👧.a:a🏻-​﻿COM1‍∕‍COM1*‍／CON. \u0000／é🏻CON‮​",
+   "out": "-. 貓_____‍_ ‍__貓_-nul👤 ___-9_👤_éé_____-__Z👤____.  👤貓__👨‍👩‍👧.a_a🏻-COM1‍_‍COM1_‍_CON. _é🏻CON"
+  },
+  {
+   "kind": "segment",
+   "value": "Z0. ️  >CON-. ️. ﻿👨‍👩‍👧nulCOM1CON :👨‍👩‍👧COM1:​🐱🐱旅行️é.COM1*::9|:é*?a*旅行\u0000a<\u0000é.-*️. CON-é9é9️.. ️>Zé️🏻. CON?CONCOM10\"‮️",
+   "out": "Z0. ️  _CON-. ️. 👨‍👩‍👧nulCOM1CON _👨‍👩‍👧COM1_🐱🐱旅行️é.COM1___9__é__a_旅行a_é.-_️. CON-é9é9️.. ️_Zé️🏻. CON_CONCOM10_️"
+  },
+  {
+   "kind": "segment",
+   "value": "\u001f>COM1éa",
+   "out": "_COM1éa"
+  },
+  {
+   "kind": "segment",
+   "value": "_COM1/﻿aCOM1",
+   "out": "_COM1_aCOM1"
+  },
+  {
+   "kind": "segment",
+   "value": "∕／\\ 貓",
+   "out": "___ 貓"
+  },
+  {
+   "kind": "segment",
+   "value": "<a:? 🏻 a​／é​CONCONZ|🏻|🐱\\-Znul0👤\u0000éa‍/-. 貓\"👨‍👩‍👧貓👤∕éCOM1﻿_👤0\"‮‮🏻👨‍👩‍👧*\"nulé👤👤﻿旅行 ️éZ👨‍👩‍👧/​éé.. aCON/é.. 旅行Z﻿旅行",
+   "out": "_a__ 🏻 a_éCONCONZ_🏻_🐱_-Znul0👤éa‍_-. 貓_👨‍👩‍👧貓👤_éCOM1_👤0_🏻👨‍👩‍👧__nulé👤👤旅行 ️éZ👨‍👩‍👧_éé.. aCON_é.. 旅行Z旅行"
+  },
+  {
+   "kind": "segment",
+   "value": "é:-?é旅行\\>:🐱 貓∕|\\*a👨‍👩‍👧👤éZ|é?_CON|. 9COM1‍*a️／\u0000|COM1?👨‍👩‍👧 ∕é><é👤旅行﻿🏻COM1a. ️:a<<_0<é9‮Z.\u001f/🏻>:COM1**0／/﻿COM1>>\"CON*9-a:貓0?\\／‮:👨‍👩‍👧>",
+   "out": "é_-_é旅行___🐱 貓____a👨‍👩‍👧👤éZ_é__CON_. 9COM1‍_a️__COM1_👨‍👩‍👧 _é__é👤旅行🏻COM1a. ️_a___0_é9Z._🏻__COM1__0__COM1___CON_9-a_貓0____👨‍👩‍👧_"
+  },
+  {
+   "kind": "segment",
+   "value": "9é? \"👨‍👩‍👧aZ\u001f🏻.👤\\\\?​a..COM1a🐱CON‍🏻é👤貓nul|旅行‍\\∕🐱nul9👨‍👩‍👧:|. Z|CON",
+   "out": "9é_ _👨‍👩‍👧aZ🏻.👤___a..COM1a🐱CON‍🏻é👤貓nul_旅行‍__🐱nul9👨‍👩‍👧__. Z_CON"
+  },
+  {
+   "kind": "segment",
+   "value": "COM1👤:CON∕/旅行COM1/​<. \\_👤nul​‮﻿‮nul\"9‮‮\u0000_👨‍👩‍👧*<\u001f\\* :👨‍👩‍👧*. a\u001féééCOM100>/\u00009🏻/\\.?nul🏻.CONé|貓 CON0​9∕\\‮.旅行Z/\"\u0000*/?👤／🐱‍:-‮/COM1CON>∕Zéé‍|‍0‮👨‍👩‍👧0. >貓** ﻿*\u001f-nulé*\u001fCOM1\u0000*",
+   "out": "COM1👤_CON__旅行COM1__. __👤nulnul_9_👨‍👩‍👧____ _👨‍👩‍👧_. aéééCOM100__9🏻__._nul🏻.CONé_貓 CON09__.旅行Z_____👤_🐱‍_-_COM1CON__Zéé‍_‍0👨‍👩‍👧0. _貓__ _-nulé_COM1_"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "ext": ".HEIC",
+    "category": "Food",
+    "category_key": "food",
+    "country": "/>​﻿\\",
+    "admin1": "京都府",
+    "city": null,
+    "source": null,
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2010-08-28T08:11:23+08:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "Food/2010/2010-08/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.HEIC",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{date:YYYY}/{stem}{ext}",
+   "values": {
+    "stem": "a🐱?\"‍\u0000-👨‍👩‍👧a_貓.﻿COM1﻿🐱_-<\"／Z🐱.:. ZCON|\u0000​||\u0000COM1\u0000",
+    "ext": ".JPG",
+    "category": "..",
+    "category_key": null,
+    "country": "台灣",
+    "admin1": "京都府",
+    "city": "Kyoto",
+    "source": null,
+    "tags": [],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": null,
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "_/2024/a🐱__‍-👨‍👩‍👧a_貓.COM1🐱_-___Z🐱._. ZCON___COM1.JPG",
+   "date_source": "mtime"
+  },
+  {
+   "kind": "render",
+   "template": "{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": "\"👤CONé️.0COM1:.é‮／🐱?0 é👨‍👩‍👧 ／﻿🏻-‍貓9／‮🏻-​👨‍👩‍👧CON貓﻿_",
+    "ext": ".HEIC",
+    "category": "美食",
+    "category_key": null,
+    "country": "台灣",
+    "admin1": null,
+    "city": null,
+    "source": null,
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2021-06-05T03:07:15+05:45",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "2021/2021-06/_👤CONé️.0COM1_.é_🐱_0 é👨‍👩‍👧 _🏻-‍貓9_🏻-👨‍👩‍👧CON貓_.HEIC",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{country}/{city}/{stem}{ext}",
+   "values": {
+    "stem": "-_-<9COM1CON👨‍👩‍👧CON?‮:🏻*9. 旅行旅行／.﻿|​|. _‍👤. /é--é*0",
+    "ext": ".HEIC",
+    "category": "..",
+    "category_key": "c1_food",
+    "country": "台灣",
+    "admin1": null,
+    "city": "Kyoto",
+    "source": "phone",
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2006-04-21T18:08:08+05:45",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "台灣/Kyoto/-_-_9COM1CON👨‍👩‍👧CON__🏻_9. 旅行旅行_.__. _‍👤. _é--é_0.HEIC",
+   "date_source": null
+  },
+  {
+   "kind": "render",
+   "template": "{tag:animal}/{stem}{ext}",
+   "values": {
+    "stem": "🏻🏻👤nul／: /a0",
+    "ext": ".jpg",
+    "category": "美食",
+    "category_key": "c1_food",
+    "country": null,
+    "admin1": "京都府",
+    "city": "",
+    "source": null,
+    "tags": [],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2011-07-26T06:53:25+09:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "_unknown/🏻🏻👤nul__ _a0.jpg",
+   "date_source": null
+  },
+  {
+   "kind": "render",
+   "template": "{category_key}/{date:YYYY-MM}/{stem}{ext}",
+   "values": {
+    "stem": "🏻️?\u001f. >*\u001f\"∕?0**👨‍👩‍👧／?é貓>nul.\u001f∕﻿0",
+    "ext": "",
+    "category": null,
+    "category_key": null,
+    "country": "Japan",
+    "admin1": null,
+    "city": "Kyoto",
+    "source": "phone",
+    "tags": [],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "1998-07-19T12:55:16+00:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "_unknown/1998-07/🏻️_. _____0__👨‍👩‍👧__é貓_nul._0",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{source}/{admin1}/{date:DD}/{stem}{ext}",
+   "values": {
+    "stem": "*‍0\u001f>?90>*",
+    "ext": ".HEIC",
+    "category": "Food",
+    "category_key": "food",
+    "country": "台灣",
+    "admin1": null,
+    "city": "",
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": null,
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "phone/{admin1}/02/_‍0__90__.HEIC",
+   "date_source": "mtime"
+  },
+  {
+   "kind": "render",
+   "template": "photos/{category}/{taken_at:%Y-%m-%d %H%M%S}/{stem}{ext}",
+   "values": {
+    "stem": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "ext": "",
+    "category": "..",
+    "category_key": "c1_food",
+    "country": "／️nul∕👤",
+    "admin1": null,
+    "city": "Kyoto",
+    "source": "phone",
+    "tags": [],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": null,
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "photos/_/2024-03-02 090000/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "date_source": "mtime"
+  },
+  {
+   "kind": "render",
+   "template": "{taken_at:%y%j}/{stem}{ext}",
+   "values": {
+    "stem": "<🐱\"|0‍🏻a🏻a\" 貓\\‍\"COM1\u001f\"<🐱🏻‍​9:. Z:-\u001fCOM1‮👤é. |. \"",
+    "ext": ".jpeg",
+    "category": "..",
+    "category_key": "c1_food",
+    "country": "Japan",
+    "admin1": null,
+    "city": "",
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2007-10-15T14:52:41+05:45",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "07288/_🐱__0‍🏻a🏻a_ 貓_‍_COM1__🐱🏻‍9_. Z_-COM1👤é. _. _.jpeg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": "​.\\.éé‮﻿ é貓 a. COM1👨‍👩‍👧﻿​️nuléé",
+    "ext": "",
+    "category": null,
+    "category_key": "c1_food",
+    "country": "<🐱é﻿>",
+    "admin1": null,
+    "city": null,
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2009-11-22T21:12:41+09:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "_未知/2009/2009-11/._.éé é貓 a. COM1👨‍👩‍👧️nuléé",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{date:YYYY}/{stem}{ext}",
+   "values": {
+    "stem": "_COM1>9é‍.旅行-\\0",
+    "ext": ".jpeg",
+    "category": "..",
+    "category_key": null,
+    "country": null,
+    "admin1": "京都府",
+    "city": "",
+    "source": null,
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": null,
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "_/2024/_COM1_9é‍.旅行-_0.jpeg",
+   "date_source": "mtime"
+  },
+  {
+   "kind": "render",
+   "template": "{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": "🏻️貓|​\"﻿::é:🏻:/ 👨‍👩‍👧旅行a/*\".?é‮‍0🏻9*\\é",
+    "ext": ".jpeg",
+    "category": "..",
+    "category_key": "food",
+    "country": "?\\|COM1👤",
+    "admin1": null,
+    "city": null,
+    "source": null,
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2021-06-20T20:33:41-05:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "2021/2021-06/🏻️貓____é_🏻__ 👨‍👩‍👧旅行a___._é‍0🏻9__é.jpeg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{country}/{city}/{stem}{ext}",
+   "values": {
+    "stem": "旅行\\​🏻9👨‍👩‍👧／ \"é👤∕🏻.‍👤a*\u0000",
+    "ext": ".jpeg",
+    "category": null,
+    "category_key": "food",
+    "country": "貓0é.​",
+    "admin1": null,
+    "city": "",
+    "source": "phone",
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2006-06-10T04:49:41+00:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "貓0é/_unknown/旅行_🏻9👨‍👩‍👧_ _é👤_🏻.‍👤a_.jpeg",
+   "date_source": null
+  },
+  {
+   "kind": "render",
+   "template": "{tag:animal}/{stem}{ext}",
+   "values": {
+    "stem": "﻿ |0",
+    "ext": ".HEIC",
+    "category": "∕a／∕👤🏻∕é‮∕>COM1",
+    "category_key": "food",
+    "country": "a旅行COM1﻿.",
+    "admin1": "京都府",
+    "city": "",
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": null,
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "貓/_0.HEIC",
+   "date_source": null
+  },
+  {
+   "kind": "render",
+   "template": "{category_key}/{date:YYYY-MM}/{stem}{ext}",
+   "values": {
+    "stem": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "ext": ".JPG",
+    "category": null,
+    "category_key": "food",
+    "country": "台灣",
+    "admin1": "京都府",
+    "city": "",
+    "source": "phone",
+    "tags": [],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2008-05-22T00:04:06+05:45",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "en",
+   "rel": "food/2008-05/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.JPG",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{source}/{admin1}/{date:DD}/{stem}{ext}",
+   "values": {
+    "stem": "nul️-\\.旅行旅行<0🏻90Z* ",
+    "ext": ".jpg",
+    "category": "Food",
+    "category_key": null,
+    "country": null,
+    "admin1": null,
+    "city": "Kyoto",
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2003-04-26T23:41:03+09:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "en",
+   "rel": "phone/{admin1}/26/nul️-_.旅行旅行_0🏻90Z_.jpg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "photos/{category}/{taken_at:%Y-%m-%d %H%M%S}/{stem}{ext}",
+   "values": {
+    "stem": "<旅行*👨‍👩‍👧貓9Z\u001f🏻a🏻️:旅行nul️|\\COM1|️Z‍∕‍9CONaZ👤/<CONé貓👨‍👩‍👧aCOM1. ／",
+    "ext": ".jpeg",
+    "category": " Z0\u0000:\"a‮. -|>",
+    "category_key": null,
+    "country": "台灣",
+    "admin1": "京都府",
+    "city": "",
+    "source": null,
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2004-09-18T12:20:06+00:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "photos/Z0__a. -__/2004-09-18 122006/_旅行_👨‍👩‍👧貓9Z🏻a🏻️_旅行nul️__COM1_️Z‍_‍9CONaZ👤__CONé貓👨‍👩‍👧aCOM1. _.jpeg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{taken_at:%y%j}/{stem}{ext}",
+   "values": {
+    "stem": "é0COM1👨‍👩‍👧Z.:​貓a?️️👨‍👩‍👧\\?﻿-. 🐱. ?.?0*🐱​",
+    "ext": ".jpg",
+    "category": "Food",
+    "category_key": "c1_food",
+    "country": ">CON\u0000🐱_",
+    "admin1": "京都府",
+    "city": null,
+    "source": "phone",
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2003-06-27T06:14:55+08:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "03178/é0COM1👨‍👩‍👧Z._貓a_️️👨‍👩‍👧__-. 🐱. _._0_🐱.jpg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": "旅行|旅行\\COM1.Z_<9／\u0000_?<\\.旅行éé :énul旅行/∕",
+    "ext": ".jpg",
+    "category": "Food",
+    "category_key": null,
+    "country": "台灣",
+    "admin1": null,
+    "city": "Kyoto",
+    "source": "phone",
+    "tags": [],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2007-04-20T15:40:56+08:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "Food/2007/2007-04/旅行_旅行_COM1.Z__9_____.旅行éé _énul旅行__.jpg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{date:YYYY}/{stem}{ext}",
+   "values": {
+    "stem": "👤🏻é/🐱\u001f👨‍👩‍👧∕🏻🐱:. 旅行CON️\u001f?.／. 🐱>​🐱-\u0000_",
+    "ext": ".JPG",
+    "category": "美食",
+    "category_key": null,
+    "country": ". 👤:/‍",
+    "admin1": "京都府",
+    "city": "",
+    "source": null,
+    "tags": [],
+    "tag_display": {}
+   },
+   "taken_at": "2023-09-05T23:44:03+08:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "美食/2023/👤🏻é_🐱👨‍👩‍👧_🏻🐱_. 旅行CON️_._. 🐱_🐱-_.JPG",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": ">nul>9Z旅行👨‍👩‍👧nul🏻‍||‮<",
+    "ext": ".JPG",
+    "category": "..",
+    "category_key": "food",
+    "country": "台灣",
+    "admin1": "京都府",
+    "city": "",
+    "source": null,
+    "tags": [],
+    "tag_display": {}
+   },
+   "taken_at": "2016-10-17T19:01:26+08:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "2016/2016-10/_nul_9Z旅行👨‍👩‍👧nul🏻‍___.JPG",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{country}/{city}/{stem}{ext}",
+   "values": {
+    "stem": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "ext": ".jpg",
+    "category": "..",
+    "category_key": "c1_food",
+    "country": "Japan",
+    "admin1": "京都府",
+    "city": "Kyoto",
+    "source": null,
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2022-03-07T01:38:39+00:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "Japan/Kyoto/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jpg",
+   "date_source": null
+  },
+  {
+   "kind": "render",
+   "template": "{tag:animal}/{stem}{ext}",
+   "values": {
+    "stem": "/🐱／\u0000*_\\‮👨‍👩‍👧<a9?_*\\-<COM1\\👨‍👩‍👧‍\\CONé\"*∕|9?é>a\"貓",
+    "ext": ".jpg",
+    "category": null,
+    "category_key": "c1_food",
+    "country": "﻿👤:\":",
+    "admin1": null,
+    "city": "Kyoto",
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": null,
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "貓/_🐱____👨‍👩‍👧_a9____-_COM1_👨‍👩‍👧‍_CONé____9_é_a_貓.jpg",
+   "date_source": null
+  },
+  {
+   "kind": "render",
+   "template": "{category_key}/{date:YYYY-MM}/{stem}{ext}",
+   "values": {
+    "stem": "​\\|／COM1|<\\|🐱旅行||/／a\u0000 🐱:\\a?0️ |️. *",
+    "ext": ".jpg",
+    "category": "Food",
+    "category_key": null,
+    "country": null,
+    "admin1": null,
+    "city": "Kyoto",
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2000-06-15T15:30:14-05:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "_unknown/2000-06/___COM1____🐱旅行____a 🐱__a_0️ _️. _.jpg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{source}/{admin1}/{date:DD}/{stem}{ext}",
+   "values": {
+    "stem": "é🐱COM1:/<a0貓<旅行\u0000🐱\u001f\u001f旅行é<",
+    "ext": ".jpg",
+    "category": "..",
+    "category_key": "c1_food",
+    "country": "Japan",
+    "admin1": null,
+    "city": null,
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2027-03-11T23:33:14+00:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "phone/{admin1}/11/é🐱COM1___a0貓_旅行🐱旅行é_.jpg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "photos/{category}/{taken_at:%Y-%m-%d %H%M%S}/{stem}{ext}",
+   "values": {
+    "stem": "CONé／Z\u0000貓.",
+    "ext": ".JPG",
+    "category": "美食",
+    "category_key": "food",
+    "country": null,
+    "admin1": "京都府",
+    "city": "",
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2029-01-27T09:41:31+00:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "photos/美食/2029-01-27 094131/CONé_Z貓.JPG",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{taken_at:%y%j}/{stem}{ext}",
+   "values": {
+    "stem": "👨‍👩‍👧👨‍👩‍👧Z/|\"a<\u001f🏻<. ‍🐱é. ∕",
+    "ext": "",
+    "category": "Food",
+    "category_key": "food",
+    "country": "\u001f貓\\0貓",
+    "admin1": "京都府",
+    "city": "",
+    "source": "phone",
+    "tags": [],
+    "tag_display": {}
+   },
+   "taken_at": "2020-10-16T14:56:05+05:45",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "en",
+   "rel": "20290/👨‍👩‍👧👨‍👩‍👧Z___a_🏻_. ‍🐱é. _",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": "​<|*-\u0000/／\u001f",
+    "ext": ".HEIC",
+    "category": null,
+    "category_key": "c1_food",
+    "country": "台灣",
+    "admin1": null,
+    "city": "Kyoto",
+    "source": null,
+    "tags": [],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": null,
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "en",
+   "rel": "_unknown/2024/2024-03/___-__.HEIC",
+   "date_source": "mtime"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{date:YYYY}/{stem}{ext}",
+   "values": {
+    "stem": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "ext": ".HEIC",
+    "category": null,
+    "category_key": null,
+    "country": "台灣",
+    "admin1": null,
+    "city": "",
+    "source": "phone",
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2022-02-10T20:40:19+09:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "_未知/2022/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.HEIC",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": "🐱a-﻿|​aCOM1?-<_nul\\貓*🐱é.é旅行",
+    "ext": ".jpg",
+    "category": null,
+    "category_key": "c1_food",
+    "country": "a*‮🐱é",
+    "admin1": null,
+    "city": "",
+    "source": null,
+    "tags": [],
+    "tag_display": {}
+   },
+   "taken_at": "2026-08-09T08:02:25+00:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "2026/2026-08/🐱a-_aCOM1_-__nul_貓_🐱é.é旅行.jpg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{country}/{city}/{stem}{ext}",
+   "values": {
+    "stem": "|️0é. ?>\\️🐱<\\",
+    "ext": "",
+    "category": "..",
+    "category_key": "c1_food",
+    "country": "Japan",
+    "admin1": "京都府",
+    "city": "Kyoto",
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2006-07-17T10:56:24+09:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "Japan/Kyoto/_️0é. ___️🐱__",
+   "date_source": null
+  },
+  {
+   "kind": "render",
+   "template": "{tag:animal}/{stem}{ext}",
+   "values": {
+    "stem": "\"*/‍\u0000貓🏻貓>:∕🐱COM1COM1>COM1🐱nul貓_Z>CON",
+    "ext": "",
+    "category": null,
+    "category_key": "c1_food",
+    "country": "Japan",
+    "admin1": "京都府",
+    "city": "Kyoto",
+    "source": null,
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2008-06-10T07:57:02-05:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "cat/___‍貓🏻貓___🐱COM1COM1_COM1🐱nul貓_Z_CON",
+   "date_source": null
+  },
+  {
+   "kind": "render",
+   "template": "{category_key}/{date:YYYY-MM}/{stem}{ext}",
+   "values": {
+    "stem": "﻿👨‍👩‍👧旅行9. ∕aé//️a\u001f\">∕COM1\"👨‍👩‍👧/🐱🏻COM1",
+    "ext": ".jpeg",
+    "category": "|﻿\u0000a:／\u0000​Z\u001f:é",
+    "category_key": null,
+    "country": null,
+    "admin1": null,
+    "city": "Kyoto",
+    "source": null,
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2013-07-28T10:09:01+05:45",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "_unknown/2013-07/👨‍👩‍👧旅行9. _aé__️a___COM1_👨‍👩‍👧_🐱🏻COM1.jpeg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{source}/{admin1}/{date:DD}/{stem}{ext}",
+   "values": {
+    "stem": "🏻. -nul\u0000Z‍貓​\\é\u0000.é🐱‍",
+    "ext": ".HEIC",
+    "category": null,
+    "category_key": "food",
+    "country": "台灣",
+    "admin1": null,
+    "city": null,
+    "source": null,
+    "tags": [],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2000-03-21T01:47:27+08:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "_unknown/{admin1}/21/🏻. -nulZ‍貓_é.é🐱‍.HEIC",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "photos/{category}/{taken_at:%Y-%m-%d %H%M%S}/{stem}{ext}",
+   "values": {
+    "stem": "é\u00000. _👨‍👩‍👧\\|-|‍:?|>COM1/:Z:?",
+    "ext": "",
+    "category": null,
+    "category_key": null,
+    "country": "Japan",
+    "admin1": null,
+    "city": "",
+    "source": null,
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": null,
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "en",
+   "rel": "photos/_unknown/2024-03-02 090000/é0. _👨‍👩‍👧__-_‍____COM1__Z__",
+   "date_source": "mtime"
+  },
+  {
+   "kind": "render",
+   "template": "{taken_at:%y%j}/{stem}{ext}",
+   "values": {
+    "stem": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "ext": ".jpeg",
+    "category": "Food",
+    "category_key": "c1_food",
+    "country": "台灣",
+    "admin1": "京都府",
+    "city": "",
+    "source": "phone",
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2007-05-08T17:56:55+05:45",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "07128/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jpeg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": "\"👤​\\／aCON🐱 \u0000／0>旅行0👤a\u001f👨‍👩‍👧nul_.／é_‮∕||a🏻​\"​ 🐱 ",
+    "ext": ".jpeg",
+    "category": "美食",
+    "category_key": "food",
+    "country": "nulnul ∕nul",
+    "admin1": "京都府",
+    "city": "Kyoto",
+    "source": null,
+    "tags": [],
+    "tag_display": {}
+   },
+   "taken_at": "2017-11-23T13:08:40+09:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "en",
+   "rel": "美食/2017/2017-11/_👤__aCON🐱 _0_旅行0👤a👨‍👩‍👧nul_._é____a🏻_ 🐱.jpeg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{date:YYYY}/{stem}{ext}",
+   "values": {
+    "stem": "／. 🐱?? _nul🐱🏻/-\"\u0000‮é\\CON-/_|Z\\／:​🐱\\<-旅行<COM1∕.",
+    "ext": ".jpg",
+    "category": "Food",
+    "category_key": "food",
+    "country": "<\u001fé‍COM1",
+    "admin1": "京都府",
+    "city": "Kyoto",
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2007-05-01T19:39:22+08:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "Food/2007/_. 🐱__ _nul🐱🏻_-_é_CON-___Z___🐱__-旅行_COM1_.jpg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": "?🐱:🏻COM1_/9\u001f👨‍👩‍👧9Z\u001f00‍‮CONé9‮👨‍👩‍👧?CON/👤.>a_👤 ️﻿‍_",
+    "ext": ".HEIC",
+    "category": "..",
+    "category_key": null,
+    "country": "Japan",
+    "admin1": "京都府",
+    "city": "",
+    "source": null,
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2004-01-25T20:05:20+09:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "2004/2004-01/_🐱_🏻COM1__9👨‍👩‍👧9Z00‍CONé9👨‍👩‍👧_CON_👤._a_👤 ️‍_.HEIC",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{country}/{city}/{stem}{ext}",
+   "values": {
+    "stem": "🏻9*nul.-*?\\?**​旅行*é﻿9\u001f._\u001f-nulé",
+    "ext": "",
+    "category": "éa​é>._0👤\\é>",
+    "category_key": "food",
+    "country": "Japan",
+    "admin1": "京都府",
+    "city": "Kyoto",
+    "source": null,
+    "tags": [],
+    "tag_display": {}
+   },
+   "taken_at": "2024-11-01T07:15:36+00:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "Japan/Kyoto/🏻9_nul.-______旅行_é9._-nulé",
+   "date_source": null
+  },
+  {
+   "kind": "render",
+   "template": "{tag:animal}/{stem}{ext}",
+   "values": {
+    "stem": "‍_旅行-CONCOM1﻿9CON9️?旅行‍/️|*9|旅行​COM1️CON旅行​Z |／",
+    "ext": "",
+    "category": "Food",
+    "category_key": "c1_food",
+    "country": null,
+    "admin1": "京都府",
+    "city": "Kyoto",
+    "source": "phone",
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2016-08-07T20:29:06-05:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "_未知/‍_旅行-CONCOM19CON9️_旅行‍_️__9_旅行COM1️CON旅行Z __",
+   "date_source": null
+  },
+  {
+   "kind": "render",
+   "template": "{category_key}/{date:YYYY-MM}/{stem}{ext}",
+   "values": {
+    "stem": "‮∕nul／‍a‍é.*?/🐱​∕\u0000貓‍-👤∕🐱é\"é🐱|﻿*|9\u001f‮",
+    "ext": ".JPG",
+    "category": "Food",
+    "category_key": "c1_food",
+    "country": "ZCON|nul貓",
+    "admin1": "京都府",
+    "city": null,
+    "source": null,
+    "tags": [],
+    "tag_display": {}
+   },
+   "taken_at": "2026-10-02T09:57:09+00:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "en",
+   "rel": "c1_food/2026-10/_nul_‍a‍é.___🐱_貓‍-👤_🐱é_é🐱___9.JPG",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{source}/{admin1}/{date:DD}/{stem}{ext}",
+   "values": {
+    "stem": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "ext": ".jpeg",
+    "category": null,
+    "category_key": null,
+    "country": "Japan",
+    "admin1": null,
+    "city": null,
+    "source": null,
+    "tags": [],
+    "tag_display": {}
+   },
+   "taken_at": null,
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "_unknown/{admin1}/02/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jpeg",
+   "date_source": "mtime"
+  },
+  {
+   "kind": "render",
+   "template": "photos/{category}/{taken_at:%Y-%m-%d %H%M%S}/{stem}{ext}",
+   "values": {
+    "stem": "\\﻿?>貓",
+    "ext": ".JPG",
+    "category": "..",
+    "category_key": null,
+    "country": "台灣",
+    "admin1": "京都府",
+    "city": "Kyoto",
+    "source": "phone",
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2018-09-07T11:45:17+00:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "photos/_/2018-09-07 114517/___貓.JPG",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{taken_at:%y%j}/{stem}{ext}",
+   "values": {
+    "stem": "0?",
+    "ext": "",
+    "category": null,
+    "category_key": "food",
+    "country": "台灣",
+    "admin1": "京都府",
+    "city": "",
+    "source": null,
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2009-05-21T02:13:20+08:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "09141/0_",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": "旅行貓‍／>COM1/\u001fCON/CONnul\\é\\👤旅行﻿*🏻|>_a\u0000‮nul|>貓COM1aaé-\u001f",
+    "ext": ".jpeg",
+    "category": "/>COM1a\"./é.​👤. ",
+    "category_key": "c1_food",
+    "country": null,
+    "admin1": null,
+    "city": null,
+    "source": null,
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2012-06-23T09:28:42+00:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "__COM1a_._é.👤/2012/2012-06/旅行貓‍__COM1_CON_CONnul_é_👤旅行_🏻___anul__貓COM1aaé-.jpeg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{date:YYYY}/{stem}{ext}",
+   "values": {
+    "stem": "-:∕‍\u001f旅行／_🐱.9\\-️0\"️||é/-a️\u0000🐱‮🏻​貓COM1?<nul\"é‮👤<",
+    "ext": ".jpg",
+    "category": "Food",
+    "category_key": "c1_food",
+    "country": null,
+    "admin1": null,
+    "city": "",
+    "source": "phone",
+    "tags": [],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2026-05-19T20:39:27+09:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "Food/2026/-__‍旅行__🐱.9_-️0_️__é_-a️🐱🏻貓COM1__nul_é👤_.jpg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": "‍9é﻿🏻é90*COM1🐱‍﻿:/?<️🏻COM1👨‍👩‍👧\"️éa>Z﻿貓",
+    "ext": ".jpg",
+    "category": "..",
+    "category_key": null,
+    "country": null,
+    "admin1": "京都府",
+    "city": null,
+    "source": null,
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2004-04-27T09:07:35+00:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "2004/2004-04/‍9é🏻é90_COM1🐱‍____️🏻COM1👨‍👩‍👧_️éa_Z貓.jpg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{country}/{city}/{stem}{ext}",
+   "values": {
+    "stem": "️\u0000Z_",
+    "ext": ".JPG",
+    "category": "美食",
+    "category_key": "food",
+    "country": "<é<>*",
+    "admin1": "京都府",
+    "city": "",
+    "source": "phone",
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": null,
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "en",
+   "rel": "_é___/_unknown/️Z_.JPG",
+   "date_source": null
+  },
+  {
+   "kind": "render",
+   "template": "{tag:animal}/{stem}{ext}",
+   "values": {
+    "stem": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "ext": ".jpeg",
+    "category": "nul9a貓👤*\u001fCON>.||",
+    "category_key": null,
+    "country": "/\u0000_nul<",
+    "admin1": null,
+    "city": "Kyoto",
+    "source": null,
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2005-07-16T09:32:20+05:45",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "_未知/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jpeg",
+   "date_source": null
+  },
+  {
+   "kind": "render",
+   "template": "{category_key}/{date:YYYY-MM}/{stem}{ext}",
+   "values": {
+    "stem": "_\\_|. :‮é\"_><*. ／nulé-️∕\u0000",
+    "ext": ".JPG",
+    "category": "| \u001f.\\COM1aZ️\"\\a",
+    "category_key": "c1_food",
+    "country": null,
+    "admin1": "京都府",
+    "city": null,
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2023-01-22T01:02:10+09:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "c1_food/2023-01/____. _é_____. _nulé-️_.JPG",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{source}/{admin1}/{date:DD}/{stem}{ext}",
+   "values": {
+    "stem": "​0COM1CON‍<*Z>00👤9️﻿. CON:*🏻. 貓Z貓\\👤-nul🏻nul👨‍👩‍👧️",
+    "ext": ".JPG",
+    "category": null,
+    "category_key": "food",
+    "country": "|. /🐱:",
+    "admin1": null,
+    "city": null,
+    "source": null,
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2009-10-12T01:36:53-05:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "_未知/{admin1}/12/0COM1CON‍__Z_00👤9️. CON__🏻. 貓Z貓_👤-nul🏻nul👨‍👩‍👧️.JPG",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "photos/{category}/{taken_at:%Y-%m-%d %H%M%S}/{stem}{ext}",
+   "values": {
+    "stem": "COM19anulnul貓‍>nul貓",
+    "ext": "",
+    "category": null,
+    "category_key": "c1_food",
+    "country": "台灣",
+    "admin1": "京都府",
+    "city": "",
+    "source": null,
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2010-11-09T04:15:21+08:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "en",
+   "rel": "photos/_unknown/2010-11-09 041521/COM19anulnul貓‍_nul貓",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{taken_at:%y%j}/{stem}{ext}",
+   "values": {
+    "stem": "旅行\u0000>👨‍👩‍👧?CON:-‍9🐱️\"?>﻿COM1_<\". 貓👨‍👩‍👧CON∕👤",
+    "ext": "",
+    "category": "_​貓-0Z\u001f|\\??:",
+    "category_key": "c1_food",
+    "country": null,
+    "admin1": "京都府",
+    "city": null,
+    "source": "phone",
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": null,
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "24062/旅行_👨‍👩‍👧_CON_-‍9🐱️___COM1___. 貓👨‍👩‍👧CON_👤",
+   "date_source": "mtime"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": "|>🏻∕nul\u0000\u0000﻿9CON*nul<9\u001fCOM1/／éZ\\‍-a旅行∕0\u0000>",
+    "ext": ".JPG",
+    "category": "9é👤>／👨‍👩‍👧/é/\u001f👨‍👩‍👧9",
+    "category_key": null,
+    "country": "\u001fZ?👤.",
+    "admin1": "京都府",
+    "city": "",
+    "source": null,
+    "tags": [],
+    "tag_display": {}
+   },
+   "taken_at": "2000-07-21T01:17:42+08:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "9é👤__👨‍👩‍👧_é_👨‍👩‍👧9/2000/2000-07/__🏻_nul9CON_nul_9COM1__éZ_‍-a旅行_0_.JPG",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{date:YYYY}/{stem}{ext}",
+   "values": {
+    "stem": "",
+    "ext": ".jpeg",
+    "category": "99‍🏻‮<_é:🐱‮>",
+    "category_key": "c1_food",
+    "country": "台灣",
+    "admin1": "京都府",
+    "city": null,
+    "source": "phone",
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": null,
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "en",
+   "rel": "99‍🏻__é_🐱_/2024/_unknown.jpeg",
+   "date_source": "mtime"
+  },
+  {
+   "kind": "render",
+   "template": "{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "ext": "",
+    "category": ">旅行<é∕0👨‍👩‍👧CON<:／\u0000",
+    "category_key": "c1_food",
+    "country": ".貓-\u001f. ",
+    "admin1": null,
+    "city": "",
+    "source": "phone",
+    "tags": [],
+    "tag_display": {}
+   },
+   "taken_at": "2030-02-09T22:20:51-05:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "2030/2030-02/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{country}/{city}/{stem}{ext}",
+   "values": {
+    "stem": "COM1Z\u001f∕️️👤👤🐱／>​﻿_<‮‮​|🏻/.-Z",
+    "ext": "",
+    "category": null,
+    "category_key": "c1_food",
+    "country": "Japan",
+    "admin1": null,
+    "city": "",
+    "source": "phone",
+    "tags": [],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2030-08-05T03:51:13+08:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "en",
+   "rel": "Japan/_unknown/COM1Z_️️👤👤🐱_____🏻_.-Z",
+   "date_source": null
+  },
+  {
+   "kind": "render",
+   "template": "{tag:animal}/{stem}{ext}",
+   "values": {
+    "stem": "🏻\u001f.貓️_Z👤貓\\",
+    "ext": ".JPG",
+    "category": null,
+    "category_key": "c1_food",
+    "country": "Japan",
+    "admin1": "京都府",
+    "city": null,
+    "source": null,
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2028-08-21T22:51:41+08:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "cat/🏻.貓️_Z👤貓_.JPG",
+   "date_source": null
+  },
+  {
+   "kind": "render",
+   "template": "{category_key}/{date:YYYY-MM}/{stem}{ext}",
+   "values": {
+    "stem": "️. -/∕>-.9-é",
+    "ext": "",
+    "category": "_\u001f​️🏻‍​_\u0000👨‍👩‍👧>﻿",
+    "category_key": "food",
+    "country": "-9*. ‮",
+    "admin1": "京都府",
+    "city": "Kyoto",
+    "source": "phone",
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "1998-06-25T05:02:11+09:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "food/1998-06/️. -___-.9-é",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{source}/{admin1}/{date:DD}/{stem}{ext}",
+   "values": {
+    "stem": "／:9👤",
+    "ext": "",
+    "category": "👤／🏻／.:\\-️-énul",
+    "category_key": null,
+    "country": "Japan",
+    "admin1": null,
+    "city": "Kyoto",
+    "source": null,
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2015-07-10T21:41:18-05:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "_unknown/{admin1}/10/__9👤",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "photos/{category}/{taken_at:%Y-%m-%d %H%M%S}/{stem}{ext}",
+   "values": {
+    "stem": "∕:️Z/\"<旅行/CON​旅行∕é_:Z👨‍👩‍👧.",
+    "ext": ".jpeg",
+    "category": null,
+    "category_key": null,
+    "country": "‮. 🏻👤‮",
+    "admin1": "京都府",
+    "city": null,
+    "source": null,
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2005-10-09T05:26:16+09:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "photos/_未知/2005-10-09 052616/__️Z___旅行_CON旅行_é__Z👨‍👩‍👧.jpeg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{taken_at:%y%j}/{stem}{ext}",
+   "values": {
+    "stem": "\u001f?:COM1|/\u0000CON️👨‍👩‍👧. 貓::／9. 貓貓/",
+    "ext": ".HEIC",
+    "category": ">:./>-\\／*‮️9",
+    "category_key": "food",
+    "country": "台灣",
+    "admin1": "京都府",
+    "city": "Kyoto",
+    "source": null,
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2012-10-25T22:28:34+08:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "en",
+   "rel": "12299/__COM1__CON️👨‍👩‍👧. 貓___9. 貓貓_.HEIC",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "ext": ".HEIC",
+    "category": "-​CON:️\u0000／_*﻿|🏻",
+    "category_key": null,
+    "country": "_👤>👨‍👩‍👧Z",
+    "admin1": null,
+    "city": "",
+    "source": "phone",
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": null,
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "-CON_️____🏻/2024/2024-03/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.HEIC",
+   "date_source": "mtime"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{date:YYYY}/{stem}{ext}",
+   "values": {
+    "stem": "／\"-COM1*CON‮👨‍👩‍👧Z👨‍👩‍👧-‮COM10/",
+    "ext": ".HEIC",
+    "category": "美食",
+    "category_key": "c1_food",
+    "country": null,
+    "admin1": null,
+    "city": "",
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2017-08-09T09:07:27+05:45",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "en",
+   "rel": "美食/2017/__-COM1_CON👨‍👩‍👧Z👨‍👩‍👧-COM10_.HEIC",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": "旅行é* >\u001f.️️9\\Z🏻COM1COM1é9.>﻿貓",
+    "ext": ".jpeg",
+    "category": "Food",
+    "category_key": "c1_food",
+    "country": null,
+    "admin1": null,
+    "city": "Kyoto",
+    "source": "phone",
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": null,
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "2024/2024-03/旅行é_ _.️️9_Z🏻COM1COM1é9._貓.jpeg",
+   "date_source": "mtime"
+  },
+  {
+   "kind": "render",
+   "template": "{country}/{city}/{stem}{ext}",
+   "values": {
+    "stem": "\"|_9*🏻9*-貓:Z​️:_<nul*🐱\u00009🏻_",
+    "ext": ".HEIC",
+    "category": "美食",
+    "category_key": "c1_food",
+    "country": "台灣",
+    "admin1": null,
+    "city": null,
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2015-08-19T19:27:34+09:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "en",
+   "rel": "台灣/_unknown/___9_🏻9_-貓_Z️___nul_🐱9🏻_.HEIC",
+   "date_source": null
+  },
+  {
+   "kind": "render",
+   "template": "{tag:animal}/{stem}{ext}",
+   "values": {
+    "stem": "貓<👤. nul_?.*_é:CONnul\u001fCON-9\"\":|貓​\"-0**Z0／//﻿",
+    "ext": ".JPG",
+    "category": "Food",
+    "category_key": "c1_food",
+    "country": "台灣",
+    "admin1": "京都府",
+    "city": "Kyoto",
+    "source": "phone",
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2024-04-26T10:54:07-05:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "en",
+   "rel": "_unknown/貓_👤. nul__.__é_CONnulCON-9____貓_-0__Z0___.JPG",
+   "date_source": null
+  },
+  {
+   "kind": "render",
+   "template": "{category_key}/{date:YYYY-MM}/{stem}{ext}",
+   "values": {
+    "stem": "👤旅行貓🏻​9🏻?. é*é<\u0000貓a🐱*‍",
+    "ext": ".jpg",
+    "category": "..",
+    "category_key": "c1_food",
+    "country": "‍️?. é",
+    "admin1": null,
+    "city": "Kyoto",
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2009-09-04T12:11:24+05:45",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "c1_food/2009-09/👤旅行貓🏻9🏻_. é_é_貓a🐱_‍.jpg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{source}/{admin1}/{date:DD}/{stem}{ext}",
+   "values": {
+    "stem": "\\\\‍<﻿\". 旅行é旅行🐱👨‍👩‍👧COM1／🏻🐱.﻿",
+    "ext": "",
+    "category": "Food",
+    "category_key": null,
+    "country": null,
+    "admin1": "京都府",
+    "city": null,
+    "source": "phone",
+    "tags": [],
+    "tag_display": {}
+   },
+   "taken_at": "2027-10-12T08:45:52+05:45",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "phone/{admin1}/12/__‍__. 旅行é旅行🐱👨‍👩‍👧COM1_🏻🐱",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "photos/{category}/{taken_at:%Y-%m-%d %H%M%S}/{stem}{ext}",
+   "values": {
+    "stem": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "ext": ".HEIC",
+    "category": null,
+    "category_key": "food",
+    "country": "台灣",
+    "admin1": "京都府",
+    "city": null,
+    "source": null,
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2023-03-17T07:47:52+08:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "photos/_unknown/2023-03-17 074752/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.HEIC",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{taken_at:%y%j}/{stem}{ext}",
+   "values": {
+    "stem": "Z／a",
+    "ext": ".jpeg",
+    "category": "Food",
+    "category_key": "food",
+    "country": "台灣",
+    "admin1": "京都府",
+    "city": "Kyoto",
+    "source": null,
+    "tags": [],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "1996-02-03T02:56:23-05:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "96034/Z_a.jpeg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": "nul9🏻️?旅行9|:*Z‍é\\🐱🐱aCOM1?\u001fa: nul",
+    "ext": ".HEIC",
+    "category": "美食",
+    "category_key": "c1_food",
+    "country": null,
+    "admin1": null,
+    "city": "",
+    "source": "phone",
+    "tags": [],
+    "tag_display": {}
+   },
+   "taken_at": "2028-12-19T22:51:48+09:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "美食/2028/2028-12/nul9🏻️_旅行9___Z‍é_🐱🐱aCOM1_a_ nul.HEIC",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{date:YYYY}/{stem}{ext}",
+   "values": {
+    "stem": "->／. |<",
+    "ext": ".jpeg",
+    "category": "..",
+    "category_key": "food",
+    "country": "_\"|*nul",
+    "admin1": null,
+    "city": "",
+    "source": "phone",
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2016-05-19T01:16:15-05:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "_/2016/-__. __.jpeg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": "CON.0️Z旅行00.​*\"a👨‍👩‍👧a<\u001f*\u0000COM1CON",
+    "ext": ".HEIC",
+    "category": null,
+    "category_key": "food",
+    "country": "Japan",
+    "admin1": null,
+    "city": "Kyoto",
+    "source": "phone",
+    "tags": [],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": null,
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "2024/2024-03/CON_.0️Z旅行00.__a👨‍👩‍👧a__COM1CON.HEIC",
+   "date_source": "mtime"
+  },
+  {
+   "kind": "render",
+   "template": "{country}/{city}/{stem}{ext}",
+   "values": {
+    "stem": "COM1COM1|👤",
+    "ext": ".HEIC",
+    "category": "美食",
+    "category_key": "food",
+    "country": "Japan",
+    "admin1": "京都府",
+    "city": "Kyoto",
+    "source": null,
+    "tags": [],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2018-10-18T13:27:24+05:45",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "Japan/Kyoto/COM1COM1_👤.HEIC",
+   "date_source": null
+  },
+  {
+   "kind": "render",
+   "template": "{tag:animal}/{stem}{ext}",
+   "values": {
+    "stem": "*<‍9>:‍貓貓>\\ ﻿9/-Z",
+    "ext": ".JPG",
+    "category": "Food",
+    "category_key": null,
+    "country": "旅行a.∕CON",
+    "admin1": "京都府",
+    "city": "Kyoto",
+    "source": null,
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": null,
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "en",
+   "rel": "貓/__‍9__‍貓貓__ 9_-Z.JPG",
+   "date_source": null
+  },
+  {
+   "kind": "render",
+   "template": "{category_key}/{date:YYYY-MM}/{stem}{ext}",
+   "values": {
+    "stem": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "ext": ".jpeg",
+    "category": "..",
+    "category_key": null,
+    "country": ":∕\" :",
+    "admin1": null,
+    "city": "Kyoto",
+    "source": null,
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2029-06-24T00:29:48+09:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "_未知/2029-06/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jpeg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{source}/{admin1}/{date:DD}/{stem}{ext}",
+   "values": {
+    "stem": ">🐱\u0000é. ‮旅行-👤. >nulé>旅行🏻0貓é‍ .  .  ️ _9>🐱／🐱COM1\u0000\\-／",
+    "ext": ".HEIC",
+    "category": "美食",
+    "category_key": "food",
+    "country": "台灣",
+    "admin1": "京都府",
+    "city": null,
+    "source": "phone",
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": null,
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "phone/{admin1}/02/_🐱é. 旅行-👤. _nulé_旅行🏻0貓é‍ .  .  ️ _9_🐱_🐱COM1_-_.HEIC",
+   "date_source": "mtime"
+  },
+  {
+   "kind": "render",
+   "template": "photos/{category}/{taken_at:%Y-%m-%d %H%M%S}/{stem}{ext}",
+   "values": {
+    "stem": "﻿ZCON 9",
+    "ext": ".JPG",
+    "category": null,
+    "category_key": null,
+    "country": "台灣",
+    "admin1": "京都府",
+    "city": "Kyoto",
+    "source": null,
+    "tags": [],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2016-01-19T15:00:26+09:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "photos/_未知/2016-01-19 150026/ZCON 9.JPG",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{taken_at:%y%j}/{stem}{ext}",
+   "values": {
+    "stem": "／a🏻／>‍CON‮Z貓\\  ‍\u0000COM1.CON.\\\u001f:👨‍👩‍👧Z‍​|",
+    "ext": ".HEIC",
+    "category": null,
+    "category_key": null,
+    "country": "Japan",
+    "admin1": "京都府",
+    "city": null,
+    "source": "phone",
+    "tags": [],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2024-12-05T10:04:40+05:45",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "24340/_a🏻__‍CONZ貓_  ‍COM1.CON.__👨‍👩‍👧Z‍_.HEIC",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": "9nul‮-COM1_?.\u0000️:é🐱|>Z9<旅行0️9nul／|Z\"a/旅行‮️*nulé: Z9",
+    "ext": ".jpg",
+    "category": "..",
+    "category_key": "c1_food",
+    "country": null,
+    "admin1": null,
+    "city": null,
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "1995-01-15T12:31:47+09:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "_/1995/1995-01/9nul-COM1__.️_é🐱__Z9_旅行0️9nul__Z_a_旅行️_nulé_ Z9.jpg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{date:YYYY}/{stem}{ext}",
+   "values": {
+    "stem": "∕0﻿-\\a‍a?🏻-∕🐱nul-:/-​9👨‍👩‍👧é",
+    "ext": ".JPG",
+    "category": ">旅行COM1_貓*>∕>é. 貓",
+    "category_key": "food",
+    "country": ". 👤<\\貓",
+    "admin1": "京都府",
+    "city": "",
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "1997-10-08T14:52:32+00:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "en",
+   "rel": "_旅行COM1_貓____é. 貓/1997/_0-_a‍a_🏻-_🐱nul-__-9👨‍👩‍👧é.JPG",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": "👤🏻9👨‍👩‍👧👨‍👩‍👧Z**0",
+    "ext": ".jpeg",
+    "category": "..",
+    "category_key": null,
+    "country": null,
+    "admin1": "京都府",
+    "city": "Kyoto",
+    "source": null,
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": null,
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "en",
+   "rel": "2024/2024-03/👤🏻9👨‍👩‍👧👨‍👩‍👧Z__0.jpeg",
+   "date_source": "mtime"
+  },
+  {
+   "kind": "render",
+   "template": "{country}/{city}/{stem}{ext}",
+   "values": {
+    "stem": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "ext": ".jpeg",
+    "category": "..",
+    "category_key": "food",
+    "country": null,
+    "admin1": null,
+    "city": null,
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "1997-09-02T19:36:10+09:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "_未知/_未知/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jpeg",
+   "date_source": null
+  },
+  {
+   "kind": "render",
+   "template": "{tag:animal}/{stem}{ext}",
+   "values": {
+    "stem": "🐱",
+    "ext": ".HEIC",
+    "category": "美食",
+    "category_key": null,
+    "country": "️?貓\u0000é",
+    "admin1": null,
+    "city": "Kyoto",
+    "source": null,
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2014-01-25T22:31:22+08:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "貓/🐱.HEIC",
+   "date_source": null
+  },
+  {
+   "kind": "render",
+   "template": "{category_key}/{date:YYYY-MM}/{stem}{ext}",
+   "values": {
+    "stem": "_|:\u001f​|:énulZ﻿0_éCON貓CON 🏻 ​",
+    "ext": "",
+    "category": "Food",
+    "category_key": null,
+    "country": "Japan",
+    "admin1": null,
+    "city": "Kyoto",
+    "source": null,
+    "tags": [],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2026-07-25T10:31:31+05:45",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "_未知/2026-07/_____énulZ0_éCON貓CON 🏻",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{source}/{admin1}/{date:DD}/{stem}{ext}",
+   "values": {
+    "stem": "/-:",
+    "ext": ".jpeg",
+    "category": "美食",
+    "category_key": "food",
+    "country": null,
+    "admin1": null,
+    "city": "Kyoto",
+    "source": null,
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "1995-11-26T17:01:55+05:45",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "_未知/{admin1}/26/_-_.jpeg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "photos/{category}/{taken_at:%Y-%m-%d %H%M%S}/{stem}{ext}",
+   "values": {
+    "stem": "️﻿👤\u0000-/_∕_a/\\ ️​CON",
+    "ext": ".jpg",
+    "category": null,
+    "category_key": "food",
+    "country": null,
+    "admin1": "京都府",
+    "city": null,
+    "source": null,
+    "tags": [],
+    "tag_display": {}
+   },
+   "taken_at": "2012-08-11T22:09:59+00:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "photos/_未知/2012-08-11 220959/️👤-____a__ ️CON.jpg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{taken_at:%y%j}/{stem}{ext}",
+   "values": {
+    "stem": "​‍ ​-Z\"nul\\👤-/ >0\u001f*?:﻿é∕👨‍👩‍👧",
+    "ext": ".HEIC",
+    "category": "‮👨‍👩‍👧👤a _||9a. a",
+    "category_key": "c1_food",
+    "country": "nul🐱:_🐱",
+    "admin1": null,
+    "city": null,
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2017-04-18T08:36:17+08:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "17108/‍ -Z_nul_👤-_ _0___é_👨‍👩‍👧.HEIC",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": "∕nulaé👨‍👩‍👧/.👤| .*👨‍👩‍👧🏻-🏻Z9️\"CON貓🐱COM1🐱‮",
+    "ext": ".JPG",
+    "category": "Food",
+    "category_key": null,
+    "country": "CONZ\u001f‍|",
+    "admin1": null,
+    "city": "Kyoto",
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2024-09-14T09:37:55+08:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "Food/2024/2024-09/_nulaé👨‍👩‍👧_.👤_ ._👨‍👩‍👧🏻-🏻Z9️_CON貓🐱COM1🐱.JPG",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{date:YYYY}/{stem}{ext}",
+   "values": {
+    "stem": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "ext": ".HEIC",
+    "category": "Food",
+    "category_key": null,
+    "country": null,
+    "admin1": "京都府",
+    "city": null,
+    "source": null,
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2017-06-16T04:27:51+08:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "Food/2017/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.HEIC",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": "🏻|a‍. ?énul?/0\u001f- 貓‮aéCOM1<﻿|👤\"/",
+    "ext": ".jpeg",
+    "category": "\u001fZ ‍ \"🐱／﻿aé‍",
+    "category_key": "c1_food",
+    "country": "Japan",
+    "admin1": "京都府",
+    "city": null,
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": null,
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "2024/2024-03/🏻_a‍. _énul__0- 貓aéCOM1__👤__.jpeg",
+   "date_source": "mtime"
+  },
+  {
+   "kind": "render",
+   "template": "{country}/{city}/{stem}{ext}",
+   "values": {
+    "stem": "🐱️_<--​∕nul🏻🏻CONZéé*🐱.nulnul🐱|‮\u001f‮.. 旅行️👤|-0🏻\u0000",
+    "ext": ".HEIC",
+    "category": "9‍👤>\"👨‍👩‍👧旅行／\\﻿. ﻿",
+    "category_key": null,
+    "country": null,
+    "admin1": "京都府",
+    "city": "",
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2024-11-12T10:21:50+08:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "en",
+   "rel": "未知地點/_unknown/🐱️__--_nul🏻🏻CONZéé_🐱.nulnul🐱_.. 旅行️👤_-0🏻.HEIC",
+   "date_source": null
+  },
+  {
+   "kind": "render",
+   "template": "{tag:animal}/{stem}{ext}",
+   "values": {
+    "stem": "️",
+    "ext": ".JPG",
+    "category": "Food",
+    "category_key": "c1_food",
+    "country": "Japan",
+    "admin1": "京都府",
+    "city": "Kyoto",
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2015-05-01T03:01:01+05:45",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "貓/️.JPG",
+   "date_source": null
+  },
+  {
+   "kind": "render",
+   "template": "{category_key}/{date:YYYY-MM}/{stem}{ext}",
+   "values": {
+    "stem": "／éé／0-9Z9:",
+    "ext": "",
+    "category": null,
+    "category_key": "food",
+    "country": null,
+    "admin1": "京都府",
+    "city": "Kyoto",
+    "source": null,
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2002-10-21T09:46:14+00:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "food/2002-10/_éé_0-9Z9_",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{source}/{admin1}/{date:DD}/{stem}{ext}",
+   "values": {
+    "stem": "\u0000é‍|:_﻿:🐱é?﻿👨‍👩‍👧 🏻CON/∕/ 🏻/",
+    "ext": ".jpeg",
+    "category": "美食",
+    "category_key": "food",
+    "country": "é. CON旅行.",
+    "admin1": null,
+    "city": "Kyoto",
+    "source": null,
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2012-08-01T23:46:47+05:45",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "_unknown/{admin1}/01/é‍____🐱é_👨‍👩‍👧 🏻CON___ 🏻_.jpeg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "photos/{category}/{taken_at:%Y-%m-%d %H%M%S}/{stem}{ext}",
+   "values": {
+    "stem": "️CON旅行貓👤",
+    "ext": ".HEIC",
+    "category": null,
+    "category_key": "c1_food",
+    "country": "👤COM1🏻﻿\u001f",
+    "admin1": null,
+    "city": "",
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2028-02-02T19:29:10+08:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "photos/_未知/2028-02-02 192910/️CON旅行貓👤.HEIC",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{taken_at:%y%j}/{stem}{ext}",
+   "values": {
+    "stem": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "ext": ".HEIC",
+    "category": "..",
+    "category_key": "food",
+    "country": null,
+    "admin1": "京都府",
+    "city": null,
+    "source": "phone",
+    "tags": [],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2012-01-06T14:52:53+00:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "en",
+   "rel": "12006/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.HEIC",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": "/​.é:\"_👤\\🏻:é?",
+    "ext": ".jpeg",
+    "category": "90​🏻<\u001f/\"a​COM10",
+    "category_key": null,
+    "country": "Japan",
+    "admin1": null,
+    "city": "Kyoto",
+    "source": "phone",
+    "tags": [],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2017-01-26T14:42:44+05:45",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "90🏻___aCOM10/2017/2017-01/_.é___👤_🏻_é_.jpeg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{date:YYYY}/{stem}{ext}",
+   "values": {
+    "stem": "*é\"nul/‮.a*Z﻿‮貓\\é?CON",
+    "ext": ".JPG",
+    "category": null,
+    "category_key": "food",
+    "country": "Japan",
+    "admin1": "京都府",
+    "city": null,
+    "source": null,
+    "tags": [],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "1998-03-17T17:39:55+00:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "_未知/1998/_é_nul_.a_Z貓_é_CON.JPG",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": "|>",
+    "ext": ".jpeg",
+    "category": "..",
+    "category_key": "food",
+    "country": "台灣",
+    "admin1": "京都府",
+    "city": "Kyoto",
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2021-02-12T23:39:35+00:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "2021/2021-02/__.jpeg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{country}/{city}/{stem}{ext}",
+   "values": {
+    "stem": "anul​a>*",
+    "ext": ".HEIC",
+    "category": "..",
+    "category_key": "food",
+    "country": "👨‍👩‍👧∕／貓-",
+    "admin1": null,
+    "city": "Kyoto",
+    "source": "phone",
+    "tags": [],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2021-02-15T20:03:10-05:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "👨‍👩‍👧__貓-/Kyoto/anula__.HEIC",
+   "date_source": null
+  },
+  {
+   "kind": "render",
+   "template": "{tag:animal}/{stem}{ext}",
+   "values": {
+    "stem": "👤﻿. _‮CON👤 👤*﻿|∕∕CONé👤👤∕é‮旅行∕COM1*",
+    "ext": ".HEIC",
+    "category": "..",
+    "category_key": "food",
+    "country": "🏻|*_|",
+    "admin1": "京都府",
+    "city": "Kyoto",
+    "source": "phone",
+    "tags": [],
+    "tag_display": {}
+   },
+   "taken_at": "2013-05-18T15:30:39+00:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "_未知/👤. _CON👤 👤____CONé👤👤_é旅行_COM1_.HEIC",
+   "date_source": null
+  },
+  {
+   "kind": "render",
+   "template": "{category_key}/{date:YYYY-MM}/{stem}{ext}",
+   "values": {
+    "stem": "👤旅行‮-Z>‍é.COM1Z🐱?∕\"a é",
+    "ext": ".jpeg",
+    "category": null,
+    "category_key": "food",
+    "country": null,
+    "admin1": "京都府",
+    "city": "Kyoto",
+    "source": null,
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2027-01-21T14:50:23+08:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "en",
+   "rel": "food/2027-01/👤旅行-Z_‍é.COM1Z🐱___a é.jpeg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{source}/{admin1}/{date:DD}/{stem}{ext}",
+   "values": {
+    "stem": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "ext": ".HEIC",
+    "category": ".🐱_‍／ _nul?.*. ",
+    "category_key": "food",
+    "country": null,
+    "admin1": "京都府",
+    "city": null,
+    "source": "phone",
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2026-06-23T23:03:18+05:45",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "phone/{admin1}/23/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.HEIC",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "photos/{category}/{taken_at:%Y-%m-%d %H%M%S}/{stem}{ext}",
+   "values": {
+    "stem": "é﻿>nul\u001fCOM1👤_\"🏻️<\u0000. /\u0000∕👤nulCON‮‍éCON🏻​🏻️>\"\\👤貓‮\u001f<-a",
+    "ext": ".JPG",
+    "category": "..",
+    "category_key": "food",
+    "country": "台灣",
+    "admin1": "京都府",
+    "city": "Kyoto",
+    "source": null,
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2003-03-08T08:02:59-05:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "photos/_/2003-03-08 080259/é_nulCOM1👤__🏻️_. __👤nulCON‍éCON🏻🏻️___👤貓_-a.JPG",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{taken_at:%y%j}/{stem}{ext}",
+   "values": {
+    "stem": "CON.\u0000Z.\\",
+    "ext": ".jpg",
+    "category": null,
+    "category_key": "c1_food",
+    "country": "台灣",
+    "admin1": "京都府",
+    "city": null,
+    "source": "phone",
+    "tags": [],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2008-08-28T16:24:49+05:45",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "en",
+   "rel": "08241/CON_.Z._.jpg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": "​énul👨‍👩‍👧\"️<🐱Z👤é\u001f>Z👤🏻貓<Z<Z?🐱. 旅行🏻",
+    "ext": ".jpg",
+    "category": "美食",
+    "category_key": "c1_food",
+    "country": "Japan",
+    "admin1": "京都府",
+    "city": null,
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2024-02-16T08:36:45+00:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "美食/2024/2024-02/énul👨‍👩‍👧_️_🐱Z👤é_Z👤🏻貓_Z_Z_🐱. 旅行🏻.jpg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{date:YYYY}/{stem}{ext}",
+   "values": {
+    "stem": "9\u0000\\|\"<\" 9<. ​CON é",
+    "ext": "",
+    "category": "Food",
+    "category_key": "food",
+    "country": "\\旅行／é旅行",
+    "admin1": null,
+    "city": null,
+    "source": "phone",
+    "tags": [],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": null,
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "en",
+   "rel": "Food/2024/9_____ 9_. CON é",
+   "date_source": "mtime"
+  },
+  {
+   "kind": "render",
+   "template": "{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": "∕é\\👨‍👩‍👧é\\\u001f\"旅行貓∕<\u001f‮\"*／👤-9​<nulaCON🐱. *.﻿|",
+    "ext": ".HEIC",
+    "category": "美食",
+    "category_key": null,
+    "country": "Japan",
+    "admin1": null,
+    "city": "Kyoto",
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2011-04-07T19:20:45+08:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "2011/2011-04/_é_👨‍👩‍👧é__旅行貓_____👤-9_nulaCON🐱. _._.HEIC",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{country}/{city}/{stem}{ext}",
+   "values": {
+    "stem": "9旅行️👨‍👩‍👧‍. é﻿?\u001fé👤旅行旅行Z貓",
+    "ext": ".jpeg",
+    "category": "Food",
+    "category_key": "food",
+    "country": null,
+    "admin1": "京都府",
+    "city": null,
+    "source": "phone",
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2013-02-15T12:04:23+05:45",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "_未知/_未知/9旅行️👨‍👩‍👧‍. é_é👤旅行旅行Z貓.jpeg",
+   "date_source": null
+  },
+  {
+   "kind": "render",
+   "template": "{tag:animal}/{stem}{ext}",
+   "values": {
+    "stem": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "ext": ".HEIC",
+    "category": "..",
+    "category_key": null,
+    "country": "Japan",
+    "admin1": null,
+    "city": "Kyoto",
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2008-12-27T03:47:49+08:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "en",
+   "rel": "貓/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.HEIC",
+   "date_source": null
+  },
+  {
+   "kind": "render",
+   "template": "{category_key}/{date:YYYY-MM}/{stem}{ext}",
+   "values": {
+    "stem": " ∕nul\"",
+    "ext": ".jpg",
+    "category": "美食",
+    "category_key": "c1_food",
+    "country": "Japan",
+    "admin1": "京都府",
+    "city": "",
+    "source": "phone",
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2004-10-23T21:57:17+00:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "en",
+   "rel": "c1_food/2004-10/_nul_.jpg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{source}/{admin1}/{date:DD}/{stem}{ext}",
+   "values": {
+    "stem": "旅行\u0000旅行👤👨‍👩‍👧∕👨‍👩‍👧>‍∕*. |貓éa. \"🏻Z*​<\u0000👨‍👩‍👧/é\\-👨‍👩‍👧0-貓COM1?/nul\u001fCOM1|",
+    "ext": "",
+    "category": "..",
+    "category_key": null,
+    "country": null,
+    "admin1": "京都府",
+    "city": null,
+    "source": null,
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": null,
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "_未知/{admin1}/02/旅行旅行👤👨‍👩‍👧_👨‍👩‍👧_‍__. _貓éa. _🏻Z__👨‍👩‍👧_é_-👨‍👩‍👧0-貓COM1__nulCOM1_",
+   "date_source": "mtime"
+  },
+  {
+   "kind": "render",
+   "template": "photos/{category}/{taken_at:%Y-%m-%d %H%M%S}/{stem}{ext}",
+   "values": {
+    "stem": "Z._*a👤. -9‍_0CON/ 旅行0|​<nul\"/_.Z​é",
+    "ext": "",
+    "category": "Food",
+    "category_key": null,
+    "country": "👤﻿. . é",
+    "admin1": null,
+    "city": null,
+    "source": null,
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2013-02-10T00:38:34+08:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "en",
+   "rel": "photos/Food/2013-02-10 003834/Z.__a👤. -9‍_0CON_ 旅行0__nul___.Zé",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{taken_at:%y%j}/{stem}{ext}",
+   "values": {
+    "stem": "貓CON\u0000:?.‍0‍∕*Z🐱.?\u001f.  ‍CON:*👨‍👩‍👧",
+    "ext": ".jpeg",
+    "category": null,
+    "category_key": "food",
+    "country": null,
+    "admin1": null,
+    "city": "",
+    "source": "phone",
+    "tags": [],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2022-08-13T20:41:59+09:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "22225/貓CON__.‍0‍__Z🐱._.  ‍CON__👨‍👩‍👧.jpeg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": "9️∕‮👨‍👩‍👧énul.é_CON🏻",
+    "ext": ".jpeg",
+    "category": "Food",
+    "category_key": "food",
+    "country": null,
+    "admin1": "京都府",
+    "city": "",
+    "source": null,
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2006-11-16T04:58:10+00:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "Food/2006/2006-11/9️_👨‍👩‍👧énul.é_CON🏻.jpeg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{date:YYYY}/{stem}{ext}",
+   "values": {
+    "stem": "貓/👨‍👩‍👧 -.🏻",
+    "ext": ".JPG",
+    "category": "..",
+    "category_key": "c1_food",
+    "country": "台灣",
+    "admin1": "京都府",
+    "city": "Kyoto",
+    "source": null,
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2028-11-13T19:17:19+09:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "_/2028/貓_👨‍👩‍👧 -.🏻.JPG",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "ext": ".JPG",
+    "category": "美食",
+    "category_key": "food",
+    "country": "Japan",
+    "admin1": "京都府",
+    "city": "",
+    "source": null,
+    "tags": [],
+    "tag_display": {}
+   },
+   "taken_at": "2008-11-12T15:49:24-05:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "en",
+   "rel": "2008/2008-11/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.JPG",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{country}/{city}/{stem}{ext}",
+   "values": {
+    "stem": "👤旅行COM1éa﻿旅行<﻿>|​9／. |_﻿?:🏻_nul 0",
+    "ext": "",
+    "category": "..",
+    "category_key": "food",
+    "country": "\\99é\\",
+    "admin1": "京都府",
+    "city": null,
+    "source": "phone",
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2007-07-17T10:23:18-05:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "en",
+   "rel": "_99é_/_unknown/👤旅行COM1éa旅行___9_. ____🏻_nul 0",
+   "date_source": null
+  },
+  {
+   "kind": "render",
+   "template": "{tag:animal}/{stem}{ext}",
+   "values": {
+    "stem": "﻿‍旅行.éCON🏻<:CON／nulZ:é<_／.0\"‮‍​​0\\‮",
+    "ext": ".JPG",
+    "category": "Food",
+    "category_key": null,
+    "country": "台灣",
+    "admin1": null,
+    "city": null,
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2030-06-15T10:13:48+05:45",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "貓/‍旅行.éCON🏻__CON_nulZ_é___.0_‍0_.JPG",
+   "date_source": null
+  },
+  {
+   "kind": "render",
+   "template": "{category_key}/{date:YYYY-MM}/{stem}{ext}",
+   "values": {
+    "stem": ">／️∕​-::‍ nula​‮.. éa>\\é∕*_️貓🐱*\u001f👨‍👩‍👧?. COM1é",
+    "ext": ".JPG",
+    "category": null,
+    "category_key": "food",
+    "country": null,
+    "admin1": null,
+    "city": "",
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2021-12-17T15:52:02+09:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "food/2021-12/__️_-__‍ nula.. éa__é___️貓🐱_👨‍👩‍👧_. COM1é.JPG",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{source}/{admin1}/{date:DD}/{stem}{ext}",
+   "values": {
+    "stem": "|>. _👨‍👩‍👧／️👤é0:🏻COM1👨‍👩‍👧貓é?*🐱👨‍👩‍👧👤 \".️🐱旅行a é<nula🐱*COM1 a",
+    "ext": ".jpg",
+    "category": ".貓é貓\u0000>COM1/‮0‍-",
+    "category_key": null,
+    "country": "Japan",
+    "admin1": "京都府",
+    "city": "Kyoto",
+    "source": null,
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2006-02-19T05:20:19+09:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "en",
+   "rel": "_unknown/{admin1}/19/__. _👨‍👩‍👧_️👤é0_🏻COM1👨‍👩‍👧貓é__🐱👨‍👩‍👧👤 _.️🐱旅行a é_nula🐱_COM1 a.jpg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "photos/{category}/{taken_at:%Y-%m-%d %H%M%S}/{stem}{ext}",
+   "values": {
+    "stem": "\\nul>>:👤0️﻿COM19‮",
+    "ext": ".jpg",
+    "category": "é>.0👨‍👩‍👧／\u0000\\0‍_∕",
+    "category_key": "food",
+    "country": "Japan",
+    "admin1": null,
+    "city": "",
+    "source": null,
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2028-09-07T22:13:16+05:45",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "photos/é_.0👨‍👩‍👧__0‍__/2028-09-07 221316/_nul___👤0️COM19.jpg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{taken_at:%y%j}/{stem}{ext}",
+   "values": {
+    "stem": "／\u001f\u001fZ/nulZ",
+    "ext": ".jpeg",
+    "category": "\u0000é/é. 0/\u001f‍CON∕‍",
+    "category_key": "c1_food",
+    "country": "Japan",
+    "admin1": "京都府",
+    "city": "",
+    "source": "phone",
+    "tags": [],
+    "tag_display": {}
+   },
+   "taken_at": null,
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "24062/_Z_nulZ.jpeg",
+   "date_source": "mtime"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "ext": ".jpeg",
+    "category": "a*?\u0000／​. ∕👨‍👩‍👧0\u001fCOM1",
+    "category_key": null,
+    "country": "∕9nul0️",
+    "admin1": "京都府",
+    "city": "",
+    "source": null,
+    "tags": [],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2004-07-24T18:51:43+00:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "a___. _👨‍👩‍👧0COM1/2004/2004-07/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jpeg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{date:YYYY}/{stem}{ext}",
+   "values": {
+    "stem": "\\👨‍👩‍👧9旅行",
+    "ext": ".jpg",
+    "category": null,
+    "category_key": "c1_food",
+    "country": null,
+    "admin1": "京都府",
+    "city": "",
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2015-08-18T10:19:41+00:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "_unknown/2015/_👨‍👩‍👧9旅行.jpg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": " 9／👨‍👩‍👧COM1??👤_\\éZ0:*👤-a‮*é‍_</\\0\"​.👨‍👩‍👧貓-\\COM1",
+    "ext": ".HEIC",
+    "category": "美食",
+    "category_key": "food",
+    "country": "Japan",
+    "admin1": null,
+    "city": null,
+    "source": "phone",
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2028-10-06T05:42:12+05:45",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "2028/2028-10/9_👨‍👩‍👧COM1__👤__éZ0__👤-a_é‍____0_.👨‍👩‍👧貓-_COM1.HEIC",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{country}/{city}/{stem}{ext}",
+   "values": {
+    "stem": "\u0000",
+    "ext": ".JPG",
+    "category": "Food",
+    "category_key": "c1_food",
+    "country": "台灣",
+    "admin1": "京都府",
+    "city": "Kyoto",
+    "source": "phone",
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": null,
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "台灣/Kyoto/_.JPG",
+   "date_source": null
+  },
+  {
+   "kind": "render",
+   "template": "{tag:animal}/{stem}{ext}",
+   "values": {
+    "stem": "∕9COM1貓\u0000🐱\u0000<éCONCON🐱Znul‍\u0000a|a:Z.‍ :旅行",
+    "ext": ".HEIC",
+    "category": "美食",
+    "category_key": "food",
+    "country": "台灣",
+    "admin1": null,
+    "city": null,
+    "source": "phone",
+    "tags": [],
+    "tag_display": {}
+   },
+   "taken_at": null,
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "_未知/_9COM1貓🐱_éCONCON🐱Znul‍a_a_Z.‍ _旅行.HEIC",
+   "date_source": null
+  },
+  {
+   "kind": "render",
+   "template": "{category_key}/{date:YYYY-MM}/{stem}{ext}",
+   "values": {
+    "stem": "👤👤| \"_é／🏻旅行\u0000CON‍​👤旅行CON\u001f ﻿9|‍é |<\\.<nulnul\u0000👤👨‍👩‍👧‮_👤é",
+    "ext": ".JPG",
+    "category": null,
+    "category_key": null,
+    "country": "a👤. a?",
+    "admin1": null,
+    "city": "",
+    "source": "phone",
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2011-08-11T07:10:22+08:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "_未知/2011-08/👤👤_ __é_🏻旅行CON‍👤旅行CON 9_‍é ___._nulnul👤👨‍👩‍👧_👤é.JPG",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{source}/{admin1}/{date:DD}/{stem}{ext}",
+   "values": {
+    "stem": "\"COM1​ CONCON\u0000∕貓🏻\u001f*<旅行-0\\a\u0000‍?🏻Z\\COM1👨‍👩‍👧🐱.COM1\\👨‍👩‍👧.",
+    "ext": ".HEIC",
+    "category": "🐱Zé/\u0000貓?\u0000\\_:\"",
+    "category_key": "c1_food",
+    "country": "台灣",
+    "admin1": "京都府",
+    "city": "",
+    "source": "phone",
+    "tags": [],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "1995-04-01T02:32:08+08:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "phone/{admin1}/01/_COM1 CONCON_貓🏻__旅行-0_a‍_🏻Z_COM1👨‍👩‍👧🐱.COM1_👨‍👩‍👧.HEIC",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "photos/{category}/{taken_at:%Y-%m-%d %H%M%S}/{stem}{ext}",
+   "values": {
+    "stem": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "ext": ".jpeg",
+    "category": "..",
+    "category_key": "c1_food",
+    "country": "Japan",
+    "admin1": "京都府",
+    "city": "Kyoto",
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2011-05-03T23:14:50+08:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "en",
+   "rel": "photos/_/2011-05-03 231450/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.jpeg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{taken_at:%y%j}/{stem}{ext}",
+   "values": {
+    "stem": " _\u0000||‮CONé.COM1|<‮CON🐱< 🐱|9Znul<|／é. ﻿nul",
+    "ext": ".HEIC",
+    "category": "..",
+    "category_key": "c1_food",
+    "country": "台灣",
+    "admin1": "京都府",
+    "city": "Kyoto",
+    "source": null,
+    "tags": [
+     [
+      "food.ramen",
+      1.0
+     ]
+    ],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2010-03-12T08:17:08+09:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "10071/___CONé.COM1__CON🐱_ 🐱_9Znul___é. nul.HEIC",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": "9\\‍?.9/ 🐱🐱>👨‍👩‍👧CONCOM1>貓-0CON-​-:‮\\﻿>🏻é🐱👨‍👩‍👧<",
+    "ext": ".jpg",
+    "category": "／a\u0000- é ﻿-_\u0000‮",
+    "category_key": null,
+    "country": "Japan",
+    "admin1": null,
+    "city": "Kyoto",
+    "source": "phone",
+    "tags": [],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2024-09-27T23:31:28-05:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "_a- é -_/2024/2024-09/9_‍_.9_ 🐱🐱_👨‍👩‍👧CONCOM1_貓-0CON--___🏻é🐱👨‍👩‍👧_.jpg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{category}/{date:YYYY}/{stem}{ext}",
+   "values": {
+    "stem": "é🏻Z a\"🏻​:9. \"🐱​_a<*Z_﻿COM1∕. ‍﻿Z-",
+    "ext": ".jpg",
+    "category": "Food",
+    "category_key": "food",
+    "country": "Japan",
+    "admin1": "京都府",
+    "city": "Kyoto",
+    "source": "phone",
+    "tags": [],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2011-02-20T17:26:10+09:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "Food/2011/é🏻Z a_🏻_9. _🐱_a__Z_COM1_. ‍Z-.jpg",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+   "values": {
+    "stem": "／>‍é​／‍貓COM1::*<👤COM1👨‍👩‍👧/*CON貓Z?🏻Z﻿*\u0000_👨‍👩‍👧／|Z/é👤🐱COM1",
+    "ext": ".HEIC",
+    "category": "..",
+    "category_key": "c1_food",
+    "country": null,
+    "admin1": null,
+    "city": "",
+    "source": null,
+    "tags": [],
+    "tag_display": {
+     "animal.cat": "貓"
+    }
+   },
+   "taken_at": "2004-10-22T04:20:14+00:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": {
+    "country": "未知地點"
+   },
+   "lang": "zh-TW",
+   "rel": "2004/2004-10/__‍é_‍貓COM1____👤COM1👨‍👩‍👧__CON貓Z_🏻Z__👨‍👩‍👧__Z_é👤🐱COM1.HEIC",
+   "date_source": "exif_offset"
+  },
+  {
+   "kind": "render",
+   "template": "{country}/{city}/{stem}{ext}",
+   "values": {
+    "stem": ". -",
+    "ext": "",
+    "category": null,
+    "category_key": "c1_food",
+    "country": "\u001fCOM1旅行..",
+    "admin1": "京都府",
+    "city": "",
+    "source": null,
+    "tags": [],
+    "tag_display": {}
+   },
+   "taken_at": "2011-08-20T03:58:17+08:00",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "en",
+   "rel": "COM1旅行/_unknown/. -",
+   "date_source": null
+  },
+  {
+   "kind": "render",
+   "template": "{tag:animal}/{stem}{ext}",
+   "values": {
+    "stem": "/ a-﻿\\9 ∕旅行貓. \u00000\u001f* COM1‍é*a 👨‍👩‍👧:CON0／:é/🏻🐱\\／*\u001f/Zé",
+    "ext": ".JPG",
+    "category": null,
+    "category_key": "c1_food",
+    "country": "Japan",
+    "admin1": "京都府",
+    "city": "Kyoto",
+    "source": "phone",
+    "tags": [
+     [
+      "animal.cat",
+      0.9
+     ],
+     [
+      "animal.dog",
+      0.4
+     ]
+    ],
+    "tag_display": {}
+   },
+   "taken_at": "2018-10-10T00:17:37+05:45",
+   "mtime": "2024-03-02T09:00:00+08:00",
+   "fallback": null,
+   "lang": "zh-TW",
+   "rel": "cat/_ a-_9 _旅行貓. 0_ COM1‍é_a 👨‍👩‍👧_CON0__é_🏻🐱____Zé.JPG",
+   "date_source": null
+  }
+ ]
+}

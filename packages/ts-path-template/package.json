@@ -1,0 +1,10 @@
+{
+  "name": "@opa/path-template",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "test": "vitest run", "typecheck": "tsc --noEmit" },
+  "devDependencies": { "typescript": "6.0.3", "vitest": "5.0.5", "@types/node": "22.20.5" }
+}

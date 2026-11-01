@@ -10,6 +10,17 @@ import pytest
 
 from opagent_testing import pg as _pg
 
+try:  # Hypothesis profiles (docs/09 §2.1): ci=200, nightly=10k, fuzz=1M examples
+    from hypothesis import HealthCheck, settings
+
+    _hc = [HealthCheck.too_slow, HealthCheck.function_scoped_fixture]
+    settings.register_profile("ci", max_examples=200, deadline=None, suppress_health_check=_hc)
+    settings.register_profile("nightly", max_examples=10_000, deadline=None, suppress_health_check=_hc)
+    settings.register_profile("fuzz", max_examples=1_000_000, deadline=None, suppress_health_check=_hc)
+    settings.load_profile(os.environ.get("OPAGENT_HYPOTHESIS_PROFILE", "ci"))
+except ImportError:  # pragma: no cover
+    pass
+
 
 @pytest.fixture(scope="session")
 def embedded_pg_cluster() -> Iterator[_pg.PgCluster]:
@@ -69,3 +80,55 @@ class SandboxTree:
 @pytest.fixture
 def sandbox_tree(tmp_path):  # type: ignore[no-untyped-def]
     return SandboxTree(tmp_path)
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """OS-specific cases (09a §2 `os` column) only run on their OS; the OS matrix in CI covers the rest."""
+    import sys
+
+    here = {"win32": "os_windows", "darwin": "os_macos"}.get(sys.platform, "os_linux")
+    keep: list[pytest.Item] = []
+    drop: list[pytest.Item] = []
+    for it in items:
+        marks = {m.name for m in it.iter_markers() if m.name.startswith("os_")}
+        (drop if marks and here not in marks else keep).append(it)
+    if drop:
+        config.hook.pytest_deselected(items=drop)
+        items[:] = keep
+
+
+class ApiServer:
+    """A real uvicorn server in a background thread (port 0) so concurrent clients hit the real stack."""
+
+    def __init__(self, app) -> None:  # type: ignore[no-untyped-def]
+        import threading
+
+        import uvicorn
+
+        self.config = uvicorn.Config(app, host="127.0.0.1", port=0, log_level="warning", lifespan="off")
+        self.server = uvicorn.Server(self.config)
+        self.thread = threading.Thread(target=self.server.run, daemon=True)
+
+    def __enter__(self) -> ApiServer:
+        self.thread.start()
+        import time
+
+        for _ in range(500):
+            if self.server.started:
+                break
+            time.sleep(0.01)  # noqa: TID251 - test harness waiting for a real server thread
+        return self
+
+    @property
+    def url(self) -> str:
+        sock = self.server.servers[0].sockets[0]
+        return f"http://127.0.0.1:{sock.getsockname()[1]}"
+
+    def __exit__(self, *exc: object) -> None:
+        self.server.should_exit = True
+        self.thread.join(10)
+
+
+@pytest.fixture
+def api_server():  # type: ignore[no-untyped-def]
+    return ApiServer

@@ -1,6 +1,10 @@
 {
-  "app": { "title": "OpenPhotoAgent" },
-  "common": { "working": "處理中…" },
+  "app": {
+    "title": "OpenPhotoAgent"
+  },
+  "common": {
+    "working": "處理中…"
+  },
   "organize": {
     "pickFolder": "選擇要整理的資料夾",
     "useThisFolder": "選擇此資料夾",
@@ -17,5 +21,84 @@
     "doneTitle": "整理完成",
     "undo": "復原",
     "undoneTitle": "已復原"
+  },
+  "eta": {
+    "slow": {
+      "decode_bottleneck": "比預估慢：HEIC 解碼是瓶頸",
+      "gpu_busy": "比預估慢：GPU 同時被其他程式使用",
+      "generic": "比預估慢"
+    },
+    "paused": "暫停中",
+    "estimating": "估算中…",
+    "cta": {
+      "view_logs": "查看 log",
+      "retry": "重試"
+    }
+  },
+  "waiting": {
+    "QUEUED_BEHIND": {
+      "text": "排隊第 {position} 位 · 前面約 {ahead}",
+      "cta": "查看前面的任務"
+    },
+    "WAITING_GPU_SLOT": {
+      "text": "等待 GPU：正在執行「{job}」",
+      "cta": "暫停那個任務，先跑這個"
+    },
+    "WAITING_MODEL_DOWNLOAD": {
+      "text": "等待模型下載 {pct}% · {eta}",
+      "cta": "查看下載"
+    },
+    "WAITING_MODEL_LOAD": {
+      "text": "載入模型中（{eta}）",
+      "cta": "查看詳情"
+    },
+    "WORKER_OFFLINE": {
+      "text": "Worker 離線，重新連線後自動繼續",
+      "cta": "重新連線"
+    },
+    "DISK_INSUFFICIENT_OUTPUT": {
+      "text": "輸出位置空間不足，已自動暫停",
+      "cta": "管理儲存空間"
+    },
+    "DISK_INSUFFICIENT_MODELS": {
+      "text": "模型目錄空間不足，已自動暫停",
+      "cta": "管理已安裝模型"
+    },
+    "DISK_INSUFFICIENT_THUMBS": {
+      "text": "縮圖目錄空間不足，已自動暫停",
+      "cta": "更改縮圖位置"
+    },
+    "NET_UNREACHABLE": {
+      "text": "網路中斷，30 秒後重試",
+      "cta": "立即重試"
+    },
+    "PAUSED_BY_USER": {
+      "text": "已暫停（{who}，{when}）",
+      "cta": "繼續"
+    },
+    "PAUSED_ERROR_RATE": {
+      "text": "失敗率 {pct}%，已自動暫停",
+      "cta": "查看失敗原因"
+    },
+    "PAUSED_ON_BATTERY": {
+      "text": "使用電池中，已依設定暫停",
+      "cta": "仍要繼續"
+    },
+    "PAUSED_GPU_CONTENDED": {
+      "text": "偵測到其他程式正在使用 GPU，已暫停；GPU 空出後自動繼續",
+      "cta": "仍要繼續（較慢）"
+    },
+    "PAUSED_NOT_IDLE": {
+      "text": "設定為只在電腦閒置時處理",
+      "cta": "現在就處理"
+    },
+    "SOURCE_OFFLINE": {
+      "text": "照片資料夾「{source}」目前離線，接上後自動繼續",
+      "cta": "重新檢查"
+    },
+    "FS_ROOT_UNAVAILABLE": {
+      "text": "「{root}」目前無法存取，恢復後自動繼續",
+      "cta": "重試"
+    }
   }
 }

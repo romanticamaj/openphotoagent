@@ -19,7 +19,7 @@ test:
 
 # integration (real PostgreSQL) + chaos subset
 test-int:
-    OPAGENT_TC_RESULTS=.tc/py-int.json uv run pytest -q -m "integration or chaos"
+    OPAGENT_TC_RESULTS=.tc/py-int.json uv run pytest -q -m "(integration or chaos) and not nightly"
 
 # Playwright against the web build + all-in-one backend with FakeBackend
 e2e:

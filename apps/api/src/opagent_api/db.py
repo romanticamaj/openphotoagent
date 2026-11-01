@@ -11,11 +11,15 @@ from sqlalchemy import insert, select, update
 from sqlalchemy.engine import Connection
 
 
-def set_job_status(conn: Connection, job_id: str, target: JobStatus, **extra: Any) -> None:
+def set_job_status(conn: Connection, job_id: str, target: JobStatus, clock: Any = None, **extra: Any) -> None:
     cur = conn.execute(select(job.c.status).where(job.c.id == job_id).with_for_update()).scalar_one()
     ev = transition(JobStatus(cur), target)
     conn.execute(update(job).where(job.c.id == job_id).values(status=target.value, **extra))
     conn.execute(insert(event).values(kind=ev.kind, payload={"job_id": job_id, "from": cur, "to": target.value}))
+    if clock is not None:
+        from .operations import project_job
+
+        project_job(conn, clock, job_id, target.value)
 
 
 def to_aware(ts: datetime | None, offset_min: int | None) -> datetime | None:

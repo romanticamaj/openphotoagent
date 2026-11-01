@@ -328,7 +328,7 @@ flowchart LR
 | 快取查詢 | CP | 拆 JobItem 時以 `(asset_id, task_config_hash, model_fingerprint)` 查 `result`，命中直接標 `cached`，不派工。改 prompt/門檻以外的參數會改變 `config_hash`；**只改門檻或輸出規則不重算**（門檻不納入 hash，僅後處理重跑）。 |
 | 3 前處理 | Worker | pillow-heif 解 HEIC/HEIF、RAW 取內嵌 JPEG 預覽、依 EXIF orientation 旋轉、縮放到推論層要求的解析度（由 adapter 宣告 `preferred_input`）、產生縮圖（256/512 webp）。CPU 執行緒池與 GPU 推論 pipelined（prefetch 2 個 batch）。 |
 | 4 推論批次 | Worker → 推論層 | 依 `model_version` 分組，batch size 由 adapter 回報；見 §4.4 介面。 |
-| 5 後處理 | Worker（純函式，CP 亦可重跑） | label 正規化（alias 映射、未知 label 丟棄或標記）、套門檻：`≥accept` → 接受；`review ≤ x < accept` → 建 Review；`< review` → 依設定 reject 或 review；可串接下一 step（`run_if`）。 |
+| 5 後處理 | Worker（純函式，CP 亦可重跑） | （ADR-0001：accept 是最終閘門、τ_high／m 只管路由；各路徑規則見 DECISIONS.md）label 正規化（alias 映射、未知 label 丟棄或標記）、套門檻：`≥accept` → 接受；`review ≤ x < accept` → 建 Review；`< review` → 依設定 reject 或 review；可串接下一 step（`run_if`）。 |
 | 6 輸出 | CP 計畫 + Worker 執行 | CP 依 `final_label` + `output_rule` 產生 `output_plan`（純計算）；Worker 做衝突探測（dst 是否存在、hash 比對）回填；使用者在 UI 預覽 → 核准 → Worker 執行（§6.2）。 |
 | 7 報告 | CP | 統計（各類別數量、平均信心、覆核數、耗時、GPU 秒數、快取命中率）、CSV/JSON 匯出、失敗清單。 |
 

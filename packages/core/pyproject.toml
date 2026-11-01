@@ -2,7 +2,7 @@
 name = "opagent-core"
 version = "0.0.1"
 requires-python = ">=3.12"
-dependencies = ["blake3"]
+dependencies = ["blake3", "pyyaml"]
 
 [build-system]
 requires = ["hatchling"]

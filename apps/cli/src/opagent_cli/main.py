@@ -42,7 +42,14 @@ def cmd_worker(a: argparse.Namespace) -> None:
     from opagent_worker.agent import WorkerAgent
 
     client = httpx.Client(base_url=a.api, timeout=30)
-    agent = WorkerAgent(client, roots=_parse_roots(a.roots), home=_home() / "worker")
+    backend = None
+    if a.backend == "fake":  # v0.1-B: the FakeBackend until the real adapters land (slice 7)
+        from opagent_inference.fake import FakeBackend
+
+        backend = FakeBackend()
+    agent = WorkerAgent(
+        client, roots=_parse_roots(a.roots), home=_home() / "worker", backend=backend, worker_id=a.worker_id
+    )
     stop = threading.Event()
     signal.signal(signal.SIGTERM, lambda *_: stop.set())
     while not stop.is_set():
@@ -51,6 +58,10 @@ def cmd_worker(a: argparse.Namespace) -> None:
             break
         except httpx.HTTPError:
             stop.wait(0.2)
+    if a.once:
+        while agent.run_once() or (backend is not None and agent.process_items_once()):
+            pass
+        return
     agent.run_forever(stop)
 
 
@@ -82,6 +93,9 @@ def main(argv: list[str] | None = None) -> None:
     p = sub.add_parser("worker")
     p.add_argument("--api", required=True)
     p.add_argument("--roots", required=True, help="alias=path:mode,...")
+    p.add_argument("--worker-id")
+    p.add_argument("--backend", default="fake", choices=["fake", "none"])
+    p.add_argument("--once", action="store_true", help="process what is queued, then exit")
     p.set_defaults(fn=cmd_worker)
     p = sub.add_parser("dev")
     p.add_argument("--port", type=int, default=47800)
