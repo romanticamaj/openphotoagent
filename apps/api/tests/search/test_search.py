@@ -19,29 +19,58 @@ class S:
         self.client = TestClient(create_app(dsn=dsn))
         self.eng = engine_for(dsn)
         self.fb = FakeBackend(vectors="semantic")
-        self.w = WorkerAgent(self.client, roots=roots, home=tmp / "w", backend=self.fb, embedder=self.fb, worker_id="w1")
+        self.w = WorkerAgent(
+            self.client, roots=roots, home=tmp / "w", backend=self.fb, embedder=self.fb, worker_id="w1"
+        )
         self.w.register()
         self.src = self.client.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": ""}).json()["id"]
-        self.sql("insert into embedding_space(model_key, fingerprint, dim) values ('fake', :f, 16)", f=self.fb.describe().model_fingerprint)
+        self.sql(
+            "insert into embedding_space(model_key, fingerprint, dim) values ('fake', :f, 16)",
+            f=self.fb.describe().model_fingerprint,
+        )
 
     def sql(self, q, **p):
         with self.eng.begin() as c:
             return c.execute(text(q), p)
 
-    def add(self, i, caption="", tags=(), category=None, taken=None, date_source="exif", folder="", groups=(), vec=True):
+    def add(
+        self, i, caption="", tags=(), category=None, taken=None, date_source="exif", folder="", groups=(), vec=True
+    ):
         aid = f"a{i:05d}"
         taken = taken or datetime(2024, 1, 1, tzinfo=UTC) + timedelta(days=i % 700)
-        self.sql("insert into asset(id, workspace_id, content_hash, size_bytes, taken_at, date_source) values (:a,'default',:h,1,:t,:d)", a=aid, h=f"h{i}", t=taken, d=date_source)
+        self.sql(
+            "insert into asset(id, workspace_id, content_hash, size_bytes, taken_at, date_source) values (:a,'default',:h,1,:t,:d)",
+            a=aid,
+            h=f"h{i}",
+            t=taken,
+            d=date_source,
+        )
         rel = f"{folder}/{i}.jpg" if folder else f"{i}.jpg"
-        self.sql("insert into asset_location(id, asset_id, source_id, rel_path, mtime, missing) values (:i,:a,:s,:r,:t,false)", i=f"l{i}", a=aid, s=self.src, r=rel, t=taken)
+        self.sql(
+            "insert into asset_location(id, asset_id, source_id, rel_path, mtime, missing) values (:i,:a,:s,:r,:t,false)",
+            i=f"l{i}",
+            a=aid,
+            s=self.src,
+            r=rel,
+            t=taken,
+        )
         self.sql(
             "insert into result(id, asset_id, task_config_hash, model_fingerprint, task_type, category, confidence, caption, tags, raw) values (:i,:a,'c','f','classify',:cat,0.95,:cap,:tags,'{}')",
-            i=f"r{i}", a=aid, cat=category, cap=caption, tags=json.dumps(list(tags)),
+            i=f"r{i}",
+            a=aid,
+            cat=category,
+            cap=caption,
+            tags=json.dumps(list(tags)),
         )
         self.sql("insert into index_outbox(asset_id) values (:a)", a=aid)
         if vec:
             v = self.fb.semantic_vector(list(groups))
-            self.sql("insert into asset_embedding(asset_id, space_id, vec, source_hash) values (:a,(select id from embedding_space limit 1),:v,:h)", a=aid, v=str(v), h=f"h{i}")
+            self.sql(
+                "insert into asset_embedding(asset_id, space_id, vec, source_hash) values (:a,(select id from embedding_space limit 1),:v,:h)",
+                a=aid,
+                v=str(v),
+                h=f"h{i}",
+            )
         return aid
 
     def index(self):
@@ -90,7 +119,9 @@ def test_srch_tok_005_english_stemming(s):
 @pytest.mark.integration
 @pytest.mark.tc("SRCH-TOK-004")
 def test_srch_tok_004_bigram_downgrade(s):
-    aid = s.add(1, caption="海灘上的夕陽")  # word AND on 「夕陽海灘」 misses (different segmentation); bigrams still hit
+    aid = s.add(
+        1, caption="海灘上的夕陽"
+    )  # word AND on 「夕陽海灘」 misses (different segmentation); bigrams still hit
     s.index()
     res = s.search(q="夕陽海灘", semantic=False)
     assert [x["asset_id"] for x in res["items"]] == [aid] and res["fulltext_mode"] in ("words", "bigram")
@@ -107,7 +138,13 @@ def test_srch_fac_001_keyword_tag_date_vs_reference(s):
         tags = rnd.sample(["海灘", "狗", "夜景", "雪", "拉麵"], 2)
         s.add(i, caption=cap, tags=tags, category=rnd.choice(["travel", "food", "pets"]), vec=False)
     s.index()
-    res = s.search(q="海邊", filters={"tags_all": ["animal.dog"], "taken_from": "2025-01-01", "taken_to": "2026-01-01"}, semantic=False, limit=500, facets=["category", "year"])
+    res = s.search(
+        q="海邊",
+        filters={"tags_all": ["animal.dog"], "taken_from": "2025-01-01", "taken_to": "2026-01-01"},
+        semantic=False,
+        limit=500,
+        facets=["category", "year"],
+    )
     # reference: the filters, and the keyword through full text (R3) or its tag key (R4: 海邊 → scene.beach), 05 §2.1
     match = (
         "from search_doc where tags @> array['animal.dog'] and taken_at >= '2025-01-01' and taken_at < '2026-01-01' "
@@ -246,7 +283,9 @@ def test_srch_sem_005_semantic_with_date_facet(s):
     s.index()
     stop = serve(s.w)
     try:
-        res = s.search(q="beach", filters={"taken_from": "2024-01-01", "taken_to": "2025-01-01"}, limit=50, facets=["year"])
+        res = s.search(
+            q="beach", filters={"taken_from": "2024-01-01", "taken_to": "2025-01-01"}, limit=50, facets=["year"]
+        )
     finally:
         stop.set()
     assert res["items"] and all(x["taken_at"].startswith("2024") for x in res["items"])

@@ -192,6 +192,7 @@ review = Table(  # 02 §3.2 review; REV-*
 )
 Index("review_job_status", review.c.job_id, review.c.status)
 
+
 class Vector(UserDefinedType):  # type: ignore[type-arg]
     """pgvector ``vector`` (dimension-agnostic column; 05 §1.5 — halfvec + per-space HNSW where pgvector ≥ 0.7)."""
 
@@ -218,6 +219,7 @@ search_doc = Table(  # 05 §1.2: one row per asset, denormalised facets + applic
     Column("confidence", Float),
     Column("body", Text, nullable=False, server_default=""),
     Column("tsv", TSVECTOR),
+    _ts("first_indexed_at", server_default=func.now()),  # pagination snapshots (SRCH-FAC-004)
     _ts("updated_at", server_default=func.now()),
 )
 Index("search_doc_tsv", search_doc.c.tsv, postgresql_using="gin")

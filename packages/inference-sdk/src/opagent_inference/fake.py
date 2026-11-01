@@ -58,10 +58,9 @@ class FakeBackend:
         self.vectors = vectors
         self._groups: dict[str, Any] | None = None
         if vectors == "semantic":  # fb:vectors(deterministic), fixtures/fake_vectors.yaml (09 §3.1)
-            import yaml
-            from pathlib import Path
+            from ._fixtures import fake_vectors
 
-            spec = yaml.safe_load((Path(__file__).resolve().parents[4] / "fixtures" / "fake_vectors.yaml").read_text(encoding="utf-8"))
+            spec = fake_vectors()
             self._groups = spec["groups"]
             embedding_dim = int(spec["dim"])
         self.seed = seed

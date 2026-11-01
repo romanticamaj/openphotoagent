@@ -12,7 +12,7 @@ from typing import Any
 from opagent_core.decide import Policy, VlmResult, decide, redecide
 from opagent_core.ids import uuid7
 from opagent_db.schema import event, index_outbox, job_item, result, review, search_doc
-from sqlalchemy import and_, insert, select, update
+from sqlalchemy import and_, func, insert, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 
@@ -74,12 +74,121 @@ def on_result(st: Any, c: Any, job_id: str, asset_id: str, result_id: str, out: 
     c.execute(insert(index_outbox).values(asset_id=asset_id))
 
 
-def _body(caption: str | None, tags: list[str] | None, category: str | None) -> str:
-    return " ".join(x for x in [caption or "", " ".join(tags or []), category or ""] if x)
+_TOK: Any = None
+
+
+def tokenizer() -> Any:
+    """One tokenizer per process: vocabulary aliases + built-in category names as custom words (05 §1.3)."""
+    global _TOK
+    if _TOK is None:
+        from opagent_search.tokenize import Tokenizer
+
+        from .organize import preset
+
+        words = [c.get("zh-TW", "") for c in preset("by-content-12").categories] + [
+            c.get("en", "") for c in preset("by-content-12").categories
+        ]
+        _TOK = Tokenizer(custom_words=[w for w in words if w])
+    return _TOK
+
+
+def _scope_keys(c: Any, asset_id: str) -> list[str]:
+    from opagent_db.schema import asset_location
+
+    keys: set[str] = set()
+    for src, rel in c.execute(
+        select(asset_location.c.source_id, asset_location.c.rel_path).where(
+            asset_location.c.asset_id == asset_id, asset_location.c.missing.is_(False)
+        )
+    ):
+        parts = rel.split("/")[:-1]
+        keys.add(f"src:{src}:/")
+        for i in range(1, len(parts) + 1):
+            keys.add(f"src:{src}:/" + "/".join(parts[:i]))
+    return sorted(keys)
+
+
+def _tag_key(tok: Any, t: str) -> str:
+    """Canonical key for a tag label (alias → ``animal.cat``); unknown tags keep their normalised form."""
+    if "." in t and t.isascii():
+        return t
+    k = tok.tag_key(t)
+    if k:
+        return str(k)
+    from opagent_search.tokenize import normalize
+
+    return normalize(t).strip()
+
+
+def index_asset(c: Any, asset_id: str) -> None:
+    """Rebuild one search_doc row: latest model result + human label, facets, scope keys, weighted tsvector."""
+    from opagent_db.schema import asset, asset_location
+    from sqlalchemy import text as sqltext
+
+    a = c.execute(select(asset).where(asset.c.id == asset_id)).first()
+    if a is None:
+        return
+    res = c.execute(
+        select(result).where(result.c.asset_id == asset_id).order_by(result.c.created_at.desc()).limit(1)
+    ).first()
+    caption = res.caption if res else None
+    tags = [str(t) for t in (res.tags or [])] if res else []
+    cat, conf = (res.category, res.confidence) if res else (None, None)
+    review_state = None
+    if res is not None:
+        o = model_outcome(res.raw, res.category, res.confidence, Policy())
+        cat = o.category if o.decision == "accepted" else ("other" if o.decision == "other" else cat)
+        review_state = o.decision
+    hr = c.execute(
+        select(review)
+        .where(review.c.asset_id == asset_id, review.c.status.in_(("corrected", "approved")))
+        .order_by(review.c.resolved_at.desc().nulls_last(), review.c.created_at.desc())
+        .limit(1)
+    ).first()
+    if hr is not None:
+        corr = hr.corrected or {}
+        cat = corr.get("category") or (hr.suggested or {}).get("category") or cat
+        tags = list(corr.get("tags") or tags)
+        review_state = hr.status
+    tok = tokenizer()
+    keys = sorted({_tag_key(tok, t) for t in tags} - {""})
+    rel = c.execute(select(asset_location.c.rel_path).where(asset_location.c.asset_id == asset_id).limit(1)).scalar()
+    doc = tok.document(caption=caption, tags=tags, category=cat, path=rel)
+    en = " ".join(w for w in (caption or "").lower().split() if w.isascii())
+    taken = a.taken_at
+    vals = {
+        "workspace_id": a.workspace_id,
+        "caption": caption,
+        "tags": keys,
+        "tag_labels": tags,
+        "category": cat,
+        "taken_at": taken,
+        "taken_year": taken.year if taken else None,
+        "date_source": a.date_source,
+        "scope_keys": _scope_keys(c, asset_id),
+        "review_state": review_state,
+        "confidence": conf,
+        "body": " ".join(doc["A"] + doc["B"] + doc["C"] + doc["D"]),
+    }
+    c.execute(
+        pg_insert(search_doc)
+        .values(asset_id=asset_id, **vals)
+        .on_conflict_do_update(index_elements=["asset_id"], set_={**vals, "updated_at": func.now()})
+    )
+    c.execute(
+        sqltext(
+            "UPDATE search_doc SET tsv = setweight(array_to_tsvector(CAST(:a AS text[])), 'A') "
+            "|| setweight(array_to_tsvector(CAST(:b AS text[])), 'B') || setweight(to_tsvector('english', :en), 'B') "
+            "|| setweight(array_to_tsvector(CAST(:c AS text[])), 'C') "
+            "|| setweight(array_to_tsvector(CAST(:d AS text[])), 'D') "
+            "WHERE asset_id = :id"
+        ),
+        {"a": doc["A"], "b": doc["B"], "en": en, "c": doc["C"], "d": doc["D"], "id": asset_id},
+    )
 
 
 def drain_index(c: Any, limit: int = 10_000) -> int:
-    """index_outbox → search_doc (latest model result + human label). Slice 9 adds zh tokenisation of ``body``."""
+    """index_outbox → search_doc, in order (02 §10, ORG-009, SRCH-SEM-006)."""
     rows = c.execute(
         select(index_outbox.c.id, index_outbox.c.asset_id)
         .where(index_outbox.c.processed_at.is_(None))
@@ -87,28 +196,9 @@ def drain_index(c: Any, limit: int = 10_000) -> int:
         .limit(limit)
         .with_for_update(skip_locked=True)
     ).all()
-    for asset_id in {r.asset_id for r in rows}:
-        res = c.execute(
-            select(result).where(result.c.asset_id == asset_id).order_by(result.c.created_at.desc()).limit(1)
-        ).first()
-        caption = res.caption if res else None
-        tags = list(res.tags or []) if res else []
-        cat = res.category if res else None
-        if res is not None:
-            o = model_outcome(res.raw, res.category, res.confidence, Policy())
-            cat = o.category if o.decision == "accepted" else cat
-        hl = human_label(c, asset_id, None)
-        if hl:
-            cat = hl["category"]
-        vals = {"caption": caption, "tags": tags, "category": cat, "body": _body(caption, tags, cat)}
-        c.execute(
-            pg_insert(search_doc)
-            .values(asset_id=asset_id, **vals)
-            .on_conflict_do_update(index_elements=["asset_id"], set_=vals)
-        )
+    for asset_id in dict.fromkeys(r.asset_id for r in rows):
+        index_asset(c, asset_id)
     if rows:
-        from sqlalchemy import func
-
         c.execute(
             update(index_outbox).where(index_outbox.c.id.in_([r.id for r in rows])).values(processed_at=func.now())
         )

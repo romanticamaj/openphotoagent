@@ -66,6 +66,7 @@ def skip_rest(job_id: str, req: Request) -> dict[str, Any]:
 
 class LabelPatch(BaseModel):
     category: str
+    tags: list[str] | None = None
 
 
 @router.patch("/assets/{asset_id}/labels")
@@ -85,7 +86,7 @@ def patch_labels(asset_id: str, body: LabelPatch, req: Request) -> dict[str, Any
                 status="corrected",
                 reason="inline",
                 source="inline",
-                corrected={"category": body.category},
+                corrected={"category": body.category, **({"tags": body.tags} if body.tags is not None else {})},
                 resolved_at=st.clock.now(),
             )
         )

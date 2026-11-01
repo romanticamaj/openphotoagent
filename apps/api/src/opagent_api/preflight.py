@@ -507,6 +507,24 @@ class Pre:
         if summ.get("undo_conflicts"):
             self.add("UNDO_TARGET_MODIFIED", {"n": summ["undo_conflicts"]}, "plan")
 
+    def search(self) -> None:
+        from .search import index_status
+
+        st = index_status(self.c)
+        space = st["space"]
+        if space is None:
+            return
+        embed_fp = (self.caps.get("models") or {}).get("embed")
+        if embed_fp and embed_fp != space["fingerprint"]:
+            self.add("SEARCH_MODEL_MISMATCH", {"old": space["model_key"], "new": embed_fp}, "search")
+        missing = st["total"] - st["searchable"]
+        if missing > 0:
+            self.add(
+                "SEARCH_INDEX_INCOMPLETE",
+                {"n": missing, "searchable": st["searchable"], "total": st["total"]},
+                "search",
+            )
+
     def runtime_install(self) -> None:
         st = (self.caps.get("packs_status") or {}).get(self.p.get("pack")) or {}
         if st.get("error") in ("PACK_SIGNATURE_INVALID", "PACK_INCOMPATIBLE"):
@@ -534,6 +552,7 @@ class Pre:
                 "output.apply": self.output_apply,
                 "output.undo": self.output_undo,
                 "runtime.install": self.runtime_install,
+                "search": self.search,
             }.get(self.action)
             if handler:
                 handler()

@@ -490,6 +490,24 @@ class WorkerAgent:
             "waiting_reason": res.waiting_reason,
         }
 
+    def _do_embed_text(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """``embed.text`` RPC (05 §2.6): the query vector must come from the same space as the stored vectors."""
+        import asyncio
+        import inspect
+
+        if self.embedder is None:
+            return {"error": "MODEL_UNAVAILABLE"}
+        if p.get("fingerprint") and p["fingerprint"] != self.embedder.describe().model_fingerprint:
+            return {"error": "MODEL_UNAVAILABLE", "reason": "space mismatch"}
+        res: Any = self.embedder.embed_texts([p["text"]])
+        if inspect.isawaitable(res):
+
+            async def _wait(a: Any) -> Any:
+                return await a
+
+            res = asyncio.run(_wait(res))
+        return {"vec": [float(x) for x in list(res[0])]}
+
     def _do_probe_root(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         """Preflight RPC: can this source be read right now? (first 10 entries, 06 §3.3 fs.roots)"""
         try:
