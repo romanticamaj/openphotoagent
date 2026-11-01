@@ -181,6 +181,8 @@ just dev            # all-in-one 開發模式（api + worker + PG + web）
 |---|---|---|---|
 | 2026-11-01 | 規劃 | ✅ | 規格 00–11、測試 840 條、v0.0.1 |
 | 2026-11-01 | M0-cloud（`spike/m0`） | ✅ | W-1～W-6 回寫；17 個結果檔（S1a/S1b/T1a/V8 實測、S2/S4-pipeline/S5 部分、其餘 pending-hardware）；`docs/research/m0-results.md`、`docs/BLOCKERS.md`、`docs/DECISIONS.md` |
+| 2026-11-01 | 切片 0（`feat/v0.1-a`） | ✅ | uv＋pnpm workspace、justfile、ci.yml（PR 必跑 job）、pytest-opagent-tc、tc_status.py、Vitest／Playwright tc reporter、FakeClock、sandbox_tree、embedded_pg、FakeBackend、HF 伺服器骨架；PG-013、FS-026、INF-CONF-001～004、PF-079、I18N-001 綠 |
+| 2026-11-01 | 切片 1 walking skeleton | ✅ | CORE-TPL-001/004、CORE-SM-001、FS-001～003/017、SCAN-001/003/013、OUT-JRN-001、OUT-EXE-001/002、OUT-UNDO-001、ORG-001、**E2E-B-001** 綠；`opagent dev` all-in-one；Clock／FsOps／InferenceBackend／OperationReporter 介面就位 |
 
 ### 仍待決定／待驗證（可用 sub-agent 討論的依 §5.8 處理；屬於使用者本人決定的記到 `docs/BLOCKERS.md`）
 - 人臉測試影像的授權來源（09 Q-T1）；中文日期表達的精確範圍，例如「過年」（Q-T5）。

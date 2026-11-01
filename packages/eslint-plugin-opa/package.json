@@ -1,0 +1,11 @@
+{
+  "name": "eslint-plugin-opa",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "src/index.js",
+  "exports": { ".": "./src/index.js" },
+  "scripts": { "test": "vitest run" },
+  "peerDependencies": { "eslint": ">=9" },
+  "devDependencies": { "eslint": "10.14.0", "vitest": "5.0.5" }
+}

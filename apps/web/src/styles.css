@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+/* 「暗房裡的燈箱」design tokens (docs/04 §4) — expanded in slice 10 */
+@theme {
+  --color-surface: #141210;
+  --color-panel: #1e1b18;
+  --color-ink: #f2ede6;
+  --color-muted: #a59d93;
+  --color-accent: #e8b04a;
+}
+body { background: var(--color-surface); color: var(--color-ink); font-family: system-ui, "Noto Sans TC", sans-serif; }

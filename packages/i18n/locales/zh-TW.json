@@ -1,0 +1,21 @@
+{
+  "app": { "title": "OpenPhotoAgent" },
+  "common": { "working": "處理中…" },
+  "organize": {
+    "pickFolder": "選擇要整理的資料夾",
+    "useThisFolder": "選擇此資料夾",
+    "method": "整理方式",
+    "byDate": "依日期",
+    "byDateHint": "依拍攝年／月分資料夾，不需要下載模型",
+    "pickMethodFirst": "請先選擇整理方式",
+    "noWritableTarget": "沒有可寫入的輸出位置",
+    "output": "輸出位置",
+    "preview": "預覽",
+    "summaryCopy": "將複製 {{count}} 張到 {{folders}} 個資料夾，原檔不動。可隨時復原",
+    "approve": "核准並開始",
+    "applying": "整理中…",
+    "doneTitle": "整理完成",
+    "undo": "復原",
+    "undoneTitle": "已復原"
+  }
+}

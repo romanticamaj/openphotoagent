@@ -1,0 +1,98 @@
+[project]
+name = "openphotoagent-workspace"
+version = "0.0.1"
+requires-python = ">=3.12"
+description = "OpenPhotoAgent uv workspace root (not published)"
+dependencies = []
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = ["packages/core", "packages/fs-sandbox", "packages/inference-sdk", "packages/testing", "packages/schemas", "packages/db", "apps/api", "apps/worker", "apps/cli", "tools/pytest_tc"]
+
+[tool.uv.sources]
+opagent-core = { workspace = true }
+opagent-fs-sandbox = { workspace = true }
+opagent-inference-sdk = { workspace = true }
+opagent-testing = { workspace = true }
+opagent-schemas = { workspace = true }
+opagent-db = { workspace = true }
+opagent-api = { workspace = true }
+opagent-worker = { workspace = true }
+opagent-cli = { workspace = true }
+pytest-opagent-tc = { workspace = true }
+
+[dependency-groups]
+dev = [
+  "opagent-core", "opagent-fs-sandbox", "opagent-inference-sdk", "opagent-testing",
+  "opagent-schemas", "opagent-db", "opagent-api", "opagent-worker", "opagent-cli", "pytest-opagent-tc",
+  "pytest>=8", "pytest-cov", "pytest-randomly", "pytest-socket", "pytest-asyncio", "hypothesis",
+  "ruff", "mypy", "import-linter", "httpx", "mutmut", "diff-cover",
+]
+
+[tool.pytest.ini_options]
+addopts = "-p no:cacheprovider --import-mode=importlib --allow-hosts=127.0.0.1,localhost,::1 -m 'not real_model and not gpu and not perf'"
+testpaths = ["packages", "apps", "tests", "tools"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+  "unit", "property", "contract", "integration", "e2e", "chaos", "security", "perf",
+  "real_model", "gpu", "os_windows", "os_macos", "os_linux", "quarantine(issue, until)",
+  "tc(*ids): link a test to 09a/09b test case IDs",
+]
+filterwarnings = ["error::pytest.PytestUnknownMarkWarning"]
+norecursedirs = ["node_modules", ".venv", "spikes", "apps/web", "fixtures", "docs"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+extend-exclude = ["spikes", "apps/web", "node_modules", "docs", "*.md"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "DTZ", "TID", "SIM", "RUF"]
+ignore = ["S101", "RUF001", "RUF002", "RUF003", "S603", "S607"]
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+# 09 §3.2 / CLAUDE.md §4-11: no direct time reads; use the Clock protocol. Allowed only in clock implementations (per-file-ignores).
+"time.time".msg = "use opagent_core.clock.Clock (invariant 11)"
+"time.sleep".msg = "use Clock.sleep / FakeClock (invariant 11)"
+"time.monotonic".msg = "use opagent_core.clock.Clock (invariant 11)"
+"datetime.datetime.now".msg = "use Clock.now() (invariant 11)"
+"datetime.datetime.utcnow".msg = "use Clock.now() (invariant 11)"
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S", "DTZ001", "B011"]
+"packages/core/src/opagent_core/clock.py" = ["TID251"]
+"tools/**" = ["TID251", "S", "DTZ"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+warn_unused_ignores = true
+explicit_package_bases = true
+
+[[tool.mypy.overrides]]
+module = ["opagent_core.*", "opagent_fs.*", "opagent_schemas.*"]
+strict = true
+
+[tool.coverage.run]
+branch = true
+source = ["opagent_core", "opagent_fs", "opagent_inference", "opagent_api", "opagent_worker", "opagent_db"]
+
+[tool.importlinter]
+root_packages = ["opagent_api", "opagent_worker", "opagent_db", "opagent_core", "opagent_fs", "opagent_inference", "opagent_schemas"]
+
+[[tool.importlinter.contracts]]
+id = "api-no-files-no-gpu"
+name = "FS-026: apps/api and packages/db must not import fs-sandbox or inference-* (invariant 1)"
+type = "forbidden"
+source_modules = ["opagent_api", "opagent_db"]
+forbidden_modules = ["opagent_fs", "opagent_inference"]
+
+[[tool.importlinter.contracts]]
+id = "core-pure"
+name = "packages/core is pure (no I/O packages)"
+type = "forbidden"
+source_modules = ["opagent_core"]
+forbidden_modules = ["opagent_fs", "opagent_inference", "opagent_db", "opagent_api", "opagent_worker"]

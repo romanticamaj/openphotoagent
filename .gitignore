@@ -20,11 +20,11 @@ node_modules/
 !.env.example
 
 # Models, caches & data (never commit weights or photos)
-models/
+/models/
 *.gguf
 *.safetensors
-data/
-thumbnails/
+/data/
+/thumbnails/
 fixtures/photos/private/
 
 # OS / editor
@@ -32,3 +32,19 @@ fixtures/photos/private/
 Thumbs.db
 .idea/
 .vscode/
+.tc/
+.venv/
+node_modules/
+__pycache__/
+*.egg-info/
+.coverage*
+htmlcov/
+dist/
+apps/web/test-results/
+apps/web/playwright-report/
+.mutmut-cache
+mutants/
+.opagent-dev/
+apps/web/e2e/.run/
+apps/web/dist/
+*.tsbuildinfo
