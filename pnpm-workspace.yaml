@@ -1,0 +1,4 @@
+packages:
+  - apps/web
+  - packages/eslint-plugin-opa
+  - packages/i18n
