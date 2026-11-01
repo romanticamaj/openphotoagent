@@ -100,5 +100,45 @@
       "text": "\"{root}\" is unavailable; resumes when it is back",
       "cta": "Retry"
     }
+  },
+  "activity": {
+    "title": "Activity",
+    "empty": "Nothing is running",
+    "indicator": {
+      "idle": "No activity",
+      "running": "Working",
+      "paused": "Paused",
+      "failed": "Something failed",
+      "interrupted": "Interrupted — can resume"
+    },
+    "status": {
+      "running": "Running",
+      "queued": "Queued",
+      "paused": "Paused",
+      "failed": "Failed",
+      "succeeded": "Done",
+      "waiting": "Waiting",
+      "interrupted": "Interrupted",
+      "cancelled": "Cancelled"
+    },
+    "eta": {
+      "rough": "About",
+      "precise": "Remaining",
+      "stalled": "Stalled",
+      "estimating": "Estimating…"
+    },
+    "type": {
+      "model.download": "Model download",
+      "scan": "Scanning",
+      "job.label": "Organizing",
+      "output.apply": "Applying",
+      "output.undo": "Undoing",
+      "search.reindex": "Building search index"
+    }
+  },
+  "fix": {
+    "hf_token": "Add Hugging Face token",
+    "retry": "Retry",
+    "reindex": "Rebuild index"
   }
 }

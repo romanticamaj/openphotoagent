@@ -1,0 +1,94 @@
+{
+ "cases": [
+  {
+   "ms": 0,
+   "locale": "en",
+   "text": "0 sec"
+  },
+  {
+   "ms": 0,
+   "locale": "zh-TW",
+   "text": "0 秒"
+  },
+  {
+   "ms": 4000,
+   "locale": "en",
+   "text": "4 sec"
+  },
+  {
+   "ms": 4000,
+   "locale": "zh-TW",
+   "text": "4 秒"
+  },
+  {
+   "ms": 59000,
+   "locale": "en",
+   "text": "59 sec"
+  },
+  {
+   "ms": 59000,
+   "locale": "zh-TW",
+   "text": "59 秒"
+  },
+  {
+   "ms": 60000,
+   "locale": "en",
+   "text": "1 min"
+  },
+  {
+   "ms": 60000,
+   "locale": "zh-TW",
+   "text": "1 分"
+  },
+  {
+   "ms": 200000,
+   "locale": "en",
+   "text": "3 min, 20 sec"
+  },
+  {
+   "ms": 200000,
+   "locale": "zh-TW",
+   "text": "3 分 20 秒"
+  },
+  {
+   "ms": 3600000,
+   "locale": "en",
+   "text": "1 hr"
+  },
+  {
+   "ms": 3600000,
+   "locale": "zh-TW",
+   "text": "1 小時"
+  },
+  {
+   "ms": 3900000,
+   "locale": "en",
+   "text": "1 hr, 5 min"
+  },
+  {
+   "ms": 3900000,
+   "locale": "zh-TW",
+   "text": "1 小時 5 分"
+  },
+  {
+   "ms": 7265000,
+   "locale": "en",
+   "text": "2 hr, 1 min"
+  },
+  {
+   "ms": 7265000,
+   "locale": "zh-TW",
+   "text": "2 小時 1 分"
+  },
+  {
+   "ms": 90061000,
+   "locale": "en",
+   "text": "25 hr, 1 min"
+  },
+  {
+   "ms": 90061000,
+   "locale": "zh-TW",
+   "text": "25 小時 1 分"
+  }
+ ]
+}

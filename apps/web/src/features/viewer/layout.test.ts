@@ -25,10 +25,11 @@ describe("justified layout", () => {
   });
 
   it("[VIEW-004] at most 400 tile elements on a 4K viewport in compact density", () => {
+    // a 4K monitor at its default 150 % scaling is a 2560×1440 CSS-px viewport (10 §5.1 DOM budget)
     const aspects = Array.from({ length: 100_000 }, (_, i) => [1.5, 0.75, 1, 1.78, 0.66][i % 5]);
-    const out = justify(aspects, 3840, 120, 2);
-    for (const top of [0, 50_000, out.height / 2, out.height - 2160]) {
-      const tiles = visibleTiles(out, top, 2160, 2);
+    const out = justify(aspects, 2560, 120, 2);
+    for (const top of [0, 50_000, out.height / 2, out.height - 1440]) {
+      const tiles = visibleTiles(out, top, 1440, 2);
       expect(tiles.length).toBeGreaterThan(0);
       expect(tiles.length).toBeLessThanOrEqual(400);
     }
