@@ -3,6 +3,13 @@
 All notable changes to OpenPhotoAgent are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows [Semantic Versioning](https://semver.org/). See [VERSIONING.md](VERSIONING.md) for the full policy.
 
+## [0.0.2](https://github.com/romanticamaj/openphotoagent/compare/v0.0.1...v0.0.2) (2026-11-01)
+
+
+### 📚 Documentation
+
+* initial README, design specs, license and community files ([57e19d4](https://github.com/romanticamaj/openphotoagent/commit/57e19d49943c0c8cb41a61db666819365bac9460))
+
 ## [0.0.1] - 2026-11-01
 
 ### 🎞 Design Preview
