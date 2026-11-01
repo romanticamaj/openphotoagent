@@ -88,6 +88,19 @@ class Journal:
         self._insert(plan_id, action_id, op, phase, {}, {}, post_state, ref=ref)
         self._emit(f"journal.{phase}")
 
+    def trash_records(self) -> list[tuple[str, str, str | None]]:
+        """(plan_id, source alias, trashed_at) for every committed move."""
+        out = []
+        purged = {r[0] for r in self._db.execute("SELECT plan_id FROM journal WHERE phase='purged'")}
+        rows = self._db.execute(
+            "SELECT d.plan_id, i.args, d.post_state FROM journal d JOIN journal i ON i.seq = d.ref_seq "
+            "WHERE d.phase='done' AND d.op='move'").fetchall()
+        for plan_id, args, post in rows:
+            if plan_id in purged:
+                continue
+            out.append((plan_id, json.loads(args)["src"][0], json.loads(post).get("trashed_at")))
+        return out
+
     def open_intents(self) -> list[tuple[str, str, dict[str, Any], str | None]]:
         """(plan_id, action_id, intent, redirected dst_rel) for intents without done/rolled_back."""
         rows = self._db.execute(

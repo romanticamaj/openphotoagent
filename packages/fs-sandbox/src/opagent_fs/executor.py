@@ -98,6 +98,7 @@ class Executor:
         self.fs = fs
         self.journal = journal
         self._sleep = sleep or (lambda s: threading.Event().wait(s))
+        self.clock = clock
 
     # ---- apply -----------------------------------------------------------
     def apply(self, plan_id: str, actions: list[Action], move_confirmed: bool = False,
@@ -200,6 +201,7 @@ class Executor:
                                 "created_dirs": [self._rel(dst.alias, d) for d in created]}
         if op == "move":
             post["trash_rel"] = self._trash(plan_id, src)
+            post["trashed_at"] = self.clock.now().isoformat() if self.clock is not None else None
             steps.append({"op": "trash_move", "pre": {"src_rel": src.rel}, "post": {"trash_rel": post["trash_rel"]}})
         post["steps"] = steps
         self.journal.done(seq, post)
@@ -246,8 +248,12 @@ class Executor:
         digest = blake3.blake3(data).hexdigest()
         if self.fs.exists(dst.real) and self.fs.read_hash(dst.real) == digest:
             return ActionResult(a.action_id, "skipped", dst.rel, conflict="exists_same")
-        if self.fs.exists(dst.real):
-            return ActionResult(a.action_id, "skipped", dst.rel, conflict="exists_diff")
+        backup_rel = None
+        if self.fs.exists(dst.real):  # keep the user's sidecar: back it up so undo can restore it (OUT-UNDO-009)
+            backup_rel = posixpath.join(TRASH_DIR, plan_id, "sidecar-backup", dst.rel)
+            b = self.sb.open_write(dst.alias, backup_rel)
+            self.fs.makedirs(b.real.parent)
+            self.fs.rename_noreplace(dst.real, b.real)
         seq = self.journal.intent(plan_id, a.action_id, "write_sidecar",
                                   {"dst": [a.dst_alias, dst.rel], "digest": digest,
                                    "planned_dirs": self._missing_dirs(dst)},
@@ -265,7 +271,7 @@ class Executor:
         steps.append({"op": "fsync", "pre": {}, "post": {"file": True, "dir": True}})
         self.fs.rename_noreplace(tmp, dst.real)
         steps.append({"op": "rename", "pre": {"exists": False}, "post": {"dst_rel": dst.rel, "exists": True}})
-        self.journal.done(seq, {"dst_rel": dst.rel, "dst_hash": digest, "steps": steps,
+        self.journal.done(seq, {"dst_rel": dst.rel, "dst_hash": digest, "steps": steps, "backup_rel": backup_rel,
                                 "created_dirs": [self._rel(dst.alias, d) for d in created]})
         return ActionResult(a.action_id, "done", dst.rel)
 
@@ -331,7 +337,34 @@ class Executor:
         return {"completed": completed, "rolled_back": rolled, "tmp_removed": tmp_removed}
 
     def purge_trash(self, retention_days: int = 30) -> list[str]:
-        return []
+        """Delete ``.opagent-trash/<plan>`` folders whose moves are older than the retention (default 30 days).
+        Purges are journaled first; undo of a purged move becomes ``UNDO_TRASH_EXPIRED`` (OUT-UNDO-007)."""
+        if self.clock is None:
+            return []
+        from datetime import datetime, timedelta
+
+        cutoff = self.clock.now() - timedelta(days=retention_days)
+        due: dict[str, set[str]] = {}
+        for plan_id, alias, at in self.journal.trash_records():
+            if at and datetime.fromisoformat(at) < cutoff:
+                due.setdefault(plan_id, set()).add(alias)
+        for plan_id, aliases in due.items():
+            self.journal.record(plan_id, "*", "purge_trash", "purged", {"aliases": sorted(aliases)})
+            for alias in aliases:
+                self._rmtree(self.sb.open_write(alias, posixpath.join(TRASH_DIR, plan_id)).real)
+        return sorted(due)
+
+    def _rmtree(self, root: Path) -> None:
+        if not self.fs.exists(root):
+            return
+        for dirpath, dirnames, filenames in os.walk(root, topdown=False):
+            for f in filenames:
+                self.fs.unlink(Path(dirpath) / f)
+            for d in dirnames:
+                self.fs.rmdir(Path(dirpath) / d)
+        self.fs.rmdir(root)
+
+    UNDO_PHASE_WEIGHTS = {"verify": 20, "revert": 80}  # 06 §5.2 output.undo
 
     def undo(self, plan_id: str, reporter: Any = None, control: Any = None) -> list[ActionResult]:
         """Reverse done actions in reverse order. Idempotent: each step checks the current state, so an undo
@@ -339,10 +372,23 @@ class Executor:
         entries = self.journal.entries(plan_id)
         intents = {e["seq"]: e for e in entries if e["phase"] == "intent"}
         undone = {e["ref_seq"] for e in entries if e["phase"] == "undone" and e["ref_seq"] is not None}
+        todo = [e for e in reversed([e for e in entries if e["phase"] == "done"]) if e["seq"] not in undone]
         results: list[ActionResult] = []
-        for e in reversed([e for e in entries if e["phase"] == "done"]):
-            if e["seq"] in undone:
-                continue
+        if reporter is not None:
+            reporter.start("output.undo", len(todo))
+            reporter.phase("verify")
+            for e in todo:  # verify phase: read-only hash checks
+                dst = self.sb.open_write(intents[e["ref_seq"]]["args"]["dst"][0], e["post_state"]["dst_rel"])
+                if self.fs.exists(dst.real):
+                    self.fs.read_hash(dst.real)
+            reporter.phase("revert")
+        for n, e in enumerate(todo):
+            if control is not None and control() == "pause":
+                if reporter is not None:
+                    reporter.finish("paused")
+                return list(reversed(results))
+            if reporter is not None:
+                reporter.progress(n, len(todo))
             it = intents[e["ref_seq"]]
             dst_alias, _ = it["args"]["dst"]
             post = e["post_state"]
@@ -368,6 +414,10 @@ class Executor:
                 elif not self.fs.exists(src.real):
                     results.append(ActionResult(e["action_id"], "conflict", dst.rel, "UNDO_TRASH_EXPIRED"))
                     continue
+            if post.get("backup_rel"):
+                b = self.sb.open_write(dst_alias, post["backup_rel"])
+                if self.fs.exists(b.real) and not self.fs.exists(dst.real):
+                    self.fs.rename_noreplace(b.real, dst.real)
             for d in reversed(post.get("created_dirs", [])):
                 p = self.sb.open_write(dst_alias, d).real
                 if self.fs.is_empty_dir(p):
@@ -375,4 +425,6 @@ class Executor:
             crash_point("undo_after_rmdir")
             self.journal.record(plan_id, e["action_id"], it["op"], "undone", {}, ref=e["seq"])
             results.append(ActionResult(e["action_id"], "undone", dst.rel))
+        if reporter is not None:
+            reporter.finish("succeeded")
         return list(reversed(results))
