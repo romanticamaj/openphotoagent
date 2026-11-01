@@ -340,6 +340,7 @@ class WorkerAgent:
             self._cascade = Cascade(self.embedder, self.backend)
         items = [Item(inp, self._facts.pop(it["id"], {})) for it, inp in prepared]
         results = asyncio.run(self._cascade.run(items, _taxonomy(tc)))
+        self._post_embeddings([inp for _, inp in prepared])
         fp = self.cascade_fingerprint
         reports = []
         for (it, _), r in zip(prepared, results, strict=True):
@@ -489,6 +490,58 @@ class WorkerAgent:
             "installed": res.installed,
             "waiting_reason": res.waiting_reason,
         }
+
+    def _post_embeddings(self, images: list[Any]) -> None:
+        """Upload image vectors computed by the cascade (searchable right away, 05 §1.1)."""
+        if self._cascade is None or self.embedder is None:
+            return
+        items = [
+            {"content_hash": i.content_hash, "vec": [float(x) for x in self._cascade.image_cache[i.content_hash]]}
+            for i in images
+            if i.content_hash in self._cascade.image_cache
+        ]
+        if not items:
+            return
+        info = self.embedder.describe()
+        self.client.post(
+            "/worker-api/v1/embeddings",
+            json={
+                "worker_id": self.worker_id,
+                "model_key": info.adapter_key,
+                "fingerprint": info.model_fingerprint,
+                "dim": len(items[0]["vec"]),
+                "items": items,
+            },
+        )
+
+    def _do_embed_assets(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """search.reindex: embed assets that have no vector in the active space."""
+        import asyncio
+
+        from opagent_inference.cascade import Cascade, Item
+
+        if self.embedder is None:
+            return {"error": "MODEL_UNAVAILABLE"}
+        if self._cascade is None:
+            self._cascade = Cascade(self.embedder, self.backend)
+        images = []
+        for k, it in enumerate(p["items"]):
+            inp, _fail = self._prepare({"id": f"ix{k}", "root_alias": it["root_alias"], "rel": it["rel"], "attempt": 1})
+            self._facts.pop(f"ix{k}", None)
+            if inp is not None:
+                images.append(inp)
+
+        from opagent_inference.types import LoadOptions
+
+        embedder, cascade = self.embedder, self._cascade
+
+        async def go() -> None:
+            await embedder.load(LoadOptions())
+            await cascade._embed([Item(i) for i in images])
+
+        asyncio.run(go())
+        self._post_embeddings(images)
+        return {"embedded": len(images)}
 
     def _do_embed_text(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         """``embed.text`` RPC (05 §2.6): the query vector must come from the same space as the stored vectors."""

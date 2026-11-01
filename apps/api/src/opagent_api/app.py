@@ -41,6 +41,7 @@ def create_app(
     app.include_router(routes_models.router, prefix="/api/v1")
     app.include_router(routes_doctor.router, prefix="/api/v1")
     app.include_router(search.router, prefix="/api/v1")
+    app.include_router(search.worker_router, prefix="/worker-api/v1")
     app.include_router(routes_models.worker_router, prefix="/worker-api/v1")
     app.include_router(routes_worker.router, prefix="/worker-api/v1")
 

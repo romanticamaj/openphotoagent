@@ -315,10 +315,20 @@ def test_srch_sem_003_pipeline_stores_vectors_and_reindex_fills_gaps(embedded_pg
         shutil.copyfile(fx / f"IMG_{i + 1:04d}.jpg", sandbox_tree.photos / "p" / f"{i}.jpg")
     client = TestClient(create_app(dsn=embedded_pg.dsn))
     emb = FakeBackend(scores="high")
-    w = WorkerAgent(client, roots=sandbox_tree.roots, home=tmp_path / "w", backend=FakeBackend(vlm_p=0.9), embedder=emb, worker_id="w1")
+    w = WorkerAgent(
+        client,
+        roots=sandbox_tree.roots,
+        home=tmp_path / "w",
+        backend=FakeBackend(vlm_p=0.9),
+        embedder=emb,
+        worker_id="w1",
+    )
     w.register()
     src = client.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": ""}).json()["id"]
-    client.post("/api/v1/jobs", json={"kind": "organize", "preset": "by-content-12", "source_id": src, "target": {"root_alias": "sorted"}})
+    client.post(
+        "/api/v1/jobs",
+        json={"kind": "organize", "preset": "by-content-12", "source_id": src, "target": {"root_alias": "sorted"}},
+    )
     for _ in range(100):
         if not (w.run_once() | bool(w.process_items_once())):
             break

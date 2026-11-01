@@ -319,3 +319,75 @@ def search_index(req: Request) -> dict[str, Any]:
     if st["space"]:
         st["space"] = {k: (v.isoformat() if hasattr(v, "isoformat") else v) for k, v in st["space"].items()}
     return st
+
+
+class EmbeddingsIn(BaseModel):
+    worker_id: str
+    model_key: str
+    fingerprint: str
+    dim: int
+    items: list[dict[str, Any]]  # {content_hash, vec}
+
+
+worker_router = APIRouter()
+
+
+@worker_router.post("/embeddings")
+def ingest_embeddings(body: EmbeddingsIn, req: Request) -> dict[str, int]:
+    """Image vectors from the Worker (05 §1.1): one space per model fingerprint; vectors keyed by content hash."""
+    from opagent_db.schema import asset
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+    st = _st(req)
+    with st.engine.begin() as c:
+        c.execute(
+            pg_insert(embedding_space)
+            .values(model_key=body.model_key, fingerprint=body.fingerprint, dim=body.dim)
+            .on_conflict_do_nothing(index_elements=["fingerprint"])
+        )
+        sid = c.execute(
+            select(embedding_space.c.id).where(embedding_space.c.fingerprint == body.fingerprint)
+        ).scalar_one()
+        n = 0
+        for it in body.items:
+            ids = [r[0] for r in c.execute(select(asset.c.id).where(asset.c.content_hash == it["content_hash"]))]
+            for aid in ids:
+                c.execute(
+                    text(
+                        "INSERT INTO asset_embedding(asset_id, space_id, vec, source_hash) "
+                        "VALUES (:a, :s, CAST(:v AS vector), :h) ON CONFLICT (asset_id, space_id) "
+                        "DO UPDATE SET vec = EXCLUDED.vec, source_hash = EXCLUDED.source_hash"
+                    ),
+                    {"a": aid, "s": sid, "v": str([float(x) for x in it["vec"]]), "h": it["content_hash"]},
+                )
+                n += 1
+    return {"stored": n}
+
+
+@router.post("/search-index/reindex", status_code=202)
+def reindex(req: Request) -> dict[str, Any]:
+    """Queue embedding for every asset without a vector in the active space (auto_fix ``reindex``, PF-053)."""
+    from opagent_core.ids import uuid7
+    from opagent_db.schema import asset, asset_location, source
+
+    st = _st(req)
+    with st.engine.begin() as c:
+        space = active_space(c)
+        have = select(asset_embedding.c.asset_id)
+        if space is not None:
+            have = have.where(asset_embedding.c.space_id == space.id)
+        rows = c.execute(
+            select(asset.c.content_hash, asset_location.c.rel_path, source.c.root_alias, source.c.worker_id)
+            .join(asset_location, asset_location.c.asset_id == asset.c.id)
+            .join(source, source.c.id == asset_location.c.source_id)
+            .where(asset.c.id.not_in(have), asset_location.c.missing.is_(False))
+        ).all()
+        by_worker: dict[str, list[dict[str, str]]] = {}
+        for h, rel, alias, wid in rows:
+            by_worker.setdefault(wid, []).append({"content_hash": h, "rel": rel, "root_alias": alias})
+        tids = []
+        for wid, items in by_worker.items():
+            tid = uuid7(st.clock)
+            c.execute(worker_task.insert().values(id=tid, kind="embed_assets", worker_id=wid, payload={"items": items}))
+            tids.append(tid)
+    return {"queued": sum(len(v) for v in by_worker.values()), "tasks": tids}
