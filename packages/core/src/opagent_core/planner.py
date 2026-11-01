@@ -6,7 +6,7 @@ import posixpath
 from dataclasses import dataclass
 from datetime import datetime
 
-from .path_template import DateSource, RenderValues, compile_template, render
+from .path_template import DateSource, RenderValues, compile_template, render, split_name
 
 PRESET_TEMPLATES = {"by-date": "{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}"}
 
@@ -30,16 +30,11 @@ class PlannedAction:
     date_source: DateSource | None
 
 
-def split_name(rel: str) -> tuple[str, str]:
-    stem, ext = posixpath.splitext(posixpath.basename(rel))
-    return stem, ext
-
-
 def plan(items: list[PlanItem], preset: str, target_sub: str = "") -> list[PlannedAction]:
     tpl = compile_template(PRESET_TEMPLATES[preset])
     out: list[PlannedAction] = []
     for it in items:
-        stem, ext = split_name(it.src_rel)
+        stem, ext = split_name(posixpath.basename(it.src_rel))
         r = render(
             tpl,
             RenderValues(

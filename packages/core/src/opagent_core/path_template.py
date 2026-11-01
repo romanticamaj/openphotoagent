@@ -8,6 +8,7 @@ safe path segment (CORE-TPL-006..015, CORE-TPL-024).
 
 from __future__ import annotations
 
+import posixpath
 import re
 import unicodedata
 from dataclasses import dataclass
@@ -135,23 +136,65 @@ class PathTooLong:
     fix: str = "fs.long_paths"
 
 
+WINDOWS_MAX_PATH = 259  # MAX_PATH (260) minus the terminating NUL
+POSIX_PATH_MAX = 4095
+MAX_TEMPLATE_LEN = 200
+KNOWN_VARS = {"category", "category_key", "taken_at", "date", "stem", "ext", "country", "admin1", "city", "tag", "source"}
+_STRFTIME_OK = set("YmdHMSyj%")
+_DRIVE = re.compile(r"^[A-Za-z]:")
+
+
 def check_full_path(target_abs: str, rel: str, platform: str, long_paths: bool) -> PathTooLong | None:
-    return None
+    """CORE-TPL-016: full path length check; returns a value (not an exception) so the planner can mark a conflict."""
+    if platform == "windows":
+        if long_paths:
+            return None
+        n = len(target_abs.rstrip("\\/")) + 1 + len(rel)
+        return PathTooLong(n, WINDOWS_MAX_PATH) if n > WINDOWS_MAX_PATH else None
+    n = len((target_abs.rstrip("/") + "/" + rel).encode("utf-8"))
+    return PathTooLong(n, POSIX_PATH_MAX) if n > POSIX_PATH_MAX else None
 
 
 def split_name(name: str) -> tuple[str, str]:
-    return name, ""
+    """CORE-TPL-021: last-dot split, leading-dot names have no extension, extension case is kept."""
+    stem, ext = posixpath.splitext(name)
+    return stem, ext
+
+
+def _check_strftime(fmt: str, pos: int) -> None:
+    i = 0
+    while i < len(fmt):
+        if fmt[i] == "%":
+            if i + 1 >= len(fmt) or fmt[i + 1] not in _STRFTIME_OK:
+                raise TemplateError("STRFTIME_NOT_ALLOWED", pos)
+            i += 2
+        else:
+            i += 1
 
 
 def compile_template(template: str) -> Template:
+    """Validate and compile (CORE-TPL-017..020). Errors carry a 1-based character position."""
+    if len(template) > MAX_TEMPLATE_LEN:
+        raise TemplateError("TEMPLATE_TOO_LONG", MAX_TEMPLATE_LEN + 1)
+    skeleton = _TOKEN.sub("x", template)
+    if "\\" in skeleton or skeleton.startswith("/") or _DRIVE.match(skeleton):
+        raise TemplateError("TEMPLATE_PATH_ESCAPE", 1)
+    if any(seg in ("", ".", "..") for seg in skeleton.split("/")):
+        raise TemplateError("TEMPLATE_PATH_ESCAPE", 1)
     parts: list[_Part] = []
     pos = 0
     for m in _TOKEN.finditer(template):
         if m.start() > pos:
             parts.append(_Part(literal=template[pos : m.start()]))
         var, fmt = m.group(1), m.group(2)
+        if var not in KNOWN_VARS:
+            raise TemplateError("UNKNOWN_VAR", m.start() + 1)
         if var == "date":
             var, fmt = "taken_at", _DATE_ALIASES.get(fmt or "YYYY", fmt)
+        if var == "taken_at" and fmt:
+            _check_strftime(fmt, m.start() + 1)
+        if var == "tag" and not fmt:
+            raise TemplateError("TAG_PREFIX_REQUIRED", m.start() + 1)
         parts.append(_Part(var=var, fmt=fmt))
         pos = m.end()
     if pos < len(template):
@@ -178,8 +221,23 @@ def render(
         elif p.var == "ext":
             out.append(values.ext)
         else:
-            raw = getattr(values, p.var or "", None)
+            raw = _tag_value(values, p.fmt or "") if p.var == "tag" else getattr(values, p.var or "", None)
             if raw in (None, ""):
                 raw = (fallback_values or {}).get(p.var or "") or _UNKNOWN.get(lang, _UNKNOWN["en"])
             out.append(sanitize_segment(str(raw)))
-    return RenderResult(rel="".join(out), date_source=source if tpl.uses_date else None)
+    segs = "".join(out).split("/")
+    last = segs[-1]
+    if len(last.encode("utf-8")) > MAX_SEGMENT_BYTES:
+        ext = values.ext if values.ext and last.endswith(values.ext) else ""
+        keep = MAX_SEGMENT_BYTES - len(ext.encode("utf-8"))
+        segs[-1] = truncate_bytes(last[: len(last) - len(ext)], keep) + ext
+    segs = [truncate_bytes(x, MAX_SEGMENT_BYTES) for x in segs]
+    return RenderResult(rel="/".join(segs), date_source=source if tpl.uses_date else None)
+
+
+def _tag_value(values: RenderValues, prefix: str) -> str | None:
+    cands = [(score, key) for key, score in values.tags if key.startswith(prefix + ".")]
+    if not cands:
+        return None
+    _, key = max(cands)
+    return (values.tag_display or {}).get(key) or key.rsplit(".", 1)[-1]
