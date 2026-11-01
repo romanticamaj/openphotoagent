@@ -10,7 +10,17 @@ from fastapi import APIRouter, Request, Response
 from opagent_core.ids import uuid7
 from opagent_core.planner import PlanItem, assign_collisions, plan, summarize
 from opagent_core.state_machine import JobStatus
-from opagent_db.schema import asset, asset_location, job, output_action, output_plan, source, worker, worker_task
+from opagent_db.schema import (
+    asset,
+    asset_location,
+    job,
+    journal_mirror,
+    output_action,
+    output_plan,
+    source,
+    worker,
+    worker_task,
+)
 from pydantic import BaseModel
 from sqlalchemy import insert, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -91,6 +101,26 @@ def lease(body: LeaseIn, req: Request) -> Any:
         if st.clock.monotonic() >= deadline:
             return Response(status_code=204)
         time.sleep(0.05)  # noqa: TID251 - long-poll inside a threadpool request handler
+
+
+class JournalIn(BaseModel):
+    worker_id: str
+    entries: list[dict[str, Any]]
+
+
+@router.post("/journal")
+def mirror_journal(body: JournalIn, req: Request) -> dict[str, int]:
+    """Idempotent CP mirror of the worker journal (OUT-JRN-005). The worker copy is authoritative:
+    re-delivered entries are ignored, never rewritten."""
+    rows = [{"worker_id": body.worker_id, "plan_id": e["plan_id"], "seq": e["seq"], "action_id": e["action_id"],
+             "op": e["op"], "phase": e["phase"], "args": e.get("args") or {}, "pre_state": e.get("pre_state") or {},
+             "post_state": e.get("post_state")} for e in body.entries]
+    if not rows:
+        return {"inserted": 0}
+    with _st(req).engine.begin() as c:
+        res = c.execute(pg_insert(journal_mirror).values(rows).on_conflict_do_nothing(
+            index_elements=["worker_id", "plan_id", "seq"]))
+    return {"inserted": res.rowcount or 0}
 
 
 @router.post("/tasks/{task_id}/complete")

@@ -151,6 +151,7 @@ journal_mirror = Table(  # CP mirror of the worker-local journal (02 §3.2 journ
     Column("args", JSONB, nullable=False),
     Column("pre_state", JSONB, nullable=False),
     Column("post_state", JSONB),
+    UniqueConstraint("worker_id", "plan_id", "seq"),
 )
 event = Table(
     "event",

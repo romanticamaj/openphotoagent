@@ -25,6 +25,10 @@ CREATE TABLE IF NOT EXISTS journal (
   post_state TEXT
 );
 CREATE INDEX IF NOT EXISTS journal_plan ON journal(plan_id, seq);
+CREATE TRIGGER IF NOT EXISTS journal_no_update BEFORE UPDATE ON journal
+BEGIN SELECT RAISE(ABORT, 'journal is append-only'); END;
+CREATE TRIGGER IF NOT EXISTS journal_no_delete BEFORE DELETE ON journal
+BEGIN SELECT RAISE(ABORT, 'journal is append-only'); END;
 """
 
 

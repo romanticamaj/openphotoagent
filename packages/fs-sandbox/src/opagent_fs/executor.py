@@ -81,6 +81,13 @@ def effective_op(sb: Sandbox, a: Action, allow_move_from_ro_roots: bool = False)
     return a.op, False
 
 
+def _state(fs: FsOps, p: Path) -> dict[str, Any]:
+    """pre/post state of a path for the journal (OUT-JRN-003)."""
+    if not fs.exists(p):
+        return {"exists": False, "hash": None, "mtime": None}
+    return {"exists": True, "hash": fs.read_hash(p), "mtime": p.stat().st_mtime_ns}
+
+
 class Executor:
     LOCK_RETRY_DELAYS = (1, 4, 10)  # OUT-EXE-016: transient sharing violation retries (seconds)
 
@@ -144,25 +151,35 @@ class Executor:
         if not self.fs.exists(src.real) or self.fs.read_hash(src.real) != a.src_hash:
             return ActionResult(a.action_id, "skipped", error="PLAN_STALE")
         self.sb.check_overwrite(dst)
+        src_state = {"exists": True, "hash": a.src_hash, "mtime": src.real.stat().st_mtime_ns}
         seq = self.journal.intent(
             plan_id, a.action_id, op,
             {"src": [a.src_alias, a.src_rel], "dst": [a.dst_alias, dst.rel], "src_hash": a.src_hash},
-            {"dst_exists": False},
+            {"src": src_state, "dst": {"exists": False, "hash": None, "mtime": None}},
         )
         created: list[Path] = []
+        steps: list[dict[str, Any]] = []
         try:
             created = self.fs.makedirs(dst.real.parent)
+            if created:
+                steps.append({"op": "mkdir", "pre": {"exists": False},
+                              "post": {"dirs": [self._rel(dst.alias, d) for d in created]}})
             tmp = self.fs.write_tmp_copy(src.real, dst.real.parent)
+            steps.append({"op": "copy", "pre": src_state, "post": {"tmp": tmp.name}})
         except OSError as e:
             self._rollback(plan_id, a, op, created, dst.alias, str(e.errno))
             self._raise_if_waiting(e, dst.alias, a.src_alias)
             return ActionResult(a.action_id, "failed", error="COPY_FAILED")
         try:
-            if self.fs.read_hash(tmp) != a.src_hash:
+            got = self.fs.read_hash(tmp)
+            steps.append({"op": "verify", "pre": {"expected": a.src_hash}, "post": {"hash": got}})
+            if got != a.src_hash:
                 raise OSError("verify failed")
             self.fs.fsync_file(tmp)
             self.fs.fsync_dir(dst.real.parent)
+            steps.append({"op": "fsync", "pre": {}, "post": {"file": True, "dir": True}})
             dst = self._commit(tmp, dst, a)
+            steps.append({"op": "rename", "pre": {"exists": False}, "post": {"dst_rel": dst.rel, "exists": True}})
         except OSError as e:
             with contextlib.suppress(OSError):
                 self.fs.unlink(tmp)
@@ -175,6 +192,8 @@ class Executor:
                                 "created_dirs": [self._rel(dst.alias, d) for d in created]}
         if op == "move":
             post["trash_rel"] = self._trash(plan_id, src)
+            steps.append({"op": "trash_move", "pre": {"src_rel": src.rel}, "post": {"trash_rel": post["trash_rel"]}})
+        post["steps"] = steps
         self.journal.done(seq, post)
         return ActionResult(a.action_id, "done", dst.rel, conflict=conflict, downgraded=downgraded)
 
@@ -212,13 +231,20 @@ class Executor:
         if self.fs.exists(dst.real):
             return ActionResult(a.action_id, "skipped", dst.rel, conflict="exists_diff")
         seq = self.journal.intent(plan_id, a.action_id, "write_sidecar", {"dst": [a.dst_alias, dst.rel]},
-                                  {"dst_exists": False})
+                                  {"dst": _state(self.fs, dst.real)})
         created = self.fs.makedirs(dst.real.parent)
+        steps: list[dict[str, Any]] = []
+        if created:
+            steps.append({"op": "mkdir", "pre": {"exists": False},
+                          "post": {"dirs": [self._rel(dst.alias, d) for d in created]}})
         tmp = self.fs.write_tmp_bytes(data, dst.real.parent)
+        steps.append({"op": "write_sidecar", "pre": {"exists": False}, "post": {"tmp": tmp.name, "hash": digest}})
         self.fs.fsync_file(tmp)
         self.fs.fsync_dir(dst.real.parent)
+        steps.append({"op": "fsync", "pre": {}, "post": {"file": True, "dir": True}})
         self.fs.rename_noreplace(tmp, dst.real)
-        self.journal.done(seq, {"dst_rel": dst.rel, "dst_hash": digest,
+        steps.append({"op": "rename", "pre": {"exists": False}, "post": {"dst_rel": dst.rel, "exists": True}})
+        self.journal.done(seq, {"dst_rel": dst.rel, "dst_hash": digest, "steps": steps,
                                 "created_dirs": [self._rel(dst.alias, d) for d in created]})
         return ActionResult(a.action_id, "done", dst.rel)
 
