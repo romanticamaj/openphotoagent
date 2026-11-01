@@ -24,6 +24,7 @@ class FsOps(Protocol):
     def exists(self, p: Path) -> bool: ...
     def makedirs(self, p: Path) -> list[Path]: ...
     def write_tmp_copy(self, src: Path, dst_dir: Path) -> Path: ...
+    def write_tmp_bytes(self, data: bytes, dst_dir: Path) -> Path: ...
     def fsync_file(self, p: Path) -> None: ...
     def fsync_dir(self, p: Path) -> None: ...
     def rename_noreplace(self, src: Path, dst: Path) -> None: ...
@@ -71,6 +72,17 @@ class RealFs:
         except OSError:
             with contextlib.suppress(OSError):
                 os.unlink(tmp)  # never leave a partial tmp behind (e.g. ENOSPC mid-copy)
+            raise
+        return tmp
+
+    def write_tmp_bytes(self, data: bytes, dst_dir: Path) -> Path:
+        tmp = dst_dir / f"{TMP_PREFIX}{uuid.uuid4().hex}"
+        try:
+            with open(tmp, "xb") as fo:
+                fo.write(data)
+        except OSError:
+            with contextlib.suppress(OSError):
+                os.unlink(tmp)
             raise
         return tmp
 

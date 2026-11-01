@@ -8,6 +8,7 @@ from opagent_core.clock import Clock, SystemClock
 from opagent_db.schema import engine_for
 
 from . import routes_public, routes_worker
+from .problems import install_problem_handlers
 from .state import AppState
 
 
@@ -18,6 +19,7 @@ def create_app(
     st = AppState(engine=engine_for(dsn), clock=clock or SystemClock(), launch_token=launch_token)
     st.ensure_workspace()
     app.state.opa = st
+    install_problem_handlers(app)
     app.include_router(routes_public.router, prefix="/api/v1")
     app.include_router(routes_worker.router, prefix="/worker-api/v1")
     if static_dir:

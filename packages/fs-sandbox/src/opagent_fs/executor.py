@@ -10,16 +10,21 @@ from __future__ import annotations
 
 import contextlib
 import errno
+import json
 import posixpath
+import threading
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal
+
+import blake3
 
 from opagent_core.planner import suffixed
 
 from .fsops import FsOps
 from .journal import Journal
-from .safepath import Sandbox, SafePath
+from .safepath import RootUnavailable, SafePath, Sandbox
 
 TRASH_DIR = ".opagent-trash"
 
@@ -54,6 +59,15 @@ class ApplyReport:
     waiting_reason: str | None = None
 
 
+class _Locked(OSError):
+    pass
+
+
+def _is_lock_error(e: OSError) -> bool:
+    """Windows sharing violation (EACCES/winerror 32) or EBUSY: transient (OUT-EXE-016)."""
+    return e.errno in (errno.EBUSY, errno.ETXTBSY) or getattr(e, "winerror", None) in (32, 33)
+
+
 class _Wait(Exception):  # noqa: N818 - control flow: stop applying and wait (06 §5.5.7)
     def __init__(self, reason: str) -> None:
         super().__init__(reason)
@@ -68,19 +82,35 @@ def effective_op(sb: Sandbox, a: Action, allow_move_from_ro_roots: bool = False)
 
 
 class Executor:
+    LOCK_RETRY_DELAYS = (1, 4, 10)  # OUT-EXE-016: transient sharing violation retries (seconds)
+
     def __init__(self, sandbox: Sandbox, fs: FsOps, journal: Journal, sleep: Any = None) -> None:
         self.sb = sandbox
         self.fs = fs
         self.journal = journal
+        self._sleep = sleep or (lambda s: threading.Event().wait(s))
 
     # ---- apply -----------------------------------------------------------
-    def apply(self, plan_id: str, actions: list[Action], move_confirmed: bool = False, control: Any = None) -> ApplyReport:
+    def apply(self, plan_id: str, actions: list[Action], move_confirmed: bool = False,
+              control: Callable[[], str] | None = None) -> ApplyReport:
+        """Apply actions in order. ``control()`` is consulted between actions: ``pause`` stops with status
+        ``paused``; ``cancel`` stops with ``partially_applied`` (OUT-EXE-017/018). A full disk or an unplugged
+        target stops with ``waiting`` and a ``waiting_reason`` (OUT-EXE-014/015); re-running resumes."""
         rep = ApplyReport()
         for a in actions:
+            if control is not None:
+                c = control()
+                if c in ("pause", "cancel"):
+                    done = any(r.status == "done" for r in rep.results)
+                    rep.status = "paused" if c == "pause" else ("partially_applied" if done else "cancelled")
+                    return rep
             try:
                 rep.results.append(self._one(plan_id, a, move_confirmed))
             except _Wait as w:
                 rep.status, rep.waiting_reason = "waiting", w.reason
+                return rep
+            except RootUnavailable:
+                rep.status, rep.waiting_reason = "waiting", "FS_ROOT_UNAVAILABLE"
                 return rep
         if any(r.status == "failed" for r in rep.results):
             rep.status = "partially_applied" if any(r.status == "done" for r in rep.results) else "failed"
@@ -93,6 +123,8 @@ class Executor:
         return suffixed(rel, n)
 
     def _one(self, plan_id: str, a: Action, move_confirmed: bool) -> ActionResult:
+        if a.op == "sidecar_json":
+            return self._sidecar(plan_id, a)
         op, downgraded = effective_op(self.sb, a)
         if op == "move" and not move_confirmed:
             return ActionResult(a.action_id, "failed", error="MOVE_NOT_CONFIRMED")
@@ -117,13 +149,13 @@ class Executor:
             {"src": [a.src_alias, a.src_rel], "dst": [a.dst_alias, dst.rel], "src_hash": a.src_hash},
             {"dst_exists": False},
         )
-        created = self.fs.makedirs(dst.real.parent)
+        created: list[Path] = []
         try:
+            created = self.fs.makedirs(dst.real.parent)
             tmp = self.fs.write_tmp_copy(src.real, dst.real.parent)
         except OSError as e:
             self._rollback(plan_id, a, op, created, dst.alias, str(e.errno))
-            if e.errno == errno.ENOSPC:
-                raise _Wait("DISK_INSUFFICIENT_OUTPUT") from None
+            self._raise_if_waiting(e, dst.alias, a.src_alias)
             return ActionResult(a.action_id, "failed", error="COPY_FAILED")
         try:
             if self.fs.read_hash(tmp) != a.src_hash:
@@ -135,8 +167,10 @@ class Executor:
             with contextlib.suppress(OSError):
                 self.fs.unlink(tmp)
             self._rollback(plan_id, a, op, created, dst.alias, "COPY_FAILED")
-            return ActionResult(a.action_id, "failed", error="DST_EXISTS" if isinstance(e, FileExistsError)
-                                else "COPY_FAILED")
+            self._raise_if_waiting(e, dst.alias, a.src_alias)
+            code = ("DST_EXISTS" if isinstance(e, FileExistsError)
+                    else "FS_FILE_LOCKED" if isinstance(e, _Locked) else "COPY_FAILED")
+            return ActionResult(a.action_id, "failed", error=code)
         post: dict[str, Any] = {"dst_rel": dst.rel, "dst_hash": a.src_hash,
                                 "created_dirs": [self._rel(dst.alias, d) for d in created]}
         if op == "move":
@@ -146,6 +180,7 @@ class Executor:
 
     def _commit(self, tmp: Path, dst: SafePath, a: Action) -> SafePath:
         """rename(noreplace); a dst appearing after the probe is never overwritten (OUT-EXE-008)."""
+        delays = list(self.LOCK_RETRY_DELAYS)
         while True:
             try:
                 self.fs.rename_noreplace(tmp, dst.real)
@@ -154,6 +189,38 @@ class Executor:
                 if a.conflict_policy != "rename":
                     raise
                 dst = self.sb.open_write(dst.alias, self._free_name(dst.alias, a.dst_rel))
+            except OSError as e:
+                if not _is_lock_error(e):
+                    raise
+                if not delays:
+                    raise _Locked(str(e)) from None
+                self._sleep(delays.pop(0))
+
+    def _raise_if_waiting(self, e: OSError, *aliases: str) -> None:
+        if e.errno == errno.ENOSPC:
+            raise _Wait("DISK_INSUFFICIENT_OUTPUT") from None
+        for alias in aliases:
+            self.sb._root(alias)  # raises RootUnavailable when an external drive disappeared mid-copy
+
+    def _sidecar(self, plan_id: str, a: Action) -> ActionResult:
+        """Write ``<stem>.opagent.json`` atomically (tmp + rename); the photo itself is never touched."""
+        dst = self.sb.open_write(a.dst_alias, a.dst_rel)
+        data = (json.dumps(a.payload or {}, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode()
+        digest = blake3.blake3(data).hexdigest()
+        if self.fs.exists(dst.real) and self.fs.read_hash(dst.real) == digest:
+            return ActionResult(a.action_id, "skipped", dst.rel, conflict="exists_same")
+        if self.fs.exists(dst.real):
+            return ActionResult(a.action_id, "skipped", dst.rel, conflict="exists_diff")
+        seq = self.journal.intent(plan_id, a.action_id, "write_sidecar", {"dst": [a.dst_alias, dst.rel]},
+                                  {"dst_exists": False})
+        created = self.fs.makedirs(dst.real.parent)
+        tmp = self.fs.write_tmp_bytes(data, dst.real.parent)
+        self.fs.fsync_file(tmp)
+        self.fs.fsync_dir(dst.real.parent)
+        self.fs.rename_noreplace(tmp, dst.real)
+        self.journal.done(seq, {"dst_rel": dst.rel, "dst_hash": digest,
+                                "created_dirs": [self._rel(dst.alias, d) for d in created]})
+        return ActionResult(a.action_id, "done", dst.rel)
 
     def _trash(self, plan_id: str, src: SafePath) -> str:
         """Move the source into ``<root>/.opagent-trash/<plan_id>/<rel>`` (same filesystem, so a rename)."""

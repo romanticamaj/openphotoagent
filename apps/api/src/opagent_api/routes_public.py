@@ -9,7 +9,7 @@ from opagent_core.ids import uuid7
 from opagent_core.state_machine import JobStatus
 from opagent_db.schema import job, output_action, output_plan, source, worker, worker_task
 from pydantic import BaseModel, Field
-from sqlalchemy import insert, select, update
+from sqlalchemy import func, insert, select, update
 
 from .db import set_job_status
 from .state import DEFAULT_WS, AppState
@@ -208,13 +208,28 @@ def _plan_job(c: Any, plan_id: str) -> tuple[Any, Any]:
     return p, j
 
 
+MOVE_CONFIRM_TEXT_ABOVE = 10_000  # OUT-EXE-019 / 02 §6.2: very large move plans need a typed confirmation
+
+
+class ApproveIn(BaseModel):
+    move_confirmed: bool = False
+    confirm_text: str | None = None
+
+
 @router.post("/output-plans/{plan_id}/approve")
-def approve(plan_id: str, req: Request, body: dict[str, Any] | None = None) -> dict[str, Any]:
+def approve(plan_id: str, req: Request, body: ApproveIn | None = None) -> dict[str, Any]:
     st = _st(req)
+    body = body or ApproveIn()
     with st.engine.begin() as c:
         p, j = _plan_job(c, plan_id)
         if p.status != "draft":
             raise HTTPException(409, detail={"code": "PLAN_NOT_DRAFT", "status": p.status})
+        moves = c.execute(select(func.count()).select_from(output_action).where(
+            output_action.c.plan_id == plan_id, output_action.c.action == "move")).scalar_one()
+        if moves and not body.move_confirmed:
+            raise HTTPException(409, detail={"code": "MOVE_NOT_CONFIRMED", "moves": moves})
+        if moves > MOVE_CONFIRM_TEXT_ABOVE and body.confirm_text != f"MOVE {moves}":
+            raise HTTPException(409, detail={"code": "CONFIRM_TEXT_REQUIRED", "expected": f"MOVE {moves}"})
         set_job_status(c, j.id, JobStatus.applying)
         c.execute(
             update(output_plan).where(output_plan.c.id == plan_id).values(status="applying", approved_at=st.clock.now())
