@@ -75,6 +75,11 @@ class WorkerAgent:
         self.client.post(f"/worker-api/v1/tasks/{task['id']}/complete", json={"result": result, "ok": ok})
         return True
 
+    batch_size = 16
+
+    def process_items_once(self) -> int:
+        return 0
+
     def run_until_idle(self) -> None:
         while self.run_once():
             pass

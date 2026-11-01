@@ -94,3 +94,40 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     if drop:
         config.hook.pytest_deselected(items=drop)
         items[:] = keep
+
+
+class ApiServer:
+    """A real uvicorn server in a background thread (port 0) so concurrent clients hit the real stack."""
+
+    def __init__(self, app) -> None:  # type: ignore[no-untyped-def]
+        import threading
+
+        import uvicorn
+
+        self.config = uvicorn.Config(app, host="127.0.0.1", port=0, log_level="warning", lifespan="off")
+        self.server = uvicorn.Server(self.config)
+        self.thread = threading.Thread(target=self.server.run, daemon=True)
+
+    def __enter__(self) -> "ApiServer":
+        self.thread.start()
+        import time
+
+        for _ in range(500):
+            if self.server.started:
+                break
+            time.sleep(0.01)  # noqa: TID251 - test harness waiting for a real server thread
+        return self
+
+    @property
+    def url(self) -> str:
+        sock = self.server.servers[0].sockets[0]
+        return f"http://127.0.0.1:{sock.getsockname()[1]}"
+
+    def __exit__(self, *exc: object) -> None:
+        self.server.should_exit = True
+        self.thread.join(10)
+
+
+@pytest.fixture
+def api_server():  # type: ignore[no-untyped-def]
+    return ApiServer

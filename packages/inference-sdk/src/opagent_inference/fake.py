@@ -70,6 +70,9 @@ class FakeBackend:
     async def health(self) -> HealthStatus:
         return HealthStatus(ok=self.loaded, vram_used_mb=self.est_vram_mb if self.loaded else 0)
 
+    def inject(self, code: str, times: int = 10**9, on_batch_size_at_least: int = 1) -> None:
+        pass
+
     def calls(self, task: str | None = None) -> list[dict[str, object]]:
         return [c for c in self._calls if task is None or c["task"] == task]
 
