@@ -69,9 +69,8 @@ class ModelStore:
         for p in root.rglob("*"):
             if p.is_symlink() and not p.exists():
                 bad.append(f"dangling:{p.relative_to(root)}")
-            elif p.is_file() and not p.is_symlink() and p.parent.name == "blobs" and len(p.name) == 64:
-                if _sha(p) != p.name:
-                    bad.append(f"corrupt:{p.relative_to(root)}")
+            elif p.is_file() and p.parent.name == "blobs" and len(p.name) == 64 and _sha(p) != p.name:
+                bad.append(f"corrupt:{p.relative_to(root)}")
         return bad
 
     def move(
