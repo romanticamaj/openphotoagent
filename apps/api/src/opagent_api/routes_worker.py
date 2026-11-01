@@ -27,9 +27,11 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from . import queue as q
 from .db import offset_minutes, set_job_status, to_aware
+from .operations import ensure_operation, set_op_status
 from .state import DEFAULT_WS, AppState
 
 router = APIRouter()
+TASK_OP_TYPES = {"scan": "scan", "apply": "output.apply", "undo": "output.undo"}
 LEASE_S = 120
 
 
@@ -86,6 +88,9 @@ def _lease_one(st: AppState, worker_id: str) -> dict[str, Any] | None:
             .returning(worker_task)
         ).first()
         assert t is not None
+        if t.kind in TASK_OP_TYPES:  # every long action is an Operation (06 §5, OP-001)
+            ensure_operation(c, st.clock, t.id, TASK_OP_TYPES[t.kind], {"kind": "task", "id": t.id})
+            set_op_status(c, st.clock, t.id, "running")
         if t.kind == "scan":
             set_job_status(c, t.job_id, JobStatus.running)
         return {"id": t.id, "kind": t.kind, "payload": t.payload}
@@ -129,12 +134,19 @@ def leases(body: LeasesIn, req: Request) -> Any:
 class HeartbeatIn(BaseModel):
     worker_id: str
     lease_ids: list[str] = []
+    disk_free: dict[str, int] | None = None
 
 
 @router.post("/heartbeat")
 def heartbeat(body: HeartbeatIn, req: Request) -> dict[str, Any]:
     st = _st(req)
     with st.engine.begin() as c:
+        if body.disk_free is not None:
+            c.execute(
+                update(worker)
+                .where(worker.c.id == body.worker_id)
+                .values(disk_free=body.disk_free, last_heartbeat_at=st.clock.now())
+            )
         return {
             "extended": q.heartbeat(c, st.clock, body.worker_id, body.lease_ids),
             "abort": q.abort_list(c, body.worker_id, body.lease_ids),
@@ -208,6 +220,15 @@ def complete(task_id: str, body: CompleteIn, req: Request) -> dict[str, str]:
             .values(status="done" if body.ok else "failed", result=body.result)
         )
         handler = {"scan": _on_scan, "apply": _on_apply, "undo": _on_undo}.get(t.kind)
+        if t.kind in TASK_OP_TYPES:
+            waiting = body.result.get("status") == "waiting"
+            set_op_status(
+                c,
+                st.clock,
+                t.id,
+                "waiting" if waiting else "succeeded" if body.ok else "failed",
+                body.result.get("waiting_reason") if waiting else None,
+            )
         if handler and body.ok:
             handler(st, c, t, body.result)
         elif handler and t.job_id and t.kind == "scan":
@@ -283,6 +304,10 @@ def _on_scan(st: AppState, c: Any, t: Any, result: dict[str, Any]) -> None:
                 date_source=a.date_source,
             )
         )
+    plan_op = f"{pid}:plan"
+    ensure_operation(c, st.clock, plan_op, "output.plan", {"kind": "plan", "id": pid})
+    set_op_status(c, st.clock, plan_op, "running")
+    set_op_status(c, st.clock, plan_op, "succeeded")
     set_job_status(c, j.id, JobStatus.awaiting_approval, plan_id=pid, counters={"total": len(planned), "done": 0})
 
 

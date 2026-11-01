@@ -164,8 +164,14 @@ def sweep_orphans(ops: list[Operation], now: datetime, timeout_s: float = HEARTB
 
 
 # ---- progress (06 §5.4) / elapsed (06 §5.6) ----
-JOB_LABEL_PHASES = (("plan", 2), ("cache_lookup", 3), ("model_load", 5), ("embed", 10), ("infer", 75),
-                    ("postprocess", 5))
+JOB_LABEL_PHASES = (
+    ("plan", 2),
+    ("cache_lookup", 3),
+    ("model_load", 5),
+    ("embed", 10),
+    ("infer", 75),
+    ("postprocess", 5),
+)
 
 
 @dataclass
@@ -188,8 +194,10 @@ def phase_fraction(phases: list[Phase]) -> float:
     tot = sum(w)
     if tot <= 0:
         return 0.0
-    got = sum(wi * (1.0 if p.status == "done" else p.fraction if p.status == "running" else 0.0)
-              for wi, p in zip(w, active, strict=True))
+    got = sum(
+        wi * (1.0 if p.status == "done" else p.fraction if p.status == "running" else 0.0)
+        for wi, p in zip(w, active, strict=True)
+    )
     return got / tot
 
 

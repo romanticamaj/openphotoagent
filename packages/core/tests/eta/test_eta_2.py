@@ -7,7 +7,6 @@ from pathlib import Path
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
-
 from opagent_core.eta import (
     CascadeMix,
     ItemsEta,
@@ -29,12 +28,14 @@ def test_eta_011_rounding_and_finish_time():
     assert format_eta(23 * 60, "zh-TW", datetime(2026, 11, 1, 14, 7, tzinfo=UTC)) == "約 25 分鐘 · 預計 14:30 完成"
     assert format_eta(97 * 60, "zh-TW", datetime(2026, 11, 1, 10, 0, tzinfo=UTC)).startswith("約 1 小時 40 分")
     assert format_eta(7 * 3600 + 12 * 60, "zh-TW", datetime(2026, 11, 1, 19, 18, tzinfo=UTC)) == (
-        "約 7 小時 · 明天 02:30 完成")
+        "約 7 小時 · 明天 02:30 完成"
+    )
     assert format_eta(45, "en", datetime(2026, 11, 1, tzinfo=UTC)) == "Less than a minute"
     assert format_eta(7.4 * 60, "en", datetime(2026, 11, 1, tzinfo=UTC)) == "About 7 min"
     assert format_eta(23 * 60, "en", datetime(2026, 11, 1, 14, 7, tzinfo=UTC)) == "About 25 min · done by 14:30"
     assert format_eta(7 * 3600 + 12 * 60, "en", datetime(2026, 11, 1, 19, 18, tzinfo=UTC)) == (
-        "About 7 h · done tomorrow 02:30")
+        "About 7 h · done tomorrow 02:30"
+    )
 
 
 @pytest.mark.unit
@@ -82,7 +83,7 @@ def _simulate(seed: int) -> tuple[int, int]:
     rnd = random.Random(seed)
     n, b = 1000, 16
     times = [rnd.lognormvariate(math.log(0.4), 0.4) * (1 + 0.10 * i / n) for i in range(n)]
-    batches = [sum(times[i:i + b]) for i in range(0, n, b)]
+    batches = [sum(times[i : i + b]) for i in range(0, n, b)]
     est = ItemsEta(total=n, batch_size=b)
     hits = tot = 0
     marks = {int(len(batches) * f) for f in (0.2, 0.5, 0.8)}
@@ -90,7 +91,7 @@ def _simulate(seed: int) -> tuple[int, int]:
         est.batch_done(items=min(b, n - est.done), seconds=bt)
         if k in marks:
             p10, p50, p90 = est.estimate()
-            truth = sum(batches[k + 1:])
+            truth = sum(batches[k + 1 :])
             tot += 1
             hits += p10 <= truth <= p90
     return hits, tot

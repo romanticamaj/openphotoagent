@@ -7,13 +7,26 @@ from typing import Any, Literal
 from pydantic import BaseModel, model_validator
 
 WAITING_REASONS: tuple[str, ...] = (
-    "QUEUED_BEHIND", "WAITING_GPU_SLOT", "WAITING_MODEL_DOWNLOAD", "WAITING_MODEL_LOAD", "WORKER_OFFLINE",
-    "DISK_INSUFFICIENT_OUTPUT", "DISK_INSUFFICIENT_MODELS", "DISK_INSUFFICIENT_THUMBS", "NET_UNREACHABLE",
-    "PAUSED_BY_USER", "PAUSED_ERROR_RATE", "PAUSED_ON_BATTERY", "PAUSED_GPU_CONTENDED", "PAUSED_NOT_IDLE",
-    "SOURCE_OFFLINE", "FS_ROOT_UNAVAILABLE",
+    "QUEUED_BEHIND",
+    "WAITING_GPU_SLOT",
+    "WAITING_MODEL_DOWNLOAD",
+    "WAITING_MODEL_LOAD",
+    "WORKER_OFFLINE",
+    "DISK_INSUFFICIENT_OUTPUT",
+    "DISK_INSUFFICIENT_MODELS",
+    "DISK_INSUFFICIENT_THUMBS",
+    "NET_UNREACHABLE",
+    "PAUSED_BY_USER",
+    "PAUSED_ERROR_RATE",
+    "PAUSED_ON_BATTERY",
+    "PAUSED_GPU_CONTENDED",
+    "PAUSED_NOT_IDLE",
+    "SOURCE_OFFLINE",
+    "FS_ROOT_UNAVAILABLE",
 )
-OpStatusLit = Literal["queued", "waiting", "running", "pausing", "paused", "cancelling", "succeeded", "failed",
-                      "cancelled", "interrupted"]
+OpStatusLit = Literal[
+    "queued", "waiting", "running", "pausing", "paused", "cancelling", "succeeded", "failed", "cancelled", "interrupted"
+]
 
 
 class OperationDTO(BaseModel):

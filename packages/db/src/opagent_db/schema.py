@@ -42,6 +42,7 @@ worker = Table(
     Column("name", Text, nullable=False),
     Column("roots", JSONB, nullable=False),
     Column("status", Text, nullable=False, server_default="online"),
+    Column("disk_free", JSONB),
     _ts("last_heartbeat_at"),
 )
 source = Table(
@@ -204,7 +205,8 @@ operation_event = Table(
     _ts("at"),
 )
 perf_observation = Table(  # 06 §5.5 / 02 §10.1
-    "perf_observation", metadata,
+    "perf_observation",
+    metadata,
     Column("id", BigInteger, primary_key=True, autoincrement=True),
     Column("worker_id", Text),
     Column("variant", Text),
@@ -215,7 +217,8 @@ perf_observation = Table(  # 06 §5.5 / 02 §10.1
     _ts("at"),
 )
 eta_calibration = Table(
-    "eta_calibration", metadata,
+    "eta_calibration",
+    metadata,
     Column("id", BigInteger, primary_key=True, autoincrement=True),
     Column("operation_id", Text, nullable=False),
     Column("op_type", Text, nullable=False),

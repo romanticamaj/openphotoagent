@@ -86,8 +86,9 @@ def shrink(prior: float, basis: str, observed: float | None, n: int) -> float:
     return (n0 * prior + n * observed) / (n0 + n)
 
 
-def select_prior(same_sig: float | None, other_sig: tuple[float, int, int] | None, registry: float | None,
-                 gpu_factor: float = 1.0) -> tuple[float | None, str]:
+def select_prior(
+    same_sig: float | None, other_sig: tuple[float, int, int] | None, registry: float | None, gpu_factor: float = 1.0
+) -> tuple[float | None, str]:
     """Prior source order (06 §5.5.3): same task_sig history, other task_sig scaled by output tokens,
     registry perf_prior x GPU factor, none (ETA-005). ``other_sig = (rate, its_tokens, this_tokens)``."""
     if same_sig is not None:
@@ -131,8 +132,9 @@ class EtaTracker:
             return "estimating"
         return "rough"
 
-    def update(self, t: float, p50: float, p10: float, p90: float, samples: int, has_prior: bool,
-               observed: bool) -> str:
+    def update(
+        self, t: float, p50: float, p10: float, p90: float, samples: int, has_prior: bool, observed: bool
+    ) -> str:
         width = (p90 - p10) / p50 if p50 > 0 else math.inf
         eligible = observed and width <= PRECISE_MAX_WIDTH and p50 < PRECISE_MAX_P50
         if not eligible:
@@ -157,9 +159,15 @@ class EtaTracker:
         limit = max(STALL_MIN_S, 5 * self._batch_interval)
         if t - self._last_progress_t <= limit:
             return None
-        return {"state": "stalled", "since_s": t - self._last_progress_t, "reason": reason,
-                "ctas": [{"id": "view_logs", "label_key": "eta.cta.view_logs"},
-                         {"id": "retry", "label_key": "eta.cta.retry"}]}
+        return {
+            "state": "stalled",
+            "since_s": t - self._last_progress_t,
+            "reason": reason,
+            "ctas": [
+                {"id": "view_logs", "label_key": "eta.cta.view_logs"},
+                {"id": "retry", "label_key": "eta.cta.retry"},
+            ],
+        }
 
 
 # ---- display (06 §5.5.6) ----
@@ -212,8 +220,9 @@ def should_update(shown: float, new: float, state: str) -> bool:
     return shown == 0 or abs(new - shown) / shown >= 0.10
 
 
-def slow_explanation(rate_obs: float, rate_prior: float, gpu_util: float, cpu_util: float,
-                     gpu_busy_external: bool) -> str | None:
+def slow_explanation(
+    rate_obs: float, rate_prior: float, gpu_util: float, cpu_util: float, gpu_busy_external: bool
+) -> str | None:
     """Honest note when much slower than the prior (ETA-013), from worker bottleneck telemetry."""
     if rate_prior <= 0 or rate_obs >= rate_prior / 2:
         return None
@@ -228,8 +237,12 @@ def display_eta(eta: dict[str, Any], status: str, waiting_reason: str | None = N
     """A paused operation shows "暫停中" and freezes its number (ETA-014)."""
     if status in ("paused", "pausing", "waiting"):
         return {"text_key": "eta.paused", "frozen": True, "p50": eta.get("p50"), "countdown": False}
-    return {"text_key": f"eta.{eta.get('state', 'estimating')}", "frozen": False, "p50": eta.get("p50"),
-            "countdown": eta.get("state") == "precise" or status == "running"}
+    return {
+        "text_key": f"eta.{eta.get('state', 'estimating')}",
+        "frozen": False,
+        "p50": eta.get("p50"),
+        "countdown": eta.get("state") == "precise" or status == "running",
+    }
 
 
 class CascadeMix:

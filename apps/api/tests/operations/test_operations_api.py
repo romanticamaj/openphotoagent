@@ -4,14 +4,22 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import func, insert, select
-
 from opagent_api.app import create_app
 from opagent_api.events import ProgressThrottle
 from opagent_api.operations import OperationWriter, complete_operation, ensure_operation, set_op_status
-from opagent_db.schema import asset, engine_for, eta_calibration, job, job_item, operation, operation_event, perf_observation, result
+from opagent_db.schema import (
+    asset,
+    engine_for,
+    eta_calibration,
+    job,
+    operation,
+    operation_event,
+    perf_observation,
+    result,
+)
 from opagent_testing.clock import FakeClock
 from opagent_worker.agent import WorkerAgent
+from sqlalchemy import func, insert, select
 
 FX = Path(__file__).resolve().parents[4] / "fixtures/photos/basic"
 
@@ -37,8 +45,15 @@ def test_op_001_long_actions_are_operations(env, sandbox_tree, tmp_path, op_type
     w = WorkerAgent(env.client, roots=sandbox_tree.roots, home=tmp_path / "w")
     w.register()
     src = env.client.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": ""}).json()
-    j = env.client.post("/api/v1/jobs", json={"kind": "organize", "source_id": src["id"], "preset": "by-date",
-                                              "target": {"root_alias": "sorted", "sub_path": ""}}).json()
+    j = env.client.post(
+        "/api/v1/jobs",
+        json={
+            "kind": "organize",
+            "source_id": src["id"],
+            "preset": "by-date",
+            "target": {"root_alias": "sorted", "sub_path": ""},
+        },
+    ).json()
     w.run_until_idle()
     plan_id = env.client.get(f"/api/v1/jobs/{j['id']}").json()["plan_id"]
     env.client.post(f"/api/v1/output-plans/{plan_id}/approve", json={})
@@ -49,7 +64,10 @@ def test_op_001_long_actions_are_operations(env, sandbox_tree, tmp_path, op_type
     mine = [o for o in ops if o["type"] == op_type]
     assert mine, [o["type"] for o in ops]
     with env.eng.begin() as c:
-        kinds = [r[0] for r in c.execute(select(operation_event.c.kind).where(operation_event.c.operation_id == mine[0]["id"]))]
+        kinds = [
+            r[0]
+            for r in c.execute(select(operation_event.c.kind).where(operation_event.c.operation_id == mine[0]["id"]))
+        ]
     assert kinds[0] == "operation.created"
     assert mine[0]["status"] == "succeeded"
 
@@ -78,8 +96,11 @@ def test_op_005_persistence_throttle(env):
     w.status("op", "pausing")  # status changes are written immediately
     with env.eng.begin() as c:
         assert c.execute(select(operation.c.status).where(operation.c.id == "op")).scalar_one() == "pausing"
-        n_progress = c.execute(select(func.count()).select_from(operation_event).where(
-            operation_event.c.operation_id == "op", operation_event.c.kind == "progress.sample")).scalar_one()
+        n_progress = c.execute(
+            select(func.count())
+            .select_from(operation_event)
+            .where(operation_event.c.operation_id == "op", operation_event.c.kind == "progress.sample")
+        ).scalar_one()
     assert n_progress <= 1  # one sample per minute, never every tick
 
 
@@ -149,14 +170,21 @@ def test_op_011_control_runs_preflight(env):
         ensure_operation(c, env.clk, "apply1", "output.apply")
         set_op_status(c, env.clk, "apply1", "running")
         set_op_status(c, env.clk, "apply1", "waiting", "DISK_INSUFFICIENT_OUTPUT")
-        c.execute(operation.update().where(operation.c.id == "apply1").values(
-            progress={"required_bytes": 5_000_000_000, "target_alias": "sorted", "worker_id": "w1"}))
+        c.execute(
+            operation.update()
+            .where(operation.c.id == "apply1")
+            .values(progress={"required_bytes": 5_000_000_000, "target_alias": "sorted", "worker_id": "w1"})
+        )
     env.client.post("/worker-api/v1/register", json={"worker_id": "w1", "roots": [{"alias": "sorted", "mode": "rw"}]})
-    env.client.post("/worker-api/v1/heartbeat", json={"worker_id": "w1", "lease_ids": [], "disk_free": {"sorted": 10**6}})
+    env.client.post(
+        "/worker-api/v1/heartbeat", json={"worker_id": "w1", "lease_ids": [], "disk_free": {"sorted": 10**6}}
+    )
     r = env.client.post("/api/v1/operations/apply1/resume")
     assert r.status_code == 409
     assert r.json()["blockers"][0]["code"] == "DISK_INSUFFICIENT_OUTPUT"
-    env.client.post("/worker-api/v1/heartbeat", json={"worker_id": "w1", "lease_ids": [], "disk_free": {"sorted": 10**11}})
+    env.client.post(
+        "/worker-api/v1/heartbeat", json={"worker_id": "w1", "lease_ids": [], "disk_free": {"sorted": 10**11}}
+    )
     assert env.client.post("/api/v1/operations/apply1/resume").status_code == 200
 
 
@@ -166,8 +194,18 @@ def test_op_015_completion_writes_observations(env):
     with env.eng.begin() as c:
         ensure_operation(c, env.clk, "j", "job.label")
         set_op_status(c, env.clk, "j", "running")
-        complete_operation(c, env.clk, "j", worker_id="w1", variant="qwen3-vl-8b@q4", items=1000, seconds=400.0,
-                           predicted_p50=380.0, predicted_p10=300.0, predicted_p90=460.0)
+        complete_operation(
+            c,
+            env.clk,
+            "j",
+            worker_id="w1",
+            variant="qwen3-vl-8b@q4",
+            items=1000,
+            seconds=400.0,
+            predicted_p50=380.0,
+            predicted_p10=300.0,
+            predicted_p90=460.0,
+        )
         obs = c.execute(select(perf_observation)).first()
         cal = c.execute(select(eta_calibration)).first()
     assert obs.items_per_s == pytest.approx(2.5) and obs.variant == "qwen3-vl-8b@q4"
@@ -180,11 +218,14 @@ def test_op_016_reorder_same_lane_only(env):
     with env.eng.begin() as c:
         for oid, lane in (("a", "gpu"), ("b", "gpu"), ("c", "download")):
             ensure_operation(c, env.clk, oid, "job.label")
-            c.execute(operation.update().where(operation.c.id == oid).values(
-                worker_id="w1", progress={"lane": lane}))
-    ok = env.client.post("/api/v1/operations/reorder", json={"worker_id": "w1", "lane": "gpu", "ordered_ids": ["b", "a"]})
+            c.execute(operation.update().where(operation.c.id == oid).values(worker_id="w1", progress={"lane": lane}))
+    ok = env.client.post(
+        "/api/v1/operations/reorder", json={"worker_id": "w1", "lane": "gpu", "ordered_ids": ["b", "a"]}
+    )
     assert ok.status_code == 200 and ok.json()["order"] == ["b", "a"]
-    bad = env.client.post("/api/v1/operations/reorder", json={"worker_id": "w1", "lane": "gpu", "ordered_ids": ["c", "a"]})
+    bad = env.client.post(
+        "/api/v1/operations/reorder", json={"worker_id": "w1", "lane": "gpu", "ordered_ids": ["c", "a"]}
+    )
     assert bad.status_code == 400
 
 
@@ -192,13 +233,40 @@ def test_op_016_reorder_same_lane_only(env):
 @pytest.mark.tc("ETA-018")
 def test_eta_018_estimate_before_start(env):
     with env.eng.begin() as c:
-        c.execute(insert(asset), [{"id": f"a{i}", "workspace_id": "default", "content_hash": f"h{i}", "size_bytes": 1}
-                                  for i in range(10_234)])
-        c.execute(insert(result), [{"id": f"r{i}", "asset_id": f"a{i}", "task_config_hash": "CFG", "model_fingerprint": "FP",
-                                    "task_type": "classify"} for i in range(3_150)])
-    r = env.client.post("/api/v1/estimates", json={"action": "job.start", "params": {
-        "kind": "label", "asset_ids": [f"a{i}" for i in range(10_234)], "unsupported": 312,
-        "task_config_hash": "CFG", "fingerprint": "FP", "download_bytes": 10_600_000_000}}).json()
+        c.execute(
+            insert(asset),
+            [
+                {"id": f"a{i}", "workspace_id": "default", "content_hash": f"h{i}", "size_bytes": 1}
+                for i in range(10_234)
+            ],
+        )
+        c.execute(
+            insert(result),
+            [
+                {
+                    "id": f"r{i}",
+                    "asset_id": f"a{i}",
+                    "task_config_hash": "CFG",
+                    "model_fingerprint": "FP",
+                    "task_type": "classify",
+                }
+                for i in range(3_150)
+            ],
+        )
+    r = env.client.post(
+        "/api/v1/estimates",
+        json={
+            "action": "job.start",
+            "params": {
+                "kind": "label",
+                "asset_ids": [f"a{i}" for i in range(10_234)],
+                "unsupported": 312,
+                "task_config_hash": "CFG",
+                "fingerprint": "FP",
+                "download_bytes": 10_600_000_000,
+            },
+        },
+    ).json()
     assert r["items"] == {"total": 10_234 + 312, "cached": 3_150, "to_process": 7_084, "skipped_unsupported": 312}
     assert [b["phase"] for b in r["breakdown"]] == ["model_download", "model_load", "embed", "infer", "postprocess"]
     dl = r["breakdown"][0]

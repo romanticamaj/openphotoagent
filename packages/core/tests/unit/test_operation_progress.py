@@ -2,7 +2,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from opagent_core.operation import Elapsed, Phase, job_label_fraction, parent_fraction, phase_fraction
 
 LOCALES = Path(__file__).resolve().parents[4] / "packages/i18n/locales"
@@ -18,8 +17,10 @@ def test_op_002_phase_weights_static_time_and_skipped():
     assert phase_fraction(ph) == pytest.approx((2 + 3 + 0.5 * 75) / 100)
     ph[2].status = "skipped"  # model already loaded: its weight is redistributed
     assert phase_fraction(ph) == pytest.approx((2 + 3 + 0.5 * 75) / 95)
-    timed = [Phase("a", 50, est_seconds=10, status="done"), Phase("b", 50, est_seconds=30, status="running",
-                                                                  fraction=0.5)]
+    timed = [
+        Phase("a", 50, est_seconds=10, status="done"),
+        Phase("b", 50, est_seconds=30, status="running", fraction=0.5),
+    ]
     assert phase_fraction(timed) == pytest.approx((10 + 15) / 40)
 
 
@@ -56,18 +57,30 @@ def test_op_013_elapsed_excludes_pauses():
     assert Elapsed.clock_text(3725_000) == "1:02:05" and Elapsed.clock_text(724_000) == "12:04"
 
 
-WAITING = ["QUEUED_BEHIND", "WAITING_GPU_SLOT", "WAITING_MODEL_DOWNLOAD", "WAITING_MODEL_LOAD", "WORKER_OFFLINE",
-           "DISK_INSUFFICIENT_OUTPUT", "DISK_INSUFFICIENT_MODELS", "DISK_INSUFFICIENT_THUMBS", "NET_UNREACHABLE",
-           "PAUSED_BY_USER", "PAUSED_ERROR_RATE", "PAUSED_ON_BATTERY", "PAUSED_GPU_CONTENDED", "PAUSED_NOT_IDLE",
-           "SOURCE_OFFLINE"]
+WAITING = [
+    "QUEUED_BEHIND",
+    "WAITING_GPU_SLOT",
+    "WAITING_MODEL_DOWNLOAD",
+    "WAITING_MODEL_LOAD",
+    "WORKER_OFFLINE",
+    "DISK_INSUFFICIENT_OUTPUT",
+    "DISK_INSUFFICIENT_MODELS",
+    "DISK_INSUFFICIENT_THUMBS",
+    "NET_UNREACHABLE",
+    "PAUSED_BY_USER",
+    "PAUSED_ERROR_RATE",
+    "PAUSED_ON_BATTERY",
+    "PAUSED_GPU_CONTENDED",
+    "PAUSED_NOT_IDLE",
+    "SOURCE_OFFLINE",
+]
 
 
 @pytest.mark.contract
 @pytest.mark.tc("OP-017")
 def test_op_017_waiting_reason_catalog_and_schema():
-    from pydantic import ValidationError
-
     from opagent_schemas.operation import WAITING_REASONS, OperationDTO
+    from pydantic import ValidationError
 
     assert set(WAITING) <= set(WAITING_REASONS)
     for lang in ("zh-TW", "en"):
