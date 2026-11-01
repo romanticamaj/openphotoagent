@@ -51,6 +51,7 @@ class RenderValues:
 class RenderResult:
     rel: str
     date_source: DateSource | None
+    casefold_key: str = ""
 
 
 @dataclass(frozen=True)
