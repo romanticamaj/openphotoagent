@@ -1,5 +1,4 @@
 import pytest
-
 from opagent_worker.known_folders import default_output_dir
 
 
@@ -9,7 +8,10 @@ def test_org_003_windows_uses_known_folder_including_onedrive_redirect():
     redirected = r"C:\Users\amy\OneDrive\圖片"
     got = default_output_dir("windows", "zh-TW", known_folder=lambda fid: redirected, home=r"C:\Users\amy")
     assert got == redirected + "\\OpenPhotoAgent 整理結果"
-    assert default_output_dir("windows", "en", known_folder=lambda fid: r"D:\Pics", home="x") == r"D:\Pics\OpenPhotoAgent Sorted"
+    assert (
+        default_output_dir("windows", "en", known_folder=lambda fid: r"D:\Pics", home="x")
+        == r"D:\Pics\OpenPhotoAgent Sorted"
+    )
 
 
 @pytest.mark.integration
@@ -27,9 +29,14 @@ def test_org_003_linux_xdg_and_fallback():
     def missing(cmd):
         raise FileNotFoundError
 
-    assert default_output_dir("linux", "en", run=missing, home="/home/amy") == "/home/amy/Pictures/OpenPhotoAgent Sorted"
+    assert (
+        default_output_dir("linux", "en", run=missing, home="/home/amy") == "/home/amy/Pictures/OpenPhotoAgent Sorted"
+    )
     # xdg-user-dir prints $HOME when PICTURES is unset: do not dump results into the home directory itself
-    assert default_output_dir("linux", "en", run=lambda c: "/home/amy\n", home="/home/amy") == "/home/amy/Pictures/OpenPhotoAgent Sorted"
+    assert (
+        default_output_dir("linux", "en", run=lambda c: "/home/amy\n", home="/home/amy")
+        == "/home/amy/Pictures/OpenPhotoAgent Sorted"
+    )
 
 
 @pytest.mark.integration
