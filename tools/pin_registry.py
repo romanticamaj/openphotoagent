@@ -41,14 +41,14 @@ def main() -> int:
             for repo in sorted(repos):
                 try:
                     info = api.model_info(repo, revision=ref, files_metadata=True)
-                except Exception as e:  # noqa: BLE001 - report every unresolved repo
+                except Exception as e:
                     problems.append(f"{spec['id']}@{v['id']}: {repo}@{ref}: {e}")
                     break
                 revision = revision or info.sha
                 by_name = {s.rfilename: s for s in info.siblings or []}
                 for f in (f for f in v["files"] if f["repo"] == repo):
                     s = by_name.get(f["path"])
-                    if s is None or s.lfs is None and s.size is None:
+                    if s is None or (s.lfs is None and s.size is None):
                         problems.append(f"{spec['id']}@{v['id']}: {repo}/{f['path']} not found at {info.sha}")
                         continue
                     sha = s.lfs.sha256 if s.lfs else None
