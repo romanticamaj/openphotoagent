@@ -50,6 +50,7 @@ class HfServer:
     repo: str
     files: list[HfFile]
     scenario: str = "ok"
+    more: dict[str, list[HfFile]] = field(default_factory=dict)  # additional repos served by the same host
     rate_bps: float | None = None
     requests: list[dict[str, Any]] = field(default_factory=list)
     _httpd: ThreadingHTTPServer | None = None
@@ -65,6 +66,9 @@ class HfServer:
 
     def bytes_served(self, path_prefix: str = "/cdn/") -> int:
         return sum(int(r.get("sent", 0)) for r in self.requests if str(r["path"]).startswith(path_prefix))
+
+    def repos(self) -> dict[str, list[HfFile]]:
+        return {self.repo: self.files, **self.more}
 
     def gets(self) -> list[dict[str, Any]]:
         return [r for r in self.requests if r["method"] == "GET"]
@@ -117,25 +121,28 @@ class HfServer:
 
             def _route(self, rec: dict[str, Any]) -> None:
                 sc = srv.scenario
-                if self.path.startswith(f"/api/models/{srv.repo}"):
+                repos = srv.repos()
+                api_repo = next((r for r in repos if self.path.startswith(f"/api/models/{r}")), None)
+                if api_repo is not None:
                     if sc == "401":
                         return self._json(401, {"error": "Invalid credentials"})
                     self._json(
                         200,
                         {
-                            "id": srv.repo,
+                            "id": api_repo,
                             "sha": "0123456789abcdef0123456789abcdef01234567",
                             "siblings": [
                                 {"rfilename": f.path, "size": f.size, "lfs": {"sha256": f.sha256, "size": f.size}}
-                                for f in srv.files
+                                for f in repos[api_repo]
                             ],
                         },
                     )
                     return None
-                if self.path.startswith(f"/{srv.repo}/resolve/"):
-                    rest = self.path[len(f"/{srv.repo}/resolve/") :]
+                res_repo = next((r for r in repos if self.path.startswith(f"/{r}/resolve/")), None)
+                if res_repo is not None:
+                    rest = self.path[len(f"/{res_repo}/resolve/") :]
                     _rev, _, path = rest.partition("/")
-                    f = next((x for x in srv.files if x.path == path), None)
+                    f = next((x for x in repos[res_repo] if x.path == path), None)
                     if sc == "401":
                         return self._json(401, {"error": "Invalid credentials"})
                     if sc == "403-gated":
@@ -153,7 +160,7 @@ class HfServer:
                     return None
                 if self.path.startswith("/cdn/"):
                     sha = self.path[5:]
-                    f = next((x for x in srv.files if x.sha256 == sha), None)
+                    f = next((x for fs in srv.repos().values() for x in fs if x.sha256 == sha), None)
                     if f is None:
                         return self._json(404, {})
                     data = f.content()

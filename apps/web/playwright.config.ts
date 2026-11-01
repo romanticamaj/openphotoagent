@@ -11,7 +11,7 @@ export default defineConfig({
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], locale: "zh-TW" } }],
   webServer: {
     command: "node e2e/server.mjs",
-    url: `http://127.0.0.1:${port}/api/v1/capabilities`,
+    url: `http://127.0.0.1:${port}/__e2e/ready`,
     timeout: 120_000,
     reuseExistingServer: false,
   },
