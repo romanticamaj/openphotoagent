@@ -345,3 +345,32 @@ def test_srch_sem_003_pipeline_stores_vectors_and_reindex_fills_gaps(embedded_pg
         if not w.run_once():
             break
     assert client.get("/api/v1/search-index").json()["searchable"] == 6
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-FAC-005")
+def test_srch_fac_005_total_facets_and_selection_cover_every_match(s):
+    """Regression (ADR-0005): more than 200 keyword matches — total, facets and "select all" are the whole match set,
+    not the 200-per-route ranking window; paging has no gaps or duplicates across the window boundary."""
+    for i in range(330):
+        s.add(i, caption="beach day", tags=["beach"], vec=False, taken=datetime(2023 + i % 2, 6, 1, tzinfo=UTC))
+    for i in range(330, 360):
+        s.add(i, caption="mountain", tags=["hike"], vec=False)
+    s.index()
+    ref = s.sql("select count(*) from search_doc where tsv @@ to_tsquery('simple', 'beach')").scalar_one()
+    assert ref == 330
+    r = s.search(q="beach", semantic=False, facets=["year", "tags"], limit=100)
+    assert r["total"] == 330
+    assert sum(r["facets"]["year"].values()) == 330 and max(r["facets"]["tags"].values()) == 330  # canonical key
+    seen, cur = [], None
+    while True:
+        page = s.search(q="beach", semantic=False, limit=100, cursor=cur)
+        seen += [x["asset_id"] for x in page["items"]]
+        cur = page["next_cursor"]
+        if not cur:
+            break
+    assert len(seen) == 330 and len(set(seen)) == 330
+    sel = s.client.post("/api/v1/selections", json={"query": {"q": "beach", "semantic": False}}).json()
+    assert sel["count"] == 330
+    upd = s.client.post(f"/api/v1/selections/{sel['id']}/labels", json={"tags": ["海邊"]}).json()
+    assert upd["updated"] == 330

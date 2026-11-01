@@ -708,6 +708,7 @@
 | SRCH-FAC-002 | 日期來源 | 含 `date_source=mtime` 的照片 | facet 計入並可用 `date_source` 篩選 | I | #40 |
 | SRCH-FAC-003 | facet 同 pre-filter | 限定某資料夾範圍 | facet 計數只含範圍內；範圍外不可推知 | I/S | — |
 | SRCH-FAC-004 | 分頁游標 | 第 2 頁游標被竄改 | 400（簽章驗證失敗）；正常游標在資料新增後不重複不遺漏 | I/S | — |
+| SRCH-FAC-005 | 結果集合＝全部符合（ADR-0005，回歸） | 330 張含「beach」（> 每路 200） | `total`＝SQL 參考計數 330；facet 加總＝330；翻頁無重複無遺漏；全選 selection 計數＝330，批次標籤恰好套用 330 張 | I | #64、#91 |
 | SRCH-SEM-001 | 以文搜圖 | `fb:vectors(deterministic)`：查詢向量與 `img:semantic` 中「狗 + 海灘」最近 | top-5 含全部 3 張目標；nightly 真 SigLIP2 英文查詢 `a dog on the beach` 的 recall@10 ≥ 0.8（**待 M0 確認**） | I/N | #64 |
 | SRCH-SEM-002 | Worker 離線降級 | 停止 worker | 文字搜尋照常；回應 `notice=degraded_search`；UI 顯示 | I | #64 |
 | SRCH-SEM-003 | 索引進度 | 30,000 張中 12,300 有向量 | UI「已可搜尋 12,300 / 30,000 張」；`SEARCH_INDEX_INCOMPLETE` warning | I/E | DoD 5.4 |

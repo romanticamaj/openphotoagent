@@ -17,6 +17,7 @@
 | 索引組成 | 一張反正規化的 `search_doc`（facet 欄位 + `tsvector`）＋ `asset_embedding`（多 embedding space，帶 `space_id` = 模型版本）。四路檢索：**影像向量**（SigLIP2，跨模態以文搜圖）、**caption 文字向量**（多語 text embedding，v1）、**全文**（應用層 jieba 繁中斷詞 + CJK bigram，寫進 `simple` tsvector）、**結構化 facet**（tag / category / 日期 / 地點 / 相機 / 資料夾 / 重複群組）。 |
 | 繁中全文 | **應用層斷詞**（jieba + 繁中詞典 + label set/地名自訂詞 + OpenCC 簡繁正規化）＋ 同一 tsvector 內附 CJK 字元 bigram 當召回保底。不需要任何非內建 extension；`pg_trgm`（內建 contrib）用於檔名/英文 typo；`pg_bigm`、ParadeDB `pg_search`（真 BM25）列為可選 backend。 |
 | Hybrid | 每路檢索先套**同一組權限 + filter**（pre-filter），各取 top-200，用 **RRF（k=60，帶權重）**融合；可選 VLM rerank top-20～50（在 Worker 跑）。 |
+| 結果集合 vs 排序（ADR-0005） | **集合 M**＝全文符合 ∪ 標籤符合 ∪ 向量 top-200（不設分數門檻）；`total`、facet、selection 都以 M 為準。**排序**：各路 top-200 的 RRF 視窗在前，M 其餘部分依（拍攝時間、asset_id）穩定排列在後；翻頁無重複、無遺漏。純向量查詢 total＝200 |
 | Query planner | 預設規則式（日期/地名/tag 詞典比對）；可選本地 LLM（Worker interactive lane，structured output）。**透過 MCP 呼叫時，外部 agent 自己就是 planner**：tool schema 直接暴露結構化 filter。 |
 | Reindex | embedding 以 `embedding_space`（= model_version + modality + dim）區分，藍綠切換：backfill → `CREATE INDEX CONCURRENTLY` → 原子切換 workspace 的 `search_profile` → 保留舊 space N 天。 |
 | 規模 | 1152 維 halfvec + HNSW(m=16, ef_construction=128)：10 萬張 ≈ 0.5 GB、100 萬張 ≈ 4–5 GB（單一 space，估算）。 |
