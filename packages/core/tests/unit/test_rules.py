@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pytest
-
 from opagent_core.rules import Rule, RuleError, compile_when, evaluate, final_label, load_preset, validate_custom
 
 PRESETS = Path(__file__).resolve().parents[4] / "presets/builtin"

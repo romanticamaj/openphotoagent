@@ -5,12 +5,11 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import Any
 
-from sqlalchemy import and_, func, select, text, update
-from sqlalchemy.dialects.postgresql import insert as pg_insert
-
 from opagent_core.config_hash import config_hash
 from opagent_core.ids import uuid7
 from opagent_db.schema import job, job_item, metric, result
+from sqlalchemy import and_, func, select, text, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 LEASE_S = 120
 BACKOFF_S = (10, 60, 300)  # 02 §4.3: transient retries 10 s, 60 s, 5 min

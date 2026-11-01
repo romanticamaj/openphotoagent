@@ -153,7 +153,7 @@ class WorkerAgent:
                 buf = io.BytesIO()
                 pic.save(buf, "JPEG", quality=90)
             return ImageInput(item_id=it["id"], content_hash=content_hash(sp.real), data=buf.getvalue()), None
-        except Exception:  # noqa: BLE001 - unreadable source: permanent failure for this item
+        except Exception:
             return None, self._fail(it, "DECODE_FAILED", retryable=False)
 
     def _fail(self, it: dict[str, Any], code: str, retryable: bool) -> dict[str, Any]:

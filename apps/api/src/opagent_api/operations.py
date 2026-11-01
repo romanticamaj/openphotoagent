@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from sqlalchemy import insert, select, update
-
 from opagent_core.operation import OP_TRANSITIONS, OpStatus
 from opagent_db.schema import operation, operation_event
+from sqlalchemy import insert, select, update
 
 # job status -> operation status path (06 §5.1: the Job is projected to an Operation 1:1)
 _PROJECTION = {

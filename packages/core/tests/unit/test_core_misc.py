@@ -5,7 +5,6 @@ import uuid
 from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
-
 from opagent_core.clock import SystemClock
 from opagent_core.config_hash import ConfigError, canonical_json
 from opagent_core.decide import Policy, Stage, VlmResult, decide, route_embedding, temperature_softmax

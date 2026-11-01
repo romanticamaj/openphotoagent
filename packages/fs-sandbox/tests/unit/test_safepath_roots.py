@@ -2,9 +2,8 @@ import os
 import unicodedata
 
 import pytest
-
 from opagent_fs.executor import Action, effective_op
-from opagent_fs.safepath import PathViolation, RootConfig, RootUnavailable, RootNotAllowed, Sandbox
+from opagent_fs.safepath import PathViolation, RootConfig, RootNotAllowed, RootUnavailable, Sandbox
 
 
 @pytest.fixture

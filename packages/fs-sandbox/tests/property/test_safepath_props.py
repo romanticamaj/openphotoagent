@@ -5,7 +5,6 @@ from pathlib import Path
 import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
-
 from opagent_fs.safepath import PathViolation, RootConfig, Sandbox, is_within
 
 SEGMENTS = st.one_of(

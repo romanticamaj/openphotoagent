@@ -1,5 +1,4 @@
 import pytest
-
 from opagent_core.decide import Stage, VlmResult, decide, route_embedding
 
 EMB_HI = Stage({"food": 0.86, "pets": 0.64, "travel": 0.10, "people": 0.05})  # margin 0.22

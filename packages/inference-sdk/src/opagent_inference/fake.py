@@ -8,14 +8,13 @@ predictable organize results. Never touches the filesystem or the clock.
 from __future__ import annotations
 
 import hashlib
-
 from typing import Any
 
 from .types import (
-    InferenceError,
     BackendInfo,
     BatchRequest,
     HealthStatus,
+    InferenceError,
     ItemOutput,
     LoadOptions,
     ModelUnavailable,

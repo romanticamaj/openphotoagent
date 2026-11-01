@@ -6,7 +6,6 @@ from pathlib import Path
 
 import blake3
 import pytest
-
 from opagent_core.planner import PlannedAction, assign_collisions
 from opagent_fs.executor import Action, Executor
 from opagent_fs.fsops import RealFs

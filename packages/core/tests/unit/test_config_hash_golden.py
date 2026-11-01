@@ -2,7 +2,6 @@ import json
 from pathlib import Path
 
 import pytest
-
 from opagent_core.config_hash import cache_key, config_hash
 
 GOLDEN = Path(__file__).resolve().parents[4] / "fixtures/golden/config_hash.json"

@@ -1,9 +1,8 @@
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import func, select
-
 from opagent_api.app import create_app
 from opagent_db.schema import engine_for, journal_mirror
+from sqlalchemy import func, select
 
 
 @pytest.mark.integration

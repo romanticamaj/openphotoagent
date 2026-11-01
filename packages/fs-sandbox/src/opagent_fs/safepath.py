@@ -27,7 +27,7 @@ CASE_INSENSITIVE_FS = sys.platform in ("darwin", "win32")  # APFS / NTFS default
 _RESERVED = {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)), *(f"LPT{i}" for i in range(1, 10))}
 
 
-class PathViolation(Exception):  # noqa: N818 - name from 09a FS-*
+class PathViolation(Exception):
     code = "PATH_VIOLATION"
     retryable = False  # permanent (FS-020)
 
@@ -38,12 +38,12 @@ class PathViolation(Exception):  # noqa: N818 - name from 09a FS-*
         self.rel = rel
 
 
-class RootNotAllowed(Exception):  # noqa: N818
+class RootNotAllowed(Exception):
     code = "FS_ROOT_NOT_ALLOWED"
     retryable = False
 
 
-class RootUnavailable(Exception):  # noqa: N818
+class RootUnavailable(Exception):
     code = "FS_ROOT_UNAVAILABLE"
     retryable = True
 
@@ -179,7 +179,7 @@ class Sandbox:
         parts = list(p.real.relative_to(root).parts)
         if sys.platform == "win32":  # exercised by the Windows CI runner (os-matrix)
             self.resolve(p.alias, p.rel)
-            return open(root.joinpath(*parts), "rb")  # noqa: SIM115
+            return open(root.joinpath(*parts), "rb")
         nofollow = os.O_NOFOLLOW
         dfd = os.open(root, os.O_RDONLY | os.O_DIRECTORY)
         try:

@@ -1,7 +1,6 @@
 import os
 
 import pytest
-
 from opagent_fs.safepath import PathViolation, RootConfig, Sandbox
 
 
@@ -94,9 +93,8 @@ def test_fs_012_toctou_swap_dir_for_symlink(sb, sandbox_tree):
     # attacker swaps the directory for a symlink after resolve, before open
     os.rename(d, sandbox_tree.photos / "dir.old")
     os.symlink(sandbox_tree.outside, d)
-    with pytest.raises(PathViolation) as e:
-        with sb.open_read(p):
-            pass
+    with pytest.raises(PathViolation) as e, sb.open_read(p):
+        pass
     assert e.value.reason in ("symlink", "escape")
 
 

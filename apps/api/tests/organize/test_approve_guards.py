@@ -1,9 +1,8 @@
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import insert
-
 from opagent_api.app import create_app
 from opagent_db.schema import asset, engine_for, job, output_action, output_plan
+from sqlalchemy import insert
 
 
 def _plan_with_moves(dsn: str, n_moves: int) -> str:

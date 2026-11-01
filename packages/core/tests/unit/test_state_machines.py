@@ -1,7 +1,6 @@
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
-
 from opagent_core.operation import (
     OP_TRANSITIONS,
     IllegalOpTransition,

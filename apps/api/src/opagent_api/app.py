@@ -27,9 +27,8 @@ def create_app(
     @app.get("/metrics", include_in_schema=False)
     def metrics() -> Any:
         from fastapi.responses import PlainTextResponse
-        from sqlalchemy import select
-
         from opagent_db.schema import metric
+        from sqlalchemy import select
 
         with st.engine.begin() as c:
             rows = c.execute(select(metric.c.name, metric.c.value)).all()

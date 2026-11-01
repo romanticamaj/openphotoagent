@@ -7,8 +7,7 @@ import unicodedata
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
-
-from opagent_core.config_hash import ConfigError, cache_key, canonical_json, config_hash, model_fingerprint
+from opagent_core.config_hash import ConfigError, canonical_json, config_hash, model_fingerprint
 
 BASE = {
     "task_type": "classify",

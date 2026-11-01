@@ -3,11 +3,10 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import select
-
 from opagent_api.app import create_app
 from opagent_db.schema import asset_location, engine_for
 from opagent_worker.agent import WorkerAgent
+from sqlalchemy import select
 
 FX = Path(__file__).resolve().parents[4] / "fixtures/photos"
 

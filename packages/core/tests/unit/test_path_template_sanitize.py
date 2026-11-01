@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
 import pytest
-
 from opagent_core.path_template import RenderValues, compile_template, render, sanitize_segment
 
 TW = timezone(timedelta(hours=8))

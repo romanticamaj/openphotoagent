@@ -2,7 +2,6 @@ import unicodedata
 from datetime import datetime, timedelta, timezone
 
 import pytest
-
 from opagent_core.path_template import (
     PathTooLong,
     RenderValues,

@@ -20,7 +20,6 @@ from pathlib import Path
 from typing import Any, Literal
 
 import blake3
-
 from opagent_core.planner import suffixed
 
 from .crash import crash_point
@@ -70,7 +69,7 @@ def _is_lock_error(e: OSError) -> bool:
     return e.errno in (errno.EBUSY, errno.ETXTBSY) or getattr(e, "winerror", None) in (32, 33)
 
 
-class _Wait(Exception):  # noqa: N818 - control flow: stop applying and wait (06 §5.5.7)
+class _Wait(Exception):
     def __init__(self, reason: str) -> None:
         super().__init__(reason)
         self.reason = reason

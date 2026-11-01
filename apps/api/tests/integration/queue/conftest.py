@@ -2,11 +2,10 @@ from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import insert
-
 from opagent_api.app import create_app
 from opagent_db.schema import asset, engine_for, job, job_item
 from opagent_testing.clock import FakeClock
+from sqlalchemy import insert
 
 CFG = {"task_type": "classify", "prompt_template_ref": "builtin:fused_v1", "label_set": "builtin-12@1",
        "generation_params": {"temperature": 0}}

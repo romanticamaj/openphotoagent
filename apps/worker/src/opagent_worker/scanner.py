@@ -23,10 +23,9 @@ from typing import Any
 import blake3
 from opagent_core.path_template import DateSource
 from opagent_fs.safepath import Sandbox
+from PIL import Image
 
 from .imaging import RawPreviewMissing, dhash, open_image, oriented, phash, thumbhash_encode, write_thumbnails
-
-from PIL import Image  # noqa: E402
 
 __all__ = ["Image", "dhash", "phash", "thumbhash_encode"]
 

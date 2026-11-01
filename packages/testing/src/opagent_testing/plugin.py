@@ -108,7 +108,7 @@ class ApiServer:
         self.server = uvicorn.Server(self.config)
         self.thread = threading.Thread(target=self.server.run, daemon=True)
 
-    def __enter__(self) -> "ApiServer":
+    def __enter__(self) -> ApiServer:
         self.thread.start()
         import time
 

@@ -5,7 +5,6 @@ from pathlib import Path
 
 import blake3
 import pytest
-
 from opagent_fs.executor import Action, Executor
 from opagent_fs.fsops import RealFs
 from opagent_fs.journal import Journal

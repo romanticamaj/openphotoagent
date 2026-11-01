@@ -4,7 +4,6 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
-
 from opagent_core.path_template import RenderValues, compile_template, render
 
 D = datetime(2025, 7, 14, 10, 0, tzinfo=timezone(timedelta(hours=8)))

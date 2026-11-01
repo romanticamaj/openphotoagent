@@ -6,10 +6,9 @@ import sys
 from pathlib import Path
 
 import blake3
-import pytest
-
 import opagent_fs.fsops as fsops
 import opagent_fs.safepath as sp
+import pytest
 from opagent_fs import crash
 from opagent_fs.executor import Action, Executor
 from opagent_fs.fsops import RealFs

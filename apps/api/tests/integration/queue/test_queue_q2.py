@@ -3,9 +3,8 @@ from pathlib import Path
 
 import httpx
 import pytest
-from sqlalchemy import func, insert, select
-
 from opagent_db.schema import job, job_item, operation, result
+from sqlalchemy import func, insert, select
 
 CFG = {"task_type": "classify", "prompt_template_ref": "builtin:fused_v1", "label_set": "builtin-12@1",
        "generation_params": {"temperature": 0}}
@@ -55,7 +54,6 @@ def test_q_010_immediate_pause_returns_leases(q):
 @pytest.mark.tc("Q-011")
 def test_q_011_restart_continues_from_db(q, sandbox_tree, tmp_path):
     from fastapi.testclient import TestClient
-
     from opagent_api.app import create_app
     from opagent_inference.fake import FakeBackend
     from opagent_worker.agent import WorkerAgent

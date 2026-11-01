@@ -54,7 +54,7 @@ class OpStatus(StrEnum):
     interrupted = "interrupted"
 
 
-class IllegalOpTransition(Exception):  # noqa: N818
+class IllegalOpTransition(Exception):
     pass
 
 

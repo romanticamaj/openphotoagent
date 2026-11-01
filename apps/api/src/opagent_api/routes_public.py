@@ -6,7 +6,6 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 from opagent_core.ids import uuid7
-from opagent_core.decide import Stage
 from opagent_core.state_machine import JobStatus
 from opagent_db.schema import job, job_item, output_action, output_plan, result, source, worker, worker_task
 from pydantic import BaseModel, Field
@@ -283,15 +282,19 @@ def reapply(job_id: str, body: ReapplyIn, req: Request) -> dict[str, Any]:
     """Only thresholds changed: re-run postprocess over stored results; no job items, no inference (Q-015)."""
     from collections import Counter
 
-    from opagent_core.decide import Policy, VlmResult, decide
+    from opagent_core.decide import Policy, redecide
 
     st = _st(req)
     pol = Policy(accept=body.thresholds.get("accept", 0.80), review=body.thresholds.get("review", 0.50))
     with st.engine.begin() as c:
-        rows = c.execute(select(result.c.category, result.c.confidence).join(
+        rows = c.execute(select(result.c.category, result.c.confidence, result.c.raw).join(
             job_item, job_item.c.result_id == result.c.id).where(job_item.c.job_id == job_id)).all()
-    counts = Counter(decide(emb=Stage({r.category: r.confidence or 0.0}), vlm=VlmResult(r.category, r.confidence or 0.0),
-                            policy=pol).decision for r in rows)
+    counts: Counter[str] = Counter()
+    for r in rows:  # pure recompute from stored stages (CORE-THR-017, ADR-0001)
+        out = (r.raw or {}).get("output") or {}
+        stages = {"emb": out.get("scores"), "n_examples": out.get("n_examples", 1)} if out.get("stage") == "embedding" \
+            else {"vlm": {"category": r.category, "p": r.confidence or 0.0}}
+        counts[redecide(stages, pol).decision] += 1
     return {"job_id": job_id, "decisions": dict(counts)}
 
 

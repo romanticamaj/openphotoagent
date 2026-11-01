@@ -4,10 +4,9 @@ import httpx
 import pytest
 from hypothesis import given
 from hypothesis import strategies as st
-from sqlalchemy import func, select
-
 from opagent_core.queue_model import COUNTED, ItemModel
 from opagent_db.schema import result
+from sqlalchemy import func, select
 
 
 def ok(item, cat="food", conf=0.9, key=None):
@@ -113,11 +112,11 @@ def test_q_006_transient_backoff_10s_60s(q):
 @pytest.mark.integration
 @pytest.mark.tc("Q-007")
 def test_q_007_oom_halves_batch(q, tmp_path, sandbox_tree):
-    from opagent_inference.fake import FakeBackend
-    from opagent_worker.agent import WorkerAgent
-
     import shutil
     from pathlib import Path
+
+    from opagent_inference.fake import FakeBackend
+    from opagent_worker.agent import WorkerAgent
 
     fx = Path(__file__).resolve().parents[5] / "fixtures/photos/basic"
     for i in range(16):

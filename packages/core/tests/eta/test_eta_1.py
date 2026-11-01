@@ -1,7 +1,6 @@
 import math
 
 import pytest
-
 from opagent_core.eta import (
     BytesRate,
     EtaTracker,
