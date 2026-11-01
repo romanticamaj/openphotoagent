@@ -19,7 +19,7 @@ Thanks for your interest! OpenPhotoAgent is in its **design phase**, so this is 
 - **Discuss before large PRs.** Open an issue first so we can agree on the approach.
 - **Never commit photos, model weights or secrets.** Test fixtures must be CC0 or your own images, and `.gitignore` already blocks the common cases.
 - **Safety first for file operations.** Anything that moves or deletes files must go through the plan → approve → journal → execute flow ([docs/02 §6](docs/02-system-architecture.md)), and must come with tests.
-- Use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:` …).
+- Use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, `docs:` …). PR titles become squash-merge commits, which drive versioning and the changelog (see [VERSIONING.md](VERSIONING.md)).
 - By contributing, you agree that your contributions are licensed under [Apache-2.0](LICENSE).
 
 ## Development setup

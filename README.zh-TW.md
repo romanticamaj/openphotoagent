@@ -10,6 +10,7 @@
 
 **選一個資料夾、挑一個模型，就能為照片產生描述、標籤和分類。接著可以自動整理進資料夾、用自然語言搜尋，或透過 MCP 交給任何 AI agent 使用。**
 
+[![Release](https://img.shields.io/github/v/release/romanticamaj/openphotoagent?include_prereleases&style=flat-square&color=F5A524&label=release)](https://github.com/romanticamaj/openphotoagent/releases)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-F5A524?style=flat-square)](LICENSE)
 [![Status: design phase](https://img.shields.io/badge/status-%E8%A8%AD%E8%A8%88%E9%9A%8E%E6%AE%B5-8A7F74?style=flat-square)](#-路線圖)
 [![Self-hosted](https://img.shields.io/badge/%E8%87%AA%E6%9E%B6-100%25%20%E5%9C%B0%E7%AB%AF-3B5B6E?style=flat-square)](#-隱私優先的設計)
@@ -230,7 +231,7 @@ open http://localhost:8080               # 首次啟動會偵測 GPU 並推薦�
 
 ## 🗺 路線圖
 
-- [x] **設計：** 競品調查、系統架構、推論層、UX、搜尋與 MCP 規格
+- [x] **設計** · [`v0.0.1`](https://github.com/romanticamaj/openphotoagent/releases/tag/v0.0.1)：競品調查、系統架構、推論層、UX、搜尋與 MCP 規格
 - [ ] **M0 · Spike：** 在 RTX 5070 Ti 上實測 vLLM + Qwen3-VL-8B FP8 和 SigLIP 2，並驗證繁中 zero-shot 的品質
 - [ ] **v0.1 · MVP：** all-in-one compose、建立任務精靈、Caption / Tag / 分類、dry-run → 核准 → undo、覆核佇列、照片瀏覽
 - [ ] **v0.2 · 搜尋 + MCP：** 混合搜尋、以圖搜圖、找重複、`stdio` MCP server、監看資料夾自動處理
@@ -270,6 +271,8 @@ open http://localhost:8080               # 首次啟動會偵測 GPU 並推薦�
 - 🌐 **翻譯：** 把設計文件翻成英文
 
 詳見 [CONTRIBUTING.md](CONTRIBUTING.md)。安全性問題請看 [SECURITY.md](SECURITY.md)。
+
+版本遵循 [SemVer](VERSIONING.md)，依 [Conventional Commits](https://www.conventionalcommits.org/) 自動發版；每個版本的變更請看 [CHANGELOG.md](CHANGELOG.md)。
 
 ## 📄 授權
 

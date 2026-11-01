@@ -10,6 +10,7 @@
 
 **Point it at a folder of photos. Pick a model. Get captions, tags and categories, then sort everything into folders, search it in plain language, or hand it to any AI agent over MCP.**
 
+[![Release](https://img.shields.io/github/v/release/romanticamaj/openphotoagent?include_prereleases&style=flat-square&color=F5A524&label=release)](https://github.com/romanticamaj/openphotoagent/releases)
 [![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-F5A524?style=flat-square)](LICENSE)
 [![Status: design phase](https://img.shields.io/badge/status-design%20phase-8A7F74?style=flat-square)](#-roadmap)
 [![Self-hosted](https://img.shields.io/badge/self--hosted-100%25%20local-3B5B6E?style=flat-square)](#-privacy-by-design)
@@ -230,7 +231,7 @@ Requirements: NVIDIA GPU with 8 GB+ VRAM (16 GB recommended), recent driver with
 
 ## 🗺 Roadmap
 
-- [x] **Design:** prior-art survey, architecture, inference layer, UX, search & MCP specs
+- [x] **Design** · [`v0.0.1`](https://github.com/romanticamaj/openphotoagent/releases/tag/v0.0.1): prior-art survey, architecture, inference layer, UX, search & MCP specs
 - [ ] **M0 · Spike:** measure vLLM + Qwen3-VL-8B FP8 and SigLIP 2 on an RTX 5070 Ti, and test Traditional Chinese zero-shot quality
 - [ ] **v0.1 · MVP:** all-in-one compose, New Job wizard, Caption / Tag / Classify, dry-run → approve → undo, review queue, gallery
 - [ ] **v0.2 · Search + MCP:** hybrid search, search-by-image, duplicates, `stdio` MCP server, watch folders
@@ -272,6 +273,8 @@ Early contributors can shape the project. Good first areas:
 - 🌐 **Translation:** the design docs into English
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Security issues: [SECURITY.md](SECURITY.md).
+
+Releases follow [SemVer](VERSIONING.md) and are cut automatically from [Conventional Commits](https://www.conventionalcommits.org/). See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 
 ## 📄 License
 
