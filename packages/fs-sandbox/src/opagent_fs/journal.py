@@ -83,9 +83,28 @@ class Journal:
         self._insert(row[0], row[1], row[2], "done", {}, {}, post_state, ref=seq)
         self._emit("journal.done")
 
-    def record(self, plan_id: str, action_id: str, op: str, phase: str, post_state: dict[str, Any]) -> None:
-        self._insert(plan_id, action_id, op, phase, {}, {}, post_state)
+    def record(self, plan_id: str, action_id: str, op: str, phase: str, post_state: dict[str, Any],
+               ref: int | None = None) -> None:
+        self._insert(plan_id, action_id, op, phase, {}, {}, post_state, ref=ref)
         self._emit(f"journal.{phase}")
+
+    def open_intents(self) -> list[tuple[str, str, dict[str, Any], str | None]]:
+        """(plan_id, action_id, intent, redirected dst_rel) for intents without done/rolled_back."""
+        rows = self._db.execute(
+            "SELECT seq, plan_id, action_id, op, phase, ref_seq, args, pre_state, post_state FROM journal ORDER BY seq"
+        ).fetchall()
+        current: dict[tuple[str, str], dict[str, Any]] = {}
+        redirect: dict[tuple[str, str], str] = {}
+        for seq, plan, aid, op, phase, _ref, args, pre, post in rows:
+            k = (plan, aid)
+            if phase == "intent":
+                current[k] = {"seq": seq, "op": op, "args": json.loads(args), "pre_state": json.loads(pre)}
+                redirect.pop(k, None)
+            elif phase == "redirect" and post:
+                redirect[k] = json.loads(post)["dst_rel"]
+            elif phase in ("done", "rolled_back"):
+                current.pop(k, None)
+        return [(k[0], k[1], v, redirect.get(k)) for k, v in current.items()]
 
     def entries(self, plan_id: str) -> list[dict[str, Any]]:
         rows = self._db.execute(

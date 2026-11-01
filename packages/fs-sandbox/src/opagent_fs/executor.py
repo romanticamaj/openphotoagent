@@ -11,6 +11,7 @@ from __future__ import annotations
 import contextlib
 import errno
 import json
+import os
 import posixpath
 import threading
 from collections.abc import Callable
@@ -22,7 +23,8 @@ import blake3
 
 from opagent_core.planner import suffixed
 
-from .fsops import FsOps
+from .crash import crash_point
+from .fsops import TMP_PREFIX, FsOps
 from .journal import Journal
 from .safepath import RootUnavailable, SafePath, Sandbox
 
@@ -152,11 +154,14 @@ class Executor:
             return ActionResult(a.action_id, "skipped", error="PLAN_STALE")
         self.sb.check_overwrite(dst)
         src_state = {"exists": True, "hash": a.src_hash, "mtime": src.real.stat().st_mtime_ns}
+        crash_point("before_intent")
         seq = self.journal.intent(
             plan_id, a.action_id, op,
-            {"src": [a.src_alias, a.src_rel], "dst": [a.dst_alias, dst.rel], "src_hash": a.src_hash},
+            {"src": [a.src_alias, a.src_rel], "dst": [a.dst_alias, dst.rel], "src_hash": a.src_hash,
+             "planned_dirs": self._missing_dirs(dst)},
             {"src": src_state, "dst": {"exists": False, "hash": None, "mtime": None}},
         )
+        crash_point("after_intent")
         created: list[Path] = []
         steps: list[dict[str, Any]] = []
         try:
@@ -166,6 +171,7 @@ class Executor:
                               "post": {"dirs": [self._rel(dst.alias, d) for d in created]}})
             tmp = self.fs.write_tmp_copy(src.real, dst.real.parent)
             steps.append({"op": "copy", "pre": src_state, "post": {"tmp": tmp.name}})
+            crash_point("after_tmp")
         except OSError as e:
             self._rollback(plan_id, a, op, created, dst.alias, str(e.errno))
             self._raise_if_waiting(e, dst.alias, a.src_alias)
@@ -175,11 +181,13 @@ class Executor:
             steps.append({"op": "verify", "pre": {"expected": a.src_hash}, "post": {"hash": got}})
             if got != a.src_hash:
                 raise OSError("verify failed")
+            crash_point("after_verify")
             self.fs.fsync_file(tmp)
             self.fs.fsync_dir(dst.real.parent)
             steps.append({"op": "fsync", "pre": {}, "post": {"file": True, "dir": True}})
-            dst = self._commit(tmp, dst, a)
+            dst = self._commit(tmp, dst, a, plan_id, op)
             steps.append({"op": "rename", "pre": {"exists": False}, "post": {"dst_rel": dst.rel, "exists": True}})
+            crash_point("after_rename")
         except OSError as e:
             with contextlib.suppress(OSError):
                 self.fs.unlink(tmp)
@@ -197,7 +205,16 @@ class Executor:
         self.journal.done(seq, post)
         return ActionResult(a.action_id, "done", dst.rel, conflict=conflict, downgraded=downgraded)
 
-    def _commit(self, tmp: Path, dst: SafePath, a: Action) -> SafePath:
+    def _missing_dirs(self, dst: SafePath) -> list[str]:
+        root = self.sb.resolve(dst.alias, "").real
+        out: list[str] = []
+        cur = dst.real.parent
+        while cur != root and not self.fs.exists(cur):
+            out.append(cur.relative_to(root).as_posix())
+            cur = cur.parent
+        return list(reversed(out))
+
+    def _commit(self, tmp: Path, dst: SafePath, a: Action, plan_id: str = "", op: str = "copy") -> SafePath:
         """rename(noreplace); a dst appearing after the probe is never overwritten (OUT-EXE-008)."""
         delays = list(self.LOCK_RETRY_DELAYS)
         while True:
@@ -208,6 +225,7 @@ class Executor:
                 if a.conflict_policy != "rename":
                     raise
                 dst = self.sb.open_write(dst.alias, self._free_name(dst.alias, a.dst_rel))
+                self.journal.record(plan_id, a.action_id, op, "redirect", {"dst_rel": dst.rel})
             except OSError as e:
                 if not _is_lock_error(e):
                     raise
@@ -230,7 +248,9 @@ class Executor:
             return ActionResult(a.action_id, "skipped", dst.rel, conflict="exists_same")
         if self.fs.exists(dst.real):
             return ActionResult(a.action_id, "skipped", dst.rel, conflict="exists_diff")
-        seq = self.journal.intent(plan_id, a.action_id, "write_sidecar", {"dst": [a.dst_alias, dst.rel]},
+        seq = self.journal.intent(plan_id, a.action_id, "write_sidecar",
+                                  {"dst": [a.dst_alias, dst.rel], "digest": digest,
+                                   "planned_dirs": self._missing_dirs(dst)},
                                   {"dst": _state(self.fs, dst.real)})
         created = self.fs.makedirs(dst.real.parent)
         steps: list[dict[str, Any]] = []
@@ -239,6 +259,7 @@ class Executor:
                           "post": {"dirs": [self._rel(dst.alias, d) for d in created]}})
         tmp = self.fs.write_tmp_bytes(data, dst.real.parent)
         steps.append({"op": "write_sidecar", "pre": {"exists": False}, "post": {"tmp": tmp.name, "hash": digest}})
+        crash_point("sidecar_partial")
         self.fs.fsync_file(tmp)
         self.fs.fsync_dir(dst.real.parent)
         steps.append({"op": "fsync", "pre": {}, "post": {"file": True, "dir": True}})
@@ -253,8 +274,10 @@ class Executor:
         trash_rel = posixpath.join(TRASH_DIR, plan_id, src.rel)
         t = self.sb.open_write(src.alias, trash_rel)
         self.fs.makedirs(t.real.parent)
-        self.fs.rename_noreplace(src.real, t.real)
+        crash_point("during_trash")
+        self.fs.rename_noreplace(src.real, t.real)  # same filesystem: atomic, the file is always in one place
         self.fs.fsync_dir(t.real.parent)
+        crash_point("after_trash")
         return trash_rel
 
     def _rel(self, alias: str, p: Path) -> str:
@@ -268,29 +291,85 @@ class Executor:
 
     # ---- undo ------------------------------------------------------------
     def recover(self) -> dict[str, Any]:
-        return {"completed": [], "rolled_back": [], "tmp_removed": 0}
+        """Crash recovery (02 §6.2): every intent without done/rolled_back is rolled forward if its dst was
+        committed with the expected hash, otherwise rolled back; stray temp files are removed. Idempotent."""
+        completed: list[str] = []
+        rolled: list[str] = []
+        tmp_removed = 0
+        for plan_id, aid, intent, redirect_rel in self.journal.open_intents():
+            crash_point("recovery_mid")
+            op = intent["op"]
+            args = intent["args"]
+            dst_alias, dst_rel = args["dst"]
+            dst_rel = redirect_rel or dst_rel
+            dst = self.sb.open_write(dst_alias, dst_rel)
+            if self.fs.exists(dst.real.parent):
+                for name in os.listdir(dst.real.parent):
+                    if name.startswith(TMP_PREFIX):
+                        self.fs.unlink(dst.real.parent / name)
+                        tmp_removed += 1
+            expected = args.get("digest") if op == "write_sidecar" else args.get("src_hash")
+            planned = list(args.get("planned_dirs", []))
+            if self.fs.exists(dst.real) and self.fs.read_hash(dst.real) == expected:
+                post: dict[str, Any] = {"dst_rel": dst.rel, "dst_hash": expected, "created_dirs": planned,
+                                        "recovered": True, "steps": []}
+                if op == "move":
+                    src = self.sb.resolve(*args["src"])
+                    trash_rel = posixpath.join(TRASH_DIR, plan_id, src.rel)
+                    if self.fs.exists(src.real):
+                        self._trash(plan_id, src)
+                    post["trash_rel"] = trash_rel
+                self.journal.done(intent["seq"], post)
+                completed.append(aid)
+            else:
+                for d in reversed(planned):
+                    p = self.sb.open_write(dst_alias, d).real
+                    if self.fs.is_empty_dir(p):
+                        self.fs.rmdir(p)
+                self.journal.record(plan_id, aid, op, "rolled_back", {"error": "RECOVERED_ROLLBACK"})
+                rolled.append(aid)
+        return {"completed": completed, "rolled_back": rolled, "tmp_removed": tmp_removed}
 
     def undo(self, plan_id: str) -> list[ActionResult]:
+        """Reverse done actions in reverse order. Idempotent: each step checks the current state, so an undo
+        interrupted by a crash can simply be run again (OUT-CRASH-010)."""
         entries = self.journal.entries(plan_id)
         intents = {e["seq"]: e for e in entries if e["phase"] == "intent"}
-        undone = {e["action_id"] for e in entries if e["phase"] == "undone"}
+        undone = {e["ref_seq"] for e in entries if e["phase"] == "undone" and e["ref_seq"] is not None}
         results: list[ActionResult] = []
         for e in reversed([e for e in entries if e["phase"] == "done"]):
-            it = intents[e["ref_seq"]]
-            if e["action_id"] in undone:
+            if e["seq"] in undone:
                 continue
+            it = intents[e["ref_seq"]]
             dst_alias, _ = it["args"]["dst"]
             post = e["post_state"]
             dst = self.sb.open_write(dst_alias, post["dst_rel"])
+            crash_point("undo_before_unlink")
             if self.fs.exists(dst.real):
                 if self.fs.read_hash(dst.real) != post["dst_hash"]:
                     results.append(ActionResult(e["action_id"], "conflict", dst.rel, "UNDO_TARGET_MODIFIED"))
                     continue
                 self.fs.unlink(dst.real)
+            crash_point("undo_after_unlink")
+            if it["op"] == "move":
+                src_alias, src_rel = it["args"]["src"]
+                src = self.sb.open_write(src_alias, src_rel)
+                trash = self.sb.open_write(src_alias, post["trash_rel"])
+                crash_point("undo_before_restore")
+                if self.fs.exists(trash.real):
+                    if self.fs.exists(src.real):
+                        results.append(ActionResult(e["action_id"], "conflict", dst.rel, "UNDO_SOURCE_OCCUPIED"))
+                        continue
+                    self.fs.makedirs(src.real.parent)
+                    self.fs.rename_noreplace(trash.real, src.real)
+                elif not self.fs.exists(src.real):
+                    results.append(ActionResult(e["action_id"], "conflict", dst.rel, "UNDO_TRASH_EXPIRED"))
+                    continue
             for d in reversed(post.get("created_dirs", [])):
                 p = self.sb.open_write(dst_alias, d).real
                 if self.fs.is_empty_dir(p):
                     self.fs.rmdir(p)
-            self.journal.record(plan_id, e["action_id"], it["op"], "undone", {})
+            crash_point("undo_after_rmdir")
+            self.journal.record(plan_id, e["action_id"], it["op"], "undone", {}, ref=e["seq"])
             results.append(ActionResult(e["action_id"], "undone", dst.rel))
         return list(reversed(results))

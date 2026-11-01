@@ -15,6 +15,8 @@ from typing import Any, Protocol
 
 import blake3
 
+from .crash import crash_point
+
 TMP_PREFIX = ".opagent-tmp-"
 CHUNK = 1 << 20
 
@@ -67,7 +69,17 @@ class RealFs:
         tmp = dst_dir / f"{TMP_PREFIX}{uuid.uuid4().hex}"
         try:
             with src.open("rb") as fi, open(tmp, "xb") as fo:
-                shutil.copyfileobj(fi, fo, CHUNK)
+                first = True
+                while chunk := fi.read(CHUNK):
+                    if first:  # chaos hook: die with a half-written temp file (OUT-CRASH-003)
+                        half = max(1, len(chunk) // 2)
+                        fo.write(chunk[:half])
+                        fo.flush()
+                        crash_point("tmp_partial")
+                        fo.write(chunk[half:])
+                        first = False
+                    else:
+                        fo.write(chunk)
             shutil.copystat(src, tmp)
         except OSError:
             with contextlib.suppress(OSError):
