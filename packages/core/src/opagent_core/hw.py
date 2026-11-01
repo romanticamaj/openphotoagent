@@ -43,6 +43,9 @@ class HwSummary:
     def pack_ids(self) -> set[str]:
         return {p[0] for p in self.installed_packs}
 
+    def with_packs(self, packs: tuple[str, ...]) -> HwSummary:
+        return replace(self, installed_packs=(*self.installed_packs, *((p, "", None) for p in packs)))
+
     def with_gpu_driver(self, driver: str) -> HwSummary:
         return replace(self, gpus=tuple(replace(g, driver=driver) for g in self.gpus))
 

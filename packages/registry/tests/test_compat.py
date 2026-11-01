@@ -27,7 +27,11 @@ def matrix(reg):
         for m in sorted(reg.models):
             for v in reg.models[m].spec.variants:
                 c = compat(reg.models[m], v.id, hw, reg.runtimes, gpu_classes=reg.gpu_classes)
-                out[f"{p}|{m}@{v.id}"] = {"level": c.level, "reasons": [r["code"] for r in c.reasons], "prep": [x["code"] for x in c.prep]}
+                out[f"{p}|{m}@{v.id}"] = {
+                    "level": c.level,
+                    "reasons": [r["code"] for r in c.reasons],
+                    "prep": [x["code"] for x in c.prep],
+                }
     return out
 
 
@@ -57,7 +61,14 @@ def test_mdl_003_prep_never_changes_level(tmp_path):
     hw = load_profile("rtx5070ti-win11")
     m = reg.models["fixture-nc-vlm"]
     bare = compat(m, "q4", hw, reg.runtimes)
-    ready = compat(m, "q4", hw.with_packs(("llamacpp-cuda13",)), reg.runtimes, installed=["fixture-nc-vlm@q4"], consents=["fixture-nc-vlm"])
+    ready = compat(
+        m,
+        "q4",
+        hw.with_packs(("llamacpp-cuda13",)),
+        reg.runtimes,
+        installed=["fixture-nc-vlm@q4"],
+        consents=["fixture-nc-vlm"],
+    )
     assert bare.level == ready.level == "ok"
     assert [p["code"] for p in bare.prep] == ["RUNTIME_PACK_MISSING", "MODEL_NOT_INSTALLED", "LICENSE_CONSENT_REQUIRED"]
     assert ready.prep == []

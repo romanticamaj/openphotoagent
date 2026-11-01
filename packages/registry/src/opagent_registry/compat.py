@@ -62,15 +62,26 @@ class Compat:
 
 
 def compat_inputs_hash(hw: HwSummary, reg: Any) -> str:
-    return ""
+    """06 §1.2: hardware digest + installed packs (part of the digest) + registry version."""
+    import hashlib
+
+    return hashlib.sha256(f"{hw.digest()}|{reg.version}".encode()).hexdigest()[:16]
 
 
 class CompatCache:
-    def __init__(self, compute: Any = None) -> None:
-        pass
+    """compat_cache(worker, variant, inputs_hash): recompute only when an input changed (MDL-004)."""
 
-    def get(self, model: Any, variant: str, hw: HwSummary, reg: Any) -> Any:
-        return None
+    def __init__(self, compute: Any = None) -> None:
+        self.compute = compute or compat
+        self._d: dict[tuple[str, str, str], Compat] = {}
+
+    def get(self, model: LoadedModel, variant: str, hw: HwSummary, reg: Any, **kw: Any) -> Compat:
+        key = (model.spec.id, variant, compat_inputs_hash(hw, reg))
+        hit = self._d.get(key)
+        if hit is None:
+            hit = self.compute(model, variant, hw, reg.runtimes, gpu_classes=reg.gpu_classes, **kw)
+            self._d[key] = hit
+        return hit
 
 
 def gpu_cc(gpu: Gpu, classes: Iterable[GpuClass] = ()) -> str | None:
@@ -115,7 +126,10 @@ def pack_failure(pack: RuntimePack, hw: HwSummary, classes: Iterable[GpuClass] =
     return "GPU_NOT_FOUND"
 
 
-def candidate_packs(variant: Variant, runtimes: dict[str, RuntimePack]) -> list[RuntimePack]:
+def candidate_packs(
+    variant: Variant, runtimes: dict[str, RuntimePack], installed: set[str] | frozenset[str] = frozenset()
+) -> list[RuntimePack]:
+    """Packs that could run ``variant``; advanced packs (ROCm, ORT-CUDA) only once the user installed them."""
     rt_name = {"llama.cpp": "llama.cpp", "onnx": "onnx"}.get(variant.runtime, variant.runtime)
     globs = variant.requires.runtime_pack or ["*"]
     out = [
@@ -124,7 +138,7 @@ def candidate_packs(variant: Variant, runtimes: dict[str, RuntimePack]) -> list[
         if p.provides.get("runtime") == rt_name
         and any(fnmatch.fnmatch(p.id, g) for g in globs)
         and (not variant.requires.accel_any or p.accel in variant.requires.accel_any)
-        and not p.advanced
+        and (not p.advanced or p.id in installed)
     ]
     return sorted(
         out, key=lambda p: (ACCEL_ORDER.index(p.accel) if p.accel in ACCEL_ORDER else 99, p.id), reverse=False
@@ -160,7 +174,7 @@ def compat(
     classes = list(gpu_classes)
 
     # 1. platform
-    cands = candidate_packs(v, runtimes)
+    cands = candidate_packs(v, runtimes, hw.pack_ids)
     if hw.os not in v.requires.os or not any(p.supports(hw.os, hw.arch) for p in cands):
         c.level = "blocked"
         c.reasons.append(_issue("RUNTIME_UNSUPPORTED_PLATFORM", os=hw.os, arch=hw.arch))
