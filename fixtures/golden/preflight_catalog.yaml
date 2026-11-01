@@ -1,0 +1,805 @@
+source: docs/09a-test-cases-v0.1.md §8.2
+rows:
+- id: PF-001
+  codes:
+  - WORKER_OFFLINE
+  action: job.start
+  state: 本機引擎心跳 90 s 未更新
+  severity: B/T
+  fixes:
+  - one_of:
+    - type: auto_fix
+      target: restart_runtime
+      deployment: desktop
+    - type: copy_command
+      target: worker run
+      deployment: docker
+  - type: retry
+  fixes_text: '`auto_fix:restart_runtime`（桌面）／`copy_command:worker run`（Docker）→ `retry`；下游
+    gates 為 `waiting`'
+  version: v0.1
+- id: PF-002
+  codes:
+  - WORKER_VERSION_MISMATCH
+  action: job.start
+  state: worker `protocol_version` 主版本不同
+  severity: B
+  fixes:
+  - one_of:
+    - type: auto_fix
+      target: update
+      deployment: desktop
+    - type: open_docs
+      target: upgrade
+  fixes_text: '`auto_fix:update`（桌面）／`open_docs:upgrade`'
+  version: v0.1
+- id: PF-003
+  codes:
+  - GPU_NOT_FOUND
+  action: job.start
+  state: '`hw:no-gpu-linux`'
+  severity: W
+  fixes:
+  - type: choose_alternative
+    target: cpu_combo
+  - type: open_docs
+    target: gpu-setup
+  fixes_text: '`choose_alternative:cpu_combo` → `open_docs:gpu-setup`；`ready=true`'
+  version: v0.1
+- id: PF-004
+  codes:
+  - GPU_DRIVER_TOO_OLD
+  action: job.start（cuda variant）
+  state: '`hw:nvidia-drv535`'
+  severity: B
+  fixes:
+  - type: open_docs
+    target: driver-download
+  - type: choose_alternative
+    target: vulkan
+  - type: choose_alternative
+    target: cpu
+  fixes_text: '`open_docs:driver-download` → `choose_alternative:vulkan` → `choose_alternative:cpu`'
+  version: v0.1
+- id: PF-005
+  codes:
+  - GPU_ARCH_UNSUPPORTED
+  action: job.start
+  state: '`hw:blackwell-cuda12pack`'
+  severity: B
+  fixes:
+  - type: download
+    target: llamacpp-cuda13
+  - type: choose_alternative
+    target: llamacpp-vulkan
+  fixes_text: '`download:llamacpp-cuda13` → `choose_alternative:llamacpp-vulkan`'
+  version: v0.1
+- id: PF-006
+  codes:
+  - GPU_BUSY_EXTERNAL
+  action: model.load
+  state: '`hw:game-running-5gb`，free 2 GB'
+  severity: W/T
+  fixes:
+  - type: retry
+  - type: choose_alternative
+    target: smaller_variant
+  fixes_text: '`retry` → `choose_alternative:smaller_variant`；`details.processes`
+    含 `game.exe`'
+  version: v0.1
+- id: PF-007
+  codes:
+  - GPU_DOCKER_NO_PASSTHROUGH
+  action: job.start
+  state: 容器內、無 `/dev/nvidia*`、compose 宣告 GPU
+  severity: B
+  fixes:
+  - type: copy_command
+    target: compose -f compose.cuda.yml
+  - type: open_docs
+    target: nvidia-container-toolkit
+  fixes_text: '`copy_command:compose -f compose.cuda.yml` → `open_docs:nvidia-container-toolkit`'
+  version: v0.1（Docker）
+- id: PF-008
+  codes:
+  - VRAM_INSUFFICIENT
+  action: job.start
+  state: 35B-A3B Q4 on 16 GB、無 offload
+  severity: B
+  fixes:
+  - type: choose_alternative
+    target: q4_k_m(8B)
+  fixes_text: '`choose_alternative:q4_k_m(8B)`（附 alt GB 與 consequence）'
+  version: v0.1
+- id: PF-009
+  codes:
+  - VRAM_SEQUENTIAL
+  action: job.start
+  state: 8B Q4 on `hw:rtx4060-laptop`
+  severity: W
+  fixes:
+  - type: open_docs
+    target: sequential-mode
+  fixes_text: '`open_docs:sequential-mode`；`ready=true`；estimate 含 +pct%'
+  version: v0.1
+- id: PF-010
+  codes:
+  - RAM_INSUFFICIENT
+  action: job.start
+  state: MoE offload 需 32 GB，RAM 16 GB
+  severity: B
+  fixes:
+  - type: choose_alternative
+    target: smaller_model
+  fixes_text: '`choose_alternative:smaller_model`'
+  version: v0.1
+- id: PF-011
+  codes:
+  - PERF_CPU_ONLY_SLOW
+  action: job.start（VLM）
+  state: '`hw:no-gpu-linux`、10,000 張'
+  severity: W
+  fixes:
+  - type: open_settings
+    target: external-endpoint
+  - type: choose_alternative
+    target: continue_anyway
+  fixes_text: '`open_settings:external-endpoint` → `choose_alternative:continue_anyway`；訊息含
+    `{eta}`'
+  version: v0.1
+- id: PF-012
+  codes:
+  - RUNTIME_PACK_MISSING
+  action: job.start
+  state: 需要 `llamacpp-cuda13`，未安裝
+  severity: B
+  fixes:
+  - type: download
+    target: llamacpp-cuda13
+  fixes_text: '`download:llamacpp-cuda13`（附 size 與 est）'
+  version: v0.1
+- id: PF-013
+  codes:
+  - RUNTIME_PACK_BROKEN
+  action: job.start
+  state: pack self-test 失敗
+  severity: B
+  fixes:
+  - type: auto_fix
+    target: install_pack(reinstall)
+  - type: choose_alternative
+    target: cpu_build
+  fixes_text: '`auto_fix:install_pack(reinstall)` → `choose_alternative:cpu_build`'
+  version: v0.1
+- id: PF-014
+  codes:
+  - RUNTIME_UNSUPPORTED_PLATFORM
+  action: job.start
+  state: vLLM variant 於 Windows
+  severity: B
+  fixes:
+  - type: choose_alternative
+    target: llamacpp
+  fixes_text: '`choose_alternative:llamacpp`'
+  version: v0.1（vLLM pack v0.4）
+- id: PF-015
+  codes:
+  - RUNTIME_CRASHED
+  action: job.start（重試時）
+  state: runtime 近 5 分鐘崩潰 3 次
+  severity: B/T
+  fixes:
+  - type: retry
+  - type: open_docs
+    target: logs
+  fixes_text: '`retry` → `open_docs:logs`'
+  version: v0.1
+- id: PF-016
+  codes:
+  - RUNTIME_TIMEOUT
+  action: job.retry_failed
+  state: 上一輪有 timeout 失敗項
+  severity: W/T
+  fixes:
+  - type: retry
+    target: failed_items
+  fixes_text: '`retry:failed_items`'
+  version: v0.1
+- id: PF-017
+  codes:
+  - ORT_EP_UNAVAILABLE
+  action: job.start（embed）
+  state: DirectML EP 建立 session 失敗
+  severity: W
+  fixes:
+  - one_of:
+    - type: download
+      target: ort-cuda
+      deployment: linux
+    - type: open_docs
+  - type: choose_alternative
+    target: cpu_ep
+  fixes_text: '`download:ort-cuda`（Linux）／`open_docs` → `choose_alternative:cpu_ep`'
+  version: v0.1
+- id: PF-018
+  codes:
+  - WSL_GPU_UNAVAILABLE
+  action: job.start（vLLM）
+  state: Windows + WSL2 無 libcuda
+  severity: B
+  fixes:
+  - type: copy_command
+    target: wsl --install
+  - type: choose_alternative
+    target: llamacpp
+  fixes_text: '`copy_command:wsl --install` → `choose_alternative:llamacpp`'
+  version: v0.4
+- id: PF-019
+  codes:
+  - OLLAMA_NOT_RUNNING
+  action: job.start（ollama variant）
+  state: '`localhost:11434` 拒絕連線'
+  severity: B/T
+  fixes:
+  - type: copy_command
+    target: ollama serve
+  - type: retry
+  fixes_text: '`copy_command:ollama serve` → `retry`'
+  version: v0.1
+- id: PF-020
+  codes:
+  - EXTERNAL_ENDPOINT_UNREACHABLE
+  action: job.start（openai-compatible）
+  state: endpoint 逾時
+  severity: B/T
+  fixes:
+  - type: open_settings
+    target: endpoint
+  - type: retry
+  fixes_text: '`open_settings:endpoint` → `retry`'
+  version: v0.1
+- id: PF-021
+  codes:
+  - DECODE_HEIC_MISSING
+  action: scan
+  state: '`pillow_heif` import 失敗'
+  severity: W
+  fixes:
+  - type: auto_fix
+    target: reinstall_core_dep
+  fixes_text: '`auto_fix:reinstall_core_dep`'
+  version: v0.1
+- id: PF-022
+  codes:
+  - DECODE_RAW_MISSING
+  action: scan
+  state: rawpy 不可用、來源有 120 張 RAW
+  severity: W
+  fixes:
+  - type: download
+    target: libraw
+  fixes_text: '`download:libraw`；訊息 `{n}=120`'
+  version: v0.1
+- id: PF-023
+  codes:
+  - DECODE_FAILED
+  action: job.start
+  state: 上次掃描有 7 張損毀
+  severity: W
+  fixes:
+  - type: open_docs
+    target: skipped-list
+  fixes_text: '`open_docs:skipped-list`（UI：查看清單）'
+  version: v0.1
+- id: PF-024
+  codes:
+  - FFMPEG_MISSING
+  action: scan
+  state: 來源有影片、無 ffmpeg
+  severity: W
+  fixes:
+  - type: download
+    target: ffmpeg
+  - type: choose_alternative
+    target: keep_skipping
+  fixes_text: '`download:ffmpeg` → `choose_alternative:keep_skipping`'
+  version: v0.1
+- id: PF-025
+  codes:
+  - DISK_INSUFFICIENT_MODELS
+  action: model.download
+  state: FakeDisk 不足
+  severity: B
+  fixes:
+  - type: choose_alternative
+    target: smaller_variant
+  - type: open_settings
+    target: manage-models
+  - type: auto_fix
+    target: cleanup_downloads
+  - type: open_settings
+    target: models-storage
+  fixes_text: '`choose_alternative:smaller_variant` → `open_settings:manage-models`
+    → `auto_fix:cleanup_downloads` → `open_settings:models-storage`（06 §2.5 順序）'
+  version: v0.1
+- id: PF-026
+  codes:
+  - DISK_INSUFFICIENT_THUMBS
+  action: scan
+  state: 縮圖需求 > free
+  severity: B
+  fixes:
+  - type: open_settings
+    target: thumbs-storage
+  - type: choose_alternative
+    target: t256_only
+  fixes_text: '`open_settings:thumbs-storage` → `choose_alternative:t256_only`'
+  version: v0.1
+- id: PF-027
+  codes:
+  - DISK_LOW_THUMBS
+  action: scan
+  state: 處理後低於 10%
+  severity: W
+  fixes:
+  - type: open_settings
+    target: storage
+  fixes_text: '`open_settings:storage`'
+  version: v0.1
+- id: PF-028
+  codes:
+  - FS_PERMISSION_DENIED
+  action: scan
+  state: macOS TCC EPERM／Linux EACCES
+  severity: B
+  fixes:
+  - type: auto_fix
+    target: open_tcc_settings
+  fixes_text: macOS：`auto_fix:open_tcc_settings`；其他：`open_settings:allowed-roots`
+  version: v0.1
+- id: PF-029
+  codes:
+  - FS_ROOT_NOT_ALLOWED
+  action: scan
+  state: source 指向未註冊 alias
+  severity: B
+  fixes:
+  - type: open_settings
+    target: add-folder
+  fixes_text: '`open_settings:add-folder`（只經殼 IPC 新增）'
+  version: v0.1
+- id: PF-030
+  codes:
+  - FS_ROOT_UNAVAILABLE
+  action: scan／output.apply
+  state: root 不存在（外接硬碟拔除）
+  severity: B/T
+  fixes:
+  - type: retry
+  - type: open_docs
+    target: mount
+  fixes_text: '`retry` → `open_docs:mount`'
+  version: v0.1
+- id: PF-031
+  codes:
+  - FS_NOT_WRITABLE
+  action: output.apply
+  state: 輸出目錄唯讀
+  severity: B
+  fixes:
+  - type: open_settings
+    target: choose-output
+  fixes_text: '`open_settings:choose-output`'
+  version: v0.1
+- id: PF-032
+  codes:
+  - NET_UNREACHABLE
+  action: model.download
+  state: 錄製伺服器關閉
+  severity: B/T
+  fixes:
+  - type: retry
+  - type: open_settings
+    target: mirrors
+  - type: open_settings
+    target: proxy
+  fixes_text: '`retry` → `open_settings:mirrors` → `open_settings:proxy`'
+  version: v0.1
+- id: PF-033
+  codes:
+  - NET_TLS_INTERCEPTED
+  action: model.download
+  state: 伺服器出示自簽 CA（模擬企業 MITM）
+  severity: B
+  fixes:
+  - type: open_settings
+    target: custom-ca
+  fixes_text: '`open_settings:custom-ca`'
+  version: v0.1
+- id: PF-034
+  codes:
+  - HF_AUTH_REQUIRED
+  action: model.download
+  state: '`hf:401`'
+  severity: B
+  fixes:
+  - type: open_settings
+    target: hf-token
+  fixes_text: '`open_settings:hf-token`'
+  version: v0.1
+- id: PF-035
+  codes:
+  - HF_GATED_ACCESS_PENDING
+  action: model.download
+  state: '`hf:403-gated`'
+  severity: B
+  fixes:
+  - type: open_docs
+    target: model-page
+  - type: retry
+  fixes_text: '`open_docs:model-page` → `retry`'
+  version: v0.1
+- id: PF-036
+  codes:
+  - LICENSE_CONSENT_REQUIRED
+  action: model.download
+  state: 非商用權重、未同意
+  severity: B
+  fixes:
+  - type: open_settings
+    target: license-dialog
+  fixes_text: '`open_settings:license-dialog`'
+  version: v0.1
+- id: PF-037
+  codes:
+  - MODEL_NOT_INSTALLED
+  action: job.start
+  state: VLM 未下載，另有已安裝 Q4
+  severity: B
+  fixes:
+  - type: download
+    target: variant
+  - type: choose_alternative
+    target: installed_q4
+  fixes_text: '`download:variant`（label 含 GB 與 ETA）→ `choose_alternative:installed_q4`（附
+    eta_delta、quality）'
+  version: v0.1
+- id: PF-038
+  codes:
+  - MODEL_DOWNLOADING
+  action: job.start
+  state: 該 variant 下載 72%
+  severity: B/T
+  fixes:
+  - type: open_docs
+    target: view-download
+  fixes_text: '`open_docs:view-download`（UI 跳到下載）；`revalidate_on` 含 `model.installed:<v>`'
+  version: v0.1
+- id: PF-039
+  codes:
+  - MODEL_FILES_MISSING
+  action: model.load
+  state: installation 存在、檔案被刪
+  severity: B
+  fixes:
+  - type: download
+    target: redownload
+  - type: open_settings
+    target: relocate
+  fixes_text: '`download:redownload` → `open_settings:relocate`'
+  version: v0.1
+- id: PF-040
+  codes:
+  - MODEL_CORRUPT
+  action: model.load
+  state: 檔案 sha 與 manifest 不符
+  severity: B
+  fixes:
+  - type: download
+    target: corrupt_files_only
+  fixes_text: '`download:corrupt_files_only`'
+  version: v0.1
+- id: PF-041
+  codes:
+  - MODEL_LOAD_FAILED
+  action: model.load
+  state: FakeRuntime 載入回錯誤
+  severity: B
+  fixes:
+  - type: retry
+  - type: choose_alternative
+    target: other_variant
+  fixes_text: '`retry` → `choose_alternative:other_variant`'
+  version: v0.1
+- id: PF-042
+  codes:
+  - MODEL_OOM
+  action: job.retry_failed
+  state: 上一輪 OOM
+  severity: W/T
+  fixes:
+  - type: choose_alternative
+    target: smaller_variant
+  - type: choose_alternative
+    target: lower_resolution
+  fixes_text: '`choose_alternative:smaller_variant` → `choose_alternative:lower_resolution`'
+  version: v0.1
+- id: PF-043
+  codes:
+  - MODEL_CAPABILITY_MISMATCH
+  action: job.start
+  state: 指定 embed-only 模型做 caption
+  severity: B
+  fixes:
+  - type: choose_alternative
+    target: capable_model
+  fixes_text: '`choose_alternative:capable_model`'
+  version: v0.1
+- id: PF-044
+  codes:
+  - MODEL_IN_USE
+  action: model.delete／model.move
+  state: 有 Job 使用中
+  severity: B
+  fixes:
+  - type: retry
+    target: after_jobs
+  fixes_text: '`retry:after_jobs`（UI：任務完成後再執行）'
+  version: v0.1
+- id: PF-045
+  codes:
+  - DL_CHECKSUM_MISMATCH
+  action: model.download（重試）
+  state: 上次 sha 失敗兩次
+  severity: B
+  fixes:
+  - type: retry
+    target: other_source
+  - type: open_docs
+    target: report-issue
+  fixes_text: '`retry:other_source` → `open_docs:report-issue`'
+  version: v0.1
+- id: PF-046
+  codes:
+  - DL_RATE_LIMITED
+  action: model.download
+  state: '`hf:429`'
+  severity: W/T
+  fixes:
+  - type: open_settings
+    target: hf-token
+  fixes_text: '`open_settings:hf-token`；自動 `retry(after_s)`'
+  version: v0.1
+- id: PF-047
+  codes:
+  - DL_NOT_FOUND
+  action: model.download
+  state: '`hf:404`'
+  severity: B
+  fixes:
+  - type: open_docs
+    target: update-catalog
+  fixes_text: '`open_docs:update-catalog`'
+  version: v0.1
+- id: PF-048
+  codes:
+  - DL_UNVERIFIED_SOURCE
+  action: model.download
+  state: 只有鏡像 metadata
+  severity: W
+  fixes:
+  - type: choose_alternative
+    target: continue_unverified
+  - type: retry
+  fixes_text: '`choose_alternative:continue_unverified`（`destructive=false`，需明確確認）→
+    `retry`（取消）'
+  version: v0.1
+- id: PF-049
+  codes:
+  - NET_PORT_IN_USE
+  action: app.start
+  state: 偏好 port 被非 OPA 程式佔用
+  severity: B
+  fixes:
+  - type: auto_fix
+    target: switch_port
+  fixes_text: '`auto_fix:switch_port`'
+  version: v0.1
+- id: PF-050
+  codes:
+  - TIME_SKEW
+  action: model.download
+  state: 偏差 6 分鐘
+  severity: B（> 5 分）／W（> 60 s）
+  fixes:
+  - type: copy_command
+    target: time-sync
+  fixes_text: '`copy_command:time-sync`（依 OS 分頁）'
+  version: v0.1
+- id: PF-051
+  codes:
+  - JOB_NOTHING_TO_DO
+  action: job.start
+  state: 快取命中 100%
+  severity: W
+  fixes:
+  - type: choose_alternative
+    target: reapply_thresholds
+  - type: choose_alternative
+    target: force_rerun
+  fixes_text: '`choose_alternative:reapply_thresholds` → `choose_alternative:force_rerun`'
+  version: v0.1
+- id: PF-052
+  codes:
+  - JOB_CONFLICT_RUNNING
+  action: job.start
+  state: 同來源已有 running Job
+  severity: B
+  fixes:
+  - type: open_docs
+    target: view-job
+  - type: choose_alternative
+    target: queue_after
+  fixes_text: '`open_docs:view-job` → `choose_alternative:queue_after`'
+  version: v0.1
+- id: PF-053
+  codes:
+  - SEARCH_INDEX_INCOMPLETE
+  action: search
+  state: 向量覆蓋率 87%
+  severity: W
+  fixes:
+  - type: auto_fix
+    target: reindex
+  fixes_text: '`auto_fix:reindex`（附 eta）'
+  version: v0.1
+- id: PF-054
+  codes:
+  - SEARCH_MODEL_MISMATCH
+  action: search
+  state: 索引 space ≠ 目前預設 embed 模型
+  severity: W
+  fixes:
+  - type: auto_fix
+    target: reindex
+  fixes_text: '`auto_fix:reindex`'
+  version: v0.1
+- id: PF-055
+  codes:
+  - PLAN_STALE
+  action: output.apply
+  state: plan 後 3 個 src 被修改
+  severity: B
+  fixes:
+  - type: retry
+    target: reprobe
+  fixes_text: '`retry:reprobe`（重新探測衝突）'
+  version: v0.1
+- id: PF-056
+  codes:
+  - OUTPUT_TARGET_INSIDE_SOURCE
+  action: job.start／output.apply
+  state: 輸出位置在來源 root 之下
+  severity: B
+  fixes:
+  - type: open_settings
+    target: choose-output
+  fixes_text: '`open_settings:choose-output`'
+  version: v0.1
+- id: PF-057
+  codes:
+  - UNDO_TARGET_MODIFIED
+  action: output.undo
+  state: 2 個 dst 被改
+  severity: B
+  fixes:
+  - type: open_docs
+    target: review-conflicts
+  - type: choose_alternative
+    target: skip_conflicts
+  fixes_text: '`open_docs:review-conflicts` → `choose_alternative:skip_conflicts`'
+  version: v0.1
+- id: PF-058
+  codes:
+  - EGRESS_POLICY_BLOCKS
+  action: job.start（雲端 endpoint）
+  state: workspace `results-only`
+  severity: B
+  fixes:
+  - type: choose_alternative
+    target: local_model
+  - type: open_settings
+    target: privacy
+  fixes_text: '`choose_alternative:local_model` → `open_settings:privacy`'
+  version: v0.5
+- id: PF-059
+  codes:
+  - PERMISSION_DENIED_ROLE
+  action: output.apply
+  state: 使用者為 ws_reviewer
+  severity: B
+  fixes:
+  - type: open_docs
+    target: request-approval
+  fixes_text: '`open_docs:request-approval`（`requires_permission` 呈現）'
+  version: v0.5
+- id: PF-060
+  codes:
+  - MCP_DISABLED
+  action: mcp.connect
+  state: workspace `mcp.enabled=false`
+  severity: B
+  fixes:
+  - type: open_settings
+    target: enable-mcp
+  fixes_text: '`open_settings:enable-mcp`'
+  version: v0.2
+- id: PF-061
+  codes:
+  - MCP_TOKEN_INVALID
+  action: mcp.connect
+  state: PAT 已撤銷
+  severity: B
+  fixes:
+  - type: auto_fix
+    target: regenerate_token
+  fixes_text: '`auto_fix:regenerate_token`（UI 精靈）'
+  version: v0.2
+- id: PF-062
+  codes:
+  - CHECK_CRASHED
+  action: job.start
+  state: 某 doctor check 拋例外
+  severity: W
+  fixes:
+  - type: retry
+    target: rerun_check
+  - type: open_docs
+    target: copy-diagnostics
+  fixes_text: '`retry:rerun_check` → `open_docs:copy-diagnostics`'
+  version: v0.1
+- id: PF-063
+  codes:
+  - PACK_SIGNATURE_INVALID
+  action: runtime.install
+  state: index minisig 驗證失敗
+  severity: B
+  fixes:
+  - type: retry
+    target: other_mirror
+  - type: open_docs
+    target: report-issue
+  fixes_text: '`retry:other_mirror` → `open_docs:report-issue`'
+  version: v0.1
+- id: PF-064
+  codes:
+  - PACK_INCOMPATIBLE
+  action: runtime.install
+  state: pack_api 不在 `packs.lock` 允許範圍
+  severity: B
+  fixes:
+  - type: auto_fix
+    target: install_pack(locked_version)
+  fixes_text: '`auto_fix:install_pack(locked_version)`'
+  version: v0.1
+- id: PF-065
+  codes:
+  - FS_FILE_LOCKED
+  action: output.apply 重試
+  state: dst 被其他程式獨佔
+  severity: W/T
+  fixes:
+  - type: retry
+  fixes_text: '`retry`'
+  version: v0.1
+- id: PF-066
+  codes:
+  - DL_REMOTE_CHANGED
+  - DL_MIRROR_FAILED
+  - VRAM_OFFLOAD
+  action: model.download／job.start
+  state: 各自情境
+  severity: W／B／W
+  fixes: []
+  fixes_text: 各自 ≥ 1 fix；本列為三個參數化子案例
+  version: v0.1

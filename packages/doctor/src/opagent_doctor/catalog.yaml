@@ -1,0 +1,491 @@
+# Product catalogue of error codes → severity and ordered fixes (06 §4.3/§4.7). Seeded from docs/09a §8.2;
+# tests/preflight checks it against fixtures/golden/preflight_catalog.yaml (PF-ASSERT 2) and i18n (PF-078).
+CHECK_CRASHED:
+  fixes:
+  - target: rerun_check
+    type: retry
+  - target: copy-diagnostics
+    type: open_docs
+  severity: warning
+  transient: false
+DECODE_FAILED:
+  fixes:
+  - target: skipped-list
+    type: open_docs
+  severity: warning
+  transient: false
+DECODE_HEIC_MISSING:
+  fixes:
+  - target: reinstall_core_dep
+    type: auto_fix
+  severity: warning
+  transient: false
+DECODE_RAW_MISSING:
+  fixes:
+  - target: libraw
+    type: download
+  severity: warning
+  transient: false
+DISK_INSUFFICIENT_MODELS:
+  fixes:
+  - target: smaller_variant
+    type: choose_alternative
+  - target: manage-models
+    type: open_settings
+  - target: cleanup_downloads
+    type: auto_fix
+  - target: models-storage
+    type: open_settings
+  severity: blocker
+  transient: false
+DISK_INSUFFICIENT_THUMBS:
+  fixes:
+  - target: thumbs-storage
+    type: open_settings
+  - target: t256_only
+    type: choose_alternative
+  severity: blocker
+  transient: false
+DISK_LOW_THUMBS:
+  fixes:
+  - target: storage
+    type: open_settings
+  severity: warning
+  transient: false
+DL_CHECKSUM_MISMATCH:
+  fixes:
+  - target: other_source
+    type: retry
+  - target: report-issue
+    type: open_docs
+  severity: blocker
+  transient: false
+DL_MIRROR_FAILED:
+  fixes:
+  - target: change_mirror
+    type: retry
+  severity: blocker
+  transient: true
+DL_NOT_FOUND:
+  fixes:
+  - target: update-catalog
+    type: open_docs
+  severity: blocker
+  transient: false
+DL_RATE_LIMITED:
+  fixes:
+  - target: hf-token
+    type: open_settings
+  severity: warning
+  transient: true
+DL_REMOTE_CHANGED:
+  fixes:
+  - target: view-download
+    type: open_docs
+  severity: warning
+  transient: false
+DL_UNVERIFIED_SOURCE:
+  fixes:
+  - target: continue_unverified
+    type: choose_alternative
+  - type: retry
+  severity: warning
+  transient: false
+EGRESS_POLICY_BLOCKS:
+  fixes:
+  - target: local_model
+    type: choose_alternative
+  - target: privacy
+    type: open_settings
+  severity: blocker
+  transient: false
+EXTERNAL_ENDPOINT_UNREACHABLE:
+  fixes:
+  - target: endpoint
+    type: open_settings
+  - type: retry
+  severity: blocker
+  transient: true
+FFMPEG_MISSING:
+  fixes:
+  - target: ffmpeg
+    type: download
+  - target: keep_skipping
+    type: choose_alternative
+  severity: warning
+  transient: false
+FS_FILE_LOCKED:
+  fixes:
+  - type: retry
+  severity: warning
+  transient: true
+FS_NOT_WRITABLE:
+  fixes:
+  - target: choose-output
+    type: open_settings
+  severity: blocker
+  transient: false
+FS_PERMISSION_DENIED:
+  fixes:
+  - target: open_tcc_settings
+    type: auto_fix
+  severity: blocker
+  transient: false
+FS_ROOT_NOT_ALLOWED:
+  fixes:
+  - target: add-folder
+    type: open_settings
+  severity: blocker
+  transient: false
+FS_ROOT_UNAVAILABLE:
+  fixes:
+  - type: retry
+  - target: mount
+    type: open_docs
+  severity: blocker
+  transient: true
+GPU_ARCH_UNSUPPORTED:
+  fixes:
+  - target: llamacpp-cuda13
+    type: download
+  - target: llamacpp-vulkan
+    type: choose_alternative
+  severity: blocker
+  transient: false
+GPU_BUSY_EXTERNAL:
+  fixes:
+  - type: retry
+  - target: smaller_variant
+    type: choose_alternative
+  severity: warning
+  transient: true
+GPU_DOCKER_NO_PASSTHROUGH:
+  fixes:
+  - target: compose -f compose.cuda.yml
+    type: copy_command
+  - target: nvidia-container-toolkit
+    type: open_docs
+  severity: blocker
+  transient: false
+GPU_DRIVER_TOO_OLD:
+  fixes:
+  - target: driver-download
+    type: open_docs
+  - target: vulkan
+    type: choose_alternative
+  - target: cpu
+    type: choose_alternative
+  severity: blocker
+  transient: false
+GPU_NOT_FOUND:
+  fixes:
+  - target: cpu_combo
+    type: choose_alternative
+  - target: gpu-setup
+    type: open_docs
+  severity: warning
+  transient: false
+HF_AUTH_REQUIRED:
+  fixes:
+  - target: hf-token
+    type: open_settings
+  severity: blocker
+  transient: false
+HF_GATED_ACCESS_PENDING:
+  fixes:
+  - target: model-page
+    type: open_docs
+  - type: retry
+  severity: blocker
+  transient: false
+JOB_CONFLICT_RUNNING:
+  fixes:
+  - target: view-job
+    type: open_docs
+  - target: queue_after
+    type: choose_alternative
+  severity: blocker
+  transient: false
+JOB_NOTHING_TO_DO:
+  fixes:
+  - target: reapply_thresholds
+    type: choose_alternative
+  - target: force_rerun
+    type: choose_alternative
+  severity: warning
+  transient: false
+LICENSE_CONSENT_REQUIRED:
+  fixes:
+  - target: license-dialog
+    type: open_settings
+  severity: blocker
+  transient: false
+MCP_DISABLED:
+  fixes:
+  - target: enable-mcp
+    type: open_settings
+  severity: blocker
+  transient: false
+MCP_TOKEN_INVALID:
+  fixes:
+  - target: regenerate_token
+    type: auto_fix
+  severity: blocker
+  transient: false
+MODEL_CAPABILITY_MISMATCH:
+  fixes:
+  - target: capable_model
+    type: choose_alternative
+  severity: blocker
+  transient: false
+MODEL_CORRUPT:
+  fixes:
+  - target: corrupt_files_only
+    type: download
+  severity: blocker
+  transient: false
+MODEL_DOWNLOADING:
+  fixes:
+  - target: view-download
+    type: open_docs
+  severity: blocker
+  transient: true
+MODEL_FILES_MISSING:
+  fixes:
+  - target: redownload
+    type: download
+  - target: relocate
+    type: open_settings
+  severity: blocker
+  transient: false
+MODEL_IN_USE:
+  fixes:
+  - target: after_jobs
+    type: retry
+  severity: blocker
+  transient: false
+MODEL_LOAD_FAILED:
+  fixes:
+  - type: retry
+  - target: other_variant
+    type: choose_alternative
+  severity: blocker
+  transient: false
+MODEL_NOT_INSTALLED:
+  fixes:
+  - target: variant
+    type: download
+  - target: installed_q4
+    type: choose_alternative
+  severity: blocker
+  transient: false
+MODEL_NOT_PINNED:
+  fixes:
+  - target: update-catalog
+    type: open_docs
+  - target: other_variant
+    type: choose_alternative
+  severity: blocker
+  transient: false
+MODEL_OOM:
+  fixes:
+  - target: smaller_variant
+    type: choose_alternative
+  - target: lower_resolution
+    type: choose_alternative
+  severity: warning
+  transient: true
+NET_PORT_IN_USE:
+  fixes:
+  - target: switch_port
+    type: auto_fix
+  severity: blocker
+  transient: false
+NET_TLS_INTERCEPTED:
+  fixes:
+  - target: custom-ca
+    type: open_settings
+  severity: blocker
+  transient: false
+NET_UNREACHABLE:
+  fixes:
+  - type: retry
+  - target: mirrors
+    type: open_settings
+  - target: proxy
+    type: open_settings
+  severity: blocker
+  transient: true
+OLLAMA_NOT_RUNNING:
+  fixes:
+  - target: ollama serve
+    type: copy_command
+  - type: retry
+  severity: blocker
+  transient: true
+ORT_EP_UNAVAILABLE:
+  fixes:
+  - one_of:
+    - deployment: linux
+      target: ort-cuda
+      type: download
+    - type: open_docs
+  - target: cpu_ep
+    type: choose_alternative
+  severity: warning
+  transient: false
+OUTPUT_TARGET_INSIDE_SOURCE:
+  fixes:
+  - target: choose-output
+    type: open_settings
+  severity: blocker
+  transient: false
+PACK_INCOMPATIBLE:
+  fixes:
+  - target: install_pack(locked_version)
+    type: auto_fix
+  severity: blocker
+  transient: false
+PACK_SIGNATURE_INVALID:
+  fixes:
+  - target: other_mirror
+    type: retry
+  - target: report-issue
+    type: open_docs
+  severity: blocker
+  transient: false
+PERF_CPU_ONLY_SLOW:
+  fixes:
+  - target: external-endpoint
+    type: open_settings
+  - target: continue_anyway
+    type: choose_alternative
+  severity: warning
+  transient: false
+PERMISSION_DENIED_ROLE:
+  fixes:
+  - target: request-approval
+    type: open_docs
+  severity: blocker
+  transient: false
+PLAN_STALE:
+  fixes:
+  - target: reprobe
+    type: retry
+  severity: blocker
+  transient: false
+RAM_INSUFFICIENT:
+  fixes:
+  - target: smaller_model
+    type: choose_alternative
+  severity: blocker
+  transient: false
+RUNTIME_CRASHED:
+  fixes:
+  - type: retry
+  - target: logs
+    type: open_docs
+  severity: blocker
+  transient: true
+RUNTIME_PACK_BROKEN:
+  fixes:
+  - target: install_pack(reinstall)
+    type: auto_fix
+  - target: cpu_build
+    type: choose_alternative
+  severity: blocker
+  transient: false
+RUNTIME_PACK_MISSING:
+  fixes:
+  - target: llamacpp-cuda13
+    type: download
+  severity: blocker
+  transient: false
+RUNTIME_TIMEOUT:
+  fixes:
+  - target: failed_items
+    type: retry
+  severity: warning
+  transient: true
+RUNTIME_UNSUPPORTED_PLATFORM:
+  fixes:
+  - target: llamacpp
+    type: choose_alternative
+  severity: blocker
+  transient: false
+SEARCH_INDEX_INCOMPLETE:
+  fixes:
+  - target: reindex
+    type: auto_fix
+  severity: warning
+  transient: false
+SEARCH_MODEL_MISMATCH:
+  fixes:
+  - target: reindex
+    type: auto_fix
+  severity: warning
+  transient: false
+TIME_SKEW:
+  fixes:
+  - target: time-sync
+    type: copy_command
+  severity: blocker
+  transient: false
+UNDO_TARGET_MODIFIED:
+  fixes:
+  - target: review-conflicts
+    type: open_docs
+  - target: skip_conflicts
+    type: choose_alternative
+  severity: blocker
+  transient: false
+VRAM_INSUFFICIENT:
+  fixes:
+  - target: q4_k_m(8B)
+    type: choose_alternative
+  severity: blocker
+  transient: false
+VRAM_OFFLOAD:
+  fixes:
+  - target: smaller_variant
+    type: choose_alternative
+  - target: continue_anyway
+    type: choose_alternative
+  severity: warning
+  transient: false
+VRAM_SEQUENTIAL:
+  fixes:
+  - target: sequential-mode
+    type: open_docs
+  severity: warning
+  transient: false
+WORKER_OFFLINE:
+  fixes:
+  - one_of:
+    - deployment: desktop
+      target: restart_runtime
+      type: auto_fix
+    - deployment: docker
+      target: worker run
+      type: copy_command
+  - type: retry
+  severity: blocker
+  transient: true
+WORKER_VERSION_MISMATCH:
+  fixes:
+  - one_of:
+    - deployment: desktop
+      target: update
+      type: auto_fix
+    - target: upgrade
+      type: open_docs
+  severity: blocker
+  transient: false
+WSL_GPU_UNAVAILABLE:
+  fixes:
+  - target: wsl --install
+    type: copy_command
+  - target: llamacpp
+    type: choose_alternative
+  severity: blocker
+  transient: false
