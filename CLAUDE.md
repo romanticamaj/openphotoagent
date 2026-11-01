@@ -187,8 +187,8 @@ just dev            # all-in-one 開發模式（api + worker + PG + web）
 | 2026-11-01 | 切片 3 fs-sandbox | ✅ | FS-001～026（FS-013 Windows、FS-015 macOS/Windows 由 CI OS 矩陣執行）；FS-024 fuzz 抓到超長檔名 bug 並修正 |
 | 2026-11-01 | 切片 4 executor | ✅ | OUT-EXE-001～023、OUT-JRN-001～005、OUT-CRASH-001～012（012 nightly，本機實跑 10,000 actions × 50 次 kill -9 通過）、OUT-UNDO-001～009；fs-sandbox branch 98% |
 | 2026-11-01 | 切片 5 scanner | ✅ | SCAN-001～025 全綠（SCAN-006／019／020 在切片 6 補完）；RAW fixtures 為合成 CC0 容器（raw.pixls.us 無法連線） |
-| 2026-11-01 | 切片 7 推論（`feat/v0.1-c`） | ✅ | INF-REG／RT／VRAM／CAL／CAS／JSON／CONF／OOM、ORG-002～004／007～010、REV-001／003／004、Q-025 綠；ADR-0002（registry catalog／lock 分離，B-10）；新套件 registry、doctor、inference-adapters（llama.cpp 經 FakeRuntime、ORT 用 tiny ONNX）；hw profiles 為 synthesized-from-docs；INF-REG-013 屬 release gate；INF-CAL-003／ORG-005 nightly；ORG-006 待 fs-sandbox mutation 修補合併後做；REV-002／005 隨切片 10 E2E |
 | 2026-11-01 | 切片 6 queue／Operation／ETA | ✅ | Q-001～024、026～028、OP-001～005、007～011、013～017、ETA-001～018 綠；ADR-0001（門檻與 cascade 分工）→ 新增 CORE-THR-018／019；Q-025 依賴切片 7 cascade 移至 1C；OP-006／012（E2E）隨切片 10 UI；ETA-019 需參考機 |
+| 2026-11-01 | 切片 7 推論（`feat/v0.1-c`） | ✅ | INF-REG／RT／VRAM／CAL／CAS／JSON／CONF／OOM、ORG-002～004／007～010、REV-001／003／004、Q-025 綠；ADR-0002（registry catalog／lock 分離，B-10）；新套件 registry、doctor、inference-adapters（llama.cpp 經 FakeRuntime、ORT 用 tiny ONNX）；hw profiles 為 synthesized-from-docs；INF-REG-013 屬 release gate；INF-CAL-003／ORG-005 nightly；ORG-006 待 fs-sandbox mutation 修補合併後做；REV-002／005 隨切片 10 E2E |
 
 ### 仍待決定／待驗證（可用 sub-agent 討論的依 §5.8 處理；屬於使用者本人決定的記到 `docs/BLOCKERS.md`）
 - 人臉測試影像的授權來源（09 Q-T1）；中文日期表達的精確範圍，例如「過年」（Q-T5）。
