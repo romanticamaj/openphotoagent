@@ -3,7 +3,6 @@ import time
 
 import numpy as np
 import pytest
-
 from opagent_core.decide import Policy
 from opagent_doctor.probes import load_profile
 from opagent_inference.cascade import Cascade, ClassDef, Item, Taxonomy, estimate_distribution
@@ -119,9 +118,9 @@ def test_inf_cas_010_estimate_distribution_fast():
     custom = ClassDef("beach", "Beach", "sea and sand", examples=list(embs[:3]))
     t = tax(classes=[*CLASSES, custom])
     texts["beach"] = np.eye(16)[10]
-    t0 = time.perf_counter()  # noqa: TID251 - measuring a latency budget, not product time
+    t0 = time.perf_counter()
     est = estimate_distribution(embs, t, texts)
-    took = time.perf_counter() - t0  # noqa: TID251
+    took = time.perf_counter() - t0
     assert took < 0.5
     assert sum(est.counts.values()) == 1000 and est.counts["beach"] >= 3
     assert est.vlm_calls == 0

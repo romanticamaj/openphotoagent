@@ -56,6 +56,14 @@ class FakeBackend:
     ) -> None:
         self.seed = seed
         self.latency_s = latency_ms_per_item / 1000.0
+        self.scores = scores
+        self.vlm_p = vlm_p
+        self.vlm_category = vlm_category
+        self.text_calls = 0
+        self.texts_embedded: list[list[str]] = []
+        self._text_index: dict[str, int] = {}
+        self._n_classes = 0
+        self._requests: list[BatchRequest] = []
         self.cancelled = 0
         self.est_vram_mb = est_vram_mb
         self.embedding_dim = embedding_dim
@@ -123,14 +131,21 @@ class FakeBackend:
                     "TIMEOUT", retryable=True, message=f"deadline {req.deadline_s}s exceeded"
                 ) from None
         self._calls.append({"task": req.task_type, "n": len(req.items)})
+        self._requests.append(req)
         if req.task_type == "embed":
-            return [ItemOutput(item_id=it.item_id, embedding=self.embed_vector(it.content_hash)) for it in req.items]
+            return [ItemOutput(item_id=it.item_id, embedding=self.image_vector(it)) for it in req.items]
         cats = tuple(req.variables.get("categories") or DEFAULT_CATEGORIES)
         out: list[ItemOutput] = []
         for it in req.items:
             h = hashlib.sha256(f"{it.content_hash}:{self.seed}".encode()).digest()
-            cat = str(it.labels.get("category") or cats[h[0] % len(cats)])
-            conf = float(it.labels.get("confidence", 0.5 + (h[1] / 255) * 0.5))
+            cat = str(
+                self.vlm_category
+                or it.labels.get("category")
+                or (cats[0] if req.variables.get("hints") else cats[h[0] % len(cats)])
+            )
+            conf = float(
+                self.vlm_p if self.vlm_p is not None else it.labels.get("confidence", 0.5 + (h[1] / 255) * 0.5)
+            )
             out.append(
                 ItemOutput(
                     item_id=it.item_id,
@@ -150,3 +165,48 @@ class FakeBackend:
         v = [(h[i % len(h)] - 127.5) / 127.5 for i in range(self.embedding_dim)]
         n = math.sqrt(sum(x * x for x in v)) or 1.0
         return [x / n for x in v]
+
+    def requests(self, task: str | None = None) -> list[BatchRequest]:
+        return [r for r in self._requests if task is None or r.task_type == task]
+
+    # ---- fb:scores(...) — vectors shaped so the real cascade math yields the requested confidence ----
+    def _basis(self, i: int) -> list[float]:
+        v = [0.0] * self.embedding_dim
+        v[i % self.embedding_dim] = 1.0
+        return v
+
+    def embed_texts(self, texts: list[str]) -> list[list[float]]:
+        self.text_calls += 1
+        self.texts_embedded.append(list(texts))
+        if self.scores is None:
+            return [self.embed_vector("text:" + t) for t in texts]
+        if not self._n_classes:
+            self._n_classes = len(texts)
+        out = []
+        for t in texts:
+            if t not in self._text_index:
+                self._text_index[t] = len(self._text_index)
+            out.append(self._basis(self._text_index[t]))
+        return out
+
+    def image_vector(self, it: ImageInput) -> list[float]:
+        mode = self.scores
+        if mode is None:
+            return self.embed_vector(it.content_hash)
+        n = max(1, self._n_classes)
+        h = hashlib.sha256(f"{it.content_hash}:{self.seed}".encode()).digest()
+        target = h[0] % n
+        if mode == "mixed":
+            mode = "high" if h[2] % 2 == 0 else "low"
+        if mode == "high":
+            return self._basis(target)
+        if mode == "low":
+            a, b = self._basis(target), self._basis((target + 1) % n)
+            v = [x + 0.97 * y for x, y in zip(a, b, strict=True)]
+        elif isinstance(mode, dict):  # scripted: {item_id: (category_index, strength)}
+            idx, strength = mode.get(it.item_id, (target, 1.0))
+            v = [x * strength + 0.01 for x in self._basis(idx)]
+        else:  # random(seed)
+            v = [(h[i % len(h)] - 127.5) for i in range(self.embedding_dim)]
+        nrm = math.sqrt(sum(x * x for x in v)) or 1.0
+        return [x / nrm for x in v]
