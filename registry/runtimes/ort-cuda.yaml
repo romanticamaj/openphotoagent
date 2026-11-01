@@ -1,0 +1,12 @@
+schema_version: 1
+id: ort-cuda
+provides: { runtime: onnx, accel: cuda }
+builtin: false
+size_est: 1250000000
+platforms:
+  - { os: linux, arch: x86_64 }
+  - { os: windows, arch: x86_64 }
+requires:
+  nvidia_driver_min: "550.00"
+  compute_capability_min: "6.1"
+license: { spdx: MIT, notice_file: LICENSE-onnxruntime }

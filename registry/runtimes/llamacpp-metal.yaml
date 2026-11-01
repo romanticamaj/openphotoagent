@@ -1,0 +1,7 @@
+schema_version: 1
+id: llamacpp-metal
+provides: { runtime: llama.cpp, accel: metal }
+builtin: true
+platforms:
+  - { os: macos, arch: arm64 }
+license: { spdx: MIT, notice_file: LICENSE-llama.cpp }

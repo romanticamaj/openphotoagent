@@ -1,0 +1,14 @@
+# Size and requirement lower bounds are estimates (08 §4.2/§4.3 【估算】【未驗證】); sha256 comes from our own pack build.
+schema_version: 1
+id: llamacpp-cuda13
+provides: { runtime: llama.cpp, accel: cuda }
+builtin: false
+size_est: 450000000
+platforms:
+  - { os: windows, arch: x86_64 }
+  - { os: linux, arch: x86_64 }
+requires:
+  nvidia_driver_min: "580.00"
+  compute_capability_min: "7.5"
+  cuda_architectures: ["75", "80", "86", "89", "90", "100", "120"]
+license: { spdx: MIT, notice_file: LICENSE-llama.cpp }

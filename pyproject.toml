@@ -9,7 +9,7 @@ dependencies = []
 package = false
 
 [tool.uv.workspace]
-members = ["packages/core", "packages/fs-sandbox", "packages/inference-sdk", "packages/testing", "packages/schemas", "packages/db", "apps/api", "apps/worker", "apps/cli", "tools/pytest_tc"]
+members = ["packages/core", "packages/fs-sandbox", "packages/inference-sdk", "packages/testing", "packages/schemas", "packages/db", "packages/registry", "packages/doctor", "apps/api", "apps/worker", "apps/cli", "tools/pytest_tc"]
 
 [tool.uv.sources]
 opagent-core = { workspace = true }
@@ -18,6 +18,8 @@ opagent-inference-sdk = { workspace = true }
 opagent-testing = { workspace = true }
 opagent-schemas = { workspace = true }
 opagent-db = { workspace = true }
+opagent-registry = { workspace = true }
+opagent-doctor = { workspace = true }
 opagent-api = { workspace = true }
 opagent-worker = { workspace = true }
 opagent-cli = { workspace = true }
@@ -25,14 +27,14 @@ pytest-opagent-tc = { workspace = true }
 
 [dependency-groups]
 dev = [
-  "opagent-core", "opagent-fs-sandbox", "opagent-inference-sdk", "opagent-testing",
+  "opagent-core", "opagent-fs-sandbox", "opagent-inference-sdk", "opagent-testing", "opagent-registry", "opagent-doctor",
   "opagent-schemas", "opagent-db", "opagent-api", "opagent-worker", "opagent-cli", "pytest-opagent-tc",
   "pytest>=8", "pytest-cov", "pytest-randomly", "pytest-socket", "pytest-asyncio", "hypothesis",
   "ruff", "mypy", "import-linter", "httpx", "mutmut", "diff-cover",
 ]
 
 [tool.pytest.ini_options]
-addopts = "-p no:cacheprovider --import-mode=importlib --allow-hosts=127.0.0.1,localhost,::1 -m 'not real_model and not gpu and not perf and not nightly'"
+addopts = "-p no:cacheprovider --import-mode=importlib --allow-hosts=127.0.0.1,localhost,::1 -m 'not real_model and not gpu and not perf and not nightly and not release_gate'"
 testpaths = ["packages", "apps", "tests", "tools"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
@@ -40,6 +42,7 @@ markers = [
   "unit", "property", "contract", "integration", "e2e", "chaos", "security", "perf",
   "real_model", "gpu", "os_windows", "os_macos", "os_linux", "quarantine(issue, until)",
   "nightly: long-running cases run by nightly.yml only",
+  "release_gate: layer G cases run by release-gate.yml only (e.g. INF-REG-013)",
   "tc(*ids): link a test to 09a/09b test case IDs",
 ]
 filterwarnings = ["error::pytest.PytestUnknownMarkWarning"]
@@ -86,13 +89,13 @@ patch = ["subprocess"]
 source = ["opagent_core", "opagent_fs", "opagent_inference", "opagent_api", "opagent_worker", "opagent_db"]
 
 [tool.importlinter]
-root_packages = ["opagent_api", "opagent_worker", "opagent_db", "opagent_core", "opagent_fs", "opagent_inference", "opagent_schemas"]
+root_packages = ["opagent_api", "opagent_worker", "opagent_db", "opagent_core", "opagent_fs", "opagent_inference", "opagent_schemas", "opagent_registry", "opagent_doctor"]
 
 [[tool.importlinter.contracts]]
 id = "api-no-files-no-gpu"
 name = "FS-026: apps/api and packages/db must not import fs-sandbox or inference-* (invariant 1)"
 type = "forbidden"
-source_modules = ["opagent_api", "opagent_db"]
+source_modules = ["opagent_api", "opagent_db", "opagent_registry", "opagent_doctor"]
 forbidden_modules = ["opagent_fs", "opagent_inference"]
 
 [[tool.importlinter.contracts]]

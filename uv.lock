@@ -14,8 +14,10 @@ members = [
     "opagent-cli",
     "opagent-core",
     "opagent-db",
+    "opagent-doctor",
     "opagent-fs-sandbox",
     "opagent-inference-sdk",
+    "opagent-registry",
     "opagent-schemas",
     "opagent-testing",
     "opagent-worker",
@@ -1174,6 +1176,8 @@ dependencies = [
     { name = "fastapi" },
     { name = "opagent-core" },
     { name = "opagent-db" },
+    { name = "opagent-doctor" },
+    { name = "opagent-registry" },
     { name = "opagent-schemas" },
     { name = "uvicorn" },
 ]
@@ -1183,6 +1187,8 @@ requires-dist = [
     { name = "fastapi" },
     { name = "opagent-core", editable = "packages/core" },
     { name = "opagent-db", editable = "packages/db" },
+    { name = "opagent-doctor", editable = "packages/doctor" },
+    { name = "opagent-registry", editable = "packages/registry" },
     { name = "opagent-schemas", editable = "packages/schemas" },
     { name = "uvicorn" },
 ]
@@ -1243,6 +1249,25 @@ requires-dist = [
 ]
 
 [[package]]
+name = "opagent-doctor"
+version = "0.0.1"
+source = { editable = "packages/doctor" }
+dependencies = [
+    { name = "opagent-core" },
+    { name = "opagent-registry" },
+    { name = "pydantic" },
+    { name = "pyyaml" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "opagent-core", editable = "packages/core" },
+    { name = "opagent-registry", editable = "packages/registry" },
+    { name = "pydantic", specifier = ">=2" },
+    { name = "pyyaml" },
+]
+
+[[package]]
 name = "opagent-fs-sandbox"
 version = "0.0.1"
 source = { editable = "packages/fs-sandbox" }
@@ -1272,6 +1297,23 @@ requires-dist = [
     { name = "numpy" },
     { name = "opagent-core", editable = "packages/core" },
     { name = "pydantic", specifier = ">=2" },
+]
+
+[[package]]
+name = "opagent-registry"
+version = "0.0.1"
+source = { editable = "packages/registry" }
+dependencies = [
+    { name = "opagent-core" },
+    { name = "pydantic" },
+    { name = "pyyaml" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "opagent-core", editable = "packages/core" },
+    { name = "pydantic", specifier = ">=2" },
+    { name = "pyyaml" },
 ]
 
 [[package]]
@@ -1311,8 +1353,10 @@ dependencies = [
     { name = "httpx" },
     { name = "numpy" },
     { name = "opagent-core" },
+    { name = "opagent-doctor" },
     { name = "opagent-fs-sandbox" },
     { name = "opagent-inference-sdk" },
+    { name = "opagent-registry" },
     { name = "opagent-schemas" },
     { name = "pillow" },
     { name = "pillow-heif" },
@@ -1325,8 +1369,10 @@ requires-dist = [
     { name = "httpx" },
     { name = "numpy" },
     { name = "opagent-core", editable = "packages/core" },
+    { name = "opagent-doctor", editable = "packages/doctor" },
     { name = "opagent-fs-sandbox", editable = "packages/fs-sandbox" },
     { name = "opagent-inference-sdk", editable = "packages/inference-sdk" },
+    { name = "opagent-registry", editable = "packages/registry" },
     { name = "opagent-schemas", editable = "packages/schemas" },
     { name = "pillow" },
     { name = "pillow-heif" },
@@ -1350,8 +1396,10 @@ dev = [
     { name = "opagent-cli" },
     { name = "opagent-core" },
     { name = "opagent-db" },
+    { name = "opagent-doctor" },
     { name = "opagent-fs-sandbox" },
     { name = "opagent-inference-sdk" },
+    { name = "opagent-registry" },
     { name = "opagent-schemas" },
     { name = "opagent-testing" },
     { name = "opagent-worker" },
@@ -1378,8 +1426,10 @@ dev = [
     { name = "opagent-cli", editable = "apps/cli" },
     { name = "opagent-core", editable = "packages/core" },
     { name = "opagent-db", editable = "packages/db" },
+    { name = "opagent-doctor", editable = "packages/doctor" },
     { name = "opagent-fs-sandbox", editable = "packages/fs-sandbox" },
     { name = "opagent-inference-sdk", editable = "packages/inference-sdk" },
+    { name = "opagent-registry", editable = "packages/registry" },
     { name = "opagent-schemas", editable = "packages/schemas" },
     { name = "opagent-testing", editable = "packages/testing" },
     { name = "opagent-worker", editable = "apps/worker" },

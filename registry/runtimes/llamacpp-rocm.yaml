@@ -1,0 +1,9 @@
+schema_version: 1
+id: llamacpp-rocm
+provides: { runtime: llama.cpp, accel: rocm }
+builtin: false
+advanced: true
+size_est: 1500000000
+platforms:
+  - { os: linux, arch: x86_64 }
+license: { spdx: MIT, notice_file: LICENSE-llama.cpp }

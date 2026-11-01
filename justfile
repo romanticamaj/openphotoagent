@@ -31,7 +31,7 @@ lint:
     uv run ruff check .
     uv run ruff format --check .
     uv run mypy -p opagent_core -p opagent_fs -p opagent_schemas
-    uv run mypy -p opagent_inference -p opagent_db -p opagent_api -p opagent_worker -p opagent_cli -p opagent_testing
+    uv run mypy -p opagent_inference -p opagent_registry -p opagent_doctor -p opagent_db -p opagent_api -p opagent_worker -p opagent_cli -p opagent_testing
     uv run lint-imports
     pnpm -r --if-present lint
     pnpm -r --if-present typecheck
