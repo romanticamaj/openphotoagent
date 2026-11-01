@@ -4,7 +4,6 @@ from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
-
 from opagent_fs.safepath import RootConfig, Sandbox
 from opagent_worker.scanner import HashCache, read_meta, scan
 

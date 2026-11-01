@@ -136,8 +136,10 @@ def complete(task_id: str, body: CompleteIn, req: Request) -> dict[str, str]:
             .values(status="done" if body.ok else "failed", result=body.result)
         )
         handler = {"scan": _on_scan, "apply": _on_apply, "undo": _on_undo}.get(t.kind)
-        if handler:
+        if handler and body.ok:
             handler(st, c, t, body.result)
+        elif handler and t.job_id and t.kind == "scan":
+            set_job_status(c, t.job_id, JobStatus.failed, error=str(body.result.get("error")))
     return {"status": "ok"}
 
 

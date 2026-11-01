@@ -105,6 +105,12 @@ def create_source(body: SourceIn, req: Request) -> dict[str, Any]:
         owner = next((wid for wid, rs in w if any(r["alias"] == body.root_alias for r in rs)), None)
         if owner is None:
             raise HTTPException(409, detail={"code": "FS_ROOT_NOT_ALLOWED", "root_alias": body.root_alias})
+        existing = c.execute(
+            select(source.c.id).where(source.c.root_alias == body.root_alias,
+                                      source.c.sub_path == body.sub_path.strip("/"))
+        ).scalar()
+        if existing is not None:  # one source per folder: rescans update locations in place (SCAN-005)
+            return {"id": existing, "root_alias": body.root_alias, "sub_path": body.sub_path.strip("/")}
         sid = uuid7(st.clock)
         c.execute(
             insert(source).values(

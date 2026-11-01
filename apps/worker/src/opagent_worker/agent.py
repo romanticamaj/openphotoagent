@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import os
 import uuid
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -18,7 +17,7 @@ from opagent_fs.fsops import RealFs
 from opagent_fs.journal import Journal
 from opagent_fs.safepath import RootConfig, Sandbox
 
-from .scanner import content_hash, list_files, read_meta
+from .scanner import HashCache, scan
 
 
 class WorkerAgent:
@@ -41,6 +40,7 @@ class WorkerAgent:
         self.name = name
         self.executor = Executor(self.sb, RealFs(), Journal(self.home / "journal.db"))
         self.tz = SystemClock().now().astimezone().tzinfo
+        self.cache = HashCache(self.home / "scan-cache.db")
 
     def _load_id(self) -> str:
         f = self.home / "worker_id"
@@ -88,25 +88,15 @@ class WorkerAgent:
 
     # ---- task handlers -------------------------------------------------
     def _do_scan(self, p: dict[str, Any]) -> dict[str, Any]:
-        alias = p["root_alias"]
-        rels = list_files(self.sb, alias, p.get("sub_path", ""), p["include"], p["exclude"])
-        entries = []
-        for rel in rels:
-            sp = self.sb.resolve(alias, rel)
-            st = os.stat(sp.real)
-            mtime = datetime.fromtimestamp(st.st_mtime, tz=self.tz)
-            meta = read_meta(sp.real, mtime, self.tz)  # type: ignore[arg-type]
-            entries.append(
-                {
-                    "rel": sp.rel,
-                    "size": st.st_size,
-                    "mtime": mtime.isoformat(),
-                    "content_hash": content_hash(sp.real),
-                    "taken_at": meta.taken_at.isoformat() if meta.taken_at and meta.date_source != "mtime" else None,
-                    "date_source": meta.date_source,
-                }
-            )
-        return {"entries": entries}
+        res = scan(self.sb, p["root_alias"], p.get("sub_path", ""), p["include"], p["exclude"], tz=self.tz,  # type: ignore[arg-type]
+                   cache=self.cache, exclude_subtrees=p.get("exclude_subtrees") or [])
+        entries = [{
+            "rel": e.rel, "size": e.size, "mtime": e.mtime.isoformat(), "content_hash": e.content_hash,
+            "taken_at": e.taken_at.isoformat() if e.taken_at and e.date_source != "mtime" else None,
+            "date_source": e.date_source, **e.extra,
+        } for e in res.entries]
+        return {"entries": entries, "skipped": [{"rel": s.rel, "reason": s.reason} for s in res.skipped],
+                "bytes_read": res.bytes_read}
 
     def _do_apply(self, p: dict[str, Any]) -> dict[str, Any]:
         actions = [Action(**a) for a in p["actions"]]
