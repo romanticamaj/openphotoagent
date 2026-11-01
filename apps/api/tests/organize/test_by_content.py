@@ -124,7 +124,7 @@ def test_rev_001_low_confidence_creates_reviews(embedded_pg, sandbox_tree, tmp_p
     revs = _reviews(client, j["id"])
     assert revs["count"] == 8 and all(r["reason"] == "low_confidence" for r in revs["items"])
     assert all(r["suggested"]["category"] for r in revs["items"])
-    with client.stream("GET", "/api/v1/events", headers={"Last-Event-ID": "0"}, params={"once": 1}) as s:
+    with client.stream("GET", "/api/v1/events", params={"once": 1}) as s:  # no Last-Event-ID: whole outbox
         body = "".join(s.iter_text())
     assert body.count("event: review.created") == 8
 
