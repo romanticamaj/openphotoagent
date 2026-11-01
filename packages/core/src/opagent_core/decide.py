@@ -111,3 +111,26 @@ def decide(emb: Stage | None = None, vlm: VlmResult | None = None, rule_category
     if r.route == "accept":
         return Outcome("accepted", r.category, r.p, "embedding")
     return _by_thresholds(r.category, r.p, "embedding", policy)
+
+
+@dataclass(frozen=True)
+class TaxonomyEntry:
+    id: str
+    key: str
+    display: str
+
+
+def temperature_softmax(sims: list[float], t: float) -> list[float]:
+    return []
+
+
+def normalize_logprobs(first_token_logprobs: dict[str, float], candidates: list[str]) -> dict[str, float]:
+    return {}
+
+
+def build_taxonomy(classes: list[tuple[str, str]], first_token: object) -> list[TaxonomyEntry]:
+    return []
+
+
+def redecide(stages: dict[str, object], policy: Policy) -> Outcome:
+    return Outcome("other", None, 0.0, "embedding")
