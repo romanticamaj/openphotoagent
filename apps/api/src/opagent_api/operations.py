@@ -74,3 +74,18 @@ def set_op_status(conn: Any, clock: Any, op_id: str, target: str, waiting_reason
 def project_job(conn: Any, clock: Any, job_id: str, job_status: str) -> None:
     for target in _PROJECTION.get(job_status, []):
         set_op_status(conn, clock, job_id, target, "PAUSED_BY_USER" if target == "paused" else None)
+
+
+class OperationWriter:
+    def __init__(self, engine: Any, clock: Any) -> None:
+        self.engine, self.clock = engine, clock
+
+    def progress(self, op_id: str, fraction: float) -> int:
+        return 0
+
+    def status(self, op_id: str, target: str) -> None:
+        pass
+
+
+def complete_operation(conn: Any, clock: Any, op_id: str, **kw: Any) -> None:
+    pass

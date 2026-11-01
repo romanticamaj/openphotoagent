@@ -203,6 +203,30 @@ operation_event = Table(
     Column("payload", JSONB, nullable=False, server_default="{}"),
     _ts("at"),
 )
+perf_observation = Table(  # 06 §5.5 / 02 §10.1
+    "perf_observation", metadata,
+    Column("id", BigInteger, primary_key=True, autoincrement=True),
+    Column("worker_id", Text),
+    Column("variant", Text),
+    Column("op_type", Text, nullable=False),
+    Column("items_per_s", Float),
+    Column("bytes_per_s", Float),
+    Column("load_s", Float),
+    _ts("at"),
+)
+eta_calibration = Table(
+    "eta_calibration", metadata,
+    Column("id", BigInteger, primary_key=True, autoincrement=True),
+    Column("operation_id", Text, nullable=False),
+    Column("op_type", Text, nullable=False),
+    Column("predicted_p50", Float, nullable=False),
+    Column("predicted_p10", Float),
+    Column("predicted_p90", Float),
+    Column("actual_s", Float, nullable=False),
+    Column("ratio", Float, nullable=False),
+    Column("covered", Boolean),
+    _ts("at"),
+)
 metric = Table(
     "metric",
     metadata,
