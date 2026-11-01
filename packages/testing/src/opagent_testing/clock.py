@@ -68,3 +68,17 @@ class FakeClock:
     @property
     def pending(self) -> int:
         return sum(1 for t in self._timers if not t.cancelled)
+
+
+class AutoClock(FakeClock):
+    """FakeClock whose ``sleep`` advances time immediately and records the requested delay — for retry/backoff
+    logic driven by real I/O (downloads), where nobody else is there to call ``advance``."""
+
+    def __init__(self, start: datetime | None = None) -> None:
+        super().__init__(start)
+        self.slept: list[float] = []
+
+    async def sleep(self, seconds: float) -> None:
+        self.slept.append(seconds)
+        self.advance(seconds)
+        await asyncio.sleep(0)
