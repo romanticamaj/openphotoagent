@@ -136,8 +136,10 @@ def test_q_013_worker_offline_outbox(q, sandbox_tree, tmp_path):
 @pytest.mark.tc("Q-015")
 def test_q_015_thresholds_only_reapply(q):
     q.seed(4)
-    for it in q.lease("w1", 4):
-        q.client.post("/worker-api/v1/results", json={"worker_id": "w1", "items": [ok(it)]})
+    for it in q.lease("w1", 4):  # embedding-stage results (ADR-0001: accept gates the fast path)
+        rep = ok(it)
+        rep["output"] = {**rep["output"], "stage": "embedding", "scores": {"food": 0.9, "pets": 0.05}}
+        q.client.post("/worker-api/v1/results", json={"worker_id": "w1", "items": [rep]})
     pf = q.client.post("/api/v1/preflight", json={"action": "job.start", "params": {
         "kind": "label", "rerun_of": "j1", "task_config": CFG, "fingerprint": "fp1"}}).json()
     assert pf["ready"] is True
