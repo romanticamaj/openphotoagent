@@ -61,6 +61,18 @@ class Compat:
         }
 
 
+def compat_inputs_hash(hw: HwSummary, reg: Any) -> str:
+    return ""
+
+
+class CompatCache:
+    def __init__(self, compute: Any = None) -> None:
+        pass
+
+    def get(self, model: Any, variant: str, hw: HwSummary, reg: Any) -> Any:
+        return None
+
+
 def gpu_cc(gpu: Gpu, classes: Iterable[GpuClass] = ()) -> str | None:
     if gpu.compute_capability:
         return gpu.compute_capability
