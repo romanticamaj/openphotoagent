@@ -28,9 +28,11 @@ def test_op_002_phase_weights_static_time_and_skipped():
 def test_op_003_cache_hits_do_not_jump_infer():
     c = {"total": 1000, "cached": 310, "done": 0, "failed": 0, "skipped": 0}
     start_infer = job_label_fraction(c, phase="infer")
-    assert start_infer == pytest.approx((2 + 3) / 95)  # model_load skipped; cache hits counted in cache_lookup
+    # model_load skipped (already loaded); cache hits were counted in cache_lookup, so infer starts at 0 % of
+    # its own weight instead of jumping to 31 % (06 §5.4)
+    assert start_infer == pytest.approx((2 + 3 + 10) / 95)
     half = job_label_fraction({**c, "done": 345}, phase="infer")
-    assert half == pytest.approx((2 + 3 + 0.5 * 75) / 95)
+    assert half == pytest.approx((2 + 3 + 10 + 0.5 * 75) / 95)
 
 
 @pytest.mark.unit
