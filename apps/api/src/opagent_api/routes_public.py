@@ -60,6 +60,43 @@ def roots(req: Request) -> list[dict[str, Any]]:
     return [{"worker_id": w, **r} for w, rs in rows for r in rs]
 
 
+def worker_rpc(st: AppState, worker_id: str, kind: str, payload: dict[str, Any], timeout_s: float = 5.0) -> Any:
+    """Synchronous request to a worker through the task queue (docs/02 §5.1 fs/browse is relayed to the worker)."""
+    import time
+
+    tid = uuid7(st.clock)
+    with st.engine.begin() as c:
+        c.execute(insert(worker_task).values(id=tid, kind=kind, worker_id=worker_id, payload=payload))
+    deadline = st.clock.monotonic() + timeout_s
+    while st.clock.monotonic() < deadline:
+        with st.engine.begin() as c:
+            r = c.execute(select(worker_task.c.status, worker_task.c.result).where(worker_task.c.id == tid)).first()
+        if r is not None and r.status in ("done", "failed"):
+            if r.status == "failed":
+                raise HTTPException(409, detail={"code": "WORKER_RPC_FAILED", **(r.result or {})})
+            return r.result
+        time.sleep(0.03)  # noqa: TID251 - polling inside a threadpool handler
+    with st.engine.begin() as c:
+        c.execute(
+            update(worker_task)
+            .where(worker_task.c.id == tid, worker_task.c.status == "pending")
+            .values(status="cancelled")
+        )
+    raise HTTPException(504, detail={"code": "WORKER_OFFLINE"})
+
+
+@router.get("/fs/browse")
+def browse(root: str, req: Request, path: str = "") -> dict[str, Any]:
+    st = _st(req)
+    with st.engine.begin() as c:
+        w = c.execute(select(worker.c.id, worker.c.roots)).all()
+    owner = next((wid for wid, rs in w if any(r["alias"] == root for r in rs)), None)
+    if owner is None:
+        raise HTTPException(409, detail={"code": "FS_ROOT_NOT_ALLOWED"})
+    res = worker_rpc(st, owner, "browse", {"root_alias": root, "path": path})
+    return {"root": root, "path": path, "dirs": res["dirs"]}
+
+
 @router.post("/sources", status_code=201)
 def create_source(body: SourceIn, req: Request) -> dict[str, Any]:
     st = _st(req)

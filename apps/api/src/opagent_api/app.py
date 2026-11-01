@@ -11,11 +11,17 @@ from . import routes_public, routes_worker
 from .state import AppState
 
 
-def create_app(dsn: str, clock: Clock | None = None, launch_token: str | None = None) -> FastAPI:
+def create_app(
+    dsn: str, clock: Clock | None = None, launch_token: str | None = None, static_dir: str | None = None
+) -> FastAPI:
     app = FastAPI(title="OpenPhotoAgent API", version="0.1.0-dev")
     st = AppState(engine=engine_for(dsn), clock=clock or SystemClock(), launch_token=launch_token)
     st.ensure_workspace()
     app.state.opa = st
     app.include_router(routes_public.router, prefix="/api/v1")
     app.include_router(routes_worker.router, prefix="/worker-api/v1")
+    if static_dir:
+        from fastapi.staticfiles import StaticFiles
+
+        app.mount("/", StaticFiles(directory=static_dir, html=True), name="web")
     return app

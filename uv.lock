@@ -1119,16 +1119,20 @@ name = "opagent-cli"
 version = "0.0.1"
 source = { editable = "apps/cli" }
 dependencies = [
+    { name = "httpx" },
     { name = "opagent-api" },
     { name = "opagent-db" },
     { name = "opagent-worker" },
+    { name = "uvicorn" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "httpx" },
     { name = "opagent-api", editable = "apps/api" },
     { name = "opagent-db", editable = "packages/db" },
     { name = "opagent-worker", editable = "apps/worker" },
+    { name = "uvicorn" },
 ]
 
 [[package]]

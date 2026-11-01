@@ -1,1 +1,21 @@
-{"app":{"title":"OpenPhotoAgent"},"organize":{"byDate":"By date"}}
+{
+  "app": { "title": "OpenPhotoAgent" },
+  "common": { "working": "Working…" },
+  "organize": {
+    "pickFolder": "Choose a folder to organize",
+    "useThisFolder": "Use this folder",
+    "method": "How to organize",
+    "byDate": "By date",
+    "byDateHint": "Year / month folders from the capture date — no model download needed",
+    "pickMethodFirst": "Choose a method first",
+    "noWritableTarget": "No writable output location",
+    "output": "Output",
+    "preview": "Preview",
+    "summaryCopy": "Will copy {{count}} photos into {{folders}} folders; originals stay untouched. You can undo anytime",
+    "approve": "Approve and start",
+    "applying": "Organizing…",
+    "doneTitle": "All done",
+    "undo": "Undo",
+    "undoneTitle": "Undone"
+  }
+}
