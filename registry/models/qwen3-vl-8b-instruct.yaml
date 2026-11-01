@@ -32,7 +32,7 @@ variants:
     files:
       - { repo: Qwen/Qwen3-VL-8B-Instruct-GGUF, path: "Qwen3VL-8B-Instruct-Q4_K_M.gguf", role: weights }
       - { repo: Qwen/Qwen3-VL-8B-Instruct-GGUF, path: "mmproj-Qwen3VL-8B-Instruct-F16.gguf", role: mmproj }
-    vram_gb: { weights: 5.0, mmproj: 1.2, runtime_overhead: 0.8 }
+    vram_gb: { weights: 5.0, mmproj: 1.2, runtime_overhead: 0.3 }   # ≈6.5 GB total (08 §3.3 【估算】)
     recommended_batch: 4
     requires: { runtime_pack: ["llamacpp-*"], os: [windows, macos, linux], min_ram_gb: 8, accel_any: [cuda, metal, vulkan, rocm, cpu] }
     perf_prior: { ref_gpu: rtx-5070-ti, items_per_s: { classify: [1.8, 3.5], fused: [0.8, 1.7] }, load_s: [7, 18], bound: memory_bw }

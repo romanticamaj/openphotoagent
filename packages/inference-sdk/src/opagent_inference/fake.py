@@ -50,6 +50,9 @@ class FakeBackend:
         embedding_dim: int = 16,
         clock: Any = None,
         latency_ms_per_item: float = 0.0,
+        scores: Any = None,
+        vlm_p: float | None = None,
+        vlm_category: str | None = None,
     ) -> None:
         self.seed = seed
         self.latency_s = latency_ms_per_item / 1000.0
