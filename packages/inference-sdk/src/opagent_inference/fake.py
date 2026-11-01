@@ -53,7 +53,17 @@ class FakeBackend:
         scores: Any = None,
         vlm_p: float | None = None,
         vlm_category: str | None = None,
+        vectors: str | None = None,
     ) -> None:
+        self.vectors = vectors
+        self._groups: dict[str, Any] | None = None
+        if vectors == "semantic":  # fb:vectors(deterministic), fixtures/fake_vectors.yaml (09 §3.1)
+            import yaml
+            from pathlib import Path
+
+            spec = yaml.safe_load((Path(__file__).resolve().parents[4] / "fixtures" / "fake_vectors.yaml").read_text(encoding="utf-8"))
+            self._groups = spec["groups"]
+            embedding_dim = int(spec["dim"])
         self.seed = seed
         self.latency_s = latency_ms_per_item / 1000.0
         self.scores = scores
@@ -175,9 +185,24 @@ class FakeBackend:
         v[i % self.embedding_dim] = 1.0
         return v
 
+    def semantic_vector(self, groups: list[str]) -> list[float]:
+        assert self._groups is not None, "FakeBackend(vectors='semantic') required"
+        v = [0.0] * self.embedding_dim
+        for g in groups:
+            v[int(self._groups[g]["axis"])] += 1.0
+        v = [x + 0.001 * (i + 1) for i, x in enumerate(v)]  # tiny tie-breaker, never zero
+        n = math.sqrt(sum(x * x for x in v))
+        return [x / n for x in v]
+
+    def _text_groups(self, text: str) -> list[str]:
+        low = text.lower()
+        return [g for g, d in (self._groups or {}).items() if any(str(k).lower() in low for k in d["keywords"])]
+
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
         self.text_calls += 1
         self.texts_embedded.append(list(texts))
+        if self.vectors == "semantic":
+            return [self.semantic_vector(self._text_groups(t)) for t in texts]
         if self.scores is None:
             return [self.embed_vector("text:" + t) for t in texts]
         if not self._n_classes:
@@ -190,6 +215,8 @@ class FakeBackend:
         return out
 
     def image_vector(self, it: ImageInput) -> list[float]:
+        if self.vectors == "semantic" and it.labels.get("groups"):
+            return self.semantic_vector(list(it.labels["groups"]))
         mode = self.scores
         if mode is None:
             return self.embed_vector(it.content_hash)

@@ -1,0 +1,12 @@
+# fb:vectors(deterministic) — semantic groups for FakeBackend (09 §3.1). Each group is one basis direction; an image
+# labelled with groups gets the normalised sum of their bases; a text query gets the groups whose keywords it contains.
+dim: 16
+groups:
+  dog: { axis: 0, keywords: [dog, dogs, puppy, 狗, 犬, 柴犬] }
+  beach: { axis: 1, keywords: [beach, sea, seaside, 海灘, 海邊, 沙灘] }
+  cat: { axis: 2, keywords: [cat, cats, kitten, 貓] }
+  food: { axis: 3, keywords: [food, ramen, noodles, 拉麵, 美食] }
+  city: { axis: 4, keywords: [city, street, skyline, 城市, 街道] }
+  mountain: { axis: 5, keywords: [mountain, hiking, 山] }
+  snow: { axis: 6, keywords: [snow, snowy, 雪] }
+  night: { axis: 7, keywords: [night, 夜景, 夜] }

@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from sqlalchemy import (
     BigInteger,
     Boolean,
     Column,
-    Computed,
     DateTime,
     Float,
     ForeignKey,
@@ -19,8 +20,9 @@ from sqlalchemy import (
     create_engine,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TSVECTOR
 from sqlalchemy.engine import Engine
+from sqlalchemy.types import UserDefinedType
 
 metadata = MetaData()
 
@@ -190,18 +192,60 @@ review = Table(  # 02 §3.2 review; REV-*
 )
 Index("review_job_status", review.c.job_id, review.c.status)
 
-search_doc = Table(  # 05 §2: one row per asset; ``body`` is pre-tokenised text, ``tsv`` derives from it
+class Vector(UserDefinedType):  # type: ignore[type-arg]
+    """pgvector ``vector`` (dimension-agnostic column; 05 §1.5 — halfvec + per-space HNSW where pgvector ≥ 0.7)."""
+
+    cache_ok = True
+
+    def get_col_spec(self, **kw: Any) -> str:
+        return "vector"
+
+
+search_doc = Table(  # 05 §1.2: one row per asset, denormalised facets + application-tokenised tsvector
     "search_doc",
     metadata,
     Column("asset_id", Text, ForeignKey("asset.id"), primary_key=True),
+    Column("workspace_id", Text, nullable=False, server_default="default"),
     Column("caption", Text),
-    Column("tags", JSONB),
+    Column("tags", ARRAY(Text), nullable=False, server_default="{}"),  # canonical keys
+    Column("tag_labels", JSONB),
     Column("category", Text),
+    Column("taken_at", DateTime(timezone=True)),
+    Column("taken_year", Integer),
+    Column("date_source", Text),
+    Column("scope_keys", ARRAY(Text), nullable=False, server_default="{}"),
+    Column("review_state", Text),
+    Column("confidence", Float),
     Column("body", Text, nullable=False, server_default=""),
-    Column("tsv", TSVECTOR, Computed("to_tsvector('simple', body)", persisted=True)),
+    Column("tsv", TSVECTOR),
     _ts("updated_at", server_default=func.now()),
 )
 Index("search_doc_tsv", search_doc.c.tsv, postgresql_using="gin")
+Index("search_doc_tags", search_doc.c.tags, postgresql_using="gin")
+Index("search_doc_scope", search_doc.c.scope_keys, postgresql_using="gin")
+Index("search_doc_ws_taken", search_doc.c.workspace_id, search_doc.c.taken_at)
+
+embedding_space = Table(  # 05 §1.2
+    "embedding_space",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("model_key", Text, nullable=False),
+    Column("fingerprint", Text, nullable=False),
+    Column("dim", Integer, nullable=False),
+    Column("status", Text, nullable=False, server_default="active"),  # building | active | retired
+    _ts("created_at", server_default=func.now()),
+    UniqueConstraint("fingerprint"),
+)
+
+asset_embedding = Table(  # 05 §1.2
+    "asset_embedding",
+    metadata,
+    Column("asset_id", Text, ForeignKey("asset.id"), primary_key=True),
+    Column("space_id", Integer, ForeignKey("embedding_space.id"), primary_key=True),
+    Column("vec", Vector(), nullable=False),
+    Column("source_hash", Text),
+    _ts("created_at", server_default=func.now()),
+)
 
 index_outbox = Table(  # 02 §10: asset changes → search_doc, processed in order
     "index_outbox",
@@ -363,6 +407,10 @@ def engine_for(dsn: str) -> Engine:
 
 
 def create_all(dsn: str) -> None:
+    from sqlalchemy import text
+
     eng = engine_for(dsn)
+    with eng.begin() as c:
+        c.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
     metadata.create_all(eng)
     eng.dispose()
