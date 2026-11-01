@@ -2,7 +2,6 @@ import math
 
 import numpy as np
 import pytest
-
 from opagent_core.vram import budget_gb, can_coload
 from opagent_inference.calibration import ece, fit_platt, fit_temperature, platt_from_dict
 from opagent_inference.prototypes import alpha_for, class_scores
