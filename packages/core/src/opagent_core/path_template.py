@@ -39,6 +39,8 @@ class RenderValues:
     category: str | None = None
     category_key: str | None = None
     country: str | None = None
+    tags: tuple[tuple[str, float], ...] = ()
+    tag_display: dict[str, str] | None = None
     admin1: str | None = None
     city: str | None = None
     source: str | None = None
@@ -116,6 +118,29 @@ def sanitize_segment(value: str, limit: int = MAX_SEGMENT_BYTES) -> str:
         return "_"
     s = _fix_reserved(s)
     return truncate_bytes(s, limit) or "_"
+
+
+class TemplateError(ValueError):
+    def __init__(self, code: str, pos: int = 0) -> None:
+        super().__init__(f"{code} at {pos}")
+        self.code = code
+        self.pos = pos
+
+
+@dataclass(frozen=True)
+class PathTooLong:
+    length: int
+    limit: int
+    conflict: str = "path_too_long"
+    fix: str = "fs.long_paths"
+
+
+def check_full_path(target_abs: str, rel: str, platform: str, long_paths: bool) -> PathTooLong | None:
+    return None
+
+
+def split_name(name: str) -> tuple[str, str]:
+    return name, ""
 
 
 def compile_template(template: str) -> Template:
