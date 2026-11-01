@@ -117,9 +117,9 @@ def test_view_009_timeline_latency(embedded_pg):
         f()  # warm-up
         ds = []
         for _ in range(30):
-            t0 = time.perf_counter()  # noqa: TID251 - latency budget
+            t0 = time.perf_counter()
             f()
-            ds.append(time.perf_counter() - t0)  # noqa: TID251
+            ds.append(time.perf_counter() - t0)
         return statistics.quantiles(ds, n=20)[18]
 
     buckets = client.get("/api/v1/timeline/buckets").json()["buckets"]
@@ -128,3 +128,23 @@ def test_view_009_timeline_latency(embedded_pg):
     big = max(buckets, key=lambda b: b["count"])
     assert big["count"] <= 5000
     assert p95(lambda: client.get(f"/api/v1/timeline/buckets/{big['month']}")) < 0.080
+
+
+@pytest.mark.integration
+def test_info_panel_lists_locations_and_preset_categories(embedded_pg, sandbox_tree, tmp_path):
+    """Lightbox needs every location of a photo (10 §2.6, reveal in file manager) and the category names to correct
+    into (E2E-L-002)."""
+    (sandbox_tree.photos / "x").mkdir()
+    shutil.copyfile(FX / "basic/IMG_0001.jpg", sandbox_tree.photos / "a.jpg")
+    shutil.copyfile(FX / "basic/IMG_0001.jpg", sandbox_tree.photos / "x" / "a-copy.jpg")
+    client, _, src = _library(embedded_pg.dsn, sandbox_tree.roots, tmp_path)
+    [a] = _all_assets(client)
+    locs = client.get(f"/api/v1/assets/{a['id']}").json()["locations"]
+    assert sorted(loc["rel_path"] for loc in locs) == ["a.jpg", "x/a-copy.jpg"]
+    assert all(loc["root_alias"] == "photos" and loc["source_id"] == src and not loc["missing"] for loc in locs)
+    p = client.get("/api/v1/presets/by-content-12", params={"lang": "zh-TW"}).json()
+    cats = {c["key"]: c["name"] for c in p["categories"]}
+    assert len(cats) == 12 and cats["pets"] == "寵物" and cats["other"] == "其他"
+    en = client.get("/api/v1/presets/by-content-12", params={"lang": "en"}).json()
+    assert {c["key"]: c["name"] for c in en["categories"]}["pets"] == "Pets"
+    assert client.get("/api/v1/presets/nope").status_code == 404
