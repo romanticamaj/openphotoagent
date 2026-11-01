@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Request
 from opagent_core.ids import uuid7
@@ -41,6 +41,8 @@ class JobIn(BaseModel):
     preset: str = "by-date"
     target: Target
     mode: str = "dry_run"
+    action: Literal["copy", "move"] = "copy"  # 02 §6.2: copy by default; move is an advanced opt-in (ORG-004)
+    advanced: dict[str, Any] = Field(default_factory=dict)
 
 
 class PreflightIn(BaseModel):
@@ -209,6 +211,10 @@ def preflight(body: PreflightIn, req: Request) -> dict[str, Any]:
 @router.post("/jobs", status_code=201)
 def create_job(body: JobIn, req: Request) -> dict[str, Any]:
     st = _st(req)
+    if body.action == "move" and not body.advanced.get("allow_move"):
+        raise HTTPException(
+            422, detail={"code": "MOVE_REQUIRES_ADVANCED", "fixes": [{"id": "open_advanced", "type": "open_settings"}]}
+        )
     with st.engine.begin() as c:
         s = c.execute(select(source).where(source.c.id == body.source_id)).first()
         if s is None:
@@ -439,7 +445,12 @@ def get_preview(preview_id: str, req: Request) -> dict[str, Any]:
             raise HTTPException(404, detail={"code": "NOT_FOUND"})
         ready = bool(j.params.get("preview_ready"))
         items = _preview_items(c, j, None, None) if ready else []
-    return {"id": preview_id, "status": "ready" if ready else "running", "items": items}
+    return {
+        "id": preview_id,
+        "status": "ready" if ready else "running",
+        "items": items,
+        "estimate": j.params.get("estimate"),  # library-wide forecast (ORG-007); null until the worker reports
+    }
 
 
 @router.post("/previews/{preview_id}/rerender")

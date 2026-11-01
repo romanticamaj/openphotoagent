@@ -11,13 +11,23 @@ from pathlib import Path
 from typing import Any
 
 from opagent_core.config_hash import config_hash
-from opagent_core.decide import Policy, VlmResult, decide
+from opagent_core.decide import Policy
 from opagent_core.ids import uuid7
 from opagent_core.planner import PlanItem, assign_collisions, plan, summarize
 from opagent_core.preview import stratified_sample
 from opagent_core.rules import load_preset
 from opagent_core.state_machine import JobStatus
-from opagent_db.schema import asset, asset_location, job, job_item, output_action, output_plan, result, source, worker
+from opagent_db.schema import (
+    asset,
+    asset_location,
+    job,
+    job_item,
+    output_action,
+    output_plan,
+    source,
+    worker,
+    worker_task,
+)
 from sqlalchemy import func, insert, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
@@ -41,6 +51,11 @@ def task_config_for(preset_key: str) -> dict[str, Any] | None:
         return None
     tc = dict(p.task_configs[0])
     tc["categories"] = [c["key"] for c in p.categories]
+    # English names/descriptions feed the SigLIP2 prompts and the VLM enum (03 §3.3); display names stay zh/en
+    tc["classes"] = [
+        {"id": c["key"], "name": c.get("en", c["key"]), "description": (c.get("description") or {}).get("en", "")}
+        for c in p.categories
+    ]
     return tc
 
 
@@ -172,28 +187,63 @@ def maybe_finish(st: Any, c: Any, job_id: str) -> None:
     if open_items:
         return
     if j.kind == "preview":
+        if j.params.get("preview_ready"):
+            return
         c.execute(update(job).where(job.c.id == job_id).values(params={**j.params, "preview_ready": True}))
+        _queue_estimate(st, c, j)
         return
     src_id = j.params["source_id"]
     build_plan(st, c, j, _source_assets(c, src_id))
 
 
+ESTIMATE_CAP = 5000  # embed at most this many photos for the library forecast; the rest is extrapolated
+
+
+def _queue_estimate(st: Any, c: Any, j: Any) -> None:
+    """ORG-007: library-wide distribution from the embedding fast path (no VLM), run on the worker."""
+    tc = (j.params or {}).get("task_config") or {}
+    if tc.get("strategy") != "cascade":
+        return
+    s = c.execute(select(source).where(source.c.id == j.params["source_id"])).first()
+    rows = list(_source_assets(c, s.id))
+    step = max(1, len(rows) // ESTIMATE_CAP + (1 if len(rows) % ESTIMATE_CAP else 0)) if len(rows) > ESTIMATE_CAP else 1
+    sample = rows[::step][:ESTIMATE_CAP]
+    c.execute(
+        insert(worker_task).values(
+            id=uuid7(st.clock),
+            kind="estimate",
+            job_id=j.id,
+            worker_id=s.worker_id,
+            payload={
+                "job_id": j.id,
+                "root_alias": s.root_alias,
+                "total": len(rows),
+                "task_config": tc,
+                "items": [{"rel": r.rel_path, "content_hash": r.content_hash} for r in sample],
+            },
+        )
+    )
+
+
 def labels_for(c: Any, job_id: str, policy: Policy | None = None) -> dict[str, dict[str, Any]]:
-    """asset_id -> final label from this job's results (ADR-0001 decide; 'other' when not accepted)."""
-    rows = c.execute(
-        select(job_item.c.asset_id, result.c.category, result.c.confidence, result.c.raw)
-        .join(result, result.c.id == job_item.c.result_id)
-        .where(job_item.c.job_id == job_id)
-    ).all()
-    out = {}
-    for r in rows:
-        o = decide(vlm=VlmResult(r.category or "other", r.confidence or 0.0), policy=policy or Policy())
-        out[r.asset_id] = {
-            "category_key": o.category if o.decision == "accepted" else "other",
-            "decision": o.decision,
-            "confidence": o.confidence,
-        }
-    return out
+    """asset_id -> final label for this job (human label > model decision; see labels.py)."""
+    from .labels import labels_for as _labels_for
+
+    return _labels_for(c, job_id, policy)
+
+
+def rebuild_draft_plan(st: Any, c: Any, job_id: str) -> str | None:
+    """Review changes re-render the draft plan (no inference). Approved/applied plans are never touched."""
+    j = c.execute(select(job).where(job.c.id == job_id)).first()
+    if j is None or j.status != "awaiting_approval" or not j.plan_id:
+        return None
+    p = c.execute(select(output_plan.c.status).where(output_plan.c.id == j.plan_id)).scalar()
+    if p != "draft":
+        return None
+    c.execute(output_action.delete().where(output_action.c.plan_id == j.plan_id))
+    c.execute(update(output_plan).where(output_plan.c.id == j.plan_id).values(status="superseded"))
+    build_plan(st, c, j, _source_assets(c, j.params["source_id"]))
+    return str(c.execute(select(job.c.plan_id).where(job.c.id == job_id)).scalar())
 
 
 def plan_items(c: Any, j: Any, rows: list[Any], labels: dict[str, dict[str, Any]] | None = None) -> list[PlanItem]:
@@ -239,7 +289,7 @@ def build_plan(st: Any, c: Any, j: Any, rows: list[Any]) -> None:
                     "plan_id": pid,
                     "seq": i,
                     "asset_id": a.asset_id,
-                    "action": "copy",
+                    "action": params.get("action") or "copy",
                     "src_alias": root_alias,
                     "src_rel": a.src_rel,
                     "dst_alias": target["root_alias"],
@@ -256,14 +306,11 @@ def build_plan(st: Any, c: Any, j: Any, rows: list[Any]) -> None:
     set_op_status(c, st.clock, plan_op, "running")
     set_op_status(c, st.clock, plan_op, "succeeded")
     cnt = q.counters(c, j.id)
-    set_job_status(
-        c,
-        j.id,
-        JobStatus.awaiting_approval,
-        clock=st.clock,
-        plan_id=pid,
-        counters={**cnt, "total": cnt["total"] or len(planned), "planned": len(planned)},
-    )
+    counters = {**cnt, "total": cnt["total"] or len(planned), "planned": len(planned)}
+    if j.status == "awaiting_approval":  # re-render after review changes: same status, new draft plan
+        c.execute(update(job).where(job.c.id == j.id).values(plan_id=pid, counters=counters))
+        return None
+    set_job_status(c, j.id, JobStatus.awaiting_approval, clock=st.clock, plan_id=pid, counters=counters)
     return None
 
 
@@ -277,3 +324,44 @@ def active_job_for_source(c: Any, source_id: str) -> Any:
 
 def config_hash_for(tc: dict[str, Any]) -> str:
     return config_hash(tc)
+
+
+def _p50(rng: list[float] | None, default: float) -> float:
+    if not rng or len(rng) != 2:
+        return default
+    return float((rng[0] * rng[1]) ** 0.5)  # geometric middle of the [p10, p90] prior
+
+
+def finish_estimate(st: Any, c: Any, job_id: str, res: dict[str, Any]) -> None:
+    """Scale the embedded sample to the whole library (largest remainder keeps the sum exact) and attach a
+    p50 duration from throughput priors (06 §5.9 basis=prior until perf_observation exists)."""
+    from opagent_registry.loader import load_registry
+
+    j = c.execute(select(job).where(job.c.id == job_id)).first()
+    if j is None:
+        return
+    total, n = int(res.get("total", 0)), max(1, int(res.get("n_embedded", 0)))
+    counts: dict[str, int] = res.get("counts") or {}
+    exact = {k: v * total / n for k, v in counts.items()}
+    dist = {k: int(v) for k, v in exact.items()}
+    for k in sorted(exact, key=lambda k: -(exact[k] - dist[k]))[: total - sum(dist.values())]:
+        dist[k] += 1
+    routed = round(int(res.get("routed_to_vlm", 0)) * total / n)
+    reg = load_registry()
+    emb = reg.models.get("siglip2-so400m-384")
+    vlm = reg.models.get("qwen3-vl-8b-instruct")
+    embed_rate = _p50(
+        ((emb.spec.variants[0].perf_prior or {}).get("items_per_s") or {}).get("embed") if emb else None, 40.0
+    )
+    vlm_rate = _p50(
+        ((vlm.spec.variants[0].perf_prior or {}).get("items_per_s") or {}).get("fused") if vlm else None, 1.0
+    )
+    p50 = total / embed_rate + routed / vlm_rate
+    est = {
+        "total": total,
+        "distribution": dist,
+        "routed_to_vlm": routed,
+        "basis": {"method": "embedding_fast_path", "sample": int(j.params.get("k", 10)), "embedded": n},
+        "time": {"p50_s": round(p50, 1), "basis": "prior"},
+    }
+    c.execute(update(job).where(job.c.id == job_id).values(params={**j.params, "estimate": est}))

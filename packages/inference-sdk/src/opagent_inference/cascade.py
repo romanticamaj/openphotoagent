@@ -170,6 +170,16 @@ class Cascade:
             self.image_cache[img.content_hash] = np.asarray(by_id[img.item_id].embedding, dtype=float)
         self._ev("embed", str(len(todo)))
 
+    async def estimate(self, images: list[ImageInput], tax: Taxonomy) -> Estimate:
+        """Embedding fast path only (no VLM): forecast for ORG-007 / INF-CAS-010."""
+        await self.embedder.load(LoadOptions())
+        text_vecs = await self._text_vectors(tax)
+        await self._embed([Item(i) for i in images])
+        if not images:
+            return Estimate(counts={c.id: 0 for c in tax.classes}, routed_to_vlm=0)
+        m = np.stack([self.image_cache[i.content_hash] for i in images])
+        return estimate_distribution(m, tax, text_vecs, self.policy)
+
     @staticmethod
     def _rule(tax: Taxonomy, exif: dict[str, Any]) -> str | None:
         for i, r in enumerate(tax.rules):

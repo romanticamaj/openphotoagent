@@ -6,9 +6,11 @@ from sqlalchemy import (
     BigInteger,
     Boolean,
     Column,
+    Computed,
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     MetaData,
     Table,
@@ -17,7 +19,7 @@ from sqlalchemy import (
     create_engine,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from sqlalchemy.engine import Engine
 
 metadata = MetaData()
@@ -171,6 +173,45 @@ result = Table(
     _ts("created_at", server_default=func.now()),
     UniqueConstraint("asset_id", "task_config_hash", "model_fingerprint"),
 )
+review = Table(  # 02 §3.2 review; REV-*
+    "review",
+    metadata,
+    Column("id", Text, primary_key=True),
+    Column("asset_id", Text, ForeignKey("asset.id"), nullable=False),
+    Column("job_id", Text),
+    Column("result_id", Text),
+    Column("status", Text, nullable=False, server_default="pending"),  # pending|approved|corrected|skipped
+    Column("reason", Text),  # low_confidence | conflict | inline
+    Column("suggested", JSONB),
+    Column("corrected", JSONB),
+    Column("source", Text),  # review | review_skip | inline
+    _ts("created_at", server_default=func.now()),
+    _ts("resolved_at"),
+)
+Index("review_job_status", review.c.job_id, review.c.status)
+
+search_doc = Table(  # 05 §2: one row per asset; ``body`` is pre-tokenised text, ``tsv`` derives from it
+    "search_doc",
+    metadata,
+    Column("asset_id", Text, ForeignKey("asset.id"), primary_key=True),
+    Column("caption", Text),
+    Column("tags", JSONB),
+    Column("category", Text),
+    Column("body", Text, nullable=False, server_default=""),
+    Column("tsv", TSVECTOR, Computed("to_tsvector('simple', body)", persisted=True)),
+    _ts("updated_at", server_default=func.now()),
+)
+Index("search_doc_tsv", search_doc.c.tsv, postgresql_using="gin")
+
+index_outbox = Table(  # 02 §10: asset changes → search_doc, processed in order
+    "index_outbox",
+    metadata,
+    Column("id", BigInteger, primary_key=True, autoincrement=True),
+    Column("asset_id", Text, nullable=False),
+    _ts("created_at", server_default=func.now()),
+    _ts("processed_at"),
+)
+
 operation = Table(  # 06 §5.1 / 02 §10.1
     "operation",
     metadata,

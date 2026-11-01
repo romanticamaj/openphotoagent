@@ -265,7 +265,7 @@ def complete(task_id: str, body: CompleteIn, req: Request) -> dict[str, str]:
             .where(worker_task.c.id == task_id)
             .values(status="done" if body.ok else "failed", result=body.result)
         )
-        handler = {"scan": _on_scan, "apply": _on_apply, "undo": _on_undo}.get(t.kind)
+        handler = {"scan": _on_scan, "apply": _on_apply, "undo": _on_undo, "estimate": _on_estimate}.get(t.kind)
         if t.kind in TASK_OP_TYPES:
             waiting = body.result.get("status") == "waiting"
             set_op_status(
@@ -285,6 +285,10 @@ def complete(task_id: str, body: CompleteIn, req: Request) -> dict[str, str]:
 def _on_scan(st: AppState, c: Any, t: Any, result: dict[str, Any]) -> None:
     organize.upsert_entries(st, c, t.payload["source_id"], result.get("entries") or [])
     organize.finish_scan(st, c, t)
+
+
+def _on_estimate(st: AppState, c: Any, t: Any, result: dict[str, Any]) -> None:
+    organize.finish_estimate(st, c, t.payload["job_id"], result)
 
 
 def _on_apply(st: AppState, c: Any, t: Any, result: dict[str, Any]) -> None:

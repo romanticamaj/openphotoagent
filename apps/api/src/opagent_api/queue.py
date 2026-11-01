@@ -185,6 +185,10 @@ def report(conn: Any, clock: Any, worker_id: str, items: list[dict[str, Any]]) -
                 .on_conflict_do_nothing(index_elements=["asset_id", "task_config_hash", "model_fingerprint"])
                 .returning(result.c.id)
             ).scalar()
+            if rid is not None:
+                from .labels import on_result
+
+                on_result(_St(clock), conn, ji.job_id, ji.asset_id, rid, out)
             if rid is None:  # duplicate / late report: keep the first result (Q-004, Q-005)
                 rid = conn.execute(
                     select(result.c.id).where(
@@ -229,6 +233,9 @@ def report(conn: Any, clock: Any, worker_id: str, items: list[dict[str, Any]]) -
         conn.execute(select(job_item.c.job_id).where(job_item.c.id == it["job_item_id"])).scalar() for it in items
     }:
         if jid:
+            from .labels import drain_index
+
+            drain_index(conn)
             finish_cancel_if_idle(conn, clock, jid)
             from .organize import maybe_finish
 

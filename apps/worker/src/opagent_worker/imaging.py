@@ -209,3 +209,21 @@ def thumbhash_encode(im: Image.Image) -> bytes:
             out[pos] |= round(15 * f) << ((idx & 1) << 2)
             idx += 1
     return bytes(out)
+
+
+_SHOT = ("screenshot", "screen shot", "螢幕擷取", "螢幕快照", "截圖", "スクリーンショット")
+
+
+def exif_facts(im: Image.Image, rel: str) -> dict[str, object]:
+    """Facts for the rule DSL (``exif.*``). Values are untrusted data, used only for comparisons (invariant 6)."""
+    ex = im.getexif()
+    make = str(ex.get(0x010F) or "").strip() or None
+    model = str(ex.get(0x0110) or "").strip() or None
+    name = rel.rsplit("/", 1)[-1].lower()
+    is_shot = (im.format == "PNG" and make is None) and any(s in name for s in _SHOT)
+    return {
+        "is_screenshot": bool(is_shot),
+        "camera_make": make,
+        "camera_model": model,
+        "has_gps": 0x8825 in ex,
+    }

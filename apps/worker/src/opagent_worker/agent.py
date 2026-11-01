@@ -44,6 +44,10 @@ class WorkerAgent:
         self.home = Path(home)
         self.home.mkdir(parents=True, exist_ok=True)
         self.backend = backend
+        caps = backend.describe().task_types if backend is not None else ()
+        self.embedder = embedder if embedder is not None else (backend if "embed" in caps else None)
+        self._cascade: Any = None
+        self._facts: dict[str, dict[str, Any]] = {}
         self.worker_id = worker_id or self._load_id()
         self.name = name
         self.executor = Executor(self.sb, RealFs(), Journal(self.home / "journal.db"))
@@ -54,6 +58,15 @@ class WorkerAgent:
         self.page_size = 1000
         self.crash_after_pages: int | None = None  # test hook: simulate kill -9 after N reported pages
         self.last_scan_skipped_before_cursor = 0
+
+    @property
+    def cascade_fingerprint(self) -> str:
+        """Cache-key fingerprint of the whole cascade (invariant 7): embedder + VLM fingerprints."""
+        import hashlib
+
+        parts = [self.embedder.describe().model_fingerprint if self.embedder else "-"]
+        parts.append(self.backend.describe().model_fingerprint if self.backend else "-")
+        return "cascade-" + hashlib.sha256("|".join(parts).encode()).hexdigest()[:16]
 
     def _load_id(self) -> str:
         f = self.home / "worker_id"
@@ -68,6 +81,9 @@ class WorkerAgent:
         if self.backend is not None:
             info = self.backend.describe()
             models = {t: info.model_fingerprint for t in info.task_types}
+            if self.embedder is not None:
+                models["embed"] = self.embedder.describe().model_fingerprint
+                models["classify"] = self.cascade_fingerprint
         r = self.client.post(
             "/worker-api/v1/register",
             json={
@@ -191,6 +207,9 @@ class WorkerAgent:
             side = self.backend.describe().preferred_input.max_side if self.backend else 512
             with open_image(sp.real) as im:
                 im.load()
+                from .imaging import exif_facts
+
+                self._facts[it["id"]] = exif_facts(im, it["rel"])
                 pic = oriented(im).convert("RGB")
                 pic.thumbnail((side, side))
                 import io
@@ -226,6 +245,9 @@ class WorkerAgent:
                 prepared.append((it, inp))
         if not prepared:
             return reports
+        tc0 = prepared[0][0].get("task_config") or {}
+        if tc0.get("strategy") == "cascade" and self.embedder is not None:
+            return reports + self._infer_cascade(prepared, tc0)
         backend = self.backend
         asyncio.run(backend.load(LoadOptions()))
         fp = backend.describe().model_fingerprint
@@ -274,6 +296,44 @@ class WorkerAgent:
                 )
 
         run(prepared)
+        return reports
+
+    def _infer_cascade(self, prepared: list[tuple[dict[str, Any], Any]], tc: dict[str, Any]) -> list[dict[str, Any]]:
+        """By-content organize: rules → embedding → VLM → decision (03 §3.3). Stages are reported so the control
+        plane can re-apply thresholds without inference (ADR-0001)."""
+        import asyncio
+
+        from opagent_inference.cascade import Cascade, Item
+
+        if self._cascade is None:
+            self._cascade = Cascade(self.embedder, self.backend)
+        items = [Item(inp, self._facts.pop(it["id"], {})) for it, inp in prepared]
+        results = asyncio.run(self._cascade.run(items, _taxonomy(tc)))
+        fp = self.cascade_fingerprint
+        reports = []
+        for (it, _), r in zip(prepared, results, strict=True):
+            o = r.outcome
+            reports.append(
+                {
+                    "job_item_id": it["id"],
+                    "attempt": it["attempt"],
+                    "status": "ok",
+                    "idempotency_key": f"{it['id']}:{it['attempt']}",
+                    "model_fingerprint": fp,
+                    "provenance": {"stages": r.provenance, "adapter": "cascade", "error": r.error},
+                    "output": {
+                        "category": o.category or "other",
+                        "confidence": o.confidence,
+                        "caption": r.caption,
+                        "tags": r.tags or [],
+                        "decision": o.decision,
+                        "source": o.source,
+                        "reason": o.reason,
+                        "stages": r.stages,
+                        "stage_fingerprint": r.model_fingerprint,
+                    },
+                }
+            )
         return reports
 
     def run_until_idle(self) -> None:
@@ -354,9 +414,41 @@ class WorkerAgent:
         res = self.executor.undo(p["plan_id"])
         return {"results": [r.__dict__ for r in res]}
 
+    def _do_estimate(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        import asyncio
+
+        from opagent_inference.cascade import Cascade
+
+        if self.embedder is None:
+            return {"counts": {}, "routed_to_vlm": 0, "n_embedded": 0, "total": p["total"]}
+        if self._cascade is None:
+            self._cascade = Cascade(self.embedder, self.backend)
+        images = []
+        for k, it in enumerate(p["items"]):
+            inp, _fail = self._prepare({"id": f"est{k}", "root_alias": p["root_alias"], "rel": it["rel"], "attempt": 1})
+            self._facts.pop(f"est{k}", None)
+            if inp is not None:
+                images.append(inp)
+        est = asyncio.run(self._cascade.estimate(images, _taxonomy(p["task_config"])))
+        return {
+            "counts": est.counts,
+            "routed_to_vlm": est.routed_to_vlm,
+            "n_embedded": len(images),
+            "total": p["total"],
+        }
+
     def _do_browse(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         sp = self.sb.resolve(p["root_alias"], p.get("path", ""))
         dirs = sorted(
             e.name for e in os.scandir(sp.real) if e.is_dir(follow_symlinks=False) and not e.name.startswith(".")
         )
         return {"dirs": dirs}
+
+
+def _taxonomy(tc: dict[str, Any]) -> Any:
+    from opagent_inference.cascade import ClassDef, Taxonomy
+
+    classes = [ClassDef(c["id"], c.get("name") or c["id"], c.get("description") or "") for c in tc.get("classes") or []]
+    if not classes:
+        classes = [ClassDef(k, k) for k in tc.get("categories") or []]
+    return Taxonomy(classes=classes, rules=list(tc.get("rules") or []))
