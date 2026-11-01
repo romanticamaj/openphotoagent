@@ -340,3 +340,53 @@ def test_dl_022_prioritize_pauses_current(server, tmp_path):
     assert ("done", "opA") in order
     resumed = [r for r in srv.gets() if r["path"].startswith("/cdn/") and r["range"] and r["range"] != "bytes=0-"]
     assert resumed  # opA resumed from its breakpoint
+
+
+@pytest.mark.chaos
+@pytest.mark.tc("DL-011")
+def test_dl_011_disk_eaten_mid_download_pauses_then_continues(server, tmp_path):
+    srv = server([HfFile("w.gguf", 8 * MB)], rate_bps=16 * MB)
+    disk = Disk(10**12)
+    clk = AutoClock()
+    d = mk(srv, tmp_path, disk_free=disk, clock=clk, disk_check_every_bytes=MB)
+
+    def eat(ev):
+        if ev["done_bytes"] >= 2 * MB:
+            disk.free = 3 * MB  # another program filled the disk: remaining 6 MB + margin no longer fits
+
+    d.on_progress = eat
+    r1 = run(d.download("op11", files_for(srv), CancelToken()))
+    assert r1.status == "paused" and r1.waiting_reason == "DISK_INSUFFICIENT_MODELS"
+    disk.free = 10**12  # space recovered → auto-continue
+    d.on_progress = None
+    r2 = run(d.download("op11", files_for(srv), CancelToken()))
+    assert r2.status == "done"
+
+
+@pytest.mark.integration
+@pytest.mark.tc("DL-016")
+def test_dl_016_mirror_only_metadata_needs_confirmation(server, tmp_path):
+    files = [HfFile("w.onnx", 50_000)]
+    official = server(files, scenario="404")
+    official.stop()  # unreachable
+    mirror = server(files)
+    d = Downloader(Path(tmp_path), sources=[official.url, mirror.url], reserve_floor=0, disk_free=Disk(10**12), clock=AutoClock())
+    with pytest.raises(DownloadError) as e:
+        run(d.resolve(REPO, "main", ["w.onnx"]))
+    assert e.value.code == "DL_UNVERIFIED_SOURCE" and e.value.details["source"] == mirror.url
+    resolved = run(d.resolve(REPO, "main", ["w.onnx"], allow_unverified=True))
+    assert resolved[0].sha256 == files[0].sha256
+    assert run(d.download("op16", resolved, CancelToken())).status == "done"
+
+
+@pytest.mark.integration
+@pytest.mark.tc("DL-021")
+def test_dl_021_rate_limit(server, tmp_path):
+    from opagent_core.clock import SystemClock
+
+    srv = server([HfFile("w.gguf", 200 * MB)])
+    d = mk(srv, tmp_path, clock=SystemClock(), rate_limit_bps=20 * MB)
+    assert run(d.download("op21", files_for(srv), CancelToken())).status == "done"
+    r = [x for x in srv.gets() if x["path"].startswith("/cdn/")][-1]
+    avg = r["sent"] / (r["closed"] - r["opened"])  # measured by the server
+    assert 18 * MB <= avg <= 22 * MB
