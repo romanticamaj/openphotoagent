@@ -15,7 +15,12 @@ from .state import AppState
 
 
 def create_app(
-    dsn: str, clock: Clock | None = None, launch_token: str | None = None, static_dir: str | None = None
+    dsn: str,
+    clock: Clock | None = None,
+    launch_token: str | None = None,
+    static_dir: str | None = None,
+    registry_dir: Any = None,
+    user_models_dir: Any = None,
 ) -> FastAPI:
     app = FastAPI(title="OpenPhotoAgent API", version="0.1.0-dev")
     st = AppState(engine=engine_for(dsn), clock=clock or SystemClock(), launch_token=launch_token)

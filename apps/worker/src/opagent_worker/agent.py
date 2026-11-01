@@ -35,6 +35,9 @@ class WorkerAgent:
         backend: Any = None,
         embedder: Any = None,
         worker_id: str | None = None,
+        hw_profile: str | None = None,
+        models_root: Path | None = None,
+        download_sources: list[str] | None = None,
         name: str = "local",
         clock: Any = None,
     ) -> None:
