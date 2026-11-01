@@ -55,7 +55,7 @@ flowchart LR
 | [06-models-environment-operations.md](06-models-environment-operations.md) | F · 模型與維運 | Model Manager、Download Manager（暫停／續傳／真取消）、Environment Doctor、Preflight 與修復 CTA、統一長任務 Operation（開始前預估、ETA、經過時間） |
 | [07-face-recognition.md](07-face-recognition.md) | G · 人臉辨識 | 模型與授權調查、偵測→對齊→embedding→分群、以臉找人、`bio` schema、同意與刪除、MCP `faces:*` |
 | [08-desktop-packaging-and-final-review.md](08-desktop-packaging-and-final-review.md) | H · 跨平台交付與最終審查 | Tauri 2 殼與進程模型、嵌入式 PG 17、runtime 矩陣與 pack、安裝／簽章／更新、新手「好用」審查、**新路線圖（以此為準）** |
-| 09（撰寫中） | I · TDD 測試策略 | 測試金字塔、嵌入式 PG fixture、殼的監管測試、各版本的驗收測試 |
+| [09-tdd-and-test-suite.md](09-tdd-and-test-suite.md)（+ [09a](09a-test-cases-v0.1.md)／[09b](09b-test-cases-v0.2-plus.md)） | I · TDD 測試策略 | 測試金字塔、嵌入式 PG fixture、殼的監管測試、各版本的驗收測試 |
 | [10-photo-viewer-and-ask-ai.md](10-photo-viewer-and-ask-ai.md) | J · Viewer 與 AI 問照片 | 時間軸網格與日期 scrubber、Lightbox、批次、效能預算；Ask 的意圖路由 + 有界 tool loop、SSE 步驟可視化、防幻覺 |
 | [11-feature-coverage-review.md](11-feature-coverage-review.md) | K · 規格完整性審查 | 需求→能力覆蓋矩陣、跨文件衝突修正紀錄、v0.1 MVP 驗收清單（Definition of Done） |
 | [research/voicebox-study.md](research/voicebox-study.md) | 研究 | voicebox（Tauri + Python sidecar）的借鏡與缺陷 |

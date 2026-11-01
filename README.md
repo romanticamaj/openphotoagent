@@ -302,6 +302,7 @@ Based on each project's docs as of 2026-11 ([full survey](docs/01-prior-art-and-
 | 06 | [Models, doctor & operations](docs/06-models-environment-operations.md) | Model & download manager, environment doctor, preflight with fix buttons, ETAs for every task |
 | 07 | [Face recognition](docs/07-face-recognition.md) | Model & license survey, clustering, find-by-face, consent, deletion, MCP scopes |
 | 08 | [Desktop packaging & final review](docs/08-desktop-packaging-and-final-review.md) | Tauri shell, embedded Postgres, runtime packs, signing & updates, first-run review, **current roadmap** |
+| 09 | [TDD & test suite](docs/09-tdd-and-test-suite.md) · [v0.1 cases](docs/09a-test-cases-v0.1.md) · [v0.2+ cases](docs/09b-test-cases-v0.2-plus.md) | TDD workflow, test doubles, CI matrix, M0 experiments, 840 test cases |
 | 10 | [Photo viewer & Ask your photos](docs/10-photo-viewer-and-ask-ai.md) | Timeline grid, scrubber, lightbox, batch actions; agent loop, grounding, latency targets |
 | 11 | [Feature coverage review](docs/11-feature-coverage-review.md) | Requirement → spec coverage matrix, conflict fixes, v0.1 definition of done |
 

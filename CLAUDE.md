@@ -1,0 +1,193 @@
+# CLAUDE.md — OpenPhotoAgent 開發指南與 Session Handoff
+
+> 給在這個 repo 工作的 AI coding agent（Claude Code）與人類貢獻者。**每個 session 開始時先讀完本檔**，再依任務讀對應的規格章節。
+> 最後更新：2026-11-01（規劃階段完成，進入實作）｜目前版本：`v0.0.1`（Design Preview）｜下一個目標：**M0 spike → `v0.1.0` 桌面 MVP**
+
+---
+
+## 1. 專案一句話
+
+**OpenPhotoAgent**：Apache-2.0 純開源（不收費、沒有商業版）的照片 AI。它在使用者自己的電腦／GPU 上替照片產生 caption、tag、分類，並辨識人臉，**安全地自動整理到指定資料夾**；提供精美的 React viewer、混合搜尋、「AI 問照片」，也透過 **MCP** 讓第三方 AI 搜尋照片。交付形態有兩種：**跨平台桌面執行檔**（Tauri 2 + Python sidecar），以及 Docker 自架。
+
+| Killer 功能 | 版本 |
+|---|---|
+| ① 照片自動分類到指定資料夾（dry-run → 核准 → 執行 → 可 undo） | **v0.1** |
+| ② 人臉找照片 | v0.2 |
+| ③ AI 問照片 | v0.3 |
+
+核心能力：模型管理、環境醫生（每個被擋住的操作都要給修復 CTA）、**每個長操作都要顯示預估時間與經過時間**、批次處理、MCP（關鍵字／label／latent space 搜尋）、精美的照片 viewer。
+
+---
+
+## 2. 規格地圖（Source of Truth）
+
+規格都在 `docs/`，以繁體中文撰寫。**當規格之間互相衝突時，優先序是 11 > 08 > 06／07／10 > 00–05**，因為較新的審查會覆蓋較舊的假設。
+
+| 文件 | 內容 | 什麼時候讀 |
+|---|---|---|
+| `docs/11-feature-coverage-review.md` | **107 條能力的覆蓋矩陣、v0.1 驗收清單（DoD，§5）**、待決事項 | 每次選工作前 |
+| `docs/09-tdd-and-test-suite.md` | **TDD 流程、測試替身、CI、M0 實驗、v0.1 切片順序（§7）** | 每次寫測試前 |
+| `docs/09a-test-cases-v0.1.md` | v0.1 的 606 條測試案例（ID、輸入、預期、對應能力） | 實作 v0.1 時 |
+| `docs/09b-test-cases-v0.2-plus.md` | v0.2 之後的 234 條測試案例 | v0.2 之後 |
+| `docs/08-desktop-packaging-and-final-review.md` | **最新決策總表（§0）**、桌面進程模型、嵌入式 PG、runtime 矩陣、runtime pack、安裝與更新、路線圖（§9） | 架構與打包 |
+| `docs/02-system-architecture.md` | 資料模型、Job 生命週期、API、Worker 協定、路徑沙箱、output executor、monorepo；**§10 是審查後的增補** | 後端 |
+| `docs/03-inference-layer.md` | Model Registry、`InferenceService`／adapter、三種任務策略、VRAM、benchmark；**§10 是增補** | 推論 |
+| `docs/06-models-environment-operations.md` | 模型管理、下載管理、環境醫生、**Preflight 與修復 CTA（§4，含錯誤碼目錄）**、**Operation 與 ETA（§5）** | 任何長操作或可能失敗的操作 |
+| `docs/04-control-panel-ux.md` | 頁面 wireframe、設計系統（「暗房裡的燈箱」）、前端技術棧；**§8 是增補** | 前端 |
+| `docs/10-photo-viewer-and-ask-ai.md` | Viewer（網格、scrubber、Lightbox、比較、地圖）與 AI 問照片 | viewer、Ask |
+| `docs/05-search-and-mcp.md` | 混合搜尋、繁中斷詞、MCP server（tools、scope、核准、prompt injection）；**§11 是增補** | 搜尋、MCP |
+| `docs/07-face-recognition.md` | 人臉 pipeline、模型與授權、分群、隱私 | v0.2 人臉 |
+| `docs/00-master-plan.md` | 總覽與跨文件裁決 | 需要全貌時 |
+| `docs/01-prior-art-and-naming.md`、`docs/research/voicebox-study.md` | 競品調查、voicebox 參考（MIT，可借用程式碼，需附 NOTICE） | 參考 |
+| `VERSIONING.md`、`CHANGELOG.md` | SemVer、release-please 流程 | 發版 |
+
+---
+
+## 3. 已定案的決策（不要重新討論，除非使用者要求）
+
+| 主題 | 決策 |
+|---|---|
+| 授權 | Apache-2.0；純開源社群專案，沒有付費版 |
+| 名稱 | 產品 OpenPhotoAgent；CLI **`opagent`**；環境變數前綴 **`OPAGENT_`** |
+| 交付 | 桌面優先（Windows／macOS arm64／Linux），加上 Docker all-in-one；自架 control plane 在 v0.5 |
+| 桌面架構 | Tauri 2（Rust 殼）+ React 19／Vite 前端（同一份程式碼也輸出 Web build）+ Python FastAPI sidecar（api + worker）|
+| 資料庫 | **只用 PostgreSQL 17 + pgvector**，桌面版也內嵌；不做 SQLite 雙後端。佇列用 `SKIP LOCKED`，通知用 `LISTEN/NOTIFY` |
+| 推論 | **llama.cpp（大型 VLM，GGUF）+ ONNX Runtime（SigLIP2、人臉）** 是跨平台主軸；vLLM／MLX／torch 屬於 v0.4 的進階 runtime pack |
+| 預設模型（16GB） | Qwen3-VL-8B GGUF（依 VRAM 分檔）+ SigLIP2 so400m（ONNX）；人臉用 YuNet + AuraFace（Apache／MIT，可隨安裝包散布） |
+| 安裝包 | ≤ 200 MB（目標 150 MB），內含 CPU／Metal／DirectML／CoreML 能力；CUDA／ROCm 等以簽章過的 runtime pack 按需下載 |
+| 使用模式 | 桌面版預設單人、免登入；API 只綁 `127.0.0.1`，並用每次啟動產生的 launch token 保護 |
+| MCP | 桌面版走 stdio（v0.2），HTTP + OAuth 在 v0.5；本機 PAT 預設**不含** `photos:media`；`organize:apply` **永遠不發給** MCP token |
+| 整理動作 | 預設**複製**；move 要二次確認；v0.2 新增 `trash`（移到 `.opagent-trash/`，可 undo） |
+| 人臉 | 預設關閉，需要明確 opt-in；只在本機計算；非商用授權的權重（InsightFace）只能讓使用者自行同意後下載，**不得打包進 repo 或安裝包** |
+| 路線圖 | M0 spike → v0.1 自動分類到資料夾 → v0.2 人臉 + 混合搜尋 + MCP → v0.3 問照片 + watch folder → v0.4 生態 → v0.5 control plane → v1.0 |
+
+---
+
+## 4. 不可違反的不變量（Invariants）
+
+違反任一條，都視為 P0 bug。相關測試**不得隔離或跳過**（見 09 §1.6）。
+
+1. **只有 Worker 能碰原檔與 GPU。** `apps/api` 不得 import `fs-sandbox` 或 `inference-*`，CI 用 import-linter 強制檢查。
+2. **路徑一律走 SafePath**（「root 別名 + 相對路徑」）：遇到 `..`、絕對路徑、symlink 逃逸、Windows 保留名一律拒絕。新增 root 只能由使用者在 app 內操作，REST 和 MCP 都不開放。
+3. **檔案變更一律走「計畫 → 核准 → journal → 執行」。** move 必須先 copy、驗證 hash，再刪原檔；任何一步當機都要能恢復，而且 **0 個檔案遺失**；每個操作都能 undo。
+4. **預設設定下，原檔的內容與 mtime 不變。**
+5. **MCP 和 AI 問照片都不能自行套用檔案變更**，只能產生計畫，由人在 UI 核准。
+6. **照片中的文字、EXIF、檔名一律視為不可信資料**（防 prompt injection）。
+7. **推論快取鍵 = (asset content hash, config hash, model fingerprint)**；門檻不算在 hash 裡，調整門檻不會觸發重新推論。
+8. **每個可能失敗的操作都要先跑 preflight**；被擋住時要顯示原因和至少一個修復 CTA。禁止「只有 disabled、沒有理由」的按鈕，ESLint 規則 `opa/no-bare-disabled` 會檢查。
+9. **每個長操作都是 Operation**：開始前給預估，執行中顯示 ETA（rough／precise／stalled）、經過時間（扣除暫停時間）和等待原因；狀態要持久化，重啟後仍看得到。
+10. **只接受 `safetensors`／`gguf`／`onnx` 權重**；拒絕 pickle（`.bin`），`trust_remote_code` 必須經過明確確認。
+11. 測試與 `packages/core` 裡**禁止直接讀取時間**，例如 `time.time()`、`datetime.now()`、`sleep`；一律使用 `Clock` 介面或 FakeClock。
+
+---
+
+## 5. 開發流程：嚴格 TDD
+
+完整規則見 `docs/09-tdd-and-test-suite.md` §1。摘要如下：
+
+1. **選題**：依 09 §7 的切片順序，一次只取 ≤ 10 個測試 ID，範圍限一個能力。
+2. **紅**：先寫測試，標註 `@pytest.mark.tc("FS-012")` 或 `it("[VIEW-005] …")`。執行後必須**失敗在預期的斷言上**；ImportError 或 fixture 錯誤都不算紅。
+3. **綠**：只寫讓測試通過的最小實作，不要順便做還沒有測試的行為。
+4. **重構**：保持全綠。改到 `fs-sandbox` 或 `path_template` 時，要在本機跑 `just mutate-diff`，score 需 ≥ 85%。
+5. **狀態**：執行 `tools/tc_status.py`，更新 `docs/generated/coverage-status.md`。
+6. **Commit**：使用 Conventional Commits，scope 用套件名。`test:` 必須早於或同時於對應的 `feat:`／`fix:`。footer 必填 `Tests: <IDs>`，並寫 `Refs: 11#<能力編號>`。
+7. **禁止**：刪除測試、加 skip／xfail／`.only`、把斷言改弱、修改 golden 去配合錯誤的輸出。
+8. **規格衝突或做不到時：停下來回報**，在 PR 描述與對應文件標註，交給人類決定。不要自己修改測試去配合實作。
+9. **修 bug 的順序**：先新增一條能重現問題的回歸測試（新 ID，標「回歸」），再修。
+
+覆蓋率門檻：`core`／`fs-sandbox` 的 branch coverage ≥ 95%，其餘 ≥ 80%；diff coverage ≥ 90%。
+
+---
+
+## 6. Monorepo 結構與指令（在切片 0 建立）
+
+```
+openphotoagent/
+├─ apps/
+│  ├─ web/          React 19 + Vite + TanStack (Router/Query/Virtual) + shadcn/ui + Tailwind v4
+│  ├─ api/          FastAPI（REST /api/v1、SSE、之後的 /mcp）
+│  ├─ worker/       scanner、preprocess、GPU 排程、output executor
+│  ├─ cli/          opagent（login / mcp / doctor / models …）
+│  └─ desktop/      Tauri 2 殼（src-tauri, Rust）：sidecar 監管、單一實例、asset protocol、updater
+├─ packages/
+│  ├─ core/         純函式：path_template、config_hash、decide、狀態機、規則 DSL（無 I/O）
+│  ├─ schemas/      Pydantic DTO → OpenAPI / JSON Schema / TS 型別
+│  ├─ db/           SQLAlchemy + Alembic；embedded PG 管理
+│  ├─ fs-sandbox/   SafePath、檔案操作原語、journal
+│  ├─ inference-sdk/ InferenceBackend SPI、FakeBackend、一致性測試套件
+│  ├─ inference-adapters/ llama.cpp server、ONNX Runtime（SigLIP2、faces）
+│  ├─ operations/   Operation、ETA 估算、Activity 事件
+│  ├─ doctor/       環境檢查 registry、preflight、錯誤碼目錄
+│  ├─ search/ mcp-tools/ geo/ output-actions/ integrations/
+│  └─ ts-client/    由 OpenAPI 產生的 TS client
+├─ tools/           tc_status.py、pytest_tc/、codegen、release
+├─ spikes/m0/       M0 實驗腳本與結果
+├─ fixtures/        CC0 測試影像、hw profiles（fixtures/hw/*.yaml）
+├─ deploy/          compose/、docker/
+└─ docs/
+```
+
+工具鏈：Python 用 **uv workspace**（ruff、mypy strict for core/fs-sandbox、pytest + hypothesis + pytest-randomly + pytest-socket）；TS 用 **pnpm**（Vitest、fast-check、Playwright、axe）；Rust 用 cargo；任務入口統一用 **`just`**。
+
+切片 0 完成後，下列指令必須可用。實際指令以 `justfile` 為準，有變動時同步更新本節：
+
+```bash
+just setup          # uv sync + pnpm install + 下載測試用嵌入式 PG
+just test           # unit + property + contract（快速，PR 必跑）
+just test-int       # integration（真 Postgres）
+just e2e            # Playwright（web build + FakeBackend）
+just lint           # ruff + mypy + eslint + tsc + import-linter
+just tc-status      # 更新 docs/generated/coverage-status.md
+just mutate-diff    # mutation testing（fs-sandbox / path_template）
+just dev            # all-in-one 開發模式（api + worker + PG + web）
+```
+
+---
+
+## 7. 執行環境注意事項
+
+- **雲端 session 沒有 GPU、Windows 或 macOS。** 推論一律使用 `FakeInferenceBackend`（決定性輸出，可注入 OOM／timeout／parse error），硬體則用 `fixtures/hw/*.yaml` 的探針 profile 模擬，例如 5070 Ti、M2 16GB、無 GPU、驅動過舊。
+- **真模型與真硬體的測試**只在 nightly GPU runner 或使用者本機（RTX 5070 Ti 16GB, Windows 11）執行。需要硬體的 M0 實驗見 09 §6：S1 嵌入式 PG（Windows／Defender）、S3 llama.cpp Qwen3-VL 結構化輸出、S4 SigLIP2 ONNX、S7 tool-calling、V7 ETA 涵蓋率。**不要捏造實驗結果。** 沒有硬體可跑的實驗，在 `spikes/m0/results/` 標為 `pending-hardware`，並寫好可直接執行的腳本與說明。
+- macOS／Windows 安裝包的建置與簽章由 GitHub Actions matrix 負責，本地無法驗證時以 CI 結果為準。
+- 這個雲端 session 不能 push tag、建立 Release 或觸發 workflow。發版走 release-please（合併 Release PR）；需要手動操作時，請使用者處理。
+
+---
+
+## 8. Session Handoff：目前狀態與下一步
+
+### 已完成
+- 規劃文件 00–11（含 09a／09b，共 840 條測試案例），v0.0.1 Design Preview 已發佈。
+- Repo 基礎設施：雙語 README、Apache-2.0、CONTRIBUTING、SECURITY、issue templates、VERSIONING、CHANGELOG、release-please、release-on-tag workflow。
+- 規格分支：`claude/spec-expansion`（包含 06–11 與本檔）。**實作請從這個分支開始**，或先把它合併回 `main`。
+
+### 下一步（依序）
+1. **切片 0：測試基建**（09 §7）。同時完成 09 §9 的規格回寫：
+   - W-1：06 §4.7 的錯誤碼目錄新增 6 個錯誤碼：`PACK_SIGNATURE_INVALID`、`PACK_INCOMPATIBLE`、`FS_FILE_LOCKED`、`DL_REMOTE_CHANGED`、`DL_MIRROR_FAILED`、`VRAM_OFFLOAD`。
+   - W-2：02 §3.2 `output_rule` 新增 `{date:YYYY}` 別名與 `{category_key}`，`action` 新增 `trash`。
+   - W-3：05 §3.2.3 規定 `tools/list` **一律依 token scope 過濾**（已採納，適用所有 tools）。
+   - W-4：08 C-27 的 workflow 清單加入 `nightly.yml`、`nightly-gpu.yml`、`release-gate.yml`、`m0-spike.yml`。
+   - W-5：11 §1 連到 `docs/generated/coverage-status.md`。
+   - W-6：CONTRIBUTING 加入 09 §1.3–1.5，並新增 `.github/pull_request_template.md`。
+2. **M0 spike 腳本**（`spikes/m0/`）：寫好全部實驗腳本。能在雲端跑的（M0-T1 部分、S2 打包大小的 Linux 部分、V8）就實際執行；需要硬體的標記 `pending-hardware`，並在 `docs/research/m0-results.md` 寫給使用者的執行步驟。
+3. **切片 1：Walking skeleton**（依日期複製 + undo），終點是 **E2E-B-001** 在 web build 綠燈。
+4. 切片 2 → 12，依 09 §7 的順序。切片 7（推論）和 11（桌面殼）依賴 M0 結果：結果還沒出來時，先以 FakeBackend 或抽象介面完成，真實 adapter 保持在可切換狀態。
+5. 每完成一個切片：更新 coverage-status，在本檔 §8 追加一行進度紀錄，然後 commit、push。
+
+### 進度紀錄（每個切片完成後追加）
+| 日期 | 切片 | 狀態 | 備註 |
+|---|---|---|---|
+| 2026-11-01 | 規劃 | ✅ | 規格 00–11、測試 840 條、v0.0.1 |
+
+### 仍待決定／待驗證（遇到時回報使用者，不要自行決定）
+- 人臉測試影像的授權來源（09 Q-T1）；中文日期表達的精確範圍，例如「過年」（Q-T5）。
+- Windows 程式碼簽章經費與 SignPath 申請時程（08）；人臉功能的法規需要有經驗的人審閱。
+- 11 §4 列出的其他待驗證項；所有「待 M0 確認」的門檻。
+
+---
+
+## 9. Git 與發版
+
+- 分支命名：`feat/<slice>-<topic>`、`fix/…`、`spike/m0-…`；PR 合併方式用 squash，**PR 標題就是 Conventional Commit**，release-please 依此產生 CHANGELOG。
+- 不要直接 push 到 `main`；不要改寫別人分支的歷史。
+- commit 結尾附上 session 提供的 attribution 行。
+- 版本規則：v0.0.x 任何變更都升 patch；0.x 的破壞性變更升 minor。`v0.1.0` 的發版門檻是 11 §5 的 DoD 全綠，加上 09 的 release gate。

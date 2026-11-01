@@ -302,6 +302,7 @@ open http://localhost:8080               # 首次啟動會偵測 GPU 並推薦�
 | 06 | [模型、環境醫生與長任務](docs/06-models-environment-operations.md) | 模型與下載管理、環境醫生、附修復按鈕的 preflight、每個操作的 ETA |
 | 07 | [人臉辨識](docs/07-face-recognition.md) | 模型與授權調查、分群、以臉找人、同意與刪除、MCP scope |
 | 08 | [桌面打包與最終審查](docs/08-desktop-packaging-and-final-review.md) | Tauri 殼、嵌入式 Postgres、runtime pack、簽章與更新、新手首次使用審查、**目前的路線圖** |
+| 09 | [TDD 與測試套件](docs/09-tdd-and-test-suite.md) · [v0.1 案例](docs/09a-test-cases-v0.1.md) · [v0.2+ 案例](docs/09b-test-cases-v0.2-plus.md) | TDD 流程、測試替身、CI 矩陣、M0 實驗、840 條測試案例 |
 | 10 | [照片 viewer 與問照片](docs/10-photo-viewer-and-ask-ai.md) | 時間軸網格、scrubber、Lightbox、批次操作；agent 迴圈、防幻覺、延遲目標 |
 | 11 | [功能覆蓋審查](docs/11-feature-coverage-review.md) | 需求 → 規格覆蓋矩陣、衝突修正紀錄、v0.1 完成定義 |
 
