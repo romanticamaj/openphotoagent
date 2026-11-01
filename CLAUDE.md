@@ -173,6 +173,8 @@ just dev            # all-in-one 開發模式（api + worker + PG + web）
 4. 切片 2 → 12，依 09 §7 的順序。切片 7（推論）和 11（桌面殼）依賴 M0 結果：結果還沒出來時，先以 FakeBackend 或抽象介面完成，真實 adapter 保持在可切換狀態。
 5. 每完成一個切片：更新 coverage-status，在本檔 §8 追加一行進度紀錄，然後 commit、push。
 
+> **各里程碑可直接貼上的 `/goal` 指令見 [`docs/GOALS.md`](docs/GOALS.md)**（M0、v0.1-A～D、v0.2-A～C、v0.3～v1.0）。
+
 ### 進度紀錄（每個切片完成後追加）
 | 日期 | 切片 | 狀態 | 備註 |
 |---|---|---|---|
