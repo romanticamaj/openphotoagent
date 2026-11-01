@@ -163,7 +163,11 @@ def sweep_orphans(ops: list[Operation], now: datetime, timeout_s: float = HEARTB
     return events
 
 
-# ---- progress (06 §5.4) / elapsed (06 §5.6) — stubs ----
+# ---- progress (06 §5.4) / elapsed (06 §5.6) ----
+JOB_LABEL_PHASES = (("plan", 2), ("cache_lookup", 3), ("model_load", 5), ("embed", 10), ("infer", 75),
+                    ("postprocess", 5))
+
+
 @dataclass
 class Phase:
     id: str
@@ -174,29 +178,92 @@ class Phase:
 
 
 def phase_fraction(phases: list[Phase]) -> float:
-    return 0.0
+    """Weighted progress: time weights when every active phase has an estimate, else the 06 §5.2 static
+    weights; skipped phases drop out and their weight is redistributed (OP-002)."""
+    active = [p for p in phases if p.status != "skipped"]
+    if not active:
+        return 1.0
+    timed = all(p.est_seconds is not None for p in active)
+    w = [(p.est_seconds or 0.0) if timed else p.weight for p in active]
+    tot = sum(w)
+    if tot <= 0:
+        return 0.0
+    got = sum(wi * (1.0 if p.status == "done" else p.fraction if p.status == "running" else 0.0)
+              for wi, p in zip(w, active, strict=True))
+    return got / tot
 
 
-def job_label_fraction(counters: dict[str, int], phase: str) -> float:
-    return 0.0
+def job_label_fraction(counters: dict[str, int], phase: str, skipped: tuple[str, ...] = ("model_load",)) -> float:
+    """job.label progress; cache hits are accounted in ``cache_lookup`` so ``infer`` never jumps (OP-003)."""
+    to_infer = max(1, counters["total"] - counters.get("cached", 0))
+    infer_p = (counters.get("done", 0) + counters.get("failed", 0) + counters.get("skipped", 0)) / to_infer
+    order = [p for p, _ in JOB_LABEL_PHASES]
+    cur = order.index(phase)
+    phases = []
+    for i, (pid, w) in enumerate(JOB_LABEL_PHASES):
+        st = "skipped" if pid in skipped else "done" if i < cur else "running" if i == cur else "pending"
+        phases.append(Phase(pid, w, status=st, fraction=min(1.0, infer_p) if pid == "infer" else 0.0))
+    return phase_fraction(phases)
 
 
 def parent_fraction(children: list[tuple[float, float]]) -> float:
-    return -1.0
+    """Parent progress = sum(child weight x child progress), weights = estimated seconds (OP-004)."""
+    tot = sum(e for e, _ in children)
+    return sum(e * f for e, f in children) / tot if tot > 0 else 0.0
 
 
 class Elapsed:
-    active_ms = 0
-    paused_ms = 0
+    """active/paused time accounting; times are Clock.monotonic() seconds (OP-013)."""
 
-    def start(self, t: float) -> None: ...
-    def pause(self, t: float) -> None: ...
-    def resume(self, t: float) -> None: ...
-    def finish(self, t: float) -> None: ...
+    def __init__(self) -> None:
+        self.active_ms = 0
+        self.paused_ms = 0
+        self._since: float | None = None
+        self._paused_at: float | None = None
+
+    def start(self, t: float) -> None:
+        self._since = t
+
+    def pause(self, t: float) -> None:
+        if self._since is not None:
+            self.active_ms += round((t - self._since) * 1000)
+            self._since = None
+        self._paused_at = t
+
+    def resume(self, t: float) -> None:
+        if self._paused_at is not None:
+            self.paused_ms += round((t - self._paused_at) * 1000)
+            self._paused_at = None
+        self._since = t
+
+    def finish(self, t: float) -> None:
+        if self._since is not None:
+            self.active_ms += round((t - self._since) * 1000)
+            self._since = None
+
+    @staticmethod
+    def _dur(ms: int, lang: str) -> str:
+        s = round(ms / 1000)
+        h, rem = divmod(s, 3600)
+        m, sec = divmod(rem, 60)
+        if lang == "zh-TW":
+            parts = [f"{h} 小時" if h else "", f"{m} 分" if m else "", f"{sec} 秒" if sec else ""]
+            text = " ".join(p for p in parts if p) or "0 秒"
+            return text.replace(" 分", " 分鐘") if not sec and m and not h else text
+        parts = [f"{h} h" if h else "", f"{m} min" if m else "", f"{sec} s" if sec else ""]
+        return " ".join(p for p in parts if p) or "0 s"
 
     def summary(self, lang: str) -> str:
-        return ""
+        took = self._dur(self.active_ms, lang)
+        if lang == "zh-TW":
+            note = f"（暫停 {self._dur(self.paused_ms, lang)}未計入）" if self.paused_ms else ""
+            return f"花了 {took}{note}"
+        note = f" ({self._dur(self.paused_ms, lang)} paused not counted)" if self.paused_ms else ""
+        return f"Took {took}{note}"
 
     @staticmethod
     def clock_text(ms: int) -> str:
-        return ""
+        s = ms // 1000
+        h, rem = divmod(s, 3600)
+        m, sec = divmod(rem, 60)
+        return f"{h}:{m:02d}:{sec:02d}" if h else f"{m}:{sec:02d}"
