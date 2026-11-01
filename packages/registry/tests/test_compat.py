@@ -3,9 +3,8 @@ import shutil
 from pathlib import Path
 
 import pytest
-
 from opagent_doctor.probes import load_profile
-from opagent_registry.compat import compat, compat_inputs_hash, CompatCache
+from opagent_registry.compat import CompatCache, compat, compat_inputs_hash
 from opagent_registry.loader import BUILTIN_DIR, load_registry
 
 ROOT = Path(__file__).resolve().parents[3]
