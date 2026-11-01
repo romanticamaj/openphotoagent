@@ -11,6 +11,7 @@ from .path_template import DateSource, RenderValues, compile_template, render, s
 PRESET_TEMPLATES = {
     "by-date": "{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
     "by-content-12": "{category}/{taken_at:%Y}/{stem}{ext}",
+    "custom": "{category}/{taken_at:%Y}/{stem}{ext}",  # user-defined categories (03 §3.3)
 }
 
 

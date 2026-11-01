@@ -44,6 +44,7 @@ class JobIn(BaseModel):
     action: Literal["copy", "move"] = "copy"  # 02 §6.2: copy by default; move is an advanced opt-in (ORG-004)
     advanced: dict[str, Any] = Field(default_factory=dict)
     models: dict[str, Any] | None = None  # {embed, vlm, pack}; None = the worker's configured backend
+    categories: list[dict[str, Any]] | None = None  # preset "custom": [{key, name, description, examples}]
     queue_after: bool = False
 
 
@@ -304,6 +305,7 @@ def reapply(job_id: str, body: ReapplyIn, req: Request) -> dict[str, Any]:
 class PreviewIn(BaseModel):
     source_id: str
     preset: str = "by-content-12"
+    categories: list[dict[str, Any]] | None = None  # preset "custom": [{key, name, description, examples}]
     target: Target | None = None
     k: int = 10
     seed: int = 42
@@ -410,7 +412,9 @@ def try_one(preview_id: str, body: TryIn, req: Request) -> dict[str, Any]:
         if loc is None:
             raise HTTPException(404, detail={"code": "NOT_FOUND"})
         tid = uuid7(st.clock)
-        tc = j.params.get("task_config") or organize.task_config_for(j.params.get("preset", "by-content-12"))
+        tc = j.params.get("task_config") or organize.task_config_for(
+            j.params.get("preset", "by-content-12"), j.params.get("categories"), c
+        )
         c.execute(
             insert(worker_task).values(
                 id=tid,
@@ -466,8 +470,25 @@ def get_plan(plan_id: str, req: Request) -> dict[str, Any]:
         "job_id": p.job_id,
         "status": p.status,
         "summary": p.summary,
+        "outcome": _outcome(acts) if p.status not in ("draft", "superseded") else None,
         "actions": [{k: v for k, v in a._mapping.items() if k != "plan_id"} for a in acts],
     }
+
+
+def _outcome(acts: list[Any]) -> dict[str, int]:
+    """What applying did: copied/moved, renamed because a different file had the name, identical copies skipped."""
+    out = {"done": 0, "renamed": 0, "same_skipped": 0, "skipped": 0, "failed": 0}
+    for a in acts:
+        if a.status == "done":
+            out["done"] += 1
+            out["renamed"] += a.conflict == "exists_diff"
+        elif a.status == "skipped" and a.conflict == "exists_same":
+            out["same_skipped"] += 1
+        elif a.status == "skipped":
+            out["skipped"] += 1
+        elif a.status == "failed":
+            out["failed"] += 1
+    return out
 
 
 def _plan_job(c: Any, plan_id: str) -> tuple[Any, Any]:

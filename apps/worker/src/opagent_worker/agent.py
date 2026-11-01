@@ -352,7 +352,7 @@ class WorkerAgent:
         if self._cascade is None:
             self._cascade = Cascade(self.embedder, self.backend)
         items = [Item(inp, self._facts.pop(it["id"], {})) for it, inp in prepared]
-        results = asyncio.run(self._cascade.run(items, _taxonomy(tc)))
+        results = asyncio.run(self._cascade.run(items, self._taxonomy_for(self._cascade, tc)))
         self._post_embeddings([inp for _, inp in prepared])
         fp = self.cascade_fingerprint
         reports = []
@@ -640,7 +640,7 @@ class WorkerAgent:
                 self._cascade.text_cache,
                 self._cascade.vlm_cache,
             )
-        [r] = asyncio.run(cas.run([Item(inp, facts)], _taxonomy(p["task_config"])))
+        [r] = asyncio.run(cas.run([Item(inp, facts)], self._taxonomy_for(cas, p["task_config"])))
         out = {
             "asset_id": p["asset_id"],
             "decision": r.outcome.decision,
@@ -668,13 +668,34 @@ class WorkerAgent:
             self._facts.pop(f"est{k}", None)
             if inp is not None:
                 images.append(inp)
-        est = asyncio.run(self._cascade.estimate(images, _taxonomy(p["task_config"])))
+        est = asyncio.run(self._cascade.estimate(images, self._taxonomy_for(self._cascade, p["task_config"])))
         return {
             "counts": est.counts,
             "routed_to_vlm": est.routed_to_vlm,
             "n_embedded": len(images),
             "total": p["total"],
         }
+
+    def _taxonomy_for(self, cas: Any, tc: dict[str, Any]) -> Any:
+        """Taxonomy with the example photos of custom categories embedded as prototypes (03 §3.3)."""
+        import asyncio
+
+        tax = _taxonomy(tc)
+        for cdef, raw in zip(tax.classes, tc.get("classes") or [], strict=False):
+            refs = raw.get("examples") or []
+            if not refs:
+                continue
+            imgs = []
+            for k, ref in enumerate(refs):
+                inp, _fail = self._prepare(
+                    {"id": f"ex{k}", "root_alias": ref["root_alias"], "rel": ref["rel"], "attempt": 1}
+                )
+                self._facts.pop(f"ex{k}", None)
+                if inp is not None:
+                    imgs.append(inp)
+            if imgs:
+                cdef.examples = [v.tolist() for v in asyncio.run(cas.image_vectors(imgs))]
+        return tax
 
     def _do_browse(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         sp = self.sb.resolve(p["root_alias"], p.get("path", ""))

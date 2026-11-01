@@ -41,22 +41,69 @@ ACTIVE_JOB = ("queued", "running", "paused", "planning", "applying", "cancelling
 
 
 @lru_cache(maxsize=8)
-def preset(key: str) -> Any:
+def _builtin(key: str) -> Any:
     return load_preset((PRESETS_DIR / f"{key}.yaml").read_text(encoding="utf-8"))
 
 
-def task_config_for(preset_key: str) -> dict[str, Any] | None:
-    p = preset(preset_key)
+def preset(key: str, categories: list[dict[str, Any]] | None = None) -> Any:
+    """Built-in preset, or ``custom``: the by-content pipeline and output rules with the user's categories plus the
+    automatic 「其他」 (03 §3.3)."""
+    if key != "custom":
+        return _builtin(key)
+    from dataclasses import replace
+
+    base = _builtin("by-content-12")
+    cats = [
+        {
+            "key": c["key"],
+            "zh-TW": c.get("name") or c["key"],
+            "en": c.get("name") or c["key"],
+            "description": {"zh-TW": c.get("description", ""), "en": c.get("description", "")},
+            "examples": list(c.get("examples") or []),
+        }
+        for c in categories or []
+        if c.get("key") and c["key"] != "other"
+    ]
+    other = next(c for c in base.categories if c["key"] == "other")
+    return replace(base, key="custom", categories=[*cats, other])
+
+
+def task_config_for(
+    preset_key: str, categories: list[dict[str, Any]] | None = None, c: Any = None
+) -> dict[str, Any] | None:
+    p = preset(preset_key, categories)
     if not p.task_configs:
         return None
     tc = dict(p.task_configs[0])
-    tc["categories"] = [c["key"] for c in p.categories]
-    # English names/descriptions feed the SigLIP2 prompts and the VLM enum (03 §3.3); display names stay zh/en
+    tc["categories"] = [x["key"] for x in p.categories]
+    # built-in rules (e.g. screenshots → documents) only apply when their target category exists
+    tc["rules"] = [r for r in tc.get("rules") or [] if r.get("then") in tc["categories"]]
+    # English names/descriptions feed the SigLIP2 prompts and the VLM enum (03 §3.3); display names stay zh/en.
+    # Example photos become prototypes; their locations are part of the config hash (invariant 7).
     tc["classes"] = [
-        {"id": c["key"], "name": c.get("en", c["key"]), "description": (c.get("description") or {}).get("en", "")}
-        for c in p.categories
+        {
+            "id": x["key"],
+            "name": x.get("en", x["key"]),
+            "description": (x.get("description") or {}).get("en", ""),
+            **({"examples": _example_refs(c, x["examples"])} if x.get("examples") and c is not None else {}),
+        }
+        for x in p.categories
     ]
     return tc
+
+
+def _example_refs(c: Any, asset_ids: list[str]) -> list[dict[str, str]]:
+    rows = c.execute(
+        select(asset_location.c.asset_id, source.c.root_alias, asset_location.c.rel_path, asset.c.content_hash)
+        .join(source, source.c.id == asset_location.c.source_id)
+        .join(asset, asset.c.id == asset_location.c.asset_id)
+        .where(asset_location.c.asset_id.in_(asset_ids), asset_location.c.missing.is_(False))
+        .order_by(asset_location.c.asset_id, asset_location.c.rel_path)
+    ).all()
+    seen: dict[str, dict[str, str]] = {}
+    for r in rows:
+        seen.setdefault(r.asset_id, {"root_alias": r.root_alias, "rel": r.rel_path, "content_hash": r.content_hash})
+    return [seen[a] for a in asset_ids if a in seen]
 
 
 def upsert_entries(st: Any, c: Any, src_id: str, entries: list[dict[str, Any]]) -> None:
@@ -150,7 +197,7 @@ def worker_fingerprint(c: Any, worker_id: str | None, task: str) -> str:
 
 def after_scan(st: Any, c: Any, j: Any, t: Any) -> None:
     params = j.params
-    tc = task_config_for(params["preset"])
+    tc = task_config_for(params["preset"], params.get("categories"), c)
     rows = _source_assets(c, t.payload["source_id"])
     if tc is None:
         return build_plan(st, c, j, rows)
@@ -255,7 +302,7 @@ def rebuild_draft_plan(st: Any, c: Any, job_id: str) -> str | None:
 
 
 def plan_items(c: Any, j: Any, rows: list[Any], labels: dict[str, dict[str, Any]] | None = None) -> list[PlanItem]:
-    names = {cat["key"]: cat["zh-TW"] for cat in preset(j.params["preset"]).categories}
+    names = {cat["key"]: cat["zh-TW"] for cat in preset(j.params["preset"], j.params.get("categories")).categories}
     items = []
     for r in rows:
         lab = (labels or {}).get(r.asset_id)
@@ -280,7 +327,7 @@ def build_plan(st: Any, c: Any, j: Any, rows: list[Any]) -> None:
     target = params["target"]
     if j.status == "running":
         set_job_status(c, j.id, JobStatus.planning, clock=st.clock)
-    labels = labels_for(c, j.id) if task_config_for(params["preset"]) else None
+    labels = labels_for(c, j.id) if task_config_for(params["preset"], params.get("categories")) else None
     planned = assign_collisions(
         plan(plan_items(c, j, rows, labels), params["preset"], target.get("sub_path", "").strip("/")),
         case_insensitive=True,

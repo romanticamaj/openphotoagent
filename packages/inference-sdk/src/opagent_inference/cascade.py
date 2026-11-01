@@ -172,6 +172,11 @@ class Cascade:
             self.image_cache[img.content_hash] = np.asarray(by_id[img.item_id].embedding, dtype=float)
         self._ev("embed", str(len(todo)))
 
+    async def image_vectors(self, images: list[ImageInput]) -> list[np.ndarray]:
+        """Embeddings of example photos (custom categories' prototypes), through the same image cache."""
+        await self._embed([Item(img, {}) for img in images])
+        return [self.image_cache[img.content_hash] for img in images]
+
     async def estimate(self, images: list[ImageInput], tax: Taxonomy) -> Estimate:
         """Embedding fast path only (no VLM): forecast for ORG-007 / INF-CAS-010."""
         await self.embedder.load(LoadOptions())

@@ -398,7 +398,12 @@ def _on_apply(st: AppState, c: Any, t: Any, result: dict[str, Any]) -> None:
         c.execute(
             update(output_action)
             .where(output_action.c.id == r["action_id"])
-            .values(status=r["status"], error=r.get("error"), dst_rel=r.get("dst_rel") or output_action.c.dst_rel)
+            .values(
+                status=r["status"],
+                error=r.get("error"),
+                dst_rel=r.get("dst_rel") or output_action.c.dst_rel,
+                conflict=r.get("conflict") or "none",
+            )
         )
         done += r["status"] == "done"
     total = len(result["results"])
