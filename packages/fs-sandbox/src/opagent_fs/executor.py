@@ -27,13 +27,14 @@ TRASH_DIR = ".opagent-trash"
 @dataclass(frozen=True)
 class Action:
     action_id: str
-    op: Literal["copy", "move"]
+    op: Literal["copy", "move", "sidecar_json"]
     src_alias: str
     src_rel: str
     dst_alias: str
     dst_rel: str
     src_hash: str
     conflict_policy: str = "rename"
+    payload: dict[str, Any] | None = None
 
 
 @dataclass
@@ -67,13 +68,13 @@ def effective_op(sb: Sandbox, a: Action, allow_move_from_ro_roots: bool = False)
 
 
 class Executor:
-    def __init__(self, sandbox: Sandbox, fs: FsOps, journal: Journal) -> None:
+    def __init__(self, sandbox: Sandbox, fs: FsOps, journal: Journal, sleep: Any = None) -> None:
         self.sb = sandbox
         self.fs = fs
         self.journal = journal
 
     # ---- apply -----------------------------------------------------------
-    def apply(self, plan_id: str, actions: list[Action], move_confirmed: bool = False) -> ApplyReport:
+    def apply(self, plan_id: str, actions: list[Action], move_confirmed: bool = False, control: Any = None) -> ApplyReport:
         rep = ApplyReport()
         for a in actions:
             try:
