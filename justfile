@@ -2,7 +2,7 @@
 set shell := ["bash", "-uc"]
 export UV_SYSTEM_CERTS := "1"
 
-py_fast := "not integration and not e2e and not chaos and not perf and not real_model and not gpu"
+py_fast := "not integration and not e2e and not chaos and not perf and not real_model and not gpu and not release_gate and not nightly"
 
 default:
     @just --list
@@ -19,7 +19,7 @@ test:
 
 # integration (real PostgreSQL) + chaos subset
 test-int:
-    OPAGENT_TC_RESULTS=.tc/py-int.json uv run pytest -q -m "(integration or chaos) and not nightly"
+    OPAGENT_TC_RESULTS=.tc/py-int.json uv run pytest -q -m "(integration or chaos) and not nightly and not release_gate"
 
 # Playwright against the web build + all-in-one backend with FakeBackend
 e2e:
