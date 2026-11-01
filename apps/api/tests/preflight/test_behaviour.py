@@ -46,10 +46,14 @@ def test_pf_074_fingerprint_skips_recompute(env):
     env.worker()
     params = env.job_params(preset="by-date")
     a = env.preflight("job.start", params)
-    r = env.client.post("/api/v1/preflight", json={"action": "job.start", "params": params, "fingerprint": a["fingerprint"]}).json()
+    r = env.client.post(
+        "/api/v1/preflight", json={"action": "job.start", "params": params, "fingerprint": a["fingerprint"]}
+    ).json()
     assert r["cached"] is True and r["fingerprint"] == a["fingerprint"]
     env.clock.advance(120)  # state changed (worker went offline)
-    r2 = env.client.post("/api/v1/preflight", json={"action": "job.start", "params": params, "fingerprint": a["fingerprint"]}).json()
+    r2 = env.client.post(
+        "/api/v1/preflight", json={"action": "job.start", "params": params, "fingerprint": a["fingerprint"]}
+    ).json()
     assert r2["cached"] is False and r2["fingerprint"] != a["fingerprint"]
 
 
@@ -60,7 +64,10 @@ def test_pf_081_inference_error_mapping():
     from opagent_doctor.codes import CATALOG
 
     assert ERROR_CODE_MAP["OOM"] == "MODEL_OOM" and ERROR_CODE_MAP["TIMEOUT"] == "RUNTIME_TIMEOUT"
-    assert ERROR_CODE_MAP["BAD_INPUT"] == "DECODE_FAILED" and ERROR_CODE_MAP["RUNTIME"] in ("RUNTIME_CRASHED", "MODEL_LOAD_FAILED")
+    assert ERROR_CODE_MAP["BAD_INPUT"] == "DECODE_FAILED" and ERROR_CODE_MAP["RUNTIME"] in (
+        "RUNTIME_CRASHED",
+        "MODEL_LOAD_FAILED",
+    )
     assert InferenceError("RUNTIME", True, "load", phase="load").error_code == "MODEL_LOAD_FAILED"
     assert InferenceError("RUNTIME", True).error_code == "RUNTIME_CRASHED"
     assert all(c in CATALOG for c in ERROR_CODE_MAP.values())
@@ -70,20 +77,26 @@ def test_pf_081_inference_error_mapping():
 @pytest.mark.tc("PF-082")
 def test_pf_082_every_error_is_problem_json(env):
     env.worker()
-    app = env.client.app
+    paths = env.client.app.openapi()["paths"]  # every public endpoint (included routers are nested objects)
     hits = 0
-    for route in app.routes:
-        path = getattr(route, "path", "")
-        if not path.startswith("/api/v1") or "{" not in path and "GET" in getattr(route, "methods", set()):
+    for path, ops in paths.items():
+        if not path.startswith("/api/v1"):
             continue
         url = path
         for seg in [s for s in path.split("/") if s.startswith("{")]:
             url = url.replace(seg, "does-not-exist")
-        for m in sorted(getattr(route, "methods", set()) - {"HEAD", "OPTIONS"}):
+        for m in sorted(k.upper() for k in ops):
+            if m == "GET" and "{" not in path:
+                continue
             r = env.client.request(m, url, content=b"{not json", headers={"content-type": "application/json"})
             if r.status_code >= 400:
                 hits += 1
-                assert r.headers["content-type"].startswith("application/problem+json"), (m, url, r.status_code, r.text[:200])
+                assert r.headers["content-type"].startswith("application/problem+json"), (
+                    m,
+                    url,
+                    r.status_code,
+                    r.text[:200],
+                )
                 body = r.json()
                 assert body["status"] == r.status_code and body["code"]
     assert hits > 20
@@ -91,10 +104,13 @@ def test_pf_082_every_error_is_problem_json(env):
 
 @pytest.mark.integration
 @pytest.mark.tc("PF-083")
-@pytest.mark.parametrize("profile,models,alt_key", [
-    ("nvidia-drv535", {"embed": EMB16, "vlm": Q4, "pack": "llamacpp-cuda13"}, "vulkan"),
-    ("blackwell-cuda12pack", {"embed": EMB16, "vlm": Q5, "pack": "llamacpp-cuda12"}, "llamacpp_vulkan"),
-])
+@pytest.mark.parametrize(
+    "profile,models,alt_key",
+    [
+        ("nvidia-drv535", {"embed": EMB16, "vlm": Q4, "pack": "llamacpp-cuda13"}, "vulkan"),
+        ("blackwell-cuda12pack", {"embed": EMB16, "vlm": Q5, "pack": "llamacpp-cuda12"}, "llamacpp_vulkan"),
+    ],
+)
 def test_pf_083_alternatives_lead_to_ready(env, profile, models, alt_key):
     env.worker(profile)
     env.install(EMB16, models["vlm"])
