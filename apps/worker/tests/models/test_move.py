@@ -6,7 +6,6 @@ import sys
 import threading
 
 import pytest
-
 from opagent_worker.downloads import CancelToken
 from opagent_worker.model_store import ModelStore, MoveError
 
@@ -41,7 +40,10 @@ def make_store(tmp_path, size, n=3):
 
 @pytest.mark.integration
 @pytest.mark.tc("MDL-008")
-@pytest.mark.parametrize("size", [pytest.param(64 * MB, id="scaled"), pytest.param(10 * 1024 * MB // 3, id="10GB", marks=pytest.mark.nightly)])
+@pytest.mark.parametrize(
+    "size",
+    [pytest.param(64 * MB, id="scaled"), pytest.param(10 * 1024 * MB // 3, id="10GB", marks=pytest.mark.nightly)],
+)
 def test_mdl_008_move_phases_and_switch(tmp_path, size):
     store, root, shas = make_store(tmp_path, size)
     dst = tmp_path / "other-disk" / "models"
