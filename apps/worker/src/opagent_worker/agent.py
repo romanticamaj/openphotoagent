@@ -110,8 +110,9 @@ class WorkerAgent:
 
     def _do_apply(self, p: dict[str, Any]) -> dict[str, Any]:
         actions = [Action(**a) for a in p["actions"]]
-        res = self.executor.apply(p["plan_id"], actions)
-        return {"results": [r.__dict__ for r in res]}
+        rep = self.executor.apply(p["plan_id"], actions, move_confirmed=bool(p.get("move_confirmed")))
+        return {"results": [r.__dict__ for r in rep.results], "status": rep.status,
+                "waiting_reason": rep.waiting_reason}
 
     def _do_undo(self, p: dict[str, Any]) -> dict[str, Any]:
         res = self.executor.undo(p["plan_id"])

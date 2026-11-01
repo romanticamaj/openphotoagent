@@ -19,7 +19,7 @@ EXPECTED = [
 @pytest.mark.tc("OUT-JRN-001")
 def test_out_jrn_001_intent_committed_before_first_side_effect(env):
     a = env.photo("a.jpg", b"hello")
-    env.ex.apply("plan1", [a])
+    env.ex.apply("plan1", [a]).results
     side = [i for i, c in enumerate(env.log) if c in env.fs.SIDE_EFFECTS]
     assert side, env.log
     assert "journal.intent" in env.log
@@ -35,7 +35,7 @@ def test_out_jrn_001_intent_committed_before_first_side_effect(env):
 @pytest.mark.tc("OUT-EXE-001")
 def test_out_exe_001_copy_happy_path_call_sequence(env):
     a = env.photo("a.jpg", b"hello world")
-    res = env.ex.apply("plan1", [a])
+    res = env.ex.apply("plan1", [a]).results
     assert [r.status for r in res] == ["done"]
     seq = [c for c in env.log if c != "exists"]
     # read_hash of the src before the intent is the precheck (no side effect)
@@ -54,7 +54,7 @@ def test_out_exe_002_source_unchanged(env, helpers):
     os.chmod(src, 0o644)
     os.utime(src, ns=(1_600_000_000_000_000_000, 1_600_000_000_000_000_000))
     before = (b3(src), src.stat().st_mtime_ns, src.stat().st_size, stat.S_IMODE(src.stat().st_mode))
-    assert [r.status for r in env.ex.apply("p", [a])] == ["done"]
+    assert [r.status for r in env.ex.apply("p", [a]).results] == ["done"]
     after = (b3(src), src.stat().st_mtime_ns, src.stat().st_size, stat.S_IMODE(src.stat().st_mode))
     assert after == before
 
@@ -66,7 +66,7 @@ def test_out_undo_001_undo_copy_restores_tree(env, helpers):
     actions = [env.photo(f"d{i}/IMG_{i}.jpg", os.urandom(1000 + i)) for i in range(3)]
     before = snapshot(env.tree.sorted)
     photos_before = snapshot(env.tree.photos)
-    assert all(r.status == "done" for r in env.ex.apply("p1", actions))
+    assert all(r.status == "done" for r in env.ex.apply("p1", actions).results)
     assert snapshot(env.tree.sorted) != before
     res = env.ex.undo("p1")
     assert [r.status for r in res] == ["undone"] * 3

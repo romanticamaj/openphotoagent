@@ -25,6 +25,7 @@ class Action:
     dst_alias: str
     dst_rel: str
     src_hash: str
+    conflict_policy: str = "rename"
 
 
 @dataclass
@@ -33,6 +34,14 @@ class ActionResult:
     status: Literal["done", "skipped", "failed", "undone", "conflict"]
     dst_rel: str | None = None
     error: str | None = None
+    conflict: str = "none"
+
+
+@dataclass
+class ApplyReport:
+    results: list[ActionResult]
+    status: str = "applied"
+    waiting_reason: str | None = None
 
 
 def effective_op(sb: Sandbox, a: Action, allow_move_from_ro_roots: bool = False) -> tuple[str, bool]:
@@ -48,8 +57,8 @@ class Executor:
         self.fs = fs
         self.journal = journal
 
-    def apply(self, plan_id: str, actions: list[Action]) -> list[ActionResult]:
-        return [self._copy(plan_id, a) for a in actions]
+    def apply(self, plan_id: str, actions: list[Action], move_confirmed: bool = False) -> ApplyReport:
+        return ApplyReport([self._copy(plan_id, a) for a in actions])
 
     def _copy(self, plan_id: str, a: Action) -> ActionResult:
         src = self.sb.resolve(a.src_alias, a.src_rel)

@@ -28,6 +28,7 @@ class PlannedAction:
     dst_rel: str
     src_hash: str
     date_source: DateSource | None
+    conflict: str = "none"
 
 
 def plan(items: list[PlanItem], preset: str, target_sub: str = "") -> list[PlannedAction]:
@@ -53,3 +54,7 @@ def plan(items: list[PlanItem], preset: str, target_sub: str = "") -> list[Plann
 def summarize(actions: list[PlannedAction]) -> dict[str, int]:
     folders = {posixpath.dirname(a.dst_rel) for a in actions}
     return {"copy": len(actions), "folders": len(folders), "total": len(actions)}
+
+
+def assign_collisions(actions: list[PlannedAction], case_insensitive: bool = False) -> list[PlannedAction]:
+    return actions
