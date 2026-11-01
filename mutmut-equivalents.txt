@@ -11,3 +11,25 @@ packages/core/src/opagent_core/path_template.py:220:str
 packages/core/src/opagent_core/path_template.py:231:cmp0
 packages/core/src/opagent_core/path_template.py:232:boolop
 packages/core/src/opagent_core/path_template.py:246:num
+# fs-sandbox (reasons: docs/mutation-equivalents.md, fs-sandbox table)
+# executor.py: _commit's default op="copy" is never used; its only caller always passes op
+packages/fs-sandbox/src/opagent_fs/executor.py:242:str
+# executor.py: a done entry's seq is referenced only by its "undone" entries, so and->or adds only intent seqs / None
+packages/fs-sandbox/src/opagent_fs/executor.py:414:boolop
+# fsops.py: CHUNK is the I/O buffer size; hashes and copies are byte-identical for any chunk size
+packages/fs-sandbox/src/opagent_fs/fsops.py:21:num
+# fsops.py: split point of the first chunk around the test-only crash hook; written bytes are identical
+packages/fs-sandbox/src/opagent_fs/fsops.py:75:num
+# fsops.py: first=False -> True only re-splits every chunk around the test-only crash hook; bytes identical
+packages/fs-sandbox/src/opagent_fs/fsops.py:80:bool
+# fsops.py: strerror text of FileExistsError; errno and type are unchanged
+packages/fs-sandbox/src/opagent_fs/fsops.py:129:str
+packages/fs-sandbox/src/opagent_fs/fsops.py:138:str
+# fsops.py: RENAME_EXCL flag inside the darwin-only branch (exercised by the macOS CI runner)
+packages/fs-sandbox/src/opagent_fs/fsops.py:133:num
+# journal.py: lastrowid is never None/0 after a successful INSERT into an AUTOINCREMENT table
+packages/fs-sandbox/src/opagent_fs/journal.py:74:num
+# safepath.py: getattr default 0 -> 1; 1 & 0x400 == 0, so a stat without st_file_attributes is still not a reparse point
+packages/fs-sandbox/src/opagent_fs/safepath.py:66:num
+# safepath.py: missing=True only skips lookups under a missing parent; with False they fail (ENOENT) and yield the same name
+packages/fs-sandbox/src/opagent_fs/safepath.py:140:bool
