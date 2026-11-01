@@ -84,8 +84,6 @@ def main() -> None:
     print(f"{len(rows)} images")
 
 
-
-
 # ---- slice 5 sets (all project-generated, CC0) -------------------------------------------------------
 import io  # noqa: E402
 import struct  # noqa: E402
@@ -200,7 +198,11 @@ def _tiff_with_preview(preview: bytes | None) -> bytes:
     b += struct.pack("<HHII", 273, 4, 1, raw_off) + struct.pack("<HHII", 279, 4, 1, len(raw))
     b += struct.pack("<I", ifd1_off if preview else 0)
     if preview:
-        b += struct.pack("<H", 2) + struct.pack("<HHII", 513, 4, 1, jpg_off) + struct.pack("<HHII", 514, 4, 1, len(preview))
+        b += (
+            struct.pack("<H", 2)
+            + struct.pack("<HHII", 513, 4, 1, jpg_off)
+            + struct.pack("<HHII", 514, 4, 1, len(preview))
+        )
         b += struct.pack("<I", 0)
     else:
         b += struct.pack("<H", 0) + struct.pack("<I", 0)
@@ -244,8 +246,15 @@ def gen_video() -> list[Path]:
 def main_slice5() -> None:
     rows = []
     for f in gen_orientation() + gen_heic() + gen_corrupt() + gen_timezone() + gen_raw() + gen_video():
-        rows.append([str(f.relative_to(PHOTOS)), "generated:tools/gen_fixtures.py", "OpenPhotoAgent contributors",
-                     "CC0-1.0", hashlib.sha256(f.read_bytes()).hexdigest()])
+        rows.append(
+            [
+                str(f.relative_to(PHOTOS)),
+                "generated:tools/gen_fixtures.py",
+                "OpenPhotoAgent contributors",
+                "CC0-1.0",
+                hashlib.sha256(f.read_bytes()).hexdigest(),
+            ]
+        )
     with (PHOTOS / "LICENSES.csv").open("a", newline="", encoding="utf-8") as fh:
         csv.writer(fh).writerows(rows)
     print(f"{len(rows)} slice-5 files")

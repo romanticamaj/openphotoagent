@@ -72,8 +72,10 @@ def test_core_tpl_017_unknown_variable_at_compile():
 @pytest.mark.unit
 @pytest.mark.security
 @pytest.mark.tc("CORE-TPL-018")
-@pytest.mark.parametrize("tpl", ["/etc/{stem}", "C:\\{stem}", "../{stem}", "{category}/../{stem}", "\\\\server\\{stem}",
-                                 "a/./{stem}", "a//{stem}"])
+@pytest.mark.parametrize(
+    "tpl",
+    ["/etc/{stem}", "C:\\{stem}", "../{stem}", "{category}/../{stem}", "\\\\server\\{stem}", "a/./{stem}", "a//{stem}"],
+)
 def test_core_tpl_018_template_path_escape(tpl):
     with pytest.raises(TemplateError) as e:
         compile_template(tpl)
@@ -103,8 +105,15 @@ def test_core_tpl_020_template_length_limit():
 
 @pytest.mark.unit
 @pytest.mark.tc("CORE-TPL-021")
-@pytest.mark.parametrize(("name", "stem", "ext"), [("a.b.c.JPG", "a.b.c", ".JPG"), ("README", "README", ""),
-                                                   (".hidden", ".hidden", ""), ("x.tar.gz", "x.tar", ".gz")])
+@pytest.mark.parametrize(
+    ("name", "stem", "ext"),
+    [
+        ("a.b.c.JPG", "a.b.c", ".JPG"),
+        ("README", "README", ""),
+        (".hidden", ".hidden", ""),
+        ("x.tar.gz", "x.tar", ".gz"),
+    ],
+)
 def test_core_tpl_021_stem_ext_split(name, stem, ext):
     assert split_name(name) == (stem, ext)
 
@@ -112,8 +121,13 @@ def test_core_tpl_021_stem_ext_split(name, stem, ext):
 @pytest.mark.unit
 @pytest.mark.tc("CORE-TPL-022")
 def test_core_tpl_022_tag_prefix():
-    v = RenderValues(stem="a", ext=".jpg", taken_at=D, tags=(("animal.cat", 0.9), ("animal.dog", 0.4), ("food.x", 1.0)),
-                     tag_display={"animal.cat": "貓", "animal.dog": "狗"})
+    v = RenderValues(
+        stem="a",
+        ext=".jpg",
+        taken_at=D,
+        tags=(("animal.cat", 0.9), ("animal.dog", 0.4), ("food.x", 1.0)),
+        tag_display={"animal.cat": "貓", "animal.dog": "狗"},
+    )
     assert render(compile_template("{tag:animal}/{stem}{ext}"), v).rel == "貓/a.jpg"
     v2 = RenderValues(stem="a", ext=".jpg", taken_at=D, tags=(("food.x", 1.0),))
     assert render(compile_template("{tag:animal}/{stem}{ext}"), v2, lang="en").rel == "_unknown/a.jpg"

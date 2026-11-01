@@ -8,7 +8,6 @@ string constant emptying (non-docstring), `return x` -> `return None`.
 from __future__ import annotations
 
 import ast
-import copy
 import os
 import shutil
 import subprocess
@@ -18,12 +17,25 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SWAP = {ast.Eq: ast.NotEq, ast.NotEq: ast.Eq, ast.Lt: ast.LtE, ast.LtE: ast.Lt, ast.Gt: ast.GtE, ast.GtE: ast.Gt,
-        ast.In: ast.NotIn, ast.NotIn: ast.In, ast.Is: ast.IsNot, ast.IsNot: ast.Is}
+SWAP = {
+    ast.Eq: ast.NotEq,
+    ast.NotEq: ast.Eq,
+    ast.Lt: ast.LtE,
+    ast.LtE: ast.Lt,
+    ast.Gt: ast.GtE,
+    ast.GtE: ast.Gt,
+    ast.In: ast.NotIn,
+    ast.NotIn: ast.In,
+    ast.Is: ast.IsNot,
+    ast.IsNot: ast.Is,
+}
 PACKAGES = {  # file prefix -> (package dir, import name, test paths)
     "packages/core/src/opagent_core/": ("packages/core/src/opagent_core", "opagent_core", ["packages/core/tests"]),
-    "packages/fs-sandbox/src/opagent_fs/": ("packages/fs-sandbox/src/opagent_fs", "opagent_fs",
-                                            ["packages/fs-sandbox/tests"]),
+    "packages/fs-sandbox/src/opagent_fs/": (
+        "packages/fs-sandbox/src/opagent_fs",
+        "opagent_fs",
+        ["packages/fs-sandbox/tests"],
+    ),
 }
 
 
@@ -85,7 +97,7 @@ def _mutate(src: str, site: tuple[int, str]) -> tuple[str, int] | None:
         line = getattr(node, "lineno", 0)
         try:
             return ast.unparse(ast.fix_missing_locations(tree)), line
-        except Exception:  # noqa: BLE001
+        except Exception:
             return None
     return None
 
@@ -113,10 +125,20 @@ def run(files: list[str], workers: int = 4, timeout: int = 300) -> tuple[float, 
         try:
             shutil.copytree(ROOT / pkg_dir, tmp / pkg_name)
             (tmp / pkg_name / Path(f).name).write_text(mutated)
-            env = {**os.environ, "PYTHONPATH": str(tmp), "OPAGENT_HYPOTHESIS_PROFILE": "ci",
-                   "OPAGENT_TC_RESULTS": str(tmp / "tc.json")}
-            r = subprocess.run([sys.executable, "-m", "pytest", "-x", "-q", "-p", "no:randomly", *tests], cwd=ROOT,
-                               env=env, capture_output=True, timeout=timeout, check=False)
+            env = {
+                **os.environ,
+                "PYTHONPATH": str(tmp),
+                "OPAGENT_HYPOTHESIS_PROFILE": "ci",
+                "OPAGENT_TC_RESULTS": str(tmp / "tc.json"),
+            }
+            r = subprocess.run(
+                [sys.executable, "-m", "pytest", "-x", "-q", "-p", "no:randomly", *tests],
+                cwd=ROOT,
+                env=env,
+                capture_output=True,
+                timeout=timeout,
+                check=False,
+            )
             return f"{f}:{line}:{site[1]}", r.returncode != 0
         except subprocess.TimeoutExpired:
             return f"{f}:{line}:{site[1]}", True

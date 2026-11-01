@@ -32,7 +32,9 @@ class Env:
         return p
 
     def act(self, rel: str, dst: str, op="copy", policy="rename", aid=None) -> Action:
-        return Action(aid or f"a:{rel}", op, "photos", rel, "sorted", dst, b3(self.photos / rel), conflict_policy=policy)
+        return Action(
+            aid or f"a:{rel}", op, "photos", rel, "sorted", dst, b3(self.photos / rel), conflict_policy=policy
+        )
 
 
 @pytest.fixture
@@ -87,8 +89,9 @@ def test_out_exe_006_rename_suffix_deterministic(env):
 
 @pytest.mark.unit
 @pytest.mark.tc("OUT-EXE-007")
-@pytest.mark.parametrize(("policy", "status"), [("skip", "skipped"), ("fail", "failed"),
-                                                ("overwrite_if_same_hash", "skipped")])
+@pytest.mark.parametrize(
+    ("policy", "status"), [("skip", "skipped"), ("fail", "failed"), ("overwrite_if_same_hash", "skipped")]
+)
 def test_out_exe_007_policies_on_exists_diff(env, policy, status):
     env.put("a.jpg", b"new")
     env.put("b.jpg", b"other")
@@ -106,8 +109,9 @@ def test_out_exe_008_dst_appears_at_commit(sandbox_tree, tmp_path):
     def racer(src, dst):
         Path(dst).write_bytes(b"racer")
 
-    env = Env(sandbox_tree.photos, sandbox_tree.sorted, tmp_path,
-              faults=[Fault("rename_noreplace", nth=1, before=racer)])
+    env = Env(
+        sandbox_tree.photos, sandbox_tree.sorted, tmp_path, faults=[Fault("rename_noreplace", nth=1, before=racer)]
+    )
     env.put("a.jpg", b"mine")
     [r] = env.ex.apply("p", [env.act("a.jpg", "a.jpg")]).results
     assert (env.sorted / "a.jpg").read_bytes() == b"racer"  # never overwritten
@@ -119,14 +123,19 @@ def test_out_exe_008_dst_appears_at_commit(sandbox_tree, tmp_path):
 @pytest.mark.unit
 @pytest.mark.tc("OUT-EXE-009")
 def test_out_exe_009_in_plan_collisions_get_suffix_at_plan_time():
-    acts = [PlannedAction("a1", "x/IMG.jpg", "2025/IMG.jpg", "h1", None),
-            PlannedAction("a2", "y/IMG.jpg", "2025/IMG.jpg", "h2", None),
-            PlannedAction("a3", "z/IMG.jpg", "2025/IMG.jpg", "h1", None),  # same content as a1 -> same file
-            PlannedAction("a4", "w/img.JPG", "2025/img.JPG", "h4", None)]
+    acts = [
+        PlannedAction("a1", "x/IMG.jpg", "2025/IMG.jpg", "h1", None),
+        PlannedAction("a2", "y/IMG.jpg", "2025/IMG.jpg", "h2", None),
+        PlannedAction("a3", "z/IMG.jpg", "2025/IMG.jpg", "h1", None),  # same content as a1 -> same file
+        PlannedAction("a4", "w/img.JPG", "2025/img.JPG", "h4", None),
+    ]
     out = assign_collisions(acts, case_insensitive=True)
     assert [(a.dst_rel, a.conflict) for a in out] == [
-        ("2025/IMG.jpg", "none"), ("2025/IMG (1).jpg", "name_collision"), ("2025/IMG.jpg", "none"),
-        ("2025/img (2).JPG", "name_collision")]
+        ("2025/IMG.jpg", "none"),
+        ("2025/IMG (1).jpg", "name_collision"),
+        ("2025/IMG.jpg", "none"),
+        ("2025/img (2).JPG", "name_collision"),
+    ]
     assert assign_collisions(acts, case_insensitive=True) == out  # deterministic
 
 
@@ -140,8 +149,10 @@ def test_out_exe_011_move_goes_to_trash(sandbox_tree, tmp_path):
     assert not (env.photos / "d/a.jpg").exists()
     assert (env.photos / ".opagent-trash/plan9/d/a.jpg").read_bytes() == b"moving"
     assert (env.sorted / "a.jpg").read_bytes() == b"moving"
-    assert any(e["op"] == "move" and e["phase"] == "done" and e["post_state"]["trash_rel"]
-               for e in env.ex.journal.entries("plan9"))
+    assert any(
+        e["op"] == "move" and e["phase"] == "done" and e["post_state"]["trash_rel"]
+        for e in env.ex.journal.entries("plan9")
+    )
 
 
 @pytest.mark.integration
@@ -162,7 +173,9 @@ def test_out_exe_013_cross_device_move_never_renames_across(tmp_path):
 @pytest.mark.chaos
 @pytest.mark.tc("OUT-EXE-014")
 def test_out_exe_014_disk_full_waits_then_resumes(sandbox_tree, tmp_path):
-    env = Env(sandbox_tree.photos, sandbox_tree.sorted, tmp_path, faults=[Fault("write_tmp_copy", nth=2, err=errno.ENOSPC)])
+    env = Env(
+        sandbox_tree.photos, sandbox_tree.sorted, tmp_path, faults=[Fault("write_tmp_copy", nth=2, err=errno.ENOSPC)]
+    )
     acts = [env.act(r, r) for r in (env.put(f"{i}.jpg", os.urandom(50)).name for i in range(3))]
     rep = env.ex.apply("p", acts)
     assert rep.status == "waiting" and rep.waiting_reason == "DISK_INSUFFICIENT_OUTPUT"

@@ -39,21 +39,50 @@ class Lab:
             p.parent.mkdir(exist_ok=True)
             p.write_bytes(rnd.randbytes(2000 + i))
             os.utime(p, ns=(1_600_000_000_000_000_000 + i, 1_600_000_000_000_000_000 + i))
-            self.actions.append({"action_id": f"a{i}", "op": op, "src_alias": "photos", "src_rel": rel,
-                                 "dst_alias": "sorted", "dst_rel": f"{2020 + i % 2}/{i % 5:02d}/IMG_{i:04d}.jpg",
-                                 "src_hash": b3(p)})
+            self.actions.append(
+                {
+                    "action_id": f"a{i}",
+                    "op": op,
+                    "src_alias": "photos",
+                    "src_rel": rel,
+                    "dst_alias": "sorted",
+                    "dst_rel": f"{2020 + i % 2}/{i % 5:02d}/IMG_{i:04d}.jpg",
+                    "src_hash": b3(p),
+                }
+            )
             if sidecar:
-                self.actions.append({"action_id": f"s{i}", "op": "sidecar_json", "src_alias": "photos", "src_rel": rel,
-                                     "dst_alias": "sorted", "dst_rel": f"{2020 + i % 2}/{i % 5:02d}/IMG_{i:04d}.opagent.json",
-                                     "src_hash": "", "payload": {"schema_version": 1, "i": i}})
+                self.actions.append(
+                    {
+                        "action_id": f"s{i}",
+                        "op": "sidecar_json",
+                        "src_alias": "photos",
+                        "src_rel": rel,
+                        "dst_alias": "sorted",
+                        "dst_rel": f"{2020 + i % 2}/{i % 5:02d}/IMG_{i:04d}.opagent.json",
+                        "src_hash": "",
+                        "payload": {"schema_version": 1, "i": i},
+                    }
+                )
         mode = "rw" if op == "move" else "ro"
         self.spec = base / "spec.json"
-        self.spec.write_text(json.dumps({"roots": [{"alias": "photos", "path": str(self.photos), "mode": mode},
-                                                   {"alias": "sorted", "path": str(self.sorted), "mode": "rw"}],
-                                         "journal": str(base / "journal.db"), "plan_id": "plan",
-                                         "actions": self.actions}))
-        self.src_contents = {a["src_rel"]: (a["src_hash"], (self.photos / a["src_rel"]).stat().st_mtime_ns)
-                             for a in self.actions if a["op"] != "sidecar_json"}
+        self.spec.write_text(
+            json.dumps(
+                {
+                    "roots": [
+                        {"alias": "photos", "path": str(self.photos), "mode": mode},
+                        {"alias": "sorted", "path": str(self.sorted), "mode": "rw"},
+                    ],
+                    "journal": str(base / "journal.db"),
+                    "plan_id": "plan",
+                    "actions": self.actions,
+                }
+            )
+        )
+        self.src_contents = {
+            a["src_rel"]: (a["src_hash"], (self.photos / a["src_rel"]).stat().st_mtime_ns)
+            for a in self.actions
+            if a["op"] != "sidecar_json"
+        }
         self.sorted_before = tree_snapshot(self.sorted)
 
     def run(self, cmd: str, crash: str | None = None, nth: int = 1) -> subprocess.CompletedProcess[str]:
@@ -61,8 +90,9 @@ class Lab:
         env.pop("OPAGENT_CRASH_AT", None)
         if crash:
             env.update({"OPAGENT_CRASH_AT": crash, "OPAGENT_CRASH_NTH": str(nth)})
-        return subprocess.run([sys.executable, str(RUNNER), str(self.spec), cmd], env=env, capture_output=True,
-                              text=True, timeout=600)
+        return subprocess.run(
+            [sys.executable, str(RUNNER), str(self.spec), cmd], env=env, capture_output=True, text=True, timeout=600
+        )
 
     def journal_terminal(self) -> bool:
         import sqlite3
@@ -122,7 +152,9 @@ CASES = [
 
 
 @pytest.mark.chaos
-@pytest.mark.parametrize(("tc", "point", "op", "sidecar"), [pytest.param(*c, marks=pytest.mark.tc(c[0])) for c in CASES])
+@pytest.mark.parametrize(
+    ("tc", "point", "op", "sidecar"), [pytest.param(*c, marks=pytest.mark.tc(c[0])) for c in CASES]
+)
 def test_out_crash_point_recovers(tmp_path, tc, point, op, sidecar):
     ref = reference_tree(tmp_path, 6, op, sidecar)
     lab = Lab(tmp_path / "lab", 6, op, sidecar)

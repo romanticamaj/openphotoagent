@@ -144,14 +144,31 @@ def preflight(body: PreflightIn, req: Request) -> dict[str, Any]:
 
         with _st(req).engine.begin() as c:
             assets = [r[0] for r in c.execute(select(job_item.c.asset_id).where(job_item.c.job_id == p["rerun_of"]))]
-            have = c.execute(select(func.count()).select_from(result).where(
-                result.c.asset_id.in_(assets), result.c.task_config_hash == config_hash(p.get("task_config") or {}),
-                result.c.model_fingerprint == p.get("fingerprint"))).scalar_one()
+            have = c.execute(
+                select(func.count())
+                .select_from(result)
+                .where(
+                    result.c.asset_id.in_(assets),
+                    result.c.task_config_hash == config_hash(p.get("task_config") or {}),
+                    result.c.model_fingerprint == p.get("fingerprint"),
+                )
+            ).scalar_one()
         if assets and have == len(assets):  # 100 % cache hit (06 §4.7 #51)
-            warnings.append({"code": "JOB_NOTHING_TO_DO", "severity": "warning", "fixes": [
-                {"id": "reapply_thresholds", "kind": "auto_fix", "label_key": "fix.reapply_thresholds"},
-                {"id": "force_rerun", "kind": "choose_alternative", "label_key": "fix.force_rerun",
-                 "consequence_key": "fix.force_rerun.consequence"}]})
+            warnings.append(
+                {
+                    "code": "JOB_NOTHING_TO_DO",
+                    "severity": "warning",
+                    "fixes": [
+                        {"id": "reapply_thresholds", "kind": "auto_fix", "label_key": "fix.reapply_thresholds"},
+                        {
+                            "id": "force_rerun",
+                            "kind": "choose_alternative",
+                            "label_key": "fix.force_rerun",
+                            "consequence_key": "fix.force_rerun.consequence",
+                        },
+                    ],
+                }
+            )
     elif body.action == "job.start" and p.get("preset", "by-date") not in ("by-date",) and p.get("kind") != "label":
         blockers.append({"code": "MODEL_NOT_INSTALLED"})
     return {"ready": not blockers, "blockers": blockers, "warnings": warnings}
@@ -186,10 +203,13 @@ def create_job(body: JobIn, req: Request) -> dict[str, Any]:
                     "source_id": s.id,
                     "root_alias": s.root_alias,
                     "sub_path": s.sub_path,
-                    "include": s.include, "exclude": s.exclude,
-                     # never index the output folder when it lives inside the source (SCAN-024)
-                     "exclude_subtrees": [body.target.sub_path.strip("/")]
-                     if body.target.root_alias == s.root_alias and body.target.sub_path.strip("/") else []},
+                    "include": s.include,
+                    "exclude": s.exclude,
+                    # never index the output folder when it lives inside the source (SCAN-024)
+                    "exclude_subtrees": [body.target.sub_path.strip("/")]
+                    if body.target.root_alias == s.root_alias and body.target.sub_path.strip("/")
+                    else [],
+                },
             )
         )
     return get_job(jid, req)
@@ -237,8 +257,14 @@ def pause_job(job_id: str, req: Request, body: PauseIn | None = None) -> dict[st
         _ensure_job_op(c, st, job_id)
         set_job_status(c, job_id, JobStatus.paused, clock=st.clock)
         if body and body.mode == "immediate":
-            leased = [r[0] for r in c.execute(select(job_item.c.id, job_item.c.lease_owner).where(
-                job_item.c.job_id == job_id, job_item.c.status.in_(("leased", "running"))))]
+            leased = [
+                r[0]
+                for r in c.execute(
+                    select(job_item.c.id, job_item.c.lease_owner).where(
+                        job_item.c.job_id == job_id, job_item.c.status.in_(("leased", "running"))
+                    )
+                )
+            ]
             owners = {r.lease_owner for r in c.execute(select(job_item.c.lease_owner).where(job_item.c.id.in_(leased)))}
             for w in owners:
                 q.release(c, w, leased)
@@ -267,8 +293,11 @@ def cancel_job(job_id: str, req: Request) -> dict[str, Any]:
             set_job_status(c, job_id, JobStatus.cancelled, clock=st.clock)
         else:
             set_job_status(c, job_id, JobStatus.cancelling, clock=st.clock)
-        c.execute(update(job_item).where(job_item.c.job_id == job_id, job_item.c.status == "pending")
-                  .values(status="cancelled"))
+        c.execute(
+            update(job_item)
+            .where(job_item.c.job_id == job_id, job_item.c.status == "pending")
+            .values(status="cancelled")
+        )
         q.finish_cancel_if_idle(c, st.clock, job_id)
     return get_job(job_id, req)
 
@@ -287,13 +316,19 @@ def reapply(job_id: str, body: ReapplyIn, req: Request) -> dict[str, Any]:
     st = _st(req)
     pol = Policy(accept=body.thresholds.get("accept", 0.80), review=body.thresholds.get("review", 0.50))
     with st.engine.begin() as c:
-        rows = c.execute(select(result.c.category, result.c.confidence, result.c.raw).join(
-            job_item, job_item.c.result_id == result.c.id).where(job_item.c.job_id == job_id)).all()
+        rows = c.execute(
+            select(result.c.category, result.c.confidence, result.c.raw)
+            .join(job_item, job_item.c.result_id == result.c.id)
+            .where(job_item.c.job_id == job_id)
+        ).all()
     counts: Counter[str] = Counter()
     for r in rows:  # pure recompute from stored stages (CORE-THR-017, ADR-0001)
         out = (r.raw or {}).get("output") or {}
-        stages = {"emb": out.get("scores"), "n_examples": out.get("n_examples", 1)} if out.get("stage") == "embedding" \
+        stages = (
+            {"emb": out.get("scores"), "n_examples": out.get("n_examples", 1)}
+            if out.get("stage") == "embedding"
             else {"vlm": {"category": r.category, "p": r.confidence or 0.0}}
+        )
         counts[redecide(stages, pol).decision] += 1
     return {"job_id": job_id, "decisions": dict(counts)}
 

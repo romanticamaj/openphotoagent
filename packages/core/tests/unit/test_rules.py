@@ -61,8 +61,21 @@ def test_core_rule_005_syntax_error_has_pointer_and_column():
 
 @pytest.mark.security
 @pytest.mark.tc("CORE-RULE-006")
-@pytest.mark.parametrize("expr", ["__import__('os')", "a.__class__", "category.__class__", "len(tags)", "open('x')",
-                                  "(lambda: 1)()", "[x for x in tags]", "category[0]", "unknown_field == 1", "exif.__dict__"])
+@pytest.mark.parametrize(
+    "expr",
+    [
+        "__import__('os')",
+        "a.__class__",
+        "category.__class__",
+        "len(tags)",
+        "open('x')",
+        "(lambda: 1)()",
+        "[x for x in tags]",
+        "category[0]",
+        "unknown_field == 1",
+        "exif.__dict__",
+    ],
+)
 def test_core_rule_006_dsl_sandbox(expr):
     with pytest.raises(RuleError) as e:
         compile_when(expr)
@@ -89,7 +102,20 @@ def test_core_rule_007_by_date_needs_no_model():
 def test_core_rule_008_by_content_12_complete():
     p = load_preset((PRESETS / "by-content-12.yaml").read_text(encoding="utf-8"))
     names = [c["zh-TW"] for c in p.categories]
-    assert names == ["人物", "風景", "美食", "寵物", "文件與截圖", "旅行", "活動", "建築", "植物", "交通", "藝術", "其他"]
+    assert names == [
+        "人物",
+        "風景",
+        "美食",
+        "寵物",
+        "文件與截圖",
+        "旅行",
+        "活動",
+        "建築",
+        "植物",
+        "交通",
+        "藝術",
+        "其他",
+    ]
     for c in p.categories:
         assert c["zh-TW"] and c["en"] and c["description"]["zh-TW"] and c["description"]["en"]
     assert [c["key"] for c in p.categories if c.get("fallback")] == ["other"]
@@ -110,6 +136,10 @@ def test_core_rule_009_custom_needs_description_or_example():
 def test_core_rule_010_final_label_prefers_review():
     r = {"category": "food", "tags": ["x"], "caption": "c"}
     assert final_label(r, {"status": "corrected", "corrected": {"category": "pets"}}) == {
-        "category": "pets", "tags": ["x"], "caption": "c", "source": "review"}
+        "category": "pets",
+        "tags": ["x"],
+        "caption": "c",
+        "source": "review",
+    }
     assert final_label(r, None)["source"] == "model"
     assert final_label(r, {"status": "pending"})["category"] == "food"

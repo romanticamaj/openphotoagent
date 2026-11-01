@@ -141,8 +141,9 @@ class Sandbox:
                 continue
             except OSError as e:
                 if e.errno in (errno.ENAMETOOLONG, errno.ENOTDIR):
-                    raise PathViolation("name_too_long" if e.errno == errno.ENAMETOOLONG else "not_a_directory",
-                                        alias, rel) from None
+                    raise PathViolation(
+                        "name_too_long" if e.errno == errno.ENAMETOOLONG else "not_a_directory", alias, rel
+                    ) from None
                 raise
             if stat.S_ISLNK(st.st_mode) or _is_reparse_point(st):
                 raise PathViolation("symlink", alias, rel)

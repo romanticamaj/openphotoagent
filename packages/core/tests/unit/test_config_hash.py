@@ -14,8 +14,11 @@ BASE = {
     "model_version": "qwen3-vl-8b@q4_k_m",
     "prompt_template_ref": "builtin:classify_v1",
     "generation_params": {"temperature": 0.0, "max_tokens": 256, "top_p": 0.9},
-    "label_set": {"key": "family-photo-categories", "version": 3,
-                  "labels": [{"key": "food", "display": "美食", "description": "餐點與飲料"}]},
+    "label_set": {
+        "key": "family-photo-categories",
+        "version": 3,
+        "labels": [{"key": "food", "display": "美食", "description": "餐點與飲料"}],
+    },
     "structured_output_schema": {"type": "object"},
     "thresholds": {"accept": 0.80, "review": 0.50},
     "output_rule": {"path_template": "{category}/{stem}{ext}", "target_id": "t1", "conflict_policy": "rename"},
@@ -35,7 +38,10 @@ def test_core_hash_001_key_order_irrelevant():
 
 
 json_values = st.recursive(
-    st.none() | st.booleans() | st.integers(-10**6, 10**6) | st.floats(allow_nan=False, allow_infinity=False)
+    st.none()
+    | st.booleans()
+    | st.integers(-(10**6), 10**6)
+    | st.floats(allow_nan=False, allow_infinity=False)
     | st.text(max_size=8),
     lambda ch: st.lists(ch, max_size=4) | st.dictionaries(st.text(max_size=5), ch, max_size=4),
     max_leaves=20,
@@ -112,8 +118,16 @@ def test_core_hash_005_unicode_nfc():
 
 @pytest.mark.unit
 @pytest.mark.tc("CORE-HASH-006")
-@pytest.mark.parametrize("path", [("prompt_template_ref",), ("generation_params", "max_tokens"), ("label_set", "version"),
-                                  ("label_set", "labels", 0, "description"), ("structured_output_schema", "type")])
+@pytest.mark.parametrize(
+    "path",
+    [
+        ("prompt_template_ref",),
+        ("generation_params", "max_tokens"),
+        ("label_set", "version"),
+        ("label_set", "labels", 0, "description"),
+        ("structured_output_schema", "type"),
+    ],
+)
 def test_core_hash_006_inference_fields_invalidate(path):
     cfg = copy.deepcopy(BASE)
     node = cfg
@@ -140,8 +154,13 @@ def test_core_hash_008_output_rule_does_not_change_hash():
     assert config_hash(cfg) == config_hash(BASE) != ""
 
 
-FP = {"adapter_key": "llamacpp-chat", "adapter_version": "1.2.0", "weights_sha256": "ab" * 32, "numerics_epoch": 3,
-      "params": {"ctx": 8192}}
+FP = {
+    "adapter_key": "llamacpp-chat",
+    "adapter_version": "1.2.0",
+    "weights_sha256": "ab" * 32,
+    "numerics_epoch": 3,
+    "params": {"ctx": 8192},
+}
 
 
 @pytest.mark.unit

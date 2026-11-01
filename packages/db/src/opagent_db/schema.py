@@ -133,7 +133,8 @@ output_action = Table(
     Column("error", Text),
 )
 job_item = Table(
-    "job_item", metadata,
+    "job_item",
+    metadata,
     Column("id", Text, primary_key=True),
     Column("job_id", Text, ForeignKey("job.id"), nullable=False),
     Column("asset_id", Text, ForeignKey("asset.id"), nullable=False),
@@ -152,7 +153,8 @@ job_item = Table(
     Column("result_id", Text),
 )
 result = Table(
-    "result", metadata,
+    "result",
+    metadata,
     Column("id", Text, primary_key=True),
     Column("asset_id", Text, ForeignKey("asset.id"), nullable=False),
     Column("task_config_hash", Text, nullable=False),
@@ -168,7 +170,8 @@ result = Table(
     UniqueConstraint("asset_id", "task_config_hash", "model_fingerprint"),
 )
 operation = Table(  # 06 §5.1 / 02 §10.1
-    "operation", metadata,
+    "operation",
+    metadata,
     Column("id", Text, primary_key=True),
     Column("type", Text, nullable=False),
     Column("status", Text, nullable=False),
@@ -191,7 +194,8 @@ operation = Table(  # 06 §5.1 / 02 §10.1
     _ts("created_at", server_default=func.now()),
 )
 operation_event = Table(
-    "operation_event", metadata,
+    "operation_event",
+    metadata,
     Column("id", BigInteger, primary_key=True, autoincrement=True),
     Column("operation_id", Text, nullable=False),
     Column("seq", BigInteger, nullable=False),
@@ -200,7 +204,8 @@ operation_event = Table(
     _ts("at"),
 )
 metric = Table(
-    "metric", metadata,
+    "metric",
+    metadata,
     Column("name", Text, primary_key=True),
     Column("value", BigInteger, nullable=False, server_default="0"),
 )
@@ -218,7 +223,8 @@ worker_task = Table(
     _ts("created_at", server_default=func.now()),
 )
 journal_mirror = Table(  # CP mirror of the worker-local journal (02 §3.2 journal_entry); worker copy wins
-    "journal_mirror", metadata,
+    "journal_mirror",
+    metadata,
     Column("id", BigInteger, primary_key=True, autoincrement=True),
     Column("worker_id", Text, nullable=False),
     Column("plan_id", Text, nullable=False),

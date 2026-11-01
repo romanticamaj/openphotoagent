@@ -87,7 +87,8 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     import sys
 
     here = {"win32": "os_windows", "darwin": "os_macos"}.get(sys.platform, "os_linux")
-    keep, drop = [], []
+    keep: list[pytest.Item] = []
+    drop: list[pytest.Item] = []
     for it in items:
         marks = {m.name for m in it.iter_markers() if m.name.startswith("os_")}
         (drop if marks and here not in marks else keep).append(it)

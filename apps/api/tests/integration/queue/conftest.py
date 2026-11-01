@@ -7,8 +7,12 @@ from opagent_db.schema import asset, engine_for, job, job_item
 from opagent_testing.clock import FakeClock
 from sqlalchemy import insert
 
-CFG = {"task_type": "classify", "prompt_template_ref": "builtin:fused_v1", "label_set": "builtin-12@1",
-       "generation_params": {"temperature": 0}}
+CFG = {
+    "task_type": "classify",
+    "prompt_template_ref": "builtin:fused_v1",
+    "label_set": "builtin-12@1",
+    "generation_params": {"temperature": 0},
+}
 
 
 class Q:
@@ -19,18 +23,36 @@ class Q:
         self.client = TestClient(self.app)
         self.eng = engine_for(dsn)
 
-    def seed(self, n: int, job_id: str = "j1", status: str = "running", task: str = "classify",
-             lane: str = "normal") -> list[str]:
+    def seed(
+        self, n: int, job_id: str = "j1", status: str = "running", task: str = "classify", lane: str = "normal"
+    ) -> list[str]:
         with self.eng.begin() as c:
             if not c.execute(job.select().where(job.c.id == job_id)).first():
-                c.execute(insert(job).values(id=job_id, workspace_id="default", kind="label", status=status,
-                                             params={"task_config": CFG, "fingerprint": "fp1"}))
+                c.execute(
+                    insert(job).values(
+                        id=job_id,
+                        workspace_id="default",
+                        kind="label",
+                        status=status,
+                        params={"task_config": CFG, "fingerprint": "fp1"},
+                    )
+                )
             rows_a, rows_i = [], []
             for i in range(n):
                 aid = f"{job_id}-a{i}"
                 rows_a.append({"id": aid, "workspace_id": "default", "content_hash": f"{job_id}-h{i}", "size_bytes": 1})
-                rows_i.append({"id": f"{job_id}-i{i}", "job_id": job_id, "asset_id": aid, "root_alias": "photos",
-                               "rel": f"{i}.jpg", "task": task, "lane": lane, "seq": i})
+                rows_i.append(
+                    {
+                        "id": f"{job_id}-i{i}",
+                        "job_id": job_id,
+                        "asset_id": aid,
+                        "root_alias": "photos",
+                        "rel": f"{i}.jpg",
+                        "task": task,
+                        "lane": lane,
+                        "seq": i,
+                    }
+                )
             c.execute(insert(asset), rows_a)
             c.execute(insert(job_item), rows_i)
         return [r["id"] for r in rows_i]

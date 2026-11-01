@@ -8,8 +8,28 @@ from hypothesis import strategies as st
 from opagent_fs.safepath import PathViolation, RootConfig, Sandbox, is_within
 
 SEGMENTS = st.one_of(
-    st.sampled_from(["..", ".", "", "\\", "\x00", ":", "CON", "nul.txt", "a", "b.jpg", "%2e%2e", "..a", "a..", " ",
-                     "C:", "\\\\?\\", "~", "$DATA"]),
+    st.sampled_from(
+        [
+            "..",
+            ".",
+            "",
+            "\\",
+            "\x00",
+            ":",
+            "CON",
+            "nul.txt",
+            "a",
+            "b.jpg",
+            "%2e%2e",
+            "..a",
+            "a..",
+            " ",
+            "C:",
+            "\\\\?\\",
+            "~",
+            "$DATA",
+        ]
+    ),
     st.text(max_size=12),
     st.text(alphabet="x", min_size=250, max_size=300),
 )
@@ -43,12 +63,23 @@ def test_fs_024_never_returns_path_outside_root(tree, rel):
 @st.composite
 def random_tree(draw):
     """(directories, symlinks) to build under root; symlink targets are inside or outside the root."""
-    dirs = draw(st.lists(st.lists(st.sampled_from(["a", "b", "c"]), min_size=1, max_size=5).map("/".join),
-                         max_size=6))
-    links = draw(st.lists(st.tuples(st.lists(st.sampled_from(["a", "b", "c", "l"]), min_size=1, max_size=5)
-                                    .map("/".join), st.sampled_from(["in", "out", "out_file", "root"])), max_size=4))
-    probes = draw(st.lists(st.lists(st.sampled_from(["a", "b", "c", "l", "secret.txt"]), min_size=1, max_size=6)
-                           .map("/".join), min_size=1, max_size=8))
+    dirs = draw(st.lists(st.lists(st.sampled_from(["a", "b", "c"]), min_size=1, max_size=5).map("/".join), max_size=6))
+    links = draw(
+        st.lists(
+            st.tuples(
+                st.lists(st.sampled_from(["a", "b", "c", "l"]), min_size=1, max_size=5).map("/".join),
+                st.sampled_from(["in", "out", "out_file", "root"]),
+            ),
+            max_size=4,
+        )
+    )
+    probes = draw(
+        st.lists(
+            st.lists(st.sampled_from(["a", "b", "c", "l", "secret.txt"]), min_size=1, max_size=6).map("/".join),
+            min_size=1,
+            max_size=8,
+        )
+    )
     return dirs, links, probes
 
 

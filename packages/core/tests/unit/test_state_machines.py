@@ -70,10 +70,23 @@ def test_core_sm_005_label_only_completion_discards_plan():
 
 
 OP_EDGES = [
-    (None, "queued"), ("queued", "waiting"), ("waiting", "running"), ("queued", "running"), ("running", "waiting"),
-    ("running", "pausing"), ("pausing", "paused"), ("paused", "queued"), ("running", "cancelling"),
-    ("cancelling", "cancelled"), ("queued", "cancelled"), ("paused", "cancelled"), ("running", "succeeded"),
-    ("running", "failed"), ("failed", "queued"), ("running", "interrupted"), ("interrupted", "queued"),
+    (None, "queued"),
+    ("queued", "waiting"),
+    ("waiting", "running"),
+    ("queued", "running"),
+    ("running", "waiting"),
+    ("running", "pausing"),
+    ("pausing", "paused"),
+    ("paused", "queued"),
+    ("running", "cancelling"),
+    ("cancelling", "cancelled"),
+    ("queued", "cancelled"),
+    ("paused", "cancelled"),
+    ("running", "succeeded"),
+    ("running", "failed"),
+    ("failed", "queued"),
+    ("running", "interrupted"),
+    ("interrupted", "queued"),
     ("interrupted", "cancelled"),
 ]
 
@@ -134,8 +147,10 @@ def test_core_sm_009_output_plan_states():
     for nxt in (PlanStatus.approved, PlanStatus.applying, PlanStatus.applied, PlanStatus.undone):
         s = plan_transition(s, nxt)
     assert s == PlanStatus.undone
-    s = plan_transition(plan_transition(plan_transition(PlanStatus.draft, PlanStatus.approved), PlanStatus.applying),
-                        PlanStatus.partially_applied)
+    s = plan_transition(
+        plan_transition(plan_transition(PlanStatus.draft, PlanStatus.approved), PlanStatus.applying),
+        PlanStatus.partially_applied,
+    )
     assert plan_transition(s, PlanStatus.undoing) == PlanStatus.undoing
     with pytest.raises(IllegalTransition):
         plan_transition(PlanStatus.draft, PlanStatus.applied)

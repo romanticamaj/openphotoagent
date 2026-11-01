@@ -16,8 +16,14 @@ import blake3
 
 # fields of task_config that influence model output (02 §3.2 task_config)
 INFERENCE_FIELDS = (
-    "task_type", "model_version", "prompt_template_ref", "generation_params", "label_set",
-    "structured_output_schema", "run_if", "preprocess",
+    "task_type",
+    "model_version",
+    "prompt_template_ref",
+    "generation_params",
+    "label_set",
+    "structured_output_schema",
+    "run_if",
+    "preprocess",
 )
 
 
@@ -58,12 +64,27 @@ def config_hash(task_config: dict[str, Any]) -> str:
     return _b3(canonical_json(relevant))
 
 
-def model_fingerprint(adapter_key: str, adapter_version: str, weights_sha256: str, numerics_epoch: int,
-                      params: dict[str, Any] | None = None, pack_version: str | None = None) -> str:
+def model_fingerprint(
+    adapter_key: str,
+    adapter_version: str,
+    weights_sha256: str,
+    numerics_epoch: int,
+    params: dict[str, Any] | None = None,
+    pack_version: str | None = None,
+) -> str:
     """``pack_version`` is deliberately ignored: a runtime pack rebuild with the same ``numerics_epoch`` keeps
     cached results valid (CORE-HASH-009, 08 §4.3)."""
-    return _b3(canonical_json({"adapter": adapter_key, "adapter_version": adapter_version, "weights": weights_sha256,
-                               "numerics_epoch": numerics_epoch, "params": params or {}}))
+    return _b3(
+        canonical_json(
+            {
+                "adapter": adapter_key,
+                "adapter_version": adapter_version,
+                "weights": weights_sha256,
+                "numerics_epoch": numerics_epoch,
+                "params": params or {},
+            }
+        )
+    )
 
 
 def cache_key(asset_hash: str, cfg_hash: str, fingerprint: str) -> str:

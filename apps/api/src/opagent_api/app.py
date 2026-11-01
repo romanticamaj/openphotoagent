@@ -24,6 +24,7 @@ def create_app(
     install_problem_handlers(app)
     app.include_router(routes_public.router, prefix="/api/v1")
     app.include_router(routes_worker.router, prefix="/worker-api/v1")
+
     @app.get("/metrics", include_in_schema=False)
     def metrics() -> Any:
         from fastapi.responses import PlainTextResponse

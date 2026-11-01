@@ -83,8 +83,9 @@ class Journal:
         self._insert(row[0], row[1], row[2], "done", {}, {}, post_state, ref=seq)
         self._emit("journal.done")
 
-    def record(self, plan_id: str, action_id: str, op: str, phase: str, post_state: dict[str, Any],
-               ref: int | None = None) -> None:
+    def record(
+        self, plan_id: str, action_id: str, op: str, phase: str, post_state: dict[str, Any], ref: int | None = None
+    ) -> None:
         self._insert(plan_id, action_id, op, phase, {}, {}, post_state, ref=ref)
         self._emit(f"journal.{phase}")
 
@@ -94,7 +95,8 @@ class Journal:
         purged = {r[0] for r in self._db.execute("SELECT plan_id FROM journal WHERE phase='purged'")}
         rows = self._db.execute(
             "SELECT d.plan_id, i.args, d.post_state FROM journal d JOIN journal i ON i.seq = d.ref_seq "
-            "WHERE d.phase='done' AND d.op='move'").fetchall()
+            "WHERE d.phase='done' AND d.op='move'"
+        ).fetchall()
         for plan_id, args, post in rows:
             if plan_id in purged:
                 continue

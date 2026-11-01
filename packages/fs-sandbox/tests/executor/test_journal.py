@@ -36,12 +36,16 @@ def test_out_exe_010_case_insensitive_target(setup):
     sb, j, ex, t = setup
     (t.photos / "a.jpg").write_bytes(b"one")
     (t.photos / "b.jpg").write_bytes(b"two")
-    acts = [Action("1", "copy", "photos", "a.jpg", "sorted", "Food/a.jpg", b3(t.photos / "a.jpg")),
-            Action("2", "copy", "photos", "b.jpg", "sorted", "food/A.JPG", b3(t.photos / "b.jpg"))]
+    acts = [
+        Action("1", "copy", "photos", "a.jpg", "sorted", "Food/a.jpg", b3(t.photos / "a.jpg")),
+        Action("2", "copy", "photos", "b.jpg", "sorted", "food/A.JPG", b3(t.photos / "b.jpg")),
+    ]
     res = ex.apply("p", acts).results
     assert [r.status for r in res] == ["done", "done"]
-    assert sorted(os.listdir(t.sorted / "Food")) == ["a (1).JPG", "a.jpg"] or sorted(
-        os.listdir(t.sorted / "Food")) == ["A (1).JPG", "a.jpg"]
+    assert sorted(os.listdir(t.sorted / "Food")) == ["a (1).JPG", "a.jpg"] or sorted(os.listdir(t.sorted / "Food")) == [
+        "A (1).JPG",
+        "a.jpg",
+    ]
 
 
 @pytest.mark.integration
@@ -79,10 +83,11 @@ def test_out_jrn_003_pre_post_state_for_every_op(setup):
     sb, j, ex, t = setup
     (t.photos / "c.jpg").write_bytes(b"copy-me")
     (t.photos / "m.jpg").write_bytes(b"move-me")
-    acts = [Action("c", "copy", "photos", "c.jpg", "sorted", "x/c.jpg", b3(t.photos / "c.jpg")),
-            Action("m", "move", "photos", "m.jpg", "sorted", "x/m.jpg", b3(t.photos / "m.jpg")),
-            Action("s", "sidecar_json", "photos", "c.jpg", "sorted", "x/c.opagent.json", "",
-                   payload={"schema_version": 1})]
+    acts = [
+        Action("c", "copy", "photos", "c.jpg", "sorted", "x/c.jpg", b3(t.photos / "c.jpg")),
+        Action("m", "move", "photos", "m.jpg", "sorted", "x/m.jpg", b3(t.photos / "m.jpg")),
+        Action("s", "sidecar_json", "photos", "c.jpg", "sorted", "x/c.opagent.json", "", payload={"schema_version": 1}),
+    ]
     assert [r.status for r in ex.apply("p", acts, move_confirmed=True).results] == ["done"] * 3
     entries = j.entries("p")
     intents = {e["action_id"]: e for e in entries if e["phase"] == "intent"}

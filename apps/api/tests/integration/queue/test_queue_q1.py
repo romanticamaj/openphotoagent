@@ -10,8 +10,14 @@ from sqlalchemy import func, select
 
 
 def ok(item, cat="food", conf=0.9, key=None):
-    return {"job_item_id": item["id"], "attempt": item["attempt"], "idempotency_key": key or f"{item['id']}:{item['attempt']}",
-            "status": "ok", "output": {"category": cat, "confidence": conf}, "model_fingerprint": "fp1"}
+    return {
+        "job_item_id": item["id"],
+        "attempt": item["attempt"],
+        "idempotency_key": key or f"{item['id']}:{item['attempt']}",
+        "status": "ok",
+        "output": {"category": cat, "confidence": conf},
+        "model_fingerprint": "fp1",
+    }
 
 
 @pytest.mark.integration
@@ -20,6 +26,7 @@ def test_q_001_skip_locked_never_double_leases(q, api_server):
     q.seed(1000)
     seen: list[str] = []
     with api_server(q.app) as srv:
+
         def worker(w):
             got = []
             with httpx.Client(base_url=srv.url, timeout=30) as c:
@@ -54,7 +61,10 @@ def test_q_003_heartbeat_keeps_lease(q):
     [a] = q.lease("w1", 1)
     for _ in range(10):  # 5 minutes of 30 s heartbeats
         q.clk.advance(30)
-        assert q.client.post("/worker-api/v1/heartbeat", json={"worker_id": "w1", "lease_ids": [a["id"]]}).status_code == 200
+        assert (
+            q.client.post("/worker-api/v1/heartbeat", json={"worker_id": "w1", "lease_ids": [a["id"]]}).status_code
+            == 200
+        )
         q.client.post("/worker-api/v1/sweep")
     assert q.items()[a["id"]]["status"] == "leased"
 
@@ -93,7 +103,7 @@ def test_q_005_late_result_after_reassignment(q):
 @pytest.mark.tc("Q-006")
 def test_q_006_transient_backoff_10s_60s(q):
     q.seed(1)
-    fail = lambda it: {**ok(it), "status": "failed", "error_code": "MODEL_OOM", "retryable": True}  # noqa: E731
+    fail = lambda it: {**ok(it), "status": "failed", "error_code": "MODEL_OOM", "retryable": True}
     [a] = q.lease("w1", 1)
     q.client.post("/worker-api/v1/results", json={"worker_id": "w1", "items": [fail(a)]})
     assert q.lease("w1", 1) == []
@@ -141,8 +151,13 @@ def test_q_007_oom_halves_batch(q, tmp_path, sandbox_tree):
 def test_q_008_permanent_not_retried(q):
     q.seed(1)
     [a] = q.lease("w1", 1)
-    q.client.post("/worker-api/v1/results", json={"worker_id": "w1", "items": [
-        {**ok(a), "status": "failed", "error_code": "DECODE_FAILED", "retryable": False}]})
+    q.client.post(
+        "/worker-api/v1/results",
+        json={
+            "worker_id": "w1",
+            "items": [{**ok(a), "status": "failed", "error_code": "DECODE_FAILED", "retryable": False}],
+        },
+    )
     q.clk.advance(3600)
     assert q.lease("w1", 1) == []
     it = q.items()[a["id"]]
@@ -161,8 +176,15 @@ def test_q_014_cache_hit_items_never_dispatched(q):
     from opagent_api.queue import create_label_items
 
     with q.eng.begin() as c:
-        c.execute(insert(job).values(id="B", workspace_id="default", kind="label", status="running",
-                                     params={"task_config": CFG, "fingerprint": "fp1"}))
+        c.execute(
+            insert(job).values(
+                id="B",
+                workspace_id="default",
+                kind="label",
+                status="running",
+                params={"task_config": CFG, "fingerprint": "fp1"},
+            )
+        )
         assets = [(f"A-a{i}", "photos", f"{i}.jpg") for i in range(5)]
         create_label_items(c, q.clk, "B", assets, CFG, "fp1")
     statuses = {i["status"] for i in q.items("B").values()}
@@ -171,14 +193,22 @@ def test_q_014_cache_hit_items_never_dispatched(q):
     assert q.client.get("/api/v1/jobs/B").json()["phases"]["infer"] == "skipped"
 
 
-from opagent_db.schema import job, job_item  # noqa: E402
-from sqlalchemy import insert  # noqa: E402
+from opagent_db.schema import job, job_item
+from sqlalchemy import insert
 
-CFG = {"task_type": "classify", "prompt_template_ref": "builtin:fused_v1", "label_set": "builtin-12@1",
-       "generation_params": {"temperature": 0}}
+CFG = {
+    "task_type": "classify",
+    "prompt_template_ref": "builtin:fused_v1",
+    "label_set": "builtin-12@1",
+    "generation_params": {"temperature": 0},
+}
 
-EVENTS = st.lists(st.tuples(st.sampled_from(["lease", "result", "fail", "fail_perm", "expire", "cancel", "cache"]),
-                            st.integers(0, 9)), max_size=80)
+EVENTS = st.lists(
+    st.tuples(
+        st.sampled_from(["lease", "result", "fail", "fail_perm", "expire", "cancel", "cache"]), st.integers(0, 9)
+    ),
+    max_size=80,
+)
 
 
 @pytest.mark.property

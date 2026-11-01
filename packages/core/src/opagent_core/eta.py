@@ -27,8 +27,9 @@ def shrink(prior: float, basis: str, observed: float | None, n: int) -> float:
     return 0.0
 
 
-def select_prior(same_sig: float | None, other_sig: tuple[float, int, int] | None, registry: float | None,
-                 gpu_factor: float = 1.0) -> tuple[float | None, str]:
+def select_prior(
+    same_sig: float | None, other_sig: tuple[float, int, int] | None, registry: float | None, gpu_factor: float = 1.0
+) -> tuple[float | None, str]:
     return None, ""
 
 
@@ -47,8 +48,9 @@ class EtaTracker:
     def state(self, elapsed: float, samples: int, has_prior: bool, phase: str | None = None) -> str:
         return ""
 
-    def update(self, t: float, p50: float, p10: float, p90: float, samples: int, has_prior: bool,
-               observed: bool) -> str:
+    def update(
+        self, t: float, p50: float, p10: float, p90: float, samples: int, has_prior: bool, observed: bool
+    ) -> str:
         return ""
 
     def progress(self, t: float, done: int, batch_interval: float) -> None:

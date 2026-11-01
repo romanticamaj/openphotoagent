@@ -25,14 +25,18 @@ _PROJECTION = {
 def ensure_operation(conn: Any, clock: Any, op_id: str, op_type: str, subject: dict[str, str] | None = None) -> None:
     if conn.execute(select(operation.c.id).where(operation.c.id == op_id)).first() is None:
         now = clock.now()
-        conn.execute(insert(operation).values(id=op_id, type=op_type, status="queued", subject=subject, seq=1,
-                                              updated_at=now, heartbeat_at=now))
+        conn.execute(
+            insert(operation).values(
+                id=op_id, type=op_type, status="queued", subject=subject, seq=1, updated_at=now, heartbeat_at=now
+            )
+        )
         conn.execute(insert(operation_event).values(operation_id=op_id, seq=1, kind="operation.created", at=now))
 
 
 def set_op_status(conn: Any, clock: Any, op_id: str, target: str, waiting_reason: str | None = None) -> None:
-    row = conn.execute(select(operation.c.status, operation.c.seq).where(operation.c.id == op_id)
-                       .with_for_update()).first()
+    row = conn.execute(
+        select(operation.c.status, operation.c.seq).where(operation.c.id == op_id).with_for_update()
+    ).first()
     if row is None or row.status == target:
         return
     cur = OpStatus(row.status)
@@ -44,15 +48,29 @@ def set_op_status(conn: Any, clock: Any, op_id: str, target: str, waiting_reason
         return None
     now = clock.now()
     seq = row.seq + 1
-    conn.execute(update(operation).where(operation.c.id == op_id).values(
-        status=target, seq=seq, updated_at=now, waiting_reason=waiting_reason,
-        finished_at=now if target in ("succeeded", "failed", "cancelled") else None))
-    conn.execute(insert(operation_event).values(operation_id=op_id, seq=seq, kind="operation.status",
-                                                payload={"status": target, "waiting_reason": waiting_reason}, at=now))
+    conn.execute(
+        update(operation)
+        .where(operation.c.id == op_id)
+        .values(
+            status=target,
+            seq=seq,
+            updated_at=now,
+            waiting_reason=waiting_reason,
+            finished_at=now if target in ("succeeded", "failed", "cancelled") else None,
+        )
+    )
+    conn.execute(
+        insert(operation_event).values(
+            operation_id=op_id,
+            seq=seq,
+            kind="operation.status",
+            payload={"status": target, "waiting_reason": waiting_reason},
+            at=now,
+        )
+    )
     return None
 
 
 def project_job(conn: Any, clock: Any, job_id: str, job_status: str) -> None:
     for target in _PROJECTION.get(job_status, []):
-        set_op_status(conn, clock, job_id, target,
-                      "PAUSED_BY_USER" if target == "paused" else None)
+        set_op_status(conn, clock, job_id, target, "PAUSED_BY_USER" if target == "paused" else None)

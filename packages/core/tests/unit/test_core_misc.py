@@ -41,9 +41,17 @@ def test_uuid7_is_time_ordered_v7():
 
 
 def test_planner_by_date_and_summary():
-    items = [PlanItem("a1", "trip/IMG_1.jpg", "h1", datetime(2025, 7, 1, tzinfo=TW), "exif_offset",
-                      datetime(2024, 1, 1, tzinfo=TW)),
-             PlanItem("a2", "IMG_2.JPG", "h2", None, None, datetime(2024, 3, 2, tzinfo=TW))]
+    items = [
+        PlanItem(
+            "a1",
+            "trip/IMG_1.jpg",
+            "h1",
+            datetime(2025, 7, 1, tzinfo=TW),
+            "exif_offset",
+            datetime(2024, 1, 1, tzinfo=TW),
+        ),
+        PlanItem("a2", "IMG_2.JPG", "h2", None, None, datetime(2024, 3, 2, tzinfo=TW)),
+    ]
     acts = plan(items, "by-date", "out")
     assert [a.dst_rel for a in acts] == ["out/2025/2025-07/IMG_1.jpg", "out/2024/2024-03/IMG_2.JPG"]
     assert [a.date_source for a in acts] == ["exif_offset", "mtime"]

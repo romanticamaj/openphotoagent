@@ -6,14 +6,24 @@ import pytest
 from opagent_db.schema import job, job_item, operation, result
 from sqlalchemy import func, insert, select
 
-CFG = {"task_type": "classify", "prompt_template_ref": "builtin:fused_v1", "label_set": "builtin-12@1",
-       "generation_params": {"temperature": 0}}
+CFG = {
+    "task_type": "classify",
+    "prompt_template_ref": "builtin:fused_v1",
+    "label_set": "builtin-12@1",
+    "generation_params": {"temperature": 0},
+}
 FX = Path(__file__).resolve().parents[5] / "fixtures/photos/basic"
 
 
 def ok(item):
-    return {"job_item_id": item["id"], "attempt": item["attempt"], "idempotency_key": f"{item['id']}:{item['attempt']}",
-            "status": "ok", "output": {"category": "food", "confidence": 0.9}, "model_fingerprint": "fp1"}
+    return {
+        "job_item_id": item["id"],
+        "attempt": item["attempt"],
+        "idempotency_key": f"{item['id']}:{item['attempt']}",
+        "status": "ok",
+        "output": {"category": "food", "confidence": 0.9},
+        "model_fingerprint": "fp1",
+    }
 
 
 def op_status(q, job_id="j1"):
@@ -90,8 +100,15 @@ def test_q_012_cancel_keeps_results_and_new_job_hits_cache(q):
     st = [i["status"] for i in q.items().values()]
     assert st.count("done") == 2 and st.count("cancelled") == 4
     with q.eng.begin() as c:
-        c.execute(insert(job).values(id="j2", workspace_id="default", kind="label", status="running",
-                                     params={"task_config": CFG, "fingerprint": "fp1"}))
+        c.execute(
+            insert(job).values(
+                id="j2",
+                workspace_id="default",
+                kind="label",
+                status="running",
+                params={"task_config": CFG, "fingerprint": "fp1"},
+            )
+        )
         made = create_label_items(c, q.clk, "j2", [(f"j1-a{i}", "photos", f"{i}.jpg") for i in range(6)], CFG, "fp1")
     assert made["cached"] == 2
 
@@ -138,8 +155,13 @@ def test_q_015_thresholds_only_reapply(q):
         rep = ok(it)
         rep["output"] = {**rep["output"], "stage": "embedding", "scores": {"food": 0.9, "pets": 0.05}}
         q.client.post("/worker-api/v1/results", json={"worker_id": "w1", "items": [rep]})
-    pf = q.client.post("/api/v1/preflight", json={"action": "job.start", "params": {
-        "kind": "label", "rerun_of": "j1", "task_config": CFG, "fingerprint": "fp1"}}).json()
+    pf = q.client.post(
+        "/api/v1/preflight",
+        json={
+            "action": "job.start",
+            "params": {"kind": "label", "rerun_of": "j1", "task_config": CFG, "fingerprint": "fp1"},
+        },
+    ).json()
     assert pf["ready"] is True
     assert [w["code"] for w in pf["warnings"]] == ["JOB_NOTHING_TO_DO"]
     assert pf["warnings"][0]["fixes"][0]["id"] == "reapply_thresholds"
@@ -160,18 +182,41 @@ def test_q_016_variant_change_reruns_only_that_model(q):
     q.seed(3)
     with q.eng.begin() as c:
         c.execute(job_item.delete())
-        c.execute(insert(job).values(id="E", workspace_id="default", kind="label", status="running",
-                                     params={"task_config": emb_cfg, "fingerprint": "fpE"}))
+        c.execute(
+            insert(job).values(
+                id="E",
+                workspace_id="default",
+                kind="label",
+                status="running",
+                params={"task_config": emb_cfg, "fingerprint": "fpE"},
+            )
+        )
         create_label_items(c, q.clk, "E", assets, emb_cfg, "fpE", task="embed")
         create_label_items(c, q.clk, "j1", assets, CFG, "fp1")
     for it in q.lease("w1", 16):
         fp = "fpE" if it["task"] == "embed" else "fp1"
-        q.client.post("/worker-api/v1/results", json={"worker_id": "w1", "items": [{**ok(it), "model_fingerprint": fp}]})
+        q.client.post(
+            "/worker-api/v1/results", json={"worker_id": "w1", "items": [{**ok(it), "model_fingerprint": fp}]}
+        )
     with q.eng.begin() as c:
-        c.execute(insert(job).values(id="E2", workspace_id="default", kind="label", status="running",
-                                     params={"task_config": emb_cfg, "fingerprint": "fpE"}))
-        c.execute(insert(job).values(id="V2", workspace_id="default", kind="label", status="running",
-                                     params={"task_config": CFG, "fingerprint": "fp2-new-variant"}))
+        c.execute(
+            insert(job).values(
+                id="E2",
+                workspace_id="default",
+                kind="label",
+                status="running",
+                params={"task_config": emb_cfg, "fingerprint": "fpE"},
+            )
+        )
+        c.execute(
+            insert(job).values(
+                id="V2",
+                workspace_id="default",
+                kind="label",
+                status="running",
+                params={"task_config": CFG, "fingerprint": "fp2-new-variant"},
+            )
+        )
         e = create_label_items(c, q.clk, "E2", assets, emb_cfg, "fpE", task="embed")
         v = create_label_items(c, q.clk, "V2", assets, CFG, "fp2-new-variant")
     assert (e["cached"], v["cached"]) == (3, 0)
@@ -199,8 +244,7 @@ def test_q_018_interactive_lane_first_and_fast(q, sandbox_tree, tmp_path):
     current = q.lease("w1", 16)  # a batch is in flight
     q.seed(10, job_id="P", lane="interactive")
     with q.eng.begin() as c:
-        c.execute(job_item.update().where(job_item.c.job_id == "P").values(
-            rel=job_item.c.rel.op("||")("")))
+        c.execute(job_item.update().where(job_item.c.job_id == "P").values(rel=job_item.c.rel.op("||")("")))
     fb = FakeBackend(clock=q.clk, latency_ms_per_item=100)
     w = WorkerAgent(q.client, roots=sandbox_tree.roots, home=tmp_path / "w", backend=fb, worker_id="w2")
     w.batch_size = 10

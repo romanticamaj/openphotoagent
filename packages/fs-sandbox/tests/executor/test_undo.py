@@ -20,8 +20,10 @@ def b3(p: Path) -> str:
 def lab(sandbox_tree, tmp_path):
     class L:
         clk = FakeClock()
-        roots = [{"alias": "photos", "path": str(sandbox_tree.photos), "mode": "rw"},
-                 {"alias": "sorted", "path": str(sandbox_tree.sorted), "mode": "rw"}]
+        roots = [
+            {"alias": "photos", "path": str(sandbox_tree.photos), "mode": "rw"},
+            {"alias": "sorted", "path": str(sandbox_tree.sorted), "mode": "rw"},
+        ]
         sb = Sandbox([RootConfig(**r) for r in roots])
         ex = Executor(sb, RealFs(), Journal(tmp_path / "j.db"), clock=clk)
         t = sandbox_tree
@@ -142,8 +144,19 @@ def test_out_undo_009_sidecar_delete_or_restore_backup(lab):
     acts = lab.acts(2)
     lab.ex.apply("p0", acts)
     (lab.t.sorted / "o/1.opagent.json").write_text('{"user": "kept"}')
-    side = [Action(f"s{i}", "sidecar_json", "photos", f"src/{i}.jpg", "sorted", f"o/{i}.opagent.json", "",
-                   payload={"schema_version": 1, "i": i}) for i in range(2)]
+    side = [
+        Action(
+            f"s{i}",
+            "sidecar_json",
+            "photos",
+            f"src/{i}.jpg",
+            "sorted",
+            f"o/{i}.opagent.json",
+            "",
+            payload={"schema_version": 1, "i": i},
+        )
+        for i in range(2)
+    ]
     assert [r.status for r in lab.ex.apply("p1", side).results] == ["done", "done"]
     assert json.loads((lab.t.sorted / "o/1.opagent.json").read_text())["i"] == 1
     lab.ex.undo("p1")

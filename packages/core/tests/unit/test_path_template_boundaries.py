@@ -49,16 +49,36 @@ def test_kept_neighbours_of_removed_ranges(ch):
 
 @pytest.mark.unit
 @pytest.mark.tc("CORE-TPL-010")
-@pytest.mark.parametrize(("val", "want"), [("COM9", "COM9_"), ("LPT1", "LPT1_"), ("COM0", "COM0"), ("COM10", "COM10"),
-                                           ("LPT10", "LPT10"), ("PRN", "PRN_"), ("nul", "nul_")])
+@pytest.mark.parametrize(
+    ("val", "want"),
+    [
+        ("COM9", "COM9_"),
+        ("LPT1", "LPT1_"),
+        ("COM0", "COM0"),
+        ("COM10", "COM10"),
+        ("LPT10", "LPT10"),
+        ("PRN", "PRN_"),
+        ("nul", "nul_"),
+    ],
+)
 def test_reserved_name_ranges(val, want):
     assert sanitize_segment(val) == want
 
 
 @pytest.mark.unit
 @pytest.mark.tc("CORE-TPL-014")
-@pytest.mark.parametrize("cluster", ["e\u0301", "👍\U0001f3fb", "👍\U0001f3ff", "❤\ufe0f", "❤\ufe00",
-                                     "🏴\U000e0067\U000e007f", "🏴\U000e0020\U000e007f"])
+@pytest.mark.parametrize(
+    "cluster",
+    [
+        "e\u0301",
+        "👍\U0001f3fb",
+        "👍\U0001f3ff",
+        "❤\ufe0f",
+        "❤\ufe00",
+        "🏴\U000e0067\U000e007f",
+        "🏴\U000e0020\U000e007f",
+    ],
+)
 def test_grapheme_extenders_not_split(cluster):
     s = "a" * 3 + cluster
     for limit in range(3, len(s.encode())):
@@ -89,8 +109,9 @@ def test_full_path_exact_limits():
 
 @pytest.mark.unit
 @pytest.mark.tc("CORE-TPL-017")
-@pytest.mark.parametrize("var", ["category", "category_key", "taken_at", "date", "stem", "ext", "country", "admin1",
-                                 "city", "source"])
+@pytest.mark.parametrize(
+    "var", ["category", "category_key", "taken_at", "date", "stem", "ext", "country", "admin1", "city", "source"]
+)
 def test_every_known_var_compiles(var):
     compile_template(f"{{{var}}}/{{stem}}{{ext}}")
 
@@ -125,7 +146,8 @@ def test_strftime_edge_cases(fmt):
 @pytest.mark.tc("CORE-TPL-005")
 def test_default_language_is_zh_tw():
     assert render(compile_template("{country}/{stem}{ext}"), RenderValues(stem="s", ext=".jpg", taken_at=D)).rel == (
-        "_未知/s.jpg")
+        "_未知/s.jpg"
+    )
 
 
 @pytest.mark.unit

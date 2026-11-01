@@ -15,13 +15,30 @@ from typing import Any
 
 import yaml
 
-FIELDS = {"category", "category_key", "decision", "confidence", "tags", "source", "taken_year",
-          "exif__is_screenshot", "exif__camera_make", "exif__camera_model", "exif__has_gps"}
+FIELDS = {
+    "category",
+    "category_key",
+    "decision",
+    "confidence",
+    "tags",
+    "source",
+    "taken_year",
+    "exif__is_screenshot",
+    "exif__camera_make",
+    "exif__camera_model",
+    "exif__has_gps",
+}
 LITERALS = {"true": True, "false": False, "null": None, "True": True, "False": False, "None": None}
 _DOTTED = re.compile(r"\bexif\.([A-Za-z_]+)\b")
 _CMP: dict[type, Callable[[Any, Any], bool]] = {
-    ast.Eq: operator.eq, ast.NotEq: operator.ne, ast.Lt: operator.lt, ast.LtE: operator.le, ast.Gt: operator.gt,
-    ast.GtE: operator.ge, ast.In: lambda a, b: a in b, ast.NotIn: lambda a, b: a not in b,
+    ast.Eq: operator.eq,
+    ast.NotEq: operator.ne,
+    ast.Lt: operator.lt,
+    ast.LtE: operator.le,
+    ast.Gt: operator.gt,
+    ast.GtE: operator.ge,
+    ast.In: lambda a, b: a in b,
+    ast.NotIn: lambda a, b: a not in b,
 }
 
 
@@ -147,13 +164,25 @@ def load_preset(text: str) -> Preset:
     rules = []
     for i, r in enumerate(d.get("output_rules", [])):
         compile_when(str(r["when"]), f"/output_rules/{i}/when")
-        rules.append(Rule(priority=int(r["priority"]), when=str(r["when"]), action=r.get("action", "copy"),
-                          target_id=r.get("target_id"), path_template=r.get("path_template", "{stem}{ext}"),
-                          require_reviewed=bool(r.get("require_reviewed", False)),
-                          fallback_category=r.get("fallback_category"),
-                          conflict_policy=r.get("conflict_policy", "rename")))
-    return Preset(key=d["key"], task_configs=list(d.get("task_configs") or []), output_rules=rules,
-                  categories=list(d.get("categories") or []), name=dict(d.get("name") or {}))
+        rules.append(
+            Rule(
+                priority=int(r["priority"]),
+                when=str(r["when"]),
+                action=r.get("action", "copy"),
+                target_id=r.get("target_id"),
+                path_template=r.get("path_template", "{stem}{ext}"),
+                require_reviewed=bool(r.get("require_reviewed", False)),
+                fallback_category=r.get("fallback_category"),
+                conflict_policy=r.get("conflict_policy", "rename"),
+            )
+        )
+    return Preset(
+        key=d["key"],
+        task_configs=list(d.get("task_configs") or []),
+        output_rules=rules,
+        categories=list(d.get("categories") or []),
+        name=dict(d.get("name") or {}),
+    )
 
 
 def validate_custom(categories: list[dict[str, Any]]) -> None:

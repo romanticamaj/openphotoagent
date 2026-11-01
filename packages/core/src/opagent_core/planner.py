@@ -56,8 +56,6 @@ def summarize(actions: list[PlannedAction]) -> dict[str, int]:
     return {"copy": len(actions), "folders": len(folders), "total": len(actions)}
 
 
-
-
 def suffixed(rel: str, n: int) -> str:
     """``dir/IMG_0001.jpg`` -> ``dir/IMG_0001 (n).jpg`` (OUT-EXE-006)."""
     d, name = posixpath.split(rel)

@@ -17,7 +17,7 @@ import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, ClassVar, Literal
 
 import blake3
 from opagent_core.planner import suffixed
@@ -100,8 +100,13 @@ class Executor:
         self.clock = clock
 
     # ---- apply -----------------------------------------------------------
-    def apply(self, plan_id: str, actions: list[Action], move_confirmed: bool = False,
-              control: Callable[[], str] | None = None) -> ApplyReport:
+    def apply(
+        self,
+        plan_id: str,
+        actions: list[Action],
+        move_confirmed: bool = False,
+        control: Callable[[], str] | None = None,
+    ) -> ApplyReport:
         """Apply actions in order. ``control()`` is consulted between actions: ``pause`` stops with status
         ``paused``; ``cancel`` stops with ``partially_applied`` (OUT-EXE-017/018). A full disk or an unplugged
         target stops with ``waiting`` and a ``waiting_reason`` (OUT-EXE-014/015); re-running resumes."""
@@ -156,9 +161,15 @@ class Executor:
         src_state = {"exists": True, "hash": a.src_hash, "mtime": src.real.stat().st_mtime_ns}
         crash_point("before_intent")
         seq = self.journal.intent(
-            plan_id, a.action_id, op,
-            {"src": [a.src_alias, a.src_rel], "dst": [a.dst_alias, dst.rel], "src_hash": a.src_hash,
-             "planned_dirs": self._missing_dirs(dst)},
+            plan_id,
+            a.action_id,
+            op,
+            {
+                "src": [a.src_alias, a.src_rel],
+                "dst": [a.dst_alias, dst.rel],
+                "src_hash": a.src_hash,
+                "planned_dirs": self._missing_dirs(dst),
+            },
             {"src": src_state, "dst": {"exists": False, "hash": None, "mtime": None}},
         )
         crash_point("after_intent")
@@ -167,8 +178,13 @@ class Executor:
         try:
             created = self.fs.makedirs(dst.real.parent)
             if created:
-                steps.append({"op": "mkdir", "pre": {"exists": False},
-                              "post": {"dirs": [self._rel(dst.alias, d) for d in created]}})
+                steps.append(
+                    {
+                        "op": "mkdir",
+                        "pre": {"exists": False},
+                        "post": {"dirs": [self._rel(dst.alias, d) for d in created]},
+                    }
+                )
             tmp = self.fs.write_tmp_copy(src.real, dst.real.parent)
             steps.append({"op": "copy", "pre": src_state, "post": {"tmp": tmp.name}})
             crash_point("after_tmp")
@@ -193,11 +209,19 @@ class Executor:
                 self.fs.unlink(tmp)
             self._rollback(plan_id, a, op, created, dst.alias, "COPY_FAILED")
             self._raise_if_waiting(e, dst.alias, a.src_alias)
-            code = ("DST_EXISTS" if isinstance(e, FileExistsError)
-                    else "FS_FILE_LOCKED" if isinstance(e, _Locked) else "COPY_FAILED")
+            code = (
+                "DST_EXISTS"
+                if isinstance(e, FileExistsError)
+                else "FS_FILE_LOCKED"
+                if isinstance(e, _Locked)
+                else "COPY_FAILED"
+            )
             return ActionResult(a.action_id, "failed", error=code)
-        post: dict[str, Any] = {"dst_rel": dst.rel, "dst_hash": a.src_hash,
-                                "created_dirs": [self._rel(dst.alias, d) for d in created]}
+        post: dict[str, Any] = {
+            "dst_rel": dst.rel,
+            "dst_hash": a.src_hash,
+            "created_dirs": [self._rel(dst.alias, d) for d in created],
+        }
         if op == "move":
             post["trash_rel"] = self._trash(plan_id, src)
             post["trashed_at"] = self.clock.now().isoformat() if self.clock is not None else None
@@ -253,15 +277,19 @@ class Executor:
             b = self.sb.open_write(dst.alias, backup_rel)
             self.fs.makedirs(b.real.parent)
             self.fs.rename_noreplace(dst.real, b.real)
-        seq = self.journal.intent(plan_id, a.action_id, "write_sidecar",
-                                  {"dst": [a.dst_alias, dst.rel], "digest": digest,
-                                   "planned_dirs": self._missing_dirs(dst)},
-                                  {"dst": _state(self.fs, dst.real)})
+        seq = self.journal.intent(
+            plan_id,
+            a.action_id,
+            "write_sidecar",
+            {"dst": [a.dst_alias, dst.rel], "digest": digest, "planned_dirs": self._missing_dirs(dst)},
+            {"dst": _state(self.fs, dst.real)},
+        )
         created = self.fs.makedirs(dst.real.parent)
         steps: list[dict[str, Any]] = []
         if created:
-            steps.append({"op": "mkdir", "pre": {"exists": False},
-                          "post": {"dirs": [self._rel(dst.alias, d) for d in created]}})
+            steps.append(
+                {"op": "mkdir", "pre": {"exists": False}, "post": {"dirs": [self._rel(dst.alias, d) for d in created]}}
+            )
         tmp = self.fs.write_tmp_bytes(data, dst.real.parent)
         steps.append({"op": "write_sidecar", "pre": {"exists": False}, "post": {"tmp": tmp.name, "hash": digest}})
         crash_point("sidecar_partial")
@@ -270,8 +298,16 @@ class Executor:
         steps.append({"op": "fsync", "pre": {}, "post": {"file": True, "dir": True}})
         self.fs.rename_noreplace(tmp, dst.real)
         steps.append({"op": "rename", "pre": {"exists": False}, "post": {"dst_rel": dst.rel, "exists": True}})
-        self.journal.done(seq, {"dst_rel": dst.rel, "dst_hash": digest, "steps": steps, "backup_rel": backup_rel,
-                                "created_dirs": [self._rel(dst.alias, d) for d in created]})
+        self.journal.done(
+            seq,
+            {
+                "dst_rel": dst.rel,
+                "dst_hash": digest,
+                "steps": steps,
+                "backup_rel": backup_rel,
+                "created_dirs": [self._rel(dst.alias, d) for d in created],
+            },
+        )
         return ActionResult(a.action_id, "done", dst.rel)
 
     def _trash(self, plan_id: str, src: SafePath) -> str:
@@ -316,8 +352,13 @@ class Executor:
             expected = args.get("digest") if op == "write_sidecar" else args.get("src_hash")
             planned = list(args.get("planned_dirs", []))
             if self.fs.exists(dst.real) and self.fs.read_hash(dst.real) == expected:
-                post: dict[str, Any] = {"dst_rel": dst.rel, "dst_hash": expected, "created_dirs": planned,
-                                        "recovered": True, "steps": []}
+                post: dict[str, Any] = {
+                    "dst_rel": dst.rel,
+                    "dst_hash": expected,
+                    "created_dirs": planned,
+                    "recovered": True,
+                    "steps": [],
+                }
                 if op == "move":
                     src = self.sb.resolve(*args["src"])
                     trash_rel = posixpath.join(TRASH_DIR, plan_id, src.rel)
@@ -363,7 +404,7 @@ class Executor:
                 self.fs.rmdir(Path(dirpath) / d)
         self.fs.rmdir(root)
 
-    UNDO_PHASE_WEIGHTS = {"verify": 20, "revert": 80}  # 06 §5.2 output.undo
+    UNDO_PHASE_WEIGHTS: ClassVar[dict[str, int]] = {"verify": 20, "revert": 80}  # 06 §5.2 output.undo
 
     def undo(self, plan_id: str, reporter: Any = None, control: Any = None) -> list[ActionResult]:
         """Reverse done actions in reverse order. Idempotent: each step checks the current state, so an undo

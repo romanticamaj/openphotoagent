@@ -135,8 +135,10 @@ class HeartbeatIn(BaseModel):
 def heartbeat(body: HeartbeatIn, req: Request) -> dict[str, Any]:
     st = _st(req)
     with st.engine.begin() as c:
-        return {"extended": q.heartbeat(c, st.clock, body.worker_id, body.lease_ids),
-                "abort": q.abort_list(c, body.worker_id, body.lease_ids)}
+        return {
+            "extended": q.heartbeat(c, st.clock, body.worker_id, body.lease_ids),
+            "abort": q.abort_list(c, body.worker_id, body.lease_ids),
+        }
 
 
 class ResultsIn(BaseModel):
@@ -229,9 +231,12 @@ def _on_scan(st: AppState, c: Any, t: Any, result: dict[str, Any]) -> None:
                 taken_at=taken,
                 taken_at_offset_min=offset_minutes(taken) if taken else None,
                 date_source=e.get("date_source"),
-            width=e.get("width"), height=e.get("height"), thumbhash=e.get("thumbhash"), phash=e.get("phash"),
-            dhash=e.get("dhash"),
-        )
+                width=e.get("width"),
+                height=e.get("height"),
+                thumbhash=e.get("thumbhash"),
+                phash=e.get("phash"),
+                dhash=e.get("dhash"),
+            )
             .on_conflict_do_update(index_elements=["workspace_id", "content_hash"], set_={"size_bytes": e["size"]})
             .returning(asset.c.id)
         ).scalar_one()

@@ -183,7 +183,8 @@ def test_executor_error_paths(sandbox_tree, tmp_path):
     roots_rw = [dict(r, mode="rw") for r in sandbox_tree.roots]
     ex = Executor(Sandbox([RootConfig(**r) for r in roots_rw]), RealFs(), Journal(tmp_path / "m.db"))
     assert ex.apply("p", [Action("m", "move", "photos", "a.jpg", "sorted", "a.jpg", h)]).results[0].error == (
-        "MOVE_NOT_CONFIRMED")
+        "MOVE_NOT_CONFIRMED"
+    )
     ex2 = _ex(sandbox_tree, tmp_path, [Fault("write_tmp_copy", err=errno.EACCES)])
     rep = ex2.apply("p", [Action("c", "copy", "photos", "a.jpg", "sorted", "a.jpg", h)])
     assert (rep.status, rep.results[0].error) == ("failed", "COPY_FAILED")
@@ -200,6 +201,7 @@ def test_executor_error_paths(sandbox_tree, tmp_path):
     assert r4.results[0].error == "DST_EXISTS"
     ex5 = _ex(sandbox_tree, tmp_path, [Fault("rename_noreplace", err=errno.EIO)])
     assert ex5.apply("s", [Action("c", "copy", "photos", "a.jpg", "sorted", "x.jpg", h)]).results[0].error == (
-        "COPY_FAILED")
+        "COPY_FAILED"
+    )
     assert ex5.purge_trash() == []
     ex5._rmtree(tmp_path / "does-not-exist")

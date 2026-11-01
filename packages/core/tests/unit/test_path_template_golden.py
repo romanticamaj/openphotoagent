@@ -22,10 +22,19 @@ def test_core_tpl_025_python_matches_shared_golden():
             assert sanitize_segment(c["value"]) == c["out"], repr(c["value"])
         else:
             v = c["values"]
-            rv = RenderValues(stem=v["stem"], ext=v["ext"],
-                              taken_at=datetime.fromisoformat(c["taken_at"]) if c["taken_at"] else None,
-                              mtime=datetime.fromisoformat(c["mtime"]), category=v["category"],
-                              category_key=v["category_key"], country=v["country"], admin1=v["admin1"], city=v["city"],
-                              source=v["source"], tags=tuple((k, s) for k, s in v["tags"]), tag_display=v["tag_display"])
+            rv = RenderValues(
+                stem=v["stem"],
+                ext=v["ext"],
+                taken_at=datetime.fromisoformat(c["taken_at"]) if c["taken_at"] else None,
+                mtime=datetime.fromisoformat(c["mtime"]),
+                category=v["category"],
+                category_key=v["category_key"],
+                country=v["country"],
+                admin1=v["admin1"],
+                city=v["city"],
+                source=v["source"],
+                tags=tuple((k, s) for k, s in v["tags"]),
+                tag_display=v["tag_display"],
+            )
             r = render(compile_template(c["template"]), rv, fallback_values=c["fallback"], lang=c["lang"])
             assert (r.rel, r.date_source) == (c["rel"], c["date_source"])

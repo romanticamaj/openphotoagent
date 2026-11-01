@@ -73,7 +73,9 @@ def route_embedding(emb: Stage, n_examples: int, policy: Policy = Policy()) -> R
     return Route("vlm", cat, p1, margin, hints)
 
 
-def _by_thresholds(cat: str | None, p: float, source: Source, policy: Policy, reason: str = "low_confidence") -> Outcome:
+def _by_thresholds(
+    cat: str | None, p: float, source: Source, policy: Policy, reason: str = "low_confidence"
+) -> Outcome:
     if cat is None or p + EPS < policy.min_confidence:
         return Outcome("other", None, p, source)
     if p + EPS >= policy.accept:
@@ -89,8 +91,13 @@ def _clean(p: float) -> tuple[float, bool]:
     return min(1.0, max(0.0, p)), False
 
 
-def decide(emb: Stage | None = None, vlm: VlmResult | None = None, rule_category: str | None = None,
-           n_examples: int = 0, policy: Policy = Policy()) -> Outcome:
+def decide(
+    emb: Stage | None = None,
+    vlm: VlmResult | None = None,
+    rule_category: str | None = None,
+    n_examples: int = 0,
+    policy: Policy = Policy(),
+) -> Outcome:
     """Exactly one outcome per photo; NaN scores count as 0 and set ``flags=("nan_score",)`` (CORE-THR-016)."""
     nan = False
     if emb is not None:
@@ -107,8 +114,9 @@ def decide(emb: Stage | None = None, vlm: VlmResult | None = None, rule_category
     return replace(out, flags=(*out.flags, "nan_score")) if nan else out
 
 
-def _decide(emb: Stage | None, vlm: VlmResult | None, rule_category: str | None,
-            n_examples: int, policy: Policy) -> Outcome:
+def _decide(
+    emb: Stage | None, vlm: VlmResult | None, rule_category: str | None, n_examples: int, policy: Policy
+) -> Outcome:
     """Final decision for one photo.
 
     * rule hit wins (confidence 1.0);
@@ -182,5 +190,6 @@ def redecide(stages: dict[str, Any], policy: Policy) -> Outcome:
     """Re-apply thresholds from stored stages without any backend call (CORE-THR-017)."""
     emb = Stage(stages["emb"]) if stages.get("emb") is not None else None
     vlm = VlmResult(**stages["vlm"]) if stages.get("vlm") is not None else None
-    return decide(emb=emb, vlm=vlm, rule_category=stages.get("rule"), n_examples=int(stages.get("n_examples", 0)),
-                  policy=policy)
+    return decide(
+        emb=emb, vlm=vlm, rule_category=stages.get("rule"), n_examples=int(stages.get("n_examples", 0)), policy=policy
+    )

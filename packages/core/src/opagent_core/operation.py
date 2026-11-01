@@ -61,11 +61,24 @@ class IllegalOpTransition(Exception):
 _O = OpStatus
 OP_TRANSITIONS: frozenset[tuple[OpStatus | None, OpStatus]] = frozenset(
     {
-        (None, _O.queued), (_O.queued, _O.waiting), (_O.waiting, _O.running), (_O.queued, _O.running),
-        (_O.running, _O.waiting), (_O.running, _O.pausing), (_O.pausing, _O.paused), (_O.paused, _O.queued),
-        (_O.running, _O.cancelling), (_O.cancelling, _O.cancelled), (_O.queued, _O.cancelled),
-        (_O.paused, _O.cancelled), (_O.running, _O.succeeded), (_O.running, _O.failed), (_O.failed, _O.queued),
-        (_O.running, _O.interrupted), (_O.interrupted, _O.queued), (_O.interrupted, _O.cancelled),
+        (None, _O.queued),
+        (_O.queued, _O.waiting),
+        (_O.waiting, _O.running),
+        (_O.queued, _O.running),
+        (_O.running, _O.waiting),
+        (_O.running, _O.pausing),
+        (_O.pausing, _O.paused),
+        (_O.paused, _O.queued),
+        (_O.running, _O.cancelling),
+        (_O.cancelling, _O.cancelled),
+        (_O.queued, _O.cancelled),
+        (_O.paused, _O.cancelled),
+        (_O.running, _O.succeeded),
+        (_O.running, _O.failed),
+        (_O.failed, _O.queued),
+        (_O.running, _O.interrupted),
+        (_O.interrupted, _O.queued),
+        (_O.interrupted, _O.cancelled),
     }
 )
 HEARTBEAT_TIMEOUT_S = 60.0
@@ -123,12 +136,17 @@ def project_job_status(op: Operation, job_status: object) -> ProjectionUpdate:
     st = str(job_status)
     if st in ("awaiting_review", "awaiting_approval", "completed") and op.status == OpStatus.running:
         op.transition(OpStatus.succeeded)
-        links = [{"label_key": "operation.link.review", "route": f"/review?job={op.id}"}] if st == "awaiting_review" else []
+        links = (
+            [{"label_key": "operation.link.review", "route": f"/review?job={op.id}"}] if st == "awaiting_review" else []
+        )
         op.result = {"summary_key": f"operation.job.{st}", "links": links}
         return ProjectionUpdate()
     if st == "applying":
-        return ProjectionUpdate(Operation(id=f"{op.id}:apply", type="output.apply", status=OpStatus.queued,
-                                          subject={"kind": "job", "id": op.id}))
+        return ProjectionUpdate(
+            Operation(
+                id=f"{op.id}:apply", type="output.apply", status=OpStatus.queued, subject={"kind": "job", "id": op.id}
+            )
+        )
     if st == "failed" and op.status == OpStatus.running:
         op.transition(OpStatus.failed)
     return ProjectionUpdate()
@@ -138,8 +156,8 @@ def sweep_orphans(ops: list[Operation], now: datetime, timeout_s: float = HEARTB
     """Running operations whose owner heartbeat is older than ``timeout_s`` become ``interrupted`` (06 §5.8)."""
     events: list[OpEvent] = []
     for op in ops:
-        if op.status == OpStatus.running and op.heartbeat_at is not None:
-            if (now - op.heartbeat_at).total_seconds() > timeout_s:
-                op.transition(OpStatus.interrupted)
-                events.append(OpEvent(op.id, "OWNER_LOST"))
+        stale = op.heartbeat_at is not None and (now - op.heartbeat_at).total_seconds() > timeout_s
+        if op.status == OpStatus.running and stale:
+            op.transition(OpStatus.interrupted)
+            events.append(OpEvent(op.id, "OWNER_LOST"))
     return events

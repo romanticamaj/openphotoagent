@@ -19,7 +19,8 @@ def r(tpl: str, **kw) -> str:
 @pytest.mark.parametrize(("alias", "strf"), [("YYYY", "%Y"), ("YYYY-MM", "%Y-%m"), ("MM", "%m"), ("DD", "%d")])
 def test_core_tpl_002_date_alias_equivalent(alias, strf):
     assert r(f"{{category}}/{{date:{alias}}}/{{stem}}{{ext}}", category="美食") == r(
-        f"{{category}}/{{taken_at:{strf}}}/{{stem}}{{ext}}", category="美食")
+        f"{{category}}/{{taken_at:{strf}}}/{{stem}}{{ext}}", category="美食"
+    )
 
 
 @pytest.mark.unit
@@ -71,8 +72,18 @@ def test_core_tpl_009_trim_spaces_and_trailing_dots():
 
 @pytest.mark.unit
 @pytest.mark.tc("CORE-TPL-010")
-@pytest.mark.parametrize(("val", "want"), [("CON", "CON_"), ("con", "con_"), ("Nul.txt", "Nul_.txt"), ("COM1", "COM1_"),
-                                           ("LPT9", "LPT9_"), ("AUX ", "AUX_"), ("CONSOLE", "CONSOLE")])
+@pytest.mark.parametrize(
+    ("val", "want"),
+    [
+        ("CON", "CON_"),
+        ("con", "con_"),
+        ("Nul.txt", "Nul_.txt"),
+        ("COM1", "COM1_"),
+        ("LPT9", "LPT9_"),
+        ("AUX ", "AUX_"),
+        ("CONSOLE", "CONSOLE"),
+    ],
+)
 def test_core_tpl_010_windows_reserved_names(val, want):
     assert sanitize_segment(val) == want
 

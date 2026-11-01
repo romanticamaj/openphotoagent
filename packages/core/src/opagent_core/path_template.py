@@ -23,9 +23,11 @@ MAX_SEGMENT_BYTES = 255
 # characters that must never appear in a segment: path separators, Windows-illegal, and slash look-alikes
 _REPLACE = set('/\\:*?"<>|') | {"／", "∕", "⁄", "＼"}
 # invisible / direction-changing characters (ZWJ U+200D is kept: it is part of emoji sequences)
-_REMOVE = {chr(c) for c in range(0x20)} | {"\x7f", "​", "‎", "‏", "﻿"} | {
-    chr(c) for c in (*range(0x202A, 0x202F), *range(0x2066, 0x206A))
-}
+_REMOVE = (
+    {chr(c) for c in range(0x20)}
+    | {"\x7f", "​", "‎", "‏", "﻿"}
+    | {chr(c) for c in (*range(0x202A, 0x202F), *range(0x2066, 0x206A))}
+)
 _RESERVED = {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)), *(f"LPT{i}" for i in range(1, 10))}
 _UNKNOWN = {"zh-TW": "_未知", "en": "_unknown"}
 
@@ -140,7 +142,19 @@ class PathTooLong:
 WINDOWS_MAX_PATH = 259  # MAX_PATH (260) minus the terminating NUL
 POSIX_PATH_MAX = 4095
 MAX_TEMPLATE_LEN = 200
-KNOWN_VARS = {"category", "category_key", "taken_at", "date", "stem", "ext", "country", "admin1", "city", "tag", "source"}
+KNOWN_VARS = {
+    "category",
+    "category_key",
+    "taken_at",
+    "date",
+    "stem",
+    "ext",
+    "country",
+    "admin1",
+    "city",
+    "tag",
+    "source",
+}
 _STRFTIME_OK = set("YmdHMSyj%")
 _DRIVE = re.compile(r"^[A-Za-z]:")
 

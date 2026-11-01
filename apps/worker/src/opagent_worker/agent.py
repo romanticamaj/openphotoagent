@@ -79,9 +79,14 @@ class WorkerAgent:
 
     def process_items_once(self) -> int:
         """Lease one batch of job items, run inference (halving the batch on OOM), report results (02 §4.3)."""
-        r = self.client.post("/worker-api/v1/leases", json={
-            "worker_id": self.worker_id, "max_items": self.batch_size,
-            "loaded_models": [t for t in getattr(self, "loaded_tasks", [])]})
+        r = self.client.post(
+            "/worker-api/v1/leases",
+            json={
+                "worker_id": self.worker_id,
+                "max_items": self.batch_size,
+                "loaded_models": [t for t in getattr(self, "loaded_tasks", [])],
+            },
+        )
         if r.status_code == 204:
             return 0
         r.raise_for_status()
@@ -109,8 +114,10 @@ class WorkerAgent:
         except httpx.HTTPError:
             db = self._outbox()
             with db:
-                db.executemany("INSERT OR REPLACE INTO outbox(k, body) VALUES (?, ?)",
-                               [(x["idempotency_key"], json.dumps(x)) for x in reports])
+                db.executemany(
+                    "INSERT OR REPLACE INTO outbox(k, body) VALUES (?, ?)",
+                    [(x["idempotency_key"], json.dumps(x)) for x in reports],
+                )
             db.close()
 
     def outbox_size(self) -> int:
@@ -127,8 +134,9 @@ class WorkerAgent:
         if not rows:
             db.close()
             return 0
-        r = self.client.post("/worker-api/v1/results", json={"worker_id": self.worker_id,
-                                                             "items": [json.loads(b) for _, b in rows]})
+        r = self.client.post(
+            "/worker-api/v1/results", json={"worker_id": self.worker_id, "items": [json.loads(b) for _, b in rows]}
+        )
         r.raise_for_status()
         with db:
             db.executemany("DELETE FROM outbox WHERE k=?", [(k,) for k, _ in rows])
@@ -157,8 +165,14 @@ class WorkerAgent:
             return None, self._fail(it, "DECODE_FAILED", retryable=False)
 
     def _fail(self, it: dict[str, Any], code: str, retryable: bool) -> dict[str, Any]:
-        return {"job_item_id": it["id"], "attempt": it["attempt"], "status": "failed", "error_code": code,
-                "retryable": retryable, "idempotency_key": f"{it['id']}:{it['attempt']}"}
+        return {
+            "job_item_id": it["id"],
+            "attempt": it["attempt"],
+            "status": "failed",
+            "error_code": code,
+            "retryable": retryable,
+            "idempotency_key": f"{it['id']}:{it['attempt']}",
+        }
 
     def _infer(self, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
         import asyncio
@@ -196,11 +210,22 @@ class WorkerAgent:
             by_id = {o.item_id: o for o in outs}
             for it, _ in chunk:
                 o = by_id[it["id"]]
-                reports.append({"job_item_id": it["id"], "attempt": it["attempt"], "status": "ok",
-                                "idempotency_key": f"{it['id']}:{it['attempt']}", "model_fingerprint": fp,
-                                "provenance": {"batch_size": len(chunk), "adapter": backend.describe().adapter_key},
-                                "output": {"category": o.category, "confidence": o.confidence, "caption": o.caption,
-                                           "tags": [t for t, _ in (o.tags or [])]}})
+                reports.append(
+                    {
+                        "job_item_id": it["id"],
+                        "attempt": it["attempt"],
+                        "status": "ok",
+                        "idempotency_key": f"{it['id']}:{it['attempt']}",
+                        "model_fingerprint": fp,
+                        "provenance": {"batch_size": len(chunk), "adapter": backend.describe().adapter_key},
+                        "output": {
+                            "category": o.category,
+                            "confidence": o.confidence,
+                            "caption": o.caption,
+                            "tags": [t for t, _ in (o.tags or [])],
+                        },
+                    }
+                )
 
         run(prepared)
         return reports

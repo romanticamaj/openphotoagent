@@ -67,7 +67,9 @@ def test_core_thr_015_monotone_in_top1(p_low, bump, second, n):
     assert rank[hi.decision] >= rank[lo.decision]
 
 
-scores = st.dictionaries(st.text(min_size=1, max_size=4), st.one_of(st.floats(allow_nan=True), st.just(0.0)), max_size=6)
+scores = st.dictionaries(
+    st.text(min_size=1, max_size=4), st.one_of(st.floats(allow_nan=True), st.just(0.0)), max_size=6
+)
 
 
 @pytest.mark.property
@@ -78,7 +80,8 @@ def test_core_thr_016_exactly_one_decision_never_lost(emb, vlm_p):
     assert o.decision in ("accepted", "other", "needs_review")
     assert math.isfinite(o.confidence)
     has_nan = (emb and any(isinstance(v, float) and math.isnan(v) for v in emb.values())) or (
-        vlm_p is not None and math.isnan(vlm_p))
+        vlm_p is not None and math.isnan(vlm_p)
+    )
     assert ("nan_score" in o.flags) == bool(has_nan)
 
 

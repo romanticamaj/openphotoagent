@@ -74,8 +74,10 @@ def test_eta_005_prior_source_order():
     assert select_prior(same_sig=2.0, other_sig=(4.0, 40, 150), registry=1.0, gpu_factor=1.2) == (2.0, "history")
     rate, basis = select_prior(same_sig=None, other_sig=(4.0, 40, 150), registry=1.0, gpu_factor=1.2)
     assert basis == "history" and rate == pytest.approx(4.0 * 40 / 150)  # scaled by output-token ratio
-    assert select_prior(same_sig=None, other_sig=None, registry=1.0, gpu_factor=1.2) == (pytest.approx(1.2),
-                                                                                          "registry_prior")
+    assert select_prior(same_sig=None, other_sig=None, registry=1.0, gpu_factor=1.2) == (
+        pytest.approx(1.2),
+        "registry_prior",
+    )
     assert select_prior(same_sig=None, other_sig=None, registry=None, gpu_factor=1.2) == (None, "none")
 
 

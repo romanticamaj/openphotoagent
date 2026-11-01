@@ -102,8 +102,14 @@ def test_out_exe_020_sidecar_json(mk, sandbox_tree):
     ex, acts, _ = mk()
     src = sandbox_tree.photos / "0.jpg"
     before = b3(src)
-    payload = {"schema_version": 1, "category": "food", "tags": ["ramen"], "caption": "a bowl of ramen",
-               "date_source": "exif_offset", "provenance": {"model": "fake", "fingerprint": "f"}}
+    payload = {
+        "schema_version": 1,
+        "category": "food",
+        "tags": ["ramen"],
+        "caption": "a bowl of ramen",
+        "date_source": "exif_offset",
+        "provenance": {"model": "fake", "fingerprint": "f"},
+    }
     side = Action("s0", "sidecar_json", "photos", "0.jpg", "sorted", "out/0.opagent.json", before, payload=payload)
     rep = ex.apply("p", [acts[0], side])
     assert [r.status for r in rep.results] == ["done", "done"]
@@ -117,8 +123,12 @@ def test_out_exe_020_sidecar_json(mk, sandbox_tree):
 def test_out_exe_021_csv_export_quoting_and_formula_injection():
     from opagent_core.export import to_csv
 
-    rows = [{"file": "a.jpg", "caption": "ramen, hot\nnew line"}, {"file": "b.jpg", "caption": "=SUM(A1)"},
-            {"file": "@c.jpg", "caption": 'say "hi"'}, {"file": "-d", "caption": "+1"}]
+    rows = [
+        {"file": "a.jpg", "caption": "ramen, hot\nnew line"},
+        {"file": "b.jpg", "caption": "=SUM(A1)"},
+        {"file": "@c.jpg", "caption": 'say "hi"'},
+        {"file": "-d", "caption": "+1"},
+    ]
     out = to_csv(rows, ["file", "caption"])
     assert out.splitlines()[0] == "file,caption"
     assert '"ramen, hot\nnew line"' in out
@@ -135,6 +145,7 @@ def test_out_exe_022_plan_summary_sentence():
 
     assert plan_summary(copy=28412, folders=13, lang="zh-TW") == "將複製 28,412 張到 13 個資料夾，原檔不動。可隨時復原"
     assert plan_summary(copy=28412, folders=13, lang="en") == (
-        "Will copy 28,412 photos into 13 folders; originals stay untouched. You can undo anytime")
+        "Will copy 28,412 photos into 13 folders; originals stay untouched. You can undo anytime"
+    )
     mv = plan_summary(move=5, folders=2, lang="zh-TW")
     assert mv.startswith("將移動 5 張到 2 個資料夾") and "原檔不動" not in mv and "復原" in mv

@@ -40,8 +40,14 @@ DEFAULT_CATEGORIES = (
 class FakeBackend:
     adapter_key = "fake"
 
-    def __init__(self, seed: int = 0, est_vram_mb: int = 512, embedding_dim: int = 16, clock: Any = None,
-                 latency_ms_per_item: float = 0.0) -> None:
+    def __init__(
+        self,
+        seed: int = 0,
+        est_vram_mb: int = 512,
+        embedding_dim: int = 16,
+        clock: Any = None,
+        latency_ms_per_item: float = 0.0,
+    ) -> None:
         self.seed = seed
         self.est_vram_mb = est_vram_mb
         self.embedding_dim = embedding_dim
