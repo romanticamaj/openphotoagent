@@ -462,12 +462,16 @@ def try_one(preview_id: str, body: TryIn, req: Request) -> dict[str, Any]:
     """「試跑這張」: one photo through the cascade on the interactive lane; stages stream as SSE ``preview.stage``."""
     from opagent_db.schema import asset_location
 
+    from . import organize
+
     st = _st(req)
     with st.engine.begin() as c:
         j = c.execute(select(job).where(job.c.id == preview_id, job.c.kind == "preview")).first()
         if j is None:
             raise HTTPException(404, detail={"code": "NOT_FOUND"})
         s = c.execute(select(source).where(source.c.id == j.params["source_id"])).first()
+        if s is None:
+            raise HTTPException(404, detail={"code": "NOT_FOUND"})
         loc = c.execute(
             select(asset_location.c.rel_path).where(
                 asset_location.c.asset_id == body.asset_id, asset_location.c.source_id == s.id
