@@ -113,3 +113,36 @@ def read_meta(path: Path, mtime: datetime, tz: tzinfo) -> PhotoMeta:
                 return PhotoMeta(naive.replace(tzinfo=off), "exif_offset")
             return PhotoMeta(naive.replace(tzinfo=tz), "exif_local_assumed")
     return PhotoMeta(mtime, "mtime")
+
+
+@dataclass
+class ScanEntry:
+    rel: str
+    size: int
+    mtime: datetime
+    content_hash: str
+    taken_at: datetime | None
+    date_source: DateSource | None
+
+
+@dataclass
+class Skipped:
+    rel: str
+    reason: str
+
+
+@dataclass
+class ScanResult:
+    entries: list[ScanEntry]
+    skipped: list[Skipped]
+    bytes_read: int = 0
+
+
+class HashCache:
+    def __init__(self, path: Path) -> None:
+        self.path = path
+
+
+def scan(sb: Sandbox, alias: str, sub: str, include: list[str], exclude: list[str], tz: tzinfo,
+         cache: HashCache | None = None, **kw: object) -> ScanResult:
+    return ScanResult([], [])
