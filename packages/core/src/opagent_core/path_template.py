@@ -67,7 +67,16 @@ def compile_template(template: str) -> Template:
     return Template(template, tuple(parts))
 
 
-def render(tpl: Template, values: RenderValues) -> RenderResult:
+def sanitize_segment(value: str) -> str:
+    return value
+
+
+def render(
+    tpl: Template,
+    values: RenderValues,
+    fallback_values: dict[str, str] | None = None,
+    lang: str = "zh-TW",
+) -> RenderResult:
     when, source = values.taken_at, values.taken_at_source
     if when is None:
         when, source = values.mtime, "mtime"
