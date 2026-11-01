@@ -52,7 +52,7 @@ def test_op_018_pause_and_cancel_from_waiting(env, action):
     from opagent_db.schema import engine_for, operation, worker_task
     from sqlalchemy import select, update
 
-    c, w = env["client"], env["worker"]
+    c = env["client"]
     eng = engine_for(env["dsn"])
 
     def make_waiting(leased: bool) -> str:
@@ -86,3 +86,29 @@ def test_op_018_pause_and_cancel_from_waiting(env, action):
     else:
         assert status(free)[0] == "cancelled"
     eng.dispose()
+
+
+@pytest.mark.integration
+def test_a_running_download_does_not_block_other_worker_tasks(env):
+    """04 §8.2 W6 ∥ W7: models download in the background while the user browses folders and scans; a download
+    stuck in backoff must not hold up the worker's other tasks (one download at a time, 06 §2.4)."""
+    c, w = env["client"], env["worker"]
+    w.download_sources = ["http://127.0.0.1:9"]
+    stop = threading.Event()
+    th = threading.Thread(target=w.run_forever, args=(stop,), daemon=True)
+    th.start()
+    try:
+        a = c.post("/api/v1/workers/w1/installs", json={"variant": "siglip2-so400m-384@onnx-int8"}).json()
+        _poll(lambda: c.get(f"/api/v1/operations/{a['operation_id']}").json()["status"] == "waiting")
+        t0 = time.monotonic()  # noqa: TID251
+        r = c.get("/api/v1/fs/browse", params={"root": "photos", "path": ""})
+        assert r.status_code == 200 and time.monotonic() - t0 < 3  # noqa: TID251
+        # a second download waits its turn instead of running concurrently
+        b = c.post("/api/v1/workers/w1/installs", json={"variant": "siglip2-so400m-384@onnx-fp16"})
+        if b.status_code == 202:
+            time.sleep(1.5)  # noqa: TID251
+            assert c.get(f"/api/v1/operations/{b.json()['operation_id']}").json()["status"] == "queued"
+    finally:
+        c.post(f"/api/v1/operations/{a['operation_id']}/cancel")
+        stop.set()
+        th.join(10)

@@ -605,6 +605,7 @@
 | PF-081 | InferenceError 映射 | OOM、TIMEOUT、BAD_INPUT、RUNTIME | `MODEL_OOM`、`RUNTIME_TIMEOUT`、`DECODE_FAILED`、`MODEL_LOAD_FAILED`／`RUNTIME_CRASHED`；`job_item.error_code` 同一套 | U | #27 |
 | PF-082 | problem+json 全域 | schemathesis 對全部 `/api/v1` 端點產生錯誤輸入 | 所有 4xx／5xx 都是 RFC 9457 + `code` 欄位；無 HTML 錯誤頁 | C | #27 |
 | PF-083 | 永遠有退路 | 對 PF-004、005、012、013、017 的狀態各自選 `choose_alternative` | 套用後 preflight `ready=true`，且 FakeBackend 下 Job 可跑完 | I | #28、DoD 5.2 |
+| PF-084 | 不需模型的工作不受 GPU 檢查阻擋（回歸） | `hw:nvidia-drv535`：依日期 vs 依內容 | 依日期 0 blocker；依內容仍顯示 GPU_DRIVER_TOO_OLD 與修復 | I | #27、#28 |
 
 ---
 

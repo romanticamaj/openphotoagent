@@ -8,6 +8,7 @@ export type Scenario = {
   library?: boolean;
   organize?: string | null;
   vlm_p?: number;
+  models?: "ready" | "none";
 };
 export type Stack = { worker_id: string; base: string; photos: string; sorted: string; source_id?: string; job_id?: string };
 

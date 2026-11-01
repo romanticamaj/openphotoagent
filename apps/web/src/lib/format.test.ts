@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { formatDuration, photoCount } from "./format";
+import { formatBytes, formatDuration, photoCount } from "./format";
 
 describe("formatting", () => {
   it("[I18N-003] counts and plurals", () => {
@@ -23,5 +23,12 @@ describe("formatting", () => {
     for (const c of golden.cases) {
       expect(formatDuration(c.ms, c.locale)).toBe(c.text);
     }
+  });
+
+  it("byte sizes use decimal units with one significant decimal", () => {
+    expect(formatBytes(999, "en")).toBe("999 B");
+    expect(formatBytes(1_500_000, "en")).toBe("1.5 MB");
+    expect(formatBytes(5_234_000_000, "zh-TW")).toBe("5.2 GB");
+    expect(formatBytes(12_000_000_000, "en")).toBe("12 GB");
   });
 });

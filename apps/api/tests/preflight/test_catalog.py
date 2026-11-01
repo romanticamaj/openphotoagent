@@ -204,9 +204,9 @@ def a_doctor(code, check, action="job.start", status="fail", profile="rtx5070ti-
         e.worker(profile, doctor=[doctor(code, check, status, (action,), **params)])
         if action == "job.start":
             e.install(EMB16)
-            return (
+            return (  # doctor findings for job.start concern model jobs (09a PF-017/019/020: "job.start（embed…）")
                 action,
-                e.job_params(preset="by-date"),
+                by_content(e, {"embed": EMB16, "vlm": None}),
                 ("POST", "/api/v1/jobs") if status == "fail" and code not in WARN else None,
             )
         if action == "scan":

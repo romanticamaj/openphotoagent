@@ -153,3 +153,29 @@ def test_pf_076_worker_rpc_gate_timeout(env):
     assert gate["status"] == "unknown" and gate["after_s"] == 2
     assert [f["type"] for f in gate["fixes"]] == ["retry"]
     assert pf["ready"] is False or pf["blockers"] == []
+
+
+@pytest.mark.integration
+@pytest.mark.tc("PF-084")
+def test_pf_084_by_date_is_not_blocked_by_gpu_findings(env, tmp_path):
+    """Regression (E2E-A-002): an old NVIDIA driver must not block organizing by date — it needs no model or GPU —
+    while a by-content job on the same machine still shows the driver problem with its fixes."""
+    from opagent_worker.agent import WorkerAgent
+
+    from .test_catalog import EMB16, Q4
+
+    # a real worker registration: hardware facts plus its doctor findings (each with the actions it affects)
+    WorkerAgent(env.client, roots=env.roots, home=tmp_path / "w", worker_id="w1", hw_profile="nvidia-drv535").register()
+    env.install(EMB16, Q4)
+    date = env.client.post(
+        "/api/v1/preflight", json={"action": "job.start", "params": env.job_params(preset="by-date")}
+    )
+    assert [b["code"] for b in date.json()["blockers"]] == []
+    content = env.client.post(
+        "/api/v1/preflight",
+        json={
+            "action": "job.start",
+            "params": env.job_params(models={"embed": EMB16, "vlm": Q4, "pack": "llamacpp-cuda13"}),
+        },
+    )
+    assert "GPU_DRIVER_TOO_OLD" in [b["code"] for b in content.json()["blockers"]]
