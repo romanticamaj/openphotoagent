@@ -7,13 +7,16 @@ predictable organize results. Never touches the filesystem or the clock.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
+import math
 from typing import Any
 
 from .types import (
     BackendInfo,
     BatchRequest,
     HealthStatus,
+    ImageInput,
     InferenceError,
     ItemOutput,
     LoadOptions,
@@ -49,6 +52,8 @@ class FakeBackend:
         latency_ms_per_item: float = 0.0,
     ) -> None:
         self.seed = seed
+        self.latency_s = latency_ms_per_item / 1000.0
+        self.cancelled = 0
         self.est_vram_mb = est_vram_mb
         self.embedding_dim = embedding_dim
         self.loaded = False
@@ -69,10 +74,16 @@ class FakeBackend:
             embedding_dim=self.embedding_dim,
         )
 
-    async def load(self, opts: LoadOptions) -> None:
+    async def load(self, opts: LoadOptions, reporter: Any = None) -> None:
         if not self.loaded:
+            if reporter is not None:
+                reporter.start("model.load", 1, "steps")
+                reporter.phase("load_weights")
             self.loaded = True
             self.load_count += 1
+            if reporter is not None:
+                reporter.progress(1, 1)
+                reporter.finish("succeeded")
 
     async def unload(self) -> None:
         self.loaded = False
@@ -88,6 +99,9 @@ class FakeBackend:
         return [c for c in self._calls if task is None or c["task"] == task]
 
     async def run_batch(self, req: BatchRequest) -> list[ItemOutput]:
+        for it in req.items:
+            if not isinstance(it, ImageInput):
+                raise TypeError("backends accept ImageInput with in-memory bytes only (never paths)")
         if not req.items:
             return []
         if not self.loaded:
@@ -97,7 +111,17 @@ class FakeBackend:
                 f["times"] -= 1
                 code = f["code"]
                 raise InferenceError(code, retryable=code != "BAD_INPUT", message=f"injected {code}")
+        if self.latency_s:
+            try:
+                await asyncio.wait_for(asyncio.sleep(self.latency_s * len(req.items)), timeout=req.deadline_s)
+            except TimeoutError:
+                self.cancelled += 1
+                raise InferenceError(
+                    "TIMEOUT", retryable=True, message=f"deadline {req.deadline_s}s exceeded"
+                ) from None
         self._calls.append({"task": req.task_type, "n": len(req.items)})
+        if req.task_type == "embed":
+            return [ItemOutput(item_id=it.item_id, embedding=self.embed_vector(it.content_hash)) for it in req.items]
         cats = tuple(req.variables.get("categories") or DEFAULT_CATEGORIES)
         out: list[ItemOutput] = []
         for it in req.items:
@@ -116,3 +140,10 @@ class FakeBackend:
                 )
             )
         return out
+
+    def embed_vector(self, key: str) -> list[float]:
+        """Deterministic unit vector for ``key`` (images: content hash; texts: the text)."""
+        h = hashlib.sha256(f"{key}:{self.seed}".encode()).digest()
+        v = [(h[i % len(h)] - 127.5) / 127.5 for i in range(self.embedding_dim)]
+        n = math.sqrt(sum(x * x for x in v)) or 1.0
+        return [x / n for x in v]

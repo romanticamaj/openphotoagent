@@ -9,12 +9,13 @@ dependencies = []
 package = false
 
 [tool.uv.workspace]
-members = ["packages/core", "packages/fs-sandbox", "packages/inference-sdk", "packages/testing", "packages/schemas", "packages/db", "packages/registry", "packages/doctor", "apps/api", "apps/worker", "apps/cli", "tools/pytest_tc"]
+members = ["packages/core", "packages/fs-sandbox", "packages/inference-sdk", "packages/inference-adapters", "packages/testing", "packages/schemas", "packages/db", "packages/registry", "packages/doctor", "apps/api", "apps/worker", "apps/cli", "tools/pytest_tc"]
 
 [tool.uv.sources]
 opagent-core = { workspace = true }
 opagent-fs-sandbox = { workspace = true }
 opagent-inference-sdk = { workspace = true }
+opagent-inference-adapters = { workspace = true }
 opagent-testing = { workspace = true }
 opagent-schemas = { workspace = true }
 opagent-db = { workspace = true }
@@ -27,10 +28,10 @@ pytest-opagent-tc = { workspace = true }
 
 [dependency-groups]
 dev = [
-  "opagent-core", "opagent-fs-sandbox", "opagent-inference-sdk", "opagent-testing", "opagent-registry", "opagent-doctor",
+  "opagent-core", "opagent-fs-sandbox", "opagent-inference-sdk", "opagent-inference-adapters", "opagent-testing", "opagent-registry", "opagent-doctor",
   "opagent-schemas", "opagent-db", "opagent-api", "opagent-worker", "opagent-cli", "pytest-opagent-tc",
   "pytest>=8", "pytest-cov", "pytest-randomly", "pytest-socket", "pytest-asyncio", "hypothesis",
-  "ruff", "mypy", "import-linter", "httpx", "mutmut", "diff-cover",
+  "ruff", "mypy", "import-linter", "httpx", "mutmut", "diff-cover", "onnx",
 ]
 
 [tool.pytest.ini_options]
@@ -71,6 +72,8 @@ extend-immutable-calls = ["opagent_core.decide.Policy"]
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**" = ["S", "DTZ001", "B011", "RUF012", "RUF059", "B018", "SIM115", "E501", "E402", "E731"]
 "packages/core/src/opagent_core/clock.py" = ["TID251"]
+# FakeRuntime is a separate process standing in for llama-server (real wall-clock behaviour is what it simulates)
+"packages/testing/src/opagent_testing/fake_llama_server.py" = ["TID251"]
 "tools/**" = ["TID251", "S", "DTZ", "RUF005", "E501"]
 
 [tool.mypy]
@@ -89,14 +92,14 @@ patch = ["subprocess"]
 source = ["opagent_core", "opagent_fs", "opagent_inference", "opagent_api", "opagent_worker", "opagent_db"]
 
 [tool.importlinter]
-root_packages = ["opagent_api", "opagent_worker", "opagent_db", "opagent_core", "opagent_fs", "opagent_inference", "opagent_schemas", "opagent_registry", "opagent_doctor"]
+root_packages = ["opagent_api", "opagent_worker", "opagent_db", "opagent_core", "opagent_fs", "opagent_inference", "opagent_adapters", "opagent_schemas", "opagent_registry", "opagent_doctor"]
 
 [[tool.importlinter.contracts]]
 id = "api-no-files-no-gpu"
 name = "FS-026: apps/api and packages/db must not import fs-sandbox or inference-* (invariant 1)"
 type = "forbidden"
 source_modules = ["opagent_api", "opagent_db", "opagent_registry", "opagent_doctor"]
-forbidden_modules = ["opagent_fs", "opagent_inference"]
+forbidden_modules = ["opagent_fs", "opagent_inference", "opagent_adapters"]
 
 [[tool.importlinter.contracts]]
 id = "core-pure"
