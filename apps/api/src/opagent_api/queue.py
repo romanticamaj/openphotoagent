@@ -126,6 +126,10 @@ def report(conn: Any, clock: Any, worker_id: str, items: list[dict[str, Any]]) -
             conn.execute(update(job_item).where(job_item.c.id == ji.id).values(
                 status="failed", lease_owner=None, lease_expires_at=None, error_code=it.get("error_code")))
         accepted += 1
+    for jid in {conn.execute(select(job_item.c.job_id).where(job_item.c.id == it["job_item_id"])).scalar()
+                for it in items}:
+        if jid:
+            finish_cancel_if_idle(conn, clock, jid)
     return {"accepted": accepted}
 
 
@@ -147,3 +151,28 @@ def counters(conn: Any, job_id: str) -> dict[str, int]:
         out[s] = n
     out["total"] = sum(n for _, n in rows)
     return out
+
+
+def finish_cancel_if_idle(conn: Any, clock: Any, job_id: str) -> None:
+    """cancelling -> cancelled once the last lease is resolved (CORE-SM-003)."""
+    from opagent_core.state_machine import JobStatus
+
+    from .db import set_job_status
+
+    st = conn.execute(select(job.c.status).where(job.c.id == job_id)).scalar()
+    if st != "cancelling":
+        return
+    active = conn.execute(select(func.count()).select_from(job_item).where(
+        job_item.c.job_id == job_id, job_item.c.status.in_(("leased", "running")))).scalar_one()
+    if active == 0:
+        set_job_status(conn, job_id, JobStatus.cancelled, clock=clock)
+
+
+def abort_list(conn: Any, worker_id: str, lease_ids: list[str]) -> list[str]:
+    """Leases the worker should stop working on: no longer owned by it, or their job is paused/cancelled."""
+    if not lease_ids:
+        return []
+    rows = conn.execute(select(job_item.c.id, job_item.c.lease_owner, job_item.c.status, job.c.status.label("js"))
+                        .join(job, job.c.id == job_item.c.job_id).where(job_item.c.id.in_(lease_ids))).all()
+    return [r.id for r in rows if r.lease_owner != worker_id or r.status not in ("leased", "running")
+            or r.js in ("paused", "cancelling", "cancelled")]

@@ -132,10 +132,11 @@ class HeartbeatIn(BaseModel):
 
 
 @router.post("/heartbeat")
-def heartbeat(body: HeartbeatIn, req: Request) -> dict[str, int]:
+def heartbeat(body: HeartbeatIn, req: Request) -> dict[str, Any]:
     st = _st(req)
     with st.engine.begin() as c:
-        return {"extended": q.heartbeat(c, st.clock, body.worker_id, body.lease_ids)}
+        return {"extended": q.heartbeat(c, st.clock, body.worker_id, body.lease_ids),
+                "abort": q.abort_list(c, body.worker_id, body.lease_ids)}
 
 
 class ResultsIn(BaseModel):

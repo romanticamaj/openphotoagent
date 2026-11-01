@@ -6,8 +6,9 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 from opagent_core.ids import uuid7
+from opagent_core.decide import Stage
 from opagent_core.state_machine import JobStatus
-from opagent_db.schema import job, output_action, output_plan, source, worker, worker_task
+from opagent_db.schema import job, job_item, output_action, output_plan, result, source, worker, worker_task
 from pydantic import BaseModel, Field
 from sqlalchemy import func, insert, select, update
 
@@ -137,9 +138,24 @@ def list_sources(req: Request) -> list[dict[str, Any]]:
 def preflight(body: PreflightIn, req: Request) -> dict[str, Any]:
     # v0.1 skeleton: by-date needs no model; full gate registry arrives with slice 8 (06 §4)
     blockers: list[dict[str, Any]] = []
-    if body.action == "job.start" and body.params.get("preset", "by-date") != "by-date":
+    warnings: list[dict[str, Any]] = []
+    p = body.params
+    if body.action == "job.start" and p.get("kind") == "label" and p.get("rerun_of"):
+        from opagent_core.config_hash import config_hash
+
+        with _st(req).engine.begin() as c:
+            assets = [r[0] for r in c.execute(select(job_item.c.asset_id).where(job_item.c.job_id == p["rerun_of"]))]
+            have = c.execute(select(func.count()).select_from(result).where(
+                result.c.asset_id.in_(assets), result.c.task_config_hash == config_hash(p.get("task_config") or {}),
+                result.c.model_fingerprint == p.get("fingerprint"))).scalar_one()
+        if assets and have == len(assets):  # 100 % cache hit (06 §4.7 #51)
+            warnings.append({"code": "JOB_NOTHING_TO_DO", "severity": "warning", "fixes": [
+                {"id": "reapply_thresholds", "kind": "auto_fix", "label_key": "fix.reapply_thresholds"},
+                {"id": "force_rerun", "kind": "choose_alternative", "label_key": "fix.force_rerun",
+                 "consequence_key": "fix.force_rerun.consequence"}]})
+    elif body.action == "job.start" and p.get("preset", "by-date") not in ("by-date",) and p.get("kind") != "label":
         blockers.append({"code": "MODEL_NOT_INSTALLED"})
-    return {"ready": not blockers, "blockers": blockers, "warnings": []}
+    return {"ready": not blockers, "blockers": blockers, "warnings": warnings}
 
 
 @router.post("/jobs", status_code=201)
@@ -195,6 +211,88 @@ def get_job(job_id: str, req: Request) -> dict[str, Any]:
         to_infer = cnt["total"] - cnt["cached"]
         d["phases"] = {"cache_lookup": "done", "infer": "skipped" if to_infer == 0 else "running"}
     return {k: (v.isoformat() if hasattr(v, "isoformat") else v) for k, v in d.items()}
+
+
+class PauseIn(BaseModel):
+    mode: str = "graceful"
+
+
+def _ensure_job_op(c: Any, st: AppState, job_id: str) -> None:
+    from .operations import ensure_operation, set_op_status
+
+    kind = c.execute(select(job.c.kind, job.c.status).where(job.c.id == job_id)).first()
+    if kind is None:
+        raise HTTPException(404, detail={"code": "NOT_FOUND"})
+    ensure_operation(c, st.clock, job_id, "job.label", {"kind": "job", "id": job_id})
+    if kind.status == "running":
+        set_op_status(c, st.clock, job_id, "running")
+
+
+@router.post("/jobs/{job_id}/pause")
+def pause_job(job_id: str, req: Request, body: PauseIn | None = None) -> dict[str, Any]:
+    """graceful: stop issuing leases, let leased batches finish; immediate: also give leases back (Q-009/Q-010)."""
+    from . import queue as q
+
+    st = _st(req)
+    with st.engine.begin() as c:
+        _ensure_job_op(c, st, job_id)
+        set_job_status(c, job_id, JobStatus.paused, clock=st.clock)
+        if body and body.mode == "immediate":
+            leased = [r[0] for r in c.execute(select(job_item.c.id, job_item.c.lease_owner).where(
+                job_item.c.job_id == job_id, job_item.c.status.in_(("leased", "running"))))]
+            owners = {r.lease_owner for r in c.execute(select(job_item.c.lease_owner).where(job_item.c.id.in_(leased)))}
+            for w in owners:
+                q.release(c, w, leased)
+    return get_job(job_id, req)
+
+
+@router.post("/jobs/{job_id}/resume")
+def resume_job(job_id: str, req: Request) -> dict[str, Any]:
+    st = _st(req)
+    with st.engine.begin() as c:
+        _ensure_job_op(c, st, job_id)
+        set_job_status(c, job_id, JobStatus.running, clock=st.clock)
+    return get_job(job_id, req)
+
+
+@router.post("/jobs/{job_id}/cancel")
+def cancel_job(job_id: str, req: Request) -> dict[str, Any]:
+    """running -> cancelling; pending items are cancelled; finished results are kept for the cache (Q-012)."""
+    from . import queue as q
+
+    st = _st(req)
+    with st.engine.begin() as c:
+        _ensure_job_op(c, st, job_id)
+        cur = c.execute(select(job.c.status).where(job.c.id == job_id)).scalar_one()
+        if cur in ("queued", "paused"):
+            set_job_status(c, job_id, JobStatus.cancelled, clock=st.clock)
+        else:
+            set_job_status(c, job_id, JobStatus.cancelling, clock=st.clock)
+        c.execute(update(job_item).where(job_item.c.job_id == job_id, job_item.c.status == "pending")
+                  .values(status="cancelled"))
+        q.finish_cancel_if_idle(c, st.clock, job_id)
+    return get_job(job_id, req)
+
+
+class ReapplyIn(BaseModel):
+    thresholds: dict[str, float]
+
+
+@router.post("/jobs/{job_id}/reapply")
+def reapply(job_id: str, body: ReapplyIn, req: Request) -> dict[str, Any]:
+    """Only thresholds changed: re-run postprocess over stored results; no job items, no inference (Q-015)."""
+    from collections import Counter
+
+    from opagent_core.decide import Policy, VlmResult, decide
+
+    st = _st(req)
+    pol = Policy(accept=body.thresholds.get("accept", 0.80), review=body.thresholds.get("review", 0.50))
+    with st.engine.begin() as c:
+        rows = c.execute(select(result.c.category, result.c.confidence).join(
+            job_item, job_item.c.result_id == result.c.id).where(job_item.c.job_id == job_id)).all()
+    counts = Counter(decide(emb=Stage({r.category: r.confidence or 0.0}), vlm=VlmResult(r.category, r.confidence or 0.0),
+                            policy=pol).decision for r in rows)
+    return {"job_id": job_id, "decisions": dict(counts)}
 
 
 @router.get("/output-plans/{plan_id}")

@@ -87,8 +87,53 @@ class WorkerAgent:
         r.raise_for_status()
         items = r.json()["items"]
         reports = self._infer(items)
-        self.client.post("/worker-api/v1/results", json={"worker_id": self.worker_id, "items": reports})
+        self._send_results(reports)
         return len(items)
+
+    # ---- offline tolerance: results go to a local outbox when the CP is unreachable (02 §4.3, Q-013) ----
+    def _outbox(self) -> Any:
+        import sqlite3
+
+        db = sqlite3.connect(self.home / "outbox.db")
+        db.execute("CREATE TABLE IF NOT EXISTS outbox(k TEXT PRIMARY KEY, body TEXT NOT NULL)")
+        return db
+
+    def _send_results(self, reports: list[dict[str, Any]]) -> None:
+        import json
+
+        import httpx
+
+        try:
+            r = self.client.post("/worker-api/v1/results", json={"worker_id": self.worker_id, "items": reports})
+            r.raise_for_status()
+        except httpx.HTTPError:
+            db = self._outbox()
+            with db:
+                db.executemany("INSERT OR REPLACE INTO outbox(k, body) VALUES (?, ?)",
+                               [(x["idempotency_key"], json.dumps(x)) for x in reports])
+            db.close()
+
+    def outbox_size(self) -> int:
+        db = self._outbox()
+        n = int(db.execute("SELECT count(*) FROM outbox").fetchone()[0])
+        db.close()
+        return n
+
+    def flush_outbox(self) -> int:
+        import json
+
+        db = self._outbox()
+        rows = db.execute("SELECT k, body FROM outbox").fetchall()
+        if not rows:
+            db.close()
+            return 0
+        r = self.client.post("/worker-api/v1/results", json={"worker_id": self.worker_id,
+                                                             "items": [json.loads(b) for _, b in rows]})
+        r.raise_for_status()
+        with db:
+            db.executemany("DELETE FROM outbox WHERE k=?", [(k,) for k, _ in rows])
+        db.close()
+        return len(rows)
 
     def _prepare(self, it: dict[str, Any]) -> tuple[Any, dict[str, Any] | None]:
         from opagent_inference.types import ImageInput
