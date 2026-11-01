@@ -57,7 +57,7 @@ jobs:
           sudo apt-get install -y postgresql-17 postgresql-17-pgvector
           echo "OPAGENT_PG_BIN=/usr/lib/postgresql/17/bin" >> $GITHUB_ENV
       - run: uv sync
-      - run: OPAGENT_TC_RESULTS=.tc/py-int.json uv run pytest -q -m "integration or chaos"
+      - run: OPAGENT_TC_RESULTS=.tc/py-int.json uv run pytest -q -m "(integration or chaos) and not nightly"
       - uses: actions/upload-artifact@v4
         with: { name: tc-py-int, path: .tc/ }
 

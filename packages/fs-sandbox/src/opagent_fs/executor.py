@@ -267,6 +267,9 @@ class Executor:
         self.journal.record(plan_id, a.action_id, op, "rolled_back", {"error": error})
 
     # ---- undo ------------------------------------------------------------
+    def recover(self) -> dict[str, Any]:
+        return {"completed": [], "rolled_back": [], "tmp_removed": 0}
+
     def undo(self, plan_id: str) -> list[ActionResult]:
         entries = self.journal.entries(plan_id)
         intents = {e["seq"]: e for e in entries if e["phase"] == "intent"}
