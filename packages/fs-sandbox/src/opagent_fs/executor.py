@@ -93,7 +93,7 @@ def _state(fs: FsOps, p: Path) -> dict[str, Any]:
 class Executor:
     LOCK_RETRY_DELAYS = (1, 4, 10)  # OUT-EXE-016: transient sharing violation retries (seconds)
 
-    def __init__(self, sandbox: Sandbox, fs: FsOps, journal: Journal, sleep: Any = None) -> None:
+    def __init__(self, sandbox: Sandbox, fs: FsOps, journal: Journal, sleep: Any = None, clock: Any = None) -> None:
         self.sb = sandbox
         self.fs = fs
         self.journal = journal
@@ -330,7 +330,10 @@ class Executor:
                 rolled.append(aid)
         return {"completed": completed, "rolled_back": rolled, "tmp_removed": tmp_removed}
 
-    def undo(self, plan_id: str) -> list[ActionResult]:
+    def purge_trash(self, retention_days: int = 30) -> list[str]:
+        return []
+
+    def undo(self, plan_id: str, reporter: Any = None, control: Any = None) -> list[ActionResult]:
         """Reverse done actions in reverse order. Idempotent: each step checks the current state, so an undo
         interrupted by a crash can simply be run again (OUT-CRASH-010)."""
         entries = self.journal.entries(plan_id)
