@@ -167,6 +167,38 @@ result = Table(
     _ts("created_at", server_default=func.now()),
     UniqueConstraint("asset_id", "task_config_hash", "model_fingerprint"),
 )
+operation = Table(  # 06 §5.1 / 02 §10.1
+    "operation", metadata,
+    Column("id", Text, primary_key=True),
+    Column("type", Text, nullable=False),
+    Column("status", Text, nullable=False),
+    Column("subject", JSONB),
+    Column("parent_id", Text),
+    Column("worker_id", Text),
+    Column("waiting_reason", Text),
+    Column("phases", JSONB, nullable=False, server_default="[]"),
+    Column("progress", JSONB, nullable=False, server_default="{}"),
+    Column("eta", JSONB),
+    Column("result", JSONB),
+    Column("error", JSONB),
+    Column("seq", BigInteger, nullable=False, server_default="0"),
+    Column("active_ms", BigInteger, nullable=False, server_default="0"),
+    Column("paused_ms", BigInteger, nullable=False, server_default="0"),
+    _ts("started_at"),
+    _ts("finished_at"),
+    _ts("heartbeat_at"),
+    _ts("updated_at"),
+    _ts("created_at", server_default=func.now()),
+)
+operation_event = Table(
+    "operation_event", metadata,
+    Column("id", BigInteger, primary_key=True, autoincrement=True),
+    Column("operation_id", Text, nullable=False),
+    Column("seq", BigInteger, nullable=False),
+    Column("kind", Text, nullable=False),
+    Column("payload", JSONB, nullable=False, server_default="{}"),
+    _ts("at"),
+)
 metric = Table(
     "metric", metadata,
     Column("name", Text, primary_key=True),
