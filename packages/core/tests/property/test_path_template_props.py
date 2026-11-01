@@ -29,7 +29,7 @@ def test_core_tpl_023_casefold_key():
 
 @pytest.mark.property
 @pytest.mark.tc("CORE-TPL-024")
-@settings(max_examples=300, deadline=None)
+@settings(deadline=None)
 @given(category=nasty, country=nasty, city=nasty, stem=nasty)
 def test_core_tpl_024_every_segment_is_safe(category, country, city, stem):
     r = render(TPL, RenderValues(stem=stem, ext=".jpg", taken_at=D, category=category, country=country, city=city))

@@ -10,6 +10,17 @@ import pytest
 
 from opagent_testing import pg as _pg
 
+try:  # Hypothesis profiles (docs/09 §2.1): ci=200, nightly=10k, fuzz=1M examples
+    from hypothesis import HealthCheck, settings
+
+    _hc = [HealthCheck.too_slow, HealthCheck.function_scoped_fixture]
+    settings.register_profile("ci", max_examples=200, deadline=None, suppress_health_check=_hc)
+    settings.register_profile("nightly", max_examples=10_000, deadline=None, suppress_health_check=_hc)
+    settings.register_profile("fuzz", max_examples=1_000_000, deadline=None, suppress_health_check=_hc)
+    settings.load_profile(os.environ.get("OPAGENT_HYPOTHESIS_PROFILE", "ci"))
+except ImportError:  # pragma: no cover
+    pass
+
 
 @pytest.fixture(scope="session")
 def embedded_pg_cluster() -> Iterator[_pg.PgCluster]:

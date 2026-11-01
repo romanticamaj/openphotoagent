@@ -78,7 +78,7 @@ def _graphemes(s: str) -> list[str]:
     for ch in s:
         cp = ord(ch)
         extend = (
-            unicodedata.combining(ch) > 0
+            unicodedata.category(ch).startswith("M")
             or 0xFE00 <= cp <= 0xFE0F
             or 0x1F3FB <= cp <= 0x1F3FF
             or 0xE0020 <= cp <= 0xE007F
