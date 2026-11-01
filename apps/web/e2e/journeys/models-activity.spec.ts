@@ -69,7 +69,7 @@ test.describe("models", () => {
 test.describe("activity", () => {
   test.use({ scenario: { hw: "rtx5070ti-win11", photos: "trip", models: "none" } });
 
-  test("[OP-006] 重啟恢復：下載與 Job 進行中時重啟 → 恢復卡片；下載自動繼續；Job 顯示「繼續」", async ({ page, request }) => {
+  test("[OP-006][ACT-004] 重啟恢復：下載與 Job 進行中時重啟 → 恢復卡片；下載自動繼續；Job 顯示「繼續」", async ({ page, request }) => {
     await request.post("/__e2e/slow-downloads", { data: { rate_bps: 200_000 } });
     const roots = await (await request.get("/api/v1/roots")).json();
     await request.post("/api/v1/onboarding/install", { data: { worker_id: roots[0].worker_id, variants: [VLM] } });

@@ -1,0 +1,16 @@
+{
+  "caption": null,
+  "category": "pets",
+  "confidence": 1.0,
+  "content_hash": "8b73cdaf43317013203f6b6190f7b8ae4224499b96993f80b96e95d488eb03af",
+  "date_source": "exif_offset",
+  "decided_by": "embedding",
+  "decision": "accepted",
+  "file": "IMG_0004.jpg",
+  "generated_at": "<masked>",
+  "model_fingerprint": "cascade-caaeedbe78830b75",
+  "schema": "opagent.sidecar/1",
+  "source": "IMG_0004.jpg",
+  "tags": [],
+  "taken_at": "2023-05-06T12:30:00+08:00"
+}

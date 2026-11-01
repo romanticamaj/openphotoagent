@@ -1,60 +1,9 @@
 import AxeBuilder from "@axe-core/playwright";
-import type { Page } from "@playwright/test";
-import { expect, test, type Stack } from "../fixtures";
+import { expect, test } from "../fixtures";
+import { ROUTES } from "../routes";
 
 // a library organized by content: every main route has real content to check
 test.use({ scenario: { photos: "library", library: true, organize: "by-content-12" } });
-
-type Route = { name: string; open: (page: Page, stack: Stack, lang: string) => Promise<void> };
-
-const go = (page: Page, path: string, lang: string) => page.goto(`${path}${path.includes("?") ? "&" : "?"}lang=${lang}`);
-
-const ROUTES: Route[] = [
-  { name: "onboarding", open: (p, _s, l) => go(p, "/welcome", l).then(() => undefined) },
-  { name: "photos", open: async (p, _s, l) => void (await go(p, "/", l), await p.getByRole("gridcell").first().waitFor()) },
-  {
-    name: "lightbox",
-    open: async (p, _s, l) => {
-      await go(p, "/", l);
-      await p.getByRole("gridcell").first().click();
-      await p.getByRole("dialog").first().waitFor();
-      await p.keyboard.press("i");
-      await p.getByTestId("info-panel").waitFor();
-    },
-  },
-  {
-    name: "organize",
-    open: async (p, _s, l) => {
-      await go(p, "/organize", l);
-      await p.getByRole("button", { name: "photos" }).click();
-      await p.getByRole("button", { name: "trip", exact: true }).click();
-      await p.getByRole("button", { name: /選擇此資料夾|Use this folder/ }).click();
-      await p.getByRole("radio").nth(1).check();
-    },
-  },
-  {
-    name: "plan",
-    open: async (p, s, l) => {
-      const j = await (await p.request.get(`/api/v1/jobs/${s.job_id}`)).json();
-      await go(p, `/plans/${j.plan_id}`, l);
-      await p.getByTestId("plan-summary").waitFor();
-    },
-  },
-  { name: "review", open: async (p, s, l) => void (await go(p, `/review?job=${s.job_id}`, l), await p.getByRole("heading").first().waitFor()) },
-  { name: "models", open: async (p, _s, l) => void (await go(p, "/models", l), await p.getByRole("table").waitFor()) },
-  { name: "model card", open: async (p, _s, l) => void (await go(p, "/models/qwen3-vl-8b-instruct", l), await p.getByTestId("license").waitFor()) },
-  { name: "doctor", open: async (p, _s, l) => void (await go(p, "/system/doctor", l), await p.getByTestId("doctor-summary").waitFor()) },
-  { name: "search", open: async (p, _s, l) => void (await go(p, "/search?q=photo", l), await p.getByTestId("search-result").first().waitFor()) },
-  {
-    name: "activity",
-    open: async (p, _s, l) => {
-      await go(p, "/models", l);
-      await p.keyboard.press("ControlOrMeta+j");
-      await p.locator(".activity-center").waitFor();
-    },
-  },
-  { name: "settings", open: async (p, _s, l) => void (await go(p, "/settings", l), await p.getByRole("combobox").first().waitFor()) },
-];
 
 for (const scheme of ["light", "dark"] as const) {
   for (const lang of ["zh-TW", "en"]) {

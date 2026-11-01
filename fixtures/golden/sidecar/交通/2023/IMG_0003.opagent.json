@@ -1,0 +1,16 @@
+{
+  "caption": null,
+  "category": "transport",
+  "confidence": 1.0,
+  "content_hash": "19a811b60bded22483b11476909ccd96cd45e7ef69e1997255b02ab9753922d3",
+  "date_source": "exif_offset",
+  "decided_by": "embedding",
+  "decision": "accepted",
+  "file": "IMG_0003.jpg",
+  "generated_at": "<masked>",
+  "model_fingerprint": "cascade-caaeedbe78830b75",
+  "schema": "opagent.sidecar/1",
+  "source": "IMG_0003.jpg",
+  "tags": [],
+  "taken_at": "2023-03-30T11:30:00+08:00"
+}
