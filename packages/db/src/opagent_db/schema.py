@@ -228,6 +228,15 @@ search_doc = Table(  # 05 §1.2: one row per asset, denormalised facets + applic
     _ts("first_indexed_at", server_default=func.now()),  # pagination snapshots (SRCH-FAC-004)
     _ts("updated_at", server_default=func.now()),
 )
+selection = Table(  # a query handle (10 §6): what "select all results" means, re-resolved on the server
+    "selection",
+    metadata,
+    Column("id", Text, primary_key=True),
+    Column("query", JSONB),
+    Column("asset_ids", ARRAY(Text)),
+    Column("count", Integer, nullable=False),
+    _ts("created_at", server_default=func.now()),
+)
 Index("search_doc_tsv", search_doc.c.tsv, postgresql_using="gin")
 Index("search_doc_tags", search_doc.c.tags, postgresql_using="gin")
 Index("search_doc_scope", search_doc.c.scope_keys, postgresql_using="gin")

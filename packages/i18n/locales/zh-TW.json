@@ -329,7 +329,23 @@
     "unavailable": {
       "MODEL_NOT_INSTALLED": "以文搜圖模型尚未安裝",
       "MODEL_DOWNLOADING": "以文搜圖模型下載中（{pct}%），完成後即可搜尋"
-    }
+    },
+    "results": "搜尋結果",
+    "count": "{n} 張",
+    "tags": "標籤",
+    "years": "年份",
+    "chips": "篩選條件",
+    "remove": "移除 {what}",
+    "matched": {
+      "image_vector": "以文搜圖",
+      "fulltext": "文字",
+      "tags": "標籤",
+      "filter": "篩選"
+    },
+    "loadMore": "載入更多",
+    "none": "找不到符合的照片",
+    "indexing": "已可搜尋 {have} / {total} 張（以文搜圖）",
+    "degraded": "以文搜圖暫時無法使用，只顯示文字結果"
   },
   "problem": {
     "chosen": "已改用 {what}"
@@ -347,5 +363,20 @@
     "skipRestBody": "剩下 {n} 張會放到「其他」，之後仍可在照片中修正。",
     "keys": "1–9 選類別 · 0 其他 · Enter 接受 · S 略過",
     "backToPlan": "回到整理"
+  },
+  "batch": {
+    "selected": "已選 {n} 張",
+    "clear": "取消選取",
+    "tag": "標籤",
+    "addTag": "加上標籤",
+    "category": "類別",
+    "applyCategory": "套用類別",
+    "moveToFolder": "移到資料夾…",
+    "moveTitle": "移到資料夾",
+    "root": "輸出位置",
+    "subPath": "子資料夾",
+    "createPlan": "建立計畫",
+    "updated": "已更新 {n} 張",
+    "cancel": "取消"
   }
 }

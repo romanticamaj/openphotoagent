@@ -391,7 +391,25 @@ def complete(task_id: str, body: CompleteIn, req: Request) -> dict[str, str]:
 def _on_scan(st: AppState, c: Any, t: Any, result: dict[str, Any]) -> None:
     c.execute(update(source).where(source.c.id == t.payload["source_id"]).values(status="online"))
     organize.upsert_entries(st, c, t.payload["source_id"], result.get("entries") or [])
+    _index_source(c, t.payload["source_id"])
     organize.finish_scan(st, c, t)
+
+
+def _index_source(c: Any, src_id: str) -> None:
+    """Scanned photos are searchable by date, folder and file name before any model has run (05 §2)."""
+    from opagent_db.schema import asset_location, index_outbox
+
+    from . import labels
+
+    c.execute(
+        index_outbox.insert().from_select(
+            ["asset_id"],
+            select(asset_location.c.asset_id).where(
+                asset_location.c.source_id == src_id, asset_location.c.missing.is_(False)
+            ),
+        )
+    )
+    labels.drain_index(c)
 
 
 def _on_estimate(st: AppState, c: Any, t: Any, result: dict[str, Any]) -> None:

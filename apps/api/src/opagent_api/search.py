@@ -18,7 +18,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from opagent_db.schema import asset_embedding, embedding_space, search_doc, worker, worker_task
 from pydantic import BaseModel, Field
-from sqlalchemy import and_, func, select, text
+from sqlalchemy import and_, bindparam, false, func, or_, select, text
 
 from .state import AppState
 
@@ -166,6 +166,12 @@ def _ft(c: Any, where: list[Any], tsq: str, en: str) -> list[str]:
     return [r[0] for r in c.execute(q, {"q": tsq, "en": en})]
 
 
+def _ft_cond(tsq: str, en: str, tag: str) -> Any:
+    cond = f"tsv @@ CAST(:q_{tag} AS tsquery)" + (f" OR tsv @@ plainto_tsquery('english', :en_{tag})" if en else "")
+    params: list[Any] = [bindparam(f"q_{tag}", tsq)] + ([bindparam(f"en_{tag}", en)] if en else [])
+    return text(f"({cond})").bindparams(*params)
+
+
 def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
     from opagent_search.tokenize import to_tsquery
 
@@ -186,6 +192,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
         if qvec is None:
             degraded.append("image_vector")
     routes: dict[str, list[str]] = {}
+    member: list[Any] = []  # ADR-0005: the match set (total, facets, selection) — not just the ranking window
     mode = None
     with st.engine.begin() as c:
         if q:
@@ -193,12 +200,15 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
             if pq.words:
                 hits = _ft(c, where, to_tsquery(pq.words), pq.english)
                 mode = "words"
+                member.append(_ft_cond(to_tsquery(pq.words), pq.english, "w"))
                 if len(hits) < MIN_WORD_HITS and pq.bigram:
                     more = _ft(c, where, to_tsquery(pq.bigram), "")
                     if len(more) > len(hits):
                         hits, mode = list(dict.fromkeys(hits + more)), "bigram"
+                        member.append(_ft_cond(to_tsquery(pq.bigram), "", "b"))
                 routes["fulltext"] = hits
             if pq.tag_keys:
+                member.append(search_doc.c.tags.overlap(pq.tag_keys))
                 routes["tag"] = [
                     r[0]
                     for r in c.execute(
@@ -230,6 +240,16 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                     scores[aid] = scores.get(aid, 0.0) + W[name] / (RRF_K + rk)
                     matched.setdefault(aid, []).append(name)
             ranked = sorted(scores, key=lambda a: (-scores[a], a))
+            vec_ids = routes.get("image_vector") or []
+            if vec_ids:
+                member.append(search_doc.c.asset_id.in_(vec_ids))
+            match = or_(*member) if member else false()
+            tail_q = (
+                select(search_doc.c.asset_id)
+                .where(and_(*where), match, search_doc.c.asset_id.notin_(ranked or ["-"]))
+                .order_by(search_doc.c.taken_at.desc().nulls_last(), search_doc.c.asset_id)
+            )
+            n_tail = c.execute(select(func.count()).select_from(tail_q.subquery())).scalar_one()
         else:
             ranked = [
                 r[0]
@@ -242,12 +262,18 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
             scores, matched = {}, {a: ["filter"] for a in ranked}
         off = int(cur["o"]) if cur else 0
         page = ranked[off : off + body.limit]
+        total = len(ranked)
+        if q:
+            total = len(ranked) + n_tail
+            if len(page) < body.limit and off + len(page) < total:  # continue into the stable tail of the match set
+                start = max(0, off - len(ranked))
+                page += [r[0] for r in c.execute(tail_q.offset(start).limit(body.limit - len(page)))]
         rows = (
             {r.asset_id: r for r in c.execute(select(search_doc).where(search_doc.c.asset_id.in_(page)))}
             if page
             else {}
         )
-        facets = _facets(c, ranked if q else None, where, body.facets)
+        facets = _facets(c, None, [*where, match] if q else where, body.facets)
     items = [
         {
             "asset_id": a,
@@ -265,8 +291,8 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
     out: dict[str, Any] = {
         "items": items,
         "facets": facets,
-        "next_cursor": _sign({"o": nxt, "s": snapshot, "h": _qhash(body)}) if nxt < len(ranked) else None,
-        "total": len(ranked),
+        "next_cursor": _sign({"o": nxt, "s": snapshot, "h": _qhash(body)}) if nxt < total else None,
+        "total": total,
         "fulltext_mode": mode,
         "degraded": degraded,
     }

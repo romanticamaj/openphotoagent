@@ -557,7 +557,9 @@ def approve(plan_id: str, req: Request, body: ApproveIn | None = None) -> dict[s
         acts = c.execute(
             select(output_action).where(output_action.c.plan_id == plan_id).order_by(output_action.c.seq)
         ).all()
-        wid = c.execute(select(worker_task.c.worker_id).where(worker_task.c.job_id == j.id)).scalars().first()
+        wid = c.execute(select(worker_task.c.worker_id).where(worker_task.c.job_id == j.id)).scalars().first() or (
+            j.params or {}
+        ).get("worker_id")
         c.execute(
             insert(worker_task).values(
                 id=uuid7(st.clock),
@@ -594,7 +596,9 @@ def undo(plan_id: str, req: Request) -> dict[str, Any]:
             raise HTTPException(409, detail={"code": "PLAN_NOT_APPLIED", "status": p.status})
         set_job_status(c, j.id, JobStatus.undoing)
         c.execute(update(output_plan).where(output_plan.c.id == plan_id).values(status="undoing"))
-        wid = c.execute(select(worker_task.c.worker_id).where(worker_task.c.job_id == j.id)).scalars().first()
+        wid = c.execute(select(worker_task.c.worker_id).where(worker_task.c.job_id == j.id)).scalars().first() or (
+            j.params or {}
+        ).get("worker_id")
         c.execute(
             insert(worker_task).values(
                 id=uuid7(st.clock), kind="undo", job_id=j.id, worker_id=wid, payload={"plan_id": plan_id}

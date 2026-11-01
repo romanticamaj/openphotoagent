@@ -329,7 +329,23 @@
     "unavailable": {
       "MODEL_NOT_INSTALLED": "The text-to-image search model isn't installed yet",
       "MODEL_DOWNLOADING": "Search model downloading ({pct}%); search unlocks when it finishes"
-    }
+    },
+    "results": "Search results",
+    "count": "{n} photos",
+    "tags": "Tags",
+    "years": "Years",
+    "chips": "Filters",
+    "remove": "Remove {what}",
+    "matched": {
+      "image_vector": "Text-to-image",
+      "fulltext": "Text",
+      "tags": "Tag",
+      "filter": "Filter"
+    },
+    "loadMore": "Load more",
+    "none": "No matching photos",
+    "indexing": "{have} / {total} photos searchable (text-to-image)",
+    "degraded": "Text-to-image search is unavailable right now; showing text matches only"
   },
   "problem": {
     "chosen": "Switched to {what}"
@@ -347,5 +363,20 @@
     "skipRestBody": "The remaining {n} go to “Other”; you can still correct them later in Photos.",
     "keys": "1–9 choose · 0 other · Enter accept · S skip",
     "backToPlan": "Back to organize"
+  },
+  "batch": {
+    "selected": "{n} selected",
+    "clear": "Clear selection",
+    "tag": "Tag",
+    "addTag": "Add tag",
+    "category": "Category",
+    "applyCategory": "Apply category",
+    "moveToFolder": "Move to folder…",
+    "moveTitle": "Move to folder",
+    "root": "Destination",
+    "subPath": "Subfolder",
+    "createPlan": "Create plan",
+    "updated": "{n} photos updated",
+    "cancel": "Cancel"
   }
 }

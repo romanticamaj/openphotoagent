@@ -5,6 +5,7 @@ import { Welcome } from "./features/onboarding/Welcome";
 import { PlanPage } from "./features/organize/PlanPage";
 import { ReviewPage } from "./features/review/ReviewPage";
 import { SearchBar } from "./features/search/SearchBar";
+import { SearchPage } from "./features/search/SearchPage";
 import { PhotosPage } from "./features/viewer/PhotosPage";
 import { api } from "./lib/api";
 
@@ -69,7 +70,10 @@ const search = createRoute({
   getParentRoute: () => root,
   path: "/search",
   validateSearch: (s: Record<string, unknown>) => ({ q: typeof s.q === "string" ? s.q : "" }),
-  component: () => null,
+  component: function SearchRoute() {
+    const { q } = search.useSearch();
+    return <SearchPage q={q} />;
+  },
 });
 const organize = createRoute({
   getParentRoute: () => root,

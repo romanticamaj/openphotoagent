@@ -73,36 +73,47 @@ class LabelPatch(BaseModel):
 @router.patch("/assets/{asset_id}/labels")
 def patch_labels(asset_id: str, body: LabelPatch, req: Request) -> dict[str, Any]:
     """In-place correction from the viewer (ORG-010): becomes a corrected review that wins over the model."""
-    from opagent_core.ids import uuid7
 
     st = _st(req)
     with st.engine.begin() as c:
         if c.execute(select(asset.c.id).where(asset.c.id == asset_id)).first() is None:
             raise HTTPException(404, detail={"code": "NOT_FOUND"})
-        rid = uuid7(st.clock)
-        c.execute(
-            insert(review).values(
-                id=rid,
-                asset_id=asset_id,
-                status="corrected",
-                reason="inline",
-                source="inline",
-                corrected={"category": body.category, **({"tags": body.tags} if body.tags is not None else {})},
-                resolved_at=st.clock.now(),
-            )
-        )
-        pending = c.execute(
-            select(review.c.id).where(review.c.asset_id == asset_id, review.c.status == "pending")
-        ).all()
-        for p in pending:
-            labels.resolve(st, c, p.id, "correct", body.category, source="inline")
-        labels.emit(c, "asset.labels_changed", {"asset_id": asset_id, "category": body.category})
-        from opagent_db.schema import index_outbox
-
-        c.execute(insert(index_outbox).values(asset_id=asset_id))
+        rid = apply_correction(st, c, asset_id, body.category, body.tags, reason="inline")
         labels.drain_index(c)
         r = c.execute(select(review).where(review.c.id == rid)).first()
         return {"asset_id": asset_id, "review": labels.review_view(r, c)}
+
+
+def apply_correction(st: Any, c: Any, asset_id: str, category: str | None, tags: list[str] | None, reason: str) -> str:
+    """A person's label for one photo: a corrected review that wins over the model and resolves pending ones."""
+    from opagent_core.ids import uuid7
+    from opagent_db.schema import index_outbox
+
+    rid = uuid7(st.clock)
+    corrected: dict[str, Any] = {}
+    if category is not None:
+        corrected["category"] = category
+    if tags is not None:
+        corrected["tags"] = tags
+    c.execute(
+        insert(review).values(
+            id=rid,
+            asset_id=asset_id,
+            status="corrected",
+            reason=reason,
+            source=reason,
+            corrected=corrected,
+            resolved_at=st.clock.now(),
+        )
+    )
+    if category is not None:
+        for p in c.execute(
+            select(review.c.id).where(review.c.asset_id == asset_id, review.c.status == "pending")
+        ).all():
+            labels.resolve(st, c, p.id, "correct", category, source=reason)
+    labels.emit(c, "asset.labels_changed", {"asset_id": asset_id, "category": category})
+    c.execute(insert(index_outbox).values(asset_id=asset_id))
+    return rid
 
 
 @router.get("/assets/{asset_id}")

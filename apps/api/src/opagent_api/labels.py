@@ -28,15 +28,14 @@ def model_outcome(raw: dict[str, Any] | None, category: str | None, confidence: 
 
 
 def human_label(c: Any, asset_id: str, job_id: str | None) -> dict[str, Any] | None:
-    r = c.execute(
+    for r in c.execute(  # the latest person-given category; tag-only corrections don't count
         select(review)
         .where(review.c.asset_id == asset_id, review.c.status.in_(("corrected", "approved")))
         .order_by(review.c.resolved_at.desc().nulls_last(), review.c.created_at.desc())
-        .limit(1)
-    ).first()
-    if r is not None:
+    ):
         cat = (r.corrected or {}).get("category") or (r.suggested or {}).get("category")
-        return {"category": cat, "source": r.source or "review"}
+        if cat:
+            return {"category": cat, "source": r.source or "review"}
     if job_id is not None:
         s = c.execute(
             select(review.c.id).where(

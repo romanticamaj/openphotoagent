@@ -135,6 +135,59 @@ class Stack:
         def big_move_plan(body: dict[str, int]) -> dict[str, str]:
             return self._big_move_plan(int(body.get("n", 10_001)))
 
+        @ctl.post("/drop-embeddings")
+        def drop_embeddings(body: dict[str, float]) -> dict[str, int]:
+            """Index partly built (E2E-S-003): keep only a fraction of the image vectors."""
+            from opagent_db.schema import engine_for
+            from sqlalchemy import text
+
+            eng = engine_for(self.dsn)
+            with eng.begin() as c:
+                total = c.execute(text("SELECT count(*) FROM search_doc")).scalar_one()
+                keep = int(total * float(body.get("keep", 0.5)))
+                c.execute(
+                    text(
+                        "DELETE FROM asset_embedding WHERE asset_id NOT IN "
+                        "(SELECT asset_id FROM asset_embedding ORDER BY asset_id LIMIT :k)"
+                    ),
+                    {"k": keep},
+                )
+                have = c.execute(text("SELECT count(*) FROM asset_embedding")).scalar_one()
+            eng.dispose()
+            return {"searchable": int(have), "total": int(total)}
+
+        @ctl.post("/bulk-library")
+        def bulk_library(body: dict[str, Any]) -> dict[str, int]:
+            """Thousands of indexed photos sharing a tag (E2E-SEL-001): rows only, no files or thumbnails."""
+            from opagent_db.schema import engine_for
+            from sqlalchemy import text
+
+            n, tag = int(body.get("n", 1000)), str(body.get("tag", "beach"))
+            eng = engine_for(self.dsn)
+            with eng.begin() as c:
+                c.execute(
+                    text(
+                        "INSERT INTO asset(id, workspace_id, content_hash, size_bytes, taken_at, local_at, width, "
+                        "height, thumbhash, exif) SELECT 'bulk'||g, 'default', 'bulkhash'||g, 1, "
+                        "timestamptz '2022-01-01Z' + g * interval '1 hour', timestamp '2022-01-01' + g * interval "
+                        "'1 hour', 4000, 3000, NULL, '{}' FROM generate_series(1, :n) g"
+                    ),
+                    {"n": n},
+                )
+                c.execute(
+                    text(
+                        "INSERT INTO search_doc(asset_id, workspace_id, caption, tags, tag_labels, category, taken_at, "
+                        "taken_year, scope_keys, body, tsv) SELECT 'bulk'||g, 'default', 'a ' || :t || ' photo', "
+                        "ARRAY[:t], to_jsonb(ARRAY[:t]), 'travel', "
+                        "timestamptz '2022-01-01Z' + g * interval '1 hour', 2022, "
+                        "ARRAY[]::text[], :t, setweight(array_to_tsvector(ARRAY[:t]), 'A') "
+                        "FROM generate_series(1, :n) g"
+                    ),
+                    {"n": n, "t": tag},
+                )
+            eng.dispose()
+            return {"inserted": n}
+
         @ctl.get("/hf")
         def hf() -> dict[str, Any]:
             return {"url": self.hf.url, "gets": len(self.hf.gets())}

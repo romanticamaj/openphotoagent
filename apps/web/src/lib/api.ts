@@ -62,6 +62,16 @@ export type Operation = {
   error: { code: string; params?: Record<string, unknown>; fixes?: Array<{ id?: string; type: string; target?: string | null }> } | null;
 };
 
+export type SearchBody = {
+  q?: string | null;
+  filters?: { tags_all?: string[]; taken_from?: string; taken_to?: string; category?: string };
+  limit?: number;
+  cursor?: string | null;
+  facets?: string[];
+};
+export type SearchHit = { asset_id: string; score: number; matched_by: string[]; category: string | null; tags: string[]; caption: string | null; taken_at: string | null };
+export type SearchResult = { items: SearchHit[]; facets: Record<string, Record<string, number>>; next_cursor: string | null; total: number; degraded: boolean };
+
 export type Root = { worker_id: string; alias: string; mode: "ro" | "rw" };
 export type Job = {
   id: string;
@@ -126,6 +136,12 @@ export const api = {
     req<{ blockers: Array<{ code: string; params: Record<string, unknown> }>; warnings: unknown[] }>("POST", "/preflight", { action, params }),
   sources: () => req<Array<{ id: string; root_alias: string; sub_path: string }>>("GET", "/sources"),
   scanSource: (id: string) => req<{ task_id: string }>("POST", `/sources/${encodeURIComponent(id)}/scan`),
+  search: (body: SearchBody) => req<SearchResult>("POST", "/search", body),
+  searchIndex: () => req<{ searchable: number; total: number }>("GET", "/search-index"),
+  createSelection: (body: { query?: SearchBody; asset_ids?: string[] }) => req<{ id: string; count: number }>("POST", "/selections", body),
+  selectionLabels: (id: string, body: { category?: string; tags?: string[] }) => req<{ updated: number }>("POST", `/selections/${id}/labels`, body),
+  selectionOrganize: (id: string, target: { root_alias: string; sub_path: string }) =>
+    req<{ plan_id: string; job_id: string }>("POST", `/selections/${id}/organize`, { target }),
   buckets: () => req<{ buckets: Array<{ month: string; count: number }> }>("GET", "/timeline/buckets"),
   bucket: (month: string) => req<{ month: string; assets: TimelineAsset[] }>("GET", `/timeline/buckets/${month}`),
   asset: (id: string) => req<AssetInfo>("GET", `/assets/${encodeURIComponent(id)}`),
