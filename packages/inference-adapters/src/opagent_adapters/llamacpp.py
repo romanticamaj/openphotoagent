@@ -114,6 +114,11 @@ class LlamaCppServerAdapter(OpenAICompatAdapter):
         rep.finish("succeeded")
 
     def _on_connection_lost(self) -> None:
+        if self.proc is not None:
+            try:
+                self.proc.wait(timeout=2)  # a crashed server is reaped within moments of the reset
+            except subprocess.TimeoutExpired:
+                return
         if self.proc is not None and self.proc.poll() is not None:
             self.crashes += 1
             self.loaded = False

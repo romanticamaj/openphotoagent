@@ -2,14 +2,13 @@ import asyncio
 import io
 
 import pytest
-from PIL import Image
-
 from opagent_adapters.llamacpp import LlamaCppServerAdapter
 from opagent_adapters.testing import FAKE_RUNTIME
 from opagent_doctor.advice import advise_runtime
 from opagent_inference.fake import FakeBackend
 from opagent_inference.service import ResilientRunner, Variant
 from opagent_inference.types import BatchRequest, ImageInput, InferenceError
+from PIL import Image
 
 
 def _jpegs(n, side=64):
@@ -65,7 +64,9 @@ def test_inf_oom_002_batch_halving_then_pixels_then_model_oom():
     sizes = []
     runner = ResilientRunner([Variant("embed@fp16", lambda: fb)], pixel_ladder=[768, 512, 384], on_attempt=sizes.append)
     with pytest.raises(InferenceError) as e:
-        asyncio.run(runner.run(BatchRequest(task_type="embed", items=_jpegs(16)), reprepare=lambda side: _jpegs(16, side)))
+        asyncio.run(
+            runner.run(BatchRequest(task_type="embed", items=_jpegs(16)), reprepare=lambda side: _jpegs(16, side))
+        )
     assert e.value.code == "OOM" and e.value.error_code == "MODEL_OOM"
     assert [s["batch"] for s in sizes][:5] == [16, 8, 4, 2, 1]
     assert sizes[5]["max_side"] == 512 and sizes[5]["batch"] == 16
