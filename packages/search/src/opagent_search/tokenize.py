@@ -107,7 +107,7 @@ class Tokenizer:
 
     @staticmethod
     def bigrams(text: str) -> list[str]:
-        out = []
+        out: list[str] = []
         for run in _CJK.findall(normalize(text)):
             out.extend("§" + run[i : i + 2] for i in range(len(run) - 1))
         return out

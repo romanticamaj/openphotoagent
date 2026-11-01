@@ -58,7 +58,7 @@ def test_srch_tok_007_golden():
 @pytest.mark.tc("SRCH-TOK-008")
 @settings(max_examples=500, deadline=None)
 @given(
-    st.text(alphabet=st.sampled_from(list("&|!():*'\\<>-\" abc貓海邊") + ["\x00", "\u200b"]), max_size=40)
+    st.text(alphabet=st.sampled_from([*list("&|!():*'\\<>-\" abc貓海邊"), "\x00", "\u200b"]), max_size=40)
     | st.text(max_size=40)
 )
 def test_srch_tok_008_tsquery_never_breaks(s):
