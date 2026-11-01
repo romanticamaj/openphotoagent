@@ -208,7 +208,15 @@
     "immediate": "Stop now",
     "discard": "Discards the results of the current batch of {n} photos (about {time} of work)",
     "confirmImmediate": "Stop now anyway",
-    "keep": "Keep running"
+    "keep": "Keep running",
+    "phases": "Phases",
+    "skipped": "skipped",
+    "phase": {
+      "prepare": "Prepare",
+      "model_load": "Load model",
+      "infer": "Infer",
+      "postprocess": "Post-process"
+    }
   },
   "fix": {
     "hf_token": "Add Hugging Face token",
@@ -284,7 +292,8 @@
       "model": "Model",
       "layer": "Decided by",
       "human": "Your correction",
-      "none": "Not analysed yet"
+      "none": "Not analysed yet",
+      "advanced": "Advanced details"
     },
     "layer": {
       "embedding": "Image similarity",

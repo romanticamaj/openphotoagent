@@ -255,7 +255,15 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
             <dt className="text-[var(--text-muted)]">{t("lightbox.ai.layer")}</dt>
             <dd data-testid="ai-layer">{t(`lightbox.layer.${l.source}`, { defaultValue: l.source })}</dd>
             <dt className="text-[var(--text-muted)]">{t("lightbox.ai.model")}</dt>
-            <dd className="break-all font-mono text-xs" data-testid="ai-model">{l.model_fingerprint}</dd>
+            <dd>
+              {/* the raw fingerprint is an advanced detail (08 §8.3), collapsed by default */}
+              <details>
+                <summary className="cursor-pointer text-xs">{t("lightbox.ai.advanced")}</summary>
+                <span className="break-all font-mono text-xs" data-testid="ai-model" translate="no">
+                  {l.model_fingerprint}
+                </span>
+              </details>
+            </dd>
           </dl>
         ))}
         <form

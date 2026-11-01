@@ -634,6 +634,7 @@ def approve(plan_id: str, req: Request, body: ApproveIn | None = None) -> dict[s
                             "dst_alias": a.dst_alias,
                             "dst_rel": a.dst_rel,
                             "src_hash": a.src_hash,
+                            **({"payload": a.payload} if a.payload is not None else {}),
                         }
                         for a in acts
                     ],

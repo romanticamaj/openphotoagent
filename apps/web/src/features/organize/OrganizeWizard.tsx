@@ -255,18 +255,36 @@ function Readiness({
       }
     }
   }, [pf.data]);
+  return <ReadinessChecklist models={pf.data?.models ?? []} blocked={Boolean(blocker)} autoStart={autoStart} setAutoStart={setAutoStart} />;
+}
+
+/** Presentational ReadinessChecklist (06 §6.3): the models with their CompatBadge and the auto-start option. */
+export function ReadinessChecklist({
+  models,
+  blocked,
+  autoStart,
+  setAutoStart,
+}: {
+  models: Array<{ key: string; compat: { level: string; reasons: Array<{ code: string; params?: Record<string, unknown> }> } }>;
+  blocked: boolean;
+  autoStart: boolean;
+  setAutoStart: (v: boolean) => void;
+}) {
+  const { t } = useTranslation();
   return (
     <section data-testid="readiness" aria-label={t("readiness.title")} className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border)] p-3">
       <h2 className="text-sm font-semibold">{t("readiness.title")}</h2>
       <ul>
-        {(pf.data?.models ?? []).map((m) => (
+        {models.map((m) => (
           <li key={m.key} data-testid={`model-${m.key}`} className="flex items-center gap-3 text-sm">
-            <span>{t("readiness.model")}: {m.key}</span>
+            <span>
+              {t("readiness.model")}: {m.key}
+            </span>
             <CompatBadge compat={m.compat} />
           </li>
         ))}
       </ul>
-      {blocker && (
+      {blocked && (
         <label className="flex items-center gap-2 text-sm">
           <input type="checkbox" checked={autoStart} onChange={(e) => setAutoStart(e.target.checked)} />
           {t("readiness.autoStart")}

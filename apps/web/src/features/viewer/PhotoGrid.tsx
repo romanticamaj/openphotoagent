@@ -98,26 +98,29 @@ export function PhotoGrid({
     })),
   });
 
-  // lay out loaded buckets off the main thread; replace estimates with real heights
+  // lay out loaded buckets off the main thread; replace estimates with real heights. A pending layout is never
+  // dropped by a re-render (that left months stuck empty); only unmounting discards results.
+  const alive = useRef(true);
+  useEffect(() => () => void (alive.current = false), []);
+  const pendingLayout = useRef(new Map<string, Layout>());
   useEffect(() => {
     if (!innerWidth) return;
-    let cancelled = false;
     list.forEach((b, i) => {
       const data = bucketData[i]?.data;
       const key = `${b.month}@${innerWidth}@${target}`;
-      if (!data || layouts.current.has(key)) return;
-      layouts.current.set(key, { rows: [], height: model.height(i) - HEADER_H, width: innerWidth });
+      if (!data || layouts.current.has(key) || pendingLayout.current.has(key)) return;
+      const placeholder: Layout = { rows: [], height: model.height(i) - HEADER_H, width: innerWidth };
+      pendingLayout.current.set(key, placeholder);
       void layoutAsync(data.assets.map(aspect), innerWidth, target).then((l) => {
-        if (cancelled) return;
+        pendingLayout.current.delete(key);
+        if (!alive.current) return;
         layouts.current.set(key, l);
-        model.setHeight(i, HEADER_H + l.height);
+        const idx = list.findIndex((x) => x.month === b.month);
+        if (idx >= 0) model.setHeight(idx, HEADER_H + l.height);
         virt.measure();
         bump((n) => n + 1);
       });
     });
-    return () => {
-      cancelled = true;
-    };
   });
 
   const layoutOf = (i: number) => layouts.current.get(`${list[i]?.month}@${innerWidth}@${target}`);
@@ -248,6 +251,8 @@ export function PhotoGrid({
         onKeyDown={onKeyDown}
         tabIndex={-1}
         data-testid="photo-grid"
+        // every mounted month has its photos and its real layout (tests and snapshots wait for this)
+        data-settled={items.length > 0 && items.every((v) => assetsOf(v.index) && (layoutOf(v.index)?.rows.length ?? 0) > 0) ? "true" : "false"}
       >
         <div style={{ height: virt.getTotalSize(), position: "relative" }}>
           {items.map((v) => {
@@ -270,6 +275,7 @@ export function PhotoGrid({
               <section
                 key={b.month}
                 data-month={b.month}
+                role="rowgroup"
                 aria-label={label}
                 style={{ position: "absolute", top, left: 0, width: innerWidth, height: v.size }}
               >

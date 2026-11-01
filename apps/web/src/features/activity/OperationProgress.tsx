@@ -49,6 +49,16 @@ export function OperationProgress({ op, variant = "compact" }: { op: Op; variant
         {eta ? <span data-eta={eta}>{t(`activity.eta.${eta}`, { defaultValue: eta })}</span> : null}
         <span data-testid="elapsed">{formatDuration(elapsed, i18n.language)}</span>
       </div>
+      {variant === "full" && Array.isArray(op.phases) ? (
+        <ol className="op-stepper" aria-label={t("activity.phases")}>
+          {(op.phases as Array<{ name: string; status: string }>).map((p) => (
+            <li key={p.name} data-status={p.status} className={`op-step op-step-${p.status}`}>
+              {t(`activity.phase.${p.name}`, { defaultValue: p.name })}
+              {p.status === "skipped" ? ` · ${t("activity.skipped")}` : ""}
+            </li>
+          ))}
+        </ol>
+      ) : null}
     </div>
   );
 }

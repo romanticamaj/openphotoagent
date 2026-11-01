@@ -141,6 +141,7 @@ output_action = Table(
     Column("src_hash", Text, nullable=False),
     Column("date_source", Text),
     Column("conflict", Text, nullable=False, server_default="none"),
+    Column("payload", JSONB),  # sidecar content (sidecar_json / sidecar_csv)
     Column("status", Text, nullable=False, server_default="planned"),
     Column("error", Text),
 )

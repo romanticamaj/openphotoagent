@@ -208,7 +208,15 @@
     "immediate": "立即中止",
     "discard": "會丟掉目前這批 {n} 張的結果（約 {time} 工作量）",
     "confirmImmediate": "確定中止",
-    "keep": "繼續執行"
+    "keep": "繼續執行",
+    "phases": "階段",
+    "skipped": "略過",
+    "phase": {
+      "prepare": "準備",
+      "model_load": "載入模型",
+      "infer": "推論",
+      "postprocess": "整理結果"
+    }
   },
   "fix": {
     "hf_token": "新增 Hugging Face token",
@@ -284,7 +292,8 @@
       "model": "模型",
       "layer": "判斷依據",
       "human": "你的修正",
-      "none": "尚未分析"
+      "none": "尚未分析",
+      "advanced": "進階資訊"
     },
     "layer": {
       "embedding": "影像相似度",

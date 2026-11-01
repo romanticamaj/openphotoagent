@@ -31,7 +31,9 @@ export function FolderPicker({ onPick, title }: { onPick: (root: string, path: s
               <Button key={d} variant="ghost" onClick={() => setPath([...path, d])}>{d}</Button>
             ))}
           </div>
-          <Button onClick={() => onPick(root, path.join("/"))}>{t("organize.useThisFolder")}</Button>
+          <Button data-testid="use-folder" onClick={() => onPick(root, path.join("/"))}>
+            {t("organize.useThisFolder")}
+          </Button>
         </div>
       )}
     </section>

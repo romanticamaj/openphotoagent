@@ -103,14 +103,14 @@ export function SearchPage({ q }: { q: string }) {
       </div>
       {count > 0 && <BatchBar count={count} makeSelection={handle} onDone={(n) => setToast(t("batch.updated", { n: n.toLocaleString(i18n.language) }))} />}
       {res.isSuccess && hits.length === 0 && <p>{t("search.none")}</p>}
-      <div ref={gridRef} tabIndex={-1} onKeyDown={onKey} role="grid" aria-label={t("search.results")} aria-multiselectable="true" className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-0.5 outline-none">
+      <div ref={gridRef} tabIndex={-1} onKeyDown={onKey} role="listbox" aria-label={t("search.results")} aria-multiselectable="true" className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-0.5 outline-none">
         {hits.map((h, i) => {
           const selected = sel.all || sel.ids.has(h.asset_id);
           return (
             <button
               key={h.asset_id}
               type="button"
-              role="gridcell"
+              role="option"
               aria-selected={selected}
               data-testid="search-result"
               data-asset={h.asset_id}

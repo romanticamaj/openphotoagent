@@ -72,7 +72,9 @@
 
 **理由**：符合規格原意（6 處提及 Storybook），提供設計系統文件與 a11y addon，stories 不進產品 bundle；(B) 需自建 story 列舉、主題／語系切換與隔離渲染，且測試碼留在產品原始碼樹。兩者測試強度相同，關鍵在執行方式。
 
-**影響的測試 ID**：VIS-001、VIS-003、PF-080 的文字與門檻不變（不弱化）。**同步修改的規格**：04 §5.2（Storybook 8 → 10）、09 §2 測試層表（test-runner → addon-vitest + Playwright）。
+**影響的測試 ID**：VIS-001、VIS-003、PF-080 的文字與門檻不變（不弱化）。
+
+**補充（2026-11-01，實作時）**：不安裝 `@storybook/addon-vitest`，因為它還需要 Vitest browser mode 與 `@vitest/browser-playwright` 兩個額外相依，而且 Playwright 已能直接驅動建置後的 Storybook。PF-080 改由 Playwright 驗證：開啟 `iframe.html` 中每個停用狀態的 story，斷言 `aria-describedby` 指向可見的原因，並確認按鈕可以用鍵盤 Tab 到達（按鈕改用 `aria-disabled`，不用 `disabled`，以保留焦點）。斷言內容與門檻不變。字型依 04 §4.3 改為隨 app 打包（Inter、Noto Sans TC，Fontsource，版本釘選），讓視覺基準在不同機器上一致。**同步修改的規格**：04 §5.2（Storybook 8 → 10）、09 §2 測試層表（test-runner → addon-vitest + Playwright）。
 
 
 ## ADR-0004：等待中的 Operation 可以暫停與取消

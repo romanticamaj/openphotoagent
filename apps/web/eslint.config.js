@@ -3,7 +3,7 @@ import opa from "eslint-plugin-opa";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", "e2e/.run"] },
+  { ignores: ["dist", "e2e/.run", "storybook-static"] },
   ...tseslint.configs.recommended,
   {
     files: ["src/**/*.{ts,tsx}", "e2e/**/*.ts"],

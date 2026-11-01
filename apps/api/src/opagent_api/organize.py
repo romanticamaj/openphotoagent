@@ -230,6 +230,94 @@ def after_scan(st: Any, c: Any, j: Any, t: Any) -> None:
     maybe_finish(st, c, j.id)
 
 
+def _plan_sidecars(
+    st: Any,
+    c: Any,
+    pid: str,
+    planned: list[Any],
+    rows: list[Any],
+    labels: dict[str, dict[str, Any]] | None,
+    root_alias: str,
+    target: dict[str, Any],
+    sidecars: set[str],
+) -> None:
+    """``<stem>.opagent.json`` next to every organized photo and one ``opagent-export.csv`` per batch (02 §6, ORG-006).
+    Written through the journal like any output, so undo removes them (invariant 3)."""
+    import posixpath
+
+    from opagent_db.schema import result
+
+    by_row = {r.asset_id: r for r in rows}
+    now = st.clock.now().isoformat()
+    seq = c.execute(select(func.count()).select_from(output_action).where(output_action.c.plan_id == pid)).scalar_one()
+    acts, records = [], []
+    for a in planned:
+        r = by_row.get(a.asset_id)
+        lab = (labels or {}).get(a.asset_id) or {}
+        res = c.execute(
+            select(result.c.caption, result.c.tags, result.c.model_fingerprint)
+            .where(result.c.asset_id == a.asset_id)
+            .order_by(result.c.created_at.desc())
+            .limit(1)
+        ).first()
+        rec = {
+            "schema": "opagent.sidecar/1",
+            "file": posixpath.basename(a.dst_rel),
+            "source": a.src_rel,
+            "content_hash": a.src_hash,
+            "taken_at": to_aware(r.taken_at, r.taken_at_offset_min).isoformat()  # the photo's own clock
+            if r is not None and r.taken_at
+            else None,
+            "date_source": a.date_source,
+            "category": lab.get("category_key"),
+            "decision": lab.get("decision"),
+            "decided_by": lab.get("source"),
+            "confidence": round(float(lab["confidence"]), 4) if lab.get("confidence") is not None else None,
+            "caption": res.caption if res else None,
+            "tags": [str(t) for t in (res.tags or [])] if res else [],
+            "model_fingerprint": res.model_fingerprint if res else None,
+            "generated_at": now,
+        }
+        records.append(rec)
+        if "json" in sidecars:
+            stem = posixpath.splitext(a.dst_rel)[0]
+            acts.append(("sidecar_json", a, f"{stem}.opagent.json", rec))
+    if "csv" in sidecars:
+        from opagent_core.export import to_csv
+
+        cols = ["file", "source", "category", "decision", "confidence", "caption", "tags", "taken_at", "generated_at"]
+        # captions/tags are untrusted text: to_csv quotes and defuses spreadsheet formulas (OUT-EXE-021, invariant 6)
+        text = to_csv([{**rec, "tags": ";".join(rec["tags"])} for rec in records], cols)
+        sub = target.get("sub_path", "").strip("/")
+        acts.append(
+            (
+                "sidecar_csv",
+                planned[0],
+                posixpath.join(sub, "opagent-export.csv") if sub else "opagent-export.csv",
+                {"text": text},
+            )
+        )
+    c.execute(
+        insert(output_action),
+        [
+            {
+                "id": uuid7(st.clock),
+                "plan_id": pid,
+                "seq": seq + i,
+                "asset_id": a.asset_id,
+                "action": op,
+                "src_alias": root_alias,
+                "src_rel": a.src_rel,
+                "dst_alias": target["root_alias"],
+                "dst_rel": dst,
+                "src_hash": a.src_hash,
+                "payload": payload,
+            }
+            for i, (op, a, dst, payload) in enumerate(acts)
+        ],
+    )
+
+
 def maybe_finish(st: Any, c: Any, job_id: str) -> None:
     j = c.execute(select(job).where(job.c.id == job_id)).first()
     if j is None or j.status != "running" or j.kind not in ("organize", "preview"):
@@ -356,6 +444,9 @@ def build_plan(st: Any, c: Any, j: Any, rows: list[Any]) -> None:
                 for i, a in enumerate(planned)
             ],
         )
+    sidecars = set((params.get("advanced") or {}).get("sidecars") or [])
+    if planned and sidecars:
+        _plan_sidecars(st, c, pid, planned, rows, labels, root_alias, target, sidecars)
     plan_op = f"{pid}:plan"
     ensure_operation(c, st.clock, plan_op, "output.plan", {"kind": "plan", "id": pid})
     set_op_status(c, st.clock, plan_op, "running")

@@ -24,6 +24,7 @@ test-int:
 # Playwright against the web build + all-in-one backend with FakeBackend
 e2e:
     pnpm --filter web build
+    pnpm --filter web build-storybook
     pnpm --filter web e2e
 
 # ruff + mypy + import-linter + eslint + tsc
@@ -33,6 +34,8 @@ lint:
     uv run mypy -p opagent_core -p opagent_fs -p opagent_schemas
     uv run mypy -p opagent_inference -p opagent_adapters -p opagent_registry -p opagent_doctor -p opagent_search -p opagent_db -p opagent_api -p opagent_worker -p opagent_cli -p opagent_testing
     uv run lint-imports
+    uv run python tools/gen_error_i18n.py --check
+    uv run python tools/gen_problem_stories.py --check
     pnpm -r --if-present lint
     pnpm -r --if-present typecheck
 

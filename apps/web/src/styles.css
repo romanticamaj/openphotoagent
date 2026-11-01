@@ -75,7 +75,8 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: Inter, "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
+  /* bundled, unicode-range subsets loaded on demand (04 §4.3): the same glyphs on every machine */
+  font-family: "Inter Variable", "Noto Sans TC Variable", "PingFang TC", "Microsoft JhengHei", system-ui, sans-serif;
   font-size: 14px;
   line-height: 1.6;
 }
@@ -310,4 +311,31 @@ body {
   gap: 4px;
   padding: 8px 0;
   border-bottom: 1px solid var(--border);
+}
+
+.op-stepper {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 12px;
+}
+.op-step {
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.op-step-running {
+  border-color: var(--info);
+}
+.op-step-done {
+  border-color: var(--success);
+}
+.op-step-skipped {
+  border-style: dashed;
+  color: var(--text-muted);
+}
+.op-card {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
 }
