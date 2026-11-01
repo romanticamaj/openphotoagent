@@ -107,18 +107,15 @@ def test_srch_fac_001_keyword_tag_date_vs_reference(s):
         tags = rnd.sample(["海灘", "狗", "夜景", "雪", "拉麵"], 2)
         s.add(i, caption=cap, tags=tags, category=rnd.choice(["travel", "food", "pets"]), vec=False)
     s.index()
-    res = s.search(q="海邊", filters={"tags_all": ["scene.beach"], "taken_from": "2025-01-01", "taken_to": "2026-01-01"}, semantic=False, limit=500, facets=["category", "year"])
-    ref = {
-        r[0]
-        for r in s.sql(
-            "select asset_id from search_doc where tsv @@ to_tsquery('simple', '''海邊''') and tags @> array['scene.beach'] "
-            "and taken_at >= '2025-01-01' and taken_at < '2026-01-01'"
-        )
-    }
+    res = s.search(q="海邊", filters={"tags_all": ["animal.dog"], "taken_from": "2025-01-01", "taken_to": "2026-01-01"}, semantic=False, limit=500, facets=["category", "year"])
+    # reference: the filters, and the keyword through full text (R3) or its tag key (R4: 海邊 → scene.beach), 05 §2.1
+    match = (
+        "from search_doc where tags @> array['animal.dog'] and taken_at >= '2025-01-01' and taken_at < '2026-01-01' "
+        "and (tsv @@ '''海邊'''::tsquery or tags && array['scene.beach'])"
+    )
+    ref = {r[0] for r in s.sql("select asset_id " + match)}
     assert {x["asset_id"] for x in res["items"]} == ref and ref
-    counts = {r[0]: r[1] for r in s.sql(
-        "select category, count(*) from search_doc where tsv @@ to_tsquery('simple', '''海邊''') and tags @> array['scene.beach'] "
-        "and taken_at >= '2025-01-01' and taken_at < '2026-01-01' group by category")}
+    counts = {r[0]: r[1] for r in s.sql("select category, count(*) " + match + " group by category")}
     assert res["facets"]["category"] == counts
     assert res["facets"]["year"] == {"2025": len(ref)}
 
