@@ -241,4 +241,5 @@ def _delete_ops(conn: Any, ids: list[str]) -> int:
 
 def op_dict(row: Any) -> dict[str, Any]:
     d = dict(row._mapping)
+    d["auto_resumed"] = bool((d.get("progress") or {}).get("auto_resumed"))  # Activity Center: 「已自動繼續」
     return {k: (v.isoformat() if hasattr(v, "isoformat") else v) for k, v in d.items()}

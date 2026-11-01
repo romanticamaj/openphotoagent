@@ -77,6 +77,7 @@ class Result:
     permanent: bool = False
     warnings: list[str] = field(default_factory=list)
     installed: list[dict[str, Any]] = field(default_factory=list)
+    waiting_reason: str | None = None
 
 
 class _Stop(Exception):
@@ -85,6 +86,12 @@ class _Stop(Exception):
 
 class _RemoteChanged(Exception):
     pass
+
+
+class _AutoPause(Exception):
+    def __init__(self, reason: str) -> None:
+        super().__init__(reason)
+        self.reason = reason
 
 
 def queue_precheck(sizes: list[int], free_bytes: int) -> dict[str, Any] | None:
@@ -116,6 +123,9 @@ class Downloader:
         segments: int = 4,
         max_connections: int = 8,
         hf_token: str | None = None,
+        disk_check_every_bytes: int = 64 * 1024 * 1024,
+        rate_limit_bps: float | None = None,
+        disk_margin: int = GB,
     ) -> None:
         self.root = Path(root)
         self.sources = list(sources)
@@ -128,6 +138,12 @@ class Downloader:
         self.segments = segments
         self.max_connections = max_connections
         self.hf_token = hf_token
+        self.disk_check_every_bytes = disk_check_every_bytes
+        self.rate_limit_bps = rate_limit_bps
+        self.disk_margin = disk_margin
+        self._since_check = 0
+        self._rl_start: float | None = None
+        self._rl_bytes = 0
 
     # ---- state ----
     def _opdir(self, op_id: str) -> Path:
@@ -208,6 +224,9 @@ class Downloader:
                 res.installed.append(
                     {"path": f.path, "sha256": f.sha256, "size": f.size, "repo": f.repo, "revision": f.revision}
                 )
+        except _AutoPause as p:  # 06 §2.5: paused_auto; resumes when space is back (DL-011)
+            res.status, res.waiting_reason = "paused", p.reason
+            return res
         except _Stop:
             res.status = "paused" if token.mode == "pause" else "cancelled"
             if token.mode == "cancel" and not token.keep_part:
@@ -220,6 +239,48 @@ class Downloader:
         return res
 
     # ---- internals ----
+    async def _throttle(self, n: int) -> None:
+        if not self.rate_limit_bps:
+            return
+        now = self.clock.monotonic()
+        if self._rl_start is None:
+            self._rl_start = now
+        self._rl_bytes += n
+        ahead = self._rl_bytes / self.rate_limit_bps - (now - self._rl_start)
+        if ahead > 0:
+            await self.clock.sleep(ahead)
+
+    def _check_disk(self, n: int, prog: dict[str, Any]) -> None:
+        self._since_check += n
+        if self._since_check < self.disk_check_every_bytes:
+            return
+        self._since_check = 0
+        remaining = prog["total_bytes"] - prog["done_bytes"]
+        free = self.disk_free(str(self.root))
+        if free < remaining + min(self.disk_margin, max(remaining, 1)):
+            raise _AutoPause("DISK_INSUFFICIENT_MODELS")
+
+    async def resolve(self, repo: str, revision: str, paths: list[str], allow_unverified: bool = False) -> list[DlFile]:
+        """Sizes and hashes for files that have none (user YAML without sha256). Official metadata first; a
+        mirror's metadata needs the user's explicit confirmation (DL_UNVERIFIED_SOURCE, 06 §2.6)."""
+        for i, src in enumerate(self.sources):
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as c:
+                    r = await c.get(f"{src.rstrip('/')}/api/models/{repo}/revision/{revision}", headers=self._headers())
+            except httpx.TransportError:
+                continue
+            if r.status_code != 200:
+                continue
+            sib = {x["rfilename"]: x for x in r.json().get("siblings", [])}
+            if i > 0 and not allow_unverified:
+                raise DownloadError("DL_UNVERIFIED_SOURCE", False, source=src)
+            return [
+                DlFile(repo, revision, p, int(sib[p]["size"]), str((sib[p].get("lfs") or {}).get("sha256")))
+                for p in paths
+                if p in sib
+            ]
+        raise DownloadError("NET_UNREACHABLE", False, host=self.sources[0] if self.sources else "")
+
     def _emit(self, prog: dict[str, Any]) -> None:
         if self.on_progress:
             self.on_progress(dict(prog))
@@ -370,9 +431,12 @@ class Downloader:
                             prog["done_bytes"] += len(chunk)
                             self._save_meta(meta_p, meta)
                         self._emit(prog)
+                        crash_point("download_chunk")  # chaos: kill -9 mid-file (DL-014)
                         consecutive = 0
                         if token.requested:
                             raise _Stop()
+                        await self._throttle(len(chunk))
+                        self._check_disk(len(chunk), prog)
                 if seg["written"] >= seg["end"] - seg["start"] + 1:
                     return
                 raise httpx.RemoteProtocolError("short body")

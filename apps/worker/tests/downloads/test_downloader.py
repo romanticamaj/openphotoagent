@@ -370,7 +370,9 @@ def test_dl_016_mirror_only_metadata_needs_confirmation(server, tmp_path):
     official = server(files, scenario="404")
     official.stop()  # unreachable
     mirror = server(files)
-    d = Downloader(Path(tmp_path), sources=[official.url, mirror.url], reserve_floor=0, disk_free=Disk(10**12), clock=AutoClock())
+    d = Downloader(
+        Path(tmp_path), sources=[official.url, mirror.url], reserve_floor=0, disk_free=Disk(10**12), clock=AutoClock()
+    )
     with pytest.raises(DownloadError) as e:
         run(d.resolve(REPO, "main", ["w.onnx"]))
     assert e.value.code == "DL_UNVERIFIED_SOURCE" and e.value.details["source"] == mirror.url

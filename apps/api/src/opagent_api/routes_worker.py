@@ -89,6 +89,7 @@ def register(body: RegisterIn, req: Request) -> dict[str, str]:
         before = {r["check_id"]: r["status"] for r in prev.get("doctor_results") or []}
         after = {r["check_id"]: r["status"] for r in body.doctor_results}
         changed = sorted(k for k in after if k in before and before[k] != after[k])
+        _recover_downloads(c, st, body.worker_id)
         if changed:  # preflight results depending on these checks must be recomputed (DOC-019)
             c.execute(
                 insert(event).values(kind="doctor.changed", payload={"worker_id": body.worker_id, "checks": changed})
@@ -115,6 +116,31 @@ def register(body: RegisterIn, req: Request) -> dict[str, str]:
             )
         )
     return {"worker_id": body.worker_id}
+
+
+def _recover_downloads(c: Any, st: AppState, worker_id: str) -> None:
+    """A (re)registering worker lost its in-flight downloads (crash, kill -9): mark them interrupted and re-queue
+    them; the downloader resumes from its .part files (06 §2.2, §5.8; DL-014)."""
+    from opagent_db.schema import operation
+
+    rows = c.execute(
+        select(worker_task.c.id).where(
+            worker_task.c.worker_id == worker_id, worker_task.c.kind == "download", worker_task.c.status == "leased"
+        )
+    ).all()
+    for (tid,) in rows:
+        c.execute(update(worker_task).where(worker_task.c.id == tid).values(status="pending", lease_expires_at=None))
+        op = c.execute(select(operation.c.status, operation.c.progress).where(operation.c.id == tid)).first()
+        if op is None:
+            continue
+        if op.status == "running":
+            set_op_status(c, st.clock, tid, "interrupted")
+        set_op_status(c, st.clock, tid, "queued")
+        c.execute(
+            update(operation)
+            .where(operation.c.id == tid)
+            .values(progress={**(op.progress or {}), "auto_resumed": True})
+        )
 
 
 def _lease_one(st: AppState, worker_id: str) -> dict[str, Any] | None:
@@ -333,7 +359,9 @@ def complete(task_id: str, body: CompleteIn, req: Request) -> dict[str, str]:
         if t.kind in TASK_OP_TYPES:
             waiting = body.result.get("status") == "waiting"
             rs = body.result.get("status")
-            if rs == "paused":
+            if rs == "paused" and body.result.get("waiting_reason"):  # paused_auto, e.g. disk full (DL-011)
+                set_op_status(c, st.clock, t.id, "waiting", body.result["waiting_reason"])
+            elif rs == "paused":
                 pass  # stays paused; resume re-queues the task and the download continues from its .part
             elif rs == "cancelled":
                 set_op_status(c, st.clock, t.id, "cancelled")
