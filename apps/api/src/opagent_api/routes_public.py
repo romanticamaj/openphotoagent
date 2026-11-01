@@ -43,6 +43,8 @@ class JobIn(BaseModel):
     mode: str = "dry_run"
     action: Literal["copy", "move"] = "copy"  # 02 §6.2: copy by default; move is an advanced opt-in (ORG-004)
     advanced: dict[str, Any] = Field(default_factory=dict)
+    models: dict[str, Any] | None = None  # {embed, vlm, pack}; None = the worker's configured backend
+    queue_after: bool = False
 
 
 class PreflightIn(BaseModel):
@@ -137,75 +139,12 @@ def list_sources(req: Request) -> list[dict[str, Any]]:
 
 @router.post("/preflight")
 def preflight(body: PreflightIn, req: Request) -> dict[str, Any]:
-    # v0.1 skeleton: by-date needs no model; full gate registry arrives with slice 8 (06 §4)
-    blockers: list[dict[str, Any]] = []
-    warnings: list[dict[str, Any]] = []
-    p = body.params
-    if body.action == "job.start" and p.get("kind") == "label" and p.get("rerun_of"):
-        from opagent_core.config_hash import config_hash
+    """06 §4.2: one engine for every action (opagent_api.preflight)."""
+    from .preflight import run_preflight
 
-        with _st(req).engine.begin() as c:
-            assets = [r[0] for r in c.execute(select(job_item.c.asset_id).where(job_item.c.job_id == p["rerun_of"]))]
-            have = c.execute(
-                select(func.count())
-                .select_from(result)
-                .where(
-                    result.c.asset_id.in_(assets),
-                    result.c.task_config_hash == config_hash(p.get("task_config") or {}),
-                    result.c.model_fingerprint == p.get("fingerprint"),
-                )
-            ).scalar_one()
-        if assets and have == len(assets):  # 100 % cache hit (06 §4.7 #51)
-            warnings.append(
-                {
-                    "code": "JOB_NOTHING_TO_DO",
-                    "severity": "warning",
-                    "fixes": [
-                        {"id": "reapply_thresholds", "kind": "auto_fix", "label_key": "fix.reapply_thresholds"},
-                        {
-                            "id": "force_rerun",
-                            "kind": "choose_alternative",
-                            "label_key": "fix.force_rerun",
-                            "consequence_key": "fix.force_rerun.consequence",
-                        },
-                    ],
-                }
-            )
-    elif body.action == "job.start" and p.get("kind", "organize") == "organize":
-        from . import organize
-
-        with _st(req).engine.begin() as c:
-            running = organize.active_job_for_source(c, p.get("source_id", "")) if p.get("source_id") else None
-            tc = organize.task_config_for(p.get("preset", "by-date"))
-            has_model = True
-            if tc is not None:
-                caps = [r[0] or {} for r in c.execute(select(worker.c.capabilities))]
-                has_model = any(tc["task_type"] in (cap.get("models") or {}) for cap in caps)
-        if running:  # 06 §4.7 #52
-            blockers.append(
-                {
-                    "code": "JOB_CONFLICT_RUNNING",
-                    "severity": "blocker",
-                    "params": {"job": running},
-                    "fixes": [
-                        {"id": "view_job", "kind": "open_route", "route": f"/jobs/{running}"},
-                        {
-                            "id": "queue_after",
-                            "kind": "choose_alternative",
-                            "consequence_key": "fix.queue_after.consequence",
-                        },
-                    ],
-                }
-            )
-        if not has_model:
-            blockers.append(
-                {
-                    "code": "MODEL_NOT_INSTALLED",
-                    "severity": "blocker",
-                    "fixes": [{"id": "download_model", "kind": "auto_fix"}],
-                }
-            )
-    return {"ready": not blockers, "blockers": blockers, "warnings": warnings}
+    st = _st(req)
+    with st.engine.begin() as c:
+        return run_preflight(c, st, body.action, body.params)
 
 
 @router.post("/jobs", status_code=201)
@@ -219,6 +158,9 @@ def create_job(body: JobIn, req: Request) -> dict[str, Any]:
         s = c.execute(select(source).where(source.c.id == body.source_id)).first()
         if s is None:
             raise HTTPException(404, detail={"code": "NOT_FOUND"})
+        from .preflight import enforce
+
+        enforce(c, st, "job.start", body.model_dump())  # server-side enforcement (PF-073)
         jid = uuid7(st.clock)
         c.execute(
             insert(job).values(

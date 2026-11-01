@@ -21,6 +21,7 @@ class Gpu:
     unified: bool = False
     budget_gb: float | None = None  # OS-reported budget (DXGI Budget, VK_EXT_memory_budget, Metal working set)
     source: str = "estimated"  # nvml | dxgi | vulkan | metal | estimated
+    processes: tuple[str, ...] = ()  # other programs holding VRAM (GPU_BUSY_EXTERNAL details)
 
 
 @dataclass(frozen=True)

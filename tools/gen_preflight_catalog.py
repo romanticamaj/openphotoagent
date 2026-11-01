@@ -29,7 +29,7 @@ def parse_fixes(cell: str) -> list[dict[str, object]]:
             if m.group(2):
                 d["target"] = m.group(2).strip()
             note = (m.group(3) or "").strip()
-            dep = DEPLOY.get(note, None) if note in DEPLOY else None
+            dep = DEPLOY.get(note) if note in DEPLOY else None
             if dep:
                 d["deployment"] = dep
             options.append(d)

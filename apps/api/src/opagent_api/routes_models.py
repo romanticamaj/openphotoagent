@@ -13,7 +13,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from opagent_core.hw import Gpu, HwSummary
 from opagent_core.ids import uuid7
-from opagent_db.schema import installation, job, license_acceptance, perf_observation, worker, worker_task
+from opagent_db.schema import installation, license_acceptance, perf_observation, worker, worker_task
 from opagent_registry.compat import compat
 from opagent_registry.loader import LoadedModel, Registry
 from pydantic import BaseModel
@@ -243,9 +243,9 @@ def install(worker_id: str, body: InstallIn, req: Request) -> dict[str, Any]:
         m = ctx["reg"].models.get(mid)
         if m is None or m.status != "valid" or vid not in {v.id for v in m.spec.variants}:
             raise HTTPException(404, detail={"code": "NOT_FOUND"})
-        bl = install_blockers(m, vid, ctx)
-        if bl:
-            raise blocked(bl)
+        from .preflight import enforce
+
+        enforce(c, st, "model.download", {"variant": body.variant, "worker_id": worker_id})
         tid = _queue_download(c, st, worker_id, m, vid)
     return {"operation_id": tid, "status": "queued"}
 
@@ -259,26 +259,9 @@ def remove_installation(worker_id: str, inst_id: str, req: Request) -> dict[str,
         ).first()
         if inst is None:
             raise HTTPException(404, detail={"code": "NOT_FOUND"})
-        using = [
-            r.id
-            for r in c.execute(select(job.c.id, job.c.params).where(job.c.status.in_(ACTIVE_JOBS)))
-            if inst.key in ((r.params or {}).get("models") or [])
-        ]
-        if using:
-            raise blocked(
-                [
-                    blocker(
-                        "MODEL_IN_USE",
-                        [
-                            fix("delete_after_jobs", "auto_fix", True),
-                            fix(
-                                "cancel_jobs", "choose_alternative", consequence={"key": "fix.cancel_jobs.consequence"}
-                            ),
-                        ],
-                        jobs=using,
-                    )
-                ]
-            )
+        from .preflight import enforce
+
+        enforce(c, st, "model.delete", {"installation_id": inst.id, "worker_id": worker_id})
         tid = uuid7(st.clock)
         c.execute(
             insert(worker_task).values(

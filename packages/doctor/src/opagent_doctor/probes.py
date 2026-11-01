@@ -54,6 +54,8 @@ def parse_nvidia(xml: str | None, csv: str | None) -> list[Gpu]:
         if mt:
             total = _mib(mt.group(1))
         ext = sum(int(x) for x in re.findall(r"<used_memory>(\d+) MiB</used_memory>", b)) / 1024
+        names = re.findall(r"<process_name>([^<]+)</process_name>", b)
+        procs = tuple(n.rsplit("\\", 1)[-1].rsplit("/", 1)[-1] for n in names)
         gpus.append(
             Gpu(
                 vendor="nvidia",
@@ -63,6 +65,7 @@ def parse_nvidia(xml: str | None, csv: str | None) -> list[Gpu]:
                 compute_capability=row.get("compute_cap"),
                 driver=row.get("driver_version") or driver,
                 source="nvml",
+                processes=procs,
             )
         )
     return gpus

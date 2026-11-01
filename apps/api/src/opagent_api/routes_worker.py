@@ -48,6 +48,13 @@ class RegisterIn(BaseModel):
     roots: list[dict[str, str]]
     models: dict[str, str] = {}  # task -> model_fingerprint of the loaded/installed backend
     hw: dict[str, Any] | None = None  # doctor's hardware summary (compat input, 06 §1.2)
+    protocol_version: str = "1.0"
+    deployment: str = "desktop"
+    gpu_requested: bool = False
+    doctor: list[dict[str, Any]] = []  # latest doctor check results (06 §3.5)
+    roots_status: dict[str, str] = {}  # alias -> ok | denied | unavailable
+    packs_status: dict[str, Any] = {}
+    disk_free: dict[str, int] | None = None
 
 
 class LeaseIn(BaseModel):
@@ -64,6 +71,17 @@ class CompleteIn(BaseModel):
 def register(body: RegisterIn, req: Request) -> dict[str, str]:
     roots = [{"alias": r["alias"], "mode": r.get("mode", "ro")} for r in body.roots]  # never absolute paths
     st = _st(req)
+    caps = {
+        "models": body.models,
+        "hw": body.hw,
+        "protocol_version": body.protocol_version,
+        "deployment": body.deployment,
+        "gpu_requested": body.gpu_requested,
+        "doctor": body.doctor,
+        "roots_status": body.roots_status,
+        "packs_status": body.packs_status,
+        "disk_free": body.disk_free or {},
+    }
     with st.engine.begin() as c:
         c.execute(
             pg_insert(worker)
@@ -72,7 +90,8 @@ def register(body: RegisterIn, req: Request) -> dict[str, str]:
                 name=body.name,
                 roots=roots,
                 last_heartbeat_at=st.clock.now(),
-                capabilities={"models": body.models, "hw": body.hw},
+                capabilities=caps,
+                disk_free=body.disk_free,
             )
             .on_conflict_do_update(
                 index_elements=["id"],
@@ -80,7 +99,8 @@ def register(body: RegisterIn, req: Request) -> dict[str, str]:
                     "roots": roots,
                     "status": "online",
                     "last_heartbeat_at": st.clock.now(),
-                    "capabilities": {"models": body.models, "hw": body.hw},
+                    "capabilities": caps,
+                    "disk_free": body.disk_free,
                 },
             )
         )
@@ -89,6 +109,9 @@ def register(body: RegisterIn, req: Request) -> dict[str, str]:
 
 def _lease_one(st: AppState, worker_id: str) -> dict[str, Any] | None:
     with st.engine.begin() as c:
+        c.execute(
+            update(worker).where(worker.c.id == worker_id).values(last_heartbeat_at=st.clock.now(), status="online")
+        )
         row = c.execute(
             text(
                 "SELECT id FROM worker_task WHERE status='pending' AND (worker_id IS NULL OR worker_id=:w) "

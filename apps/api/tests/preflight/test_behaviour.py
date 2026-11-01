@@ -1,0 +1,108 @@
+import json
+
+import pytest
+
+from .test_catalog import EMB16, Q4, Q5, env  # noqa: F401  (fixture re-export)
+
+
+@pytest.mark.unit
+@pytest.mark.tc("PF-070")
+def test_pf_070_root_cause_first(env):
+    env.worker()
+    env.clock.advance(120)
+    pf = env.preflight("job.start", env.job_params(models={"embed": EMB16, "vlm": Q5}))
+    assert [b["code"] for b in pf["blockers"]] == ["WORKER_OFFLINE"]
+    gates = {g["id"]: g for g in pf["gates"]}
+    assert gates["model"]["status"] == "waiting" and gates["model"]["depends_on"] == "worker"
+
+
+@pytest.mark.unit
+@pytest.mark.tc("PF-072")
+def test_pf_072_merged_download_fix(env):
+    env.worker()
+    pf = env.preflight("job.start", env.job_params(models={"embed": EMB16, "vlm": Q5}))
+    codes = [b["code"] for b in pf["blockers"]]
+    assert codes.count("MODEL_NOT_INSTALLED") == 2 and "RUNTIME_PACK_MISSING" in codes
+    merged = pf["merged_fix"]
+    assert merged["type"] == "download" and merged["count"] == 3
+    assert {i["variant"] for i in merged["items"] if "variant" in i} == {EMB16, Q5}
+    assert merged["bytes"] > 0 and merged["label_key"] == "fix.prepare_all"
+
+
+@pytest.mark.integration
+@pytest.mark.tc("PF-073")
+def test_pf_073_server_side_enforcement(env):
+    env.worker()
+    params = env.job_params(models={"embed": EMB16, "vlm": Q5})
+    pf = env.preflight("job.start", params)
+    r = env.client.post("/api/v1/jobs", json=params)
+    assert r.status_code == 409 and r.headers["content-type"].startswith("application/problem+json")
+    assert [b["code"] for b in r.json()["blockers"]] == [b["code"] for b in pf["blockers"]]
+
+
+@pytest.mark.unit
+@pytest.mark.tc("PF-074")
+def test_pf_074_fingerprint_skips_recompute(env):
+    env.worker()
+    params = env.job_params(preset="by-date")
+    a = env.preflight("job.start", params)
+    r = env.client.post("/api/v1/preflight", json={"action": "job.start", "params": params, "fingerprint": a["fingerprint"]}).json()
+    assert r["cached"] is True and r["fingerprint"] == a["fingerprint"]
+    env.clock.advance(120)  # state changed (worker went offline)
+    r2 = env.client.post("/api/v1/preflight", json={"action": "job.start", "params": params, "fingerprint": a["fingerprint"]}).json()
+    assert r2["cached"] is False and r2["fingerprint"] != a["fingerprint"]
+
+
+@pytest.mark.unit
+@pytest.mark.tc("PF-081")
+def test_pf_081_inference_error_mapping():
+    from opagent_inference.types import ERROR_CODE_MAP, InferenceError
+    from opagent_doctor.codes import CATALOG
+
+    assert ERROR_CODE_MAP["OOM"] == "MODEL_OOM" and ERROR_CODE_MAP["TIMEOUT"] == "RUNTIME_TIMEOUT"
+    assert ERROR_CODE_MAP["BAD_INPUT"] == "DECODE_FAILED" and ERROR_CODE_MAP["RUNTIME"] in ("RUNTIME_CRASHED", "MODEL_LOAD_FAILED")
+    assert InferenceError("RUNTIME", True, "load", phase="load").error_code == "MODEL_LOAD_FAILED"
+    assert InferenceError("RUNTIME", True).error_code == "RUNTIME_CRASHED"
+    assert all(c in CATALOG for c in ERROR_CODE_MAP.values())
+
+
+@pytest.mark.contract
+@pytest.mark.tc("PF-082")
+def test_pf_082_every_error_is_problem_json(env):
+    env.worker()
+    app = env.client.app
+    hits = 0
+    for route in app.routes:
+        path = getattr(route, "path", "")
+        if not path.startswith("/api/v1") or "{" not in path and "GET" in getattr(route, "methods", set()):
+            continue
+        url = path
+        for seg in [s for s in path.split("/") if s.startswith("{")]:
+            url = url.replace(seg, "does-not-exist")
+        for m in sorted(getattr(route, "methods", set()) - {"HEAD", "OPTIONS"}):
+            r = env.client.request(m, url, content=b"{not json", headers={"content-type": "application/json"})
+            if r.status_code >= 400:
+                hits += 1
+                assert r.headers["content-type"].startswith("application/problem+json"), (m, url, r.status_code, r.text[:200])
+                body = r.json()
+                assert body["status"] == r.status_code and body["code"]
+    assert hits > 20
+
+
+@pytest.mark.integration
+@pytest.mark.tc("PF-083")
+@pytest.mark.parametrize("profile,models,alt_key", [
+    ("nvidia-drv535", {"embed": EMB16, "vlm": Q4, "pack": "llamacpp-cuda13"}, "vulkan"),
+    ("blackwell-cuda12pack", {"embed": EMB16, "vlm": Q5, "pack": "llamacpp-cuda12"}, "llamacpp_vulkan"),
+])
+def test_pf_083_alternatives_lead_to_ready(env, profile, models, alt_key):
+    env.worker(profile)
+    env.install(EMB16, models["vlm"])
+    env.install("llamacpp-vulkan", kind="pack")
+    params = env.job_params(models=models)
+    pf = env.preflight("job.start", params)
+    fix = next(f for b in pf["blockers"] for f in b["fixes"] if f["id"] == alt_key)
+    assert fix["type"] == "choose_alternative" and fix["payload"]["patch"]
+    patched = {**params, "models": {**models, **fix["payload"]["patch"]}}
+    pf2 = env.preflight("job.start", patched)
+    assert pf2["ready"] is True, pf2["blockers"]
