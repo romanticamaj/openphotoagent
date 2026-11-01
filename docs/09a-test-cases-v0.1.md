@@ -116,6 +116,8 @@
 | CORE-THR-015 | 單調性 | Hypothesis：固定其他輸入，只提高 `p_top1` | decision 不會從 accepted 變回 needs_review／other | P | #45 |
 | CORE-THR-016 | 完整性：每張照片恰一個結果 | Hypothesis：任意分數向量（含 NaN、空類別、全 0） | 恰一個 decision ∈ {accepted, other, needs_review}；NaN 視為 0 並設 `flags=["nan_score"]`；**沒有照片被漏掉** | P | #41 |
 | CORE-THR-017 | 只重套門檻 = 純函式重算 | 已存 `stages`（各層 top-k），改 thresholds | 結果與「重新推論後判定」一致；不需任何 backend 呼叫 | U | #46 |
+| CORE-THR-018 | accept 是 embedding 快速路徑的最終閘門（ADR-0001） | `p_top1=0.86, margin=0.22`、3 張範例；`thresholds.accept=0.90` | route=accept 但 0.86 < 0.90 → `needs_review`（low_confidence）；不需重新推論 | U | #45、#46 |
+| CORE-THR-019 | conflict 低於 floor 仍交人工（ADR-0001） | E=food 0.9、V=pets 0.6 → p=0.48 | `needs_review`、reason=`conflict`、category=pets（不是 other） | U | #45、#49 |
 
 ### 1.4 CORE-SM：狀態機（02 §4.2 Job、06 §5.3 Operation、02 §3.2 output_plan）
 

@@ -709,6 +709,8 @@ def class_scores(img_vec, txt_vecs, protos, alpha):
 
 **校準**：有 golden set（§6）時對 E 段擬合溫度 `T`、對 V 段擬合 Platt scaling，存在 taxonomy 的 `calibration` 欄位；無 golden set 時用預設 `T=0.05`（SigLIP 原始 logit 尺度）【需實測】。
 
+**（ADR-0001）門檻分工**：`τ_high`、margin `m` 只決定**路由**（是否送 VLM，屬於 config_hash）；`task_config.thresholds.accept` 是所有有分數之判定的**最終閘門**（embedding 快速路徑也要 p ≥ accept 才 accepted）；VLM-only 以 `min_confidence` 判定；conflict 低於 accept 一律 needs_review（reason=conflict）。下文的 `τ_review` 即 `thresholds.accept`；`floor = max(review, min_confidence)`。只改 accept／review／min_confidence 時是純重算，不需推論。完整表格見 [DECISIONS.md ADR-0001](DECISIONS.md)。
+
 **「其他 / 不確定」**：兩種不同輸出，分開處理：
 
 - `other`：模型明確選 other，或所有類別 `p < other_policy.min_confidence`。

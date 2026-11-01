@@ -91,3 +91,20 @@ def test_core_thr_017_reapply_thresholds_is_pure_recompute():
     fresh = decide(emb=Stage(stages["emb"]), vlm=VlmResult(**stages["vlm"]), n_examples=2, policy=loose)
     assert redecide(stages, loose) == fresh
     assert redecide(stages, strict).decision == "needs_review" and fresh.decision == "accepted"
+
+
+@pytest.mark.unit
+@pytest.mark.tc("CORE-THR-018")
+def test_core_thr_018_accept_gates_embedding_fast_path():
+    emb = Stage({"food": 0.86, "pets": 0.64})
+    assert decide(emb=emb, n_examples=3).decision == "accepted"
+    o = decide(emb=emb, n_examples=3, policy=Policy(accept=0.90))
+    assert (o.decision, o.reason, o.category) == ("needs_review", "low_confidence", "food")
+
+
+@pytest.mark.unit
+@pytest.mark.tc("CORE-THR-019")
+def test_core_thr_019_conflict_below_floor_still_reviewed():
+    o = decide(emb=Stage({"food": 0.9, "pets": 0.1}), vlm=VlmResult("pets", 0.6), n_examples=3)
+    assert o.confidence == pytest.approx(0.48)
+    assert (o.decision, o.reason, o.category) == ("needs_review", "conflict", "pets")
