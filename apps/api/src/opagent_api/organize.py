@@ -265,7 +265,7 @@ def _plan_sidecars(
             "file": posixpath.basename(a.dst_rel),
             "source": a.src_rel,
             "content_hash": a.src_hash,
-            "taken_at": to_aware(r.taken_at, r.taken_at_offset_min).isoformat()  # the photo's own clock
+            "taken_at": (to_aware(r.taken_at, r.taken_at_offset_min) or r.taken_at).isoformat()  # the photo's clock
             if r is not None and r.taken_at
             else None,
             "date_source": a.date_source,

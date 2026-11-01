@@ -15,3 +15,4 @@
 | B-8 | 帳號 | GitHub org、PyPI、npm 名稱與 `openphotoagent.org` 網域註冊（11 D-7） | 套件發佈、bundle id | 盡快註冊 | v0.1-D |
 | B-9 | 發版 | 每個里程碑的 release-please Release PR 合併、tag 與 GitHub Release | 版本發佈 | 雲端 session 不能 push tag；由使用者合併 Release PR | 每個里程碑 |
 | B-10 | 帳號 | `registry-pin.yml` 需要的 GitHub App token（bot PR 才會觸發 CI）；第一次執行該 workflow 並審閱、合併 `chore(registry): pin …` PR（ADR-0002） | 內建模型的 size／sha256 釘選；INF-REG-013 release gate | 建立 GitHub App、設定 secret，觸發 workflow 後人工審閱 diff 再合併 | v0.1-C、v0.1-D |
+| B-11 | 參考機手動驗證 | v0.1-C 的介面在參考機（Windows 11、RTX 5070 Ti 16GB）走一遍：歡迎精靈的硬體結論與推薦組合、真實下載（需 B-10 釘選）、整理（依日期／依內容）、待確認、搜尋、Lightbox、環境檢查；並確認視覺快照在 Windows 字型渲染下的差異只當參考（基準以 Linux Chromium 為準） | 真模型路徑與實機畫面的驗收 | 雲端以 FakeBackend 與合成 hw profile 驗證，步驟見 1C PR 的「需要人工驗證」 | v0.1-C |

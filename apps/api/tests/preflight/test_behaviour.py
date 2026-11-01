@@ -122,6 +122,7 @@ def test_pf_083_alternatives_lead_to_ready(env, profile, models, alt_key):
     assert pf2["ready"] is True, pf2["blockers"]
 
 
+@pytest.mark.integration
 @pytest.mark.perf
 @pytest.mark.tc("PF-075")
 def test_pf_075_cached_preflight_p95(env):

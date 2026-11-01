@@ -13,6 +13,8 @@ for (const scheme of ["light", "dark"] as const) {
       const problems: string[] = [];
       for (const r of ROUTES) {
         await r.open(page, stack, lang);
+        // contrast is measured on the final frame, not mid fade-in
+        await page.waitForFunction(() => document.getAnimations().every((a) => a.playState !== "running"));
         const res = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"]).analyze();
         for (const v of res.violations.filter((x) => x.impact === "serious" || x.impact === "critical")) {
           problems.push(`${r.name}: ${v.id} (${v.impact}) ${v.nodes.slice(0, 3).map((n) => n.target.join(" ")).join(" | ")}`);

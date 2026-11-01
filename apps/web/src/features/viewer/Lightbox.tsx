@@ -91,7 +91,7 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
     <div ref={dialog} role="dialog" aria-modal="true" aria-label={t("lightbox.label")} tabIndex={-1} className="lightbox" onKeyDown={onKey} data-testid="lightbox">
       <div className="col-span-1 flex items-center gap-2 px-3">
         <button type="button" onClick={close} className="rounded-[var(--radius-sm)] px-2 py-1 hover:bg-[var(--surface-2)]">{t("lightbox.close")}</button>
-        <span aria-live="polite" className="tnum text-[var(--text-muted)]" data-testid="lightbox-position">{position}</span>
+        <span aria-live="polite" className="tnum text-[var(--text)]" data-testid="lightbox-position">{position}</span>
         <span className="flex-1" />
         <button type="button" onClick={() => setScale((s) => Math.max(1, s / 1.5))} aria-label={t("lightbox.zoomOut")} className="px-2">−</button>
         <button type="button" onClick={() => setScale((s) => Math.min(8, s * 1.5))} aria-label={t("lightbox.zoomIn")} className="px-2">+</button>
