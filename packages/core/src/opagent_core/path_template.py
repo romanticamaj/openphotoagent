@@ -233,7 +233,9 @@ def render(
         keep = MAX_SEGMENT_BYTES - len(ext.encode("utf-8"))
         segs[-1] = truncate_bytes(last[: len(last) - len(ext)], keep) + ext
     segs = [truncate_bytes(x, MAX_SEGMENT_BYTES) for x in segs]
-    return RenderResult(rel="/".join(segs), date_source=source if tpl.uses_date else None)
+    rel = "/".join(segs)
+    key = unicodedata.normalize("NFC", rel).casefold()
+    return RenderResult(rel=rel, date_source=source if tpl.uses_date else None, casefold_key=key)
 
 
 def _tag_value(values: RenderValues, prefix: str) -> str | None:
