@@ -32,7 +32,7 @@ dev = [
 ]
 
 [tool.pytest.ini_options]
-addopts = "-p no:cacheprovider --allow-hosts=127.0.0.1,localhost,::1 -m 'not real_model and not gpu and not perf'"
+addopts = "-p no:cacheprovider --import-mode=importlib --allow-hosts=127.0.0.1,localhost,::1 -m 'not real_model and not gpu and not perf'"
 testpaths = ["packages", "apps", "tests", "tools"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
