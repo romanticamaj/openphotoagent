@@ -487,6 +487,7 @@ class WorkerAgent:
             "error_code": res.error_code,
             "warnings": res.warnings,
             "installed": res.installed,
+            "waiting_reason": res.waiting_reason,
         }
 
     def _do_fix(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
