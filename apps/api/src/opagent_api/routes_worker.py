@@ -20,7 +20,7 @@ from opagent_db.schema import (
     worker_task,
 )
 from pydantic import BaseModel
-from sqlalchemy import func, insert, or_, select, text, update
+from sqlalchemy import false, func, insert, or_, select, text, true, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from . import organize
@@ -96,8 +96,9 @@ def register(body: RegisterIn, req: Request) -> dict[str, str]:
         after = {r["check_id"]: r["status"] for r in body.doctor_results}
         changed = sorted(k for k in after if k in before and before[k] != after[k])
         # leases held by any other process of this worker are orphaned (restart, crash, kill -9)
+        new_process = body.boot_id is None or prev.get("boot_id") != body.boot_id
         _recover_downloads(c, st, body.worker_id, body.boot_id)
-        _recover_jobs(c, st, body.worker_id, body.boot_id)
+        _recover_jobs(c, st, body.worker_id, body.boot_id, interrupt_running=new_process and bool(prev))
         if changed:  # preflight results depending on these checks must be recomputed (DOC-019)
             c.execute(
                 insert(event).values(kind="doctor.changed", payload={"worker_id": body.worker_id, "checks": changed})
@@ -136,7 +137,11 @@ def _recover_downloads(c: Any, st: AppState, worker_id: str, boot: str | None = 
             worker_task.c.worker_id == worker_id,
             worker_task.c.kind == "download",
             worker_task.c.status == "leased",
-            or_(boot is None, worker_task.c.lease_boot.is_(None), worker_task.c.lease_boot != boot),
+            or_(
+                true() if boot is None else false(),
+                worker_task.c.lease_boot.is_(None),
+                worker_task.c.lease_boot != boot,
+            ),
         )
     ).all()
     for (tid,) in rows:
@@ -154,7 +159,9 @@ def _recover_downloads(c: Any, st: AppState, worker_id: str, boot: str | None = 
         )
 
 
-def _recover_jobs(c: Any, st: AppState, worker_id: str, boot: str | None = None) -> None:
+def _recover_jobs(
+    c: Any, st: AppState, worker_id: str, boot: str | None = None, interrupt_running: bool = False
+) -> None:
     """Items the previous process had leased are lost: give them back and pause their jobs as interrupted, so the
     person sees what stopped and continues it (06 §5.3 interrupted, invariant 9; OP-006)."""
     from opagent_db.schema import job_item
@@ -165,13 +172,24 @@ def _recover_jobs(c: Any, st: AppState, worker_id: str, boot: str | None = None)
         select(job_item.c.id, job_item.c.job_id).where(
             job_item.c.lease_owner == worker_id,
             job_item.c.status.in_(("leased", "running")),
-            or_(boot is None, job_item.c.lease_boot.is_(None), job_item.c.lease_boot != boot),
+            or_(true() if boot is None else false(), job_item.c.lease_boot.is_(None), job_item.c.lease_boot != boot),
         )
     ).all()
-    if not rows:
-        return
-    q.release(c, worker_id, [r.id for r in rows])
-    for jid in sorted({r.job_id for r in rows}):
+    jobs = {r.job_id for r in rows}
+    if rows:
+        q.release(c, worker_id, [r.id for r in rows])
+    if interrupt_running:  # a new process: its running jobs stopped with the old one, leased or not
+        from opagent_db.schema import source
+
+        jobs |= {
+            j
+            for (j,) in c.execute(
+                select(job.c.id)
+                .join(source, source.c.id == job.c.params["source_id"].astext)
+                .where(job.c.status == "running", source.c.worker_id == worker_id)
+            )
+        }
+    for jid in sorted(jobs):
         status = c.execute(select(job.c.status).where(job.c.id == jid)).scalar()
         if status != "running":
             continue
@@ -368,7 +386,9 @@ def task_progress(task_id: str, body: ProgressIn, req: Request) -> dict[str, Any
         op = c.execute(select(operation.c.status).where(operation.c.id == task_id)).first()
         op_status = op.status if op else None
         if body.progress is not None and op is not None:
-            c.execute(update(operation).where(operation.c.id == task_id).values(progress=body.progress))
+            keep = c.execute(select(operation.c.progress).where(operation.c.id == task_id)).scalar() or {}
+            sticky = {k: keep[k] for k in ("auto_resumed",) if k in keep}  # 「已自動繼續」 outlives new progress
+            c.execute(update(operation).where(operation.c.id == task_id).values(progress={**body.progress, **sticky}))
         if body.waiting_reason:
             set_op_status(c, st.clock, task_id, "waiting", body.waiting_reason)
             if body.waiting_reason == "SOURCE_OFFLINE" and t.payload.get("source_id"):

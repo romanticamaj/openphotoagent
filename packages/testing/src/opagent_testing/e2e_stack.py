@@ -121,8 +121,12 @@ class Stack:
                 # the worker reports its measured speed, as after a load benchmark (06 §5.9 basis=observed)
                 self.worker.client.post(
                     "/worker-api/v1/observations",
-                    json={"worker_id": "local", "kind": "items_per_s", "key": "vlm",
-                          "value": 1 / max(float(body["vlm_latency_s"]), 1e-3)},
+                    json={
+                        "worker_id": "local",
+                        "kind": "items_per_s",
+                        "key": "vlm",
+                        "value": 1 / max(float(body["vlm_latency_s"]), 1e-3),
+                    },
                 )
             if "apply_throttle_s" in body:
                 self.worker.apply_throttle_s = float(body["apply_throttle_s"])

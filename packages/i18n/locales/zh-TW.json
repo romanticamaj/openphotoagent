@@ -3,7 +3,8 @@
     "title": "OpenPhotoAgent"
   },
   "common": {
-    "working": "處理中…"
+    "working": "處理中…",
+    "percent": "{n}%"
   },
   "organize": {
     "pickFolder": "選擇要整理的資料夾",
@@ -113,7 +114,7 @@
       "cta": "查看詳情"
     },
     "WORKER_OFFLINE": {
-      "text": "Worker 離線，重新連線後自動繼續",
+      "text": "本機引擎離線，重新連線後自動繼續",
       "cta": "重新連線"
     },
     "DISK_INSUFFICIENT_OUTPUT": {
@@ -194,7 +195,20 @@
       "output.apply": "套用",
       "output.undo": "復原",
       "search.reindex": "建立搜尋索引"
-    }
+    },
+    "open": "活動",
+    "resume": "繼續",
+    "cancel": "取消",
+    "autoResumed": "已自動繼續",
+    "recoveryTitle": "上次有 {n} 個工作被中斷",
+    "resumeAll": "全部繼續",
+    "review": "逐一檢視",
+    "cancelTitle": "取消這個工作？",
+    "graceful": "等目前批次完成後取消",
+    "immediate": "立即中止",
+    "discard": "會丟掉目前這批 {n} 張的結果（約 {time} 工作量）",
+    "confirmImmediate": "確定中止",
+    "keep": "繼續執行"
   },
   "fix": {
     "hf_token": "新增 Hugging Face token",
@@ -378,5 +392,60 @@
     "createPlan": "建立計畫",
     "updated": "已更新 {n} 張",
     "cancel": "取消"
+  },
+  "compat": {
+    "ok": "可用",
+    "degraded": "不建議",
+    "blocked": "不可用",
+    "unknown": "未檢查"
+  },
+  "models": {
+    "title": "模型",
+    "name": "名稱",
+    "kind": "類型",
+    "status": "相容性",
+    "license": "授權：{spdx}",
+    "capabilities": "能力：{list}",
+    "variants": "版本",
+    "size": "大小 {size}",
+    "estimated": "（估算）",
+    "vram": "VRAM {gb} GB",
+    "ram": "RAM {gb} GB",
+    "speed": "速度 {lo}–{hi} 張/秒",
+    "speedEstimated": "估算",
+    "speedObserved": "實測",
+    "installed": {
+      "none": "未下載",
+      "installed": "已安裝",
+      "downloading": "下載中"
+    },
+    "back": "回到模型清單"
+  },
+  "readiness": {
+    "title": "準備狀態",
+    "ready": "已就緒，可以開始",
+    "autoStart": "就緒後自動開始",
+    "model": "模型"
+  },
+  "doctor": {
+    "title": "環境檢查",
+    "summary": "{ok} 正常 · {warn} 注意 · {fail} 需處理",
+    "fail": "需處理",
+    "warn": "注意",
+    "ok": "正常",
+    "skip": "略過",
+    "recheck": "重新檢查"
+  },
+  "settings": {
+    "title": "設定",
+    "language": "語言",
+    "theme": "外觀",
+    "themeSystem": "跟隨系統",
+    "themeLight": "淺色",
+    "themeDark": "深色",
+    "engine": "本機引擎",
+    "folders": "照片資料夾",
+    "readOnly": "唯讀",
+    "writable": "可寫入"
   }
 }

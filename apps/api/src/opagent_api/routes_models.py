@@ -128,7 +128,7 @@ def _variant_view(m: LoadedModel, vid: str, ctx: dict[str, Any]) -> dict[str, An
         "size_bytes": size,
         "size_estimated": not exact,
         "vram_gb": v.vram_gb.model_dump(),
-        "ram_gb": v.ram_gb,
+        "ram_gb": v.ram_gb if v.ram_gb is not None else getattr(v.requires, "min_ram_gb", None),
         "compat": cd,
         "fits_now": cd["fits_now"],  # legacy field (03 §7.3, MDL-012)
         "installation": {"id": inst.id, "status": inst.status, "size_bytes": inst.size_bytes} if inst else None,
@@ -495,7 +495,7 @@ def job_vlm_key(c: Any, st: AppState, worker_id: str) -> str | None:
         k for k in ctx["inst"] if reg.models.get(k.split("@")[0]) and reg.models[k.split("@")[0]].spec.kind == "vlm"
     ]
     if keys:
-        return sorted(keys)[0]
+        return str(sorted(keys)[0])
     for (k,) in c.execute(
         select(operation.c.subject["id"].astext)
         .where(operation.c.type == "model.download", operation.c.worker_id == worker_id)
@@ -504,4 +504,5 @@ def job_vlm_key(c: Any, st: AppState, worker_id: str) -> str | None:
         m = reg.models.get(str(k).split("@")[0])
         if m is not None and m.spec.kind == "vlm":
             return str(k)
-    return recommend(reg, ctx["hw"]).vlm
+    vlm = recommend(reg, ctx["hw"]).vlm
+    return str(vlm) if vlm else None

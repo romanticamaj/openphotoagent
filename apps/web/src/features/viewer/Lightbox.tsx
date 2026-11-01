@@ -249,7 +249,7 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
             {l.confidence !== null && (
               <>
                 <dt className="text-[var(--text-muted)]">{t("lightbox.ai.confidence")}</dt>
-                <dd className="tnum">{Math.round(l.confidence * 100)}%</dd>
+                <dd className="tnum">{t("common.percent", { n: Math.round(l.confidence * 100) })}</dd>
               </>
             )}
             <dt className="text-[var(--text-muted)]">{t("lightbox.ai.layer")}</dt>

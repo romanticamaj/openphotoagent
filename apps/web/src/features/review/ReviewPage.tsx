@@ -64,6 +64,7 @@ export function ReviewPage({ jobId }: { jobId: string }) {
   if (list.isSuccess && !cur) {
     return (
       <section className="space-y-4 p-8">
+        <h1 className="text-lg font-semibold">{t("review.title")}</h1>
         <p>{t("review.none")}</p>
         {job.data?.plan_id && (
           <Button onClick={() => void nav({ to: "/plans/$planId", params: { planId: job.data!.plan_id! } })}>{t("review.backToPlan")}</Button>

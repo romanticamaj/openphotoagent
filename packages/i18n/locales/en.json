@@ -3,7 +3,8 @@
     "title": "OpenPhotoAgent"
   },
   "common": {
-    "working": "Working…"
+    "working": "Working…",
+    "percent": "{n}%"
   },
   "organize": {
     "pickFolder": "Choose a folder to organize",
@@ -113,7 +114,7 @@
       "cta": "View details"
     },
     "WORKER_OFFLINE": {
-      "text": "Worker offline; resumes automatically on reconnect",
+      "text": "Local engine offline; resumes automatically on reconnect",
       "cta": "Reconnect"
     },
     "DISK_INSUFFICIENT_OUTPUT": {
@@ -194,7 +195,20 @@
       "output.apply": "Applying",
       "output.undo": "Undoing",
       "search.reindex": "Building search index"
-    }
+    },
+    "open": "Activity",
+    "resume": "Resume",
+    "cancel": "Cancel",
+    "autoResumed": "Resumed automatically",
+    "recoveryTitle": "{n} tasks were interrupted last time",
+    "resumeAll": "Resume all",
+    "review": "Review one by one",
+    "cancelTitle": "Cancel this task?",
+    "graceful": "Cancel after the current batch",
+    "immediate": "Stop now",
+    "discard": "Discards the results of the current batch of {n} photos (about {time} of work)",
+    "confirmImmediate": "Stop now anyway",
+    "keep": "Keep running"
   },
   "fix": {
     "hf_token": "Add Hugging Face token",
@@ -378,5 +392,60 @@
     "createPlan": "Create plan",
     "updated": "{n} photos updated",
     "cancel": "Cancel"
+  },
+  "compat": {
+    "ok": "Compatible",
+    "degraded": "Not recommended",
+    "blocked": "Not usable",
+    "unknown": "Not checked"
+  },
+  "models": {
+    "title": "Models",
+    "name": "Name",
+    "kind": "Type",
+    "status": "Compatibility",
+    "license": "Licence: {spdx}",
+    "capabilities": "Capabilities: {list}",
+    "variants": "Variants",
+    "size": "Size {size}",
+    "estimated": "(estimate)",
+    "vram": "VRAM {gb} GB",
+    "ram": "RAM {gb} GB",
+    "speed": "Speed {lo}–{hi} photos/s",
+    "speedEstimated": "estimate",
+    "speedObserved": "measured",
+    "installed": {
+      "none": "Not downloaded",
+      "installed": "Installed",
+      "downloading": "Downloading"
+    },
+    "back": "Back to models"
+  },
+  "readiness": {
+    "title": "Readiness",
+    "ready": "Ready — you can start",
+    "autoStart": "Start automatically when ready",
+    "model": "Model"
+  },
+  "doctor": {
+    "title": "System check",
+    "summary": "{ok} OK · {warn} attention · {fail} need action",
+    "fail": "Needs action",
+    "warn": "Attention",
+    "ok": "OK",
+    "skip": "Skipped",
+    "recheck": "Check again"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "theme": "Appearance",
+    "themeSystem": "Follow the system",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "engine": "Local engine",
+    "folders": "Photo folders",
+    "readOnly": "read-only",
+    "writable": "writable"
   }
 }

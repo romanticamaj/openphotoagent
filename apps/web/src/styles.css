@@ -291,3 +291,23 @@ body {
     animation: fade-in 100ms linear;
   }
 }
+
+/* Activity Center drawer (06 §6.1) */
+.activity-center {
+  position: fixed;
+  top: 48px;
+  right: 0;
+  bottom: 0;
+  z-index: 45;
+  width: 420px;
+  overflow: auto;
+  padding: 16px;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+}
+.activity-center li {
+  display: grid;
+  gap: 4px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}

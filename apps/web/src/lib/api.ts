@@ -72,6 +72,35 @@ export type SearchBody = {
 export type SearchHit = { asset_id: string; score: number; matched_by: string[]; category: string | null; tags: string[]; caption: string | null; taken_at: string | null };
 export type SearchResult = { items: SearchHit[]; facets: Record<string, Record<string, number>>; next_cursor: string | null; total: number; degraded: boolean };
 
+export type VariantView = {
+  id: string;
+  key: string;
+  runtime: string;
+  size_bytes: number;
+  size_estimated: boolean;
+  vram_gb: { weights?: number; mmproj?: number; runtime_overhead?: number };
+  ram_gb: number | null;
+  compat: { level: string; reasons: Array<{ code: string; params?: Record<string, unknown> }> };
+  installation: { id: string; status: string } | null;
+  perf: { basis: string; prior: { items_per_s?: Record<string, [number, number]> } | null };
+};
+export type ModelView = {
+  id: string;
+  display_name: string;
+  kind: string;
+  capabilities: string[];
+  license: { spdx: string };
+  best_variant: string | null;
+  variants: VariantView[];
+};
+export type Preflight = {
+  ready: boolean;
+  blockers: Array<{ code: string; params: Record<string, unknown>; fixes?: Array<{ id?: string; type: string }> }>;
+  warnings: unknown[];
+  models?: Array<{ role: string; key: string; compat: VariantView["compat"] }>;
+  revalidate_on?: string[];
+};
+
 export type Root = { worker_id: string; alias: string; mode: "ro" | "rw" };
 export type Job = {
   id: string;
@@ -142,6 +171,17 @@ export const api = {
   selectionLabels: (id: string, body: { category?: string; tags?: string[] }) => req<{ updated: number }>("POST", `/selections/${id}/labels`, body),
   selectionOrganize: (id: string, target: { root_alias: string; sub_path: string }) =>
     req<{ plan_id: string; job_id: string }>("POST", `/selections/${id}/organize`, { target }),
+  models: (worker_id: string) => req<{ items: ModelView[] }>("GET", `/models?worker_id=${encodeURIComponent(worker_id)}`),
+  model: (id: string, worker_id: string) => req<ModelView>("GET", `/models/${encodeURIComponent(id)}?worker_id=${encodeURIComponent(worker_id)}`),
+  preflightFull: (action: string, params: Record<string, unknown>) => req<Preflight>("POST", "/preflight", { action, params }),
+  resumeOp: (id: string) => req<unknown>("POST", `/operations/${encodeURIComponent(id)}/resume`),
+  cancelOp: (id: string) => req<unknown>("POST", `/operations/${encodeURIComponent(id)}/cancel`),
+  cancelJobMode: (id: string, mode: "graceful" | "immediate", confirm = false) => req<Job>("POST", `/jobs/${id}/cancel`, { mode, confirm }),
+  doctor: (worker_id: string) =>
+    req<{ results: Array<{ check_id: string; status: string; code: string | null; params: Record<string, unknown>; fixes: Array<{ id?: string; type: string }> }> }>(
+      "GET",
+      `/system/doctor?worker_id=${encodeURIComponent(worker_id)}`,
+    ),
   buckets: () => req<{ buckets: Array<{ month: string; count: number }> }>("GET", "/timeline/buckets"),
   bucket: (month: string) => req<{ month: string; assets: TimelineAsset[] }>("GET", `/timeline/buckets/${month}`),
   asset: (id: string) => req<AssetInfo>("GET", `/assets/${encodeURIComponent(id)}`),

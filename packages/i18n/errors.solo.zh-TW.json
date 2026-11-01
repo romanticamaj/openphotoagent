@@ -1,0 +1,19 @@
+{
+  "EGRESS_POLICY_BLOCKS": {
+    "message": "此圖庫的隱私設定不允許把影像送到外部服務",
+    "title": "此圖庫的隱私設定不允許把影像送到外部服務"
+  },
+  "FS_ROOT_NOT_ALLOWED": {
+    "message": "「{path}」不在本機引擎允許的資料夾內",
+    "title": "「{path}」不在本機引擎允許的資料夾內"
+  },
+  "WORKER_OFFLINE": {
+    "message": "本機引擎「{name}」已離線 {duration}，需要它的功能暫停",
+    "title": "本機引擎「{name}」已離線 {duration}"
+  },
+  "WORKER_VERSION_MISMATCH": {
+    "cta": "更新本機引擎",
+    "message": "本機引擎版本 {w} 與伺服器 {s} 不相容",
+    "title": "本機引擎版本 {w} 與伺服器 {s} 不相容"
+  }
+}

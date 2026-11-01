@@ -1,7 +1,12 @@
 import { Link, Outlet, createRootRoute, createRoute, createRouter, redirect } from "@tanstack/react-router";
+import { useState } from "react";
+import { ActivityButton, ActivityDrawer, RecoveryCard } from "./features/activity/ActivityHost";
 import { useTranslation } from "react-i18next";
 import { OrganizeWizard } from "./features/organize/OrganizeWizard";
+import { ModelCard, ModelsPage } from "./features/models/ModelsPage";
 import { Welcome } from "./features/onboarding/Welcome";
+import { DoctorPage } from "./features/system/DoctorPage";
+import { SettingsPage } from "./features/system/SettingsPage";
 import { PlanPage } from "./features/organize/PlanPage";
 import { ReviewPage } from "./features/review/ReviewPage";
 import { SearchBar } from "./features/search/SearchBar";
@@ -11,10 +16,14 @@ import { api } from "./lib/api";
 
 function Shell() {
   const { t } = useTranslation();
+  const [activity, setActivity] = useState(false);
   const nav: Array<[string, string]> = [
     ["/", "nav.photos"],
     ["/organize", "nav.organize"],
     ["/review", "nav.review"],
+    ["/models", "nav.models"],
+    ["/system/doctor", "nav.doctor"],
+    ["/settings", "nav.settings"],
   ];
   return (
     <div className="shell">
@@ -22,6 +31,7 @@ function Shell() {
         <strong>{t("app.title")}</strong>
         <SearchBar />
         <span className="text-xs text-[var(--text-muted)]">🔒 {t("nav.local")}</span>
+        <ActivityButton onToggle={() => setActivity(!activity)} />
       </header>
       <nav className="sidenav" aria-label={t("nav.label")}>
         {nav.map(([to, key]) => (
@@ -31,8 +41,10 @@ function Shell() {
         ))}
       </nav>
       <main className="page" id="main">
+        <RecoveryCard onReview={() => setActivity(true)} />
         <Outlet />
       </main>
+      <ActivityDrawer open={activity} setOpen={setActivity} />
     </div>
   );
 }
@@ -65,6 +77,17 @@ const reviewRoute = createRoute({
     return <ReviewPage jobId={job} />;
   },
 });
+const modelsRoute = createRoute({ getParentRoute: () => root, path: "/models", component: ModelsPage });
+const modelRoute = createRoute({
+  getParentRoute: () => root,
+  path: "/models/$modelId",
+  component: function ModelRoute() {
+    const { modelId } = modelRoute.useParams();
+    return <ModelCard modelId={modelId} />;
+  },
+});
+const doctorRoute = createRoute({ getParentRoute: () => root, path: "/system/doctor", component: DoctorPage });
+const settingsRoute = createRoute({ getParentRoute: () => root, path: "/settings", component: SettingsPage });
 const welcome = createRoute({ getParentRoute: () => root, path: "/welcome", component: Welcome });
 const search = createRoute({
   getParentRoute: () => root,
@@ -85,7 +108,7 @@ const organize = createRoute({
   ),
 });
 
-export const router = createRouter({ routeTree: root.addChildren([photos, welcome, organize, plan, reviewRoute, search]) });
+export const router = createRouter({ routeTree: root.addChildren([photos, welcome, organize, plan, reviewRoute, search, modelsRoute, modelRoute, doctorRoute, settingsRoute]) });
 
 declare module "@tanstack/react-router" {
   interface Register {

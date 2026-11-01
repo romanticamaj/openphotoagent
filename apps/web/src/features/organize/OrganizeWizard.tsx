@@ -5,7 +5,9 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Button } from "../../components/Button";
+import { Button, type DisabledReason } from "../../components/Button";
+import { CompatBadge } from "../../components/CompatBadge";
+import { useServerEvents } from "../../lib/events";
 import { FolderPicker } from "../../components/FolderPicker";
 import { ProblemCard, type Problem } from "../../components/ProblemCard";
 import { ApiError, api, mediaUrl, type Category, type Job, type PreviewItem } from "../../lib/api";
@@ -33,6 +35,14 @@ export function OrganizeWizard() {
   const [thresholds, setThresholds] = useState({ accept: 0.85, review: 0.5 });
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [running, setRunning] = useState<Job | null>(null);
+  const [gate, setGate] = useState<DisabledReason | null>(null);
+  const [autoStart, setAutoStart] = useState(false);
+  const [announce, setAnnounce] = useState("");
+  const live = (
+    <p data-testid="readiness-live" aria-live="polite" className="text-sm">
+      {announce}
+    </p>
+  );
   const roots = useQuery({ queryKey: ["roots"], queryFn: api.roots });
   const target = (roots.data ?? []).find((r) => r.mode === "rw" && r.alias !== folder?.root) ?? (roots.data ?? []).find((r) => r.mode === "rw");
   const preset = useQuery({
@@ -90,7 +100,12 @@ export function OrganizeWizard() {
 
   // a running job: progress, waiting reason, pending reviews
   if (running && (create.isPending || (running.reviews_pending ?? 0) > 0)) {
-    return <JobProgress job={running} onSkipped={(planId) => void nav({ to: "/plans/$planId", params: { planId } })} />;
+    return (
+      <>
+        {live}
+        <JobProgress job={running} onSkipped={(planId) => void nav({ to: "/plans/$planId", params: { planId } })} />
+      </>
+    );
   }
 
   const methodReason = !method
@@ -99,9 +114,11 @@ export function OrganizeWizard() {
       ? { code: "FS_NOT_WRITABLE", message: t("organize.noWritableTarget") }
       : null;
   const busy = startPreview.isPending || create.isPending ? { code: "BUSY", message: t("common.working") } : null;
+  const contentGate = method && method !== "by-date" ? gate : null;
 
   return (
     <section className="space-y-6">
+      {live}
       <fieldset className="space-y-2">
         <legend className="text-lg font-semibold">{t("organize.method")}</legend>
         {(
@@ -152,24 +169,6 @@ export function OrganizeWizard() {
         />
       )}
 
-      <div className="flex gap-3">
-        {method === "by-date" ? (
-          <Button disabledReason={methodReason ?? busy} onClick={() => create.mutate()}>
-            {t("organize.preview")}
-          </Button>
-        ) : (
-          <>
-            <Button disabledReason={methodReason ?? busy} onClick={() => startPreview.mutate()}>
-              {t("organize.preview")}
-            </Button>
-            <Button variant="ghost" disabledReason={methodReason ?? busy} onClick={() => create.mutate()}>
-              {t("organize.createPlan")}
-            </Button>
-          </>
-        )}
-      </div>
-      {(create.error || startPreview.error) && <Blockers error={create.error ?? startPreview.error} />}
-
       {previewId && method !== "by-date" && (
         <PreviewPanel
           previewId={previewId}
@@ -180,6 +179,98 @@ export function OrganizeWizard() {
           setThresholds={setThresholds}
           lang={i18n.language}
         />
+      )}
+
+      {method && method !== "by-date" && folder && target && (
+        <Readiness
+          params={{ kind: "organize", preset: method, source_id: folder.source, target: { root_alias: target.alias, sub_path: "" } }}
+          onGate={setGate}
+          autoStart={autoStart}
+          setAutoStart={setAutoStart}
+          onReady={() => {
+            setAnnounce(t("readiness.ready"));
+            if (autoStart && !create.isPending) create.mutate();
+          }}
+        />
+      )}
+
+      <div className="flex gap-3">
+        {method === "by-date" ? (
+          <Button disabledReason={methodReason ?? busy} onClick={() => create.mutate()}>
+            {t("organize.preview")}
+          </Button>
+        ) : (
+          <>
+            <Button disabledReason={methodReason ?? contentGate ?? busy} onClick={() => startPreview.mutate()}>
+              {t("organize.preview")}
+            </Button>
+            <Button variant="ghost" disabledReason={methodReason ?? contentGate ?? busy} onClick={() => create.mutate()}>
+              {t("organize.createPlan")}
+            </Button>
+          </>
+        )}
+      </div>
+      {(create.error || startPreview.error) && <Blockers error={create.error ?? startPreview.error} />}
+
+
+    </section>
+  );
+}
+
+/** ReadinessChecklist (06 §6.3): the models this job would use with their CompatBadge, the first blocker as the
+ * buttons' reason, and automatic re-check when a download finishes (PF-077). */
+function Readiness({
+  params,
+  onGate,
+  autoStart,
+  setAutoStart,
+  onReady,
+}: {
+  params: Record<string, unknown>;
+  onGate: (g: DisabledReason | null) => void;
+  autoStart: boolean;
+  setAutoStart: (v: boolean) => void;
+  onReady: () => void;
+}) {
+  const { t } = useTranslation();
+  const pf = useQuery({
+    queryKey: ["preflight", "job.start", params],
+    queryFn: () => api.preflightFull("job.start", params),
+    // SSE is the trigger; a slow poll covers a dropped connection
+    refetchInterval: (q) => (q.state.data && !q.state.data.ready ? 5000 : false),
+  });
+  useServerEvents(["model.installed", "doctor.changed"], () => void pf.refetch());
+  const wasBlocked = useRef(false);
+  const blocker = pf.data?.blockers[0];
+  useEffect(() => {
+    if (!pf.data) return;
+    if (blocker) {
+      wasBlocked.current = true;
+      onGate({ code: blocker.code, message: t(`errors.${blocker.code}.message`, { ...blocker.params, defaultValue: blocker.code }) });
+    } else {
+      onGate(null);
+      if (wasBlocked.current) {
+        wasBlocked.current = false;
+        onReady();
+      }
+    }
+  }, [pf.data]);
+  return (
+    <section data-testid="readiness" aria-label={t("readiness.title")} className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border)] p-3">
+      <h2 className="text-sm font-semibold">{t("readiness.title")}</h2>
+      <ul>
+        {(pf.data?.models ?? []).map((m) => (
+          <li key={m.key} data-testid={`model-${m.key}`} className="flex items-center gap-3 text-sm">
+            <span>{t("readiness.model")}: {m.key}</span>
+            <CompatBadge compat={m.compat} />
+          </li>
+        ))}
+      </ul>
+      {blocker && (
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={autoStart} onChange={(e) => setAutoStart(e.target.checked)} />
+          {t("readiness.autoStart")}
+        </label>
       )}
     </section>
   );
@@ -228,7 +319,7 @@ function PreviewPanel({
             <img src={mediaUrl(it.asset_id, "t256")} alt="" className="aspect-square w-full rounded-[var(--radius-photo)] object-cover" />
             <figcaption className="text-xs">
               <span>{it.decision === "other" ? names.get("other") ?? "other" : (names.get(it.category_key) ?? it.category_key)}</span>{" "}
-              <span className="tnum text-[var(--text-muted)]">{Math.round((it.confidence ?? 0) * 100)}%</span>{" "}
+              <span className="tnum text-[var(--text-muted)]">{t("common.percent", { n: Math.round((it.confidence ?? 0) * 100) })}</span>{" "}
               <span>{t(`organize.decision.${it.decision}`, { defaultValue: it.decision })}</span>
             </figcaption>
           </figure>
@@ -253,7 +344,7 @@ function PreviewPanel({
                 .sort((a, b) => b[1] - a[1])
                 .map(([k, n]) => (
                   <li key={k} className="tnum">
-                    {names.get(k) ?? k} {n.toLocaleString(lang)} 張
+                    {names.get(k) ?? k} {t("search.count", { n: n.toLocaleString(lang) })}
                   </li>
                 ))}
             </ul>

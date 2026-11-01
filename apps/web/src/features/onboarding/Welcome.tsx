@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../../components/Button";
 import { FolderPicker } from "../../components/FolderPicker";
+import { CompatBadge } from "../../components/CompatBadge";
 import { ProblemCard, type Fix } from "../../components/ProblemCard";
 import { api, mediaUrl, type Operation, type Recommendation } from "../../lib/api";
 import { formatBytes } from "../../lib/format";
@@ -33,6 +34,13 @@ export function Welcome() {
     queryFn: () => api.recommendation(workerId!),
     enabled: Boolean(workerId) && step !== "welcome",
   });
+  const vlmKey = reco.data?.combo.variants.find((k) => !k.startsWith("siglip"));
+  const vlm = useQuery({
+    queryKey: ["model", vlmKey?.split("@")[0], workerId],
+    queryFn: () => api.model(vlmKey!.split("@")[0], workerId!),
+    enabled: Boolean(vlmKey && workerId),
+  });
+  const vlmCompat = vlm.data?.variants.find((v) => v.key === vlmKey)?.compat;
   const install = useMutation({
     mutationFn: () => api.installCombo(workerId!, reco.data!.combo.variants),
     onSuccess: () => setStep("folder"),
@@ -67,6 +75,11 @@ export function Welcome() {
         {pack && <p role="status">{t("problem.chosen", { what: t(`onboarding.plan.${runtimeOf(r, pack)}`) })}</p>}
         <article data-testid="plan-card" className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-5">
           <h2 className="text-lg font-semibold">{t(`onboarding.plan.${fastOrStd}`)}</h2>
+          {vlmKey && (
+            <p className="flex items-center gap-2 text-sm">
+              {vlm.data?.display_name ?? vlmKey} <CompatBadge compat={vlmCompat} />
+            </p>
+          )}
           <p className="tnum">
             {t("onboarding.plan.download", { size: formatBytes(r.combo.download_bytes, i18n.language), min: r.combo.download_minutes })}
           </p>

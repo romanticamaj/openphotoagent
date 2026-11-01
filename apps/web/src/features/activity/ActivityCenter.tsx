@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { groupOps, type Op } from "./model";
 import { OperationProgress } from "./OperationProgress";
@@ -10,12 +10,14 @@ export function ActivityCenter({
   onClose,
   onToggle,
   onFix,
+  actions,
 }: {
   open: boolean;
   ops: Op[];
   onClose: () => void;
   onToggle?: () => void;
   onFix?: (op: Op, fixId: string) => void;
+  actions?: (op: Op) => ReactNode;
 }) {
   const { t } = useTranslation();
   useEffect(() => {
@@ -42,6 +44,8 @@ export function ActivityCenter({
               <li key={op.id} data-op={op.id}>
                 <span>{t(`activity.type.${op.type}`, { defaultValue: op.type })}</span>
                 <OperationProgress op={op} variant="compact" />
+                {op.auto_resumed ? <span className="text-xs text-[var(--text-muted)]">{t("activity.autoResumed")}</span> : null}
+                {actions?.(op)}
                 {op.status === "failed" && op.error ? (
                   <div role="group" aria-label={t(`errors.${op.error.code}.title`, { defaultValue: op.error.code })}>
                     <p>{t(`errors.${op.error.code}.message`, { defaultValue: op.error.code })}</p>

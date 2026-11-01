@@ -118,10 +118,42 @@ def build() -> dict[str, dict[str, dict[str, str]]]:
     return {"zh-TW": zh, "en": en}
 
 
+# 08 §8.3: single-user wording. The overlay holds only the entries whose text changes.
+SOLO = {
+    "zh-TW": [(r"\s*Workspace\s*", "圖庫"), (r"\s*Worker\s*", "本機引擎")],
+    "en": [
+        (r"\bWorkspace\b", "Library"),
+        (r"\bworkspace\b", "library"),
+        (r"\bWorker\b", "Local engine"),
+        (r"\bworker\b", "local engine"),
+    ],
+}
+
+
+def solo(data: dict[str, dict[str, dict[str, str]]]) -> dict[str, dict[str, dict[str, str]]]:
+    out: dict[str, dict[str, dict[str, str]]] = {}
+    for lang, entries in data.items():
+        o: dict[str, dict[str, str]] = {}
+        for code, e in entries.items():
+            changed = {}
+            for k, v in e.items():
+                if k == "severity":
+                    continue
+                w = v
+                for a, b in SOLO[lang]:
+                    w = re.sub(a, b, w)
+                if w != v:
+                    changed[k] = w
+            if changed:
+                o[code] = changed
+        out[f"solo.{lang}"] = o
+    return out
+
+
 def main() -> int:
     data = build()
     bad = []
-    for lang, d in data.items():
+    for lang, d in {**data, **solo(data)}.items():
         text = json.dumps(d, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
         p = OUT / f"errors.{lang}.json"
         if "--check" in sys.argv:

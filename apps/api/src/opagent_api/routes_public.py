@@ -175,6 +175,9 @@ def create_job(body: JobIn, req: Request) -> dict[str, Any]:
                 params=body.model_dump(),
             )
         )
+        from .operations import ensure_operation
+
+        ensure_operation(c, st.clock, jid, "job.label", {"kind": "job", "id": jid})  # visible in Activity (OP-001)
         # never index the output folder when it lives inside the source (SCAN-024)
         inside = body.target.root_alias == s.root_alias and body.target.sub_path.strip("/")
         from .routes_viewer import scan_task
