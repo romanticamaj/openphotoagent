@@ -43,6 +43,16 @@ json_values = st.recursive(
 )
 
 
+def _nfc(v):
+    if isinstance(v, str):
+        return unicodedata.normalize("NFC", v)
+    if isinstance(v, dict):
+        return {unicodedata.normalize("NFC", k): _nfc(x) for k, x in v.items()}
+    if isinstance(v, list):
+        return [_nfc(x) for x in v]
+    return v
+
+
 def _shuffle(v, rnd):
     if isinstance(v, dict):
         items = list(v.items())
@@ -60,7 +70,7 @@ def test_core_hash_002_canonical_stable_under_reordering_and_whitespace(v, seed)
     rnd = random.Random(seed)
     reparsed = json.loads(json.dumps(_shuffle(v, rnd), indent=rnd.choice([None, 2, 4])))
     assert canonical_json(reparsed) == canonical_json(v)
-    assert json.loads(canonical_json(v)) == v  # canonical form is lossless
+    assert json.loads(canonical_json(v)) == _nfc(v)  # lossless modulo NFC (CORE-HASH-005)
 
 
 @pytest.mark.property
