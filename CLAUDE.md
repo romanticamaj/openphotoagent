@@ -186,7 +186,8 @@ just dev            # all-in-one 開發模式（api + worker + PG + web）
 | 2026-11-01 | 切片 2 core（`feat/v0.1-b`） | ✅ | CORE-TPL-001～025（含 TS 鏡像 golden 245 筆）、CORE-HASH-001～012、CORE-THR-001～017、CORE-SM-001～011、CORE-RULE-001～010；core branch 99%；path_template mutation 96.1%（等價 mutant 見 docs/mutation-equivalents.md） |
 | 2026-11-01 | 切片 3 fs-sandbox | ✅ | FS-001～026（FS-013 Windows、FS-015 macOS/Windows 由 CI OS 矩陣執行）；FS-024 fuzz 抓到超長檔名 bug 並修正 |
 | 2026-11-01 | 切片 4 executor | ✅ | OUT-EXE-001～023、OUT-JRN-001～005、OUT-CRASH-001～012（012 nightly，本機實跑 10,000 actions × 50 次 kill -9 通過）、OUT-UNDO-001～009；fs-sandbox branch 98% |
-| 2026-11-01 | 切片 5 scanner | 🟡 | SCAN-001～005、007～018、021～025 綠；SCAN-006／019／020 依賴切片 6 的 queue／Operation，於切片 6 完成；RAW fixtures 為合成 CC0 容器（raw.pixls.us 無法連線） |
+| 2026-11-01 | 切片 5 scanner | ✅ | SCAN-001～025 全綠（SCAN-006／019／020 在切片 6 補完）；RAW fixtures 為合成 CC0 容器（raw.pixls.us 無法連線） |
+| 2026-11-01 | 切片 6 queue／Operation／ETA | ✅ | Q-001～024、026～028、OP-001～005、007～011、013～017、ETA-001～018 綠；ADR-0001（門檻與 cascade 分工）→ 新增 CORE-THR-018／019；Q-025 依賴切片 7 cascade 移至 1C；OP-006／012（E2E）隨切片 10 UI；ETA-019 需參考機 |
 
 ### 仍待決定／待驗證（可用 sub-agent 討論的依 §5.8 處理；屬於使用者本人決定的記到 `docs/BLOCKERS.md`）
 - 人臉測試影像的授權來源（09 Q-T1）；中文日期表達的精確範圍，例如「過年」（Q-T5）。
