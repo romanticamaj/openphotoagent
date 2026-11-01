@@ -52,7 +52,9 @@ class Executor:
         if self.fs.exists(dst.real):
             return ActionResult(a.action_id, "failed", error="DST_EXISTS")
         seq = self.journal.intent(
-            plan_id, a.action_id, "copy",
+            plan_id,
+            a.action_id,
+            "copy",
             {"src": [a.src_alias, a.src_rel], "dst": [a.dst_alias, a.dst_rel], "src_hash": a.src_hash},
             {"dst_exists": False},
         )
@@ -71,8 +73,9 @@ class Executor:
             self.journal.record(plan_id, a.action_id, "copy", "rolled_back", {"error": code})
             return ActionResult(a.action_id, "failed", error=code)
         root = self.sb.resolve(a.dst_alias, "").real
-        self.journal.done(seq, {"dst_hash": a.src_hash,
-                                "created_dirs": [d.relative_to(root).as_posix() for d in created]})
+        self.journal.done(
+            seq, {"dst_hash": a.src_hash, "created_dirs": [d.relative_to(root).as_posix() for d in created]}
+        )
         return ActionResult(a.action_id, "done", dst_rel=dst.rel)
 
     def undo(self, plan_id: str) -> list[ActionResult]:

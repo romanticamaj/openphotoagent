@@ -124,8 +124,9 @@ class RealFs:
 class RecordingFs:
     """Wraps an FsOps and records the call sequence (OUT-EXE-001, OUT-JRN-001)."""
 
-    SIDE_EFFECTS = frozenset({"makedirs", "write_tmp_copy", "fsync_file", "fsync_dir", "rename_noreplace", "unlink",
-                              "rmdir"})
+    SIDE_EFFECTS = frozenset(
+        {"makedirs", "write_tmp_copy", "fsync_file", "fsync_dir", "rename_noreplace", "unlink", "rmdir"}
+    )
 
     def __init__(self, inner: FsOps, log: list[str] | None = None) -> None:
         self.inner = inner

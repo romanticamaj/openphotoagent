@@ -5,7 +5,6 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-
 from opagent_api.app import create_app
 from opagent_inference.fake import FakeBackend
 from opagent_worker.agent import WorkerAgent
@@ -14,7 +13,9 @@ ROOT = Path(__file__).resolve().parents[4]
 
 
 def _fifty_photos(dst: Path) -> None:
-    srcs = sorted((ROOT / "fixtures/photos/basic").glob("*.jpg")) + sorted((ROOT / "fixtures/photos/no-exif").glob("*.jpg"))
+    srcs = sorted((ROOT / "fixtures/photos/basic").glob("*.jpg")) + sorted(
+        (ROOT / "fixtures/photos/no-exif").glob("*.jpg")
+    )
     for i in range(50):
         s = srcs[i % len(srcs)]
         p = dst / f"batch{i // 25}" / f"{s.stem}_{i:02d}.jpg"
@@ -37,8 +38,12 @@ def test_org_001_by_date_needs_no_model(embedded_pg, sandbox_tree, tmp_path):
     r = client.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": "trip"})
     assert r.status_code == 201, r.text
     src = r.json()
-    req = {"kind": "organize", "source_id": src["id"], "preset": "by-date",
-           "target": {"root_alias": "sorted", "sub_path": ""}}
+    req = {
+        "kind": "organize",
+        "source_id": src["id"],
+        "preset": "by-date",
+        "target": {"root_alias": "sorted", "sub_path": ""},
+    }
     pf = client.post("/api/v1/preflight", json={"action": "job.start", "params": req}).json()
     assert pf["ready"] is True and pf["blockers"] == []
 

@@ -10,10 +10,9 @@ from functools import lru_cache
 from pathlib import Path
 
 import blake3
-from PIL import Image
-
 from opagent_core.path_template import DateSource
 from opagent_fs.safepath import Sandbox
+from PIL import Image
 
 EXIF_IFD = 0x8769
 DATETIME_ORIGINAL = 0x9003

@@ -1,9 +1,21 @@
-"""FastAPI app factory (docs/02 §5.1, §10.2)."""
+"""FastAPI app factory (docs/02 §5.1, §10.2). The API never touches files or GPUs (invariant 1):
+all filesystem work is delegated to the Worker over the worker protocol (worker_task queue)."""
 
 from __future__ import annotations
 
 from fastapi import FastAPI
+from opagent_core.clock import Clock, SystemClock
+from opagent_db.schema import engine_for
+
+from . import routes_public, routes_worker
+from .state import AppState
 
 
-def create_app(dsn: str) -> FastAPI:
-    return FastAPI(title="OpenPhotoAgent API")
+def create_app(dsn: str, clock: Clock | None = None, launch_token: str | None = None) -> FastAPI:
+    app = FastAPI(title="OpenPhotoAgent API", version="0.1.0-dev")
+    st = AppState(engine=engine_for(dsn), clock=clock or SystemClock(), launch_token=launch_token)
+    st.ensure_workspace()
+    app.state.opa = st
+    app.include_router(routes_public.router, prefix="/api/v1")
+    app.include_router(routes_worker.router, prefix="/worker-api/v1")
+    return app

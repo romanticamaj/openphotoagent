@@ -22,7 +22,7 @@ class JobStatus(StrEnum):
     undone = "undone"
 
 
-class IllegalTransition(Exception):  # noqa: N818 - name from 09a CORE-SM-002
+class IllegalTransition(Exception):
     pass
 
 

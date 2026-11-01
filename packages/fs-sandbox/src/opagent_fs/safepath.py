@@ -11,7 +11,7 @@ from typing import Literal
 Mode = Literal["ro", "rw"]
 
 
-class PathViolation(Exception):  # noqa: N818 - name from 09a FS-*
+class PathViolation(Exception):
     code = "PATH_VIOLATION"
 
     def __init__(self, reason: str, alias: str = "", rel: str = "") -> None:

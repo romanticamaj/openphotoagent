@@ -64,7 +64,7 @@ ignore = ["S101", "RUF001", "RUF002", "RUF003", "S603", "S607"]
 [tool.ruff.lint.per-file-ignores]
 "**/tests/**" = ["S", "DTZ001", "B011"]
 "packages/core/src/opagent_core/clock.py" = ["TID251"]
-"tools/**" = ["TID251", "S"]
+"tools/**" = ["TID251", "S", "DTZ"]
 
 [tool.mypy]
 python_version = "3.12"

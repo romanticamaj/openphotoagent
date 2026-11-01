@@ -42,13 +42,30 @@ class Journal:
         if self.on_event:
             self.on_event(ev)
 
-    def _insert(self, plan_id: str, action_id: str, op: str, phase: str, args: dict[str, Any],
-                pre: dict[str, Any], post: dict[str, Any] | None = None, ref: int | None = None) -> int:
+    def _insert(
+        self,
+        plan_id: str,
+        action_id: str,
+        op: str,
+        phase: str,
+        args: dict[str, Any],
+        pre: dict[str, Any],
+        post: dict[str, Any] | None = None,
+        ref: int | None = None,
+    ) -> int:
         cur = self._db.execute(
             "INSERT INTO journal(plan_id, action_id, op, phase, ref_seq, args, pre_state, post_state) "
             "VALUES (?,?,?,?,?,?,?,?)",
-            (plan_id, action_id, op, phase, ref, json.dumps(args), json.dumps(pre),
-             None if post is None else json.dumps(post)),
+            (
+                plan_id,
+                action_id,
+                op,
+                phase,
+                ref,
+                json.dumps(args),
+                json.dumps(pre),
+                None if post is None else json.dumps(post),
+            ),
         )
         return int(cur.lastrowid or 0)
 
@@ -69,9 +86,19 @@ class Journal:
     def entries(self, plan_id: str) -> list[dict[str, Any]]:
         rows = self._db.execute(
             "SELECT seq, action_id, op, phase, ref_seq, args, pre_state, post_state FROM journal "
-            "WHERE plan_id=? ORDER BY seq", (plan_id,)).fetchall()
+            "WHERE plan_id=? ORDER BY seq",
+            (plan_id,),
+        ).fetchall()
         return [
-            {"seq": r[0], "action_id": r[1], "op": r[2], "phase": r[3], "ref_seq": r[4], "args": json.loads(r[5]),
-             "pre_state": json.loads(r[6]), "post_state": json.loads(r[7]) if r[7] else None}
+            {
+                "seq": r[0],
+                "action_id": r[1],
+                "op": r[2],
+                "phase": r[3],
+                "ref_seq": r[4],
+                "args": json.loads(r[5]),
+                "pre_state": json.loads(r[6]),
+                "post_state": json.loads(r[7]) if r[7] else None,
+            }
             for r in rows
         ]

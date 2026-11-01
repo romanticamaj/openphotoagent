@@ -23,8 +23,10 @@ def _img(seed: int, size: tuple[int, int] = (64, 48)) -> Image.Image:
     d = ImageDraw.Draw(im)
     for _ in range(6):
         x0, y0 = rnd.randrange(size[0]), rnd.randrange(size[1])
-        d.rectangle([x0, y0, x0 + rnd.randrange(4, 30), y0 + rnd.randrange(4, 30)],
-                    fill=tuple(rnd.randrange(256) for _ in range(3)))
+        d.rectangle(
+            [x0, y0, x0 + rnd.randrange(4, 30), y0 + rnd.randrange(4, 30)],
+            fill=tuple(rnd.randrange(256) for _ in range(3)),
+        )
     return im
 
 
@@ -66,8 +68,15 @@ def gen_no_exif(n: int = 10) -> list[Path]:
 def main() -> None:
     rows = []
     for f in gen_basic() + gen_no_exif():
-        rows.append([str(f.relative_to(PHOTOS)), "generated:tools/gen_fixtures.py", "OpenPhotoAgent contributors",
-                     "CC0-1.0", hashlib.sha256(f.read_bytes()).hexdigest()])
+        rows.append(
+            [
+                str(f.relative_to(PHOTOS)),
+                "generated:tools/gen_fixtures.py",
+                "OpenPhotoAgent contributors",
+                "CC0-1.0",
+                hashlib.sha256(f.read_bytes()).hexdigest(),
+            ]
+        )
     with (PHOTOS / "LICENSES.csv").open("w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
         w.writerow(["path", "source", "author", "license", "sha256"])

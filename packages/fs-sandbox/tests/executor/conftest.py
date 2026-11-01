@@ -2,7 +2,6 @@ from pathlib import Path
 
 import blake3
 import pytest
-
 from opagent_fs.executor import Action, Executor
 from opagent_fs.fsops import RealFs, RecordingFs
 from opagent_fs.journal import Journal
@@ -26,8 +25,15 @@ class Env:
         p = self.tree.photos / rel
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_bytes(data)
-        return Action(action_id=f"a-{rel}", op="copy", src_alias="photos", src_rel=rel, dst_alias="sorted",
-                      dst_rel=f"2025/2025-07/{Path(rel).name}", src_hash=b3(p))
+        return Action(
+            action_id=f"a-{rel}",
+            op="copy",
+            src_alias="photos",
+            src_rel=rel,
+            dst_alias="sorted",
+            dst_rel=f"2025/2025-07/{Path(rel).name}",
+            src_hash=b3(p),
+        )
 
 
 @pytest.fixture

@@ -1,7 +1,6 @@
 from pathlib import Path
 
 import pytest
-
 from opagent_fs.safepath import PathViolation, RootConfig, Sandbox
 
 

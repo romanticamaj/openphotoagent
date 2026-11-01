@@ -3,9 +3,16 @@ import stat
 
 import pytest
 
-
-EXPECTED = ["journal.intent", "makedirs", "write_tmp_copy", "read_hash", "fsync_file", "fsync_dir",
-            "rename_noreplace", "journal.done"]
+EXPECTED = [
+    "journal.intent",
+    "makedirs",
+    "write_tmp_copy",
+    "read_hash",
+    "fsync_file",
+    "fsync_dir",
+    "rename_noreplace",
+    "journal.done",
+]
 
 
 @pytest.mark.unit
@@ -32,7 +39,7 @@ def test_out_exe_001_copy_happy_path_call_sequence(env):
     assert [r.status for r in res] == ["done"]
     seq = [c for c in env.log if c != "exists"]
     # read_hash of the src before the intent is the precheck (no side effect)
-    assert seq[seq.index("journal.intent"):] == EXPECTED
+    assert seq[seq.index("journal.intent") :] == EXPECTED
     dst = env.tree.sorted / a.dst_rel
     assert dst.read_bytes() == b"hello world"
     assert not list(env.tree.sorted.rglob(".opagent-tmp-*"))
