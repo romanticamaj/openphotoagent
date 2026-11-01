@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import ctypes
 import ctypes.util
 import errno
@@ -63,9 +64,14 @@ class RealFs:
 
     def write_tmp_copy(self, src: Path, dst_dir: Path) -> Path:
         tmp = dst_dir / f"{TMP_PREFIX}{uuid.uuid4().hex}"
-        with src.open("rb") as fi, open(tmp, "xb") as fo:
-            shutil.copyfileobj(fi, fo, CHUNK)
-        shutil.copystat(src, tmp)
+        try:
+            with src.open("rb") as fi, open(tmp, "xb") as fo:
+                shutil.copyfileobj(fi, fo, CHUNK)
+            shutil.copystat(src, tmp)
+        except OSError:
+            with contextlib.suppress(OSError):
+                os.unlink(tmp)  # never leave a partial tmp behind (e.g. ENOSPC mid-copy)
+            raise
         return tmp
 
     def fsync_file(self, p: Path) -> None:

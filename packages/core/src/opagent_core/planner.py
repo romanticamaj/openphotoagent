@@ -56,5 +56,35 @@ def summarize(actions: list[PlannedAction]) -> dict[str, int]:
     return {"copy": len(actions), "folders": len(folders), "total": len(actions)}
 
 
+
+
+def suffixed(rel: str, n: int) -> str:
+    """``dir/IMG_0001.jpg`` -> ``dir/IMG_0001 (n).jpg`` (OUT-EXE-006)."""
+    d, name = posixpath.split(rel)
+    stem, ext = split_name(name)
+    return posixpath.join(d, f"{stem} ({n}){ext}") if d else f"{stem} ({n}){ext}"
+
+
 def assign_collisions(actions: list[PlannedAction], case_insensitive: bool = False) -> list[PlannedAction]:
-    return actions
+    """Plan-time collision handling (OUT-EXE-009): two different photos never target the same name; the same
+    content targeting the same name stays a single file (the second copy is skipped as ``exists_same``)."""
+    from dataclasses import replace
+
+    def key(rel: str) -> str:
+        return rel.casefold() if case_insensitive else rel
+
+    owner: dict[str, str] = {}  # key -> content hash
+    out: list[PlannedAction] = []
+    for a in actions:
+        k = key(a.dst_rel)
+        if k not in owner or owner[k] == a.src_hash:
+            owner.setdefault(k, a.src_hash)
+            out.append(a)
+            continue
+        n = 1
+        while key(suffixed(a.dst_rel, n)) in owner:
+            n += 1
+        new = suffixed(a.dst_rel, n)
+        owner[key(new)] = a.src_hash
+        out.append(replace(a, dst_rel=new, conflict="name_collision"))
+    return out

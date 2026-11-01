@@ -8,7 +8,7 @@ from typing import Any
 
 from fastapi import APIRouter, Request, Response
 from opagent_core.ids import uuid7
-from opagent_core.planner import PlanItem, plan, summarize
+from opagent_core.planner import PlanItem, assign_collisions, plan, summarize
 from opagent_core.state_machine import JobStatus
 from opagent_db.schema import asset, asset_location, job, output_action, output_plan, source, worker, worker_task
 from pydantic import BaseModel
@@ -153,7 +153,8 @@ def _on_scan(st: AppState, c: Any, t: Any, result: dict[str, Any]) -> None:
     params = j.params
     set_job_status(c, j.id, JobStatus.planning)
     target = params["target"]
-    planned = plan(items, params["preset"], target.get("sub_path", "").strip("/"))
+    planned = assign_collisions(plan(items, params["preset"], target.get("sub_path", "").strip("/")),
+                                case_insensitive=True)  # target FS may be case-insensitive (OUT-EXE-010)
     pid = uuid7(st.clock)
     c.execute(insert(output_plan).values(id=pid, job_id=j.id, status="draft", summary=summarize(planned)))
     for i, a in enumerate(planned):
