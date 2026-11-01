@@ -55,7 +55,7 @@ class Env:
         for k in keys:
             self.sql(
                 "insert into installation(id, worker_id, kind, key, status, size_bytes, files) values (:i,'w1',:k2,:k,:s,1000,'[]')",
-                i=f"in-{k}", k=k, k2=kind, s=status,
+                i=f"in-{k}" if kind == "model" else f"pk-{k}", k=k, k2=kind, s=status,
             )
 
     def source(self, sub=""):
@@ -188,7 +188,7 @@ def a_doctor(code, check, action="job.start", status="fail", profile="rtx5070ti-
 
 def a_crashed(e):
     e.worker()
-    e.install(EMB16, Q5, "llamacpp-cuda13")
+    e.install(EMB16, Q5)
     e.install("llamacpp-cuda13", kind="pack")
     for _ in range(3):
         e.sql("insert into event(kind, payload, at) values ('runtime.crashed', :p, :t)", p=json.dumps({"worker_id": "w1", "variant": Q5}), t=e.clock.now())
@@ -267,7 +267,7 @@ def a_license(e):
 
 def a_not_installed(e):
     e.worker()
-    e.install(EMB16, Q4, "llamacpp-cuda13")
+    e.install(EMB16, Q4)
     e.install("llamacpp-cuda13", kind="pack")
     return "job.start", by_content(e, {"embed": EMB16, "vlm": Q5}), ("POST", "/api/v1/jobs")
 
