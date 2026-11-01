@@ -57,6 +57,23 @@ class ScanEntry:
 class Skipped:
     rel: str
     reason: str
+    fix: str | None = None
+
+
+def _is_placeholder(st: os.stat_result, path: str) -> bool:
+    return bool(getattr(st, "st_file_attributes", 0) & PLACEHOLDER_ATTRS)
+
+
+def thumbhash_encode(im: Image.Image) -> bytes:
+    return b""
+
+
+def phash(im: Image.Image) -> str:
+    return ""
+
+
+def dhash(im: Image.Image) -> str:
+    return ""
 
 
 @dataclass
@@ -285,7 +302,8 @@ def _entry_from_json(d: dict[str, Any]) -> ScanEntry:
 
 
 def scan(sb: Sandbox, alias: str, sub: str, include: list[str], exclude: list[str], tz: tzinfo,
-         cache: HashCache | None = None, exclude_subtrees: list[str] | None = None) -> ScanResult:
+         cache: HashCache | None = None, exclude_subtrees: list[str] | None = None, thumbs_dir: Path | None = None,
+         reporter: Any = None, previous_total: int | None = None) -> ScanResult:
     files, skipped = _walk(sb, alias, sub, include, exclude, exclude_subtrees or [])
     entries: list[ScanEntry] = []
     bytes_read = 0
