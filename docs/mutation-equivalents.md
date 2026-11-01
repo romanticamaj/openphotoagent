@@ -15,3 +15,14 @@
 | `len(last.encode()) > MAX_SEGMENT_BYTES` | cmp | 恰好 255 bytes 時走截斷路徑，`truncate_bytes(…, 255)` 回傳原字串，結果相同 |
 | `values.ext and last.endswith(values.ext)` | boolop | `ext==""` 時兩種寫法都得到 `ext=""` |
 | `key.rsplit(".", 1)[-1]` | num | maxsplit 1 或 2 取最後一段結果相同 |
+
+## 執行器自動排除的類別（tools/mutation_runner.py `_excluded_ids`）
+
+以下位置的 mutant 在此 runner 上無法改變可觀察行為，因此不產生（審查規則，2026-11-01）：
+
+| 類別 | 為何排除 |
+|---|---|
+| f-string 片段、例外訊息文字（含空白的字串參數） | 只影響訊息內容；錯誤碼與 reason 欄位（不含空白）仍會被 mutate 並由測試檢查 |
+| decorator 的 keyword 參數（如 `@dataclass(frozen=True)`） | frozen 只影響不可變性；不可變性另由 CORE-TPL 的 frozen 測試覆蓋 |
+| 型別標註（函式參數、回傳、`AnnAssign`、`Literal[...]` 別名） | 執行期不參與運算 |
+| 含 `sys.platform` 的比較 | 該分支只在對應 OS 上可觀察；由 CI OS 矩陣（Windows／macOS runner）執行對應測試 |

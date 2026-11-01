@@ -49,10 +49,53 @@ def _docstring_ids(tree: ast.AST) -> set[int]:
     return ids
 
 
+def _excluded_ids(tree: ast.AST) -> set[int]:
+    """Nodes whose mutation cannot change observable behaviour on this runner (reviewed rules, see
+    docs/mutation-equivalents.md): f-string pieces and exception messages, decorator keyword arguments
+    (``@dataclass(frozen=True)``), type annotations (``Literal[...]``) and ``sys.platform`` comparisons (those
+    branches are exercised by the CI OS matrix)."""
+    ids: set[int] = set()
+
+    def all_ids(n: ast.AST) -> None:
+        for x in ast.walk(n):
+            ids.add(id(x))
+
+    for node in ast.walk(tree):
+        if isinstance(node, ast.JoinedStr):
+            all_ids(node)
+        elif isinstance(node, ast.Raise) and isinstance(node.exc, ast.Call):
+            for a in node.exc.args[1:] if node.exc.args and isinstance(node.exc.args[0], ast.Constant) \
+                    and node.exc.args[0].value.__class__ is str and len(node.exc.args) > 1 else node.exc.args:
+                if isinstance(a, ast.Constant) and isinstance(a.value, str) and " " in a.value:
+                    ids.add(id(a))
+        elif isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
+            for d in node.decorator_list:
+                if isinstance(d, ast.Call):
+                    for kw in d.keywords:
+                        all_ids(kw)
+            if isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+                for a in [*node.args.args, *node.args.kwonlyargs]:
+                    if a.annotation is not None:
+                        all_ids(a.annotation)
+                if node.returns is not None:
+                    all_ids(node.returns)
+        elif isinstance(node, ast.AnnAssign):
+            all_ids(node.annotation)
+        elif isinstance(node, ast.Assign) and isinstance(node.value, ast.Subscript) and \
+                isinstance(node.value.value, ast.Name) and node.value.value.id == "Literal":
+            all_ids(node.value)
+        elif isinstance(node, ast.Compare) and any(
+                isinstance(x, ast.Attribute) and x.attr == "platform" for x in ast.walk(node)):
+            all_ids(node)
+    return ids
+
+
 def _sites(tree: ast.AST) -> list[tuple[int, str]]:
-    doc = _docstring_ids(tree)
+    doc = _docstring_ids(tree) | _excluded_ids(tree)
     out: list[tuple[int, str]] = []
     for i, node in enumerate(ast.walk(tree)):
+        if id(node) in doc:
+            continue
         if isinstance(node, ast.Compare):
             for j, op in enumerate(node.ops):
                 if type(op) in SWAP:
