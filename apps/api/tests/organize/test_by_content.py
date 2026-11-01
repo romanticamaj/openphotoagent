@@ -78,7 +78,7 @@ def test_org_004_default_copy_and_move_needs_opt_in(embedded_pg, sandbox_tree, t
     client, w = _setup(embedded_pg.dsn, sandbox_tree.roots, tmp_path / "w")
     src = _src(client)
     r = client.post("/api/v1/jobs", json={**CONTENT, "source_id": src, "action": "move"})
-    assert r.status_code == 422 and r.json()["detail"]["code"] == "MOVE_REQUIRES_ADVANCED"
+    assert r.status_code == 422 and r.json()["code"] == "MOVE_REQUIRES_ADVANCED"  # problem+json (PF-082)
     r = client.post("/api/v1/jobs", json={**CONTENT, "source_id": src, "action": "move", "advanced": {"allow_move": True}})
     assert r.status_code == 201
 
