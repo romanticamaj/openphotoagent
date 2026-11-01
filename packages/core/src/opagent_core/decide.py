@@ -127,14 +127,17 @@ def _decide(emb: Stage | None, vlm: VlmResult | None, rule_category: str | None,
             if top_cat == vlm.category:
                 p = 1 - (1 - p_e) * (1 - vlm.p)
                 return _by_thresholds(vlm.category, p, "consensus", policy)
-            return _by_thresholds(vlm.category, vlm.p * 0.8, "vlm", policy, reason="conflict")
+            p = vlm.p * 0.8
+            if p + EPS >= policy.accept:
+                return Outcome("accepted", vlm.category, p, "vlm")
+            return Outcome("needs_review", vlm.category, p, "vlm", "conflict")  # never silently "other" (ADR-0001)
         if vlm.p + EPS >= policy.min_confidence:
             return Outcome("accepted", vlm.category, vlm.p, "vlm")
         return Outcome("other", None, vlm.p, "vlm")
     if emb is None or not emb.scores:
         return Outcome("other", None, 0.0, "embedding")
     r = route_embedding(emb, n_examples, policy)
-    if r.route == "accept":
+    if r.route == "accept" and r.p + EPS >= policy.accept:  # accept is the final gate (ADR-0001)
         return Outcome("accepted", r.category, r.p, "embedding")
     return _by_thresholds(r.category, r.p, "embedding", policy)
 
