@@ -67,6 +67,7 @@ class WorkerAgent:
         self.crash_after_pages: int | None = None  # test hook: simulate kill -9 after N reported pages
         self.last_scan_skipped_before_cursor = 0
         self._dl_thread: threading.Thread | None = None
+        self.apply_throttle_s = 0.0  # test hook (E2E-B-008): pause between file actions
 
     @property
     def cascade_fingerprint(self) -> str:
@@ -449,7 +450,22 @@ class WorkerAgent:
 
     def _do_apply(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         actions = [Action(**a) for a in p["actions"]]
-        rep = self.executor.apply(p["plan_id"], actions, move_confirmed=bool(p.get("move_confirmed")))
+        done = [0]
+
+        def control() -> str | None:
+            """Between file actions: report progress and pick up pause/cancel from the control channel."""
+            if self.apply_throttle_s:
+                threading.Event().wait(self.apply_throttle_s)
+            r = self.client.post(
+                f"/worker-api/v1/tasks/{task_id}/progress",
+                json={"progress": {"done": done[0], "total": len(actions), "unit": "files"}},
+            )
+            done[0] += 1
+            return r.json().get("control") if r.status_code == 200 else None
+
+        rep = self.executor.apply(
+            p["plan_id"], actions, move_confirmed=bool(p.get("move_confirmed")), control=control if task_id else None
+        )
         return {
             "results": [r.__dict__ for r in rep.results],
             "status": rep.status,

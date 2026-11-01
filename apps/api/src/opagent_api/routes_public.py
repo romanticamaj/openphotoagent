@@ -258,6 +258,16 @@ def cancel_job(job_id: str, req: Request) -> dict[str, Any]:
     with st.engine.begin() as c:
         _ensure_job_op(c, st, job_id)
         cur = c.execute(select(job.c.status).where(job.c.id == job_id)).scalar_one()
+        if cur == "applying":  # stop between file actions; what is done stays done and can be undone (OUT-EXE-017)
+            from .operations import set_op_status
+
+            for (tid,) in c.execute(
+                select(worker_task.c.id).where(
+                    worker_task.c.job_id == job_id, worker_task.c.kind == "apply", worker_task.c.status == "leased"
+                )
+            ):
+                set_op_status(c, st.clock, tid, "cancelling")
+            return get_job(job_id, req)
         if cur in ("queued", "paused"):
             set_job_status(c, job_id, JobStatus.cancelled, clock=st.clock)
         else:
@@ -540,6 +550,7 @@ def approve(plan_id: str, req: Request, body: ApproveIn | None = None) -> dict[s
                 worker_id=wid,
                 payload={
                     "plan_id": plan_id,
+                    "move_confirmed": bool(body.move_confirmed),
                     "actions": [
                         {
                             "action_id": a.id,

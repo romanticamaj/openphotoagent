@@ -1,9 +1,9 @@
 """Custom categories with a description and example photos (03 §3.3, 04 §3.2 ④; backs E2E-B-003)."""
 
 import pytest
+from opagent_inference.fake import FakeBackend
 
 from .test_by_content import _drain, _photos, _setup, _src
-from opagent_inference.fake import FakeBackend
 
 
 def _preview(client, w, src, categories):

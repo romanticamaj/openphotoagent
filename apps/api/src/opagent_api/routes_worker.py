@@ -12,13 +12,14 @@ from opagent_db.schema import (
     event,
     job,
     journal_mirror,
+    operation,
     output_action,
     output_plan,
     worker,
     worker_task,
 )
 from pydantic import BaseModel
-from sqlalchemy import insert, select, text, update
+from sqlalchemy import func, insert, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from . import organize
@@ -319,7 +320,6 @@ def task_progress(task_id: str, body: ProgressIn, req: Request) -> dict[str, Any
             .where(worker_task.c.id == task_id)
             .values(payload=payload, lease_expires_at=st.clock.now() + timedelta(seconds=LEASE_S))
         )
-        from opagent_db.schema import operation
 
         op = c.execute(select(operation.c.status).where(operation.c.id == task_id)).first()
         op_status = op.status if op else None
@@ -365,7 +365,10 @@ def complete(task_id: str, body: CompleteIn, req: Request) -> dict[str, str]:
                 set_op_status(c, st.clock, t.id, "waiting", body.result["waiting_reason"])
             elif rs == "paused":  # resume re-queues the task and the download continues from its .part
                 set_op_status(c, st.clock, t.id, "paused", "PAUSED_BY_USER")  # confirms a pausing op
-            elif rs == "cancelled":
+            elif rs == "cancelled" or (
+                rs == "partially_applied"
+                and c.execute(select(operation.c.status).where(operation.c.id == t.id)).scalar() == "cancelling"
+            ):  # the worker stopped as asked; what it finished stays (OUT-EXE-017)
                 set_op_status(c, st.clock, t.id, "cancelled")
             else:
                 set_op_status(
@@ -406,18 +409,24 @@ def _on_apply(st: AppState, c: Any, t: Any, result: dict[str, Any]) -> None:
             )
         )
         done += r["status"] == "done"
-    total = len(result["results"])
-    c.execute(
-        update(output_plan)
-        .where(output_plan.c.id == pid)
-        .values(status="applied" if done == total else "partially_applied")
-    )
+    failed = sum(r["status"] == "failed" for r in result["results"])
+    total = c.execute(
+        select(func.count()).select_from(output_action).where(output_action.c.plan_id == pid)
+    ).scalar_one()
+    stopped = len(result["results"]) < total  # cancelled/paused between actions (OUT-EXE-017)
+    if stopped and not done:
+        status = "cancelled"
+    elif stopped or failed:
+        status = "partially_applied"
+    else:
+        status = "applied"  # identical copies skipped still count as applied
+    c.execute(update(output_plan).where(output_plan.c.id == pid).values(status=status))
     set_job_status(
         c,
         t.job_id,
         JobStatus.completed,
         finished_at=st.clock.now(),
-        counters={"total": total, "done": done, "failed": total - done},
+        counters={"total": total, "done": done, "failed": failed},
     )
 
 
