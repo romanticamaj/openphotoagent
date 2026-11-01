@@ -36,6 +36,9 @@ class ActionResult:
 
 
 def effective_op(sb: Sandbox, a: Action, allow_move_from_ro_roots: bool = False) -> tuple[str, bool]:
+    """A move whose source root is read-only becomes a copy and is flagged ``downgraded`` (FS-018)."""
+    if a.op == "move" and sb.roots[a.src_alias].mode != "rw" and not allow_move_from_ro_roots:
+        return "copy", True
     return a.op, False
 
 
