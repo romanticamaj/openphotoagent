@@ -116,7 +116,7 @@ def sanitize_segment(value: str, limit: int = MAX_SEGMENT_BYTES) -> str:
     s = "".join(ch for ch in s if ch not in _REMOVE)
     s = "".join("_" if ch in _REPLACE else ch for ch in s)
     s = s.strip().rstrip(". ").strip()
-    if not s or set(s) <= {"."}:
+    if not s:  # all-dot values ("." "..", "...") were stripped to "" just above (CORE-TPL-008)
         return "_"
     s = _fix_reserved(s)
     return truncate_bytes(s, limit) or "_"

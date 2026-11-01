@@ -1,0 +1,13 @@
+# Reviewed equivalent mutants (docs/09 §5.6). Format: <file>:<line>:<operator>  — reason
+# path_template.py
+packages/core/src/opagent_core/path_template.py:18:str
+packages/core/src/opagent_core/path_template.py:77:bool
+packages/core/src/opagent_core/path_template.py:180:str
+packages/core/src/opagent_core/path_template.py:181:str
+packages/core/src/opagent_core/path_template.py:188:cmp0
+packages/core/src/opagent_core/path_template.py:195:boolop
+packages/core/src/opagent_core/path_template.py:201:cmp0
+packages/core/src/opagent_core/path_template.py:220:str
+packages/core/src/opagent_core/path_template.py:231:cmp0
+packages/core/src/opagent_core/path_template.py:232:boolop
+packages/core/src/opagent_core/path_template.py:246:num

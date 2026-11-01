@@ -22,6 +22,7 @@ from typing import Literal
 
 Mode = Literal["ro", "rw"]
 _DRIVE = re.compile(r"^[A-Za-z]:")
+MAX_NAME_BYTES = 255
 CASE_INSENSITIVE_FS = sys.platform in ("darwin", "win32")  # APFS / NTFS defaults (FS-015)
 _RESERVED = {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)), *(f"LPT{i}" for i in range(1, 10))}
 
@@ -90,6 +91,8 @@ def check_rel(rel: str, alias: str = "") -> list[str]:
     if any(p == ".." for p in raw):
         raise PathViolation("dotdot", alias, rel)
     parts = [unicodedata.normalize("NFC", p) for p in raw if p not in ("", ".")]
+    if any(len(p.encode("utf-8")) > MAX_NAME_BYTES for p in parts):
+        raise PathViolation("name_too_long", alias, rel)
     if any(_is_reserved(p) for p in parts):
         raise PathViolation("reserved_name", alias, rel)
     return parts
@@ -136,6 +139,11 @@ class Sandbox:
             except FileNotFoundError:
                 missing = True  # remaining components do not exist yet (write targets)
                 continue
+            except OSError as e:
+                if e.errno in (errno.ENAMETOOLONG, errno.ENOTDIR):
+                    raise PathViolation("name_too_long" if e.errno == errno.ENAMETOOLONG else "not_a_directory",
+                                        alias, rel) from None
+                raise
             if stat.S_ISLNK(st.st_mode) or _is_reparse_point(st):
                 raise PathViolation("symlink", alias, rel)
         if not is_within(root, cur):
