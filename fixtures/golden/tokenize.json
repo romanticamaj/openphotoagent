@@ -1,0 +1,757 @@
+{
+ "tokenizer": "jieba-zh-hant@1+opencc-s2twp+bigram",
+ "cases": [
+  {
+   "text": "海邊的貓",
+   "words": [
+    "海邊",
+    "貓"
+   ]
+  },
+  {
+   "text": "夕陽下的海灘",
+   "words": [
+    "夕陽",
+    "下",
+    "海灘"
+   ]
+  },
+  {
+   "text": "一隻柴犬在草地上奔跑",
+   "words": [
+    "一隻",
+    "柴犬",
+    "草地上",
+    "奔跑"
+   ]
+  },
+  {
+   "text": "花蓮縣新城鄉的海邊",
+   "words": [
+    "花蓮縣",
+    "新城鄉",
+    "海邊"
+   ]
+  },
+  {
+   "text": "台北101夜景",
+   "words": [
+    "臺北",
+    "101",
+    "夜景"
+   ]
+  },
+  {
+   "text": "京都清水寺的楓葉",
+   "words": [
+    "京都",
+    "清水",
+    "寺",
+    "楓葉"
+   ]
+  },
+  {
+   "text": "生日蛋糕上的蠟燭",
+   "words": [
+    "生日",
+    "蛋糕",
+    "上",
+    "蠟燭"
+   ]
+  },
+  {
+   "text": "婚禮上的新娘與新郎",
+   "words": [
+    "婚禮",
+    "上",
+    "新娘",
+    "新郎"
+   ]
+  },
+  {
+   "text": "公園裡的小朋友",
+   "words": [
+    "公園",
+    "裡",
+    "小朋友"
+   ]
+  },
+  {
+   "text": "陽明山的櫻花",
+   "words": [
+    "陽明山",
+    "櫻花"
+   ]
+  },
+  {
+   "text": "一碗熱騰騰的拉麵",
+   "words": [
+    "一碗",
+    "熱騰騰",
+    "拉麵"
+   ]
+  },
+  {
+   "text": "咖啡廳的拿鐵拉花",
+   "words": [
+    "咖啡廳",
+    "拿鐵",
+    "拉花"
+   ]
+  },
+  {
+   "text": "雨天的街道",
+   "words": [
+    "雨天",
+    "街道"
+   ]
+  },
+  {
+   "text": "夜市的小吃攤",
+   "words": [
+    "夜市",
+    "小吃攤"
+   ]
+  },
+  {
+   "text": "高鐵站的月台",
+   "words": [
+    "高鐵",
+    "站",
+    "月臺"
+   ]
+  },
+  {
+   "text": "機場的登機門",
+   "words": [
+    "機場",
+    "登機",
+    "門"
+   ]
+  },
+  {
+   "text": "山上的雲海",
+   "words": [
+    "山上",
+    "雲海"
+   ]
+  },
+  {
+   "text": "日月潭的湖景",
+   "words": [
+    "日月潭",
+    "湖景"
+   ]
+  },
+  {
+   "text": "墾丁的沙灘",
+   "words": [
+    "墾丁",
+    "沙灘"
+   ]
+  },
+  {
+   "text": "阿里山的日出",
+   "words": [
+    "阿里山",
+    "日出"
+   ]
+  },
+  {
+   "text": "貓咪在沙發上睡覺",
+   "words": [
+    "貓咪",
+    "沙發",
+    "上",
+    "睡覺"
+   ]
+  },
+  {
+   "text": "狗狗在海邊玩水",
+   "words": [
+    "狗狗",
+    "海邊",
+    "玩水"
+   ]
+  },
+  {
+   "text": "一群鴿子在廣場上",
+   "words": [
+    "一群",
+    "鴿子",
+    "廣場",
+    "上"
+   ]
+  },
+  {
+   "text": "動物園裡的長頸鹿",
+   "words": [
+    "動物園",
+    "裡",
+    "長頸鹿"
+   ]
+  },
+  {
+   "text": "水族館的水母",
+   "words": [
+    "水族館",
+    "水母"
+   ]
+  },
+  {
+   "text": "家裡的盆栽",
+   "words": [
+    "家裡",
+    "盆栽"
+   ]
+  },
+  {
+   "text": "收據與發票",
+   "words": [
+    "收據",
+    "發票"
+   ]
+  },
+  {
+   "text": "螢幕截圖",
+   "words": [
+    "螢幕",
+    "截圖"
+   ]
+  },
+  {
+   "text": "白板上的會議筆記",
+   "words": [
+    "白板",
+    "上",
+    "會議",
+    "筆記"
+   ]
+  },
+  {
+   "text": "身分證影本",
+   "words": [
+    "身分證",
+    "影本"
+   ]
+  },
+  {
+   "text": "畢業典禮合照",
+   "words": [
+    "畢業典禮",
+    "合照"
+   ]
+  },
+  {
+   "text": "全家福",
+   "words": [
+    "全家福"
+   ]
+  },
+  {
+   "text": "外婆的八十歲壽宴",
+   "words": [
+    "外婆",
+    "八十歲",
+    "壽宴"
+   ]
+  },
+  {
+   "text": "跨年煙火",
+   "words": [
+    "跨年",
+    "煙火"
+   ]
+  },
+  {
+   "text": "演唱會的舞台燈光",
+   "words": [
+    "演唱會",
+    "舞臺燈光"
+   ]
+  },
+  {
+   "text": "籃球比賽",
+   "words": [
+    "籃球比賽"
+   ]
+  },
+  {
+   "text": "腳踏車環島",
+   "words": [
+    "腳踏車",
+    "環島"
+   ]
+  },
+  {
+   "text": "露營的帳篷",
+   "words": [
+    "露營",
+    "帳篷"
+   ]
+  },
+  {
+   "text": "溫泉旅館",
+   "words": [
+    "溫泉",
+    "旅館"
+   ]
+  },
+  {
+   "text": "老街的紅燈籠",
+   "words": [
+    "老街",
+    "紅燈籠"
+   ]
+  },
+  {
+   "text": "廟口的媽祖遶境",
+   "words": [
+    "廟口",
+    "媽祖",
+    "遶",
+    "境"
+   ]
+  },
+  {
+   "text": "龍舟比賽",
+   "words": [
+    "龍舟",
+    "比賽"
+   ]
+  },
+  {
+   "text": "猫在海边睡觉",
+   "words": [
+    "貓",
+    "海邊",
+    "睡覺"
+   ]
+  },
+  {
+   "text": "上海外滩的夜景",
+   "words": [
+    "上海",
+    "外灘",
+    "夜景"
+   ]
+  },
+  {
+   "text": "北京故宫",
+   "words": [
+    "北京故宮"
+   ]
+  },
+  {
+   "text": "软件截图",
+   "words": [
+    "軟體",
+    "截圖"
+   ]
+  },
+  {
+   "text": "西湖的荷花",
+   "words": [
+    "西湖",
+    "荷花"
+   ]
+  },
+  {
+   "text": "广场上的鸽子",
+   "words": [
+    "廣場",
+    "上",
+    "鴿子"
+   ]
+  },
+  {
+   "text": "a cat on the beach",
+   "words": [
+    "cat",
+    "beach"
+   ]
+  },
+  {
+   "text": "two dogs playing in the snow",
+   "words": [
+    "two",
+    "dogs",
+    "playing",
+    "snow"
+   ]
+  },
+  {
+   "text": "sunset over the ocean",
+   "words": [
+    "sunset",
+    "over",
+    "ocean"
+   ]
+  },
+  {
+   "text": "birthday party with balloons",
+   "words": [
+    "birthday",
+    "party",
+    "balloons"
+   ]
+  },
+  {
+   "text": "the Eiffel Tower at night",
+   "words": [
+    "eiffel",
+    "tower",
+    "at",
+    "night"
+   ]
+  },
+  {
+   "text": "a bowl of ramen",
+   "words": [
+    "bowl",
+    "ramen"
+   ]
+  },
+  {
+   "text": "receipts and invoices",
+   "words": [
+    "receipts",
+    "invoices"
+   ]
+  },
+  {
+   "text": "mountain lake reflection",
+   "words": [
+    "mountain",
+    "lake",
+    "reflection"
+   ]
+  },
+  {
+   "text": "kids playing in the park",
+   "words": [
+    "kids",
+    "playing",
+    "park"
+   ]
+  },
+  {
+   "text": "wedding ceremony",
+   "words": [
+    "wedding",
+    "ceremony"
+   ]
+  },
+  {
+   "text": "city skyline",
+   "words": [
+    "city",
+    "skyline"
+   ]
+  },
+  {
+   "text": "street food market",
+   "words": [
+    "street",
+    "food",
+    "market"
+   ]
+  },
+  {
+   "text": "snowy mountain cabin",
+   "words": [
+    "snowy",
+    "mountain",
+    "cabin"
+   ]
+  },
+  {
+   "text": "autumn leaves in Kyoto",
+   "words": [
+    "autumn",
+    "leaves",
+    "kyoto"
+   ]
+  },
+  {
+   "text": "red lanterns in the old street",
+   "words": [
+    "red",
+    "lanterns",
+    "old",
+    "street"
+   ]
+  },
+  {
+   "text": "a latte with heart art",
+   "words": [
+    "latte",
+    "heart",
+    "art"
+   ]
+  },
+  {
+   "text": "hiking trail",
+   "words": [
+    "hiking",
+    "trail"
+   ]
+  },
+  {
+   "text": "cats",
+   "words": [
+    "cats"
+   ]
+  },
+  {
+   "text": "Dogs",
+   "words": [
+    "dogs"
+   ]
+  },
+  {
+   "text": "running shoes",
+   "words": [
+    "running",
+    "shoes"
+   ]
+  },
+  {
+   "text": "group photo",
+   "words": [
+    "group",
+    "photo"
+   ]
+  },
+  {
+   "text": "screenshot of settings",
+   "words": [
+    "screenshot",
+    "settings"
+   ]
+  },
+  {
+   "text": "IMG_2024_海邊.jpg",
+   "words": [
+    "img_2024",
+    "海邊",
+    "jpg"
+   ]
+  },
+  {
+   "text": "2024年3月的照片",
+   "words": [
+    "2024",
+    "年",
+    "3",
+    "月",
+    "照片"
+   ]
+  },
+  {
+   "text": "去年夏天在沖繩",
+   "words": [
+    "去年",
+    "夏天",
+    "沖繩"
+   ]
+  },
+  {
+   "text": "富士山と桜",
+   "words": [
+    "富士山",
+    "と",
+    "桜"
+   ]
+  },
+  {
+   "text": "ねこ",
+   "words": [
+    "ね",
+    "こ"
+   ]
+  },
+  {
+   "text": "いぬと散歩",
+   "words": [
+    "い",
+    "ぬ",
+    "と",
+    "散歩"
+   ]
+  },
+  {
+   "text": "東京タワーの夜景",
+   "words": [
+    "東京",
+    "タ",
+    "ワ",
+    "ー",
+    "の",
+    "夜景"
+   ]
+  },
+  {
+   "text": "貓 cat ねこ",
+   "words": [
+    "貓",
+    "cat",
+    "ね",
+    "こ"
+   ]
+  },
+  {
+   "text": "Kyoto 清水寺",
+   "words": [
+    "kyoto",
+    "清水",
+    "寺"
+   ]
+  },
+  {
+   "text": "iPhone 拍的日落",
+   "words": [
+    "iphone",
+    "拍",
+    "日落"
+   ]
+  },
+  {
+   "text": "GoPro 潛水",
+   "words": [
+    "gopro",
+    "潛水"
+   ]
+  },
+  {
+   "text": "4K 空拍",
+   "words": [
+    "4k",
+    "空拍"
+   ]
+  },
+  {
+   "text": "Taipei 101 煙火",
+   "words": [
+    "taipei",
+    "101",
+    "煙火"
+   ]
+  },
+  {
+   "text": "台南 beef soup",
+   "words": [
+    "臺南",
+    "beef",
+    "soup"
+   ]
+  },
+  {
+   "text": "ＣＡＴ　全形",
+   "words": [
+    "cat",
+    "全形"
+   ]
+  },
+  {
+   "text": "Ｃａｔ",
+   "words": [
+    "cat"
+   ]
+  },
+  {
+   "text": "零​寬​字元",
+   "words": [
+    "零寬",
+    "字",
+    "元"
+   ]
+  },
+  {
+   "text": "柴犬",
+   "words": [
+    "柴犬"
+   ]
+  },
+  {
+   "text": "新城鄉",
+   "words": [
+    "新城鄉"
+   ]
+  },
+  {
+   "text": "夕陽海灘",
+   "words": [
+    "夕陽",
+    "海灘"
+   ]
+  },
+  {
+   "text": "海灘夕陽",
+   "words": [
+    "海灘",
+    "夕陽"
+   ]
+  },
+  {
+   "text": "沙灘排球",
+   "words": [
+    "沙灘排球"
+   ]
+  },
+  {
+   "text": "早餐的蛋餅與豆漿",
+   "words": [
+    "早餐",
+    "蛋",
+    "餅",
+    "豆漿"
+   ]
+  },
+  {
+   "text": "便當",
+   "words": [
+    "便當"
+   ]
+  },
+  {
+   "text": "珍珠奶茶",
+   "words": [
+    "珍珠奶茶"
+   ]
+  },
+  {
+   "text": "九份的山城",
+   "words": [
+    "九份",
+    "山城"
+   ]
+  },
+  {
+   "text": "鳳梨酥禮盒",
+   "words": [
+    "鳳梨",
+    "酥",
+    "禮盒"
+   ]
+  },
+  {
+   "text": "小籠包",
+   "words": [
+    "小籠包"
+   ]
+  },
+  {
+   "text": "滷肉飯",
+   "words": [
+    "滷肉飯"
+   ]
+  },
+  {
+   "text": "牛肉麵",
+   "words": [
+    "牛肉麵"
+   ]
+  }
+ ]
+}
