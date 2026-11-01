@@ -1,4 +1,4 @@
-import type { Locator, Page } from "@playwright/test";
+import type { Locator } from "@playwright/test";
 import { expect, test } from "../fixtures";
 
 const VLM = "qwen3-vl-8b-instruct@q4_k_m";
@@ -10,7 +10,8 @@ async function badge(l: Locator) {
 }
 
 test.describe("models", () => {
-  test.use({ scenario: { hw: "rtx4060-laptop", photos: "trip", models: "none" } });
+  // reference machine: the recommended VLM is Qwen3-VL 8B q4_k_m and no driver problem blocks first
+  test.use({ scenario: { hw: "rtx5070ti-win11", photos: "trip", models: "none" } });
 
   test("[MDL-005] 四處一致：選擇器、模型卡、精靈、preflight 的徽章文字與 reason code 相同", async ({ page }) => {
     await page.goto("/models");
