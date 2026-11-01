@@ -79,6 +79,7 @@ strict = true
 
 [tool.coverage.run]
 branch = true
+patch = ["subprocess"]
 source = ["opagent_core", "opagent_fs", "opagent_inference", "opagent_api", "opagent_worker", "opagent_db"]
 
 [tool.importlinter]
