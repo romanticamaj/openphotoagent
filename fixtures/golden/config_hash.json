@@ -1,0 +1,553 @@
+[
+ {
+  "name": "base",
+  "config": {
+   "task_type": "classify",
+   "model_version": "qwen3-vl-8b@q4_k_m",
+   "prompt_template_ref": "builtin:classify_v1",
+   "generation_params": {
+    "temperature": 0.0,
+    "max_tokens": 256
+   },
+   "label_set": {
+    "key": "cats",
+    "version": 1,
+    "labels": [
+     {
+      "key": "food",
+      "display": "美食",
+      "description": "餐點"
+     }
+    ]
+   },
+   "structured_output_schema": {
+    "type": "object"
+   }
+  },
+  "hash": "2b2b3c6800d6e7c85ccf76964a708ea548ae2a03f47fc2853d9fd1f9d5b1ccd0"
+ },
+ {
+  "name": "temp_float",
+  "config": {
+   "task_type": "classify",
+   "model_version": "qwen3-vl-8b@q4_k_m",
+   "prompt_template_ref": "builtin:classify_v1",
+   "generation_params": {
+    "temperature": 0.2,
+    "max_tokens": 256
+   },
+   "label_set": {
+    "key": "cats",
+    "version": 1,
+    "labels": [
+     {
+      "key": "food",
+      "display": "美食",
+      "description": "餐點"
+     }
+    ]
+   },
+   "structured_output_schema": {
+    "type": "object"
+   }
+  },
+  "hash": "066abe4184781e138128084dd64e481b5d33fa523107131553fde8fa4d99d4fc"
+ },
+ {
+  "name": "int_float_same",
+  "config": {
+   "task_type": "classify",
+   "model_version": "qwen3-vl-8b@q4_k_m",
+   "prompt_template_ref": "builtin:classify_v1",
+   "generation_params": {
+    "temperature": 0,
+    "max_tokens": 256.0
+   },
+   "label_set": {
+    "key": "cats",
+    "version": 1,
+    "labels": [
+     {
+      "key": "food",
+      "display": "美食",
+      "description": "餐點"
+     }
+    ]
+   },
+   "structured_output_schema": {
+    "type": "object"
+   }
+  },
+  "hash": "2b2b3c6800d6e7c85ccf76964a708ea548ae2a03f47fc2853d9fd1f9d5b1ccd0"
+ },
+ {
+  "name": "caption",
+  "config": {
+   "task_type": "caption",
+   "model_version": "qwen3-vl-8b@q4_k_m",
+   "prompt_template_ref": "builtin:classify_v1",
+   "generation_params": {
+    "temperature": 0.0,
+    "max_tokens": 256
+   },
+   "label_set": {
+    "key": "cats",
+    "version": 1,
+    "labels": [
+     {
+      "key": "food",
+      "display": "美食",
+      "description": "餐點"
+     }
+    ]
+   },
+   "structured_output_schema": {
+    "type": "object"
+   }
+  },
+  "hash": "5a6f3ce44ee5498bb2dc64054de724e4c1e99b08073088e6639ecf66f8d8675b"
+ },
+ {
+  "name": "tag",
+  "config": {
+   "task_type": "tag",
+   "model_version": "qwen3-vl-8b@q4_k_m",
+   "prompt_template_ref": "builtin:classify_v1",
+   "generation_params": {
+    "temperature": 0.0,
+    "max_tokens": 256
+   },
+   "label_set": {
+    "key": "cats",
+    "version": 1,
+    "labels": [
+     {
+      "key": "food",
+      "display": "美食",
+      "description": "餐點"
+     }
+    ]
+   },
+   "structured_output_schema": {
+    "type": "object"
+   }
+  },
+  "hash": "b8bb9ea7cd8f973d5c846b2dc9333072d7e801bc56510bc74196d2d6e5b56e71"
+ },
+ {
+  "name": "embed",
+  "config": {
+   "task_type": "embed",
+   "model_version": "siglip2-so400m@onnx",
+   "prompt_template_ref": "builtin:classify_v1",
+   "generation_params": {
+    "temperature": 0.0,
+    "max_tokens": 256
+   },
+   "label_set": {
+    "key": "cats",
+    "version": 1,
+    "labels": [
+     {
+      "key": "food",
+      "display": "美食",
+      "description": "餐點"
+     }
+    ]
+   },
+   "structured_output_schema": {
+    "type": "object"
+   }
+  },
+  "hash": "984f0f71f1f42df2acc45e4c81decd6e11a136076a53831b76e8a2af733d6bce"
+ },
+ {
+  "name": "prompt_v2",
+  "config": {
+   "task_type": "classify",
+   "model_version": "qwen3-vl-8b@q4_k_m",
+   "prompt_template_ref": "builtin:classify_v2",
+   "generation_params": {
+    "temperature": 0.0,
+    "max_tokens": 256
+   },
+   "label_set": {
+    "key": "cats",
+    "version": 1,
+    "labels": [
+     {
+      "key": "food",
+      "display": "美食",
+      "description": "餐點"
+     }
+    ]
+   },
+   "structured_output_schema": {
+    "type": "object"
+   }
+  },
+  "hash": "776ad7bcbfe48f52483369cf398e7dfe5d16d35bb8aeaa6d4fd0b3a70a4be405"
+ },
+ {
+  "name": "label_v2",
+  "config": {
+   "task_type": "classify",
+   "model_version": "qwen3-vl-8b@q4_k_m",
+   "prompt_template_ref": "builtin:classify_v1",
+   "generation_params": {
+    "temperature": 0.0,
+    "max_tokens": 256
+   },
+   "label_set": {
+    "key": "cats",
+    "version": 2,
+    "labels": []
+   },
+   "structured_output_schema": {
+    "type": "object"
+   }
+  },
+  "hash": "4043f667d5cbdcfedd43e8dfb2b94fd5337e48b65725e5b73d669c2e386cf7b9"
+ },
+ {
+  "name": "nfd",
+  "config": {
+   "task_type": "classify",
+   "model_version": "qwen3-vl-8b@q4_k_m",
+   "prompt_template_ref": "builtin:classify_v1",
+   "generation_params": {
+    "temperature": 0.0,
+    "max_tokens": 256
+   },
+   "label_set": {
+    "key": "cats",
+    "version": 1,
+    "labels": [
+     {
+      "key": "food",
+      "display": "美食",
+      "description": "Café"
+     }
+    ]
+   },
+   "structured_output_schema": {
+    "type": "object"
+   }
+  },
+  "hash": "30f74c7ade42963d32a878e46c8958e002e1846f33d4a66a4b0c0ca24e573622"
+ },
+ {
+  "name": "emoji",
+  "config": {
+   "task_type": "classify",
+   "model_version": "qwen3-vl-8b@q4_k_m",
+   "prompt_template_ref": "builtin:classify_v1",
+   "generation_params": {
+    "temperature": 0.0,
+    "max_tokens": 256
+   },
+   "label_set": {
+    "key": "cats",
+    "version": 1,
+    "labels": [
+     {
+      "key": "pets",
+      "display": "🐱 寵物",
+      "description": ""
+     }
+    ]
+   },
+   "structured_output_schema": {
+    "type": "object"
+   }
+  },
+  "hash": "794b8dc704ff9b39caf5aa1730c19e1e2983571bbf6f03279c39711990611f1f"
+ },
+ {
+  "name": "schema_enum",
+  "config": {
+   "task_type": "classify",
+   "model_version": "qwen3-vl-8b@q4_k_m",
+   "prompt_template_ref": "builtin:classify_v1",
+   "generation_params": {
+    "temperature": 0.0,
+    "max_tokens": 256
+   },
+   "label_set": {
+    "key": "cats",
+    "version": 1,
+    "labels": [
+     {
+      "key": "food",
+      "display": "美食",
+      "description": "餐點"
+     }
+    ]
+   },
+   "structured_output_schema": {
+    "type": "object",
+    "properties": {
+     "category": {
+      "enum": [
+       "a",
+       "b",
+       "other"
+      ]
+     }
+    }
+   }
+  },
+  "hash": "63023e883f87737970b5efe116e12851b703863ca02dea71c8668ec04563ebc6"
+ },
+ {
+  "name": "run_if",
+  "config": {
+   "task_type": "classify",
+   "model_version": "qwen3-vl-8b@q4_k_m",
+   "prompt_template_ref": "builtin:classify_v1",
+   "generation_params": {
+    "temperature": 0.0,
+    "max_tokens": 256
+   },
+   "label_set": {
+    "key": "cats",
+    "version": 1,
+    "labels": [
+     {
+      "key": "food",
+      "display": "美食",
+      "description": "餐點"
+     }
+    ]
+   },
+   "structured_output_schema": {
+    "type": "object"
+   },
+   "run_if": {
+    "prev_confidence_lt": 0.6
+   }
+  },
+  "hash": "aaa91c9b911099259906bc21135b59f95d9d98f06e71e2c98fa5e2e448ab723e"
+ },
+ {
+  "name": "small_float",
+  "config": {
+   "task_type": "classify",
+   "model_version": "qwen3-vl-8b@q4_k_m",
+   "prompt_template_ref": "builtin:classify_v1",
+   "generation_params": {
+    "temperature": 1e-07
+   },
+   "label_set": {
+    "key": "cats",
+    "version": 1,
+    "labels": [
+     {
+      "key": "food",
+      "display": "美食",
+      "description": "餐點"
+     }
+    ]
+   },
+   "structured_output_schema": {
+    "type": "object"
+   }
+  },
+  "hash": "a8d5e017e09e3e61606d8809bfb5104b305acaf3a5e4adc2db2e743be19c4e5b"
+ },
+ {
+  "name": "big_int",
+  "config": {
+   "task_type": "classify",
+   "model_version": "qwen3-vl-8b@q4_k_m",
+   "prompt_template_ref": "builtin:classify_v1",
+   "generation_params": {
+    "seed": 9007199254740993
+   },
+   "label_set": {
+    "key": "cats",
+    "version": 1,
+    "labels": [
+     {
+      "key": "food",
+      "display": "美食",
+      "description": "餐點"
+     }
+    ]
+   },
+   "structured_output_schema": {
+    "type": "object"
+   }
+  },
+  "hash": "c4107f4c3023a13fce0b705efe548477ef9e89b7423fb9f5b7f7c7dbacbb97a0"
+ },
+ {
+  "name": "nested_list",
+  "config": {
+   "task_type": "classify",
+   "model_version": "qwen3-vl-8b@q4_k_m",
+   "prompt_template_ref": "builtin:classify_v1",
+   "generation_params": {
+    "stop": [
+     "\n",
+     "</s>"
+    ]
+   },
+   "label_set": {
+    "key": "cats",
+    "version": 1,
+    "labels": [
+     {
+      "key": "food",
+      "display": "美食",
+      "description": "餐點"
+     }
+    ]
+   },
+   "structured_output_schema": {
+    "type": "object"
+   }
+  },
+  "hash": "d5ee8f9ae565a4f9530eafb86c7b2f298b0f4bb4d06b9096879ff14c066331eb"
+ },
+ {
+  "name": "unicode_key",
+  "config": {
+   "task_type": "classify",
+   "model_version": "qwen3-vl-8b@q4_k_m",
+   "prompt_template_ref": "builtin:classify_v1",
+   "generation_params": {
+    "溫度": 0.1
+   },
+   "label_set": {
+    "key": "cats",
+    "version": 1,
+    "labels": [
+     {
+      "key": "food",
+      "display": "美食",
+      "description": "餐點"
+     }
+    ]
+   },
+   "structured_output_schema": {
+    "type": "object"
+   }
+  },
+  "hash": "56a0e7ed496d6240b0f306b5aaa5495cb0ece3de88dd298068d6b245c17e359f"
+ },
+ {
+  "name": "null",
+  "config": {
+   "task_type": "classify",
+   "model_version": "qwen3-vl-8b@q4_k_m",
+   "prompt_template_ref": "builtin:classify_v1",
+   "generation_params": {
+    "temperature": 0.0,
+    "max_tokens": 256
+   },
+   "label_set": {
+    "key": "cats",
+    "version": 1,
+    "labels": [
+     {
+      "key": "food",
+      "display": "美食",
+      "description": "餐點"
+     }
+    ]
+   },
+   "structured_output_schema": {
+    "type": "object"
+   },
+   "run_if": null
+  },
+  "hash": "4971f35d3347b6094bf36e038a4a494fe16f9d3b484911976a82c3068bc0f541"
+ },
+ {
+  "name": "bool",
+  "config": {
+   "task_type": "classify",
+   "model_version": "qwen3-vl-8b@q4_k_m",
+   "prompt_template_ref": "builtin:classify_v1",
+   "generation_params": {
+    "logprobs": true
+   },
+   "label_set": {
+    "key": "cats",
+    "version": 1,
+    "labels": [
+     {
+      "key": "food",
+      "display": "美食",
+      "description": "餐點"
+     }
+    ]
+   },
+   "structured_output_schema": {
+    "type": "object"
+   }
+  },
+  "hash": "ae564552d9715bef61eef09b7a3a49bfc595affea9595b9e34cd3343d1008590"
+ },
+ {
+  "name": "thresholds_ignored",
+  "config": {
+   "task_type": "classify",
+   "model_version": "qwen3-vl-8b@q4_k_m",
+   "prompt_template_ref": "builtin:classify_v1",
+   "generation_params": {
+    "temperature": 0.0,
+    "max_tokens": 256
+   },
+   "label_set": {
+    "key": "cats",
+    "version": 1,
+    "labels": [
+     {
+      "key": "food",
+      "display": "美食",
+      "description": "餐點"
+     }
+    ]
+   },
+   "structured_output_schema": {
+    "type": "object"
+   },
+   "thresholds": {
+    "accept": 0.7
+   }
+  },
+  "hash": "2b2b3c6800d6e7c85ccf76964a708ea548ae2a03f47fc2853d9fd1f9d5b1ccd0"
+ },
+ {
+  "name": "output_ignored",
+  "config": {
+   "task_type": "classify",
+   "model_version": "qwen3-vl-8b@q4_k_m",
+   "prompt_template_ref": "builtin:classify_v1",
+   "generation_params": {
+    "temperature": 0.0,
+    "max_tokens": 256
+   },
+   "label_set": {
+    "key": "cats",
+    "version": 1,
+    "labels": [
+     {
+      "key": "food",
+      "display": "美食",
+      "description": "餐點"
+     }
+    ]
+   },
+   "structured_output_schema": {
+    "type": "object"
+   },
+   "output_rule": {
+    "path_template": "x/{stem}{ext}"
+   }
+  },
+  "hash": "2b2b3c6800d6e7c85ccf76964a708ea548ae2a03f47fc2853d9fd1f9d5b1ccd0"
+ }
+]
