@@ -49,10 +49,65 @@ class Outcome:
     flags: tuple[str, ...] = field(default_factory=tuple)
 
 
+EPS = 1e-9  # threshold comparisons are inclusive (CORE-THR-003) and robust to float rounding
+
+
+def _ranked(emb: Stage) -> list[tuple[str, float]]:
+    return sorted(emb.scores.items(), key=lambda kv: (-kv[1], kv[0]))
+
+
 def route_embedding(emb: Stage, n_examples: int, policy: Policy = Policy()) -> Route:
-    return Route("vlm", None, 0.0, 0.0)
+    """Stage E: accept directly when confident and well separated; otherwise send to the VLM with top-3 hints."""
+    ranked = _ranked(emb)
+    if not ranked:
+        return Route("vlm", None, 0.0, 0.0)
+    cat, p1 = ranked[0]
+    p2 = ranked[1][1] if len(ranked) > 1 else 0.0
+    margin = p1 - p2
+    tau = policy.tau_high if n_examples > 0 else policy.tau_high_no_examples
+    hints = tuple(c for c, _ in ranked[:3])
+    if p1 + EPS >= tau and margin + EPS >= policy.margin:
+        return Route("accept", cat, p1, margin, hints)
+    return Route("vlm", cat, p1, margin, hints)
+
+
+def _by_thresholds(cat: str | None, p: float, source: Source, policy: Policy, reason: str = "low_confidence") -> Outcome:
+    if cat is None or p + EPS < policy.min_confidence:
+        return Outcome("other", None, p, source)
+    if p + EPS >= policy.accept:
+        return Outcome("accepted", cat, p, source)
+    if p + EPS >= policy.review:
+        return Outcome("needs_review", cat, p, source, reason)
+    return Outcome("other", None, p, source)
 
 
 def decide(emb: Stage | None = None, vlm: VlmResult | None = None, rule_category: str | None = None,
            n_examples: int = 0, policy: Policy = Policy()) -> Outcome:
-    return Outcome("other", None, 0.0, "embedding")
+    """Final decision for one photo.
+
+    * rule hit wins (confidence 1.0);
+    * VLM present: ``other`` is final; with an embedding stage, agreement -> consensus ``1-(1-pE)(1-pV)``,
+      disagreement -> VLM category at ``0.8·pV``; both then judged by task thresholds (accept/review);
+      VLM alone is accepted at ``min_confidence`` (it is the final judge of the cascade);
+    * embedding only: route accept -> accepted, else task thresholds.
+    """
+    if rule_category is not None:
+        return Outcome("accepted", rule_category, 1.0, "rule")
+    if vlm is not None:
+        if vlm.category == "other":
+            return Outcome("other", None, vlm.p, "vlm")
+        if emb is not None and emb.scores:
+            top_cat, p_e = _ranked(emb)[0]
+            if top_cat == vlm.category:
+                p = 1 - (1 - p_e) * (1 - vlm.p)
+                return _by_thresholds(vlm.category, p, "consensus", policy)
+            return _by_thresholds(vlm.category, vlm.p * 0.8, "vlm", policy, reason="conflict")
+        if vlm.p + EPS >= policy.min_confidence:
+            return Outcome("accepted", vlm.category, vlm.p, "vlm")
+        return Outcome("other", None, vlm.p, "vlm")
+    if emb is None or not emb.scores:
+        return Outcome("other", None, 0.0, "embedding")
+    r = route_embedding(emb, n_examples, policy)
+    if r.route == "accept":
+        return Outcome("accepted", r.category, r.p, "embedding")
+    return _by_thresholds(r.category, r.p, "embedding", policy)
