@@ -33,8 +33,34 @@ class StatusEvent:
     to_status: JobStatus
 
 
-JOB_TRANSITIONS: frozenset[tuple[JobStatus | None, JobStatus]] = frozenset()
+_S = JobStatus
+JOB_TRANSITIONS: frozenset[tuple[JobStatus | None, JobStatus]] = frozenset(
+    {
+        (None, _S.queued),
+        (_S.queued, _S.running),
+        (_S.running, _S.paused),
+        (_S.paused, _S.running),
+        (_S.running, _S.awaiting_review),
+        (_S.awaiting_review, _S.planning),
+        (_S.running, _S.planning),
+        (_S.planning, _S.awaiting_approval),
+        (_S.awaiting_approval, _S.applying),
+        (_S.applying, _S.completed),
+        (_S.awaiting_approval, _S.completed),
+        (_S.running, _S.failed),
+        (_S.queued, _S.cancelled),
+        (_S.running, _S.cancelling),
+        (_S.paused, _S.cancelled),
+        (_S.cancelling, _S.cancelled),
+        (_S.completed, _S.undoing),
+        (_S.undoing, _S.undone),
+        (_S.failed, _S.queued),
+    }
+)
 
 
 def transition(current: JobStatus | None, target: JobStatus) -> StatusEvent:
-    raise IllegalTransition(f"{current} -> {target}")
+    """Validate a transition and return the ``job.status`` event to emit."""
+    if (current, target) not in JOB_TRANSITIONS:
+        raise IllegalTransition(f"{current} -> {target}")
+    return StatusEvent(kind="job.status", from_status=current, to_status=target)
