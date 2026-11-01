@@ -1262,11 +1262,17 @@ name = "opagent-inference-sdk"
 version = "0.0.1"
 source = { editable = "packages/inference-sdk" }
 dependencies = [
+    { name = "numpy" },
+    { name = "opagent-core" },
     { name = "pydantic" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "pydantic", specifier = ">=2" }]
+requires-dist = [
+    { name = "numpy" },
+    { name = "opagent-core", editable = "packages/core" },
+    { name = "pydantic", specifier = ">=2" },
+]
 
 [[package]]
 name = "opagent-schemas"
