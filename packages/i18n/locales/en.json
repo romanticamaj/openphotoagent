@@ -1,6 +1,10 @@
 {
-  "app": { "title": "OpenPhotoAgent" },
-  "common": { "working": "Working…" },
+  "app": {
+    "title": "OpenPhotoAgent"
+  },
+  "common": {
+    "working": "Working…"
+  },
   "organize": {
     "pickFolder": "Choose a folder to organize",
     "useThisFolder": "Use this folder",
@@ -17,5 +21,18 @@
     "doneTitle": "All done",
     "undo": "Undo",
     "undoneTitle": "Undone"
+  },
+  "eta": {
+    "slow": {
+      "decode_bottleneck": "Slower than expected: HEIC decoding is the bottleneck",
+      "gpu_busy": "Slower than expected: another app is using the GPU",
+      "generic": "Slower than expected"
+    },
+    "paused": "Paused",
+    "estimating": "Estimating…",
+    "cta": {
+      "view_logs": "View logs",
+      "retry": "Retry"
+    }
   }
 }

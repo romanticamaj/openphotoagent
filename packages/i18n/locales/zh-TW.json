@@ -1,6 +1,10 @@
 {
-  "app": { "title": "OpenPhotoAgent" },
-  "common": { "working": "處理中…" },
+  "app": {
+    "title": "OpenPhotoAgent"
+  },
+  "common": {
+    "working": "處理中…"
+  },
   "organize": {
     "pickFolder": "選擇要整理的資料夾",
     "useThisFolder": "選擇此資料夾",
@@ -17,5 +21,18 @@
     "doneTitle": "整理完成",
     "undo": "復原",
     "undoneTitle": "已復原"
+  },
+  "eta": {
+    "slow": {
+      "decode_bottleneck": "比預估慢：HEIC 解碼是瓶頸",
+      "gpu_busy": "比預估慢：GPU 同時被其他程式使用",
+      "generic": "比預估慢"
+    },
+    "paused": "暫停中",
+    "estimating": "估算中…",
+    "cta": {
+      "view_logs": "查看 log",
+      "retry": "重試"
+    }
   }
 }
