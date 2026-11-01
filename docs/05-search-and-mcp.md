@@ -1,10 +1,11 @@
 # 05 — 搜尋索引與 MCP Server（Search & Agent Integration）
 
-> 專案名稱：**OpenPhotoAgent**（原暫名 Open Photo Labeler；CLI 仍沿用 `opl`，套件結構沿用 02）
+> 專案名稱：**OpenPhotoAgent**（原暫名 Open Photo Labeler；CLI：`opagent`（已定案），套件結構沿用 02）
 > 文件狀態：Draft v0.1（2026-11）
 > 範圍：搜尋索引（多路索引、增量、reindex、pgvector 參數、規模）、查詢（hybrid / 以圖搜圖 / 相似與重複 / query planner / rerank / 權限）、**MCP server（主軸）**、自動化、分期。
 > 不在範圍：模型 adapter 與 prompt（03 推論層）、畫面設計（04 UI）。本文件只列出對 03 / 04 的**介面需求**（§9）。
-> 一致性前提（來自 02）：FastAPI + Postgres 16 + pgvector；Postgres SKIP LOCKED 佇列 + Procrastinate；**只有 Worker 能碰原檔與 GPU**；Worker 經 outbound WSS 連 control plane（CP）；Asset 以 BLAKE3 內容 hash 識別；四級 `egress_policy`（`full / thumbs / edge-thumbs / results-only`）；檔案操作 plan → approve → journal → apply。
+> **（審查補充）桌面優先後的調整**：桌面版 MCP 的唯一預設通道是 **stdio `opagent mcp` + 本機 PAT**，`/mcp` HTTP 在桌面版預設關閉；OAuth 2.1 AS 延到 v0.5（自架多人）；人臉相關 scope 與 tools 依 07；內建 chat 助手改為 10 的「AI 問照片」（v0.3）。完整整合清單見 §11；版本以 [08 §9](08-desktop-packaging-and-final-review.md) 為準。
+> 一致性前提（來自 02）：FastAPI + PostgreSQL 17 + pgvector 0.8（桌面版為嵌入式 PG，08 §2）；Postgres SKIP LOCKED 佇列 + Procrastinate；**只有 Worker 能碰原檔與 GPU**；Worker 經 outbound WSS 連 control plane（CP）；Asset 以 BLAKE3 內容 hash 識別；四級 `egress_policy`（`full / thumbs / edge-thumbs / results-only`）；檔案操作 plan → approve → journal → apply。
 > 查證：MCP 規格以官方 repo `modelcontextprotocol/modelcontextprotocol` 的 `docs/specification/2026-07-28` 為準（2026-11 實際 clone 閱讀）。各 client（Claude Desktop / Claude Code / Cursor）對 2026-07-28 新版的支援程度**未驗證**，因此 server 同時支援 2025-11-25。
 
 ---
@@ -19,7 +20,7 @@
 | Query planner | 預設規則式（日期/地名/tag 詞典比對）；可選本地 LLM（Worker interactive lane，structured output）。**透過 MCP 呼叫時，外部 agent 自己就是 planner**：tool schema 直接暴露結構化 filter。 |
 | Reindex | embedding 以 `embedding_space`（= model_version + modality + dim）區分，藍綠切換：backfill → `CREATE INDEX CONCURRENTLY` → 原子切換 workspace 的 `search_profile` → 保留舊 space N 天。 |
 | 規模 | 1152 維 halfvec + HNSW(m=16, ef_construction=128)：10 萬張 ≈ 0.5 GB、100 萬張 ≈ 4–5 GB（單一 space，估算）。 |
-| MCP 部署 | **Streamable HTTP 端點 `/mcp` 內建於 CP 的 `opl api`**（遠端/本機皆可）；**`opl mcp` stdio 進程**是薄 proxy，只透過 REST API + PAT 存取 CP。兩者都不碰 DB 以外的東西、更不碰原檔。 |
+| MCP 部署 | **Streamable HTTP 端點 `/mcp` 內建於 CP 的 `opagent api`**（遠端/本機皆可）；**`opagent mcp` stdio 進程**是薄 proxy，只透過 REST API + PAT 存取 CP。兩者都不碰 DB 以外的東西、更不碰原檔。 |
 | MCP 認證 | HTTP：OAuth 2.1（CP 內建 AS，PKCE、RFC 8707 resource indicator、audience 綁定、**Client ID Metadata Documents 優先、DCR 相容**）＋ PAT bearer；stdio：PAT（OS keychain）。 |
 | MCP 安全核心 | (1) scope 分級，預設唯讀；(2) 所有結果經 workspace + **資料夾範圍**過濾；(3) **任何檔案變更只產生 dry-run plan，套用必須由人在 CP 網頁上核准**（URL-mode elicitation 帶過去），agent 無法自我核准；(4) 照片內文字、EXIF、檔名、caption 一律視為**不可信資料**並結構化隔離；(5) 「照片給第三方 LLM」本身是一種 egress → 獨立的 `mcp_media_policy` 與 `photos:media` scope；(6) 速率/GPU 預算、完整稽核。 |
 
@@ -58,9 +59,9 @@ flowchart LR
 
 | 表 | 主要欄位 | 說明 |
 |----|----------|------|
-| `embedding_space` | id, model_version_id, modality(`image`/`text`), input(`pixels`/`caption`/`query`), dim, distance(`cosine`), storage(`halfvec`/`vector`/`bit`), status(`building/active/retired`), hnsw_params(jsonb), created_at | 一個 space = 一個可比較的向量空間。SigLIP2 的影像塔與文字塔屬於**同一 space 的兩種 input**（跨模態必須同版本）。 |
+| `embedding_space` | id, model_version_id, modality(`image`/`text`/`face`（審查補充，07；人臉向量實體存在 `bio` schema）), input(`pixels`/`caption`/`query`), dim, distance(`cosine`), storage(`halfvec`/`vector`/`bit`), status(`building/active/retired`), hnsw_params(jsonb), created_at | 一個 space = 一個可比較的向量空間。SigLIP2 的影像塔與文字塔屬於**同一 space 的兩種 input**（跨模態必須同版本）。 |
 | `asset_embedding`（擴充 02） | asset_id, **space_id**, vec(`halfvec`，不定維), source_hash(content_hash), created_at；PK `(asset_id, space_id)` | 02 原為 `model_version_id`，改以 `space_id` 間接指向；以 **partial expression index** 為每個 space 建 HNSW（§1.5）。 |
-| `search_doc` | asset_id(PK), workspace_id, org_id, doc_version, **facets**：category, tags(text[] canonical key), tag_scores(jsonb), taken_at, taken_year, taken_month, tz, has_gps, place_ids(int[] GeoNames), country_code, admin1, city, camera_make, camera_model, lens, orientation, width, height, mime, media_kind, duplicate_group_id, is_dup_representative, collection_ids(uuid[]), review_state, confidence, **scope_keys(text[])**；**文字**：caption, text_lang, ocr_text(nullable), doc_text（組合後原文，供 snippet）, tsv(tsvector)；updated_at | 反正規化、一列一張照片；所有檢索路徑共用它做 filter。 |
+| `search_doc` | asset_id(PK), workspace_id, org_id, doc_version, **facets**：category, tags(text[] canonical key), tag_scores(jsonb), taken_at, taken_year, taken_month, tz, has_gps, place_ids(int[] GeoNames), country_code, admin1, city, camera_make, camera_model, lens, orientation, width, height, mime, media_kind, duplicate_group_id, is_dup_representative, collection_ids(uuid[]), review_state, confidence, **scope_keys(text[])**，（審查補充，07 §3.3）`person_ids uuid[]`（GIN，已確認＋高信心）、`person_ids_suggested uuid[]`、`face_count int`，（審查補充，10）`rating`、`favorite`；**文字**：caption, text_lang, ocr_text(nullable), doc_text（組合後原文，供 snippet）, tsv(tsvector)；updated_at | 反正規化、一列一張照片；所有檢索路徑共用它做 filter。 |
 | `place` | geoname_id, names(jsonb：`{"zh-TW":"京都市","en":"Kyoto","ja":"京都市"}`), feature_class, country_code, admin1_code, parent_ids[], lat, lng, population | 離線 GeoNames（cities1000 + admin1 + countryInfo + alternateNames）。 |
 | `collection` / `collection_item` | id, workspace_id, name, description, kind(`manual/smart`), smart_query(jsonb), created_by(user 或 `mcp:{client}`)；item: collection_id, asset_id, added_by, position | MCP `create_collection` 使用；不動檔案系統。 |
 | `search_profile`（workspace.settings 內） | `{image_space_id, text_space_id, fts: {tokenizer:"jieba-zh-hant@3", bigram:true}, rrf: {k:60, weights:{...}}}` | 切換 reindex 時原子更新。 |
@@ -77,7 +78,7 @@ flowchart LR
 | `zhparser`（SCWS） | 字典斷詞 parser | 中：SCWS 字典以簡體為主，繁中需轉換或自建字典 | 需編譯 SCWS + extension | ✗（ts_rank） | 不選 |
 | `pg_jieba` | jieba 字典斷詞 parser | 中上：可載入繁中大字典；自訂詞需重啟/重載 | 需 extension（pigsty 有 PG16 套件） | ✗ | 次選 |
 | ParadeDB `pg_search` | Tantivy BM25，內建 jieba/ICU/ngram tokenizer | 上 | 需 extension；授權 AGPL（未驗證最新條款） | ✓ | v2 可選「真 BM25」backend |
-| **應用層斷詞 → `simple` tsvector** | Python 端 jieba（繁中 `dict.txt.big`）+ 自訂詞 + OpenCC，輸出空白分隔 token 寫入 `to_tsvector('simple', …)` | 上：自訂詞即時生效（label set、地名、相簿名）；簡繁查詢互通 | **0 extension**，任何 Postgres 16 / 託管 PG 都可 | ✗（ts_rank_cd；RRF 只用名次，影響小） | **✓ 選定** |
+| **應用層斷詞 → `simple` tsvector** | Python 端 jieba（繁中 `dict.txt.big`）+ 自訂詞 + OpenCC，輸出空白分隔 token 寫入 `to_tsvector('simple', …)` | 上：自訂詞即時生效（label set、地名、相簿名）；簡繁查詢互通 | **0 extension**，任何 PostgreSQL 16+ / 託管 PG 都可 | ✗（ts_rank_cd；RRF 只用名次，影響小） | **✓ 選定** |
 
 選定理由：(1) 符合 02 的 P5「只需 Postgres + pgvector」；(2) 我們的詞彙大部分是**受控**的（label set 的 display/aliases、GeoNames 中文地名），應用層最容易把它們注入字典；(3) RRF 只看名次，不需要精確 BM25 分數；(4) 斷詞器版本可記錄在 `search_profile.fts.tokenizer`，換字典 = `reindex text`，純 CP CPU 作業。
 
@@ -115,7 +116,7 @@ CREATE INDEX search_doc_ws_country ON search_doc (workspace_id, country_code, ad
 | 資料夾 | `scope_keys` | 支援「在 2024/日本 這個資料夾底下」 |
 | 重複 | `duplicate_group_id`、`is_dup_representative` | 02 定義：同 hash / pHash ≤6 / cosine ≥0.97 |
 | 覆核狀態 / 信心 | `review_state`, `confidence` | agent 可找「低信心需確認」 |
-| 人臉群組 | **未來（v2+）**：`face_cluster_ids int[]`，需另一份人臉模型與同意機制（生物特徵屬高敏感資料，預設關閉） | 本版只保留欄位設計 |
+| 人物 | （審查補充）**v0.2**（07）：`person_ids`、`face_count`，facet `person:`；取代原本的 `face_cluster_ids`。只有擁有 `face:read` 權限（MCP 為 `faces:read` scope）時才回傳或計數；未命名的臉群不暴露給 MCP | 預設關閉，需 workspace opt-in（07 §0） |
 
 ### 1.5 pgvector 參數與規模估算
 
@@ -140,8 +141,8 @@ SET LOCAL hnsw.max_scan_tuples = 40000;
 | `m` | 16 | 預設；100 萬級足夠 |
 | `ef_construction` | 128（≤100 萬）；200（更大或需高召回） | 建構慢一些換召回 |
 | `ef_search` | 預設 40 → 搜尋時 100–200 | 需 ≥ 候選數；hybrid 只取 top-200 |
-| filter 策略 | Planner 預估 filter 後候選 < 5,000 列 → **不走 HNSW，精確掃描**（`ORDER BY` 距離，在 filter 結果上算）；否則 HNSW + `iterative_scan` | 避免「HNSW 先取 200 再 filter 剩 3 筆」；SaaS 多租戶下 workspace 本身就是強 filter |
-| 多租戶（SaaS） | 小 workspace（< 5 萬）一律精確掃描；大 workspace 走共用 HNSW + iterative scan；超大租戶（>100 萬）可選 per-workspace partial index | 未驗證：需實測閾值 |
+| filter 策略 | Planner 預估 filter 後候選 < 5,000 列 → **不走 HNSW，精確掃描**（`ORDER BY` 距離，在 filter 結果上算）；否則 HNSW + `iterative_scan` | 避免「HNSW 先取 200 再 filter 剩 3 筆」；自架多人（多租戶）下 workspace 本身就是強 filter |
+| 多租戶（自架多人 control plane） | 小 workspace（< 5 萬）一律精確掃描；大 workspace 走共用 HNSW + iterative scan；超大租戶（>100 萬）可選 per-workspace partial index | 未驗證：需實測閾值 |
 | 建索引 | `maintenance_work_mem` ≥ 索引大小（1M 約 4GB）、`max_parallel_maintenance_workers` 4 | 不足時建構顯著變慢 |
 
 **規模估算（單一 1152 維 space；全部為估算，未實測）**：
@@ -252,7 +253,7 @@ SELECT * FROM fused ORDER BY score DESC LIMIT :limit OFFSET :offset;
 | 功能 | 輸入 | 做法 |
 |------|------|------|
 | 相似照片 `find_similar` | `asset_id` | 直接取該 asset 在 active space 的向量 → kNN（不需推論）；可加 filter；排除同 `duplicate_group_id`（可選） |
-| 以圖搜圖（上傳） | 圖片 bytes | 圖片送到 Worker 的 `embed.image` RPC（互動 lane）→ 向量 → kNN。上傳圖只存在記憶體，不落地 CP（SaaS 模式下圖片經 CP 中繼，UI 明示） |
+| 以圖搜圖（上傳） | 圖片 bytes | 圖片送到 Worker 的 `embed.image` RPC（互動 lane）→ 向量 → kNN。上傳圖只存在記憶體，不落地 CP（control plane 與 Worker 分離時圖片經 CP 中繼，UI 明示） |
 | 以文 + 圖組合 | text + asset_id | 向量 = normalize(α·v_text + (1-α)·v_img)，α 預設 0.5 |
 | 重複 `find_duplicates` | scope / filter | exact：同 content_hash（asset 已去重，看 `asset_location` 多處）；near：`duplicate_group_id`（scan 時的 pHash/embedding 判定）；可觸發 `dedup` 背景任務重新聚類：對每張 HNSW kNN k=10、cosine ≥ 閾值 → union-find |
 | 代表張 | group | 解析度最高 → 檔案最大 → 最早 taken_at；`is_dup_representative` |
@@ -337,9 +338,9 @@ flowchart LR
     CU[Cursor / 其他]
   end
   subgraph Local[使用者電腦]
-    STDIO["opl mcp（stdio proxy）<br/>PAT in keychain"]
+    STDIO["opagent mcp（stdio proxy）<br/>PAT in keychain"]
   end
-  subgraph CP[Control plane：opl api]
+  subgraph CP[Control plane：opagent api]
     MCPH["/mcp<br/>Streamable HTTP"]
     OAS[OAuth AS<br/>/oauth/*, .well-known]
     SVC[Tool service 層<br/>= REST 同一套 domain service]
@@ -361,12 +362,13 @@ flowchart LR
 
 | 項目 | 選定 | 理由 |
 |------|------|------|
-| HTTP 端點位置 | **內建於 `opl api`（同進程 ASGI mount `/mcp`）**；大型 SaaS 可用同映像 `opl api --only mcp` 拆出水平擴展 | 2026-07-28 版 MCP **已無 protocol session**（無 `Mcp-Session-Id`、無 initialize 握手），每個請求自帶 `_meta`，天然無狀態 → 和 REST 一樣可多副本、不需 sticky session |
-| stdio | **`opl mcp` 獨立進程**，是 REST API 的薄 client（不直連 DB、不碰檔案、不連 Worker） | 本機 Claude Desktop/Code 最常用；PAT 存 OS keychain（`opl login`）；all-in-one 時連 `http://127.0.0.1:8080`，遠端 CP 也同樣可用 |
+| HTTP 端點位置 | **內建於 `opagent api`（同進程 ASGI mount `/mcp`）**；大型自架部署可用同映像 `opagent api --only mcp` 拆出水平擴展 | 2026-07-28 版 MCP **已無 protocol session**（無 `Mcp-Session-Id`、無 initialize 握手），每個請求自帶 `_meta`，天然無狀態 → 和 REST 一樣可多副本、不需 sticky session |
+| stdio | **`opagent mcp` 獨立進程**，是 REST API 的薄 client（不直連 DB、不碰檔案、不連 Worker） | 本機 Claude Desktop/Code 最常用；PAT 存 OS keychain（`opagent login`）；all-in-one 時連 `http://127.0.0.1:8080`，遠端 CP 也同樣可用 |
 | 為何不放在 Worker | Worker 永不接受 inbound（02 §6.3）；權限、稽核、索引都在 CP | — |
-| 實作 | 官方 Python SDK（`mcp`）的 server 介面 + 自有 `ToolRegistry`（tool schema 由 Pydantic 產生，與 REST DTO 共用 `packages/schemas`）。新程式碼放 `apps/api/mcp/` 與 `packages/mcp-tools/`；`opl mcp` 放 `apps/cli/` | SDK 對 2026-07-28 的支援版本**未驗證**；以 adapter 隔離 SDK |
+| 實作 | 官方 Python SDK（`mcp`）的 server 介面 + 自有 `ToolRegistry`（tool schema 由 Pydantic 產生，與 REST DTO 共用 `packages/schemas`）。新程式碼放 `apps/api/mcp/` 與 `packages/mcp-tools/`；`opagent mcp` 放 `apps/cli/` | SDK 對 2026-07-28 的支援版本**未驗證**；以 adapter 隔離 SDK |
 | 協定版本 | 支援 `2026-07-28`（主）與 `2025-11-25`（相容）；實作 `server/discover`；`tools/list` 決定性排序（利於 client 端 prompt cache）；`ttlMs`/`cacheScope: "private"` | 依 2026-07-28 changelog |
-| 本機安全 | HTTP 綁 `127.0.0.1`（all-in-one 預設）；**驗證 `Origin` header 防 DNS rebinding**；`OPL_AUTH=none` 時 `/mcp` 仍強制 PAT（不允許無認證 MCP） | 規格 MUST；MCP 的攻擊面比 UI 大 |
+| 本機安全 | HTTP 綁 `127.0.0.1`（all-in-one 預設）；**驗證 `Origin` header 防 DNS rebinding**；`OPAGENT_AUTH=none` 時 `/mcp` 仍強制 PAT（不允許無認證 MCP） | 規格 MUST；MCP 的攻擊面比 UI 大 |
+| **桌面版**（審查補充，08 D11、C-20） | **stdio 是唯一預設通道**：`opagent mcp` 隨 app 附帶，從 data dir 的 `run/api.json` 自動找到 api port（port 可能變動），用 keyring 裡的本機 PAT 呼叫 REST；設定檔一律寫 app 內 CLI 的**絕對路徑**（安裝程式不改 PATH）；`/mcp` HTTP 預設關閉，進階開啟時強制 PAT；桌面免登入不影響 MCP：沒有 PAT 就不能呼叫 | 桌面 UI 用的 `launch_token` 每次啟動輪替、只在記憶體，**不能**給 MCP 使用 |
 
 > 設計原則：**MCP tool = REST endpoint 的另一種外殼**。每個 tool 呼叫同一個 domain service、走同一個 `TenantContext` 與 permission 檢查；MCP 層只多做三件事：scope→permission 對映、結果的「LLM 友善化」（摘要文字 + 結構化內容 + 縮圖/resource link）、不可信內容隔離。
 
@@ -376,11 +378,13 @@ flowchart LR
 
 | 傳輸 | 憑證 | 取得方式 | 備註 |
 |------|------|----------|------|
-| stdio（`opl mcp`） | PAT `opl_pat_…`（02 §6.3 既有） | `opl login --server … --scopes photos:read,…` 走瀏覽器 device flow，存 keychain；或環境變數 `OPL_TOKEN` | 規格：stdio 不走 MCP OAuth，從環境取憑證 |
+| stdio（`opagent mcp`） | PAT `opagent_pat_…`（02 §6.3 既有） | `opagent login --server … --scopes photos:read,…` 走瀏覽器 device flow，存 keychain；或環境變數 `OPAGENT_TOKEN` | 規格：stdio 不走 MCP OAuth，從環境取憑證 |
 | Streamable HTTP（互動 client） | **OAuth 2.1 access token**（JWT，aud = `https://<cp>/mcp`，15 分鐘）+ refresh token（輪替） | MCP 授權流程（下圖） | Claude Desktop custom connector、Claude Code `/mcp` 登入 |
 | Streamable HTTP（腳本/無瀏覽器） | PAT 當 Bearer | UI 建立，帶 `aud=mcp` 標記 | client 需支援自訂 header |
 
 #### 3.2.2 OAuth 流程（CP 內建 Authorization Server）
+
+> **（審查補充，08 C-21）延到 v0.5（自架多人 control plane）**。v0.1–v0.4 的桌面與單人 Docker 只用 PAT。v0.5 開工前重新評估是否改為「委託外部 IdP（Authentik、Keycloak）當 AS，CP 只當 RS」，以降低自寫 AS 的風險。
 
 ```mermaid
 sequenceDiagram
@@ -423,8 +427,12 @@ sequenceDiagram
 | `jobs:run` | job:create | run_labeling_job, cancel_job（只產生結果/標註，**不動檔案**） | 否 |
 | `organize:propose` | job:create（dry_run） | propose_organize | 否 |
 | `organize:apply` | output:apply（**僅能「請求」套用**） | apply_organize, undo_organize → 一律進人工核准（§3.6） | 否；且 workspace 需開啟 `mcp.allow_apply_requests` |
+| `faces:read`（審查補充，07 §5.1，v0.2） | face:read | list_people, get_person, find_photos_of_person；search_photos 的 `persons_*` filter 與 `person` facet；`PhotoSummary.people` | **否**；workspace 還必須設定 `mcp.faces_enabled=true`（預設 false） |
+| `faces:media`（審查補充，07 §5.1，v0.2） | face:read + media | 人臉裁切縮圖（`person://{id}/cover`、`face://{id}/thumb`） | 否；受 `mcp_face_media_policy` 限制（預設 `none`） |
 
-> 刻意**沒有**的能力：刪除照片、寫入原檔 EXIF、改 Source/Worker/Pipeline 設定、管理成員與 token、任意路徑讀取。這些只在 UI 進行。
+> 刻意**沒有**的能力：刪除照片、寫入原檔 EXIF、改 Source/Worker/Pipeline 設定、管理成員與 token、任意路徑讀取。這些只在 UI 進行。（審查補充）另外也沒有：**新增或刪除 Worker 允許根目錄**（只能經由桌面殼 IPC 或本機 CLI，08 C-09）、**上傳參考臉找人**、**取得任何 embedding**、命名／合併／刪除人物、修改人臉設定（07 §5.1）。
+>
+> **（審查補充）scope 命名統一**：08 C-25 與 10 §10.4 寫的 `people:read` 一律改為 07 定義的 `faces:read`（人臉縮圖另需 `faces:media`）。
 
 ### 3.3 Tools
 
@@ -449,10 +457,15 @@ sequenceDiagram
 | `get_organize_plan` | 讀計畫摘要/明細/衝突 | photos:read | readOnly | 低 |
 | `apply_organize` | **請求**套用計畫 → 人工核准 | organize:apply | **destructive=true** | — |
 | `undo_organize` | 請求撤銷已套用計畫 → 人工核准 | organize:apply | destructive=true | — |
+| `list_people` / `get_person` / `find_photos_of_person`（審查補充，07 §5.2，v0.2） | 列出已命名人物、人物詳情、找某人的照片（回傳 `selection_id`） | faces:read | readOnly, idempotent | 低 |
+| `count_photos`（審查補充，10 §8.3，v0.3） | 依 filter 計數（Ask 的統計題，數字只能來自工具） | photos:read | readOnly, idempotent | 低 |
+| `verify_photos` / `compare_photos`（審查補充，10 §8.3，v0.3） | 以 VLM 逐張檢查條件（yes/no/unsure + 理由）／多張比較 | photos:describe | readOnly | **GPU** |
 
 - **跨呼叫狀態一律用 server 發的 handle**（2026-07-28 移除 session 後的規格建議）：`cursor`（搜尋分頁，含 query hash + 位移，簽章、10 分鐘有效）、`plan_id`、`job_id`、`collection_id`、`selection_id`（見下）。
 - **`selection_id`**：`search_photos` 可回傳一個代表「這次查詢完整結果集」的 handle（簽章的 query 快照，而非 ID 列表），讓 agent 把「剛剛那 3,214 張」交給 `run_labeling_job` / `propose_organize` / `add_to_collection`，不必把幾千個 ID 塞進 context。
 - 所有 tool 皆有 `outputSchema`，回傳 `structuredContent` +（相容舊 client 的）`content` 文字摘要。
+- **（審查補充）`PhotoFilters` 擴充**：`persons_all`／`persons_any`／`persons_none`（07；10 原寫的 `people_all/any` 統一改用此名，需要 `faces:read`，沒有權限時回 403）、`face_count`、`rating_min`、`favorite`、`orientation`、`min_megapixels`（10）。`get_job_status` 附 `eta.state/p50` 與 `waiting_reason`；所有 MCP 錯誤帶 06 §4.7 的錯誤碼（06 §7.4）。
+- **（審查補充）latent space 檢索**：`search_photos` 的 `semantic_text_en` 走 SigLIP2 文字塔（跨模態以文搜圖）；`find_similar` 以 asset_id 做影像向量 kNN（以圖搜圖）。MCP **不接受上傳任意圖片**做以圖搜圖（與「不接受上傳參考臉」同理），只能指定圖庫內的照片。
 
 #### 3.3.2 共用型別（JSON Schema 2020-12 片段）
 
@@ -695,13 +708,14 @@ sequenceDiagram
 | egress_policy ＼ 項目 | 縮圖影像給 MCP | metadata 文字（caption/tags） | 地點 | 路徑 | find_similar / 向量搜尋 | describe_photo |
 |------|------|------|------|------|------|------|
 | `full` | 依 `mcp_media_policy`（`none` / `thumb_256` / `thumb_512` / `thumb_1024`），all-in-one 預設 `thumb_512` | ✓ | 城市 + 可選 GPS | 明文 | ✓ | ✓（結果文字回傳） |
-| `thumbs` | 最多 `thumb_256`；SaaS 預設 `thumb_256` | ✓ | 城市；GPS 依剝除設定 | 明文 | ✓ | ✓ |
+| `thumbs` | 最多 `thumb_256`；自架 control plane 預設 `thumb_256` | ✓ | 城市；GPS 依剝除設定 | 明文 | ✓ | ✓ |
 | `edge-thumbs` | 經 Worker relay，最多 `thumb_256`；Worker 離線即無 | ✓ | 依 `place_level` | 明文 | ✓ | ✓ |
 | `results-only` | **✗（強制 none）** | ✓（只回文字） | 依 `place_level`（預設 country） | 依設定（可 hash） | ✗（v2 邊緣索引） | ✓（只回文字答案，影像不出 Worker） |
 
 - 另外 `mcp.allowed_clients`（client_id/名稱白名單，可選）與 `mcp.enabled`（workspace 可完全關閉 MCP）。
 - 同意畫面明確寫出：「Claude Desktop 將可取得最大 256px 縮圖；這些影像會傳送到該 app 的 AI 服務供應商」。
 - 回應永遠附 `media_withheld_reason`，讓 agent 能誠實告訴使用者為何看不到圖。
+- **（審查補充）桌面版**：`egress_policy` 固定 `full`，因此只由 `mcp_media_policy` 控制縮圖。「連接 AI 助手」精靈建立的本機 PAT **預設只有 `photos:read`**；`photos:media` 要使用者在精靈中勾選（附上方的外送說明），`faces:*` 要另外在人臉設定開啟。人臉縮圖另受 `mcp_face_media_policy`（預設 `none`）限制，三者取最嚴格者（07 §5.4）。
 
 ### 3.6 破壞性操作：dry-run + 人工核准
 
@@ -718,7 +732,7 @@ sequenceDiagram
   AG->>U: （在對話中）呈現摘要，詢問是否套用
   AG->>M: apply_organize(plan_id)
   M->>M: 建 approval(plan_id, requested_by=grant, expires 30m)
-  M-->>AG: resultType=input_required<br/>inputRequests: elicitation mode=url → https://cp/approvals/{id}
+  M-->>AG: resultType=input_required<br/>inputRequests: elicitation mode=url → https://cp/approvals/{id}<br/>（桌面版：openphotoagent://approvals/{id}，審查補充）
   AG->>U: client 顯示目標網域並徵求同意後開啟 URL
   U->>UI: 登入（需 output:apply 角色）→ 看完整 dry-run 明細 → 核准（move 需二次確認 / 大量需輸入確認字串）
   UI->>W: plan.apply（附核准者簽章資訊，02 §5.3）
@@ -728,11 +742,12 @@ sequenceDiagram
 ```
 
 規則：
+0. **（審查補充，08 C-22）桌面版**沒有固定 URL，`approval_url` 改為 deep link `openphotoagent://approvals/{id}`，同時發 OS 通知；點擊後在 app 內開啟核准頁（app 視窗本身就是使用者 session，MCP 的 PAT 仍不能呼叫核准 API）。Web 版維持 https URL。
 1. **Agent 不能自我核准**：核准只能在 CP 的瀏覽器 session 完成（cookie + CSRF），MCP token（不論 scope）都不能呼叫 `/approvals/{id}/decision`。核准頁顯示「由 *Claude Desktop（grant #12）* 於 14:03 提出」。
 2. 使用 **URL-mode elicitation**（規格要求敏感互動不得經過 client；授權類操作正屬此類），在 2026-07-28 以 MRTR `input_required` 回傳；`2025-11-25` client 用 `elicitation/create` URL mode；完全不支援 elicitation 的 client → 回 `isError: false` 的一般結果 `{status:"approval_pending", approval_url}`，由 agent 把連結交給使用者，之後 `get_organize_plan` 輪詢狀態。
 3. 不採用 form-mode「是/否」確認作為核准：form 回應由 client/agent 端產生，無法證明是人按的。
 4. 可選「低風險自動核准」：workspace 設定 `mcp.auto_approve = {actions: ["copy","symlink","sidecar_xmp"], max_actions: 500, targets: [...]}`，僅對**非破壞性**且目標為 rw 輸出資料夾的計畫生效；`move`、`hardlink`、覆蓋類**永不**自動核准。
-5. 計畫執行仍走 02 的 copy → verify → (delete to `.opl-trash`) → journal，全可 undo；`undo_organize` 同樣需核准。
+5. 計畫執行仍走 02 的 copy → verify → (delete to `.opagent-trash`) → journal，全可 undo；`undo_organize` 同樣需核准。
 6. 每份計畫有 `plan_hash`（動作列表 hash）；核准綁定 hash，計畫在核准後若被重新產生/變更即失效。
 
 ### 3.7 速率限制與資源預算
@@ -788,8 +803,8 @@ claude mcp add --transport http openphotoagent https://photos.example.com/mcp
 **Claude Code（本機 stdio，PAT 存 keychain）**
 
 ```bash
-opl login --server http://127.0.0.1:8080 --scopes photos:read,photos:media,organize:propose
-claude mcp add openphotoagent -- opl mcp --workspace family
+opagent login --server http://127.0.0.1:8080 --scopes photos:read,photos:media,organize:propose
+claude mcp add openphotoagent -- opagent mcp --workspace family
 ```
 
 **專案層 `.mcp.json`（Claude Code，團隊共用，不含祕密）**
@@ -805,21 +820,36 @@ claude mcp add openphotoagent -- opl mcp --workspace family
 }
 ```
 
-**Claude Desktop：`claude_desktop_config.json`（stdio）**
+**（審查補充）桌面版：「連接 AI 助手」精靈自動寫入的設定（v0.2）**
 
 ```json
 {
   "mcpServers": {
     "openphotoagent": {
-      "command": "opl",
-      "args": ["mcp", "--workspace", "family", "--server", "http://127.0.0.1:8080"],
-      "env": { "OPL_MCP_READONLY": "1" }
+      "command": "/Applications/OpenPhotoAgent.app/Contents/MacOS/bin/opagent",
+      "args": ["mcp"]
     }
   }
 }
 ```
 
-> Claude Desktop 的遠端 server：Settings → Connectors → 新增 custom connector，填 `https://photos.example.com/mcp`，即走 §3.2.2 OAuth（入口名稱以實際版本 UI 為準，未驗證）。Windows 若 `opl` 不在 PATH，`command` 填 `uvx`、`args` 前加 `"opl@latest"`。
+> 不需要 `--server`：`opagent mcp` 會讀 data dir 的 `run/api.json` 取得目前 port；PAT 從 OS keyring 讀取。Windows 寫 `%LOCALAPPDATA%\Programs\OpenPhotoAgent\bin\opagent.cmd` 這類絕對路徑（實際路徑依安裝程式，08 §1.2）。
+
+**Claude Desktop：`claude_desktop_config.json`（stdio，Docker all-in-one 或手動設定）**
+
+```json
+{
+  "mcpServers": {
+    "openphotoagent": {
+      "command": "opagent",
+      "args": ["mcp", "--workspace", "family", "--server", "http://127.0.0.1:8080"],
+      "env": { "OPAGENT_MCP_READONLY": "1" }
+    }
+  }
+}
+```
+
+> Claude Desktop 的遠端 server：Settings → Connectors → 新增 custom connector，填 `https://photos.example.com/mcp`，即走 §3.2.2 OAuth（入口名稱以實際版本 UI 為準，未驗證）。Windows 若 `opagent` 不在 PATH，`command` 填 `uvx`、`args` 前加 `"opagent@latest"`。
 > 進階：v1 提供 Claude Desktop 一鍵安裝包（MCP bundle，`.mcpb`）——格式與欄位**未驗證**。
 
 **Cursor：`~/.cursor/mcp.json`（HTTP + PAT header）**
@@ -829,7 +859,7 @@ claude mcp add openphotoagent -- opl mcp --workspace family
   "mcpServers": {
     "openphotoagent": {
       "url": "https://photos.example.com/mcp",
-      "headers": { "Authorization": "Bearer ${env:OPL_TOKEN}" }
+      "headers": { "Authorization": "Bearer ${env:OPAGENT_TOKEN}" }
     }
   }
 }
@@ -837,13 +867,13 @@ claude mcp add openphotoagent -- opl mcp --workspace family
 
 （Cursor 的環境變數插值語法未驗證；不支援時改用 OAuth 或 stdio。）
 
-**`opl mcp` 參數**
+**`opagent mcp` 參數**
 
 | 參數 | 說明 |
 |------|------|
-| `--server` / `OPL_SERVER` | CP 位址 |
+| `--server` / `OPAGENT_SERVER` | CP 位址 |
 | `--workspace` | 預設 workspace（tool 可覆寫，但仍受 token 限制） |
-| `--readonly` / `OPL_MCP_READONLY=1` | 本地再加一道：即使 PAT 有寫入 scope，也只暴露唯讀 tools |
+| `--readonly` / `OPAGENT_MCP_READONLY=1` | 本地再加一道：即使 PAT 有寫入 scope，也只暴露唯讀 tools |
 | `--folders photos:2024,photos:2025` | 本地進一步縮小資料夾範圍（只能縮小，不能擴大 token 範圍） |
 | `--media none\|thumb_256` | 本地限制縮圖 |
 | `--profile` | 多組 server/token |
@@ -879,6 +909,8 @@ Claude：「完成。若要還原可以說『撤銷剛才的整理』。」
 
 ## 4. 內建 chat 助手（未來選項，簡述）
 
+> **（審查補充）已升級為正式功能「AI 問照片」，v0.3 交付，完整設計見 [10 §B](10-photo-viewer-and-ask-ai.md)**。原則不變：Assistant 在 api 進程內以內部 client 呼叫同一個 `ToolRegistry`（同 scope、核准、稽核；`mcp_call_log.actor_kind=builtin-assistant`，並記 `conversation_id`、`turn_id`）；LLM 呼叫經 Worker RPC（ADR-504）；`apply_organize` 不在 Assistant 工具集內，套用一律由 UI 核准。
+
 v2 可在 Web UI 內建一個 chat 側欄：後端以「內部 MCP client」呼叫**同一組 tools**（同 `ToolRegistry`、同 scope/核准/稽核規則，actor 記為 `builtin-assistant`），LLM 可選 Worker 上的本地模型（隱私最佳）或使用者自備的 API key。因為 tool 層已完整處理權限與 dry-run 核准，chat 助手只是另一個 client，不需新的後端能力；差別僅在核准可直接內嵌於同一 UI（仍是人按核准鈕）。
 
 ---
@@ -909,9 +941,11 @@ flowchart LR
 
 ## 6. 分期建議
 
+> **（審查補充）版本以 08 §9 為準**，下表的「MVP / v1 / v2」對照如下：v0.1 只有基礎搜尋（`search_doc` 關鍵字 + tag + 日期 facet + SigLIP 以文搜圖）；**v0.2** = 下表 MVP 欄的搜尋與 MCP（RRF 完整版、規則式 planner、重複照片、stdio `opagent mcp` + PAT、人物 filter 與 `faces:*` tools；`/mcp` HTTP 只在 Docker 版提供且只收 PAT）；**v0.3** = 本地 LLM planner、describe_photo、collections、count/verify/compare、watch folder 自動標註與 automation；**v0.4** = caption 文字向量（R2）、藍綠 reindex UI；**v0.5** = OAuth 2.1、URL elicitation、grant 管理頁；**v1.x** = VLM rerank、results-only 邊緣索引、tasks extension、MCP Apps。下表「v2 人臉群組」「v2 內建 chat 助手」已分別提前到 v0.2、v0.3。
+
 | 階段 | 搜尋 | MCP | 自動化 |
 |------|------|-----|--------|
-| **MVP（v0.x）** | `search_doc` + 應用層繁中斷詞（jieba+OpenCC+bigram）+ facet（tag/category/日期/相機/資料夾）；離線 GeoNames 反向地理編碼；SigLIP2 影像向量 HNSW；RRF（R1+R3+R4）；規則式 planner；find_similar / duplicates；`/search` REST | **stdio `opl mcp` + PAT**；同時在 CP 開 `/mcp` 但僅接受 PAT；tools：search_photos、get_photo（含縮圖）、find_similar、find_duplicates、list_tags/categories/facets/folders、run_labeling_job、get_job_status、propose_organize、get_organize_plan；apply 只回 `approval_url`（UI 核准）；resources：photo://、thumb、plan://、taxonomy://；prompts：organize_folder；稽核 + 速率限制 + 注入淨化 + mcp_media_policy | watch folder → 自動標註 + 索引 |
+| **MVP（v0.x）** | `search_doc` + 應用層繁中斷詞（jieba+OpenCC+bigram）+ facet（tag/category/日期/相機/資料夾）；離線 GeoNames 反向地理編碼；SigLIP2 影像向量 HNSW；RRF（R1+R3+R4）；規則式 planner；find_similar / duplicates；`/search` REST | **stdio `opagent mcp` + PAT**；同時在 CP 開 `/mcp` 但僅接受 PAT；tools：search_photos、get_photo（含縮圖）、find_similar、find_duplicates、list_tags/categories/facets/folders、run_labeling_job、get_job_status、propose_organize、get_organize_plan；apply 只回 `approval_url`（UI 核准）；resources：photo://、thumb、plan://、taxonomy://；prompts：organize_folder；稽核 + 速率限制 + 注入淨化 + mcp_media_policy | watch folder → 自動標註 + 索引 |
 | **v1** | caption 文字向量（R2）；本地 LLM planner；藍綠 reindex UI；facet 計數 API 完整化 | **OAuth 2.1（CIMD + DCR 相容、step-up、grant 管理頁）**；apply/undo_organize 走 URL elicitation（MRTR）；describe_photo；collections 系列；update_labels；`subscriptions/listen`；Claude Desktop 安裝包 | automation 規則 + auto_approve 非破壞性；outbound webhook；入站 webhook |
 | **v2** | VLM rerank；results-only 邊緣向量索引（federated）；binary quantization；可選 BM25 backend（pg_search / 其他）；人臉群組（需同意機制） | tasks extension（長任務）；內建 chat 助手；MCP Apps 類互動 UI（若規格穩定，未驗證）；多 workspace 聯合搜尋 | 智慧集合（smart collection 自動更新）、事件觸發的 agent 工作流 |
 
@@ -923,7 +957,7 @@ flowchart LR
 apps/
   api/mcp/                 # Streamable HTTP transport、_meta/版本協商、server/discover、OAuth RS 驗證
   api/oauth/               # Authorization Server（authorize/token/register、CIMD 擷取與快取、consent）
-  cli/                     # opl login / opl mcp（stdio proxy，REST client）
+  cli/                     # opagent login / opagent mcp（stdio proxy，REST client）
 packages/
   search/                  # tokenize（純函式）、query planner（規則）、RRF、SQL builder、facet
   mcp-tools/               # ToolRegistry、tool 定義（Pydantic → JSON Schema）、結果 LLM 化、淨化器
@@ -941,8 +975,8 @@ packages/
 | ADR-501 | 繁中全文採應用層斷詞寫入 `simple` tsvector + CJK bigram 保底 | zhparser / pg_jieba / pg_bigm / pg_search | 零 extension、自訂詞即時、簡繁互通；RRF 不需精確 BM25 |
 | ADR-502 | 向量以 `embedding_space` 分版本、partial expression HNSW、藍綠切換 | 每次換模型覆寫欄位 | 換版不中斷、可 A/B、可回退 |
 | ADR-503 | Hybrid = pre-filter + 每路 top-200 + 加權 RRF | 分數線性加權 | 各路分數尺度不可比；RRF 穩健、免調參 |
-| ADR-504 | CP 不跑模型；query embedding/planner/rerank 都是 Worker RPC，離線時降級 | CP 內建 CPU text encoder | 維持 02 依賴規則；v1 可選 text-only `query-embedder` sidecar（不接觸影像，P1 不受影響）作為 SaaS 的離線備援 |
-| ADR-505 | MCP HTTP 端點內建於 `opl api`；stdio 為 REST 薄 proxy | 獨立 MCP 服務直連 DB | 單一權限/稽核實作；2026-07-28 無狀態協定可水平擴展 |
+| ADR-504 | CP 不跑模型；query embedding/planner/rerank 都是 Worker RPC，離線時降級 | CP 內建 CPU text encoder | 維持 02 依賴規則；v1 可選 text-only `query-embedder` sidecar（不接觸影像，P1 不受影響）作為自架 control plane 的離線備援 |
+| ADR-505 | MCP HTTP 端點內建於 `opagent api`；stdio 為 REST 薄 proxy | 獨立 MCP 服務直連 DB | 單一權限/稽核實作；2026-07-28 無狀態協定可水平擴展 |
 | ADR-506 | MCP 檔案變更只產 plan，套用必經瀏覽器人工核准（URL elicitation） | form 確認 / 高權限 token 直接套用 | agent 與 prompt injection 無法繞過；與 02 ADR-004 一致 |
 | ADR-507 | 「照片給 MCP client」視為獨立 egress（`mcp_media_policy` + `photos:media` scope） | 沿用 egress_policy | MCP client 背後是第三方 LLM 供應商，與 CP 不同信任域 |
 | ADR-508 | 跨呼叫狀態用 server 簽發 handle（cursor/selection_id/plan_id） | 依賴 MCP session | 2026-07-28 已移除 session；也避免大量 ID 進入 context |
@@ -990,3 +1024,22 @@ packages/
 - MCP 規格 2026-07-28（changelog、transports/streamable-http、authorization、client-registration、server/tools、client/elicitation、basic/patterns/mrtr）：官方 repo `github.com/modelcontextprotocol/modelcontextprotocol` → `docs/specification/2026-07-28/`（2026-11-01 clone 閱讀）；release：https://github.com/modelcontextprotocol/specification/releases/tag/2026-07-28
 - pg_jieba：https://pigsty.io/ext/e/pg_jieba/ ；zhparser：https://ext.pigsty.io/e/zhparser/ ；中文全文外掛整理：https://www.cnblogs.com/xibuhaohao/articles/18872490 ；FTS 外掛分類：https://pigsty.io/ext/cate/fts/
 - pgvector（halfvec、HNSW 參數、iterative index scans 0.8+、partial/expression index 多維度做法）：pgvector README（依既有知識整理，版本細節未於本次重新查證）
+
+---
+
+## 11. 介面整合：06 / 07 / 08 / 10 的變更（審查補充）
+
+> 集中整理 06 §7.4、07 §11、08 §7（C-09、C-20–C-25、C-33）、10 §C 對本文的修改；多數已就地標註「（審查補充）」，本節是索引與剩餘項目。版本依 08 §9。
+
+| 主題 | 變更 | 來源 | 版本 | 本文位置 |
+|------|------|------|------|----------|
+| 桌面 MCP | stdio 唯一預設、`run/api.json` 自動找 port、絕對路徑、`/mcp` HTTP 桌面預設關閉 | 08 C-20、D11 | v0.2 | §3.1、§3.10 |
+| OAuth AS | 延到 v0.5，評估委託外部 IdP | 08 C-21 | v0.5 | §3.2.2 |
+| 核准 | 桌面 deep link `openphotoagent://approvals/{id}` + OS 通知 | 08 C-22 | v0.2 | §3.6 |
+| 允許根目錄 | REST、MCP 都不能新增 root | 08 C-09 | v0.1 | §3.2.3 |
+| 人臉 | `embedding_space.modality=face`；`search_doc.person_ids`、`person_ids_suggested`、`face_count`；facet `person`；scope `faces:read`／`faces:media`；tools `list_people`／`get_person`／`find_photos_of_person`；resource `person://`（`resources/list` 不列出）；`mcp.faces_enabled`、`mcp_face_media_policy`；速率 `find_photos_of_person` 60 次／分、`list_people` 30 次／分；稽核 `faces_returned`；人名一律 `UntrustedText(origin=user)` | 07 §3.3、§5 | v0.2 | §1.2、§1.4、§3.2.3、§3.3.1、§3.5 |
+| planner | 有 `face:read` 時才把人物名稱載入 planner 詞典（「媽媽 海邊」→ person filter + 文字）；名字解析出多個候選回 `ambiguous_person` | 07 §11 | v0.2 | §2.3 |
+| index_outbox | 人臉指派、人物命名、合併、拆分、purge 都觸發 `search_doc` 更新 | 07 §11 | v0.2 | §1.1 |
+| Ask | `count_photos`、`verify_photos`、`compare_photos`；`PhotoFilters` 擴充；`/search` 可回傳 `PhotoSummaryLite`（thumbhash、w/h）；`mcp_call_log` 增加 `actor_kind(builtin-assistant)`、`conversation_id`、`turn_id` | 10 §C | v0.3 | §3.3.1、§3.8、§4 |
+| Operation | `run_labeling_job` 與 `propose_organize` 回傳 06 §5.9 的 `estimate`（開始前預估時間、張數、磁碟用量），讓 agent 先告訴使用者要多久；`get_job_status` 附 `eta.state/p50`、`waiting_reason`、`elapsed_ms`；MCP 錯誤帶 06 錯誤碼；「連接 AI 助手」的測試連線用 `mcp.connect` preflight | 06 §7.4 | v0.2 | §3.3.1 |
+| 協定版本 | 桌面只用 stdio，降低對 2026-07-28 HTTP 傳輸細節的依賴；HTTP 相關未驗證項目移到 v0.5 | 08 C-33 | v0.5 | §10 |

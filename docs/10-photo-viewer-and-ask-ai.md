@@ -1,11 +1,12 @@
 # 10 — 照片觀看體驗與 AI 問照片（Photo Viewer & Ask your photos）
 
-> 專案名稱：**OpenPhotoAgent**（CLI 沿用 `opl`）　授權：Apache-2.0，純開源、不收費
+> 專案名稱：**OpenPhotoAgent**（CLI：`opagent`（已定案））　授權：Apache-2.0，純開源、不收費
 > 文件狀態：Draft v0.1（2026-11）
 > 範圍：**A. 精美照片 Viewer**（網格／時間軸／地圖／人物／資料夾／相簿／回憶、Lightbox、選取與批次、效能與技術選型、wireframe 與動效）；**B. AI 問照片**（使用情境、Agent 架構、UI、API 與資料、品質評估）；**C. 對 02/03/04/05 的介面變更**；**D. 分期**。
-> 前提（沿用 02/03/04/05）：React 19 + Vite SPA、TanStack Router/Query/Virtual、shadcn/ui + Tailwind v4、Motion；FastAPI + Postgres 16 + pgvector；**只有 Worker 能碰原檔與 GPU**；四級 `egress_policy`；所有檔案變更走 dry-run → 人工核准 → journal → undo；MCP `ToolRegistry`（05 §3.3）。
+> 前提（沿用 02/03/04/05）：React 19 + Vite SPA、TanStack Router/Query/Virtual、shadcn/ui + Tailwind v4、Motion；FastAPI + PostgreSQL 17 + pgvector 0.8（桌面為嵌入式 PG，08 §2）；**只有 Worker 能碰原檔與 GPU**；四級 `egress_policy`（桌面版固定 `full`，08 C-05）；所有檔案變更走 dry-run → 人工核准 → journal → undo；MCP `ToolRegistry`（05 §3.3）。
 > 交付形態：跨平台桌面執行檔（Tauri 2 + React 19 + Python sidecar，all-in-one）與 Docker 自架（瀏覽器）。兩者同一份 SPA，以 `platform` 抽象層切換（04 §5.6）。
 > 人臉：`docs/07-face-recognition.md` 撰寫本文時**尚不存在**，本文**假設**有 `Person` / `Face` 實體與 `find_photos_of_person` 等 API（§2.4、§8.3 列出假設的最小介面），待 07 定稿後對齊。
+> **（審查補充）07 已定稿，對齊結果**：MCP scope 用 07 的 `faces:read`／`faces:media`（本文原寫的 `people:read` 作廢）；filter 名稱用 07 的 `persons_all`／`persons_any`／`persons_none`（本文原寫的 `people_all/any` 作廢）；人物 API 以 07 §8.4 為準（`/people/{id}/photos` 取代假設的 `/people/{id}/assets`）。版本依 08 §9：**Viewer 基礎 v0.1、人物檢視 v0.2、AI 問照片 v0.3**（本文原寫的「v0.2 Ask lite」作廢，見 D）。
 > 標註慣例：**【未驗證】**＝尚未以實作或官方文件確認；**【估算】**＝數字為推估。
 
 ---
@@ -28,7 +29,7 @@
 | 防幻覺 | 答案只能引用本輪工具回傳過的照片（server 端驗證 `[[photo:id]]` 引用、移除不在 seen-set 的 ID）；數字只能來自 `count_photos` 等工具；找不到就說找不到並給放寬建議。 |
 | 串流 | `POST /api/v1/workspaces/{ws}/ask`（SSE）：`step.*` 事件可視化「搜尋中 → 找到 128 張 → 檢視前 12 張」，配合預估/經過時間；`token` 事件串流答案；`photos` 事件讓結果網格即時聯動。 |
 | 延遲目標 | 首個步驟事件 < 300 ms；**首個答案 token < 2 s**（檢索型、規則 planner、16GB 本地）；檢索型總時長 p50 ≤ 4 s / p95 ≤ 8 s（不含 VLM 看圖）；含「看前 12 張」p50 ≤ 10 s【估算】。 |
-| 分期 | MVP v0.1 帶「好看的網格 + Lightbox + 時間軸」；**v0.2 就上 Ask lite（檢索/統計/單張問答）**——因為使用者把它列為 killer 功能，比 00 原規劃的 v2 提前；人物整合跟 07 走；動作型與比較型在 v1.0。 |
+| 分期 | （審查補充：依 08 §9 統一）MVP v0.1 帶「好看的網格 + Lightbox + 時間軸 + 日期 scrubber」；v0.2 加人物檢視（07）；**v0.3 交付 AI 問照片（killer ③）**：檢索／統計／單張問答快速路徑、人物 filter、動作型計畫卡、有界 tool loop；地圖、比較模式、看圖驗證等在 v0.4；多圖比較等在 v1.x。理由：問照片需要 v0.2 的混合搜尋、人物 facet 與 ToolRegistry 才好用（08 §9.1）。 |
 
 ---
 
@@ -138,7 +139,7 @@ Timeline (scroll container, 單一捲軸)
 - 「今天」浮鈕；無 `taken_at` 的照片集中在「未知日期」bucket（可用檔案 mtime 補，標示「依檔案時間」）。
 - 可近用：scrubber 是 `role="slider"`，`aria-valuetext="2025 年 7 月，312 張"`。
 
-### 2.4 人物（依賴 07，以下為假設介面）
+### 2.4 人物（依賴 07；審查補充：07 已定稿，v0.2）
 
 - 人物首頁：圓形臉部頭像網格（依照片數排序），未命名群組在「待命名」區；點進人物 → 該人的時間軸（同 `<PhotoGrid>`，source = `person:{id}`）。
 - 「與…合照」：人物頁上方可加第二個人 chip → 交集。
@@ -237,7 +238,7 @@ ThumbHash(內嵌) ─► 網格縮圖 256/512 (已快取) ─► 預覽 1024/204
 | `Esc` | 關閉（先關面板，再關 Lightbox） | `I` | 資訊面板開/關 |
 | `F` | 收藏（♥）切換 | `1`–`5` / `0` | 評分 / 清除評分 |
 | `P` / `X` / `U` | 挑選旗標 Pick / Reject / 清除（Lightroom 式） | `E` | 編輯標籤/類別（焦點進入面板的 tag 輸入框） |
-| `Delete` / `⌫` | **標記為「待刪除」**（只加旗標，不刪檔；可在「待整理」頁批次以 output plan 移到 `.opl-trash`） | `S` | 找相似 |
+| `Delete` / `⌫` | **標記為「待刪除」**（只加旗標，不刪檔；可在「待整理」頁批次以 output plan 移到 `.opagent-trash`） | `S` | 找相似 |
 | `C` | 加入比較（最多 4 張）| `A` / `⌘J` | 對這張問 AI |
 | `+` `-` `0` `1` | 縮放 | `T` | filmstrip 開/關 |
 | `?` | 快捷鍵說明 | `⌘C` | 複製圖片（桌面）/ 連結 |
@@ -365,6 +366,7 @@ ThumbHash(內嵌) ─► 網格縮圖 256/512 (已快取) ─► 預覽 1024/204
 | 加入相簿 | 選既有 / 新建 | DB only |
 | **移到資料夾** | 選輸出資料夾 + 動作（copy 預設 / move / symlink）+ 路徑樣板 → **建立 dry-run output plan** → 開 04 §3.5 計畫審閱頁 | 必經核准；move 二次確認 |
 | 匯出 | 選尺寸（原檔 / 2048 / 1024）、格式（原 / JPEG / WebP）、是否剝除 GPS/EXIF → 桌面：原生「另存到資料夾」；Web：Worker 打包 zip 串流下載 | 匯出到使用者選的位置不屬於 output plan（是複本），但仍寫 audit |
+| 移到垃圾桶（審查補充，**提案、待確認**，v0.2 與重複照片一起） | 建立 output plan，動作 `trash`：把檔案移到該 root 的 `.opagent-trash/`（02 §6.2 既有機制），重複群組可一鍵「保留代表張，其餘移到垃圾桶」 | 必經核准，可 undo；永不直接刪除；MCP 不提供 |
 | 重新標註 | `run_labeling_job` scope=selection | GPU 預算 |
 | 比較 | 2–4 張時可用 | — |
 | 問 AI | 「關於這 37 張…」帶入 Ask 面板作為 context | — |
@@ -576,7 +578,7 @@ export interface MediaResolver {
 
 ```mermaid
 flowchart LR
-  UI[Ask 面板 / Lightbox 提問<br/>fetch-event-source SSE] -->|POST /ask| AS[Assistant 服務<br/>CP: opl/assistant]
+  UI[Ask 面板 / Lightbox 提問<br/>fetch-event-source SSE] -->|POST /ask| AS[Assistant 服務<br/>CP: opagent/assistant]
   AS --> IR[意圖路由<br/>規則 + LLM structured output]
   IR -->|快速路徑| FP[確定性流程<br/>retrieval / count / single-photo]
   IR -->|複雜| TL[有界 tool loop<br/>≤6 步, ≤60s]
@@ -612,7 +614,7 @@ flowchart LR
 
 | Assistant 用到的 tool | 來源 | 用途 | 新增/修改 |
 |------------------------|------|------|-----------|
-| `search_photos` | 05 | 檢索主力（含 `return_selection`、`rerank`） | filters 新增 `people_all` / `people_any`（07）、`rating_min`、`favorite`、`orientation`、`min_megapixels`、`face_count` |
+| `search_photos` | 05 | 檢索主力（含 `return_selection`、`rerank`） | filters 新增 `persons_all` / `persons_any` / `persons_none`（07；審查補充：統一命名）、`rating_min`、`favorite`、`orientation`、`min_megapixels`、`face_count` |
 | `count_photos` | **新增** | 精確計數（同 filters + 可選 `semantic: {text, min_score}`）+ 可選 `group_by`（year/month/country/city/category/tag/person） | 回 `{count, exact: bool, basis, groups[]}` |
 | `list_facets` | 05 | 分佈 | — |
 | `get_photo` | 05 | 單張 metadata / GPS / 反向地理編碼 | `include` 新增 `faces`、`place_detail` |
@@ -638,7 +640,7 @@ flowchart LR
 ~50     05 規則式 planner：去年夏天 → 2025-06-01..2025-09-01；海邊 → tag scene.beach + semantic
 ~60     人名解析：「媽媽」→ list_people alias 比對 → person p_12（多個候選 → 追問）
 ~80     （可選，規則信心 < 0.6）Worker query.plan 補 semantic_text_en="a beach"（timeout 1.5s）
-~150    search_photos(filters={taken_at, people_all:[p_12], tags_any:[scene.beach]}, query="海邊",
+~150    search_photos(filters={taken_at, persons_all:[p_12], tags_any:[scene.beach]}, query="海邊",
                       semantic_text_en="beach seaside", return_selection=true)
         → total 128, top 50 + selection_id                         ⇒ SSE step.result + photos(candidates)
 ~200    決定是否看圖：若 R4 tag 命中 + filter 已足夠精確（matched_by 含 tag 且 planner 信心高）→ 跳過
@@ -879,7 +881,7 @@ flowchart LR
 | 動作 | `search_photos(return_selection)` → `propose_organize` / `add_to_collection` / `update_labels`（確認卡） |
 | 相似/重複 | `find_similar` / `find_duplicates` |
 
-反向：新工具 `count_photos`、`verify_photos`、`compare_photos`、`list_people`/`find_photos_of_person` 同時註冊進 MCP（外部 agent 也能用），scope 分別為 `photos:read`、`photos:describe`、`photos:describe`、`people:read`（07 定義）。
+反向：新工具 `count_photos`、`verify_photos`、`compare_photos`、`list_people`/`find_photos_of_person` 同時註冊進 MCP（外部 agent 也能用），scope 分別為 `photos:read`、`photos:describe`、`photos:describe`、`faces:read`（07 定義；審查補充：原寫 `people:read` 作廢）。
 
 ---
 
@@ -946,12 +948,12 @@ flowchart LR
 | 04 §5.2 技術棧 | 新增 MapLibre GL JS、pmtiles、OpenSeadragon（lazy）、thumbhash；`packages/viewer` | 選型 |
 | 04 §5.4 縮圖策略 | 金字塔擴充為 t256/t512/p1024/p2048/HDR/DZI；Lightbox `size=1600` 改為分級 1024/1600/2048；新增 Tauri asset protocol 路徑 | 漸進載入 |
 | 04 §5.6 Tauri | asset protocol 啟用與 scope 規則（cache + 註冊 root，動態加入）、CSP；MediaResolver 雙實作 | 桌面效能 |
-| **05 §3.3** tools | 新增 `count_photos`、`verify_photos`、`compare_photos`（或 `describe_photo.images[]`）；`PhotoFilters` 新增 `people_all/any`、`face_count`、`rating_min`、`favorite`、`orientation`、`min_megapixels` | Ask |
+| **05 §3.3** tools | 新增 `count_photos`、`verify_photos`、`compare_photos`（或 `describe_photo.images[]`）；`PhotoFilters` 新增 `persons_all/any/none`（07 命名）、`face_count`、`rating_min`、`favorite`、`orientation`、`min_megapixels` | Ask |
 | 05 §2.6 REST | `/search` 回傳 `PhotoSummaryLite`（含 thumbhash、w/h）選項，Ask 與網格直接使用 | 聯動 |
 | 05 §4 chat 助手 | 由「v2 未來選項」升級為本文 B 部分的正式設計；`apply_organize` 不在 Assistant 工具集，改由 UI 核准 | killer 功能③ |
 | 05 §3.8 稽核 | `mcp_call_log` 增欄 `actor_kind(builtin-assistant)`、`conversation_id`、`turn_id` | 稽核 |
 | **07**（待寫） | 需提供：`Person`（含 alias）、`Face`（bbox 正規化、person_id、score）、`GET /assets/{id}/faces`、`PATCH /faces/{id}`、`find_photos_of_person`、`list_people`、search filter 掛點、同意機制 | 人物檢視、Ask 人物 filter |
-| **00** 分期 | 內建 chat 助手由 v2 提前到 v0.2（lite）/ v1.0（完整），見 D | 使用者 killer 功能 |
+| **00** 分期 | 內建 chat 助手由 v2 提前到 **v0.3**（審查補充：依 08 §9；原寫 v0.2 lite／v1.0 作廢），見 D | 使用者 killer 功能 |
 
 ---
 
@@ -961,12 +963,13 @@ flowchart LR
 
 | 階段 | Viewer | Ask AI | 依賴 |
 |------|--------|--------|------|
-| **MVP v0.1** | 時間軸 justified 網格（TanStack Virtual + Worker 排版、bucket API）、日期 scrubber、ThumbHash、Lightbox（View Transitions/FLIP、縮放平移、預載、filmstrip、鍵盤、資訊面板含 AI 欄位與模型來源）、**就地修正 → review**、選取（點/Shift/⌘A 全選結果）、批次（標籤/類別/**移到資料夾 → dry-run plan**）、資料夾檢視（含輸出資料夾）、alt=caption | — （僅 05 搜尋列） | 02 bucket/thumbhash、t256/t512 |
-| **v0.2「Ask lite」** | p1024/p2048 預覽（WebP 先、AVIF 後）、HEIC/RAW 內嵌預覽、收藏/評分/旗標、相簿、⌘K 整合 | **檢索型 + 統計型 + 單張問答**快速路徑；SSE 步驟可視化；引用卡片；結果網格聯動；存成相簿/智慧相簿；本地模型（Qwen3-VL-8B 共用）；grounding 驗證；評估集 v1（檢索/統計/拒答/injection） | 03 `chat`（structured）、05 `count_photos`、`verify`（可延後，先不看圖） |
-| **v1.0** | 地圖（MapLibre + PMTiles 離線、無圖磚模式）、**人物檢視**（07）、比較模式、Tauri asset protocol、DZI 深度縮放、色彩管理（P3 ICC）、HDR gain map、影片播放、匯出 | **人物 filter**（「跟媽媽的」）、`verify_photos` 看圖、**動作型**（計畫卡 + UI 核准）、條件挑選（護照照）、追問改寫、對話保存、雲端 endpoint + `assistant_media_policy`、通用 tool loop（16GB+） | 07 Person/Face、03 verify/tools、05 新 filters |
-| **v1.x / v2** | 回憶（旅程/那年今日/Ken Burns）、幻燈片投影第二螢幕、框選優化、sprite 批次縮圖、AVIF 全量、HDR AVIF | 多張比較（多圖 VLM）、Lightbox 單張深度問答（OCR）、Qwen3.6-35B-A3B 高品質模式、LLM claim check、使用者私有評估集回饋迴路、Ask 結果「存成分類規則」直通 Pipeline | 03 multi-image |
+| **MVP v0.1** | 時間軸 justified 網格（TanStack Virtual + Worker 排版、bucket API）、日期 scrubber、ThumbHash、Lightbox（View Transitions/FLIP、縮放平移、預載、filmstrip、鍵盤、資訊面板含 AI 欄位與模型來源、在檔案總管顯示）、**就地修正 → review**、選取（點/Shift/⌘A 全選結果）、批次（標籤/類別/**移到資料夾 → dry-run plan**）、資料夾檢視（含輸出資料夾）、alt=caption、**Tauri asset protocol**（審查補充：桌面是 v0.1 主要形態，從 v1.0 提前） | — （僅 05 基礎搜尋列：關鍵字 + tag + 日期 + SigLIP 以文搜圖） | 02 bucket/thumbhash、t256/t512 |
+| **v0.2** | p1024/p2048 預覽（WebP 先、AVIF 後）、HEIC/RAW 內嵌預覽、收藏/評分/旗標、相簿、⌘K 整合、**人物檢視**（07：人物牆、人物時間軸、「與…合照」、Lightbox 臉框） | — | 07 Person/Face、05 混合搜尋 |
+| **v0.3「AI 問照片」** | Ask 結果網格聯動、引用卡片 | **檢索型 + 統計型 + 單張問答**快速路徑；SSE 步驟可視化（每步預估與經過時間）；引用卡片；存成相簿/智慧相簿；**人物 filter**（「跟媽媽的」）；**動作型**（計畫卡 + UI 核准）；有界通用 tool loop（16GB+，需 M0 S7 通過，否則只開快速路徑）；追問改寫、對話保存；本地模型（Qwen3-VL-8B 共用）；外部 endpoint + `assistant_media_policy`（低階機器用，egress 警示）；grounding 驗證；評估集 v1（檢索/統計/拒答/injection） | 03 `chat`（structured + tools）、05 `count_photos`、02 v0.2 的搜尋與 MCP |
+| **v0.4** | 地圖（MapLibre + PMTiles 離線、無圖磚模式）、比較模式、DZI 深度縮放、色彩管理（P3 ICC）、影片播放、匯出 | `verify_photos` 看圖、條件挑選（護照照） | 03 verify |
+| **v1.x** | 回憶（旅程/那年今日/Ken Burns）、HDR gain map、幻燈片投影第二螢幕、框選優化、sprite 批次縮圖、AVIF 全量、HDR AVIF | 多張比較（多圖 VLM）、Lightbox 單張深度問答（OCR）、Qwen3.6-35B-A3B 高品質模式、LLM claim check、使用者私有評估集回饋迴路、Ask 結果「存成分類規則」直通 Pipeline | 03 multi-image |
 
-**提前風險**：v0.2 的 Ask lite 依賴 03 的 interactive lane 與 structured output（已具備），主要新工作是 Assistant 服務與 SSE UI；**不依賴 tool calling**（快速路徑），因此 8B 模型 tool calling 可靠度未驗證不會阻擋 v0.2。
+**風險（審查補充後）**：v0.3 的快速路徑只依賴 structured output（已具備），**不依賴 tool calling**；通用 tool loop 依賴 M0 S7（llama-server `--jinja` 連續 20 次 tool call 解析成功率 ≥ 95%），未通過時 v0.3 只開快速路徑，不阻擋發佈。
 
 ---
 

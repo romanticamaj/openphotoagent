@@ -1,6 +1,6 @@
 # 07 — 人臉辨識（Face Detection · Recognition · People）
 
-> 專案：**OpenPhotoAgent**（CLI 暫沿用 `opl`）｜文件狀態：Draft v0.1（2026-11）｜負責：人臉辨識架構
+> 專案：**OpenPhotoAgent**（CLI：`opagent`（已定案））｜文件狀態：Draft v0.1（2026-11）｜負責：人臉辨識架構
 > 範圍：模型調查與授權、偵測→對齊→品質→embedding→增量分群 pipeline、Person 管理、以臉找人、資料模型、UI、MCP、隱私與法規、效能、分期。
 > 前提文件：[02 系統架構](02-system-architecture.md)（資料模型、Job、egress_policy、Worker 才碰原檔）、[03 推論層](03-inference-layer.md)（Model Registry、Adapter、ResourceManager）、[04 控制介面](04-control-panel-ux.md)（頁面與設計系統）、[05 搜尋與 MCP](05-search-and-mcp.md)（search_doc、facet、scope、mcp_media_policy、prompt injection）。
 > 標示慣例（同 03）：**【估算】**＝依參數量／FLOPs 或社群經驗推算，沒有在參考硬體上實測；**【未驗證】**＝需要在實作時對照上游文件或實測確認。
@@ -23,7 +23,7 @@
 | 搜尋 / MCP | `search_doc` 新增 `person_ids uuid[]` 與 `face_count`，facet `person:`。MCP 新增 `list_people`、`get_person`、`find_photos_of_person`，需要獨立的 scope `faces:read`（預設關閉）；人臉裁切縮圖需要 `faces:media`。**agent 不能上傳參考臉**，也**永遠拿不到 embedding**。 |
 | 規模 | 10 萬張照片約 10–15 萬張臉【估算】；臉向量加索引約 0.3–0.4 GB，人臉縮圖約 0.5–0.8 GB【估算】。 |
 | 效能 | RTX 5070 Ti 上，臉部模型 VRAM 約 0.8 GB【估算】，可以和 SigLIP2 + Qwen3-VL FP8 並載（很緊，§7）。CPU 8 核用 AuraFace 跑 10 萬張約 1.5–3 小時，用 SFace 約 20–40 分鐘【估算】。 |
-| 版本 | **v0.3 先以「實驗功能」上線**（all-in-one、opt-in、People 頁、找這個人、facet）；**v1.0 完整化**（edge vault、MCP `faces:read`、`{person}` 輸出樣板、Review 人臉模式）；**v2** 做影片、進階年齡處理與 Immich 人物同步。00 路線圖要從「v2 人臉群組」改成這個安排（§11）。 |
+| 版本 | （審查補充：依 [08 §9](08-desktop-packaging-and-final-review.md) 的新路線圖統一）**v0.2 交付（killer ②）**：桌面版與 Docker all-in-one、opt-in、People 頁、找這個人（含拖一張照片找人）、人物 facet、Review 人臉模式、`{person}` 輸出樣板、MCP `faces:read`（stdio + PAT）；**v0.5** 做遠端 Worker 的 edge vault、多人 RBAC 與 OAuth 同意畫面；**v1.x** 做影片、`faces:write` 與 Immich 人物同步。原本「v0.3 實驗、v1.0 完整」的安排作廢（§10）。 |
 
 ---
 
@@ -230,7 +230,7 @@ erDiagram
   REVIEW }o--o| FACE : "kind=face"
 ```
 
-### 3.2 Schema 片段（Postgres 16 + pgvector）
+### 3.2 Schema 片段（PostgreSQL 17 + pgvector 0.8；審查補充：與 08 D4 對齊）
 
 ```sql
 -- 生物特徵專用 schema：獨立的 DB role、預設不進備份與匯出（§6.3）
@@ -281,7 +281,7 @@ CREATE TABLE person (
   asset_count    int NOT NULL DEFAULT 0,
   first_taken_at timestamptz, last_taken_at timestamptz,
   merged_into    uuid REFERENCES person(id),
-  created_by     text NOT NULL,               -- user:{id} | system | mcp:{client}（v2）
+  created_by     text NOT NULL,               -- user:{id} | system | mcp:{client}（v1.x）
   created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE UNIQUE INDEX person_name_uq ON person(workspace_id, lower(display_name))
@@ -529,7 +529,7 @@ CREATE INDEX CONCURRENTLY face_emb_w3f9a_s12_hnsw
 |-------|----------------|-------------|------|
 | `faces:read` | face:read | `list_people`、`get_person`、`find_photos_of_person`；`search_photos` 的 `persons_*` filter 與 `person` facet；`PhotoSummary.people` 欄位 | **否**。而且 workspace 必須設定 `mcp.faces_enabled=true`（預設 false）才能授予 |
 | `faces:media` | face:read + media | 回傳**人臉裁切縮圖**（`person://{id}/cover`、`face://{id}/thumb`） | 否；受 `mcp_face_media_policy` 限制（§5.4） |
-| `faces:write`（**v2 才考慮**） | face:write | 只允許「確認／否認建議」；不能命名、合併或刪除 | 否 |
+| `faces:write`（**v1.x 才考慮**） | face:write | 只允許「確認／否認建議」；不能命名、合併或刪除 | 否 |
 
 > 刻意**不提供**：上傳參考臉、拿到 embedding、跨 workspace 查人、命名或建立 person、刪除人臉資料、修改 faces 設定。
 
@@ -631,7 +631,7 @@ CREATE INDEX CONCURRENTLY face_emb_w3f9a_s12_hnsw
 | `results-only` | **Worker vault** | Worker | Worker | 同上；CP 只有 person_id、名字、assignment、bbox |
 
 - **Worker vault**：SQLite 加向量索引（`sqlite-vec` 或 `usearch` 檔）。整個檔案用 AES-256-GCM 封裝，金鑰（DEK）放在 OS keyring（macOS Keychain／Windows Credential Manager／Linux Secret Service）；Docker 環境用 secret 掛載。
-- **CP 模式的「加密」要誠實說明**：pgvector 無法對密文建 HNSW，所以靜態保護靠的是 (a) 建議並在 `opl doctor` 檢查全磁碟加密（FileVault／BitLocker／LUKS），(b) `bio` schema 只授權給專用 DB role `opl_bio`，API 一般 repository 用的 role 沒有權限，(c) **備份**預設 `pg_dump --exclude-schema=bio`；若使用者選擇「備份含人臉資料」，就另外用 workspace DEK 以 AES-GCM 封裝成 `bio.sealed` 檔，(d) 應用層 log 與 trace 永遠不記錄向量。
+- **CP 模式的「加密」要誠實說明**：pgvector 無法對密文建 HNSW，所以靜態保護靠的是 (a) 建議並在 `opagent doctor` 檢查全磁碟加密（FileVault／BitLocker／LUKS），(b) `bio` schema 只授權給專用 DB role `opagent_bio`，API 一般 repository 用的 role 沒有權限，(c) **備份**預設 `pg_dump --exclude-schema=bio`；若使用者選擇「備份含人臉資料」，就另外用 workspace DEK 以 AES-GCM 封裝成 `bio.sealed` 檔，(d) 應用層 log 與 trace 永遠不記錄向量。
 - **一鍵全部刪除（purge）**：`face.admin` 權限，並需要輸入 workspace 名稱確認。在單一交易內完成：`DROP TABLE bio.face_embedding_wXXXX`、`DROP TABLE bio.person_prototype_wXXXX`、刪除 `face`／`face_assignment`／`person`／`person_link`／`face_cluster_run`；同時清空 `search_doc.person_*` 欄位並排入重建；刪除 BlobStore `faces/` 前綴；對 Worker 發 `face.purge` RPC，Worker 刪除 vault 並**銷毀 DEK**（crypto-shredding，舊備份中的封裝檔也無法再解開）；最後寫 `face_consent(action=purge)` 與 `audit_log`，紀錄內容不含任何生物特徵。UI 顯示刪除報告（筆數、位置）。Worker 離線時，purge 指令進入待辦，重新連線時第一件事就是執行，UI 會顯示「Worker 端待刪除」。
 - **停用但不刪除**：可以，但 UI 預設勾選「同時刪除」，並提示 BIPA 等法規對保存期限的要求。
 
@@ -680,7 +680,7 @@ CREATE INDEX CONCURRENTLY face_emb_w3f9a_s12_hnsw
 
 - 人臉模型放進 03 的 **small slot**，**只在有 face step 時載入**，閒置 5 分鐘就卸載。ORT CUDA EP 要設定 `gpu_mem_limit` 與 `arena_extend_strategy=kSameAsRequested`，以免 arena 吃光預算。
 - 8 GB 檔位：沿用 03 §4.2 的序列模式，Phase F（人臉）放在 embedding 之後、VLM 之前；或直接把人臉跑在 CPU 上（YuNet + SFace／EdgeFace）。
-- Blackwell sm_120：依賴 03 §4.5 的 onnxruntime-gpu（CUDA 12.x + cuDNN 9）；開機時 `opl doctor` 跑一次人臉 smoke test（內建一張授權乾淨的合成人臉測試圖）。
+- Blackwell sm_120：依賴 03 §4.5 的 onnxruntime-gpu（CUDA 12.x + cuDNN 9）；開機時 `opagent doctor` 跑一次人臉 smoke test（內建一張授權乾淨的合成人臉測試圖）。
 
 ### 7.2 吞吐估算（全部【估算】，未實測）
 
@@ -750,7 +750,7 @@ Registry 驗證新增兩條：`kind: face_*` 不可搭配遠端 runtime；`redis
 ### 8.2 Adapter 與 InferenceService（擴充 03 §2）
 
 ```python
-# opl/inference/types.py（新增）
+# opagent/inference/types.py（新增）
 class Capability(str, Enum):
     ...; FACE = "face"                         # 偵測+對齊+品質+embedding 的複合任務
 
@@ -767,7 +767,7 @@ class FaceConfig(BaseModel):
     det_max_side: int = 1280; det_score: float = 0.7; max_faces: int = 50
     min_side_px_embed: int = 32; produce_thumbs: bool = True
 
-# opl/inference/adapter.py（新增）
+# opagent/inference/adapter.py（新增）
 class FaceDetectorAdapter(ModelAdapter, Protocol):
     async def detect(self, images: Sequence[ImageInput], max_side: int, score: float) -> list[list["FaceDetection"]]: ...
 
@@ -841,11 +841,17 @@ RESPONSIBLE_USE.md
 
 | 版本 | 範圍 | 理由 |
 |------|------|------|
-| v0.1 MVP | 不含人臉。02、03 的 schema 只預留 `result.task_type='face'` 與 `embedding_space.modality='face'` | 先完成核心整理流程 |
-| v0.2 搜尋 + MCP | 不含人臉。05 `search_doc` 的 `person_ids` 欄位先建立但不寫入 | 搜尋與 MCP 的權限模型先穩定 |
-| **v0.3 模型與評估** | **人臉（實驗功能）**：opt-in 精靈與同意紀錄、組合 A／A-lite、組合 B（同意後下載）、FacePipeline、`bio` partition、線上指派 + HDBSCAN、People 牆、人物詳情、找這個人、Gallery 人物 facet、Lightbox 臉框、一鍵 purge、`face_verify` benchmark；**僅 all-in-one（`full`）** | v0.3 本來就做 Models 頁、HF 下載、checksum、授權同意、benchmark，人臉需要的基礎正好都在這一版；ONNX 小模型風險低 |
-| **v1.0** | Worker vault（edge／results-only）與 `face.*` RPC、自架 CP 多租戶的 RBAC（face:*）、MCP `faces:read`／`faces:media`（OAuth 同意畫面）、OutputRule `{person}` + fan-out、Review 人臉模式、合併建議頁、XMP MWG Regions（選用）、Tauri 桌面版（CoreML／DirectML EP）、RESPONSIBLE_USE 定稿 | 與 v1.0 的 control plane + 地端 Agent 和 OAuth 同步推出 |
-| v2 | 影片抽幀人臉、`faces:write`（只能確認或否認）、Immich 人物名稱同步（只同步名稱與 asset 對應，不含 embedding）、近似 HDBSCAN 加速、偏差評估報告 | 進階功能 |
+> （審查補充）本表已依 08 §9 的新路線圖改寫：人臉從「v0.3 實驗」提前為 **v0.2 的主打功能（killer ②）**；原 v1.0 項目中屬於桌面單人的部分一併提前到 v0.2，屬於遠端 Worker／多人的部分移到 v0.5。
+
+| 版本 | 範圍 | 理由 |
+|------|------|------|
+| v0.1 MVP | 不含人臉。02、03 的 schema 只預留 `result.task_type='face'` 與 `embedding_space.modality='face'`；06 的模型管理、授權同意、Operation 已具備（人臉會直接重用） | 先完成核心整理流程 |
+| **v0.2 找人 + 搜尋 + MCP** | opt-in 精靈與同意紀錄（onboarding 掃描後的卡片，可略過）；組合 A（YuNet + AuraFace，ORT：DirectML／CoreML／CPU，CUDA EP 為 pack）／A-lite（SFace）；組合 B（同意後從上游下載）；FacePipeline；`bio` partition；線上指派 + HDBSCAN；People 牆、人物詳情、命名、合併、拆分、忽略；**找這個人**（點臉、拖一張照片到搜尋列或人物頁，07 §2.5）；Gallery／搜尋 `person` facet 與「媽媽 海邊」組合查詢；Lightbox 臉框；Review 人臉模式；合併建議頁；OutputRule `{person}`／`{persons}`／`{person_count}` + fan-out；一鍵 purge（可驗證刪除報告）；MCP `faces:read`／`faces:media`（stdio + 本機 PAT，預設關閉）；RESPONSIBLE_USE.md 初版 | 08 D12：人臉是 v0.2 唯一的新大型風險；搜尋與 MCP 同版推出，`search_photos` 一次就有人物 filter |
+| v0.3 | `face_verify`、`face_cluster` benchmark（隨 mini benchmark）；Ask 的人物 filter（「跟媽媽的照片」，10） | 依賴 v0.3 的 benchmark 與 Ask |
+| v0.4 | XMP MWG Regions（選用）；Immich 人物名稱同步評估（只同步名稱與 asset 對應，不含 embedding） | 生態整合版 |
+| **v0.5 自架 control plane** | Worker vault（edge／results-only）與 `face.*` RPC；多人 RBAC（face:*）；MCP over HTTP 的 OAuth 同意畫面加入 faces scope | 與遠端 Worker、OAuth 同步推出 |
+| v1.0 | 安全審查：「刪除所有人臉資料」可驗證、人臉資料不出現在 log／備份；RESPONSIBLE_USE 定稿 | 穩定版承諾 |
+| v1.x | 影片抽幀人臉、`faces:write`（只能確認或否認）、近似 HDBSCAN 加速、偏差評估報告 | 進階功能 |
 
 ---
 
@@ -853,13 +859,13 @@ RESPONSIBLE_USE.md
 
 | 文件 | 位置 | 改動 |
 |------|------|------|
-| **00** | §5 路線圖 | 「v2 人臉群組」改為「v0.3 人臉（實驗、all-in-one）／v1.0 完整（edge vault、MCP faces:read、{person}）」；文件清單加入 07 |
+| **00** | §5 路線圖 | 「v2 人臉群組」改為依 08 §9：**v0.2 人臉找照片**（審查補充：已改寫 00 §5）；文件清單加入 07 |
 | **02** | §1.3 RBAC | 新增 permission `face:read`／`face:write`／`face:admin` 與角色對照（§6.5） |
 | 02 | §1.4 egress | 新增「人臉縮圖、face embedding」欄位（§6.4） |
 | 02 | §3.1／§3.2 | 新增 `face`、`person`、`face_assignment`、`person_link`、`face_cluster_run`、`face_consent`、`bio.face_embedding`、`bio.person_prototype`；`result.task_type` 加 `face`；`review` 加 `kind`、`face_id`；`task_config.task_type` 加 `face`；`output_rule.when` 加 `persons_*`、`fanout` |
 | 02 | §4.1 | 後處理階段新增「線上指派」，Job 完成後觸發 `face.cluster`；asset 消失 30 天後的人臉清理 |
 | 02 | §5.1／§5.3 | REST（§8.4）與 Worker 協定（§8.3）；`POST /faces`、`face.*` RPC 加入 CP→W 白名單 |
-| 02 | §6／§7 | 備份預設排除 `bio`；`opl_bio` DB role；log 禁止記錄向量；monorepo 新增 `faces-core`、`face_vault`；CI 檢查不可散布的權重 |
+| 02 | §6／§7 | 備份預設排除 `bio`；`opagent_bio` DB role；log 禁止記錄向量；monorepo 新增 `faces-core`、`face_vault`；CI 檢查不可散布的權重 |
 | **03** | §1 Registry | `kind` 增加 `face_detector`／`face_embedder`／`face_quality`；`license` 拆成 `code` 與 `weights`，並新增 `redistributable`、`biometric`、`training_data`；新增 `remote_allowed`、`only_files`、`exclude_files`、`bundle`；§1.3 內建目錄加入人臉模型 |
 | 03 | §2 | `Capability.FACE`、`FaceConfig`、`FaceOut`、三個 Face adapter Protocol、`embed_query_faces` |
 | 03 | §4 | small slot 加入人臉模型；ORT arena 設定；8 GB 序列模式加入 Phase F |

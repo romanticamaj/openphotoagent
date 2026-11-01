@@ -33,10 +33,14 @@ Pre-release tags and the whole `v0.0.x` line are marked as **Pre-release** on Gi
 | Version | Milestone (see [roadmap](README.md#-roadmap)) |
 |---|---|
 | `v0.0.x` | Design specs, M0 spike results |
-| `v0.1.0` | MVP: all-in-one compose, Caption / Tag / Classify, dry-run → approve → undo |
-| `v0.2.0` | Hybrid search + `stdio` MCP server |
-| `v0.3.0` | Model manager, mini benchmark, XMP, Immich / Label Studio |
-| `v1.0.0` | Control plane + edge workers, multi-tenant, OAuth MCP: first stable API |
+| `v0.1.0` | **Desktop MVP** (Windows / macOS / Linux installers + Docker all-in-one): auto-sort photos into folders, model manager, environment doctor, ETAs, dry-run → approve → undo, photo viewer |
+| `v0.2.0` | **Find photos by face** + hybrid search + `stdio` MCP server (`opagent mcp`), XMP |
+| `v0.3.0` | **Ask your photos** (in-app AI chat), watch folders, mini benchmark, presets sharing |
+| `v0.4.0` | Ecosystem: MLX / vLLM / torch packs, Immich / Label Studio, package managers |
+| `v0.5.0` | Self-hosted control plane + remote workers, multi-user RBAC / OIDC, OAuth MCP over HTTP |
+| `v1.0.0` | Stable: REST, worker protocol, MCP tool manifest and `pack_api` frozen; security review |
+
+> The authoritative roadmap is [docs/08 §9](docs/08-desktop-packaging-and-final-review.md). "SaaS" anywhere in the docs means a **self-hosted** control plane; there is no paid hosted service.
 
 ## 4. Interfaces versioned separately
 
@@ -50,6 +54,8 @@ Some contracts are consumed by other software. They carry their own versions so 
 | Model registry YAML | `schema_version` field | Older registry files are auto-migrated on load |
 | Database | Alembic migrations, forward-only | Upgrading from **any release of the previous minor** is supported. Downgrades mean restoring a backup |
 | Pipeline / preset files | `schema_version` field | Presets exported from an older version import into newer ones |
+| Runtime pack | `pack_api` integer + `packs.lock.json` | No breaking pack changes within a minor release; the app refuses incompatible or unsigned packs |
+| Desktop data dir layout | `layout_version` | Migrated automatically on first launch of a newer version, after a backup |
 
 ## 5. Artifacts per release *(from v0.1.0)*
 
@@ -57,7 +63,7 @@ Some contracts are consumed by other software. They carry their own versions so 
 |---|---|
 | Docker images: `ghcr.io/romanticamaj/openphotoagent-{api,worker,web}` | `X.Y.Z`, `X.Y`, `latest` (stable only), `edge` (every commit on `main`) |
 | Python packages (PyPI) / CLI | `X.Y.Z` |
-| Desktop app (v1.0+) | `X.Y.Z` installers attached to the GitHub Release |
+| Desktop installers (v0.1+) | `X.Y.Z` installers (NSIS / dmg / AppImage / deb / rpm) attached to the GitHub Release; `stable` and `beta` updater channels |
 
 ## 6. How a release happens
 
@@ -96,6 +102,7 @@ The [`release-on-tag`](.github/workflows/release-on-tag.yml) workflow checks tha
 - 採用 **SemVer 2.0**，tag 格式為 `vX.Y.Z`；整個 monorepo **共用同一個版號**（`version.txt`）。
 - **0.0.x**（目前的設計階段）：任何變更都只升 patch。**0.x**（MVP 之後）：破壞性變更升 minor，新功能和修正升 patch。**1.0 以後**：照標準 SemVer。
 - 預發布版本依序是 `-alpha.N`、`-beta.N`、`-rc.N`；預發布版本和整個 v0.0.x 系列在 GitHub 上都標示為 Pre-release。
-- REST API（`/api/v1`）、Worker 協定、MCP tools、Model registry、DB migration、Preset 檔都**各自有版本**和相容性承諾，產品版號跳得快也不會打壞外部整合。
+- 里程碑：v0.1 桌面 MVP（自動分類到資料夾）→ v0.2 人臉找照片 + 混合搜尋 + MCP → v0.3 AI 問照片 + watch folder → v0.4 生態 → v0.5 自架 control plane → v1.0 穩定（以 docs/08 §9 為準）。桌面安裝包從 v0.1 起隨 GitHub Release 發佈。
+- REST API（`/api/v1`）、Worker 協定、MCP tools、Model registry、DB migration、Preset 檔、Runtime pack（`pack_api`）、桌面資料目錄（`layout_version`）都**各自有版本**和相容性承諾，產品版號跳得快也不會打壞外部整合。
 - 發版流程：commit 遵循 Conventional Commits → release-please 自動開 Release PR → 維護者審核後合併 → 自動打 tag、產生 CHANGELOG、建立 GitHub Release。緊急時也可以手動打 tag，由 `release-on-tag` workflow 從 CHANGELOG 擷取 release note 並發布。
 - 需要在 repo 設定裡開啟「Allow GitHub Actions to create and approve pull requests」一次。

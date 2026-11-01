@@ -1,6 +1,6 @@
 # 04 — 控制介面 UX/UI 與前端規格（Control Panel）
 
-> 專案：**OpenPhotoAgent**（簡稱 OPA；程式碼/CLI 前綴沿用 02/03 文件之 `opl`，正式更名時一併替換）
+> 專案：**OpenPhotoAgent**（簡稱 OPA；程式碼/CLI 名稱：`opagent`（已定案））
 > 文件狀態：Draft v0.1（2026-11）
 > 範圍：使用者旅程、資訊架構、頁面 wireframe、視覺設計系統、前端技術棧、互動亮點。
 > 依賴：API／SSE／Job 狀態機／權限見 [02-system-architecture.md](02-system-architecture.md)；模型目錄、VRAM、benchmark 見 [03-inference-layer.md](03-inference-layer.md)；搜尋與 MCP 行為規格見 05-search-and-mcp.md（本文只定義其 UI）。
@@ -18,6 +18,10 @@
 | U5 | **鍵盤優先、批次優先** | 覆核、搜尋、Gallery 全部有鍵盤操作與 command palette（⌘K）；任何清單都支援框選/Shift 範圍選取 → 批次動作。 |
 | U6 | **隱私可見** | 目前 Workspace 的 `egress_policy` 以徽章常駐頂列；任何會讓影像離開地端的設定（雲端推論 API、MCP 可讀縮圖）都有明確警示與二次確認。 |
 | U7 | **人與 agent 同一套權限語言** | MCP/第三方 agent 的操作在 UI 中與人的操作同樣出現在 Audit、同樣受 dry-run/核准閘門控制；agent 的寫入請求會變成「待核准」卡片。 |
+| U8 | **一條推薦路徑，選項往後藏**（審查補充，08 §8.2） | onboarding 最多問 2 個問題（資料夾、怎麼整理）；任何選擇題都有「推薦」預選；「其他選項」連結取代並列的多張卡。 |
+| U9 | **永遠不讓使用者卡住**（審查補充，08 §8.2、06 M2） | 每個阻擋（驅動、VRAM、磁碟、下載失敗）都要有修復 CTA 與「先用較慢的方式繼續」的退路（CUDA → Vulkan → CPU、VLM → SigLIP 快速模式）；停用的控制項一律附理由與 fix（`GatedButton`）。 |
+| U10 | **術語分兩層**（審查補充，08 §8.3） | 單人模式用日常語言（整理方式、圖庫、本機引擎、預覽變更、待確認）；「進階模式」才顯示 Pipeline、門檻、cascade、fingerprint。 |
+| U11 | **時間永遠看得見**（審查補充，06 M3） | 每個長操作都有開始前預估、執行中經過時間與 ETA（附可信度與依據）、暫停或等待的原因；統一由 `OperationProgress` 呈現。 |
 
 ---
 
@@ -34,6 +38,8 @@
 | **第三方 agent（Claude Desktop / Claude Code）** | MCP token（唯讀或可寫 scope） | 「幫我找去年在京都拍的楓葉照，整理成相簿資料夾」 | 清楚的工具與權限、寫入需人核准 |
 
 ### 1.2 旅程 A：首次 Onboarding（目標：≤ 5 分鐘到第一張預覽結果）
+
+> **（審查補充）** 桌面版與單人模式的 onboarding 已依 08 §8 簡化（刪除 W1、W2，一個推薦組合，下載與選資料夾並行），以 §8.2 為準；下表保留給自架多人 control plane（v0.5）。
 
 ```mermaid
 flowchart LR
@@ -151,9 +157,9 @@ sequenceDiagram
 
 ### 2.3 全域元件與狀態
 
-- **TaskTray（右下）**：下載、掃描、Job、Undo 等長任務的統一托盤，可展開；以 SSE 驅動。
+- **TaskTray（右下）**：下載、掃描、Job、Undo 等長任務的統一托盤，可展開；以 SSE 驅動。**（審查補充）由 06 §6.1 的 Activity Center 取代**（頂列指示器 + 抽屜，資料來自 `operation.*` SSE）。
 - **ApprovalInbox（🔔）**：output plan 待核准、MCP agent 寫入請求、moves 超量確認。
-- **PrivacyBadge**：`full / thumbs / edge-thumbs / results-only`，點擊看說明；在 `results-only` 下 Gallery 顯示「縮圖已停用」佔位圖（以類別色塊 + 檔名），不是壞圖。
+- **PrivacyBadge**：（審查補充）桌面版與單人 all-in-one 固定顯示「🔒 100% 本機」，只在外部推論 API、MCP 縮圖外送、問照片使用外部 LLM 時出現警示（08 C-05）；自架多人 control plane 才顯示四級 `full / thumbs / edge-thumbs / results-only`，點擊看說明；在 `results-only` 下 Gallery 顯示「縮圖已停用」佔位圖（以類別色塊 + 檔名），不是壞圖。
 - **WorkerStatusDot**：綠（閒置）/藍脈動（推論中）/黃（drain 或高溫）/灰（離線）。Worker 離線時，依賴它的按鈕禁用並 tooltip 說明。
 
 ---
@@ -248,7 +254,7 @@ Sidecar     [✓] XMP（dc:subject / dc:description / lr:hierarchicalSubject）
            ⚠ 分類/食物/2025/03/IMG_1.jpg  與既有檔案衝突 → 將略過
 ```
 
-- 選「移動」時：橘色警示條「原檔會被移到新位置；系統會先複製並驗證 hash，再把原檔移入 `.opl-trash/` 保留 7 天」。
+- 選「移動」時：橘色警示條「原檔會被移到新位置；系統會先複製並驗證 hash，再把原檔移入 `.opagent-trash/` 保留 7 天」。
 - 樣板 token 採 combobox 自動完成；`{gps.city}` 需反向地理編碼（離線資料集），未啟用時 chip 為灰色並說明。
 
 狀態：Worker 離線 → 樣本面板顯示「Worker 離線，無法預覽」+ 重新連線；模型下載中 → 樣本卡顯示下載進度；preview 失敗（JSON 解析錯誤）→ 卡片紅框 + 「看原始輸出」。
@@ -414,6 +420,8 @@ Sidecar     [✓] XMP（dc:subject / dc:description / lr:hierarchicalSubject）
   - 「套用為此類別集預設」按鈕。
 
 ### 3.9 Workers
+
+> **（審查補充）** 單人模式隱藏本頁，內容併入「設定 → 本機引擎」（08 C-17）；自架多人（v0.5）才顯示完整頁面。
 
 - WorkerCard：名稱、OS、GPU（型號/VRAM/驅動/CUDA）、狀態、目前 lease、已裝模型、允許根目錄、版本（過舊提示升級）。
 - **配對對話框**：產生一次性配對碼（10 分鐘倒數）+ 分頁指令（Docker / Windows `uvx` / macOS），每段一鍵複製；Worker 連上時對話框即時切換為「✓ desktop-5070ti 已連線」並帶入硬體偵測結果（重用 Onboarding W4 卡片）。
@@ -642,12 +650,12 @@ const handlers: Record<string, (d: any) => void> = {
 - Gallery 10 萬張：捲動 60fps、首屏 < 300ms（已快取時）；Review 切換下一張 < 50ms（預先載入後 3 張大圖）。
 - SSE 單連線；分頁不可見時伺服器端可降頻（client 送 `visibility` 參數）。
 
-### 5.6 桌面包裝：Tauri 2（選用）
+### 5.6 桌面包裝：Tauri 2（審查補充：已改為主要交付形態，v0.1 起）
 
 | 選項 | 說明 | 建議 |
 |------|------|------|
 | 純 Web（預設） | 瀏覽器開 `https://opa.local` | 所有部署形態 |
-| **Tauri 2 桌面 App** | 同一份 SPA 包進 WebView；Rust 側負責：啟動/監管本機 all-in-one（或僅 Worker）sidecar、系統匣圖示（Job 進度、完成通知）、原生資料夾對話框（本機 Worker 時取代遠端瀏覽器）、OS keyring 存 token、自動更新、開機自啟 | **v1.x 提供**，主攻 Windows（不跑 Docker 的使用者） |
+| **Tauri 2 桌面 App** | 同一份 SPA 包進 WebView；Rust 側負責：啟動/監管本機 all-in-one（或僅 Worker）sidecar、系統匣圖示（Job 進度、完成通知）、原生資料夾對話框（本機 Worker 時取代遠端瀏覽器）、OS keyring 存 token、自動更新、開機自啟 | ~~v1.x 提供~~ → **主要交付形態，v0.1 起提供 Windows x64／macOS arm64／Linux x64**（08 D1、C-18）；殼與進程模型見 08 §1 |
 | Electron | 生態成熟 | 體積大（~150MB），不採用 |
 
 - 前端以 `platform` 抽象層（`isTauri()`）切換：資料夾選擇、通知、開啟檔案總管、剪貼簿；Web 版以對應的 Web API/降級方案實作。
@@ -670,7 +678,7 @@ const handlers: Record<string, (d: any) => void> = {
 | W9 | **Agent 透明窗** | MCP agent 的每個動作在 UI 以紫色 🤖 標記；待核准卡片附 agent 的原始意圖與樣本縮圖，人可以「修改後核准」 | §3.10；與人類操作共用 output plan 閘門 |
 | W10 | **掃描拼貼牆** | 第一次掃描時，Dashboard 以真實縮圖逐格填滿成拼貼，計數器跳動——「它真的看到我的照片了」 | 掃描 SSE + ThumbHash 先行；`prefers-reduced-motion` 時直接顯示 |
 | W11 | **完成時的「整理成果」卡** | 任務完成顯示每個類別的代表封面（最高信心 + 最美學分數的一張）組成的封面牆，可分享（不含原圖時以統計卡呈現） | 封面選擇用 embedding 中心度 |
-| W12 | **一鍵貼上 MCP 設定** | 複製的 JSON 已含 token 與正確 URL；偵測到 Tauri 版時提供「直接寫入 Claude Desktop 設定檔」（需使用者確認、顯示 diff） | Tauri fs 權限僅限該設定檔路徑 |
+| W12 | **一鍵貼上 MCP 設定**（審查補充：擴大為「連接 AI 助手」精靈，08 C-19，v0.2） | 複製的 JSON 已含 token 與正確 URL；桌面版偵測 Claude Desktop、Claude Code、Cursor 的設定檔 → 顯示 diff → 寫入 `opagent mcp` 的**絕對路徑**；本機 PAT 自動建立並存入 keyring | Tauri fs 權限僅限這幾個已知設定檔路徑 |
 
 ---
 
@@ -698,6 +706,7 @@ apps/web/
 
 | 階段 | 範圍 |
 |------|------|
+| （審查補充）對照 | M1 = v0.1、M2 ≈ v0.2–v0.3、M3 ≈ v0.3–v1.x；版本範圍以 08 §9 為準。Tauri 桌面版從 M3 移到 **M1**；人物頁在 v0.2、問照片頁在 v0.3；見 §8 |
 | M1（MVP） | Onboarding、Sources（遠端選擇器）、New Job 精靈（含 10 張預覽）、Job 監控、Output Plan 核准/Undo、基本 Gallery（facet + 關鍵字）、Review（鍵盤）、Models（列表 + 下載 + VRAM 徽章）、深/淺主題、zh-TW/en |
 | M2 | Hybrid 搜尋 + 以圖搜圖 + 存成規則、Benchmark 精靈、Presets 版本、Workers 完整頁、Integrations/MCP（token、設定片段、呼叫紀錄、核准待辦）、Audit 時間軸 |
 | M3 | 自然語言建立任務/規則、拖拉建立類別 + 自動建議類別、覆核學習、Tauri 桌面版、時光機 Undo、手機 Review 手勢 |
@@ -706,10 +715,67 @@ apps/web/
 
 | 項目 | 對象 | 需求 |
 |------|------|------|
-| SSE 新事件 | 02 | `preview.item`、`model.download.progress`、`plan.apply.progress`、`scan.progress`、`mcp.call`、`mcp.approval` |
+| SSE 新事件 | 02 | `preview.item`、`model.download.progress`、`plan.apply.progress`、`scan.progress`、`mcp.call`、`mcp.approval`（審查補充：後三個長任務事件已由 06 的 `operation.*` 取代，見 02 §10.3） |
 | Output plan 聚合 | 02 | `GET /output-plans/{id}/tree?depth=` 依目錄聚合計數，供 diff 樹 |
 | 資產清單附 ThumbHash 與長寬比 | 02 | `asset` 增欄 `thumbhash`、`width`、`height`，供 justified layout 預先排版 |
 | 後處理純函式共用 | 02 `packages/core` | 門檻判定與 path template 需有 TS 鏡像（或 WASM），以 golden test 保證與 Python 一致 |
 | 自然語言 → 查詢 chips | 05 | 搜尋 API 回傳解析後的結構化查詢，UI 才能以 chips 呈現與編輯 |
 | MCP tool manifest / scope / 核准 API | 05 | UI 動態渲染能力表與核准卡；token scope 命名需與 RBAC permission string 對齊 |
 | Benchmark 結果格式 | 03 §6.4 | 散佈圖/覆蓋率曲線所需欄位（每門檻 coverage/accuracy 陣列） |
+
+---
+
+## 8. 介面整合：06 / 07 / 08 / 10 的變更（審查補充）
+
+> 集中整理 06 §7.3、07 §11、08 §7（C-16–C-19、C-22、C-32）、10 §C 對本文的修改。細節以原文件為準；版本依 08 §9。
+
+### 8.1 導覽重排（單人模式）
+
+```
+┌ 頂列：⌘K 搜尋/指令 │ 🔒 100% 本機 │ Activity Center（進行中 2 · ETA 12 分）│ 🔔待確認/待核准 │ ⚙
+├ 左側欄
+│   ● 照片（預設首頁，10 §2.1）   時間軸 / 地圖 / 資料夾 / 相簿 / 收藏
+│   ● 人物（v0.2，opt-in 後才出現，07 §4）
+│   ● 問照片（v0.3，⌘J 全域面板，10 §9）
+│   ● 整理（原 New Job + Jobs + Output Plan；「整理方式」= Presets）
+│   ● 待確認 (57)（原 Review）
+│   ─────────
+│   ● 模型（06 §6.5）  ● 系統（環境醫生，06 §6.6）  ● 連接 AI 助手（原 Integrations/MCP，v0.2）
+│   ● 歷史與復原（原 Audit & Undo）  ● 設定（本機引擎 = 原 Workers）
+```
+
+- 單人模式隱藏 Workspace 切換、Org 設定、Workers 頁（併入「設定 → 本機引擎」）；是否隱藏由 `GET /capabilities` 決定，不靠 build flag（08 §1.6）。
+
+### 8.2 Onboarding（取代 §1.2 旅程 A，08 §8.1、06 §6.6）
+
+| 步驟 | 內容 |
+|------|------|
+| ~~W1 建立管理員~~、~~W2 偵測部署形態~~ | **刪除**（單人模式沒有帳號） |
+| W3–W4 硬體偵測 | 環境醫生快速檢查，只顯示一句結論「你的電腦可以跑標準模式（RTX 4060 · 8 GB）」；問題一律附修復 CTA（驅動下載頁、改用 Vulkan 繼續） |
+| W4.5 人物辨識同意 | 掃描開始後的卡片：「開啟／稍後」，可略過（07 §4.2；v0.2 起） |
+| W5 選模型 | **一個推薦組合**（「需要下載 5.2 GB，約 10 分鐘」）+「其他選項」連結；授權免勾選（預設組合都是 Apache-2.0） |
+| W6 下載 ∥ W7 選資料夾 ∥ W8 掃描 | **並行**：下載在背景（可暫停、續傳、顯示速度與 ETA），同時用原生選擇器選資料夾並開始掃描與產縮圖；SigLIP2 先下載，以文搜圖最早可用 |
+| 第一次整理 | 兩個問題：「想怎麼整理？」（依日期／依內容 12 類／自訂類別）、「要放到哪裡？」（預設 `圖片/OpenPhotoAgent 整理結果`，預設複製） |
+
+### 8.3 新頁面與元件
+
+| 頁面 / 元件 | 規格 | 版本 |
+|-------------|------|------|
+| Activity Center、`OperationProgress`（4 變體）、`EstimateSummary`、`GatedButton`、`ReadinessChecklist`、`ProblemCard`、`CompatBadge`（取代 `VramBadge`）、`DoctorSummary`、`ImportDialog`、`StorageLocations` | 06 §6、§7.3 | v0.1 |
+| 系統 › 環境醫生頁 `/system/doctor` | 06 §6.6 | v0.1 |
+| Models 頁：「執行套件」分段、「使用中模型」、匯入、儲存位置 | 06 §6.5 | v0.1 |
+| New Job 精靈：③ ModelPicker 每列 CompatBadge + prep chip；⑥ 預覽加入 EstimateSummary 與 ReadinessChecklist | 06 §6.3 | v0.1 |
+| Job 監控改用 `OperationProgress full`（stepper、ETA 依據、stalled 狀態） | 06 §7.3 | v0.1 |
+| Gallery 重構為共用 `<PhotoGrid>`（justified、時間軸 scrubber）+ `@opa/viewer` Lightbox；Lightbox 規格以 10 §3 取代本文 §3.6 | 10 §2–3 | v0.1 |
+| 人物牆、人物詳情、找這個人（含**拖一張照片找人**，07 §2.5／§4.5）、合併建議、Review 人臉模式（Y／N）、Lightbox `F` 臉框、Gallery 人物 facet、OutputRuleBuilder `{person}`／`{persons}`／`{person_count}` + fan-out | 07 §4 | v0.2 |
+| 「連接 AI 助手」精靈（W12 擴大版）；MCP 能力表加入 faces 列；核准卡 deep link `openphotoagent://approvals/{id}` + OS 通知 | 08 C-19、C-22、07 §4 | v0.2 |
+| 設定 › 人臉辨識卡（opt-in、Source 範圍、模型、MCP 人臉開關）與危險區「刪除所有人臉資料」 | 07 §4.2 | v0.2 |
+| 問照片頁 / ⌘J 面板：步驟可視化（每步預估與經過時間）、引用照片卡、結果網格聯動、計畫卡（人工核准） | 10 §9 | v0.3 |
+
+### 8.4 前端技術棧與規範補充
+
+- 新增依賴：MapLibre GL JS + pmtiles（v0.4 地圖）、OpenSeadragon（lazy，DZI）、thumbhash；`packages/viewer`（10 §5.2）。
+- 縮圖金字塔擴充為 t256／t512／p1024／p2048／HDR／DZI；桌面版經 Tauri asset protocol 直接讀快取（scope = 快取目錄 + 已註冊 root，10 §5.4）。
+- SSE 映射新增 `operation.*` → `qc.setQueryData(['operation', id])` 並維護 `['operations','active']`；`model.installed` 等事件 invalidate `['preflight', …]`、`['models']`、`['compat']`（06 §7.3）。
+- Lint：`opa/no-bare-disabled`（停用必附理由）；Storybook 為每個錯誤碼自動產生 ProblemCard story 並做視覺回歸。
+- 文案：單人模式術語對照見 08 §8.3，兩套文案都放 i18n key。

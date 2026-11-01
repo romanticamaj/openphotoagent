@@ -1,6 +1,6 @@
 # 02 — 系統架構規格（System Architecture）
 
-> 專案名稱：**OpenPhotoAgent**（原暫名 Open Photo Labeler；CLI 暫沿用 `opl`）
+> 專案名稱：**OpenPhotoAgent**（原暫名 Open Photo Labeler；CLI：`opagent`（已定案））
 > 文件狀態：Draft v0.1（2026-11）
 > 範圍：部署形態、元件與技術棧、資料模型、Job 生命週期、API 與 Worker 協定、安全、可觀測性、測試、monorepo、擴充性。
 > 不在範圍：模型 adapter／VRAM／prompt 細節（見推論層文件）、前端 UI 設計（見 UI 文件）。本文件只定義 **Worker ↔ 推論層** 的介面邊界。
@@ -36,7 +36,7 @@ flowchart LR
 
   subgraph B["(b) Control plane + 地端 Agent"]
     direction TB
-    subgraph Cloud["Control plane（SaaS 或自架）"]
+    subgraph Cloud["Control plane（自架：NAS / 內網）"]
       W2[web] --> API2[api ×N]
       API2 --> PG2[(Postgres)]
       API2 --> S3[(S3 / MinIO<br/>縮圖)]
@@ -52,26 +52,28 @@ flowchart LR
 
 | 項目 | (a) All-in-one | (b) Control plane + Agent |
 |------|----------------|---------------------------|
-| 目標使用者 | 個人、單機玩家、homelab | 團隊、多台 GPU 機、官方 SaaS、公司內網自架 |
+| 目標使用者 | 個人、單機玩家、homelab | homelab、小團隊、多台 GPU 機（家用 NAS / 公司內網自架；**沒有官方付費託管**） |
 | 容器 | `web`, `api`, `worker`, `postgres`（選配 `minio`, `inference`） | 雲端：`web`, `api`, `scheduler`（同映像不同 entrypoint）, Postgres, S3；地端：`worker`（單一映像或單一 binary 安裝包） |
 | 網路 | 全部在 compose 內網；只對外開 web/api 一個 port | Worker 主動 outbound 443；**地端不需開任何 port、不需公網 IP** |
 | 認證 | 單一 admin（首次啟動建立），可關閉 auth（僅 localhost） | 多租戶 + RBAC + OIDC |
 | 縮圖儲存 | 本地 volume | S3/MinIO；或「縮圖留地端」模式（見 1.4） |
 | GPU | compose `deploy.resources.reservations.devices`（nvidia） | Worker 所在機器 |
 
+> **（審查補充）(c) 桌面形態（v0.1 起的主要交付形態，見 [08 §1](08-desktop-packaging-and-final-review.md)）**：Tauri 2 殼（Rust）監管三個子進程：嵌入式 PostgreSQL 17 + pgvector、`opagent api`（內嵌 scheduler）、`opagent worker`；api ↔ worker 仍走 loopback 上的同一套 Worker 協定（§5.3），**不做 in-process**，所以 ADR-001 與 import-linter 規則在桌面一樣成立。桌面版預設**單人模式**（§1.3 補充）、`egress_policy` 固定 `full` 且 UI 隱藏（§1.4 補充）、API 只綁 `127.0.0.1` 並以每次啟動產生的 `launch_token` 保護（§6.3 補充）。
+
 ### 1.2 共用同一套程式碼的方式
 
 ```
-同一個 Python 套件（opl）提供多個 entrypoint：
-  opl api        → FastAPI（REST + SSE + Worker WS gateway）
-  opl scheduler  → 背景排程（Job 拆分、lease 回收、清理、報告）；小型部署可內嵌在 api 進程
-  opl worker     → 地端 Agent（掃描、前處理、呼叫推論層、輸出動作）
-  opl migrate    → Alembic migration
+同一個 Python 套件（opagent）提供多個 entrypoint：
+  opagent api        → FastAPI（REST + SSE + Worker WS gateway）
+  opagent scheduler  → 背景排程（Job 拆分、lease 回收、清理、報告）；小型部署可內嵌在 api 進程
+  opagent worker     → 地端 Agent（掃描、前處理、呼叫推論層、輸出動作）
+  opagent migrate    → Alembic migration
 ```
 
 - **Worker 不直連 DB**：即使在 all-in-one，worker 也只透過 Worker Protocol（§5.3）存取 control plane。好處：(1) 兩種部署的 worker 程式碼零分支；(2) 測試只需一套；(3) 未來把 all-in-one 拆成分散式不需改程式。
-- 差異只在設定檔（`OPL_MODE=allinone|controlplane`、`OPL_AUTH=none|local|oidc`、`OPL_THUMB_STORE=local|s3|edge`）。
-- all-in-one 的 worker 在首次啟動時以 **bootstrap token**（由 api 寫入共享 volume `/run/opl/bootstrap.token`）自動註冊，不需使用者手動配對。
+- 差異只在設定檔（`OPAGENT_MODE=desktop|allinone|controlplane`、`OPAGENT_AUTH=launch_token|none|local|oidc`（`desktop`、`launch_token` 為審查補充，見 08 C-03）、`OPAGENT_THUMB_STORE=local|s3|edge`）。
+- all-in-one 的 worker 在首次啟動時以 **bootstrap token**（由 api 寫入共享 volume `/run/opagent/bootstrap.token`）自動註冊，不需使用者手動配對。桌面版的 bootstrap token 由 Rust 殼產生，經 **stdin** 交給 api 與 worker，不落地（審查補充，08 C-03）。
 
 ### 1.3 多租戶與 RBAC
 
@@ -89,6 +91,8 @@ flowchart LR
 - 權限以 **permission string** 定義（如 `job:create`, `output:apply`, `source:write`, `worker:manage`），角色 = permission 集合，存在程式碼常數中（v1 不做自訂角色）。
 - 資料隔離：所有業務表帶 `org_id`（以及多數帶 `workspace_id`）；API 層用 dependency 注入 `TenantContext`，Repository 層強制加過濾。v2 可開 Postgres **Row-Level Security**（`SET app.org_id`）做縱深防禦。
 - Worker 屬於 Org，可被指派給一個或多個 Workspace（`worker_workspace` 關聯表），Source 綁定在某個 Worker 上（因為路徑只對該機器有意義）。
+- **（審查補充）單人模式（桌面與 all-in-one 的預設，08 D10 / C-04）**：首次啟動 seed `default` org、workspace 與 owner 使用者；API 仍走 `TenantContext`（程式碼路徑不變），UI 隱藏 Org、Workspace、成員、角色，沒有登入畫面。完整多人 RBAC 與 OIDC 在 **v0.5（自架多人 control plane）** 才開放；permission string 從 v0.1 就存在，因為 MCP scope 直接對應它（00 R7）。
+- **（審查補充）人臉與問照片的 permission**（07 §6.5、10 §10.1）：`face:read`、`face:write`、`face:admin`（opt-in、purge、MCP 人臉設定）；`assistant:use`、`assistant:admin`（10 的 `assistant_settings`）。單人模式下 owner 擁有全部 permission，但人臉功能仍須另外 opt-in（07 §0）。
 
 ### 1.4 隱私模式（Data Egress Policy）
 
@@ -97,9 +101,11 @@ flowchart LR
 | 模式 | 回傳到 control plane | 適用 |
 |------|----------------------|------|
 | `full`（all-in-one 預設） | metadata + EXIF + 縮圖 + embedding + 結果 | 單機 |
-| `thumbs`（SaaS 預設） | 同上，但縮圖限 512px、EXIF GPS 可選擇剝除 | 一般雲端使用 |
+| `thumbs`（自架 control plane 預設） | 同上，但縮圖限 512px、EXIF GPS 可選擇剝除 | control plane 與 Worker 不在同一台機器 |
 | `edge-thumbs` | metadata + 結果 + embedding；**縮圖留在 Worker 本地**，瀏覽器透過 Worker 的 relay 通道（WS 反向串流）取縮圖 | 隱私敏感，仍要 UI 預覽 |
 | `results-only` | 只有路徑 hash、相對路徑（可選擇也 hash 掉）、結果；無縮圖、無 embedding、無 GPS | 最高隱私 |
+
+> **（審查補充）桌面版**：所有元件都在本機，`egress_policy` 固定為 `full` 並在 UI 隱藏，PrivacyBadge 顯示「100% 本機」（08 C-05）。仍會造成資料離開本機、因此需要另外警示的只有三種：(1) 使用者自行設定的外部推論 API；(2) MCP `photos:media`／`faces:media` 縮圖交給第三方 AI（05 §3.5、07 §5.4，由 `mcp_media_policy`、`mcp_face_media_policy` 控制，預設不外送人臉）；(3) AI 問照片使用外部 LLM endpoint（10 §8.9，由 `assistant_media_policy` 控制）。三個 media policy 與 `egress_policy` 一律**取最嚴格者**。四級政策保留給 v0.5 的遠端 Worker。
 
 > 原檔（full-resolution）在任何模式下都 **不會** 上傳。推論永遠在地端 GPU 跑。若使用者自行選擇雲端推論 API（例如將來的 OpenAI-compatible remote adapter），也是由 Worker 發出請求，並在 UI 明確標示「此 Pipeline 會將影像送出地端」。
 
@@ -116,7 +122,7 @@ flowchart TB
   subgraph CP[Control Plane]
     API[api: FastAPI<br/>REST / SSE / Worker WS]
     SCH[scheduler<br/>lease 回收・分片・cron]
-    API <--> PG[(Postgres 16+<br/>pgvector・queue・LISTEN/NOTIFY)]
+    API <--> PG[(PostgreSQL 17<br/>pgvector 0.8・queue・LISTEN/NOTIFY)]
     SCH <--> PG
     API --> OBJ[(Object store<br/>local / S3 / MinIO)]
   end
@@ -140,7 +146,7 @@ flowchart TB
 |------|------|------|------|
 | API 框架 | **FastAPI + Pydantic v2**（Python 3.12） | Litestar、Go（chi）、NestJS | Worker 與推論生態必為 Python（PyTorch/vLLM/pillow-heif），API 同語言可共用 Pydantic schema（`packages/schemas`）與 domain 邏輯；OpenAPI 自動產生 → 前端 TS client 自動生成；async 原生支援 SSE/WS。 |
 | ORM / migration | SQLAlchemy 2.0（async）+ Alembic | SQLModel | 成熟、支援 pgvector type、複雜查詢 |
-| DB | **Postgres 16+ with pgvector**（HNSW index） | SQLite（僅 Worker 本地快取） | 一個 DB 同時扛業務資料、向量（以文搜圖/去重）、佇列、通知 |
+| DB | **PostgreSQL 17 + pgvector 0.8**（HNSW index；Docker 用 `pgvector/pgvector:pg17`；桌面版嵌入同版 PG，見 08 §2.3） | SQLite（僅 Worker 本地快取） | 一個 DB 同時扛業務資料、向量（以文搜圖/去重）、佇列、通知 |
 | 任務佇列 | **Postgres-based 佇列（自寫 `job_item` lease 表 + `FOR UPDATE SKIP LOCKED`）**；control plane 內部背景任務用 **Procrastinate** | Redis + arq / Celery / Dramatiq | 見 2.3 |
 | 即時進度（瀏覽器） | **SSE**（`/events` stream），由 Postgres `LISTEN/NOTIFY` 扇出 | WebSocket | 單向推播已足夠；穿透 proxy/CDN 容易；自動重連 + `Last-Event-ID` 補發 |
 | Worker 通道 | **WSS（主）+ HTTPS long-poll（fallback）** | gRPC bidi stream | WSS 在企業 proxy 下相容性高於 gRPC；long-poll 作為 WS 被擋時的降級 |
@@ -148,7 +154,7 @@ flowchart TB
 | Auth | **內建 local auth（argon2id）+ OIDC client（Authlib）**；可接 Authentik / Keycloak / Zitadel / Google | Better Auth、Ory Kratos | Better Auth 為 TS 生態，與 Python API 混用需多一個 Node 服務；內建 + 標準 OIDC 對自架最省事，企業可接自家 IdP。Session 採 HttpOnly cookie；API token / Worker token 另計（§6）。 |
 | 前端 | （由 UI 文件決定）建議 React + Vite SPA，靜態檔由 `web` 容器（Caddy）提供 | Next.js | 不需 SSR，SPA 可直接由 Caddy/CDN 服務 |
 | Reverse proxy | Caddy（自動 TLS） | Traefik、nginx | 自架設定最少 |
-| Worker 打包 | Docker 映像（CUDA 12.8 base, PyTorch cu128，支援 sm_120）+ 可選 `uv` 安裝的 Python 套件（Windows/macOS 原生） | PyInstaller binary | Blackwell 需 cu128；Windows 使用者常不跑 Docker → 提供 `uvx opl-worker` |
+| Worker 打包 | Docker 映像（CUDA 12.8 base, PyTorch cu128，支援 sm_120）+ 可選 `uv` 安裝的 Python 套件（Windows/macOS 原生） | PyInstaller binary | Blackwell 需 cu128；Windows 使用者常不跑 Docker → 提供 `uvx opagent-worker`。**（審查補充，08 C-07）** Worker 有三種交付方式：Docker 映像、桌面 app（本機模式；v0.5 起可當 headless Worker 加入遠端伺服器）、`uvx` 給開發者 |
 | 影像處理 | Pillow + pillow-heif、pyvips（大量縮圖時）、exiftool（XMP 寫入）、imagehash | OpenCV | |
 | Hash | **BLAKE3**（內容 hash）+ pHash/dHash（感知 hash） | SHA-256 | BLAKE3 多執行緒極快，NAS 上掃百萬張可接受 |
 
@@ -164,7 +170,7 @@ flowchart TB
 關鍵觀察：**地端 Worker 本來就不能直連 broker**，必須透過 API 領工作，因此「佇列」實質上是 control plane 上的一張 lease 表，API 代理存取。照片標註的吞吐瓶頸是 GPU（每秒數張～數十張），Postgres 綽綽有餘。
 - Worker 領取以 **batch 為單位**（例如 32 個 JobItem 一次 lease），降低往返次數。
 - control plane 自身的雜務（產生報告、清理過期縮圖、寄信）用 **Procrastinate**（同樣 Postgres-based），不另起 Redis。
-- 若未來 SaaS 規模化，`QueueBackend` 介面允許換成 Redis Streams / NATS，但 v1 不做。
+- 若未來自架部署規模很大，`QueueBackend` 介面允許換成 Redis Streams / NATS，但 v1 不做。
 
 ---
 
@@ -466,8 +472,8 @@ sequenceDiagram
   participant CP as Control plane
   participant W as Worker（地端）
   U->>CP: POST /workers/enrollment-codes
-  CP-->>U: code = OPL-7KQ2-9XMV（10 分鐘、一次性）
-  U->>W: opl worker enroll --server https://cp --code OPL-7KQ2-9XMV
+  CP-->>U: code = OPA-7KQ2-9XMV（10 分鐘、一次性）
+  U->>W: opagent worker enroll --server https://cp --code OPA-7KQ2-9XMV
   W->>W: 產生 ed25519 keypair（私鑰存本機，0600）
   W->>CP: POST /worker-api/v1/enroll {code, public_key, name, capabilities}
   CP-->>W: {worker_id, refresh_token(綁 public_key), server_pubkey_pin}
@@ -510,7 +516,7 @@ sequenceDiagram
 
 ### 6.1 路徑沙箱（Worker 端強制）
 
-Worker 設定檔（`/etc/opl/worker.toml` 或 `%APPDATA%\opl\worker.toml`）定義 allowlist；**CP 永遠只能以 `alias + 相對路徑` 指涉檔案**：
+Worker 設定檔（`/etc/opagent/worker.toml` 或 `%APPDATA%\opagent\worker.toml`）定義 allowlist；**CP 永遠只能以 `alias + 相對路徑` 指涉檔案**：
 
 ```toml
 [[roots]]
@@ -541,15 +547,15 @@ follow_symlinks = false
 對每個 output_action：
   1. 預檢     src 存在且 hash == src_hash（防止計畫後檔案被改）；dst 衝突依 conflict_policy 決議
   2. journal  寫入 intent（op, src, dst, pre_state）並 fsync 本地 SQLite（WAL）
-  3. copy     複製到 dst 同目錄的暫存檔 `.opl-tmp-<uuid>`，保留 mtime/權限（copystat）
+  3. copy     複製到 dst 同目錄的暫存檔 `.opagent-tmp-<uuid>`，保留 mtime/權限（copystat）
   4. verify   重新計算暫存檔 BLAKE3 == src_hash
   5. commit   fsync 檔案與目錄 → 原子 rename 到 dst（不覆蓋：Linux renameat2 RENAME_NOREPLACE）
-  6. move 才做：再次確認 dst hash → unlink src（或移到 `.opl-trash/<plan_id>/` 保留 N 天，預設開啟）
+  6. move 才做：再次確認 dst hash → unlink src（或移到 `.opagent-trash/<plan_id>/` 保留 N 天，預設開啟）
   7. journal  標記 done + post_state
 ```
 
 - **Undo**：按 journal 反序重播反向操作（copy → 刪 dst（僅當 dst hash 仍等於我們寫入的 hash）；move → 從 trash 還原或 dst 搬回 src；symlink → 刪除；sidecar → 還原備份或刪除）。若檔案已被使用者另行修改，該筆 undo 標記 `conflict` 而非強制覆蓋。
-- **當機恢復**：Worker 啟動時掃描 journal 中 `intent` 但未 `done` 的條目，依 pre/post state 完成或回滾；清理 `.opl-tmp-*`。
+- **當機恢復**：Worker 啟動時掃描 journal 中 `intent` 但未 `done` 的條目，依 pre/post state 完成或回滾；清理 `.opagent-tmp-*`。
 - **Sidecar**：XMP 以 exiftool 寫入 `dc:subject`、`dc:description`、`lr:hierarchicalSubject`（相容 Lightroom/digiKam/Immich）；預設寫 `.xmp` sidecar，不改原檔；「寫入原檔 EXIF」需明確開啟並先備份。
 - **核准閘門**：`mode=apply` 必須有 `output:apply` 權限的使用者對特定 plan 核准；move 動作在 UI 需二次確認；單一 plan 超過設定數量（如 10,000 個 move）需輸入確認字串。
 - 跨檔案系統 move 一律走 copy+verify+delete；同檔案系統也預設這麼做（可設定 `fast_rename=true` 改為 rename，仍寫 journal）。
@@ -559,15 +565,20 @@ follow_symlinks = false
 | 類型 | 形式 | 存放 | 範圍 |
 |------|------|------|------|
 | 瀏覽器 session | 不透明 session id，HttpOnly + Secure + SameSite=Lax cookie；CSRF double-submit token | `session` 表 | 使用者 |
-| API token | `opl_pat_<prefix>_<secret>`；DB 只存 SHA-256(secret)；可設 scopes、workspace 限制、到期 | `api_token` | 自動化、CLI |
+| API token | `opagent_pat_<prefix>_<secret>`；DB 只存 SHA-256(secret)；可設 scopes、workspace 限制、到期 | `api_token` | 自動化、CLI |
 | Worker | ed25519 keypair + 綁定公鑰的 refresh token → 15 分鐘 JWT（aud=`worker`，含 worker_id/org_id） | Worker 本機 0600 / OS keychain | 只能呼叫 `/worker-api`，只能存取指派 workspace 的工作 |
 | Enrollment code | 一次性、10 分鐘、限速 | — | 配對 |
+| **Launch token**（審查補充，桌面） | 256-bit，Rust 殼每次啟動產生，經 stdin 交給 api；前端以 Tauri command `backend_info()` 取得 | 只在記憶體，不落地，每次啟動輪替 | 桌面 SPA 呼叫 `/api/v1`（Bearer） |
+| **Handoff code**（審查補充，桌面） | 一次性、30 秒 | — | 系統匣「在瀏覽器開啟」換成 HttpOnly session cookie |
+| **本機 PAT**（審查補充，桌面 MCP） | 同 API token 格式，由「連接 AI 助手」精靈建立，scope 預設 `photos:read`（不含 `photos:media`、`faces:*`） | OS keyring（Linux 無 Secret Service 時降級 0600 檔並警示） | `opagent mcp`（stdio）呼叫本機 API |
 
 其他：
+- **（審查補充，08 C-10）所有 API**（不只 `/mcp`）都驗證 `Host` 為 `127.0.0.1`／`localhost`（或設定的對外網域）並驗證 `Origin`，防 DNS rebinding。桌面版只綁 `127.0.0.1`；「允許區網存取」是進階開關，開啟時強制啟用帳號登入。
+- **（審查補充，08 C-09）新增或刪除 Worker 允許根目錄**只能經由桌面殼 IPC（使用者手勢）或本機 CLI；REST 與 MCP 一律不提供。
 - Worker 只接受 TLS；可選 **certificate pinning**（enroll 時取得 CP 公鑰 pin）。Worker **永遠不接受 inbound 連線**；CP 下發的 RPC 白名單固定（不存在「執行任意指令」類訊息）。
 - CP 送來的 `path_template` 在 Worker 端渲染並再經 SafePath 檢查；template 變數值（如 category）做檔名清理（移除 `/ \ : * ? " < > |`、控制字元，長度限制）。
 - 速率限制（登入、enroll、token）、密碼 argon2id、OIDC 使用 PKCE。
-- 多租戶 SaaS：縮圖 S3 key 前綴 `org/{org_id}/`，以短效 presigned URL 提供；可選每 Org 的 SSE-KMS。
+- 多租戶（自架多人 control plane，v0.5）：縮圖 S3 key 前綴 `org/{org_id}/`，以短效 presigned URL 提供；可選每 Org 的 SSE-KMS。
 - 供應鏈：映像以 cosign 簽章、SBOM（syft）；模型下載驗證 sha256（`artifact_ref`）。
 
 ---
@@ -579,11 +590,11 @@ follow_symlinks = false
 | 面向 | 做法 |
 |------|------|
 | Logs | structlog JSON；每筆帶 `org_id, workspace_id, job_id, job_item_id, worker_id, trace_id`；路徑只記 alias+rel_path，可設定遮蔽 |
-| Metrics | Prometheus `/metrics`：`opl_job_items_total{status}`, `opl_items_per_second`, `opl_cache_hit_ratio`, `opl_lease_expired_total`, `opl_inference_latency_seconds{model}`, `opl_gpu_vram_bytes`, `opl_model_load_seconds`, `opl_review_queue_depth`, `opl_worker_connected`；Worker 的 metrics 經心跳匯總到 CP（地端可另開本機 `127.0.0.1:9464`） |
+| Metrics | Prometheus `/metrics`：`opagent_job_items_total{status}`, `opagent_items_per_second`, `opagent_cache_hit_ratio`, `opagent_lease_expired_total`, `opagent_inference_latency_seconds{model}`, `opagent_gpu_vram_bytes`, `opagent_model_load_seconds`, `opagent_review_queue_depth`, `opagent_worker_connected`；Worker 的 metrics 經心跳匯總到 CP（地端可另開本機 `127.0.0.1:9464`） |
 | Traces | OpenTelemetry（OTLP 選配），trace context 透過 Worker 協定傳遞：API → lease → 推論 → 回報 |
 | 產品內可視化 | UI 內建 Worker 儀表（GPU 使用率、VRAM、吞吐、ETA），不依賴 Grafana；提供可選的 Grafana dashboard JSON |
 | 錯誤 | Sentry 相容（GlitchTip 可自架），預設關閉 |
-| 診斷包 | `opl worker doctor`：檢查 CUDA/驅動/sm_120 支援、roots 權限、CP 連線、時鐘偏差，輸出可分享的去識別報告 |
+| 診斷包 | `opagent worker doctor`：檢查 CUDA/驅動/sm_120 支援、roots 權限、CP 連線、時鐘偏差，輸出可分享的去識別報告 |
 
 ### 7.2 測試策略
 
@@ -638,16 +649,16 @@ openphotoagent/
 
 ### 8.1 Plugin 機制
 
-以 Python **entry points** 註冊（`pyproject.toml` 的 `[project.entry-points."opl.<kind>"]`），Worker 啟動時載入並在 `hello` 中回報能力。
+以 Python **entry points** 註冊（`pyproject.toml` 的 `[project.entry-points."opagent.<kind>"]`），Worker 啟動時載入並在 `hello` 中回報能力。
 
 | Plugin 種類 | entry point group | 介面 | 執行位置 |
 |-------------|-------------------|------|----------|
-| 模型 adapter | `opl.inference` | `InferenceBackend`（§4.4）+ `ModelManifest`（宣告 task_types、VRAM、artifact_ref） | Worker |
-| 輸出動作 | `opl.output_actions` | 見下 | Worker（計畫在 CP 以純函式描述） |
-| 來源類型 | `opl.sources` | `SourceDriver.walk() / open() / stat()`（如 S3、SMB 直連、Google Takeout zip） | Worker |
-| 前處理器 | `opl.preprocessors` | `Preprocessor.supports(mime) / decode(bytes) -> RGB`（如 RAW via rawpy、影片抽幀） | Worker |
-| 後處理規則函式 | `opl.rule_functions` | 純函式，供規則 DSL 呼叫（如 `exif_year()`、`near(gps, home)`） | CP + Worker |
-| 整合 | `opl.integrations` | `Integration.sync(event)` | CP（API 類）或 Worker（檔案類） |
+| 模型 adapter | `opagent.inference` | `InferenceBackend`（§4.4）+ `ModelManifest`（宣告 task_types、VRAM、artifact_ref） | Worker |
+| 輸出動作 | `opagent.output_actions` | 見下 | Worker（計畫在 CP 以純函式描述） |
+| 來源類型 | `opagent.sources` | `SourceDriver.walk() / open() / stat()`（如 S3、SMB 直連、Google Takeout zip） | Worker |
+| 前處理器 | `opagent.preprocessors` | `Preprocessor.supports(mime) / decode(bytes) -> RGB`（如 RAW via rawpy、影片抽幀） | Worker |
+| 後處理規則函式 | `opagent.rule_functions` | 純函式，供規則 DSL 呼叫（如 `exif_year()`、`near(gps, home)`） | CP + Worker |
+| 整合 | `opagent.integrations` | `Integration.sync(event)` | CP（API 類）或 Worker（檔案類） |
 
 輸出動作介面：
 
@@ -667,24 +678,24 @@ Plugin 只能透過傳入的 `SandboxFS`（已綁 allowlist）存取檔案，不
 
 | 整合點 | 方向 | 做法 |
 |--------|------|------|
-| 來源 | Immich → OPL | 讀取 Immich external library 的同一份資料夾（Worker mount 同路徑），或透過 Immich API 列舉資產（`SourceDriver: immich`，以 asset id 為 rel_path） |
-| 結果回寫 | OPL → Immich | 輸出動作 `immich_tags` / `immich_album` / `immich_description`：以 Immich API（API key 存於 Workspace secret）建立 tag、加入相簿、寫 description |
-| Sidecar | OPL → Immich | XMP sidecar 的 `dc:subject` 可被 Immich 讀入（metadata 重新掃描） |
+| 來源 | Immich → OpenPhotoAgent | 讀取 Immich external library 的同一份資料夾（Worker mount 同路徑），或透過 Immich API 列舉資產（`SourceDriver: immich`，以 asset id 為 rel_path） |
+| 結果回寫 | OpenPhotoAgent → Immich | 輸出動作 `immich_tags` / `immich_album` / `immich_description`：以 Immich API（API key 存於 Workspace secret）建立 tag、加入相簿、寫 description |
+| Sidecar | OpenPhotoAgent → Immich | XMP sidecar 的 `dc:subject` 可被 Immich 讀入（metadata 重新掃描） |
 | 去重 | — | 以 content hash 對應 Immich 的 checksum（SHA-1，需另存一份 sha1 欄位以對照，選配） |
 
 ### 8.3 Label Studio 整合
 
 | 整合點 | 做法 |
 |--------|------|
-| 匯出到 Label Studio | `export/label-studio`：產生 tasks JSON（含縮圖 URL 或 local-files 路徑）+ predictions（以 OPL 結果作 pre-annotation，帶 model_version 作 `model_version` 欄位） |
-| 匯入回 OPL | 從 Label Studio export/webhook 取得人工標註 → 寫成 `review(status=corrected)` → 更新 final_label |
-| 用途 | 大規模人工覆核、建立評估集（ground truth）以比較不同模型/prompt 的準確率；OPL 內建 `evaluation` Job 可吃此資料集算 accuracy / F1 |
+| 匯出到 Label Studio | `export/label-studio`：產生 tasks JSON（含縮圖 URL 或 local-files 路徑）+ predictions（以 OpenPhotoAgent 結果作 pre-annotation，帶 model_version 作 `model_version` 欄位） |
+| 匯入回 OpenPhotoAgent | 從 Label Studio export/webhook 取得人工標註 → 寫成 `review(status=corrected)` → 更新 final_label |
+| 用途 | 大規模人工覆核、建立評估集（ground truth）以比較不同模型/prompt 的準確率；OpenPhotoAgent 內建 `evaluation` Job 可吃此資料集算 accuracy / F1 |
 
 ### 8.4 其他預留
 
 - **OpenAI-compatible remote backend**：作為 adapter 之一，使用者可指向自己的 vLLM/llama.cpp server 或雲端 API（後者觸發 egress 警告）。
 - **Webhooks**：`job.completed`、`review.created`、`plan.applied` 外送（HMAC 簽章）。
-- **CLI**：`opl` CLI 使用 API token 操作 Job，方便 cron/腳本整合。
+- **CLI**：`opagent` CLI 使用 API token 操作 Job，方便 cron/腳本整合。
 - **多 Worker 分散**：同一 Source 可被多台 Worker 讀（共享 NAS），以 `worker_labels` 做親和性；v1 先限制一個 Source 綁一個 Worker。
 
 ---
@@ -700,3 +711,104 @@ Plugin 只能透過傳入的 `SandboxFS`（已綁 allowlist）存取檔案，不
 | ADR-005 | 瀏覽器用 SSE、Worker 用 WSS + long-poll fallback | 全 WebSocket / gRPC | Proxy 相容、實作簡單 |
 | ADR-006 | 內建 local auth + 標準 OIDC client | Better Auth（Node）、Keycloak 必裝 | 單一語言、自架最少服務、企業可接 IdP |
 | ADR-007 | Pipeline revision 不可變，Job 綁 revision | Job 直接引用可變 pipeline | 結果可追溯、可重現 |
+
+---
+
+## 10. 介面整合：06 / 07 / 08 / 10 的變更（審查補充）
+
+> 06（模型、環境醫生、Operation）、07（人臉）、08（桌面）、10（Viewer、問照片）各自列出了對本文的修改需求（06 §7.1、07 §11、08 §7、10 §C）。本節把它們集中寫回 02，作為實作時的單一依據；欄位細節以原文件為準。版本欄依 [08 §9](08-desktop-packaging-and-final-review.md) 的路線圖。
+
+### 10.1 新增資料表
+
+| 表 | 主要欄位（摘要） | 來源 | 版本 |
+|----|------------------|------|------|
+| `operation` | id, workspace_id, worker_id, parent_id, type, subject_kind/subject_id, status, phase, progress, eta(jsonb：p50/p90/state/basis), waiting_reason, started_at, elapsed_ms | 06 §5.1 | v0.1 |
+| `operation_event` | id, operation_id, seq, kind, payload, actor, at（append-only） | 06 §7.1 | v0.1 |
+| `doctor_check_result` | scope, worker_id, check_id, status, code, severity, observed（脫敏）, fixes, checked_at, expires_at | 06 §3.5 | v0.1 |
+| `runtime_pack`、`installation` | pack 鏡像；worker 上 artifact／pack 的安裝紀錄（取代 03 §7.1 `installed.json`；`worker_model` 改為 view） | 06 §7.1、08 §4 | v0.1 |
+| `license_acceptance` | user_id, model_id, license_id, license_hash, accepted_at, revoked_at | 06 §1.9 | v0.1 |
+| `task_default_model` | workspace_id, task, variant | 06 §1.6 | v0.1 |
+| `perf_observation`、`eta_calibration` | 吞吐、載入時間、頻寬的 EWMA；ETA 校正直方圖 | 06 §5.5 | v0.1 |
+| `compat_cache` | worker_id, variant_key, inputs_hash, result | 06 §1.2 | v0.1 |
+| `asset_derivative` | asset_id, kind（t256/t512/p1024/p2048/hdr/dzi）, format, bytes, location | 10 §C | v0.1（t256/t512）、v0.2+（其餘） |
+| `asset_flag` | asset_id, user_id, favorite, rating, pick, trash_candidate | 10 §10.3 | v0.2 |
+| `face`、`person`、`face_assignment`、`person_link`、`face_cluster_run`、`face_consent`、`bio.face_embedding`（依 workspace LIST partition）、`bio.person_prototype` | 見 07 §3.2 | 07 | v0.2 |
+| `conversation`、`message`、`message_step`、`message_citation`、`assistant_settings`、`ask_eval_case` | 見 10 §10.3 | 10 | v0.3 |
+
+**欄位變更**：`asset` 增加 `thumbhash`、`width`、`height`（00 R5，v0.1）、`duration_ms`、`is_hdr`、`color_space`、`has_embedded_preview`（10，v0.2）；`job` 增加 `operation_id`（1:1）；`job_item.error_code` 改用 06 §4.7 錯誤碼目錄；`result.task_type`、`task_config.task_type` 增加 `face`；`review` 增加 `kind`、`face_id`；`output_rule.when` 增加 `persons_*` 與 `fanout`（07，v0.2）；`worker.capabilities` 增加 `deployment`、`accels[]`、`packs[]`、`hardware_digest`；workspace settings 增加 `faces.*`、`mcp.faces_enabled`、`mcp_face_media_policy`、`assistant_media_policy`。
+
+### 10.2 REST 新增（`/api/v1`）
+
+| 群組 | 端點（摘要） | 來源 | 版本 |
+|------|--------------|------|------|
+| 部署能力 | `GET /capabilities`（deployment、auth、single_user、features、gpu_summary；UI 依此顯示功能） | 08 §1.6 | v0.1 |
+| Preflight / 預估 | `POST /preflight`、`POST /estimates`；**所有 action endpoint 執行前都跑 preflight，失敗回 409 problem+json** | 06 §4.2、§5.9 | v0.1 |
+| Operation | `GET /operations?active=`、`GET /operations/{id}`、`POST /operations/{id}/pause\|resume\|cancel\|reprioritize` | 06 §5.7 | v0.1 |
+| Doctor | `GET /system/doctor`、`POST /system/doctor/run`、`GET /system/features`、`POST /system/fixes/{id}/apply` | 06 §3.5 | v0.1 |
+| 模型 / pack | `/runtime-packs`、`/workers/{id}/installs`（取代 `/workers/{id}/models/{mv}/install`，舊路徑保留為 alias）、`/installations/*`、`/imports/*`、`/storage/move`、`/models/{v}/load\|unload\|speedtest`、`/workspaces/{ws}/task-defaults`、`/licenses/*`、`/settings/downloads` | 06 §1.11、§2.10 | v0.1 |
+| Viewer | `/timeline/buckets`、`/timeline/buckets/{month}`、`/assets/{id}/media?variant=`、`/assets/{id}/labels`（PATCH，就地修正→review）、`/selections` | 10 §C | v0.1 |
+| Viewer（後續） | `/assets/{id}/flags`、`/assets/{id}/dzi/...`、`/map/clusters`、`/exports` | 10 §C | v0.2–v0.4 |
+| 人臉 | `/workspaces/{ws}/faces/settings`、`/faces/purge`、`/people*`（merge/split/ignore/faces/co-occurrence/photos）、`/faces/bulk-assign`、`/faces/find`、`/faces/query-image`（UI 拖一張照片找人；MCP 不提供）、`/people/merge-suggestions`、`GET /assets/{id}/faces` | 07 §8.4 | v0.2 |
+| 問照片 | `POST /workspaces/{ws}/ask`（SSE）、`/ask/turns/{id}/events\|cancel\|feedback`、`/conversations*`、`/ask/suggestions`、`/assistant-settings` | 10 §10.1 | v0.3 |
+| 桌面 | `GET /auth/handoff?code=`（系統匣「在瀏覽器開啟」）；`GET /trash/summary`（解除安裝前提示 `.opagent-trash/` 內的檔案，08 §5.5）；`POST /system/backup`、`/system/restore`（「設定 → 資料」，08 §2.3） | 08 | v0.1 |
+
+**錯誤格式**：全部 API 改用 RFC 9457 `application/problem+json`，加上 `code`、`fixes[]`、`blockers[]`（06 §4.6）。UI 依 `fixes[]` 顯示修復 CTA（M2：不准只有 disabled 沒有理由）。
+
+### 10.3 SSE 事件（`/events`）
+
+| 事件 | 來源 | 版本 | 備註 |
+|------|------|------|------|
+| `operation.created\|progress\|phase\|status\|completed\|warning` | 06 §5.7 | v0.1 | **取代** 00 R5 的 `model.download.progress`、`scan.progress`、`plan.apply.progress`（三者都以 `operation.progress` 表達）；每個事件附 `server_time` |
+| `doctor.check\|changed`、`model.installed\|removed\|loaded\|unloaded`、`runtime.installed` | 06 §7.1 | v0.1 | UI 收到後 invalidate preflight / models / compat 快取 |
+| `preview.item`、`plan.ready`、`job.progress`、`job.status`、`review.created`、`worker.status` | 00 R5、本文 §5.1 | v0.1 | 不變；`job.progress` 另帶 `operation_id` |
+| `mcp.call`、`mcp.approval` | 00 R5、05 | v0.2 | |
+| `faces.cluster.progress`、`faces.suggestions.updated`、`faces.purge.progress` | 07 §8.4 | v0.2 | `faces.cluster.progress` 同時投影成 `operation.progress` |
+| Ask 的 `turn.* / step.* / token / photos / citation / card / notice` | 10 §10.2 | v0.3 | 走 `POST /ask` 自己的 SSE 回應，不混入 `/events` |
+
+### 10.4 Worker 協定（§5.3）新增
+
+| 方向 | 訊息 | 來源 | 版本 |
+|------|------|------|------|
+| W→CP | `op.update`；`heartbeat` 夾帶 `active_operation_ids`、`paused_reason`（對應 06 §5.5.7 的 `PAUSED_ON_BATTERY`／`PAUSED_GPU_CONTENDED`／`PAUSED_NOT_IDLE`） | 06 §7.1、08 C-30 | v0.1 |
+| CP→W | `op.control`（pause/resume/cancel/reprioritize）、`doctor.run` / `doctor.result`、`install.start`（**取代** `model.install`，payload 加入 pack 與 mirror）、`import.scan`、`storage.move`、`config.update`（電池／遊戲模式策略） | 06 §7.1、08 §6 | v0.1 |
+| CP→W | `media.preview`、`media.stream`（原圖 Range 串流，Web 版 Lightbox） | 10 §C | v0.1 |
+| CP→W | `media.dzi`、`media.export` | 10 §C | v0.2–v0.4 |
+| W→CP / CP→W | `POST /faces`、`PUT /faces/{id}/thumb`、`face.embed_query`、`face.knn`、`face.cluster`、`face.prototype.rebuild`、`face.purge`（全部加入 CP→W RPC 白名單） | 07 §8.3 | v0.2（edge vault 相關在 v0.5） |
+| CP→W | `chat`（tool-calling／structured 生成，interactive lane）、`verify`（批次 yes/no + 短理由） | 10 §C | v0.3 |
+
+### 10.5 Job 流程與 scanner
+
+- scanner 略過原因增加 `cloud_placeholder`（OneDrive／iCloud 佔位檔）與 `photos_library_package`（macOS Photos Library 封裝），UI 顯示原因而不是錯誤（08 C-31）。
+- scan 時一併算 ThumbHash、讀 ICC／HDR gain map、抽 RAW 內嵌預覽（10 §C）。
+- **Source 離線**（外接硬碟拔掉、NAS 斷線）：`source.status=offline`，相關 Operation 進入 `waiting_reason=SOURCE_OFFLINE`（06 §5.5.7）而不是失敗；UI 顯示「離線」，重新接上後自動繼續（08 §8.1）。已索引的照片仍可瀏覽與搜尋（使用縮圖快取）。
+- 後處理新增人臉「線上指派」，Job 完成後觸發 `face.cluster` Operation；asset 消失 30 天後清理人臉資料（07 §11）。
+- GPU 排程增加 `pause_on_battery`、`pause_on_contention`、`only_when_idle` 策略（08 §6、C-30）；暫停中的 Operation 帶 `waiting_reason`，ETA 顯示「暫停中」。
+
+### 10.6 安全與資料
+
+- 備份預設排除 `bio` schema；人臉資料使用獨立 DB role `opagent_bio`；log 禁止記錄向量（07 §6.3）。
+- 「刪除所有人臉資料」必須可驗證（`DROP PARTITION` + 縮圖刪除 + 刪除報告），列入 v1.0 安全審查（07、08 §10）。
+- MCP 與 Ask 的寫入類動作一律只產生計畫，套用只能在 UI（桌面為 `openphotoagent://approvals/{id}` deep link）人工核准；`organize:apply` 不發給任何 token（00 R7）。
+
+### 10.7 Monorepo 新增（§7.3）
+
+```
+apps/desktop/          # Tauri 2：src-tauri/（supervisor、tray、launch token、updater）、packs 管理（08 C-11）
+apps/api/assistant/    # 問照片 Assistant 服務：意圖路由 + 有界 tool loop，呼叫 packages/mcp-tools 的 ToolRegistry（10 §8）
+apps/worker/face_vault/  # v0.5 edge vault（07 §8.5）
+packages/faces-core/   # 人臉向量數學、分群、prototype（純 Python，api 可依賴；07 §8.5）
+packages/viewer/       # @opa/viewer：PhotoGrid、Lightbox（10 §5.2）
+packaging/             # python-build-standalone 環境建置、簽章腳本、packs/ 配方（08 §1.2、§4）
+RESPONSIBLE_USE.md     # 人臉功能的負責任使用說明（07 §6.6）
+```
+
+依賴規則不變：`api` 仍不得依賴 `fs-sandbox` 與 `inference-*`；`faces-core` 不依賴 I/O 與 ORT。
+
+### 10.8 ADR 補充
+
+| ADR | 決策 | 理由 |
+|-----|------|------|
+| ADR-008 | 桌面版嵌入 PostgreSQL 17 + pgvector，**單一 DB 後端**，不做 SQLite 雙後端 | SKIP LOCKED、LISTEN/NOTIFY、tsvector、HNSW 原樣保留；測試矩陣不加倍（08 D4） |
+| ADR-009 | 桌面版 api 與 worker 分兩個進程，走 loopback Worker 協定 | 保住 ADR-001；runtime 崩潰不拖垮 UI（08 D2） |
+| ADR-010 | 單人模式為預設，多人 RBAC／OIDC 延到 v0.5 | 新手零設定；schema 保留 `org_id` 可無痛升級（08 D10） |
+| ADR-011 | 所有長操作都是 Operation（含開始前預估、執行中 ETA、經過時間、等待原因），所有 action 先 preflight，錯誤附 fix | 「時間永遠看得見」「不讓使用者卡住」（06 M1–M3、08 U9） |

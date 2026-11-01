@@ -3,6 +3,8 @@
 > 撰寫日期：2026-11-01｜角色：Prior-art 研究員
 > 資料來源：GitHub Search API（`gh api search/repositories`，2026-11-01 查詢）、PyPI / npm registry、官方文件（WebSearch）。
 > Stars、授權、最後 push 日期皆由 GitHub Search API 直接取得；**功能欄位**是依專案描述、官方文件與既有知識整理，未逐一實測的地方標「未驗證」。
+>
+> **後續決定（審查補充，見 [00 §8](00-master-plan.md)）**：正式名稱採 **OpenPhotoAgent**（不是本文推薦的 Open Photo Labeler）；CLI 定為 **`opagent`**（不是本文的 `opl`），環境變數前綴 `OPAGENT_`；授權 Apache-2.0。本文保留 2026-11-01 調查當下的原始內容，作為紀錄。
 
 ---
 

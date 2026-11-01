@@ -4,7 +4,7 @@
 > 範圍：(A) 桌面執行檔的殼與進程模型、資料庫、推論 runtime 矩陣、runtime pack、安裝與更新、桌面專屬 UX；(B) 對 00–05 的最終審查、新手「好用」審查、更新後的路線圖與 v0.1 MVP 範圍。
 > **產品方向（以此為準，覆蓋 00–05 的舊假設）**：純開源社群專案（Apache-2.0）。不收費，沒有付費託管，也沒有 open-core。舊文件中的「SaaS」一律改指「**自架 control plane**」，也就是家用 NAS 或公司內網，讓多台 GPU Worker 連入。主要交付形態是**跨平台桌面執行檔**（Windows x64 / macOS Apple Silicon / Linux x64），其次是 Docker 自架（all-in-one，或 control plane + Worker）。
 > 標示慣例：**【估算】**表示推算值或經驗值，未實測；**【未驗證】**表示需要在實作或 spike 時對照上游確認；**【決定】**是本文件的裁決。
-> 相關文件：06（模型管理 / 環境醫生 / ETA）、07（人臉辨識）、09（TDD 測試策略）、10（照片 viewer 與 AI 問照片）。撰寫時 06、07、10 都還沒有檔案，本文對它們的需求集中在 §10。
+> 相關文件：06（模型管理 / 環境醫生 / ETA）、07（人臉辨識）、09（TDD 測試策略）、10（照片 viewer 與 AI 問照片）。撰寫時 06、07、10 都還沒有檔案，本文對它們的需求集中在 §10。（審查補充：06、07、10 現已完成，§10 的需求已核對；07 與 10 的版本已改為依本文 §9。）
 
 ---
 
@@ -13,7 +13,7 @@
 | # | 題目 | 決定 | 一句話理由 |
 |---|------|------|-----------|
 | D1 | 桌面殼 | **Tauri 2 + 同一份 React SPA**。前端資源打包進 app（`tauri://`），後端是本機 Python sidecar | 安裝包小（用系統 WebView），Rust 端適合做進程監管和 OS 整合。voicebox 已驗證這套組合 |
-| D2 | 進程模型 | Rust 殼負責監管 **postgres、`opl api`（內嵌 scheduler）、`opl worker`** 三個子進程；worker 再啟動 `llama-server` 等 runtime 子進程。api ↔ worker **走 loopback 上的同一套 Worker 協定**，不做 in-process | 保住 02 的 P2 和 ADR-001（零分支、import-linter 可驗證）；GPU 或 runtime 崩潰不會拖垮 UI 和 DB |
+| D2 | 進程模型 | Rust 殼負責監管 **postgres、`opagent api`（內嵌 scheduler）、`opagent worker`** 三個子進程；worker 再啟動 `llama-server` 等 runtime 子進程。api ↔ worker **走 loopback 上的同一套 Worker 協定**，不做 in-process | 保住 02 的 P2 和 ADR-001（零分支、import-linter 可驗證）；GPU 或 runtime 崩潰不會拖垮 UI 和 DB |
 | D3 | Python 打包 | **python-build-standalone + uv 建出的可重定位環境**（onedir），以 Tauri resource 形式隨 app 發佈；不用 PyInstaller onefile，也不用 Nuitka | runtime pack 要能事後追加 Python wheel（例如 ORT-CUDA）；凍結式打包做不到。onedir 啟動快、防毒誤判少、可以逐檔簽章 |
 | D4 | 資料庫 | **桌面版嵌入真正的 PostgreSQL 17 + pgvector**（官方原始碼或 theseus-rs 預編二進位，pgvector 在 CI 逐平台編譯），**單一 DB 後端**。**不做** SQLite 雙後端，也不用 PGlite | 02/05 依賴的 SKIP LOCKED、LISTEN/NOTIFY、tsvector、pgvector HNSW 全部原樣保留。pgserver、embedded-postgres、pg0 三個專案都已證明「Win/macOS/Linux 都能嵌入並附帶 pgvector」。雙後端會讓測試矩陣與 repository 層成本加倍 |
 | D5 | 推論主軸 | **llama.cpp `llama-server`（VLM、LLM）+ ONNX Runtime（SigLIP2、人臉、tagger）** 是跨平台主軸。vLLM 只當 **Linux / Docker 進階選項**，MLX 是 Mac 進階 pack，transformers/torch 降級成選用的「torch pack」 | llama.cpp 有官方 Win CUDA/Vulkan、macOS arm64、Ubuntu Vulkan 預編版。ORT 有 CUDA、DirectML、CoreML EP。這個組合**不需要 torch**，安裝包能壓到 200 MB 以下。vLLM 至今沒有官方原生 Windows 支援 |
@@ -22,7 +22,7 @@
 | D8 | 簽章 | macOS：Developer ID + notarization（每年 99 美元，社群贊助）。Windows：**申請 SignPath Foundation 免費 OSS 簽章**，備案是 Azure Artifact Signing。Tauri updater 與 runtime pack 都用 ed25519（minisign）簽章 | 純開源也能免費取得 Windows 簽章。SmartScreen 信譽要靠累積，第一版仍可能出現警告 |
 | D9 | 更新通道 | `stable`（GitHub Releases `latest` 的 `latest.json`）與 `beta`（gh-pages 上的 `beta.json`），app 在執行期切換 endpoint | Tauri 官方做法；不需要自建更新伺服器 |
 | D10 | 單人模式 | 桌面版與 all-in-one **預設單人模式**：沒有登入畫面、沒有 Org/Workspace UI。桌面版改用「**每次啟動產生的 launch token**」保護 loopback API | 多租戶 RBAC 對桌面版太重；schema 保留 `org_id`，之後可以無痛升級成自架多人 |
-| D11 | MCP 在桌面 | **stdio `opl mcp`**（隨 app 附帶 CLI）是唯一預設通道，「一鍵連接 Claude Desktop/Code」會寫入設定檔。OAuth 2.1 AS **延到 v0.5（自架多人 control plane）** | 桌面單機只需要 PAT；OAuth AS 是大型安全元件，沒有多人情境時投資報酬率很低 |
+| D11 | MCP 在桌面 | **stdio `opagent mcp`**（隨 app 附帶 CLI）是唯一預設通道，「一鍵連接 Claude Desktop/Code」會寫入設定檔。OAuth 2.1 AS **延到 v0.5（自架多人 control plane）** | 桌面單機只需要 PAT；OAuth AS 是大型安全元件，沒有多人情境時投資報酬率很低 |
 | D12 | 路線圖 | v0.1 **自動分類歸檔**（killer ①）→ v0.2 **人臉找照片** + 混合搜尋 + MCP（killer ②）→ v0.3 **AI 問照片**（killer ③）→ v0.4 生態 → v0.5 自架 control plane → v1.0 穩定 | 三個 killer 功能都在 v1.0 前交付；每一版只引入一個新的大型風險（§9） |
 
 ---
@@ -40,15 +40,15 @@ flowchart TB
     SH["Shell / Supervisor（Rust）<br/>single-instance · tray · 通知 · 原生對話框<br/>launch token · 子進程監管 · updater"]
   end
   SH -- "spawn + 監管<br/>(Job Object / PDEATHSIG / stdin-EOF)" --> PG[("postgres 17 + pgvector<br/>unix socket / 127.0.0.1:隨機 port")]
-  SH -- spawn --> API["opl api（Python）<br/>REST /api/v1 · SSE · Worker gateway<br/>內嵌 scheduler + Procrastinate"]
-  SH -- spawn --> WK["opl worker（Python）<br/>scanner · preprocess · output executor<br/>InferenceService · ORT（in-proc）"]
+  SH -- spawn --> API["opagent api（Python）<br/>REST /api/v1 · SSE · Worker gateway<br/>內嵌 scheduler + Procrastinate"]
+  SH -- spawn --> WK["opagent worker（Python）<br/>scanner · preprocess · output executor<br/>InferenceService · ORT（in-proc）"]
   WK -- "spawn（推論層管理）" --> LS["llama-server<br/>CUDA / Vulkan / Metal / CPU"]
   WK -. "選用 pack" .-> VL["vllm serve（僅 Linux）<br/>mlx server（僅 Mac）"]
   UI -- "HTTP + Bearer launch token<br/>SSE（fetch-event-source）" --> API
   UI -- "Tauri IPC：選資料夾、通知、keyring" --> SH
   API --> PG
   WK -- "Worker 協定（loopback WS/HTTP）<br/>bootstrap token" --> API
-  CLI["opl mcp（stdio，隨 app 附帶）"] -- "REST + 本機 PAT" --> API
+  CLI["opagent mcp（stdio，隨 app 附帶）"] -- "REST + 本機 PAT" --> API
   CD["Claude Desktop / Code / Cursor"] -- stdio --> CLI
 ```
 
@@ -72,23 +72,23 @@ flowchart TB
 | PyApp（首次啟動才下載 Python） | 首次啟動很慢 | 最小 | ✓ | 低 | 簡單 | 低 | ✗：首次啟動需要網路，也不能離線安裝 |
 
 **【決定】D3**：
-- 建置流程：`uv python install 3.12`（python-build-standalone，`install_only_stripped`）→ `uv venv --relocatable` → `uv sync --frozen --no-dev --package opl-desktop` → 刪掉 `__pycache__`、tests 和標頭檔 → 整個目錄以 Tauri `bundle.resources` 打包進 app。
-- 啟動指令一律是 `<res>/python/bin/python -I -m opl.desktop.api|worker|mcp`（`-I` 隔離模式，不讀使用者的 `PYTHONPATH` 和 site-packages）。
+- 建置流程：`uv python install 3.12`（python-build-standalone，`install_only_stripped`）→ `uv venv --relocatable` → `uv sync --frozen --no-dev --package opagent-desktop` → 刪掉 `__pycache__`、tests 和標頭檔 → 整個目錄以 Tauri `bundle.resources` 打包進 app。
+- 啟動指令一律是 `<res>/python/bin/python -I -m opagent.desktop.api|worker|mcp`（`-I` 隔離模式，不讀使用者的 `PYTHONPATH` 和 site-packages）。
 - Python 由 Rust 用 `std::process::Command` 直接啟動，不用 Tauri `externalBin`。`externalBin` 要求每個 target triple 一個單檔，不適合 onedir；它在 NSIS 同版重裝時也有替換問題（tauri#15134）。
-- `opl` CLI（`opl mcp`、`opl doctor`）同樣從這份 Python 執行。macOS 和 Linux 另外提供一個小 shim（`<app>/bin/opl`），Windows 提供 `opl.cmd`。安裝程式**不修改 PATH**，MCP 設定一律寫絕對路徑。
+- `opagent` CLI（`opagent mcp`、`opagent doctor`）同樣從這份 Python 執行。macOS 和 Linux 另外提供一個小 shim（`<app>/bin/opagent`），Windows 提供 `opagent.cmd`。安裝程式**不修改 PATH**，MCP 設定一律寫絕對路徑。
 
 ### 1.3 Port、認證與單一實例
 
 | 項目 | 決定 |
 |------|------|
-| API port | 先試偏好 port（設定項，預設 `47800`【未驗證：是否常見衝突】）。被佔用時，先檢查那是不是另一個 OpenPhotoAgent（`/healthz` 回傳簽名與 data dir 指紋，voicebox `isVoiceboxHealthResponse` 的模式）；不是就改用 `127.0.0.1:0` 隨機 port。實際 port 與 PID 寫入 `run/api.json`（0600），`opl mcp` 和瀏覽器開啟功能都讀這個檔 |
+| API port | 先試偏好 port（設定項，預設 `47800`【未驗證：是否常見衝突】）。被佔用時，先檢查那是不是另一個 OpenPhotoAgent（`/healthz` 回傳簽名與 data dir 指紋，voicebox `isVoiceboxHealthResponse` 的模式）；不是就改用 `127.0.0.1:0` 隨機 port。實際 port 與 PID 寫入 `run/api.json`（0600），`opagent mcp` 和瀏覽器開啟功能都讀這個檔 |
 | 綁定位址 | 只綁 `127.0.0.1`。「允許區網存取」是進階開關：改綁 `0.0.0.0`，**並強制啟用帳號登入**（02 的 local auth） |
 | 前端載入方式 | **SPA 打包在 app 內（`tauri://localhost`，Windows 是 `http://tauri.localhost`）**，不從 API 載入 | (1) localStorage 依 origin 分隔，若 API port 改變，從 API 載入的 SPA 會遺失所有偏好；(2) Tauri IPC 不必開放給遠端 origin；(3) 後端還沒啟動時就能顯示啟動畫面 |
 | 桌面 API 認證 | Rust 每次啟動產生 256-bit **launch token**，經 **stdin** 傳給 api（不放環境變數，避免被同使用者的其他工具讀到）；前端用 Tauri command `backend_info()` 取得 `{base_url, token}`。所有 `/api/v1` 都要求 `Authorization: Bearer`；SSE 改用 `@microsoft/fetch-event-source`（04 已列為選項）。CORS 只允許 Tauri origin |
 | 在瀏覽器開啟 | 系統匣選單「在瀏覽器開啟」：殼向 api 要一次性 handoff code（30 秒）→ 開啟 `http://127.0.0.1:<port>/auth/handoff?code=…`，api 設定 HttpOnly session cookie 後轉址到 SPA（api 也提供一份 web build 給這個用途）|
 | DNS rebinding | api 一律驗證 `Host` 為 `127.0.0.1` / `localhost`，並驗證 `Origin`（05 §3.1 已要求 `/mcp` 這樣做，這裡擴大到全部 API）|
 | Postgres 連線 | macOS / Linux：`listen_addresses=''`，**只開 Unix socket**（放在 data dir 底下的 `run/`，0700）。Windows：`127.0.0.1` 加隨機 port，SCRAM 密碼隨機產生並以 0600 存放【未驗證：PG 在 Windows 上的 AF_UNIX 搭配 asyncpg/psycopg 是否可靠，可靠的話 Windows 也改用 socket】 |
-| 單一實例 | `tauri-plugin-single-instance`：第二次啟動只會把既有視窗帶到前景，並轉交參數或 deep link。另外在 data dir 放 `opl.lock`（OS 檔案鎖），防止 AppImage 與 deb 兩種安裝同時開同一份資料；`postmaster.pid` 殘留時，確認該 PID 不存在才清除 |
+| 單一實例 | `tauri-plugin-single-instance`：第二次啟動只會把既有視窗帶到前景，並轉交參數或 deep link。另外在 data dir 放 `opagent.lock`（OS 檔案鎖），防止 AppImage 與 deb 兩種安裝同時開同一份資料；`postmaster.pid` 殘留時，確認該 PID 不存在才清除 |
 | Deep link | 註冊 `openphotoagent://`：`openphotoagent://approvals/{id}`（MCP 核准，取代 05 的瀏覽器 `approval_url`）、`openphotoagent://open?asset=…` |
 
 ### 1.4 啟動序列與崩潰重啟
@@ -96,8 +96,8 @@ flowchart TB
 ```
 t=0      殼啟動，立即顯示啟動畫面（< 300 ms）
 t≈0.3s   啟動 postgres（首次：initdb --locale-provider=builtin --locale=C.UTF-8 -E UTF8，約 3–5 s【估算】）
-t≈1–2s   postgres ready（pg_isready 或連線輪詢）→ 啟動 opl api → alembic upgrade（升級前自動 pg_dump 備份）
-t≈2–4s   /readyz OK → UI 開始載入資料；同時啟動 opl worker（以 bootstrap token 自動註冊）
+t≈1–2s   postgres ready（pg_isready 或連線輪詢）→ 啟動 opagent api → alembic upgrade（升級前自動 pg_dump 備份）
+t≈2–4s   /readyz OK → UI 開始載入資料；同時啟動 opagent worker（以 bootstrap token 自動註冊）
 t≈4–5s   worker hello → UI 的 WorkerStatusDot 變綠；doctor 快速檢查在背景執行
 目標：暖啟動 < 5 s 可操作【目標，需實測】。Python 端一律 lazy import（onnxruntime、numpy、jieba 字典只在需要時載入）
 ```
@@ -105,8 +105,8 @@ t≈4–5s   worker hello → UI 的 WorkerStatusDot 變綠；doctor 快速檢�
 | 子進程 | 健康檢查 | 崩潰策略 |
 |--------|----------|----------|
 | postgres | 連線探測，每 5 s | 立即重啟；連續 3 次失敗 → 全螢幕錯誤頁（附 log 與「複製診斷資訊」）。**不自動刪 data dir**。啟動失敗時常見的原因（磁碟滿、權限、防毒鎖檔）各自有錯誤碼與修復提示 |
-| opl api | `/readyz`，每 5 s | 退避重啟 1 s → 2 s → 4 s …，5 分鐘內最多 5 次，超過就顯示錯誤頁。UI 在重啟期間顯示「重新連線中」橫幅，不清空畫面狀態 |
-| opl worker | 心跳（02 §4.3，15 s） | 退避重啟。lease 過期後由 scheduler 回收，工作會自動續跑。UI 顯示「本機引擎重新啟動中」 |
+| opagent api | `/readyz`，每 5 s | 退避重啟 1 s → 2 s → 4 s …，5 分鐘內最多 5 次，超過就顯示錯誤頁。UI 在重啟期間顯示「重新連線中」橫幅，不清空畫面狀態 |
+| opagent worker | 心跳（02 §4.3，15 s） | 退避重啟。lease 過期後由 scheduler 回收，工作會自動續跑。UI 顯示「本機引擎重新啟動中」 |
 | llama-server 等 runtime | 由推論層負責（03 §4.3） | 依 03：重啟一次 → 並發減半 → 改用下一個 variant。若 GPU pack 崩潰兩次，doctor 建議「改用 Vulkan / CPU」 |
 
 ### 1.5 日誌與目錄位置
@@ -121,7 +121,7 @@ t≈4–5s   worker hello → UI 的 WorkerStatusDot 變綠；doctor 快速檢�
 | 日誌 | `%LOCALAPPDATA%\OpenPhotoAgent\logs\` | `~/Library/Logs/OpenPhotoAgent/` | `$XDG_STATE_HOME/openphotoagent/logs/` |
 | 備份（pg_dump） | `…\backups\`（保留 7 份每日備份，加上每次 migration 前一份） | 同左 | 同左 |
 
-- 一律透過 Tauri path API 取得（`app_local_data_dir`、`app_config_dir`、`app_log_dir`、`app_cache_dir`），Python 端由殼以參數傳入，**不再使用 03 的 `~/.opl/`**。`OPL_HOME` 可以整包覆寫（可攜模式）。
+- 一律透過 Tauri path API 取得（`app_local_data_dir`、`app_config_dir`、`app_log_dir`、`app_cache_dir`），Python 端由殼以參數傳入，**不再使用 03 的 `~/.opagent/`**。`OPAGENT_HOME` 可以整包覆寫（可攜模式）。
 - **資料不放在 Roaming 或 Documents**：Windows Roaming 會跟著網域漫遊；Documents 常被 OneDrive 同步，而 Postgres data dir 放在同步資料夾裡會損毀。
 - Bundle identifier：`org.openphotoagent.desktop`（不能以 `.app` 結尾，否則和 macOS bundle 副檔名衝突）。網域所有權待確認（00 Q1）。
 - 日誌：每個進程各一個檔案（`shell.log`、`api.log`、`worker.log`、`postgres.log`、`runtime-<name>.log`），JSON lines 格式，10 MB × 5 輪替。路徑只記 alias + 相對路徑（02 §7.1）。UI 的「設定 → 日誌」用 SSE 即時 tail（voicebox Logs 頁的做法）；「匯出診斷包」會把去識別化的 log 加上 doctor 報告打包成 zip。
@@ -314,9 +314,9 @@ VRAM / 記憶體皆為**【估算】**（GGUF 權重 + mmproj + KV，8k context�
 | 簽章 | index 以 **ed25519（minisign 格式）**簽章，金鑰 `PACK_SIGNING_KEY`（與 Tauri updater 的金鑰**分開**），公鑰內建在 app。驗證流程：index 簽章 → 檔案 sha256 → 解壓（拒絕絕對路徑、`..` 與 symlink，等同 Python `tarfile` 的 `filter="data"`）→ 逐檔 manifest。macOS 與 Windows 上，pack 內的執行檔**另外有平台簽章**（Developer ID / SignPath），才能通過 hardened runtime 的 library validation 和 SmartScreen |
 | 安裝 | 下載到 `packs/.staging/` → 驗證 → 原子 rename 成 `packs/<id>/<version>/` → 更新 `packs/active.json`。下載支援續傳（HTTP Range）、速度與 ETA（06）、磁碟預檢 |
 | 快取鍵影響 | 00 R2 的 fingerprint 包含「runtime 版本」。**修改**：fingerprint 改用 `numerics_epoch`，不用 pack 版本字串，否則每次 llama.cpp 小更新都會讓整個圖庫的快取失效。只有在 pack 維護者宣告數值行為改變時（例如量化 kernel 改寫）才遞增 epoch |
-| 鏡像 | `OPL_PACK_MIRROR` 與 HF 的 `HF_ENDPOINT` 一樣可以覆寫，給網路受限的地區使用 |
+| 鏡像 | `OPAGENT_PACK_MIRROR` 與 HF 的 `HF_ENDPOINT` 一樣可以覆寫，給網路受限的地區使用 |
 | GitHub 限制 | Release 單一 asset 上限 2 GiB → `torch` / `vllm` 這類大 pack 切成多個 part。Pack 使用獨立的 tag 命名空間 `packs-YYYY.MM.N`，**不符合 `v*.*.*`**，所以不會觸發 `release-on-tag.yml`，也不會干擾 release-please |
-| 離線 | 「設定 → 進階 → 匯入 pack 檔」接受 `.tar.zst` 加簽章（air-gapped 環境），與 03 §7.2 的 `opl models import` 對稱 |
+| 離線 | 「設定 → 進階 → 匯入 pack 檔」接受 `.tar.zst` 加簽章（air-gapped 環境），與 03 §7.2 的 `opagent models import` 對稱 |
 
 ### 4.4 首次啟動的偵測與下載流程
 
@@ -364,7 +364,7 @@ flowchart LR
 | beta 通道 | endpoint `https://romanticamaj.github.io/openphotoagent/updates/beta.json`（每次發佈 `-beta`/`-rc` 版時由 workflow 更新 gh-pages）。app 在「設定 → 更新」切換通道，並**在執行期設定 endpoint**（Tauri 2 updater 官方支援的多通道做法） |
 | 更新流程 | 背景檢查（啟動時檢查一次，之後每 24 小時）→ 系統匣與設定頁出現「有新版本」→ 使用者按下「更新並重新啟動」（**有任務在跑時不自動更新**）→ 下載並驗證簽章 → 先備份 DB（§2.3）→ 安裝並重新啟動 → alembic migrate → 若 `packs.lock` 有變化就下載新 pack |
 | 回退 | DB migration 只能前進（VERSIONING §4）。從 beta 切回 stable 時，若 DB 版本較新，**拒絕降級**並提供「用備份還原」 |
-| 關閉更新 | 支援 `OPL_DISABLE_UPDATER=1`，也可以在設定裡關閉（企業、發行版打包者需要） |
+| 關閉更新 | 支援 `OPAGENT_DISABLE_UPDATER=1`，也可以在設定裡關閉（企業、發行版打包者需要） |
 
 ### 5.4 與 VERSIONING.md 和 workflows 整合
 
@@ -415,7 +415,7 @@ jobs:
 | Windows NSIS | 解除安裝程式預設**保留資料**；勾選「同時刪除應用程式資料」才刪 `%LOCALAPPDATA%\OpenPhotoAgent`（Tauri NSIS 內建這個選項【未驗證：文案可否客製】）。模型與 pack 可能有數十 GB，勾選框旁邊顯示目前占用的空間 |
 | macOS | 拖到垃圾桶不會刪資料。app 內「設定 → 資料 → 移除所有資料與模型」提供完整清除，文件列出各路徑 |
 | Linux | deb/rpm 移除不刪使用者目錄；AppImage 刪檔即可。同樣提供 app 內清除 |
-| **絕不刪除** | 使用者的照片、輸出資料夾、XMP sidecar。**`.opl-trash/`（02 §6.2，位於照片資料夾內）**在解除安裝前會提示：「有 N 個暫存於垃圾桶的檔案（X GB），要先清空或還原嗎？」→ 對應的 API 為 `GET /trash/summary` |
+| **絕不刪除** | 使用者的照片、輸出資料夾、XMP sidecar。**`.opagent-trash/`（02 §6.2，位於照片資料夾內）**在解除安裝前會提示：「有 N 個暫存於垃圾桶的檔案（X GB），要先清空或還原嗎？」→ 對應的 API 為 `GET /trash/summary` |
 
 ---
 
@@ -443,39 +443,41 @@ jobs:
 
 ## 7. 00–05 衝突與缺口：變更清單
 
+> **（審查補充）落實狀態**：本表各項已由 11 號審查寫回對應文件（02 §10、03 §10、04 §8、05 §11、00、README、VERSIONING），逐項狀態見 [11 §2](11-feature-coverage-review.md)。C-26 的 workflows（`desktop-build.yml` 等）屬於實作，尚未建立。
+
 優先級：**P0** = v0.1 實作前必須改的文件或設計；**P1** = 對應功能開工前要改；**P2** = 有空時順手修正。
 
 | ID | 文件 | 章節 | 現況 | 建議修改 | 優先 |
 |----|------|------|------|----------|------|
 | C-01 | 00 | 全文、§2 圖、§5、§8 Q3/Q4 | 「Control Plane（雲端 SaaS 或自架）」、「v1.0 可作為 SaaS」、Q3 商業模式未定、Q4 建議 v1 才做桌面 | Q3 結案：**純社群、無付費託管**；SaaS 一律改為「自架 control plane（NAS / 內網）」。Q4 結案：**桌面優先，v0.1 就交付**。§5 路線圖改用本文 §9 | P0 |
 | C-02 | 00 §3、03 §1.3-A、§8、README Models | 16GB 預設組合 | 主力是「Qwen3-VL-8B FP8 on vLLM」 | 桌面與預設路線改為 **Qwen3-VL-8B Q5_K_M/Q4_K_M on llama.cpp**（§3.3）；vLLM FP8 標註為「Linux / Docker 進階的批次組合」。新增 Mac 與 CPU 檔位 | P0 |
-| C-03 | 02 | §1.1 表、§1.2 | 只有兩種形態；`OPL_MODE=allinone\|controlplane`；bootstrap token 寫在共享 volume | 新增 **(c) 桌面形態**（§1.1 進程圖）；`OPL_MODE` 增加 `desktop`；`OPL_AUTH` 增加 `launch_token`；桌面 bootstrap token 由殼產生後經 stdin 交給 api 與 worker。刪除「官方 SaaS」字樣 | P0 |
+| C-03 | 02 | §1.1 表、§1.2 | 只有兩種形態；`OPAGENT_MODE=allinone\|controlplane`；bootstrap token 寫在共享 volume | 新增 **(c) 桌面形態**（§1.1 進程圖）；`OPAGENT_MODE` 增加 `desktop`；`OPAGENT_AUTH` 增加 `launch_token`；桌面 bootstrap token 由殼產生後經 stdin 交給 api 與 worker。刪除「官方 SaaS」字樣 | P0 |
 | C-04 | 02 | §1.3 多租戶 RBAC | v1 就完整多租戶 | **單人模式為預設**（桌面與 all-in-one）：首次啟動 seed `default` org、workspace 與 owner；API 仍走 `TenantContext`（程式碼路徑不變），但 UI 隱藏 Org、Workspace、成員、角色。完整 RBAC 與 OIDC 移到 **v0.5（自架多人）**。保留 permission string，因為 MCP scope 要靠它（00 R7） | P0 |
 | C-05 | 02 §1.4、04 §0 U6、§2.3 PrivacyBadge | 四級 egress 政策 | 桌面版所有元件都在本機，「回傳到 control plane」沒有意義 | 桌面版 `egress_policy` 固定為 `full` 並在 UI **隱藏**；PrivacyBadge 改成「🔒 100% 本機」。只在三種情況出現外送警示：(1) 外部推論 API，(2) MCP `photos:media` 縮圖給第三方 LLM（05 ADR-507），(3) AI 問照片（10）使用外部 LLM。四級政策保留給 v0.5 的遠端 Worker | P1 |
 | C-06 | 02 §2.2 DB 列、§2.3、05 §1.3–1.5 | Postgres 16+ | — | PG 17 + pgvector 0.8；桌面嵌入式 PG（§2.3）；資源 profile、備份、`builtin` locale | P0 |
-| C-07 | 02 §2.2「Worker 打包」 | Docker + `uvx opl-worker`（Windows/macOS 原生） | 桌面 app 本身就附帶 worker | 改為：「Worker 有三種交付方式：Docker 映像、桌面 app（本機模式，或 v0.5 的『加入遠端伺服器』headless 模式）、`uvx` 給開發者」 | P2 |
+| C-07 | 02 §2.2「Worker 打包」 | Docker + `uvx opagent-worker`（Windows/macOS 原生） | 桌面 app 本身就附帶 worker | 改為：「Worker 有三種交付方式：Docker 映像、桌面 app（本機模式，或 v0.5 的『加入遠端伺服器』headless 模式）、`uvx` 給開發者」 | P2 |
 | C-08 | 02 §5.3 Worker 協定 | 一律 WSS | 桌面同機 | **不變**，同機也走 loopback WS（D2）。補一句：桌面版 `protocol_version` 一定相同（同一個 bundle），握手時檢查是否一致即可 | P2 |
 | C-09 | 02 §6.1 roots allowlist | 在 `worker.toml` 由人工編輯 | 桌面版用原生選擇器新增 | 「新增或刪除 root」**只能經由殼的 IPC（使用者手勢）或本機 CLI**；REST 與 MCP 一律不提供（避免 prompt injection 讓 agent 擴大可讀範圍）。這條要加進 05 §3.2.3 的「刻意沒有的能力」 | P0 |
 | C-10 | 02 §6.3 Token | session、PAT、worker token、enrollment code | 缺少桌面 launch token；只有 `/mcp` 檢查 Host/Origin | 新增 `launch_token`（每次啟動輪替，不落地）與 `handoff_code`；**所有 API 都檢查 Host 與 Origin** 以防 DNS rebinding | P0 |
 | C-11 | 02 §7.2、§7.3 | 測試與 monorepo | 沒有桌面相關項目 | 新增 `apps/desktop/`（`src-tauri/`、supervisor、packs 管理）、`packaging/`（python env 建置、簽章腳本、`packs/` 配方）。測試：嵌入式 PG 三平台整合測試、殼的監管測試（kill -9 子進程後恢復）、tauri-driver E2E（Windows、Linux；**macOS WKWebView 沒有 WebDriver**【未驗證】→ macOS 只做煙霧測試加手動清單）。TDD 細節交給 09 | P1 |
 | C-12 | 03 §2.4、§0 | in-process 小模型走 transformers | 桌面不帶 torch | 小模型（SigLIP2、tagger、人臉）**改以 ONNX Runtime 為主路徑**，transformers 退為 torch pack。新增工作項：SigLIP2 patch14-384 的 ONNX 匯出與數值對齊測試（fp16 與 PyTorch 的 cosine ≥ 0.999）【未驗證】 | P0 |
 | C-13 | 03 §4.1 VRAM 預算 | 只有 NVML | 缺 AMD、Intel、Apple | 增加 `DxgiBudget`、`VulkanBudget`、`UnifiedMemoryBudget` provider（06 doctor 共用） | P1 |
-| C-14 | 03 §4.5、§7、00 R2 | `~/.opl/...` 路徑；fingerprint 含 runtime 版本 | 跨 OS 路徑不一致；pack 更新會讓快取失效 | 路徑改用 §1.5 的平台慣例（`OPL_HOME` 可覆寫）；fingerprint 的 runtime 部分改用 `numerics_epoch`（§4.3） | P1 |
+| C-14 | 03 §4.5、§7、00 R2 | `~/.opagent/...` 路徑；fingerprint 含 runtime 版本 | 跨 OS 路徑不一致；pack 更新會讓快取失效 | 路徑改用 §1.5 的平台慣例（`OPAGENT_HOME` 可覆寫）；fingerprint 的 runtime 部分改用 `numerics_epoch`（§4.3） | P1 |
 | C-15 | 03 §4.5 | 只講 Blackwell 的 CUDA 12.8 | llama.cpp 官方 Windows CUDA 12 build 附的是 12.4 | Blackwell 預設使用 `llamacpp-cuda13` pack，或自建 12.8+；doctor 依 compute capability 選 pack | P1 |
 | C-16 | 04 | §1.2 旅程 A | W1 建立管理員帳號；W2 偵測部署形態；W5 三張方案卡；W7 遠端資料夾瀏覽器 | 桌面與單人模式：**刪除 W1、W2**；W5 改成**一個推薦組合**加「其他方案」連結；W6 下載與 W7 選資料夾、W8 掃描**並行**；W7 改用原生選擇器；新增 W4.5「人物辨識同意」（07，可略過）。詳見 §8 | P0 |
 | C-17 | 04 | §2.1 導覽、§2.2 頁面 | 14 個頁面，含 Workers、Org、Audit | 單人模式隱藏 Workers（併入「設定 → 本機引擎」）、Workspace 切換、Org 設定；Audit 改名「歷史與復原」。**新增「人物」（07）與「問照片」（10）頁**，以及照片 viewer（10）。導覽重排：照片、人物、問照片、整理、待確認；設定類收在底部 | P0 |
 | C-18 | 04 §5.6、§7.2 M3 | Tauri 是選用、放在 M3 | — | Tauri 改為**主要交付形態**、放在 M1（v0.1）；`platform` 抽象和 `/capabilities` 驅動的 UI（§1.6）放進 M1 | P0 |
-| C-19 | 04 §6 W12 | 「偵測到 Tauri 版時直接寫入 Claude Desktop 設定」 | 方向正確 | 擴大成「連接 AI 助手」精靈：偵測 Claude Desktop、Claude Code、Cursor 的設定檔 → 顯示 diff → 寫入 `opl mcp` 的**絕對路徑**；PAT 自動建立並存入 keyring。只能寫入這幾個已知設定檔路徑 | P1 |
-| C-20 | 05 | §3.1、§3.10 | `opl mcp` 假設在 PATH；all-in-one 連 `127.0.0.1:8080` | 桌面版：`opl mcp` 從 `run/api.json` 自動找到 port；設定檔寫 app 內 CLI 的絕對路徑；`/mcp` HTTP 在桌面版**預設關閉**（port 可能變動，stdio 比較穩），進階時才開並強制 PAT | P0 |
+| C-19 | 04 §6 W12 | 「偵測到 Tauri 版時直接寫入 Claude Desktop 設定」 | 方向正確 | 擴大成「連接 AI 助手」精靈：偵測 Claude Desktop、Claude Code、Cursor 的設定檔 → 顯示 diff → 寫入 `opagent mcp` 的**絕對路徑**；PAT 自動建立並存入 keyring。只能寫入這幾個已知設定檔路徑 | P1 |
+| C-20 | 05 | §3.1、§3.10 | `opagent mcp` 假設在 PATH；all-in-one 連 `127.0.0.1:8080` | 桌面版：`opagent mcp` 從 `run/api.json` 自動找到 port；設定檔寫 app 內 CLI 的絕對路徑；`/mcp` HTTP 在桌面版**預設關閉**（port 可能變動，stdio 比較穩），進階時才開並強制 PAT | P0 |
 | C-21 | 05 | §3.2.2 OAuth 2.1 AS、§6 v1 | v1 要內建完整的 Authorization Server | **延到 v0.5（自架多人 control plane）**。v0.5 開工前重新評估：是否改成「委託外部 IdP（Authentik、Keycloak）當 AS，CP 只當 RS」，以降低自寫 AS 的安全風險。桌面與單人 Docker 只用 PAT | P1 |
 | C-22 | 05 §3.6、04 §1.5 | 套用核准走瀏覽器 `approval_url` | 桌面沒有固定 URL | 桌面版的 `approval_url` 改為 `openphotoagent://approvals/{id}`（deep link），同時發 OS 通知；Web 版維持 https URL | P1 |
 | C-23 | 05 §1.4、§6 v2；00 §5 v2 | 人臉群組放 v2；內建 chat 助手放 v2 | 方向改變 | 人臉 → **v0.2**（07）；「AI 問照片」→ **v0.3**（10），重用 `packages/mcp-tools` 的 ToolRegistry 與 agent loop | P0 |
 | C-24 | 05 §1.2 | `embedding_space.modality` 只有 image、text | 人臉向量 | 增加 `face`；`search_doc` 增加 `person_ids int[]`（GIN），讓 facet 與 MCP 可以用人物過濾。07 細節另外定義 | P0 |
-| C-25 | 05 §3.2.3 scope | 沒有人臉相關 scope | 生物特徵屬高敏感資料 | 新增 `people:read`（以人物搜尋、列出已命名的人物）**預設不授予**；人臉 crop 影像併入 `photos:media` 規則；「未命名的臉群」不暴露給 MCP | P1 |
+| C-25 | 05 §3.2.3 scope | 沒有人臉相關 scope | 生物特徵屬高敏感資料 | ~~新增 `people:read`~~ → **（審查補充）統一採 07 §5.1 的 `faces:read`**（以人物搜尋、列出已命名的人物，**預設不授予**，且 workspace 需 `mcp.faces_enabled=true`）；人臉 crop 影像改用獨立的 **`faces:media`**（受 `mcp_face_media_policy`，預設 `none`），不併入 `photos:media`；「未命名的臉群」不暴露給 MCP。已寫回 05 §3.2.3 | P1 ✅ |
 | C-26 | VERSIONING | §3、§4、§5 | 桌面 v1.0+；里程碑舊 | 照 §5.4 修改；新增 Runtime pack 與 data dir layout 的版本規則 | P0 |
 | C-27 | `.github/workflows` | release-please、release-on-tag | 沒有建置 job；GITHUB_TOKEN 打的 tag 不會觸發 workflow | 新增 `desktop-build.yml`（workflow_call）、`packs-build.yml`、`nightly-desktop.yml`；release-please job 輸出 `release_created` 給後續 job | P0 |
 | C-28 | README / README.zh-TW | Roadmap、Models、Self-hosted 徽章 | 「self-hosted web console」 | 主打「下載即用的桌面 app，也能 Docker 自架」；路線圖照 §9 更新；Models 表依 C-02 修改 | P1 |
-| C-29 | 00 §8 Q1、02 標頭 | CLI `opl` 暫名 | 桌面安裝後 CLI 名稱會寫進使用者的 MCP 設定 | **v0.1 發佈前必須定案**（寫進設定檔後再改名，成本很高）。建議 `opagent`（00 Q1）；`opl` 保留為開發期別名 | P0 |
+| C-29 | 00 §8 Q1、02 標頭 | CLI `opl` 暫名 | 桌面安裝後 CLI 名稱會寫進使用者的 MCP 設定 | **已定案（審查補充）：CLI 為 `opagent`**，環境變數前綴 `OPAGENT_`，全部文件已替換；不保留 `opl` 別名（避免寫進使用者 MCP 設定後產生兩種寫法） | P0 ✅ |
 | C-30 | 03 §4.2、02 §4.3 | 閒置卸載、GPU 排程 | 沒有電池、遊戲、外部占用的策略 | 依 §6 增加 `pause_on_battery`、`pause_on_contention`、`only_when_idle`；Worker heartbeat 帶 `paused_reason` | P1 |
 | C-31 | 02 §4.1 scanner | — | OneDrive 雲端佔位檔、macOS Photos Library 封裝 | scanner 增加略過原因 `cloud_placeholder`、`photos_library_package` | P1 |
 | C-32 | 04 文案 | 「Pipeline、Workspace、Worker、egress、dry-run」 | 新手看不懂 | 單人模式文案改成「整理方式、圖庫、本機引擎、預覽變更」；進階模式才顯示原術語（§8.3） | P1 |
@@ -550,7 +552,7 @@ jobs:
 |------|------|------|
 | **M0 · Spike（3 週）** | 消除風險 | 見 §9.4 |
 | **v0.1.0 · 桌面 MVP** | **killer ①：照片自動分類到指定資料夾** | 見 §9.3 |
-| **v0.2.0 · 找人 + 搜尋 + MCP** | **killer ②：人臉找照片** | 人臉偵測、embedding、分群、命名、合併與拆分、同意與刪除機制（07）；「人物」頁；`person` facet；混合搜尋完整版（RRF、規則式 planner、重複照片）；**stdio `opl mcp` + PAT**，搭配「連接 AI 助手」精靈；MCP tools：search_photos（含 person filter）、get_photo、find_similar、find_duplicates、list_*、propose_organize（deep link 核准）；XMP sidecar 寫回；viewer 強化（10） |
+| **v0.2.0 · 找人 + 搜尋 + MCP** | **killer ②：人臉找照片** | 人臉偵測、embedding、分群、命名、合併與拆分、同意與刪除機制（07）；「人物」頁；`person` facet；混合搜尋完整版（RRF、規則式 planner、重複照片）；**stdio `opagent mcp` + PAT**，搭配「連接 AI 助手」精靈；MCP tools：search_photos（含 person filter）、get_photo、find_similar、find_duplicates、list_*、propose_organize（deep link 核准）、（審查補充，對齊 05 §6 與 07 §10）get_organize_plan、apply_organize（只能請求，UI 核准）、run_labeling_job、get_job_status、list_people／get_person／find_photos_of_person（`faces:read`，預設關閉）；XMP sidecar 寫回；viewer 強化（10） |
 | **v0.3.0 · 問照片** | **killer ③：AI 問照片** | app 內 chat，重用 ToolRegistry 的 agent 迴圈（10）；本地 tool-calling LLM（llama-server `--jinja`）加上低階機器的外部 endpoint 選項（附 egress 警示）；本地 LLM query planner；watch folder 自動標註；mini benchmark；Presets 匯入匯出；`describe_photo`、collections |
 | **v0.4.0 · 生態與效能** | 讓更多人用得順 | MLX pack（Mac）、vLLM pack（Linux）、torch pack（JoyCaption、Florence-2）；Immich 回寫、Label Studio 匯出；winget、Homebrew、Flathub 評估；caption 文字向量（05 R2）；以 Windows ML 取代 DirectML 的評估 |
 | **v0.5.0 · 自架 control plane** | homelab 與小團隊 | control plane（Docker on NAS）+ 遠端 Worker 配對（02 §5.2，WSS）；桌面 app 可當 client 或 headless Worker；多使用者與 RBAC、OIDC；四級隱私政策；`/mcp` HTTP + OAuth（或委託外部 IdP，見 C-21） |
@@ -594,7 +596,7 @@ jobs:
 | 對象 | 需求 |
 |------|------|
 | **06 模型 / 環境醫生 / ETA** | (1) doctor 要能在**沒有 torch** 的情況下偵測 GPU（NVML、DXGI、Vulkan、Metal），並輸出 §4.4 需要的 `recommended_packs` 和 §3.3 的檔位。(2) pack 下載與模型下載共用同一個進度與 ETA 元件（速度用 EWMA，附可信度）。(3) 統一記憶體預算（Mac）。(4) 結構化錯誤碼新增：`PACK_MISSING`、`PACK_INCOMPATIBLE`、`PACK_SIGNATURE_INVALID`、`DRIVER_TOO_OLD`、`GPU_CONTENDED`、`ON_BATTERY_PAUSED`。(5) ETA 要涵蓋「暫停中（電池或 GPU 占用）」狀態 |
-| **07 人臉辨識** | (1) 偵測與 embedding 走 **ORT**（DirectML、CoreML、CPU、CUDA pack），不依賴 torch。(2) 模型授權必須相容 Apache-2.0 散布（S5）。(3) 向量使用獨立的 `embedding_space(modality=face)`，存在同一個 PG；分群放在 worker 或 CP 都可以，但**人臉 crop 原圖只在 worker 端產生**。(4) 預設關閉；首次同意流程放在 onboarding 掃描之後（§8）；「刪除所有人臉資料」必須能驗證（v1.0 安全審查）。(5) MCP scope `people:read`（C-25） |
+| **07 人臉辨識** | (1) 偵測與 embedding 走 **ORT**（DirectML、CoreML、CPU、CUDA pack），不依賴 torch。(2) 模型授權必須相容 Apache-2.0 散布（S5）。(3) 向量使用獨立的 `embedding_space(modality=face)`，存在同一個 PG；分群放在 worker 或 CP 都可以，但**人臉 crop 原圖只在 worker 端產生**。(4) 預設關閉；首次同意流程放在 onboarding 掃描之後（§8）；「刪除所有人臉資料」必須能驗證（v1.0 安全審查）。(5) MCP scope `faces:read`／`faces:media`（C-25，審查補充：統一採 07 命名） |
 | **09 TDD** | (1) 嵌入式 PG fixture（三平台）。(2) 殼的監管測試（子進程崩潰、port 衝突、stale `postmaster.pid`、第二實例）。(3) pack 驗證測試（壞簽章、壞 sha、tar 路徑穿越）。(4) 更新與 migration 測試（從上一個 minor 的 DB 升級，VERSIONING §4）。(5) 安裝包大小的 CI 守門（≤ 200 MB）。(6) 前端兩種 build（web、desktop）都跑同一套 Playwright（desktop build 用 mock 的 `backend_info`） |
 | **10 viewer / 問照片** | (1) viewer 的「在檔案總管顯示」「拖出」等桌面專屬動作走 `platform` 抽象。(2) 問照片的 agent 迴圈**在 api 進程內呼叫 ToolRegistry**（與 MCP 同一套權限與稽核），LLM 呼叫經 Worker RPC（CP 不跑模型，05 ADR-504）。(3) LLM 選擇沿用 §3.2-5：本地 tool-calling，加上可選的外部 endpoint 與 egress 警示。(4) 寫入類動作同樣產生計畫卡並需要人工核准 |
 

@@ -1,6 +1,6 @@
 # 06 — 模型管理、環境相容性與長任務體驗（Models · Environment · Operations）
 
-> 專案：**OpenPhotoAgent**（OPA；程式碼／CLI 前綴沿用 `opl`）｜Apache-2.0，純開源、不收費
+> 專案：**OpenPhotoAgent**（OPA；程式碼／CLI 名稱：`opagent`（已定案））｜Apache-2.0，純開源、不收費
 > 文件狀態：Draft v0.1（2026-11）
 > 範圍：Model Manager、Download Manager、Environment Doctor、Preflight 與修復 CTA、統一長任務模型（Operation）、相關 UI。
 > 依賴與邊界：
@@ -67,7 +67,7 @@
 
 ```yaml
 # models/builtin/qwen3-vl-8b-instruct.yaml（只列新增欄位）
-kind: vlm                         # 新增 kind：face_detector | face_embedder | face_attr（人臉；內容【待 07】）、ocr、reranker
+kind: vlm                         # 新增 kind：face_detector | face_embedder | face_quality（人臉，依 07 §8.1；審查補充：07 ADR-707 不做年齡／性別等屬性推論，故無 face_attr）、ocr、reranker
 tasks_default_rank:               # 在各 task 的推薦順位（給「使用中模型」預設與 ModelPicker 排序）
   caption: 1
   classify: 1
@@ -115,11 +115,11 @@ id: vllm
 provides: { runtime: vllm, accel: cuda }
 platforms:
   - { os: linux, arch: x86_64, kind: python_env, spec: "vllm==0.x.y", torch: cu128, size_est: 6.5e9 }  # 以 uv 建獨立 venv【未驗證】
-  - { os: windows, arch: x86_64, kind: wsl2_env, distro: "opl-wsl", size_est: 9e9 }                    # 只在 WSL2 中提供；原生 Windows 不支援
+  - { os: windows, arch: x86_64, kind: wsl2_env, distro: "opagent-wsl", size_est: 9e9 }                    # 只在 WSL2 中提供；原生 Windows 不支援
 notes: "macOS 不提供；Windows 需要 WSL2 + GPU passthrough（§3.3 check wsl.gpu）"
 ```
 
-Pack 種類（初版，平台矩陣【待 08】）：`torch-cu128`、`torch-cu124`、`torch-rocm`、`torch-mps`（macOS 隨主程式）、`vllm`、`llamacpp-{cuda12,metal,vulkan,hip,cpu}`、`ort-{cuda,coreml,directml,openvino,cpu}`、`ffmpeg`、`libraw`（rawpy）、`exiftool`。桌面版只內建 `ort-cpu`、`llamacpp-cpu`（macOS 為 `llamacpp-metal`）、pillow-heif 與 exiftool，其他 pack 一律按需下載，讓安裝檔保持小巧。
+Pack 種類（初版；審查補充：**以 08 §4.2 的 Pack 目錄為準**）：`llamacpp-{cuda13,cuda12,vulkan,rocm}`、`ort-cuda`、`vllm-cu128`（僅 Linux）、`torch-{cu128,mps,cpu}`、`mlx`（僅 Mac，v0.4）、`exiftool`、`pg-prev`。桌面版**內建**（不需下載）：llama.cpp CPU（macOS 為 Metal）、ORT CPU + DirectML（Windows）／CoreML（macOS）、pillow-heif、嵌入式 PG（`pg` pack）；其他 pack 一律按需下載，讓安裝檔保持 ≤ 200 MB（08 §4.1）。
 
 ### 1.2 相容性判定（`compat`）
 
@@ -257,7 +257,7 @@ Pack 種類（初版，平台矩陣【待 08】）：`torch-cu128`、`torch-cu12
 | LM Studio | `~/.lmstudio/models`、舊版 `~/.cache/lm-studio/models`，或 `lms ls`【路徑未驗證】 | 參照 GGUF 檔案；mmproj 依同目錄命名規則配對 | 也可改走 openai-compatible endpoint（`localhost:1234`） |
 | 任意資料夾 | 使用者選擇資料夾；掃描 `*.gguf`、`*.onnx`、`*.safetensors`（含 `config.json`） | 參照或複製 | 只接受 safetensors／gguf／onnx（03 §7.1 的安全原則） |
 
-- **辨識**：先比對檔案 sha256 和 registry 的 `files[].sha256`，命中就自動辨識為內建 variant（「這是 Qwen3-VL-8B Q4_K_M ✓ 已驗證」）。未命中時，從 GGUF metadata（`general.architecture`、`general.name`）或 `config.json` 猜測 family，並建立使用者自訂的 YAML（`~/.opl/models/imported-*.yaml`），標示為「未驗證模型」。
+- **辨識**：先比對檔案 sha256 和 registry 的 `files[].sha256`，命中就自動辨識為內建 variant（「這是 Qwen3-VL-8B Q4_K_M ✓ 已驗證」）。未命中時，從 GGUF metadata（`general.architecture`、`general.name`）或 `config.json` 猜測 family，並建立使用者自訂的 YAML（`~/.opagent/models/imported-*.yaml`），標示為「未驗證模型」。
 - 大檔的 hash 很花時間（10 GB 約 10–30 秒）。所以掃描先用 `size + 檔名 + mtime` 快速配對，sha256 在背景以子 Operation 計算，UI 顯示「驗證中 43%」。
 - 參照型 installation 標記 `managed=false`：OPA 不會刪除或移動這些檔案，若來源檔案消失，Doctor 會報告 `MODEL_FILES_MISSING`。
 
@@ -368,7 +368,7 @@ free     = shutil.disk_usage(models_root 所在檔案系統).free − reserve_fl
 
 ### 2.6 鏡像與來源
 
-- 設定 `download.sources`：有序清單，預設 `[huggingface.co]`；可加入 `HF_ENDPOINT` 相容鏡像（例如社群鏡像或企業內部的 HF 代理）、自訂 HTTP base、`file://` 或 SMB 路徑（離線環境中預先放好的模型包，對應 03 §7.2 的 `opl models import`）。
+- 設定 `download.sources`：有序清單，預設 `[huggingface.co]`；可加入 `HF_ENDPOINT` 相容鏡像（例如社群鏡像或企業內部的 HF 代理）、自訂 HTTP base、`file://` 或 SMB 路徑（離線環境中預先放好的模型包，對應 03 §7.2 的 `opagent models import`）。
 - **自動切換**：連線失敗或 5xx 連續 3 次，或速度低於 1 MB/s 持續 60 秒（可設定）時，換下一個來源，並以 Range 續傳同一個 `.part`（只要大小相同；hash 最後仍會驗證）。UI 顯示「已切換到鏡像 hf-mirror（原來源逾時）」。
 - **信任錨點**：sha256 一律以 registry 中的釘選值為準；沒有釘選時，取官方 HF API 的值。只有在官方完全無法連線時才使用鏡像的 metadata，並標示 warning `DL_UNVERIFIED_SOURCE`（「此模型未經官方雜湊驗證」），使用者確認後才繼續。鏡像因此無法竄改內容。
 - 速度觀測寫入 `perf_observation(kind=bandwidth, key=source)`，供開始前預估使用（§5.9）。
@@ -420,7 +420,7 @@ free     = shutil.disk_usage(models_root 所在檔案系統).free − reserve_fl
 ### 3.1 架構
 
 ```
-┌ Check Registry（opl/doctor/checks/*.py，以 decorator 註冊）
+┌ Check Registry（opagent/doctor/checks/*.py，以 decorator 註冊）
 │   每個 check：id、scope、platforms、depends_on、severity、affects[]、ttl、run()、fixes()
 ├ DoctorRunner
 │   - 依 depends_on 做拓樸排序；同層並行（asyncio，單 check 逾時 10s → status=unknown）
@@ -433,12 +433,12 @@ free     = shutil.disk_usage(models_root 所在檔案系統).free − reserve_fl
 ```
 
 - **兩種速度**：`quick` 組（不載入 torch、不打網路，< 1 秒，用於啟動與 preflight）和 `full` 組（import torch、試編譯 CUDA kernel、1 張圖的 smoke test、網路測速，數秒到數十秒，屬於 Operation `doctor.run`）。
-- **逃生門**（借鏡 VB `VOICEBOX_FORCE_CPU`）：`OPL_FORCE_CPU=1` 在 import torch 之前生效；`OPL_DOCTOR_SKIP=gpu.cuda_runtime,…` 可跳過會讓程式崩潰的 check（例如壞掉的驅動讓 NVML 段錯誤）。DoctorRunner 會把 GPU 相關 check 放在子行程中執行，就算子行程崩潰也只會讓那個 check 記成 `fail: CHECK_CRASHED`，主程式不受影響。
+- **逃生門**（借鏡 VB `VOICEBOX_FORCE_CPU`）：`OPAGENT_FORCE_CPU=1` 在 import torch 之前生效；`OPAGENT_DOCTOR_SKIP=gpu.cuda_runtime,…` 可跳過會讓程式崩潰的 check（例如壞掉的驅動讓 NVML 段錯誤）。DoctorRunner 會把 GPU 相關 check 放在子行程中執行，就算子行程崩潰也只會讓那個 check 記成 `fail: CHECK_CRASHED`，主程式不受影響。
 
 ### 3.2 Check 定義介面
 
 ```python
-# opl/doctor/registry.py
+# opagent/doctor/registry.py
 @dataclass(frozen=True)
 class FixSpec:                          # 與 §4.3 Fix 同形；由 check 動態產生
     type: Literal["auto_fix","download","open_settings","copy_command",
@@ -516,12 +516,12 @@ async def torch_arch(ctx) -> CheckResult:
 | `fs.long_paths` | Windows `LongPathsEnabled` | info | apply_output（深層路徑） | `copy_command(reg add …)`、`open_docs` |
 | `net.hf` | `HEAD https://huggingface.co/api/models/{small}`、DNS 解析、proxy 環境變數、TLS 錯誤分類（企業 MITM CA） | warning | download | `open_settings(#mirrors)`、`open_settings(#proxy)`、`open_docs(offline-install)` |
 | `net.hf_token` | 有 token 時呼叫 `whoami-v2`，確認有效性與 scope；無 token 時 skip | warning | gated 下載 | `open_settings(#hf-token)` |
-| `net.ports` | 試綁定 API port 與 MCP port；被佔用時以 `psutil.net_connections` 找出佔用的行程，並探測 `/healthz` 簽章，判斷是不是另一個 OPA 實例（借鏡 VB `isVoiceboxHealthResponse`） | blocker（啟動時） | api、mcp | 是 OPA：「切換到正在執行的實例」；不是：`auto_fix(換到可用 port)`（桌面版）或 `copy_command(OPL_PORT=…)` |
-| `worker.link` | 最後心跳時間、`protocol_version` 相容性、RTT、lease 健康 | blocker（依賴時） | 所有需要 Worker 的操作 | `retry`、`open_settings(/workers)`、`copy_command(opl worker run …)` |
+| `net.ports` | 試綁定 API port 與 MCP port；被佔用時以 `psutil.net_connections` 找出佔用的行程，並探測 `/healthz` 簽章，判斷是不是另一個 OPA 實例（借鏡 VB `isVoiceboxHealthResponse`） | blocker（啟動時） | api、mcp | 是 OPA：「切換到正在執行的實例」；不是：`auto_fix(換到可用 port)`（桌面版）或 `copy_command(OPAGENT_PORT=…)` |
+| `worker.link` | 最後心跳時間、`protocol_version` 相容性、RTT、lease 健康 | blocker（依賴時） | 所有需要 Worker 的操作 | `retry`、`open_settings(/workers)`、`copy_command(opagent worker run …)` |
 | `worker.version` | Worker 與 CP 的 semver 相容性（02 §5.3） | blocker | 同上 | `open_docs(upgrade)`、桌面版 `auto_fix(update)` |
 | `time.skew` | CP 在 `welcome` 與 heartbeat ack 中帶入 `server_time`；單機時與 HF 回應的 `Date` header 比較；> 60 秒 warn，> 5 分鐘 fail（JWT 15 分鐘有效期與 TLS 會出問題） | warning／blocker | worker auth、download、EXIF 時區推斷 | `open_docs(time-sync)`、`copy_command(w32tm /resync / timedatectl set-ntp true)` |
 | `client.notifications` | 桌面版：tauri-plugin-notification 的權限；Web 版：`Notification.permission` | info | 完成通知 | `auto_fix(request_permission)` |
-| `db.health` | 連線、migration 版本、pgvector 擴充 | blocker | 全部 | `open_docs`、`copy_command(opl db upgrade)` |
+| `db.health` | 連線、migration 版本、pgvector 擴充 | blocker | 全部 | `open_docs`、`copy_command(opagent db upgrade)` |
 | `search.index` | 目前 embedding 模型的向量覆蓋率（已有向量的資產 ÷ 資產總數）、與預設模型是否一致 | warning | `search.semantic` | `download/auto_fix(reindex)` |
 | `mcp.server` | MCP 是否啟用、endpoint 可否連、OAuth metadata 可否取得（05） | warning | `mcp` | `open_settings(/integrations)` |
 
@@ -541,7 +541,7 @@ async def torch_arch(ctx) -> CheckResult:
 | `apply_output` | `worker.link`、`fs.roots`（輸出目標可寫） | `fs.long_paths`、`tool.exiftool` |
 | `search.semantic` | `db.health` | `search.index`、`worker.link`（離線時降級為純文字搜尋，05 ADR-504） |
 | `mcp` | `net.ports`、`mcp.server` | `search.index` |
-| `face.*` | `runtime.ort_ep`（含 CPU EP 一定可用） | 【待 07】 |
+| `face.*` | `runtime.ort_ep`（含 CPU EP 一定可用）、`face.consent`（workspace 已 opt-in，未同意時 fix = 開啟同意精靈） | `disk.models`（AuraFace 約 250 MB）；組合 B 另需 `license_acceptance`（審查補充，依 07 §1.4、§4.2） |
 
 ### 3.5 API 與 JSON schema
 
@@ -944,7 +944,7 @@ type Phase = {
 | `output.apply` | apply 95 → report 5 | items（以 bytes 加權） | ✓（在 action 之間） | ✓（變成 `partially_applied`） | 依 journal 續跑 |
 | `output.undo` | verify 20 → revert 80 | items | ✓ | ✓ | 依 journal 續跑 |
 | `benchmark.run` | 每個候選一個子操作 | 子操作數 | ✓ | ✓ | 從下一個候選續跑 |
-| `face.cluster` | detect 50 → embed 30 → cluster 15 → name_suggest 5【待 07】 | items | ✓ | ✓ | 續跑 |
+| `face.cluster` | detect 50 → embed 30 → assign/cluster 15 → prototype 5（審查補充：依 07 §2.1；07 沒有自動命名，故不是 name_suggest） | items | ✓ | ✓ | 續跑 |
 | `doctor.run` | 每個 check 一步 | steps | ✗ | ✓ | 重跑 |
 
 - **子操作**：父操作的進度 = Σ(子操作權重 × 子進度)。在 `job.label` 中，模型下載是子操作（使用者可能在精靈中選擇「下載並開始」），其權重以預估時間計算，而不是固定百分比。
@@ -1056,7 +1056,10 @@ est(queue wait)     = 前方 Operation 的 ETA 總和（同一 Worker 的 GPU la
 | `NET_UNREACHABLE` | 「網路中斷，30 秒後重試」 | 「立即重試」 |
 | `PAUSED_BY_USER` | 「已暫停（{who}，{when}）」 | 「繼續」 |
 | `PAUSED_ERROR_RATE` | 「失敗率 23%，已自動暫停」（02 §4.3） | 「查看失敗原因」「繼續」 |
-| `PAUSED_ON_BATTERY` | 「使用電池中，已依設定暫停」（選用設定） | 「仍要繼續」 |
+| `PAUSED_ON_BATTERY` | 「使用電池中，已依設定暫停」（審查補充：桌面筆電**預設開啟**，08 §6） | 「仍要繼續」「低功耗繼續」 |
+| `PAUSED_GPU_CONTENDED`（審查補充，08 §6） | 「偵測到其他程式（如遊戲）正在使用 GPU，已暫停；GPU 空出後自動繼續」 | 「仍要繼續（較慢）」「改用 CPU」 |
+| `PAUSED_NOT_IDLE`（審查補充，08 §6） | 「設定為只在電腦閒置時處理」 | 「現在就處理」 |
+| `SOURCE_OFFLINE`（審查補充，08 §8.1） | 「照片資料夾『外接硬碟』目前離線，接上後自動繼續」 | 「重新檢查」「略過這個資料夾」 |
 
 ### 5.6 經過時間
 
@@ -1375,7 +1378,7 @@ mini：    ◔（環形；hover 顯示 row 內容）
 │   HF token 未設定 · Gemma 4 需要              [設定 token]                                        │
 │ ● 正常（29）▸                                                                                   │
 │   硬體  OS Windows 11 24H2 x64 · GPU RTX 5070 Ti 16 GB · sm_120 · Driver 576.02 · CUDA ≤12.9 · RAM 32 GB │
-│   儲存  模型目錄 D:\opl\models 412 GB 可用 · 縮圖 C:\…\thumbs 88 GB 可用 · DB 正常                  │
+│   儲存  模型目錄 D:\opagent\models 412 GB 可用 · 縮圖 C:\…\thumbs 88 GB 可用 · DB 正常                  │
 │   套件  llama.cpp CUDA ✓ · ONNX Runtime CUDA ✓ · vLLM —（Windows 不提供，可用 WSL2）               │
 │   解碼  HEIC ✓ · RAW ✓ · exiftool ✓                                                              │
 │   連線  Worker 心跳 1s 前 · HF 連線 ✓ 42 ms · 時間誤差 0.3s · Port 8765 ✓                           │
@@ -1464,7 +1467,7 @@ mini：    ◔（環形；hover 顯示 row 內容）
 | 下載 | 03 §7.1 的 `snapshot_download` 改為 §2.2 的自寫 Range 下載器；`on_progress` callback 改為 Operation reporter（`OperationReporter.phase()/advance(bytes)/warn()`） |
 | 載入進度 | `InferenceBackend.load(opts)` 新增 `reporter` 參數，用來回報載入的子階段（§2.8） |
 | 錯誤 | `InferenceError.code` 對應 §4.6 |
-| Doctor | 03 §4.5 的 `opl doctor` 由本文件的 Check registry 實作，CLI `opl doctor [--full] [--json]` 與 API 共用 |
+| Doctor | 03 §4.5 的 `opagent doctor` 由本文件的 Check registry 實作，CLI `opagent doctor [--full] [--json]` 與 API 共用 |
 | 觀測 | ResourceManager 的 `vram_observed.json` 移到 `perf_observation`／`installation`（含多 Worker） |
 
 ### 7.3 對 04（控制介面）
@@ -1497,18 +1500,18 @@ voicebox 根目錄 `LICENSE` 為 MIT，Copyright (c) 2026 Voicebox Contributors�
 
 | voicebox 來源（commit `8af7efe`） | OPA 目的地 | 借用方式 | 必要改造 |
 |----------------------------------|-----------|----------|----------|
-| `backend/utils/progress.py`（ProgressManager：節流、heartbeat、快照回放、終態關閉） | `apps/api/opl/ops/progress_bus.py` | **改寫移植**（保留演算法與結構） | in-memory dict → DB 加 `LISTEN/NOTIFY`；key 從 `model_name` 改為 `operation_id`；改為多工 `/events` |
-| `backend/utils/hf_progress.py`（tqdm 攔截、non-byte 與 < 1 MB 過濾） | `packages/inference/opl/inference/load_progress.py` | 移植 | 只用於**模型載入**的 shard 進度（下載改用自寫下載器）；優先使用 `tqdm_class` 參數 |
-| `backend/backends/base.py`：`has_in_progress_download`（`.incomplete` 孤兒判定） | `opl/models/hf_cache.py` | 移植 | 用於匯入 HF cache（§1.8） |
-| `backend/backends/base.py`：`check_cuda_compatibility`、`get_torch_device`（含 FORCE_CPU 早期判斷） | `opl/doctor/checks/gpu.py` | 移植 | 包裝成 check（§3.2），在子行程中執行，輸出結構化 code 與 fixes |
-| `backend/utils/platform_detect.py`（ROCm `/dev/kfd`、Windows WMI、MLX 判定） | `opl/doctor/probes/platform.py` | 移植 | 輸出併入 `hardware` |
-| `backend/utils/hf_offline_patch.py`（已快取時強制 offline） | `opl/models/offline.py` | 移植 | 與 03 §7.2 的 `OPL_OFFLINE` 整合 |
-| `backend/utils/ffmpeg.py`（macOS GUI PATH 搜尋與三平台提示） | `opl/doctor/checks/tools.py` | 移植 | 文案改為 i18n key，並加上 `download(ffmpeg pack)` fix |
-| `backend/services/cuda.py` 的 sha256、`.tmp`、`tar extractall(filter="data")` 與分階段標示 | `opl/packs/installer.py` | 參考改寫 | 套用到所有 runtime pack；加入 zip 路徑檢查 |
+| `backend/utils/progress.py`（ProgressManager：節流、heartbeat、快照回放、終態關閉） | `apps/api/opagent/ops/progress_bus.py` | **改寫移植**（保留演算法與結構） | in-memory dict → DB 加 `LISTEN/NOTIFY`；key 從 `model_name` 改為 `operation_id`；改為多工 `/events` |
+| `backend/utils/hf_progress.py`（tqdm 攔截、non-byte 與 < 1 MB 過濾） | `packages/inference/opagent/inference/load_progress.py` | 移植 | 只用於**模型載入**的 shard 進度（下載改用自寫下載器）；優先使用 `tqdm_class` 參數 |
+| `backend/backends/base.py`：`has_in_progress_download`（`.incomplete` 孤兒判定） | `opagent/models/hf_cache.py` | 移植 | 用於匯入 HF cache（§1.8） |
+| `backend/backends/base.py`：`check_cuda_compatibility`、`get_torch_device`（含 FORCE_CPU 早期判斷） | `opagent/doctor/checks/gpu.py` | 移植 | 包裝成 check（§3.2），在子行程中執行，輸出結構化 code 與 fixes |
+| `backend/utils/platform_detect.py`（ROCm `/dev/kfd`、Windows WMI、MLX 判定） | `opagent/doctor/probes/platform.py` | 移植 | 輸出併入 `hardware` |
+| `backend/utils/hf_offline_patch.py`（已快取時強制 offline） | `opagent/models/offline.py` | 移植 | 與 03 §7.2 的 `OPAGENT_OFFLINE` 整合 |
+| `backend/utils/ffmpeg.py`（macOS GUI PATH 搜尋與三平台提示） | `opagent/doctor/checks/tools.py` | 移植 | 文案改為 i18n key，並加上 `download(ffmpeg pack)` fix |
+| `backend/services/cuda.py` 的 sha256、`.tmp`、`tar extractall(filter="data")` 與分階段標示 | `opagent/packs/installer.py` | 參考改寫 | 套用到所有 runtime pack；加入 zip 路徑檢查 |
 | `app/src/lib/utils/errorText.ts`（`condenseError`） | `apps/web/src/lib/errors/condense.ts` | 直接移植（TS） | 無 |
 | `app/src/components/CapturesTab/DictationReadinessChecklist.tsx`、`useDictationReadiness.ts`（gate 列 + 行內 CTA + 自動解鎖） | `apps/web/src/components/readiness/*` | **參考改寫**（模式相同，資料來源改為 preflight API） | 通用化為 ReadinessChecklist；由 SSE 驅動，輪詢只作為備援 |
 | `docker-compose.rocm.yml`、`scripts/rocm-entrypoint.sh`（GID 群組與 uid 處理） | `deploy/compose.rocm.yml`、`deploy/entrypoint.sh` | 移植 | 新增 `compose.cuda.yml`（VB 沒有） |
-| `backend/routes/models.py` 的 migrate（同檔案系統 move／跨檔案系統 copy 加防呆） | `opl/models/storage_move.py` | 參考改寫 | 不重啟 server；加入 verify 與回滾（§1.7） |
+| `backend/routes/models.py` 的 migrate（同檔案系統 move／跨檔案系統 copy 加防呆） | `opagent/models/storage_move.py` | 參考改寫 | 不重啟 server；加入 verify 與回滾（§1.7） |
 | `App.tsx` 的 health 簽章驗證（`isVoiceboxHealthResponse`） | `net.ports` check、桌面版啟動流程 | 參考改寫 | — |
 
 > 「參考改寫」指只借用設計模式、自行重寫程式碼。這種情況法律上不一定需要 NOTICE，但為了透明，**一律列入致謝**。「移植」或「直接移植」（保留了實質程式碼）則**必須**依下列方式處理。
@@ -1540,12 +1543,14 @@ voicebox 根目錄 `LICENSE` 為 MIT，Copyright (c) 2026 Voicebox Contributors�
 | 3 | LM Studio 的模型目錄路徑（新版 `~/.lmstudio/models`）與 mmproj 配對規則 | 在各 OS 安裝實測 |
 | 4 | vLLM 與 llama-server 載入里程碑 log 的穩定性（用於載入進度） | 釘選版本後寫 golden log 測試 |
 | 5 | GPU 係數公式（§1.4）與 ETA 信心區間參數（n0、δ）的校準 | 以 benchmark 加 `eta_calibration` 資料迭代 |
-| 6 | 桌面版內建 pack 與按需 pack 的切分、各 OS 的 pack 平台矩陣 | 【待 08】 |
-| 7 | 人臉模型的授權與 `perf_prior` | 【待 07】 |
+| 6 | 桌面版內建 pack 與按需 pack 的切分、各 OS 的 pack 平台矩陣 | （審查補充）已由 08 §3.2、§4.2 決定；實際大小待 M0 S2 實測 |
+| 7 | 人臉模型的授權與 `perf_prior` | （審查補充）授權已由 07 §1.4 決定（預設 YuNet + AuraFace，Apache-2.0／MIT；InsightFace 只能同意後自行下載）；`perf_prior` 待 07 §7.2 的估算實測 |
 | 8 | `Intl.DurationFormat` 在 Tauri 各 WebView（WebKitGTK）的支援 | 測試矩陣；fallback formatter |
 | 9 | Preflight p95 < 50 ms 的可行性（需要 Worker RPC 的 gate 是否要預先快取） | 壓測 |
 
 **里程碑對應**（併入 04 §7.2）：
+
+> **（審查補充）依 08 §9.3 重新對應版本**：v0.1 = 下列 M1 **加上** M2 的「移動目錄、OS 通知、ETA 信心區間」與 M3 的「Runtime pack 三平台（`llamacpp-cuda13`／`cuda12`／`vulkan`）、防止睡眠、電池與 GPU 占用暫停（`waiting_reason`）」——因為桌面是 v0.1 的主要交付形態，08 的 v0.1 範圍明列這些項目。v0.2 = M2 其餘（Doctor full + auto_fix、匯入既有模型、鏡像、speedtest）與人臉 Operation；v0.3 = Benchmark 整合與 ETA 校準迴路。
 - **M1**：Operation 物件、SSE 與持久化；Activity Center；Download Manager（暫停、續傳、取消、sha、磁碟預檢）；Doctor quick 組（約 20 項）；Preflight 用於 `job.start`／`model.download`／`scan`；錯誤碼 #1–40；Models 頁（CompatBadge、使用中模型）；Onboarding W4–W6。
 - **M2**：Doctor full 組加 auto_fix；匯入既有模型；移動目錄；鏡像；speedtest 與 perf_observation 冷啟動先驗；ETA 信心區間與 precise 倒數；OS 通知；其餘錯誤碼。
 - **M3**：Runtime pack 全平台（配合 08）；防止睡眠；ETA 校準迴路；Benchmark 與人臉 Operation 整合（配合 07）。

@@ -3,6 +3,7 @@
 > 狀態：Draft v0.1（2026-11）｜負責：ML / 推論層架構
 > 範圍：Model Registry、Adapter 介面、Caption / Tagging / Classification 策略、資源管理、效能、品質評估、模型下載。
 > 不在範圍：佇列、DB schema、REST API（見其他文件）。本文件只定義**推論層對 worker 暴露的介面**（`InferenceService`）。
+> **（審查補充）桌面優先後的主軸**：預設推論 runtime 為 **llama.cpp（GGUF）+ ONNX Runtime**，三平台都能跑；vLLM 降為 **Linux／Docker 的進階批次選項**（v0.4 pack），transformers／torch 改為選用 pack。各 OS 的預設組合以 [08 §3.3](08-desktop-packaging-and-final-review.md) 為準，本文 §1.3 的 vLLM FP8 組合只代表「Linux 進階批次」。路徑 `~/.opagent/...` 只是簡寫：實際位置依 08 §1.5 的各 OS 慣例（`OPAGENT_HOME` 可整包覆寫）。完整整合清單見 §10。
 > 標示慣例：**【估算】**＝依模型參數量 / 量化位元推算或社群經驗值，未在參考硬體實測；**【未驗證】**＝規格細節需在實作時對照上游文件確認。
 
 ---
@@ -41,7 +42,7 @@
 
 ### 1.1 描述檔格式
 
-每個模型一個 YAML（`models/builtin/*.yaml`，使用者自訂放 `~/.opl/models/*.yaml`，同 id 時使用者覆蓋內建）。一個「模型」可有多個 `variants`（量化 / runtime 組合），ResourceManager 依 VRAM 自動挑選。
+每個模型一個 YAML（`models/builtin/*.yaml`，使用者自訂放 `~/.opagent/models/*.yaml`，同 id 時使用者覆蓋內建）。一個「模型」可有多個 `variants`（量化 / runtime 組合），ResourceManager 依 VRAM 自動挑選。
 
 ```yaml
 # models/builtin/qwen3-vl-8b-instruct.yaml
@@ -140,7 +141,7 @@ variants:
 外部 endpoint（使用者自行提供）：
 
 ```yaml
-# ~/.opl/models/my-lmstudio.yaml
+# ~/.opagent/models/my-lmstudio.yaml
 schema_version: 1
 id: my-lmstudio-gemma
 family: gemma4
@@ -152,7 +153,7 @@ variants:
     endpoint:
       base_url: http://192.168.1.20:1234/v1
       model: "gemma-4-26b-a4b"
-      api_key_env: OPL_LMSTUDIO_KEY       # 只存環境變數名，不存明文
+      api_key_env: OPAGENT_LMSTUDIO_KEY       # 只存環境變數名，不存明文
       structured_output: json_schema       # 由「探測」自動填入，可手動覆寫
       timeout_s: 120
       max_concurrency: 2
@@ -188,14 +189,14 @@ VRAM 皆為**【估算】**（權重 + mmproj + 約 1–2GB runtime/KV，以 8k 
 
 | 角色 | 模型 / variant | Runtime | VRAM | 用途 / 備註 |
 |---|---|---|---|---|
-| **預設 VLM（批次主力）** | Qwen3-VL-8B-Instruct FP8 | vLLM | ~11–12 | caption+tag+classify 一次 JSON；structured output、logprobs、高吞吐 |
-| 預設 VLM（無 vLLM 時） | Qwen3-VL-8B Q4_K_M / Q5_K_M | llama.cpp | ~6.5–8 | Windows / 無 Docker 使用者；GBNF/JSON schema |
+| **預設 VLM**（審查補充：依 08 C-02 改為預設） | Qwen3-VL-8B Q5_K_M / Q4_K_M + mmproj | llama.cpp | ~6.5–8 | 三平台桌面與 Docker 的預設；caption+tag+classify 一次 JSON；GBNF/JSON schema |
+| 進階批次（Linux／Docker，v0.4 vLLM pack） | Qwen3-VL-8B-Instruct FP8 | vLLM | ~11–12 | structured output、logprobs、高吞吐；Windows／macOS 不提供 |
 | 高品質（慢） | Qwen3.6-35B-A3B Q4 + mmproj | llama.cpp（`--n-cpu-moe`） | GPU ~12–14 + RAM ~12 | 難例複核、cascade 第二段；需 ≥32GB 系統 RAM |
 | 替代 | Gemma 4 26B-A4B Q4 | llama.cpp | ~15（很緊） | 建議只跑 VLM 不並載 embedding；需授權同意 |
 | 替代 | Qwen3.5-9B（原生多模態） | vLLM / llama.cpp | ~10–12（FP8）| 多語 caption 備選 |
 | 替代 | InternVL3.5-8B | vLLM / transformers | ~10–12 | 細節辨識備選 |
 | 詳細 caption | JoyCaption Beta One（Q8/NF4） | transformers / vLLM | ~9–10（NF4 ~6）| 長描述、訓練資料 caption；英文為主；Llama 3.1 授權 |
-| **預設 embedding** | SigLIP2 so400m-patch14-384 | transformers | ~1.5 | zero-shot、prototype、去重、以文搜圖 |
+| **預設 embedding** | SigLIP2 so400m-patch14-384 | **ONNX Runtime**（審查補充，08 C-12；transformers 為 torch pack 選項） | ~1.5 | zero-shot、prototype、去重、以文搜圖 |
 | 快速 embedding | PE-Core B/L | transformers | ~0.6–1.5 | 超大量圖庫粗篩 |
 | 快速 caption | Florence-2-large（0.77B） | transformers | ~2 | 極快短 caption、OCR；英文 |
 | 動漫 tagger | WD EVA02-Large v3 / Camie | ONNX | ~1.5 | 閾值式 tag |
@@ -235,7 +236,7 @@ VRAM 皆為**【估算】**（權重 + mmproj + 約 1–2GB runtime/KV，以 8k 
 ### 2.1 共用資料結構（pydantic v2）
 
 ```python
-# opl/inference/types.py
+# opagent/inference/types.py
 from __future__ import annotations
 from enum import Enum
 from typing import Any, Literal
@@ -299,7 +300,7 @@ class Provenance(BaseModel):
 ### 2.2 Adapter Protocol
 
 ```python
-# opl/inference/adapter.py
+# opagent/inference/adapter.py
 from typing import Protocol, AsyncIterator, Sequence, runtime_checkable
 
 class LoadState(str, Enum):
@@ -343,7 +344,7 @@ class CaptionerAdapter(ModelAdapter, Protocol):
 Worker 不直接碰 adapter。
 
 ```python
-# opl/inference/service.py
+# opagent/inference/service.py
 class TaskRequest(BaseModel):
     task: Capability
     images: list[ImageInput]                 # 一個 job 的一批（建議 16–256 張）
@@ -397,7 +398,7 @@ class InferenceService:
 
 共用實作：`OpenAICompatChatAdapter` 處理 messages 組裝（`[{type:image_url, image_url:{url:"data:image/jpeg;base64,..."}}, {type:text}]`）、重試、JSON 修復（`json-repair` → 失敗再以 `temperature=0` 重問一次「只輸出 JSON」）；vLLM / llama.cpp / Ollama / External 只覆寫 `_launch()`、`_schema_kwargs()`、`_logprob_kwargs()`。
 
-能力探測結果寫回 `~/.opl/cache/probe/<model_id>.json`，避免每次啟動重測。
+能力探測結果寫回 `~/.opagent/cache/probe/<model_id>.json`，避免每次啟動重測。
 
 ---
 
@@ -409,7 +410,7 @@ class InferenceService:
 
 ```json
 {
-  "$id": "opl.fused.v1",
+  "$id": "opagent.fused.v1",
   "type": "object",
   "properties": {
     "category": { "type": "string", "enum": ["<由類別定義產生>", "other"] },
@@ -468,7 +469,7 @@ user: |
 
 ```json
 {
-  "$id": "opl.caption.v1",
+  "$id": "opagent.caption.v1",
   "type": "object",
   "properties": {
     "caption_zh": { "type": "string" },
@@ -551,7 +552,7 @@ blacklist: [照片, 圖片, photo, image]
 
 ```json
 {
-  "$id": "opl.tags.hybrid.v1",
+  "$id": "opagent.tags.hybrid.v1",
   "type": "object",
   "properties": {
     "tags": { "type": "array", "items": { "type": "string", "enum": ["<candidates>"] },
@@ -666,7 +667,7 @@ def class_scores(img_vec, txt_vecs, protos, alpha):
 
 ```json
 {
-  "$id": "opl.classify.single.v1",
+  "$id": "opagent.classify.single.v1",
   "type": "object",
   "properties": {
     "reason":   { "type": "string", "maxLength": 120 },
@@ -681,7 +682,7 @@ def class_scores(img_vec, txt_vecs, protos, alpha):
 
 ```json
 {
-  "$id": "opl.classify.multi.v1",
+  "$id": "opagent.classify.multi.v1",
   "type": "object",
   "properties": {
     "reason": { "type": "string", "maxLength": 160 },
@@ -738,7 +739,7 @@ budget = total_vram × safety (0.92) − reserved_external (Ollama/其他程式,
 need(model) = weights + mmproj + runtime_overhead + kv_per_1k × ctx_k × concurrency + activation_peak(max_pixels)
 ```
 
-- 以 NVML 讀實際 `used/free`，載入後回寫「實測佔用」到 `~/.opl/cache/vram_observed.json`，下次以實測值取代估算（自我修正）。
+- 以 NVML 讀實際 `used/free`，載入後回寫「實測佔用」到 `~/.opagent/cache/vram_observed.json`，下次以實測值取代估算（自我修正）。
 - vLLM 會預先吃掉 `gpu_memory_utilization × total`，所以傳入的 utilization = `need(vlm) / total`，而不是預設 0.9，否則無法並載 embedding。
 
 ### 4.2 載入策略
@@ -776,9 +777,9 @@ Slots（單 GPU）:
 | onnxruntime-gpu | 需對應 CUDA 12.x + cuDNN 9 的版本 |
 | bitsandbytes / flash-attn | 預編譯 wheel 可能不含 sm_120 → JoyCaption NF4 等路徑提供「不使用 bnb」的替代（GGUF 或 FP8）|
 | 驅動 | NVIDIA ≥ 570 系列（CUDA 12.8 需求）|
-| 自檢 | 推論層啟動時跑 `opl doctor`：列出 GPU、驅動、CUDA、torch build、各 runtime 版本與一次 1 張圖 smoke test |
+| 自檢 | 推論層啟動時跑 `opagent doctor`：列出 GPU、驅動、CUDA、torch build、各 runtime 版本與一次 1 張圖 smoke test |
 
-官方 Docker image 分 `opl-gpu-cu128`（預設）與 `opl-gpu-cu124`（舊卡），避免使用者自行處理。
+官方 Docker image 分 `opagent-gpu-cu128`（預設）與 `opagent-gpu-cu124`（舊卡），避免使用者自行處理。
 
 ### 4.6 CPU fallback
 
@@ -841,7 +842,7 @@ UI 的「預估完成時間」先用此表，執行 50 張後改用實測移動�
 ### 5.4 Embedding 快取
 
 - Key：`(image_sha256, model_id, model_revision, preprocess_version)`；Value：fp16 向量。
-- 儲存：每個模型一個 append-only 檔（`~/.opl/cache/emb/<model>/shard-*.npy` + SQLite/LMDB 索引），或若系統 DB 為 Postgres 則可同步寫 pgvector（由資料層文件決定，推論層只提供 `EmbeddingCache` 介面）。
+- 儲存：每個模型一個 append-only 檔（`~/.opagent/cache/emb/<model>/shard-*.npy` + SQLite/LMDB 索引），或若系統 DB 為 Postgres 則可同步寫 pgvector（由資料層文件決定，推論層只提供 `EmbeddingCache` 介面）。
 - 記憶體：最近 N 萬筆 LRU；prototype、類別文字向量也快取（key 含描述文字 hash）。
 - 用途：分類 E 段、受控 tag 候選預篩、去重（cos>0.97 視為近似重複，可在整理時標記）、以文搜圖、benchmark 重跑免重算。
 
@@ -912,7 +913,7 @@ UI 選模型 → 檢查 license.requires_acceptance
 → 驗證：
    - LFS 檔以 HF API 提供的 sha256 比對（snapshot 下載後再算一次）
    - 內建模型的 registry 可釘選 `revision: <commit>` 與 `sha256` 清單（供應鏈防護）
-→ 註冊為 installed，寫入 ~/.opl/models/installed.json（路徑、大小、sha、revision、下載時間）
+→ 註冊為 installed，寫入 ~/.opagent/models/installed.json（路徑、大小、sha、revision、下載時間）
 → 自動跑 smoke test（1 張內建測試圖）
 ```
 
@@ -923,8 +924,8 @@ UI 選模型 → 檢查 license.requires_acceptance
 
 ### 7.2 離線模式
 
-- `OPL_OFFLINE=1` → 設 `HF_HUB_OFFLINE=1`、`TRANSFORMERS_OFFLINE=1`；Registry 只列出 installed 模型。
-- 提供 `opl models export <id> → .tar` / `opl models import` 供離線機器（air-gapped）搬移，匯入時重驗 sha256。
+- `OPAGENT_OFFLINE=1` → 設 `HF_HUB_OFFLINE=1`、`TRANSFORMERS_OFFLINE=1`；Registry 只列出 installed 模型。
+- 提供 `opagent models export <id> → .tar` / `opagent models import` 供離線機器（air-gapped）搬移，匯入時重驗 sha256。
 - 共用模型目錄：可指向既有 `HF_HOME`、LM Studio / Ollama 的 models 目錄（唯讀掃描 GGUF），避免重複下載。
 
 ### 7.3 模型管理 UI 需要的資料（`list_models()` 回傳）
@@ -950,8 +951,8 @@ UI 選模型 → 檢查 license.requires_acceptance
 
 | 項目 | 預設 |
 |---|---|
-| 常駐 small slot | **SigLIP2 so400m-384（fp16, ~1.5GB）** |
-| large slot | **Qwen3-VL-8B-Instruct FP8 on vLLM（~11.5GB）**；無 vLLM 時 Q4_K_M/Q5_K_M on llama.cpp |
+| 常駐 small slot | **SigLIP2 so400m-384（fp16 ONNX, ~1.5GB）**；v0.2 起人臉 YuNet + AuraFace（ONNX, ~0.8GB，07 §7.1） |
+| large slot | **Qwen3-VL-8B Q5_K_M／Q4_K_M on llama.cpp（~6.5–8GB）**（審查補充：預設改為 llama.cpp，08 C-02）；Linux／Docker 進階可選 Qwen3-VL-8B-Instruct FP8 on vLLM（~11.5GB） |
 | 難例複核（選用，序列切換） | Qwen3.6-35B-A3B Q4（llama.cpp `--n-cpu-moe`，需 ≥32GB RAM）|
 | 長 caption（選用） | JoyCaption Beta One（英文）/ Qwen3.6-35B-A3B（繁中）|
 | Caption 預設 | 短、繁中（+英文可選）、neutral 模板；與 tag/classify 合併成一次 fused JSON |
@@ -966,3 +967,30 @@ UI 選模型 → 檢查 license.requires_acceptance
 4. SigLIP2 對繁中類別名稱的 zero-shot 品質（vs 自動英譯）。
 5. 各 grammar 後端對 `enum`/`uniqueItems`/`minItems` 的支援，以及 key 順序（reason 先於 category）對準確率影響。
 6. Gemma 4 26B-A4B Q4 在 16GB 的實際可用 context。
+
+---
+
+## 10. 介面整合：06 / 07 / 08 / 10 的變更（審查補充）
+
+> 集中整理 06 §7.2、07 §11、08 §7（C-02、C-12–C-15、C-30）、10 §C 對推論層的需求。細節以原文件為準；版本依 08 §9。
+
+| 主題 | 變更 | 來源 | 版本 |
+|------|------|------|------|
+| 內建整理方式（審查補充，08 §8.1） | `presets/builtin/`：**`by-date`**（不跑模型，只用 EXIF／mtime，樣板 `{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}`，選完資料夾就能用）；**`by-content-12`**（內建類別集：人物、風景、美食、寵物、文件與截圖、旅行、活動、建築、植物、交通、藝術、其他；每類附 zh-Hant／en 名稱與一句描述，供 SigLIP2 zero-shot 與 VLM enum 使用；「其他」為 fallback）；**`custom`**（使用者類別 = 名稱 + 描述 + 範例照片 prototype，§3.3.1）。三者都是一般 Pipeline preset，可在進階模式檢視 YAML | 08 §8.1 | v0.1 |
+| Runtime 主軸 | llama.cpp（CPU／Metal 內建，`llamacpp-cuda13`、`llamacpp-vulkan` pack）+ ONNX Runtime（DirectML／CoreML／CPU，CUDA EP 為 pack）；vLLM（僅 Linux）、MLX（僅 Mac）、torch 為 v0.4 選用 pack | 08 §3、D5 | v0.1／v0.4 |
+| 小模型路徑 | SigLIP2、tagger、人臉改走 ORT；新增 SigLIP2 patch14-384 ONNX 匯出與數值對齊測試（與 PyTorch cosine ≥ 0.999） | 08 C-12 | v0.1 |
+| Registry 欄位 | `variants[].requires`、`variants[].files[]`（size + sha256 釘選）、`perf_prior`、`tasks_default_rank`；`kind` 增加 `face_detector`／`face_embedder`／`face_quality`；`license` 拆成 `code`／`weights`，新增 `redistributable`、`biometric`、`training_data`、`remote_allowed` | 06 §1.1、07 §11 | v0.1／v0.2 |
+| 新 registry | `runtimes/*.yaml`（runtime pack）、`gpu_classes.yaml`（GPU 係數，給 ETA 冷啟動先驗） | 06 §1.1 | v0.1 |
+| `list_models()` | 回傳 compat 物件 `level: ok\|degraded\|blocked`、`reasons[]`、`prep[]`（取代 `fits_now` 布林值，舊欄位保留） | 06 §1.2 | v0.1 |
+| 下載 | `snapshot_download` 改為 06 §2.2 自寫 Range 下載器（真取消、暫停、續傳、sha256、鏡像）；`on_progress` 改為 `OperationReporter.phase()/advance()/warn()` | 06 §2 | v0.1 |
+| 載入進度 | `InferenceBackend.load(opts, reporter)` 回報載入子階段；下載不等於載入（不佔 VRAM、不打斷 Job） | 06 §2.8 | v0.1 |
+| 錯誤 | `InferenceError.code` 對應 06 §4.7 錯誤碼目錄（含 `PACK_MISSING`、`DRIVER_TOO_OLD`、`GPU_CONTENDED`、`ON_BATTERY_PAUSED` 等） | 06 §4.7、08 §10 | v0.1 |
+| Doctor | §4.5 的 `opagent doctor` 由 06 §3 的 Check registry 實作；**不需要 torch** 也能偵測 GPU（NVML、DXGI、Vulkan、Metal）並輸出 `recommended_packs` 與檔位 | 06 §3、08 §10 | v0.1 |
+| VRAM 預算 | 新增 `DxgiBudget`、`VulkanBudget`、`UnifiedMemoryBudget`（Mac）provider，與 06 doctor 共用；`vram_observed.json` 移到 DB 的 `perf_observation` | 08 C-13、06 §7.2 | v0.1 |
+| Blackwell | 預設用 `llamacpp-cuda13` pack（或自建 12.8+），doctor 依 compute capability 選 pack | 08 C-15 | v0.1 |
+| fingerprint | runtime 部分改用 pack 的 `numerics_epoch`，pack 小版更新不讓快取失效（取代 00 R2 的「runtime 版本」） | 08 C-14、§4.3 | v0.1 |
+| 資源策略 | `pause_on_battery`、`pause_on_contention`（free VRAM 不足時改用小 variant 或排隊，不搶資源）、`only_when_idle`；OOM 時 batch 減半 → 暫停並通知 | 08 §6、C-30 | v0.1 |
+| 人臉 | `Capability.FACE`、`FaceConfig`、`FaceOut`、三個 Face adapter Protocol、`embed_query_faces`；small slot 加入人臉模型；8 GB 序列模式加入 Phase F；benchmark `face_verify`、`face_cluster`；非商用權重的同意寫入 `face_consent`、禁止第三方鏡像 | 07 §8.1–8.2、§11 | v0.2 |
+| 搜尋需求 | `embed_texts`、`query.plan`、`rerank`、`describe`、`contains_image_text`（00 R3） | 05 | v0.2 |
+| Ask | `InferenceService.chat(messages, tools?, response_format?, images?, priority="interactive")` 串流；能力探測新增 `tools`、`parallel_tools`、`multi_image`；llama.cpp `--jinja` 並保留 1 個 interactive slot；新任務 `verify`（yes/no/unsure + score + ≤ 30 字理由）；`describe` 支援多圖（≤ 4） | 10 §C | v0.3 |
+| Benchmark | 加入 Ask 評估集與 tool-calling 可靠度指標（JSON 合法率、工具選擇正確率）；mini benchmark UI 在 v0.3 | 10 §C、08 §9.2 | v0.3 |
