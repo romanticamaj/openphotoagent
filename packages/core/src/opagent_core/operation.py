@@ -161,3 +161,42 @@ def sweep_orphans(ops: list[Operation], now: datetime, timeout_s: float = HEARTB
             op.transition(OpStatus.interrupted)
             events.append(OpEvent(op.id, "OWNER_LOST"))
     return events
+
+
+# ---- progress (06 §5.4) / elapsed (06 §5.6) — stubs ----
+@dataclass
+class Phase:
+    id: str
+    weight: float
+    est_seconds: float | None = None
+    status: str = "pending"
+    fraction: float = 0.0
+
+
+def phase_fraction(phases: list[Phase]) -> float:
+    return 0.0
+
+
+def job_label_fraction(counters: dict[str, int], phase: str) -> float:
+    return 0.0
+
+
+def parent_fraction(children: list[tuple[float, float]]) -> float:
+    return -1.0
+
+
+class Elapsed:
+    active_ms = 0
+    paused_ms = 0
+
+    def start(self, t: float) -> None: ...
+    def pause(self, t: float) -> None: ...
+    def resume(self, t: float) -> None: ...
+    def finish(self, t: float) -> None: ...
+
+    def summary(self, lang: str) -> str:
+        return ""
+
+    @staticmethod
+    def clock_text(ms: int) -> str:
+        return ""
