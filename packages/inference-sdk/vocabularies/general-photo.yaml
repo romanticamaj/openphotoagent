@@ -1,0 +1,25 @@
+# Controlled vocabulary for hybrid tagging (03 §3.2). Seed set; grows via the "待審詞" review flow.
+id: general-photo-v1
+terms:
+  - { id: animal.dog, zh: 狗, en: dog, group: 物件, synonyms: [犬, 小狗, 狗狗, puppy, doggy, dogs] }
+  - { id: animal.cat, zh: 貓, en: cat, group: 物件, synonyms: [貓咪, 小貓, kitten, cats] }
+  - { id: animal.bird, zh: 鳥, en: bird, group: 物件, synonyms: [鳥類, birds] }
+  - { id: scene.beach, zh: 海灘, en: beach, group: 場景, synonyms: [沙灘, 海邊, seaside] }
+  - { id: scene.mountain, zh: 山, en: mountain, group: 場景, synonyms: [山脈, 高山, mountains] }
+  - { id: scene.city, zh: 城市, en: city, group: 場景, synonyms: [都市, 市區, urban] }
+  - { id: scene.forest, zh: 森林, en: forest, group: 場景, synonyms: [樹林, woods] }
+  - { id: scene.indoor, zh: 室內, en: indoor, group: 場景, synonyms: [屋內, inside] }
+  - { id: scene.night, zh: 夜景, en: night, group: 場景, synonyms: [夜晚, 晚上, night view] }
+  - { id: mood.sunset, zh: 夕陽, en: sunset, group: 氛圍, synonyms: [日落, 黃昏, dusk] }
+  - { id: food.noodles, zh: 麵, en: noodles, group: 物件, synonyms: [麵條, 拉麵, ramen, noodle] }
+  - { id: food.cake, zh: 蛋糕, en: cake, group: 物件, synonyms: [甜點蛋糕, cakes] }
+  - { id: food.coffee, zh: 咖啡, en: coffee, group: 物件, synonyms: [拿鐵, latte] }
+  - { id: people.child, zh: 小孩, en: child, group: 人物, synonyms: [兒童, 孩子, kid, kids, children] }
+  - { id: people.group, zh: 合照, en: group photo, group: 人物, synonyms: [團體照, 大合照] }
+  - { id: object.car, zh: 汽車, en: car, group: 物件, synonyms: [車子, 轎車, cars] }
+  - { id: object.bicycle, zh: 腳踏車, en: bicycle, group: 物件, synonyms: [自行車, 單車, bike] }
+  - { id: object.document, zh: 文件, en: document, group: 物件, synonyms: [紙本, 收據, receipt] }
+  - { id: object.flower, zh: 花, en: flower, group: 物件, synonyms: [花朵, flowers] }
+  - { id: event.birthday, zh: 生日, en: birthday, group: 活動, synonyms: [慶生, birthday party] }
+  - { id: event.wedding, zh: 婚禮, en: wedding, group: 活動, synonyms: [婚宴] }
+blacklist: [照片, 圖片, 相片, photo, image, picture]

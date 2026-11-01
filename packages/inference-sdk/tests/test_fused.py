@@ -3,7 +3,6 @@ import json
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
-
 from opagent_inference.fused import (
     CategoryMap,
     OutputParseError,
@@ -58,7 +57,9 @@ def test_inf_json_003_truncated_repair_then_retry():
 
 @pytest.mark.unit
 @pytest.mark.tc("INF-JSON-004")
-@pytest.mark.parametrize("given_cat,expected", [("美食", "food"), ("Food", "food"), ("meal", "food"), ("FOOD", "food"), ("寵物", "pets")])
+@pytest.mark.parametrize(
+    "given_cat,expected", [("美食", "food"), ("Food", "food"), ("meal", "food"), ("FOOD", "food"), ("寵物", "pets")]
+)
 def test_inf_json_004_alias_mapping(given_cat, expected):
     r = parse_fused(json.dumps({**GOOD, "category": given_cat}, ensure_ascii=False), CATS)
     assert r.category == expected and "enum_violation" not in r.flags
