@@ -8,7 +8,10 @@ from datetime import datetime
 
 from .path_template import DateSource, RenderValues, compile_template, render, split_name
 
-PRESET_TEMPLATES = {"by-date": "{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}"}
+PRESET_TEMPLATES = {
+    "by-date": "{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}",
+    "by-content-12": "{category}/{taken_at:%Y}/{stem}{ext}",
+}
 
 
 @dataclass(frozen=True)
@@ -19,6 +22,8 @@ class PlanItem:
     taken_at: datetime | None
     taken_at_source: DateSource | None
     mtime: datetime
+    category: str | None = None
+    category_key: str | None = None
 
 
 @dataclass(frozen=True)
@@ -31,8 +36,8 @@ class PlannedAction:
     conflict: str = "none"
 
 
-def plan(items: list[PlanItem], preset: str, target_sub: str = "") -> list[PlannedAction]:
-    tpl = compile_template(PRESET_TEMPLATES[preset])
+def plan(items: list[PlanItem], preset: str, target_sub: str = "", template: str | None = None) -> list[PlannedAction]:
+    tpl = compile_template(template or PRESET_TEMPLATES[preset])
     out: list[PlannedAction] = []
     for it in items:
         stem, ext = split_name(posixpath.basename(it.src_rel))
@@ -44,6 +49,8 @@ def plan(items: list[PlanItem], preset: str, target_sub: str = "") -> list[Plann
                 taken_at=it.taken_at,
                 taken_at_source=it.taken_at_source or "exif_offset",
                 mtime=it.mtime,
+                category=it.category,
+                category_key=it.category_key,
             ),
         )
         dst = posixpath.join(target_sub, r.rel) if target_sub else r.rel

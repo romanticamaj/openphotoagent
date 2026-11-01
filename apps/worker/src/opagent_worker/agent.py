@@ -15,9 +15,15 @@ from opagent_core.clock import SystemClock
 from opagent_fs.executor import Action, Executor
 from opagent_fs.fsops import RealFs
 from opagent_fs.journal import Journal
-from opagent_fs.safepath import RootConfig, Sandbox
+from opagent_fs.safepath import RootConfig, RootUnavailable, Sandbox
 
 from .scanner import HashCache, scan
+
+
+class _Waiting(Exception):
+    def __init__(self, reason: str) -> None:
+        super().__init__(reason)
+        self.reason = reason
 
 
 class WorkerAgent:
@@ -29,6 +35,7 @@ class WorkerAgent:
         backend: Any = None,
         worker_id: str | None = None,
         name: str = "local",
+        clock: Any = None,
     ) -> None:
         self.client = client
         self.roots = [RootConfig(alias=r["alias"], path=r["path"], mode=r.get("mode", "ro")) for r in roots]  # type: ignore[arg-type]
@@ -41,6 +48,11 @@ class WorkerAgent:
         self.executor = Executor(self.sb, RealFs(), Journal(self.home / "journal.db"))
         self.tz = SystemClock().now().astimezone().tzinfo
         self.cache = HashCache(self.home / "scan-cache.db")
+        self.clock = clock or SystemClock()
+        self.waiting: dict[str, tuple[dict[str, Any], float]] = {}
+        self.page_size = 1000
+        self.crash_after_pages: int | None = None  # test hook: simulate kill -9 after N reported pages
+        self.last_scan_skipped_before_cursor = 0
 
     def _load_id(self) -> str:
         f = self.home / "worker_id"
@@ -51,11 +63,16 @@ class WorkerAgent:
         return wid
 
     def register(self) -> None:
+        models = {}
+        if self.backend is not None:
+            info = self.backend.describe()
+            models = {t: info.model_fingerprint for t in info.task_types}
         r = self.client.post(
             "/worker-api/v1/register",
             json={
                 "worker_id": self.worker_id,
                 "name": self.name,
+                "models": models,
                 "roots": [{"alias": r.alias, "mode": r.mode} for r in self.roots],
             },
         )
@@ -67,13 +84,29 @@ class WorkerAgent:
             return False
         r.raise_for_status()
         task = r.json()
+        self._run_task(task)
+        return True
+
+    def _run_task(self, task: dict[str, Any]) -> None:
         try:
-            result = getattr(self, f"_do_{task['kind']}")(task["payload"])
+            result = getattr(self, f"_do_{task['kind']}")(task["payload"], task["id"])
             ok = True
+        except _Waiting as w:  # e.g. SOURCE_OFFLINE: keep the task, retry automatically (SCAN-020)
+            self.client.post(f"/worker-api/v1/tasks/{task['id']}/progress", json={"waiting_reason": w.reason})
+            self.waiting[task["id"]] = (task, self.clock.monotonic())
+            return
         except Exception as e:
             result, ok = {"error": type(e).__name__, "detail": str(e)[:500]}, False
+        self.waiting.pop(task["id"], None)
         self.client.post(f"/worker-api/v1/tasks/{task['id']}/complete", json={"result": result, "ok": ok})
-        return True
+
+    RETRY_WAITING_S = 5.0
+
+    def tick_waiting(self) -> None:
+        for tid, (task, since) in list(self.waiting.items()):
+            if self.clock.monotonic() - since >= self.RETRY_WAITING_S:
+                self.waiting[tid] = (task, self.clock.monotonic())
+                self._run_task(task)
 
     batch_size = 16
 
@@ -92,6 +125,9 @@ class WorkerAgent:
         r.raise_for_status()
         items = r.json()["items"]
         reports = self._infer(items)
+        from opagent_fs.crash import crash_point
+
+        crash_point("worker_after_infer")  # chaos: die after inference, before reporting (Q-022)
         self._send_results(reports)
         return len(items)
 
@@ -196,7 +232,16 @@ class WorkerAgent:
 
         def run(chunk: list[tuple[dict[str, Any], Any]]) -> None:
             try:
-                outs = asyncio.run(backend.run_batch(BatchRequest(task_type=task, items=[i for _, i in chunk])))
+                tc = chunk[0][0].get("task_config") or {}
+                outs = asyncio.run(
+                    backend.run_batch(
+                        BatchRequest(
+                            task_type=task,
+                            items=[i for _, i in chunk],
+                            variables={"categories": tc.get("categories") or []},
+                        )
+                    )
+                )
             except InferenceError as e:
                 if e.code == "OOM" and len(chunk) > 1:  # halve and retry (02 §4.3, Q-007)
                     half = len(chunk) // 2
@@ -237,13 +282,52 @@ class WorkerAgent:
     def run_forever(self, stop: Any) -> None:
         while not stop.is_set():
             try:
-                self.run_once(wait_s=1.0)
+                busy = self.run_once(wait_s=0.5)
+                if self.backend is not None:
+                    busy = bool(self.process_items_once()) or busy
+                self.tick_waiting()
+                if self.outbox_size():
+                    self.flush_outbox()
+                if not busy:
+                    stop.wait(0.2)
             except Exception:
                 stop.wait(1.0)
 
     # ---- task handlers -------------------------------------------------
-    def _do_scan(self, p: dict[str, Any]) -> dict[str, Any]:
-        res = scan(
+    def _do_scan(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        try:
+            res = self._scan(p)
+        except RootUnavailable:
+            raise _Waiting("SOURCE_OFFLINE") from None
+        self.last_scan_skipped_before_cursor = res.skipped_before_cursor
+        entries = [self._entry(e) for e in res.entries]
+        for pages, i in enumerate(range(0, len(entries), self.page_size), start=1):  # pages with a resume cursor (SCAN-019)
+            page = entries[i : i + self.page_size]
+            self.client.post(
+                f"/worker-api/v1/tasks/{task_id}/progress", json={"entries": page, "cursor": page[-1]["rel"]}
+            ).raise_for_status()
+            if self.crash_after_pages is not None and pages >= self.crash_after_pages:
+                raise SystemExit(137)
+        return {
+            "entries": [],
+            "skipped": [{"rel": s.rel, "reason": s.reason} for s in res.skipped],
+            "bytes_read": res.bytes_read,
+        }
+
+    @staticmethod
+    def _entry(e: Any) -> dict[str, Any]:
+        return {
+            "rel": e.rel,
+            "size": e.size,
+            "mtime": e.mtime.isoformat(),
+            "content_hash": e.content_hash,
+            "taken_at": e.taken_at.isoformat() if e.taken_at and e.date_source != "mtime" else None,
+            "date_source": e.date_source,
+            **e.extra,
+        }
+
+    def _scan(self, p: dict[str, Any]) -> Any:
+        return scan(
             self.sb,
             p["root_alias"],
             p.get("sub_path", ""),
@@ -252,26 +336,10 @@ class WorkerAgent:
             tz=self.tz,  # type: ignore[arg-type]
             cache=self.cache,
             exclude_subtrees=p.get("exclude_subtrees") or [],
+            after=p.get("cursor"),
         )
-        entries = [
-            {
-                "rel": e.rel,
-                "size": e.size,
-                "mtime": e.mtime.isoformat(),
-                "content_hash": e.content_hash,
-                "taken_at": e.taken_at.isoformat() if e.taken_at and e.date_source != "mtime" else None,
-                "date_source": e.date_source,
-                **e.extra,
-            }
-            for e in res.entries
-        ]
-        return {
-            "entries": entries,
-            "skipped": [{"rel": s.rel, "reason": s.reason} for s in res.skipped],
-            "bytes_read": res.bytes_read,
-        }
 
-    def _do_apply(self, p: dict[str, Any]) -> dict[str, Any]:
+    def _do_apply(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         actions = [Action(**a) for a in p["actions"]]
         rep = self.executor.apply(p["plan_id"], actions, move_confirmed=bool(p.get("move_confirmed")))
         return {
@@ -280,11 +348,11 @@ class WorkerAgent:
             "waiting_reason": rep.waiting_reason,
         }
 
-    def _do_undo(self, p: dict[str, Any]) -> dict[str, Any]:
+    def _do_undo(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         res = self.executor.undo(p["plan_id"])
         return {"results": [r.__dict__ for r in res]}
 
-    def _do_browse(self, p: dict[str, Any]) -> dict[str, Any]:
+    def _do_browse(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         sp = self.sb.resolve(p["root_alias"], p.get("path", ""))
         dirs = sorted(
             e.name for e in os.scandir(sp.real) if e.is_dir(follow_symlinks=False) and not e.name.startswith(".")

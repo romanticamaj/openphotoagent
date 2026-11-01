@@ -3,32 +3,28 @@
 from __future__ import annotations
 
 import time
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Any
 
 from fastapi import APIRouter, Request, Response
-from opagent_core.ids import uuid7
-from opagent_core.planner import PlanItem, assign_collisions, plan, summarize
 from opagent_core.state_machine import JobStatus
 from opagent_db.schema import (
-    asset,
-    asset_location,
     job,
     journal_mirror,
     output_action,
     output_plan,
-    source,
     worker,
     worker_task,
 )
 from pydantic import BaseModel
-from sqlalchemy import insert, select, text, update
+from sqlalchemy import select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
+from . import organize
 from . import queue as q
-from .db import offset_minutes, set_job_status, to_aware
+from .db import set_job_status, to_aware
 from .operations import ensure_operation, set_op_status
-from .state import DEFAULT_WS, AppState
+from .state import AppState
 
 router = APIRouter()
 TASK_OP_TYPES = {"scan": "scan", "apply": "output.apply", "undo": "output.undo"}
@@ -43,6 +39,7 @@ class RegisterIn(BaseModel):
     worker_id: str
     name: str = "local"
     roots: list[dict[str, str]]
+    models: dict[str, str] = {}  # task -> model_fingerprint of the loaded/installed backend
 
 
 class LeaseIn(BaseModel):
@@ -62,9 +59,21 @@ def register(body: RegisterIn, req: Request) -> dict[str, str]:
     with st.engine.begin() as c:
         c.execute(
             pg_insert(worker)
-            .values(id=body.worker_id, name=body.name, roots=roots, last_heartbeat_at=st.clock.now())
+            .values(
+                id=body.worker_id,
+                name=body.name,
+                roots=roots,
+                last_heartbeat_at=st.clock.now(),
+                capabilities={"models": body.models},
+            )
             .on_conflict_do_update(
-                index_elements=["id"], set_={"roots": roots, "status": "online", "last_heartbeat_at": st.clock.now()}
+                index_elements=["id"],
+                set_={
+                    "roots": roots,
+                    "status": "online",
+                    "last_heartbeat_at": st.clock.now(),
+                    "capabilities": {"models": body.models},
+                },
             )
         )
     return {"worker_id": body.worker_id}
@@ -92,7 +101,13 @@ def _lease_one(st: AppState, worker_id: str) -> dict[str, Any] | None:
             ensure_operation(c, st.clock, t.id, TASK_OP_TYPES[t.kind], {"kind": "task", "id": t.id})
             set_op_status(c, st.clock, t.id, "running")
         if t.kind == "scan":
-            set_job_status(c, t.job_id, JobStatus.running)
+            if "scan_started_at" not in t.payload:
+                payload = {**t.payload, "scan_started_at": st.clock.now().isoformat()}
+                c.execute(update(worker_task).where(worker_task.c.id == t.id).values(payload=payload))
+                t = c.execute(select(worker_task).where(worker_task.c.id == t.id)).one()
+            js = c.execute(select(job.c.status).where(job.c.id == t.job_id)).scalar()
+            if js == "queued":
+                set_job_status(c, t.job_id, JobStatus.running, clock=st.clock)
         return {"id": t.id, "kind": t.kind, "payload": t.payload}
 
 
@@ -207,6 +222,37 @@ def mirror_journal(body: JournalIn, req: Request) -> dict[str, int]:
     return {"inserted": res.rowcount or 0}
 
 
+class ProgressIn(BaseModel):
+    entries: list[dict[str, Any]] = []
+    cursor: str | None = None
+    waiting_reason: str | None = None
+
+
+@router.post("/tasks/{task_id}/progress")
+def task_progress(task_id: str, body: ProgressIn, req: Request) -> dict[str, str]:
+    """Scan pages (1,000 entries) with a resume cursor (SCAN-019); waiting states such as SOURCE_OFFLINE (SCAN-020)."""
+    st = _st(req)
+    with st.engine.begin() as c:
+        t = c.execute(select(worker_task).where(worker_task.c.id == task_id).with_for_update()).first()
+        if t is None or t.status != "leased":
+            return {"status": "ignored"}
+        if body.entries:
+            organize.upsert_entries(st, c, t.payload["source_id"], body.entries)
+        payload = dict(t.payload)
+        if body.cursor is not None:
+            payload["cursor"] = body.cursor
+        c.execute(
+            update(worker_task)
+            .where(worker_task.c.id == task_id)
+            .values(payload=payload, lease_expires_at=st.clock.now() + timedelta(seconds=LEASE_S))
+        )
+        if body.waiting_reason:
+            set_op_status(c, st.clock, task_id, "waiting", body.waiting_reason)
+        elif t.kind in TASK_OP_TYPES:
+            set_op_status(c, st.clock, task_id, "running")
+    return {"status": "ok"}
+
+
 @router.post("/tasks/{task_id}/complete")
 def complete(task_id: str, body: CompleteIn, req: Request) -> dict[str, str]:
     st = _st(req)
@@ -237,78 +283,8 @@ def complete(task_id: str, body: CompleteIn, req: Request) -> dict[str, str]:
 
 
 def _on_scan(st: AppState, c: Any, t: Any, result: dict[str, Any]) -> None:
-    src_id = t.payload["source_id"]
-    items: list[PlanItem] = []
-    for e in result["entries"]:
-        taken = datetime.fromisoformat(e["taken_at"]) if e.get("taken_at") else None
-        mtime = datetime.fromisoformat(e["mtime"])
-        aid = c.execute(
-            pg_insert(asset)
-            .values(
-                id=uuid7(st.clock),
-                workspace_id=DEFAULT_WS,
-                content_hash=e["content_hash"],
-                size_bytes=e["size"],
-                taken_at=taken,
-                taken_at_offset_min=offset_minutes(taken) if taken else None,
-                date_source=e.get("date_source"),
-                width=e.get("width"),
-                height=e.get("height"),
-                thumbhash=e.get("thumbhash"),
-                phash=e.get("phash"),
-                dhash=e.get("dhash"),
-            )
-            .on_conflict_do_update(index_elements=["workspace_id", "content_hash"], set_={"size_bytes": e["size"]})
-            .returning(asset.c.id)
-        ).scalar_one()
-        c.execute(
-            pg_insert(asset_location)
-            .values(
-                id=uuid7(st.clock),
-                asset_id=aid,
-                source_id=src_id,
-                rel_path=e["rel"],
-                mtime=mtime,
-                mtime_offset_min=offset_minutes(mtime),
-                size=e["size"],
-            )
-            .on_conflict_do_update(
-                index_elements=["source_id", "rel_path"],
-                set_={"asset_id": aid, "mtime": mtime, "size": e["size"], "missing": False},
-            )
-        )
-        items.append(PlanItem(aid, e["rel"], e["content_hash"], taken, e.get("date_source"), mtime))
-    c.execute(update(source).where(source.c.id == src_id).values(last_scan_at=st.clock.now()))
-    j = c.execute(select(job).where(job.c.id == t.job_id)).first()
-    params = j.params
-    set_job_status(c, j.id, JobStatus.planning)
-    target = params["target"]
-    planned = assign_collisions(
-        plan(items, params["preset"], target.get("sub_path", "").strip("/")), case_insensitive=True
-    )  # target FS may be case-insensitive (OUT-EXE-010)
-    pid = uuid7(st.clock)
-    c.execute(insert(output_plan).values(id=pid, job_id=j.id, status="draft", summary=summarize(planned)))
-    for i, a in enumerate(planned):
-        c.execute(
-            insert(output_action).values(
-                id=uuid7(st.clock),
-                plan_id=pid,
-                seq=i,
-                asset_id=a.asset_id,
-                action="copy",
-                src_alias=t.payload["root_alias"],
-                src_rel=a.src_rel,
-                dst_alias=target["root_alias"],
-                dst_rel=a.dst_rel,
-                src_hash=a.src_hash,
-                date_source=a.date_source,
-            )
-        )
-    plan_op = f"{pid}:plan"
-    ensure_operation(c, st.clock, plan_op, "output.plan", {"kind": "plan", "id": pid})
-    set_op_status(c, st.clock, plan_op, "running")
-    set_op_status(c, st.clock, plan_op, "succeeded")
-    set_job_status(c, j.id, JobStatus.awaiting_approval, plan_id=pid, counters={"total": len(planned), "done": 0})
+    organize.upsert_entries(st, c, t.payload["source_id"], result.get("entries") or [])
+    organize.finish_scan(st, c, t)
 
 
 def _on_apply(st: AppState, c: Any, t: Any, result: dict[str, Any]) -> None:

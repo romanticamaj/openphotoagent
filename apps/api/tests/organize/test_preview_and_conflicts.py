@@ -7,13 +7,12 @@ from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import func, select
-
 from opagent_api.app import create_app
 from opagent_db.schema import asset, engine_for, result
 from opagent_inference.fake import FakeBackend
 from opagent_testing.clock import FakeClock
 from opagent_worker.agent import WorkerAgent
+from sqlalchemy import func, select
 
 FX = Path(__file__).resolve().parents[4] / "fixtures/photos/basic"
 CONTENT = {"kind": "organize", "preset": "by-content-12", "target": {"root_alias": "sorted", "sub_path": ""}}
@@ -49,7 +48,9 @@ def test_q_020_same_source_conflict(embedded_pg, sandbox_tree, tmp_path):
     client, w = _setup(embedded_pg.dsn, sandbox_tree.roots, tmp_path / "w")
     src = client.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": "x"}).json()
     j = client.post("/api/v1/jobs", json={**CONTENT, "source_id": src["id"]}).json()
-    pf = client.post("/api/v1/preflight", json={"action": "job.start", "params": {**CONTENT, "source_id": src["id"]}}).json()
+    pf = client.post(
+        "/api/v1/preflight", json={"action": "job.start", "params": {**CONTENT, "source_id": src["id"]}}
+    ).json()
     assert pf["ready"] is False
     b = pf["blockers"][0]
     assert b["code"] == "JOB_CONFLICT_RUNNING" and b["params"]["job"] == j["id"]
@@ -77,7 +78,7 @@ def test_scan_006_moved_folder_needs_zero_inference(embedded_pg, sandbox_tree, t
     with eng.begin() as c:
         assert c.execute(select(func.count()).select_from(asset)).scalar_one() == n_assets
     eng.dispose()
-    assert j2["counters"]["cached"] == j2["counters"]["total"] == 12
+    assert j2["counters"]["cached"] == j2["counters"]["total"] == 12, j2
     assert len(fb.calls()) == calls_before
 
 
@@ -95,8 +96,10 @@ def test_q_024_preview_rerender_without_gpu(embedded_pg, sandbox_tree, tmp_path)
     assert pv["status"] == "ready" and len(pv["items"]) == 10
     calls = len(fb.calls())
     t0 = _t.perf_counter()
-    r = client.post(f"/api/v1/previews/{pv['id']}/rerender", json={
-        "thresholds": {"accept": 0.95, "review": 0.5}, "path_template": "{category}/{taken_at:%Y}/{stem}{ext}"}).json()
+    r = client.post(
+        f"/api/v1/previews/{pv['id']}/rerender",
+        json={"thresholds": {"accept": 0.95, "review": 0.5}, "path_template": "{category}/{taken_at:%Y}/{stem}{ext}"},
+    ).json()
     assert (_t.perf_counter() - t0) < 0.2
     assert len(fb.calls()) == calls
     assert all(i["dst_rel"].count("/") == 2 for i in r["items"])
@@ -118,11 +121,30 @@ def test_q_022_kill_9_worker_no_duplicate_results(embedded_pg, sandbox_tree, tmp
         job = client.post("/api/v1/jobs", json={**CONTENT, "source_id": src["id"]}).json()
         w.run_once()  # scan -> label items
         roots = ",".join(f"{r['alias']}={r['path']}:{r['mode']}" for r in sandbox_tree.roots)
-        p = subprocess.run([sys.executable, "-m", "opagent_cli", "worker", "--api", srv.url, "--roots", roots,
-                            "--worker-id", "wB", "--once"],
-                           env={**__import__("os").environ, "OPAGENT_TEST_MODE": "1",
-                                "OPAGENT_CRASH_AT": "worker_after_infer", "OPAGENT_HOME": str(tmp_path / "hB")},
-                           capture_output=True, text=True, timeout=120)
+        p = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "opagent_cli",
+                "worker",
+                "--api",
+                srv.url,
+                "--roots",
+                roots,
+                "--worker-id",
+                "wB",
+                "--once",
+            ],
+            env={
+                **__import__("os").environ,
+                "OPAGENT_TEST_MODE": "1",
+                "OPAGENT_CRASH_AT": "worker_after_infer",
+                "OPAGENT_HOME": str(tmp_path / "hB"),
+            },
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
         assert p.returncode == 137, p.stderr[-500:]
         clk.advance(121)
         client.post("/worker-api/v1/sweep")

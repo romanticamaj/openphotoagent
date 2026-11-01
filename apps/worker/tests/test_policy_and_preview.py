@@ -1,7 +1,6 @@
 import random
 
 import pytest
-
 from opagent_core.preview import stratified_sample
 from opagent_worker.policy import FakeGpu, FakeIdle, FakePower, ResourcePolicy
 
@@ -51,8 +50,10 @@ def test_q_028_only_when_idle():
 @pytest.mark.tc("Q-023")
 def test_q_023_stratified_preview_sample():
     rnd = random.Random(1)
-    items = [{"id": f"i{i}", "folder": f"f{rnd.randint(0, 29)}", "month": f"2024-{rnd.randint(1, 12):02d}"}
-             for i in range(1000)]
+    items = [
+        {"id": f"i{i}", "folder": f"f{rnd.randint(0, 29)}", "month": f"2024-{rnd.randint(1, 12):02d}"}
+        for i in range(1000)
+    ]
     a = stratified_sample(items, k=10, seed=42)
     b = stratified_sample(items, k=10, seed=42)
     assert a == b and len(a) == 10 and len(set(a)) == 10

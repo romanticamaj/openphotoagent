@@ -1,0 +1,11 @@
+# Synthesized from docs/09 §3.4 (source: synthesized-from-docs) — replace with a recorded profile (M0-T2).
+{
+  "profile": "game-running-5gb",
+  "source": "synthesized-from-docs",
+  "schema": "opagent.hwprobe.v1",
+  "probes": {
+    "platform": {"system": "Windows", "release": "11", "machine": "AMD64"},
+    "nvidia_smi_xml": "<nvidia_smi_log><driver_version>580.88</driver_version><gpu><product_name>NVIDIA GeForce RTX 5070 Ti</product_name><fb_memory_usage><total>16303 MiB</total><used>5642 MiB</used><free>10661 MiB</free></fb_memory_usage><utilization><gpu_util>97 %</gpu_util></utilization><processes><process_info><pid>8812</pid><type>C+G</type><process_name>C:\\Games\\Game.exe</process_name><used_memory>5120 MiB</used_memory></process_info></processes></gpu></nvidia_smi_log>",
+    "os_state": {"fullscreen_d3d": true, "on_ac": true, "idle_s": 0}
+  }
+}

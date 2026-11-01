@@ -169,8 +169,40 @@ def preflight(body: PreflightIn, req: Request) -> dict[str, Any]:
                     ],
                 }
             )
-    elif body.action == "job.start" and p.get("preset", "by-date") not in ("by-date",) and p.get("kind") != "label":
-        blockers.append({"code": "MODEL_NOT_INSTALLED"})
+    elif body.action == "job.start" and p.get("kind", "organize") == "organize":
+        from . import organize
+
+        with _st(req).engine.begin() as c:
+            running = organize.active_job_for_source(c, p.get("source_id", "")) if p.get("source_id") else None
+            tc = organize.task_config_for(p.get("preset", "by-date"))
+            has_model = True
+            if tc is not None:
+                caps = [r[0] or {} for r in c.execute(select(worker.c.capabilities))]
+                has_model = any(tc["task_type"] in (cap.get("models") or {}) for cap in caps)
+        if running:  # 06 §4.7 #52
+            blockers.append(
+                {
+                    "code": "JOB_CONFLICT_RUNNING",
+                    "severity": "blocker",
+                    "params": {"job": running},
+                    "fixes": [
+                        {"id": "view_job", "kind": "open_route", "route": f"/jobs/{running}"},
+                        {
+                            "id": "queue_after",
+                            "kind": "choose_alternative",
+                            "consequence_key": "fix.queue_after.consequence",
+                        },
+                    ],
+                }
+            )
+        if not has_model:
+            blockers.append(
+                {
+                    "code": "MODEL_NOT_INSTALLED",
+                    "severity": "blocker",
+                    "fixes": [{"id": "download_model", "kind": "auto_fix"}],
+                }
+            )
     return {"ready": not blockers, "blockers": blockers, "warnings": warnings}
 
 
@@ -331,6 +363,100 @@ def reapply(job_id: str, body: ReapplyIn, req: Request) -> dict[str, Any]:
         )
         counts[redecide(stages, pol).decision] += 1
     return {"job_id": job_id, "decisions": dict(counts)}
+
+
+class PreviewIn(BaseModel):
+    source_id: str
+    preset: str = "by-content-12"
+    target: Target | None = None
+    k: int = 10
+    seed: int = 42
+    kind: str = "preview"
+
+
+@router.post("/previews", status_code=201)
+def create_preview(body: PreviewIn, req: Request) -> dict[str, Any]:
+    """10-photo preview (stratified sample) on the interactive lane (Q-018/Q-023)."""
+    st = _st(req)
+    with st.engine.begin() as c:
+        s = c.execute(select(source).where(source.c.id == body.source_id)).first()
+        if s is None:
+            raise HTTPException(404, detail={"code": "NOT_FOUND"})
+        jid = uuid7(st.clock)
+        params = body.model_dump()
+        params["target"] = body.target.model_dump() if body.target else {"root_alias": s.root_alias, "sub_path": ""}
+        c.execute(
+            insert(job).values(
+                id=jid, workspace_id=DEFAULT_WS, kind="preview", status=JobStatus.queued.value, params=params
+            )
+        )
+        c.execute(
+            insert(worker_task).values(
+                id=uuid7(st.clock),
+                kind="scan",
+                job_id=jid,
+                worker_id=s.worker_id,
+                payload={
+                    "job_id": jid,
+                    "source_id": s.id,
+                    "root_alias": s.root_alias,
+                    "sub_path": s.sub_path,
+                    "include": s.include,
+                    "exclude": s.exclude,
+                },
+            )
+        )
+    return {"id": jid, "status": "running"}
+
+
+class RerenderIn(BaseModel):
+    thresholds: dict[str, float] | None = None
+    path_template: str | None = None
+
+
+def _preview_items(c: Any, j: Any, thresholds: dict[str, float] | None, template: str | None) -> list[dict[str, Any]]:
+    from opagent_core.decide import Policy
+    from opagent_core.planner import plan
+
+    from . import organize
+
+    pol = Policy(**{k: v for k, v in (thresholds or {}).items() if k in ("accept", "review")})
+    labels = organize.labels_for(c, j.id, pol)
+    rows = [r for r in organize._source_assets(c, j.params["source_id"]) if r.asset_id in labels]
+    planned = plan(organize.plan_items(c, j, rows, labels), j.params["preset"], "", template=template)
+    by = {a.asset_id: a for a in planned}
+    return [
+        {"asset_id": r.asset_id, "rel": r.rel_path, **labels[r.asset_id], "dst_rel": by[r.asset_id].dst_rel}
+        for r in rows
+    ]
+
+
+@router.get("/previews/{preview_id}")
+def get_preview(preview_id: str, req: Request) -> dict[str, Any]:
+    with _st(req).engine.begin() as c:
+        j = c.execute(select(job).where(job.c.id == preview_id, job.c.kind == "preview")).first()
+        if j is None:
+            raise HTTPException(404, detail={"code": "NOT_FOUND"})
+        ready = bool(j.params.get("preview_ready"))
+        items = _preview_items(c, j, None, None) if ready else []
+    return {"id": preview_id, "status": "ready" if ready else "running", "items": items}
+
+
+@router.post("/previews/{preview_id}/rerender")
+def rerender_preview(preview_id: str, body: RerenderIn, req: Request) -> dict[str, Any]:
+    """Changing thresholds or the path template re-renders from stored results: no inference (Q-024)."""
+    with _st(req).engine.begin() as c:
+        j = c.execute(select(job).where(job.c.id == preview_id, job.c.kind == "preview")).first()
+        if j is None:
+            raise HTTPException(404, detail={"code": "NOT_FOUND"})
+        if body.path_template:
+            from opagent_core.path_template import TemplateError, compile_template
+
+            try:
+                compile_template(body.path_template)
+            except TemplateError as e:
+                raise HTTPException(422, detail={"code": e.code, "pos": e.pos}) from None
+        return {"id": preview_id, "items": _preview_items(c, j, body.thresholds, body.path_template)}
 
 
 @router.get("/output-plans/{plan_id}")

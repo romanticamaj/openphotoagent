@@ -136,7 +136,15 @@ def heartbeat(conn: Any, clock: Any, worker_id: str, lease_ids: list[str]) -> in
 
 
 def sweep(conn: Any, clock: Any) -> int:
-    """Expired leases go back to pending (attempts already counts the lost lease)."""
+    """Expired leases go back to pending (attempts already counts the lost lease). Worker tasks (scan/apply/undo)
+    keep their payload, so a re-leased scan resumes from its cursor (SCAN-019)."""
+    from opagent_db.schema import worker_task
+
+    conn.execute(
+        update(worker_task)
+        .where(worker_task.c.status == "leased", worker_task.c.lease_expires_at < clock.now())
+        .values(status="pending", worker_id=None)
+    )
     res = conn.execute(
         update(job_item)
         .where(job_item.c.status.in_(("leased", "running")), job_item.c.lease_expires_at < clock.now())
@@ -222,6 +230,9 @@ def report(conn: Any, clock: Any, worker_id: str, items: list[dict[str, Any]]) -
     }:
         if jid:
             finish_cancel_if_idle(conn, clock, jid)
+            from .organize import maybe_finish
+
+            maybe_finish(_St(clock), conn, jid)
     return {"accepted": accepted}
 
 
@@ -248,6 +259,11 @@ def counters(conn: Any, job_id: str) -> dict[str, int]:
         out[s] = n
     out["total"] = sum(n for _, n in rows)
     return out
+
+
+class _St:
+    def __init__(self, clock: Any) -> None:
+        self.clock = clock
 
 
 def finish_cancel_if_idle(conn: Any, clock: Any, job_id: str) -> None:

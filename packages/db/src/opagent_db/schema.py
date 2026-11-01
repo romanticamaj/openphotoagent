@@ -43,6 +43,7 @@ worker = Table(
     Column("roots", JSONB, nullable=False),
     Column("status", Text, nullable=False, server_default="online"),
     Column("disk_free", JSONB),
+    Column("capabilities", JSONB),
     _ts("last_heartbeat_at"),
 )
 source = Table(

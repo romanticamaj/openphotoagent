@@ -84,6 +84,7 @@ class ScanResult:
     entries: list[ScanEntry]
     skipped: list[Skipped]
     bytes_read: int = 0
+    skipped_before_cursor: int = 0
 
 
 def _expand_braces(pat: str) -> list[str]:
@@ -301,12 +302,18 @@ def scan(
     thumbs_dir: Path | None = None,
     reporter: Any = None,
     previous_total: int | None = None,
+    after: str | None = None,
 ) -> ScanResult:
-    """enumerate (indeterminate unless a previous total is known) -> hash/exif/thumbnails (determinate)."""
+    """enumerate (indeterminate unless a previous total is known) -> hash/exif/thumbnails (determinate).
+    ``after``: resume cursor — files sorting at or before it were already reported (SCAN-019)."""
     if reporter is not None:
         reporter.start("scan", previous_total)
         reporter.phase("enumerate")
     files, skipped = _walk(sb, alias, sub, include, exclude, exclude_subtrees or [])
+    before = 0
+    if after is not None:
+        before = sum(1 for r, _ in files if r <= after)
+        files = [(r, s) for r, s in files if r > after]
     if reporter is not None:
         reporter.progress(len(files), None)
         reporter.phase("hash")
@@ -333,7 +340,7 @@ def scan(
     skipped.sort(key=lambda s: s.rel)
     if reporter is not None:
         reporter.finish("succeeded")
-    return ScanResult(entries, skipped, bytes_read)
+    return ScanResult(entries, skipped, bytes_read, before)
 
 
 def _scan_one(

@@ -1,15 +1,13 @@
-import shutil
 from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import func, select
-
 from opagent_api.app import create_app
 from opagent_db.schema import asset_location, engine_for, operation
 from opagent_testing.clock import FakeClock
 from opagent_worker.agent import WorkerAgent
+from sqlalchemy import func, select
 
 FX = Path(__file__).resolve().parents[4] / "fixtures/photos/basic/IMG_0001.jpg"
 
@@ -32,8 +30,15 @@ def test_scan_019_pages_and_cursor_resume(embedded_pg, sandbox_tree, tmp_path):
     w.register()
     w.page_size = 1000
     src = client.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": "big"}).json()
-    job = client.post("/api/v1/jobs", json={"kind": "organize", "source_id": src["id"], "preset": "by-date",
-                                            "target": {"root_alias": "sorted", "sub_path": ""}}).json()
+    job = client.post(
+        "/api/v1/jobs",
+        json={
+            "kind": "organize",
+            "source_id": src["id"],
+            "preset": "by-date",
+            "target": {"root_alias": "sorted", "sub_path": ""},
+        },
+    ).json()
     w.crash_after_pages = 2  # simulated kill -9 after the second page was reported
     with pytest.raises(SystemExit):
         w.run_once()
@@ -61,8 +66,15 @@ def test_scan_020_source_offline_waits_then_resumes(embedded_pg, sandbox_tree, t
     w = WorkerAgent(client, roots=sandbox_tree.roots, home=tmp_path / "w", worker_id="w1", clock=clk)
     w.register()
     src = client.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": "ext"}).json()
-    job = client.post("/api/v1/jobs", json={"kind": "organize", "source_id": src["id"], "preset": "by-date",
-                                            "target": {"root_alias": "sorted", "sub_path": ""}}).json()
+    job = client.post(
+        "/api/v1/jobs",
+        json={
+            "kind": "organize",
+            "source_id": src["id"],
+            "preset": "by-date",
+            "target": {"root_alias": "sorted", "sub_path": ""},
+        },
+    ).json()
     sandbox_tree.photos.rename(sandbox_tree.base / "unplugged")
     assert w.run_once() is True  # task leased; the source is gone -> waiting, task kept
     ops = client.get("/api/v1/operations?status=active").json()
