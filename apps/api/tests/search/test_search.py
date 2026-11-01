@@ -301,3 +301,37 @@ def test_srch_sem_006_review_correction_reindexed(s):
     r = s.client.patch(f"/api/v1/assets/{aid}/labels", json={"category": "food", "tags": ["貓"]})
     assert r.status_code == 200
     assert [x["asset_id"] for x in s.search(filters={"tags_all": ["animal.cat"]}, semantic=False)["items"]] == [aid]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-SEM-003")
+def test_srch_sem_003_pipeline_stores_vectors_and_reindex_fills_gaps(embedded_pg, sandbox_tree, tmp_path):
+    import shutil
+    from pathlib import Path
+
+    fx = Path(__file__).resolve().parents[4] / "fixtures/photos/basic"
+    (sandbox_tree.photos / "p").mkdir()
+    for i in range(6):
+        shutil.copyfile(fx / f"IMG_{i + 1:04d}.jpg", sandbox_tree.photos / "p" / f"{i}.jpg")
+    client = TestClient(create_app(dsn=embedded_pg.dsn))
+    emb = FakeBackend(scores="high")
+    w = WorkerAgent(client, roots=sandbox_tree.roots, home=tmp_path / "w", backend=FakeBackend(vlm_p=0.9), embedder=emb, worker_id="w1")
+    w.register()
+    src = client.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": ""}).json()["id"]
+    client.post("/api/v1/jobs", json={"kind": "organize", "preset": "by-content-12", "source_id": src, "target": {"root_alias": "sorted"}})
+    for _ in range(100):
+        if not (w.run_once() | bool(w.process_items_once())):
+            break
+    st = client.get("/api/v1/search-index").json()
+    assert st["total"] == 6 and st["searchable"] == 6 and st["space"]["fingerprint"] == emb.describe().model_fingerprint
+    eng = engine_for(embedded_pg.dsn)
+    with eng.begin() as c:
+        c.execute(text("delete from asset_embedding where asset_id in (select asset_id from search_doc limit 2)"))
+    eng.dispose()
+    assert client.get("/api/v1/search-index").json()["searchable"] == 4
+    r = client.post("/api/v1/search-index/reindex")
+    assert r.status_code == 202
+    for _ in range(20):
+        if not w.run_once():
+            break
+    assert client.get("/api/v1/search-index").json()["searchable"] == 6
