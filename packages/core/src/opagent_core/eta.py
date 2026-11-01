@@ -160,3 +160,47 @@ class EtaTracker:
         return {"state": "stalled", "since_s": t - self._last_progress_t, "reason": reason,
                 "ctas": [{"id": "view_logs", "label_key": "eta.cta.view_logs"},
                          {"id": "retry", "label_key": "eta.cta.retry"}]}
+
+
+# ---- stubs (batch 2) ----
+def format_eta(seconds: float, lang: str, now: Any) -> str:
+    return ""
+
+
+def should_update(shown: float, new: float, state: str) -> bool:
+    return True
+
+
+def slow_explanation(rate_obs: float, rate_prior: float, gpu_util: float, cpu_util: float,
+                     gpu_busy_external: bool) -> str | None:
+    return None
+
+
+def display_eta(eta: dict[str, Any], status: str, waiting_reason: str | None = None) -> dict[str, Any]:
+    return {}
+
+
+class CascadeMix:
+    def __init__(self, prior_ratio: float) -> None:
+        self.ratio = prior_ratio
+
+    def observe(self, vlm: int, total: int) -> None:
+        pass
+
+    def remaining_seconds(self, items: int, vlm_s: float, emb_s: float) -> float:
+        return 0.0
+
+
+class ItemsEta:
+    def __init__(self, total: int, batch_size: int) -> None:
+        self.done = 0
+
+    def batch_done(self, items: int, seconds: float) -> None:
+        self.done += items
+
+    def estimate(self) -> tuple[float, float, float]:
+        return 0.0, 0.0, 0.0
+
+
+def queue_ahead(p50s: list[float]) -> float:
+    return -1.0
