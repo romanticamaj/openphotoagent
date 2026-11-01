@@ -106,7 +106,7 @@ def _lenient(raw: str) -> dict[str, Any] | None:
         return v
     try:
         rep: Any = json_repair.loads(body)
-    except Exception:  # noqa: BLE001 - the repair library may raise anything on garbage
+    except Exception:
         return None
     return rep if isinstance(rep, dict) and rep else None
 
