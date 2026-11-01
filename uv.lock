@@ -1141,10 +1141,14 @@ version = "0.0.1"
 source = { editable = "packages/core" }
 dependencies = [
     { name = "blake3" },
+    { name = "pyyaml" },
 ]
 
 [package.metadata]
-requires-dist = [{ name = "blake3" }]
+requires-dist = [
+    { name = "blake3" },
+    { name = "pyyaml" },
+]
 
 [[package]]
 name = "opagent-db"
