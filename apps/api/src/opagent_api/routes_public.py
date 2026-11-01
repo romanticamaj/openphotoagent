@@ -265,13 +265,53 @@ def resume_job(job_id: str, req: Request) -> dict[str, Any]:
     return get_job(job_id, req)
 
 
+class CancelIn(BaseModel):
+    mode: Literal["graceful", "immediate"] = "graceful"
+    confirm: bool = False
+
+
+CANCEL_CONFIRM_ABOVE_S = 60.0
+
+
+def _discard_estimate(c: Any, job_id: str) -> tuple[int, float]:
+    """Work an immediate cancel throws away: photos in flight × measured seconds per photo (06 §5.3, OP-012)."""
+    from opagent_db.schema import perf_observation
+
+    owners = c.execute(
+        select(job_item.c.lease_owner, func.count())
+        .where(job_item.c.job_id == job_id, job_item.c.status.in_(("leased", "running")))
+        .group_by(job_item.c.lease_owner)
+    ).all()
+    n = sum(k for _, k in owners)
+    rate = c.execute(
+        select(perf_observation.c.items_per_s)
+        .where(
+            perf_observation.c.worker_id.in_([o for o, _ in owners] or ["-"]),
+            perf_observation.c.items_per_s.is_not(None),
+        )
+        .order_by(perf_observation.c.id.desc())
+        .limit(1)
+    ).scalar()
+    per_item = 1.0 / float(rate) if rate else 2.0  # basis: observed, else a conservative prior
+    return n, n * per_item
+
+
 @router.post("/jobs/{job_id}/cancel")
-def cancel_job(job_id: str, req: Request) -> dict[str, Any]:
-    """running -> cancelling; pending items are cancelled; finished results are kept for the cache (Q-012)."""
+def cancel_job(job_id: str, req: Request, body: CancelIn | None = None) -> dict[str, Any]:
+    """running -> cancelling; pending items are cancelled; finished results are kept for the cache (Q-012).
+    graceful lets the leased batch finish; immediate gives the leases back, after confirmation when that discards
+    more than a minute of work (OP-012)."""
     from . import queue as q
 
+    body = body or CancelIn()
     st = _st(req)
     with st.engine.begin() as c:
+        if body.mode == "immediate":
+            n, discard = _discard_estimate(c, job_id)
+            if discard > CANCEL_CONFIRM_ABOVE_S and not body.confirm:
+                raise HTTPException(
+                    409, detail={"code": "CANCEL_DISCARDS_WORK", "n": n, "discard_s": round(discard, 1)}
+                )
         _ensure_job_op(c, st, job_id)
         cur = c.execute(select(job.c.status).where(job.c.id == job_id)).scalar_one()
         if cur == "applying":  # stop between file actions; what is done stays done and can be undone (OUT-EXE-017)
@@ -293,6 +333,19 @@ def cancel_job(job_id: str, req: Request) -> dict[str, Any]:
             .where(job_item.c.job_id == job_id, job_item.c.status == "pending")
             .values(status="cancelled")
         )
+        if body.mode == "immediate":  # give the in-flight batch back now; its results will be ignored
+            leased = c.execute(
+                select(job_item.c.id, job_item.c.lease_owner).where(
+                    job_item.c.job_id == job_id, job_item.c.status.in_(("leased", "running"))
+                )
+            ).all()
+            for owner in {r.lease_owner for r in leased}:
+                q.release(c, owner, [r.id for r in leased if r.lease_owner == owner])
+            c.execute(
+                update(job_item)
+                .where(job_item.c.job_id == job_id, job_item.c.status == "pending")
+                .values(status="cancelled")
+            )
         q.finish_cancel_if_idle(c, st.clock, job_id)
     return get_job(job_id, req)
 

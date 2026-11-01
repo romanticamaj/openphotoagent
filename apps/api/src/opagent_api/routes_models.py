@@ -13,7 +13,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from opagent_core.hw import Gpu, HwSummary
 from opagent_core.ids import uuid7
-from opagent_db.schema import installation, license_acceptance, perf_observation, worker, worker_task
+from opagent_db.schema import installation, license_acceptance, operation, perf_observation, worker, worker_task
 from opagent_registry.compat import compat
 from opagent_registry.loader import LoadedModel, Registry
 from pydantic import BaseModel
@@ -472,3 +472,36 @@ def _catalog_params(code: str, p: dict[str, Any]) -> dict[str, Any]:
     if code == "GPU_DRIVER_TOO_OLD":
         return {**p, "v": p.get("have"), "min": p.get("need")}
     return p
+
+
+def compat_for(c: Any, st: AppState, worker_id: str, key: str) -> dict[str, Any] | None:
+    """The one compat object for a variant on a worker — the model list, model card, onboarding plan and preflight
+    all render this (MDL-005)."""
+    ctx = _ctx(c, st, worker_id)
+    mid, _, vid = key.partition("@")
+    m = ctx["reg"].models.get(mid)
+    if m is None or m.status != "valid" or vid not in {v.id for v in m.spec.variants}:
+        return None
+    return dict(_variant_view(m, vid, ctx)["compat"])
+
+
+def job_vlm_key(c: Any, st: AppState, worker_id: str) -> str | None:
+    """The VLM a content job on this worker uses: the installed (or downloading) one, else the recommendation."""
+    from opagent_registry.recommend import recommend
+
+    ctx = _ctx(c, st, worker_id)
+    reg: Registry = ctx["reg"]
+    keys = [
+        k for k in ctx["inst"] if reg.models.get(k.split("@")[0]) and reg.models[k.split("@")[0]].spec.kind == "vlm"
+    ]
+    if keys:
+        return sorted(keys)[0]
+    for (k,) in c.execute(
+        select(operation.c.subject["id"].astext)
+        .where(operation.c.type == "model.download", operation.c.worker_id == worker_id)
+        .order_by(operation.c.created_at.desc())
+    ):
+        m = reg.models.get(str(k).split("@")[0])
+        if m is not None and m.spec.kind == "vlm":
+            return str(k)
+    return recommend(reg, ctx["hw"]).vlm

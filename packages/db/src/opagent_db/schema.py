@@ -159,6 +159,7 @@ job_item = Table(
     Column("attempts", Integer, nullable=False, server_default="0"),
     Column("max_attempts", Integer, nullable=False, server_default="3"),
     Column("lease_owner", Text),
+    Column("lease_boot", Text),  # the worker process that holds the lease (restart recovery, OP-006)
     _ts("lease_expires_at"),
     _ts("next_attempt_at"),
     Column("error_code", Text),
@@ -389,6 +390,7 @@ worker_task = Table(
     Column("worker_id", Text),
     Column("job_id", Text),
     Column("lane", Text, nullable=False, server_default="normal"),  # interactive tasks jump the queue (ORG-008)
+    Column("lease_boot", Text),  # the worker process that holds the lease (restart recovery, OP-006)
     _ts("lease_expires_at"),
     Column("result", JSONB),
     _ts("created_at", server_default=func.now()),

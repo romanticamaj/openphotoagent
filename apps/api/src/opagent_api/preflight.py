@@ -58,6 +58,7 @@ class Pre:
         self.warnings: list[dict[str, Any]] = []
         self.gates: list[dict[str, Any]] = []
         self.revalidate: list[str] = ["doctor.changed"]
+        self.models: list[dict[str, Any]] = []  # compat of the models this action would use (MDL-005)
         self.w: Any = None
         self.caps: dict[str, Any] = {}
         self.deployment = "desktop"
@@ -301,9 +302,21 @@ class Pre:
         if models:
             self.model_gates(models)
         elif p.get("preset", "by-date") != "by-date":
+            from .routes_models import compat_for, job_vlm_key
+
+            key = job_vlm_key(self.c, self.st, self.w.id)
+            if key:  # the same compat object the model list and cards show (MDL-005)
+                cp = compat_for(self.c, self.st, self.w.id, key)
+                if cp is not None:
+                    self.models.append({"role": "vlm", "key": key, "compat": cp})
             caps_models = self.caps.get("models") or {}
             if "classify" not in caps_models:
-                self.add("MODEL_NOT_INSTALLED", {"model": "classify"}, "model")
+                pct = self._downloading(key) if key else None
+                self.revalidate.append("model.installed")
+                if pct is not None:  # unlocks by itself when the download finishes (PF-077)
+                    self.add("MODEL_DOWNLOADING", {"model": key, "pct": pct}, "model")
+                else:
+                    self.add("MODEL_NOT_INSTALLED", {"model": "classify"}, "model")
 
     def _nothing_to_do(self) -> None:
         p = self.p
@@ -645,6 +658,7 @@ class Pre:
             "revalidate_on": sorted(set(self.revalidate)),
             "ttl_s": 60,
             "merged_fix": self.merged_fix(),
+            "models": self.models,
             "cached": False,
         }
 

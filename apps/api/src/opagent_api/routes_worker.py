@@ -20,7 +20,7 @@ from opagent_db.schema import (
     worker_task,
 )
 from pydantic import BaseModel
-from sqlalchemy import func, insert, select, text, update
+from sqlalchemy import func, insert, or_, select, text, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from . import organize
@@ -58,12 +58,14 @@ class RegisterIn(BaseModel):
     roots_status: dict[str, str] = {}  # alias -> ok | denied | unavailable
     packs_status: dict[str, Any] = {}
     disk_free: dict[str, int] | None = None
+    boot_id: str | None = None  # one per worker process: a new value means the previous process is gone
 
 
 class LeaseIn(BaseModel):
     worker_id: str
     wait_s: float = 0.0
-    exclude_kinds: list[str] = []  # e.g. "download" while the worker's download slot is busy (06 §2.4)
+    exclude_kinds: list[str] = []
+    boot_id: str | None = None  # e.g. "download" while the worker's download slot is busy (06 §2.4)
 
 
 class CompleteIn(BaseModel):
@@ -86,13 +88,16 @@ def register(body: RegisterIn, req: Request) -> dict[str, str]:
         "packs_status": body.packs_status,
         "disk_free": body.disk_free or {},
         "doctor_results": body.doctor_results,
+        "boot_id": body.boot_id,
     }
     with st.engine.begin() as c:
         prev = c.execute(select(worker.c.capabilities).where(worker.c.id == body.worker_id)).scalar() or {}
         before = {r["check_id"]: r["status"] for r in prev.get("doctor_results") or []}
         after = {r["check_id"]: r["status"] for r in body.doctor_results}
         changed = sorted(k for k in after if k in before and before[k] != after[k])
-        _recover_downloads(c, st, body.worker_id)
+        # leases held by any other process of this worker are orphaned (restart, crash, kill -9)
+        _recover_downloads(c, st, body.worker_id, body.boot_id)
+        _recover_jobs(c, st, body.worker_id, body.boot_id)
         if changed:  # preflight results depending on these checks must be recomputed (DOC-019)
             c.execute(
                 insert(event).values(kind="doctor.changed", payload={"worker_id": body.worker_id, "checks": changed})
@@ -121,14 +126,17 @@ def register(body: RegisterIn, req: Request) -> dict[str, str]:
     return {"worker_id": body.worker_id}
 
 
-def _recover_downloads(c: Any, st: AppState, worker_id: str) -> None:
+def _recover_downloads(c: Any, st: AppState, worker_id: str, boot: str | None = None) -> None:
     """A (re)registering worker lost its in-flight downloads (crash, kill -9): mark them interrupted and re-queue
     them; the downloader resumes from its .part files (06 §2.2, §5.8; DL-014)."""
     from opagent_db.schema import operation
 
     rows = c.execute(
         select(worker_task.c.id).where(
-            worker_task.c.worker_id == worker_id, worker_task.c.kind == "download", worker_task.c.status == "leased"
+            worker_task.c.worker_id == worker_id,
+            worker_task.c.kind == "download",
+            worker_task.c.status == "leased",
+            or_(boot is None, worker_task.c.lease_boot.is_(None), worker_task.c.lease_boot != boot),
         )
     ).all()
     for (tid,) in rows:
@@ -146,7 +154,36 @@ def _recover_downloads(c: Any, st: AppState, worker_id: str) -> None:
         )
 
 
-def _lease_one(st: AppState, worker_id: str, exclude: list[str] | None = None) -> dict[str, Any] | None:
+def _recover_jobs(c: Any, st: AppState, worker_id: str, boot: str | None = None) -> None:
+    """Items the previous process had leased are lost: give them back and pause their jobs as interrupted, so the
+    person sees what stopped and continues it (06 §5.3 interrupted, invariant 9; OP-006)."""
+    from opagent_db.schema import job_item
+
+    from .operations import ensure_operation
+
+    rows = c.execute(
+        select(job_item.c.id, job_item.c.job_id).where(
+            job_item.c.lease_owner == worker_id,
+            job_item.c.status.in_(("leased", "running")),
+            or_(boot is None, job_item.c.lease_boot.is_(None), job_item.c.lease_boot != boot),
+        )
+    ).all()
+    if not rows:
+        return
+    q.release(c, worker_id, [r.id for r in rows])
+    for jid in sorted({r.job_id for r in rows}):
+        status = c.execute(select(job.c.status).where(job.c.id == jid)).scalar()
+        if status != "running":
+            continue
+        ensure_operation(c, st.clock, jid, "job.label", {"kind": "job", "id": jid})
+        set_op_status(c, st.clock, jid, "running")
+        set_op_status(c, st.clock, jid, "interrupted")
+        set_job_status(c, jid, JobStatus.paused, clock=st.clock)
+
+
+def _lease_one(
+    st: AppState, worker_id: str, exclude: list[str] | None = None, boot: str | None = None
+) -> dict[str, Any] | None:
     with st.engine.begin() as c:
         c.execute(
             update(worker).where(worker.c.id == worker_id).values(last_heartbeat_at=st.clock.now(), status="online")
@@ -164,7 +201,12 @@ def _lease_one(st: AppState, worker_id: str, exclude: list[str] | None = None) -
         t = c.execute(
             update(worker_task)
             .where(worker_task.c.id == row.id)
-            .values(status="leased", worker_id=worker_id, lease_expires_at=st.clock.now() + timedelta(seconds=LEASE_S))
+            .values(
+                status="leased",
+                worker_id=worker_id,
+                lease_boot=boot,
+                lease_expires_at=st.clock.now() + timedelta(seconds=LEASE_S),
+            )
             .returning(worker_task)
         ).first()
         assert t is not None
@@ -187,7 +229,7 @@ def lease(body: LeaseIn, req: Request) -> Any:
     st = _st(req)
     deadline = st.clock.monotonic() + body.wait_s
     while True:
-        task = _lease_one(st, body.worker_id, body.exclude_kinds)
+        task = _lease_one(st, body.worker_id, body.exclude_kinds, body.boot_id)
         if task is not None:
             return task
         if st.clock.monotonic() >= deadline:
@@ -202,6 +244,7 @@ class JournalIn(BaseModel):
 
 class LeasesIn(BaseModel):
     worker_id: str
+    boot_id: str | None = None
     max_items: int = 16
     loaded_models: list[str] = []
     lanes: list[str] | None = None
@@ -211,7 +254,7 @@ class LeasesIn(BaseModel):
 def leases(body: LeasesIn, req: Request) -> Any:
     st = _st(req)
     with st.engine.begin() as c:
-        items = q.lease(c, st.clock, body.worker_id, body.max_items, body.loaded_models, body.lanes)
+        items = q.lease(c, st.clock, body.worker_id, body.max_items, body.loaded_models, body.lanes, body.boot_id)
     if not items:
         return Response(status_code=204)
     return {"items": items}

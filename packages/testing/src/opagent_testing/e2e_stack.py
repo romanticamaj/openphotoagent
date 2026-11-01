@@ -118,9 +118,35 @@ class Stack:
             """Make a step observable: VLM latency per item, pause between file actions while applying."""
             if "vlm_latency_s" in body and self.worker.backend is not None:
                 self.worker.backend.latency_s = float(body["vlm_latency_s"])
+                # the worker reports its measured speed, as after a load benchmark (06 §5.9 basis=observed)
+                self.worker.client.post(
+                    "/worker-api/v1/observations",
+                    json={"worker_id": "local", "kind": "items_per_s", "key": "vlm",
+                          "value": 1 / max(float(body["vlm_latency_s"]), 1e-3)},
+                )
             if "apply_throttle_s" in body:
                 self.worker.apply_throttle_s = float(body["apply_throttle_s"])
             return {"ok": True}
+
+        @ctl.post("/slow-downloads")
+        def slow_downloads(body: dict[str, float]) -> dict[str, bool]:
+            self.hf.rate_bps = float(body.get("rate_bps", 200_000))
+            return {"ok": True}
+
+        @ctl.post("/attach-models")
+        def attach_models() -> dict[str, bool]:
+            from opagent_inference.fake import FakeBackend
+
+            self.worker.backend = self.worker.backend or FakeBackend(vlm_p=0.9, vectors="semantic")
+            self.worker.embedder = self.worker.embedder or FakeBackend(scores="mixed", vectors="semantic")
+            self.worker.register()
+            return {"ok": True}
+
+        @ctl.post("/restart")
+        def restart() -> dict[str, bool]:
+            """Close and reopen the app: the old worker process dies mid-work (its connection is cut), a new
+            process with the same identity registers (new boot id) and recovers (OP-006)."""
+            return self.restart()
 
         @ctl.post("/move-into-sorted")
         def move_into_sorted() -> dict[str, str]:
@@ -323,6 +349,37 @@ class Stack:
                 w.register()
             if w.embedder is not None and w.backend is not None:
                 return
+
+    def restart(self) -> dict[str, bool]:
+        from opagent_worker.agent import WorkerAgent
+
+        class _Dead:
+            def __getattr__(self, _name: str) -> Any:
+                def fail(*_a: Any, **_k: Any) -> Any:
+                    raise httpx.ConnectError("process gone")
+
+                return fail
+
+        old = self.worker
+        old.client = _Dead()
+        self._stop.set()
+        self._stop = threading.Event()
+        client = httpx.Client(base_url=f"http://127.0.0.1:{self.port}", timeout=30)
+        self.worker = WorkerAgent(
+            client,
+            roots=[{"alias": r.alias, "path": str(r.path), "mode": r.mode} for r in old.roots],
+            home=old.home,
+            backend=old.backend,
+            embedder=old.embedder,
+            worker_id=old.worker_id,
+            hw_profile=old.hw_profile,
+            models_root=old.models_root,
+            download_sources=old.download_sources,
+        )
+        self.worker.register()
+        self._thread = threading.Thread(target=self.worker.run_forever, args=(self._stop,), daemon=True)
+        self._thread.start()
+        return {"ok": True}
 
     def _big_move_plan(self, n: int) -> dict[str, str]:
         """A draft plan with ``n`` move actions (never applied): the > 10,000-move confirmation (E2E-B-005)."""

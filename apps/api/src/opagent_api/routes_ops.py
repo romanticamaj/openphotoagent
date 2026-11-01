@@ -90,6 +90,14 @@ def control(op_id: str, action: str, req: Request) -> dict[str, Any]:
             if blockers:
                 raise HTTPException(409, detail={"code": "PREFLIGHT_BLOCKED", "blockers": blockers})
             set_op_status(c, st.clock, op_id, "running")
+            if op.type == "job.label":  # an interrupted/paused job continues where it stopped (OP-006)
+                from opagent_core.state_machine import JobStatus
+                from opagent_db.schema import job
+
+                from .db import set_job_status
+
+                if c.execute(select(job.c.status).where(job.c.id == op_id)).scalar() == "paused":
+                    set_job_status(c, op_id, JobStatus.running, clock=st.clock)
             from opagent_db.schema import worker_task
             from sqlalchemy import update as _upd
 

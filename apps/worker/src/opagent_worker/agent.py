@@ -67,6 +67,7 @@ class WorkerAgent:
         self.crash_after_pages: int | None = None  # test hook: simulate kill -9 after N reported pages
         self.last_scan_skipped_before_cursor = 0
         self._dl_thread: threading.Thread | None = None
+        self.boot_id = uuid.uuid4().hex  # one per process (restart detection, OP-006)
         self.apply_throttle_s = 0.0  # test hook (E2E-B-008): pause between file actions
 
     @property
@@ -122,6 +123,7 @@ class WorkerAgent:
             json={
                 "worker_id": self.worker_id,
                 "name": self.name,
+                "boot_id": self.boot_id,
                 "models": models,
                 "hw": self.hw_summary(),
                 **self.doctor_report(),
@@ -134,7 +136,7 @@ class WorkerAgent:
         """Lease and run one task. With ``background_downloads`` (the long-running loop) a download runs on its own
         thread — one at a time (06 §2.4) — so browsing, scans and labelling keep going meanwhile (04 §8.2 W6 ∥ W7)."""
         busy = self._dl_thread is not None and self._dl_thread.is_alive()
-        body: dict[str, Any] = {"worker_id": self.worker_id, "wait_s": wait_s}
+        body: dict[str, Any] = {"worker_id": self.worker_id, "wait_s": wait_s, "boot_id": self.boot_id}
         if background_downloads and busy:
             body["exclude_kinds"] = ["download"]
         r = self.client.post("/worker-api/v1/lease", json=body)
@@ -178,6 +180,7 @@ class WorkerAgent:
             "/worker-api/v1/leases",
             json={
                 "worker_id": self.worker_id,
+                "boot_id": self.boot_id,
                 "max_items": self.batch_size,
                 "loaded_models": [t for t in getattr(self, "loaded_tasks", [])],
             },
