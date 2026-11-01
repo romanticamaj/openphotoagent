@@ -5,10 +5,9 @@ import sys
 from pathlib import Path
 
 import pytest
-from opagent_testing.clock import FakeClock
-
 from opagent_doctor.checks import CHECKS, Ctx, features, run_checks
 from opagent_doctor.probes import read_profile
+from opagent_testing.clock import FakeClock
 
 ROOT = Path(__file__).resolve().parents[3]
 I18N = {lang: json.loads((ROOT / f"packages/i18n/checks.{lang}.json").read_text()) for lang in ("zh-TW", "en")}
@@ -52,7 +51,9 @@ def test_doc_002_rtx5070ti():
 def test_doc_003_mac_m3():
     rs = run(ctx("m3-16"))
     assert rs["gpu.metal"].status == "ok"
-    assert rs["gpu.vram"].observed["unified"] is True and rs["gpu.vram"].observed["budget_gb"] == pytest.approx(6.7, abs=0.01)
+    assert rs["gpu.vram"].observed["unified"] is True and rs["gpu.vram"].observed["budget_gb"] == pytest.approx(
+        6.7, abs=0.01
+    )
     assert rs["gpu.enumerate"].observed["recommended_packs"] == []
 
 

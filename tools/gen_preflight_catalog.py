@@ -61,7 +61,9 @@ def parse() -> list[dict[str, object]]:
 
 
 def main() -> int:
-    data = yaml.safe_dump({"source": "docs/09a-test-cases-v0.1.md §8.2", "rows": parse()}, allow_unicode=True, sort_keys=False)
+    data = yaml.safe_dump(
+        {"source": "docs/09a-test-cases-v0.1.md §8.2", "rows": parse()}, allow_unicode=True, sort_keys=False
+    )
     if "--check" in sys.argv:
         if not OUT.exists() or OUT.read_text(encoding="utf-8") != data:
             print("preflight_catalog.yaml is out of date: run tools/gen_preflight_catalog.py")

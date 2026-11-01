@@ -1,4 +1,3 @@
-
 import pytest
 
 from .test_catalog import EMB16, Q4, Q5

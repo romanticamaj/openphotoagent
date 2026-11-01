@@ -1,1 +1,113 @@
-{}
+{
+  "client.notifications": {
+    "title": "Notification permission"
+  },
+  "db.health": {
+    "title": "Database health"
+  },
+  "decode.heic": {
+    "title": "HEIC decoding"
+  },
+  "decode.raw": {
+    "title": "RAW decoding"
+  },
+  "disk.db": {
+    "title": "Database disk space"
+  },
+  "disk.models": {
+    "title": "Model folder space"
+  },
+  "disk.thumbs": {
+    "title": "Thumbnail folder space"
+  },
+  "fs.long_paths": {
+    "title": "Windows long paths"
+  },
+  "fs.roots": {
+    "title": "Allowed folders"
+  },
+  "gpu.blackwell_torch": {
+    "title": "PyTorch and new-generation GPUs"
+  },
+  "gpu.cuda_runtime": {
+    "title": "CUDA runtime compatibility"
+  },
+  "gpu.docker_passthrough": {
+    "title": "GPU inside the container"
+  },
+  "gpu.driver": {
+    "title": "GPU driver version"
+  },
+  "gpu.enumerate": {
+    "title": "GPU detection"
+  },
+  "gpu.metal": {
+    "title": "Apple Metal"
+  },
+  "gpu.rocm": {
+    "title": "AMD ROCm permissions"
+  },
+  "gpu.vram": {
+    "title": "GPU memory"
+  },
+  "mcp.server": {
+    "title": "MCP server"
+  },
+  "net.hf": {
+    "title": "Connection to Hugging Face"
+  },
+  "net.hf_token": {
+    "title": "Hugging Face token"
+  },
+  "net.ports": {
+    "title": "Ports"
+  },
+  "os.arch_support": {
+    "title": "CPU architecture support"
+  },
+  "os.platform": {
+    "title": "Operating system and platform"
+  },
+  "runtime.llamacpp": {
+    "title": "llama.cpp runtime"
+  },
+  "runtime.ollama": {
+    "title": "Ollama connection"
+  },
+  "runtime.ort_ep": {
+    "title": "ONNX Runtime acceleration"
+  },
+  "runtime.packs": {
+    "title": "Runtime pack self-test"
+  },
+  "runtime.vllm": {
+    "title": "vLLM runtime"
+  },
+  "search.index": {
+    "title": "Search index"
+  },
+  "sys.power": {
+    "title": "Power state"
+  },
+  "sys.ram": {
+    "title": "System memory"
+  },
+  "time.skew": {
+    "title": "System clock"
+  },
+  "tool.exiftool": {
+    "title": "EXIF writing tool (exiftool)"
+  },
+  "tool.ffmpeg": {
+    "title": "Video thumbnail tool (ffmpeg)"
+  },
+  "worker.link": {
+    "title": "Local engine connection"
+  },
+  "worker.version": {
+    "title": "Local engine version"
+  },
+  "wsl.gpu": {
+    "title": "GPU in WSL2"
+  }
+}

@@ -51,7 +51,8 @@ class RegisterIn(BaseModel):
     protocol_version: str = "1.0"
     deployment: str = "desktop"
     gpu_requested: bool = False
-    doctor: list[dict[str, Any]] = []  # latest doctor check results (06 §3.5)
+    doctor: list[dict[str, Any]] = []  # failing/warning doctor results, as consumed by preflight
+    doctor_results: list[dict[str, Any]] = []  # full results (06 §3.5)
     roots_status: dict[str, str] = {}  # alias -> ok | denied | unavailable
     packs_status: dict[str, Any] = {}
     disk_free: dict[str, int] | None = None
@@ -81,8 +82,17 @@ def register(body: RegisterIn, req: Request) -> dict[str, str]:
         "roots_status": body.roots_status,
         "packs_status": body.packs_status,
         "disk_free": body.disk_free or {},
+        "doctor_results": body.doctor_results,
     }
     with st.engine.begin() as c:
+        prev = c.execute(select(worker.c.capabilities).where(worker.c.id == body.worker_id)).scalar() or {}
+        before = {r["check_id"]: r["status"] for r in prev.get("doctor_results") or []}
+        after = {r["check_id"]: r["status"] for r in body.doctor_results}
+        changed = sorted(k for k in after if k in before and before[k] != after[k])
+        if changed:  # preflight results depending on these checks must be recomputed (DOC-019)
+            c.execute(
+                insert(event).values(kind="doctor.changed", payload={"worker_id": body.worker_id, "checks": changed})
+            )
         c.execute(
             pg_insert(worker)
             .values(

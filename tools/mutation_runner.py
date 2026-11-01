@@ -64,8 +64,14 @@ def _excluded_ids(tree: ast.AST) -> set[int]:
         if isinstance(node, ast.JoinedStr):
             all_ids(node)
         elif isinstance(node, ast.Raise) and isinstance(node.exc, ast.Call):
-            for a in node.exc.args[1:] if node.exc.args and isinstance(node.exc.args[0], ast.Constant) \
-                    and node.exc.args[0].value.__class__ is str and len(node.exc.args) > 1 else node.exc.args:
+            for a in (
+                node.exc.args[1:]
+                if node.exc.args
+                and isinstance(node.exc.args[0], ast.Constant)
+                and node.exc.args[0].value.__class__ is str
+                and len(node.exc.args) > 1
+                else node.exc.args
+            ):
                 if isinstance(a, ast.Constant) and isinstance(a.value, str) and " " in a.value:
                     ids.add(id(a))
         elif isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
@@ -81,11 +87,16 @@ def _excluded_ids(tree: ast.AST) -> set[int]:
                     all_ids(node.returns)
         elif isinstance(node, ast.AnnAssign):
             all_ids(node.annotation)
-        elif isinstance(node, ast.Assign) and isinstance(node.value, ast.Subscript) and \
-                isinstance(node.value.value, ast.Name) and node.value.value.id == "Literal":
+        elif (
+            isinstance(node, ast.Assign)
+            and isinstance(node.value, ast.Subscript)
+            and isinstance(node.value.value, ast.Name)
+            and node.value.value.id == "Literal"
+        ):
             all_ids(node.value)
         elif isinstance(node, ast.Compare) and any(
-                isinstance(x, ast.Attribute) and x.attr == "platform" for x in ast.walk(node)):
+            isinstance(x, ast.Attribute) and x.attr == "platform" for x in ast.walk(node)
+        ):
             all_ids(node)
     return ids
 

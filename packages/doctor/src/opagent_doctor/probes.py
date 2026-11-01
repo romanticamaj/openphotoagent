@@ -205,3 +205,32 @@ def collect_probes() -> dict[str, Any]:
     probes["dev_nvidia"] = sorted(str(p) for p in Path("/dev").glob("nvidia*")) if Path("/dev").exists() else []
     probes["in_container"] = Path("/.dockerenv").exists()
     return probes
+
+
+def collect_env(roots: list[dict[str, Any]] | None = None, models_root: str | None = None) -> dict[str, Any]:
+    """Live raw facts for the doctor checks (cheap, quick group only). Runs on the Worker."""
+    import importlib.util
+    import os
+    import shutil
+
+    env: dict[str, Any] = {
+        "imports": {m: importlib.util.find_spec(m) is not None for m in ("pillow_heif", "rawpy")},
+        "which": {t: shutil.which(t) for t in ("ffmpeg", "exiftool")},
+    }
+    if models_root:
+        p = Path(models_root)
+        while not p.exists() and p != p.parent:
+            p = p.parent
+        env["disk"] = {"models_free": shutil.disk_usage(p).free}
+    states = []
+    for r in roots or []:
+        path = Path(r["path"])
+        st = "ok"
+        if not path.exists():
+            st = "ENOENT"
+        elif not os.access(path, os.R_OK):
+            st = "EACCES"
+        writable = os.access(path, os.W_OK) if path.exists() else None
+        states.append({"alias": r["alias"], "state": st, "mode": r.get("mode", "ro"), "writable": writable})
+    env["roots"] = states
+    return env

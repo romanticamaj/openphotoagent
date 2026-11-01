@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from opagent_core.clock import Clock, SystemClock
 from opagent_db.schema import engine_for
 
-from . import routes_models, routes_ops, routes_public, routes_review, routes_worker
+from . import routes_doctor, routes_models, routes_ops, routes_public, routes_review, routes_worker
 from .problems import install_problem_handlers
 from .state import AppState
 
@@ -39,6 +39,7 @@ def create_app(
     app.include_router(routes_ops.router, prefix="/api/v1")
     app.include_router(routes_review.router, prefix="/api/v1")
     app.include_router(routes_models.router, prefix="/api/v1")
+    app.include_router(routes_doctor.router, prefix="/api/v1")
     app.include_router(routes_models.worker_router, prefix="/worker-api/v1")
     app.include_router(routes_worker.router, prefix="/worker-api/v1")
 

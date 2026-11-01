@@ -275,6 +275,18 @@ installation = Table(  # 06 §1.7 / 02 §10.1: an artifact or pack installed on 
     UniqueConstraint("worker_id", "kind", "key"),
 )
 
+audit_log = Table(  # 06 §3.6: every auto_fix and privileged action (DOC-017)
+    "audit_log",
+    metadata,
+    Column("id", BigInteger, primary_key=True, autoincrement=True),
+    _ts("at", server_default=func.now()),
+    Column("actor", Text, nullable=False),
+    Column("action", Text, nullable=False),
+    Column("target", Text),
+    Column("outcome", Text),
+    Column("details", JSONB),
+)
+
 license_acceptance = Table(  # 06 §1.9
     "license_acceptance",
     metadata,

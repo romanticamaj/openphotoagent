@@ -48,6 +48,7 @@ class WorkerAgent:
         self.home.mkdir(parents=True, exist_ok=True)
         self.backend = backend
         self.hw_profile = hw_profile
+        self.doctor_env: dict[str, Any] = {}  # raw-fact overrides for the doctor (tests / FakeWorkerLink)
         self.models_root = Path(models_root) if models_root else self.home / "models"
         self.download_sources = download_sources or ["https://huggingface.co"]
         caps = backend.describe().task_types if backend is not None else ()
@@ -73,6 +74,19 @@ class WorkerAgent:
         parts = [self.embedder.describe().model_fingerprint if self.embedder else "-"]
         parts.append(self.backend.describe().model_fingerprint if self.backend else "-")
         return "cascade-" + hashlib.sha256("|".join(parts).encode()).hexdigest()[:16]
+
+    def doctor_report(self) -> dict[str, Any]:
+        """Quick doctor checks on this machine (06 §3); results feed preflight via the control plane."""
+        import asyncio
+
+        from opagent_doctor.checks import Ctx, run_checks, to_preflight
+        from opagent_doctor.probes import collect_env, collect_probes, read_profile
+
+        probes = read_profile(self.hw_profile)["probes"] if self.hw_profile else collect_probes()
+        roots = [{"alias": r.alias, "path": str(r.path), "mode": r.mode} for r in self.roots]
+        env = {**collect_env(roots, str(self.models_root)), **self.doctor_env}
+        results = asyncio.run(run_checks(Ctx(probes=probes, env=env, clock=self.clock), group="quick"))
+        return {"doctor": to_preflight(results), "doctor_results": [r.to_dict() for r in results]}
 
     def hw_summary(self) -> dict[str, Any]:
         """Doctor's hardware summary: a recorded/synthesized profile in tests, live probes otherwise."""
@@ -106,6 +120,7 @@ class WorkerAgent:
                 "name": self.name,
                 "models": models,
                 "hw": self.hw_summary(),
+                **self.doctor_report(),
                 "roots": [{"alias": r.alias, "mode": r.mode} for r in self.roots],
             },
         )
@@ -473,6 +488,19 @@ class WorkerAgent:
             "warnings": res.warnings,
             "installed": res.installed,
         }
+
+    def _do_fix(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """Whitelisted auto-fixes executed on this machine (06 §3.6). Desktop-shell actions (open a system settings
+        panel, switch the API port) are forwarded to the shell, which owns those capabilities."""
+        fid = p["fix_id"]
+        if fid == "cleanup_downloads":
+            import shutil
+
+            d = self.models_root / ".downloads"
+            freed = sum(f.stat().st_size for f in d.rglob("*") if f.is_file()) if d.exists() else 0
+            shutil.rmtree(d, ignore_errors=True)
+            return {"status": "done", "freed_bytes": freed}
+        return {"status": "forwarded_to_shell", "fix_id": fid}
 
     def _do_remove(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         """Delete an installation's snapshot links and blobs under the models root only."""

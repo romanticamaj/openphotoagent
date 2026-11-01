@@ -11,7 +11,9 @@ from sqlalchemy import text
 def env(embedded_pg, sandbox_tree, tmp_path):
     clk = FakeClock()
     client = TestClient(create_app(dsn=embedded_pg.dsn, clock=clk))
-    w = WorkerAgent(client, roots=sandbox_tree.roots, home=tmp_path / "w", worker_id="w1", hw_profile="rtx5070ti-win11", clock=clk)
+    w = WorkerAgent(
+        client, roots=sandbox_tree.roots, home=tmp_path / "w", worker_id="w1", hw_profile="rtx5070ti-win11", clock=clk
+    )
     return {"client": client, "w": w, "clk": clk, "dsn": embedded_pg.dsn}
 
 
@@ -37,7 +39,10 @@ def test_doc_010_port_in_use(env, holder, fix_id):
 @pytest.mark.security
 @pytest.mark.tc("DOC-016")
 def test_doc_016_auto_fix_whitelist(env):
-    env["w"].doctor_env = {"ports": {"52731": {"pid": 1, "process": "other.exe", "healthz_opagent": False}}, "time_skew_s": 400}
+    env["w"].doctor_env = {
+        "ports": {"52731": {"pid": 1, "process": "other.exe", "healthz_opagent": False}},
+        "time_skew_s": 400,
+    }
     env["w"].register()
     c = env["client"]
     rs = c.get("/api/v1/system/doctor", params={"worker_id": "w1"}).json()["results"]
@@ -82,6 +87,8 @@ def test_doc_019_cache_and_change_events(env):
     w.register()  # a status changed (time.skew ok → fail)
     body = _events(c)
     assert "event: doctor.changed" in body and "time.skew" in body.split("event: doctor.changed")[1]
-    pf = c.post("/api/v1/preflight", json={"action": "model.download", "params": {"variant": "x@y", "worker_id": "w1"}}).json()
+    pf = c.post(
+        "/api/v1/preflight", json={"action": "model.download", "params": {"variant": "x@y", "worker_id": "w1"}}
+    ).json()
     assert "doctor.changed" in pf["revalidate_on"]
     assert "TIME_SKEW" in [b["code"] for b in pf["blockers"]]
