@@ -28,7 +28,13 @@ from .operations import ensure_operation, set_op_status
 from .state import AppState
 
 router = APIRouter()
-TASK_OP_TYPES = {"scan": "scan", "apply": "output.apply", "undo": "output.undo"}
+TASK_OP_TYPES = {
+    "scan": "scan",
+    "apply": "output.apply",
+    "undo": "output.undo",
+    "download": "model.download",
+    "remove": "model.remove",
+}
 LEASE_S = 120
 
 
@@ -41,6 +47,7 @@ class RegisterIn(BaseModel):
     name: str = "local"
     roots: list[dict[str, str]]
     models: dict[str, str] = {}  # task -> model_fingerprint of the loaded/installed backend
+    hw: dict[str, Any] | None = None  # doctor's hardware summary (compat input, 06 §1.2)
 
 
 class LeaseIn(BaseModel):
@@ -65,7 +72,7 @@ def register(body: RegisterIn, req: Request) -> dict[str, str]:
                 name=body.name,
                 roots=roots,
                 last_heartbeat_at=st.clock.now(),
-                capabilities={"models": body.models},
+                capabilities={"models": body.models, "hw": body.hw},
             )
             .on_conflict_do_update(
                 index_elements=["id"],
@@ -73,7 +80,7 @@ def register(body: RegisterIn, req: Request) -> dict[str, str]:
                     "roots": roots,
                     "status": "online",
                     "last_heartbeat_at": st.clock.now(),
-                    "capabilities": {"models": body.models},
+                    "capabilities": {"models": body.models, "hw": body.hw},
                 },
             )
         )
@@ -224,6 +231,7 @@ def mirror_journal(body: JournalIn, req: Request) -> dict[str, int]:
 
 
 class ProgressIn(BaseModel):
+    progress: dict[str, Any] | None = None  # {done, total, unit, ...} for byte/item progress (downloads)
     events: list[dict[str, Any]] = []  # streamed stage events (ORG-008 try-one)
     entries: list[dict[str, Any]] = []
     cursor: str | None = None
@@ -231,7 +239,7 @@ class ProgressIn(BaseModel):
 
 
 @router.post("/tasks/{task_id}/progress")
-def task_progress(task_id: str, body: ProgressIn, req: Request) -> dict[str, str]:
+def task_progress(task_id: str, body: ProgressIn, req: Request) -> dict[str, Any]:
     """Scan pages (1,000 entries) with a resume cursor (SCAN-019); waiting states such as SOURCE_OFFLINE (SCAN-020)."""
     st = _st(req)
     with st.engine.begin() as c:
@@ -250,11 +258,21 @@ def task_progress(task_id: str, body: ProgressIn, req: Request) -> dict[str, str
             .where(worker_task.c.id == task_id)
             .values(payload=payload, lease_expires_at=st.clock.now() + timedelta(seconds=LEASE_S))
         )
+        from opagent_db.schema import operation
+
+        op = c.execute(select(operation.c.status).where(operation.c.id == task_id)).first()
+        op_status = op.status if op else None
+        if body.progress is not None and op is not None:
+            c.execute(update(operation).where(operation.c.id == task_id).values(progress=body.progress))
         if body.waiting_reason:
             set_op_status(c, st.clock, task_id, "waiting", body.waiting_reason)
-        elif t.kind in TASK_OP_TYPES:
+        elif t.kind in TASK_OP_TYPES and op_status not in ("paused", "pausing", "cancelling", "cancelled"):
             set_op_status(c, st.clock, task_id, "running")
-    return {"status": "ok"}
+    # control channel: the worker checks this after each progress report (06 §2.2 true pause/cancel)
+    control = {"paused": "pause", "pausing": "pause", "cancelling": "cancel", "cancelled": "cancel"}.get(
+        op_status or ""
+    )
+    return {"status": "ok", "control": control}
 
 
 @router.post("/tasks/{task_id}/complete")
@@ -269,16 +287,31 @@ def complete(task_id: str, body: CompleteIn, req: Request) -> dict[str, str]:
             .where(worker_task.c.id == task_id)
             .values(status="done" if body.ok else "failed", result=body.result)
         )
-        handler = {"scan": _on_scan, "apply": _on_apply, "undo": _on_undo, "estimate": _on_estimate}.get(t.kind)
+        from .routes_models import on_download_complete, on_remove_complete
+
+        handler = {
+            "scan": _on_scan,
+            "apply": _on_apply,
+            "undo": _on_undo,
+            "estimate": _on_estimate,
+            "download": on_download_complete,
+            "remove": on_remove_complete,
+        }.get(t.kind)
         if t.kind in TASK_OP_TYPES:
             waiting = body.result.get("status") == "waiting"
-            set_op_status(
-                c,
-                st.clock,
-                t.id,
-                "waiting" if waiting else "succeeded" if body.ok else "failed",
-                body.result.get("waiting_reason") if waiting else None,
-            )
+            rs = body.result.get("status")
+            if rs == "paused":
+                pass  # stays paused; resume re-queues the task and the download continues from its .part
+            elif rs == "cancelled":
+                set_op_status(c, st.clock, t.id, "cancelled")
+            else:
+                set_op_status(
+                    c,
+                    st.clock,
+                    t.id,
+                    "waiting" if waiting else "succeeded" if body.ok and rs != "failed" else "failed",
+                    body.result.get("waiting_reason") if waiting else None,
+                )
         if handler and body.ok:
             handler(st, c, t, body.result)
         elif handler and t.job_id and t.kind == "scan":

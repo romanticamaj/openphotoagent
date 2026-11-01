@@ -81,9 +81,10 @@ def test_mdl_012_list_models_has_compat_and_legacy_fits_now(env):
 @pytest.mark.tc("INF-REG-003")
 def test_inf_reg_003_user_yaml_shows_up(env):
     (env["user"] / "mine.yaml").write_text(
-        (ROOT / "fixtures/registry/models/fixture-nc-vlm.yaml").read_text().replace("fixture-nc-vlm", "my-user-vlm").replace(
-            '"nc-q4.gguf" }', '"nc-q4.gguf", size: 10, sha256: "' + "d" * 64 + '" }'
-        )
+        (ROOT / "fixtures/registry/models/fixture-nc-vlm.yaml")
+        .read_text()
+        .replace("fixture-nc-vlm", "my-user-vlm")
+        .replace('"nc-q4.gguf" }', '"nc-q4.gguf", size: 10, sha256: "' + "d" * 64 + '" }')
     )
     m = _models(env["client"])["my-user-vlm"]
     assert m["source"] == "user" and m["status"] == "valid"
@@ -124,8 +125,12 @@ def test_mdl_007_delete_in_use_then_after_job(env):
     inst = next(x for x in _models(c)[EMB]["variants"] if x["id"] == "onnx-int8")["installation"]
     eng = engine_for(env["dsn"])
     with eng.begin() as conn:  # a running job depends on the model
-        conn.execute(text("insert into job(id, workspace_id, kind, status, params) values ('jx','default','organize','running', :p)"),
-                     {"p": json.dumps({"models": [f"{EMB}@onnx-int8"]})})
+        conn.execute(
+            text(
+                "insert into job(id, workspace_id, kind, status, params) values ('jx','default','organize','running', :p)"
+            ),
+            {"p": json.dumps({"models": [f"{EMB}@onnx-int8"]})},
+        )
     r = c.delete(f"/api/v1/workers/w1/installations/{inst['id']}")
     assert r.status_code == 409 and r.json()["blockers"][0]["code"] == "MODEL_IN_USE"
     assert [f["id"] for f in r.json()["blockers"][0]["fixes"]] == ["delete_after_jobs", "cancel_jobs"]
@@ -172,7 +177,10 @@ def test_inf_vram_005_observed_vram_used_next_time(env):
     c = env["client"]
     v = next(x for x in _models(c)["qwen3-vl-8b-instruct"]["variants"] if x["id"] == "q5_k_m")
     assert v["compat"]["vram"]["need_gb"] == 8.5 and v["compat"]["vram"]["source"] == "estimated"
-    r = c.post("/worker-api/v1/observations", json={"worker_id": "w1", "kind": "vram", "key": "qwen3-vl-8b-instruct@q5_k_m", "value": 9.1})
+    r = c.post(
+        "/worker-api/v1/observations",
+        json={"worker_id": "w1", "kind": "vram", "key": "qwen3-vl-8b-instruct@q5_k_m", "value": 9.1},
+    )
     assert r.status_code == 200
     v = next(x for x in _models(c)["qwen3-vl-8b-instruct"]["variants"] if x["id"] == "q5_k_m")
     assert v["compat"]["vram"]["need_gb"] == 9.1 and v["compat"]["vram"]["source"] == "observed"
@@ -182,7 +190,10 @@ def test_inf_vram_005_observed_vram_used_next_time(env):
 @pytest.mark.tc("DL-020")
 def test_dl_020_onboarding_downloads_siglip_first_then_index(env):
     c, w = env["client"], env["worker"]
-    r = c.post("/api/v1/onboarding/install", json={"worker_id": "w1", "variants": ["qwen3-vl-8b-instruct@q5_k_m", f"{EMB}@onnx-int8"]})
+    r = c.post(
+        "/api/v1/onboarding/install",
+        json={"worker_id": "w1", "variants": ["qwen3-vl-8b-instruct@q5_k_m", f"{EMB}@onnx-int8"]},
+    )
     assert r.status_code == 202
     plan = r.json()
     assert plan["order"][0] == f"{EMB}@onnx-int8"

@@ -165,3 +165,40 @@ def summarize(probes: dict[str, Any]) -> HwSummary:
 
 def load_profile(name: str, root: Path = FIXTURES) -> HwSummary:
     return summarize(read_profile(name, root)["probes"])
+
+
+def collect_probes() -> dict[str, Any]:
+    """Live raw probes on this machine (best effort; every probe may be missing). Runs on the Worker only."""
+    import contextlib
+    import os
+    import platform
+    import shutil
+    import subprocess
+
+    probes: dict[str, Any] = {
+        "platform": {
+            "system": platform.system(),
+            "release": platform.release(),
+            "machine": platform.machine(),
+            "cpu_count": os.cpu_count() or 1,
+        }
+    }
+    with contextlib.suppress(OSError):
+        probes["meminfo"] = Path("/proc/meminfo").read_text()
+    smi = shutil.which("nvidia-smi")
+    if smi:
+        try:
+            probes["nvidia_smi_xml"] = subprocess.run(
+                [smi, "-q", "-x"], capture_output=True, text=True, timeout=5
+            ).stdout
+            probes["nvidia_smi_query_csv"] = subprocess.run(
+                [smi, "--query-gpu=name,memory.total,driver_version,compute_cap", "--format=csv"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+            ).stdout
+        except (OSError, subprocess.SubprocessError):
+            pass
+    probes["dev_nvidia"] = sorted(str(p) for p in Path("/dev").glob("nvidia*")) if Path("/dev").exists() else []
+    probes["in_container"] = Path("/.dockerenv").exists()
+    return probes

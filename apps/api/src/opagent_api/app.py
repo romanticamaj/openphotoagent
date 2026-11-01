@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from opagent_core.clock import Clock, SystemClock
 from opagent_db.schema import engine_for
 
-from . import routes_ops, routes_public, routes_review, routes_worker
+from . import routes_models, routes_ops, routes_public, routes_review, routes_worker
 from .problems import install_problem_handlers
 from .state import AppState
 
@@ -23,13 +23,23 @@ def create_app(
     user_models_dir: Any = None,
 ) -> FastAPI:
     app = FastAPI(title="OpenPhotoAgent API", version="0.1.0-dev")
-    st = AppState(engine=engine_for(dsn), clock=clock or SystemClock(), launch_token=launch_token)
+    from pathlib import Path
+
+    st = AppState(
+        engine=engine_for(dsn),
+        clock=clock or SystemClock(),
+        launch_token=launch_token,
+        registry_dir=Path(registry_dir) if registry_dir else None,
+        user_models_dir=Path(user_models_dir) if user_models_dir else None,
+    )
     st.ensure_workspace()
     app.state.opa = st
     install_problem_handlers(app)
     app.include_router(routes_public.router, prefix="/api/v1")
     app.include_router(routes_ops.router, prefix="/api/v1")
     app.include_router(routes_review.router, prefix="/api/v1")
+    app.include_router(routes_models.router, prefix="/api/v1")
+    app.include_router(routes_models.worker_router, prefix="/worker-api/v1")
     app.include_router(routes_worker.router, prefix="/worker-api/v1")
 
     @app.get("/metrics", include_in_schema=False)

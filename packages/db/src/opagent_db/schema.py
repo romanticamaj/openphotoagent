@@ -256,7 +256,35 @@ perf_observation = Table(  # 06 §5.5 / 02 §10.1
     Column("items_per_s", Float),
     Column("bytes_per_s", Float),
     Column("load_s", Float),
+    Column("vram_gb", Float),  # measured after load (INF-VRAM-005)
     _ts("at"),
+)
+
+installation = Table(  # 06 §1.7 / 02 §10.1: an artifact or pack installed on a worker
+    "installation",
+    metadata,
+    Column("id", Text, primary_key=True),
+    Column("worker_id", Text, nullable=False),
+    Column("kind", Text, nullable=False),  # model | pack
+    Column("key", Text, nullable=False),  # model@variant | pack id
+    Column("status", Text, nullable=False, server_default="installed"),
+    Column("size_bytes", BigInteger),
+    Column("files", JSONB),
+    Column("managed", Boolean, nullable=False, server_default="true"),
+    _ts("created_at", server_default=func.now()),
+    UniqueConstraint("worker_id", "kind", "key"),
+)
+
+license_acceptance = Table(  # 06 §1.9
+    "license_acceptance",
+    metadata,
+    Column("id", BigInteger, primary_key=True, autoincrement=True),
+    Column("workspace_id", Text, nullable=False),
+    Column("model_id", Text, nullable=False),
+    Column("license_id", Text, nullable=False),
+    Column("license_hash", Text, nullable=False),
+    _ts("accepted_at", server_default=func.now()),
+    _ts("revoked_at"),
 )
 eta_calibration = Table(
     "eta_calibration",

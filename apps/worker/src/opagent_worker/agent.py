@@ -47,6 +47,9 @@ class WorkerAgent:
         self.home = Path(home)
         self.home.mkdir(parents=True, exist_ok=True)
         self.backend = backend
+        self.hw_profile = hw_profile
+        self.models_root = Path(models_root) if models_root else self.home / "models"
+        self.download_sources = download_sources or ["https://huggingface.co"]
         caps = backend.describe().task_types if backend is not None else ()
         self.embedder = embedder if embedder is not None else (backend if "embed" in caps else None)
         self._cascade: Any = None
@@ -71,6 +74,15 @@ class WorkerAgent:
         parts.append(self.backend.describe().model_fingerprint if self.backend else "-")
         return "cascade-" + hashlib.sha256("|".join(parts).encode()).hexdigest()[:16]
 
+    def hw_summary(self) -> dict[str, Any]:
+        """Doctor's hardware summary: a recorded/synthesized profile in tests, live probes otherwise."""
+        from dataclasses import asdict
+
+        from opagent_doctor.probes import collect_probes, load_profile, summarize
+
+        hw = load_profile(self.hw_profile) if self.hw_profile else summarize(collect_probes())
+        return asdict(hw)
+
     def _load_id(self) -> str:
         f = self.home / "worker_id"
         if f.exists():
@@ -93,6 +105,7 @@ class WorkerAgent:
                 "worker_id": self.worker_id,
                 "name": self.name,
                 "models": models,
+                "hw": self.hw_summary(),
                 "roots": [{"alias": r.alias, "mode": r.mode} for r in self.roots],
             },
         )
@@ -416,6 +429,65 @@ class WorkerAgent:
     def _do_undo(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         res = self.executor.undo(p["plan_id"])
         return {"results": [r.__dict__ for r in res]}
+
+    def _do_download(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """model.download (06 §2): progress is streamed to the Operation; the CP records the installation."""
+        import asyncio
+
+        from .downloads import CancelToken, DlFile, Downloader, DownloadError
+
+        token = CancelToken()
+        last = [0.0]
+
+        def progress(ev: dict[str, Any]) -> None:
+            now = self.clock.monotonic()
+            if now - last[0] < 0.25 and ev["done_bytes"] < ev["total_bytes"]:
+                return
+            last[0] = now
+            r = self.client.post(
+                f"/worker-api/v1/tasks/{task_id}/progress",
+                json={
+                    "progress": {
+                        "done": ev["done_bytes"],
+                        "total": ev["total_bytes"],
+                        "unit": "bytes",
+                        "file": ev["file"],
+                    }
+                },
+            )
+            ctl = r.json().get("control") if r.status_code == 200 else None
+            if ctl == "pause":
+                token.pause()
+            elif ctl == "cancel":
+                token.cancel()
+
+        d = Downloader(self.models_root, sources=self.download_sources, on_progress=progress, clock=self.clock)
+        files = [DlFile(f["repo"], f["revision"], f["path"], int(f["size"]), f["sha256"]) for f in p["files"]]
+        try:
+            res = asyncio.run(d.download(p["op_id"], files, token))
+        except DownloadError as e:
+            return {"status": "failed", "error_code": e.code, "details": e.details, "permanent": e.permanent}
+        return {
+            "status": res.status,
+            "error_code": res.error_code,
+            "warnings": res.warnings,
+            "installed": res.installed,
+        }
+
+    def _do_remove(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """Delete an installation's snapshot links and blobs under the models root only."""
+        from .downloads import DlFile, Downloader
+
+        d = Downloader(self.models_root, sources=self.download_sources)
+        freed = 0
+        for f in p.get("files") or []:
+            df = DlFile(f["repo"], f["revision"], f["path"], int(f["size"]), f["sha256"])
+            for path in (d._snapshot(df), d._blob(df)):
+                if path.is_symlink() or path.exists():
+                    if path == d._blob(df):
+                        freed += path.stat().st_size
+                    path.unlink()
+        return {"status": "done", "freed_bytes": freed}
 
     def _do_try_one(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         """One photo through the cascade, streaming each stage to the UI (ORG-008)."""

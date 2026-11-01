@@ -24,8 +24,12 @@ def _st(req: Request) -> AppState:
 
 
 @router.get("/operations")
-def list_operations(req: Request, status: str = "active", limit: int = 200) -> list[dict[str, Any]]:
+def list_operations(
+    req: Request, status: str = "active", limit: int = 200, type: str | None = None
+) -> list[dict[str, Any]]:
     q = select(operation)
+    if type:
+        q = q.where(operation.c.type == type)
     if status == "active":
         q = q.where(operation.c.status.in_(ACTIVE))
     elif status == "failed":
@@ -80,6 +84,14 @@ def control(op_id: str, action: str, req: Request) -> dict[str, Any]:
             if blockers:
                 raise HTTPException(409, detail={"code": "PREFLIGHT_BLOCKED", "blockers": blockers})
             set_op_status(c, st.clock, op_id, "running")
+            from opagent_db.schema import worker_task
+            from sqlalchemy import update as _upd
+
+            c.execute(  # a paused download task resumes from its .part (06 §2.2)
+                _upd(worker_task)
+                .where(worker_task.c.id == op_id, worker_task.c.status == "done", worker_task.c.kind == "download")
+                .values(status="pending", lease_expires_at=None)
+            )
         elif action == "pause":
             set_op_status(c, st.clock, op_id, "pausing")
             set_op_status(c, st.clock, op_id, "paused", "PAUSED_BY_USER")
