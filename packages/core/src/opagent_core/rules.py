@@ -105,9 +105,8 @@ def _eval(node: ast.AST, env: dict[str, Any]) -> Any:
         return LITERALS[node.id] if node.id in LITERALS else env.get(node.id)
     if isinstance(node, ast.Constant):
         return node.value
-    if isinstance(node, ast.List | ast.Tuple):
-        return [_eval(e, env) for e in node.elts]
-    raise RuleError("RULE_FORBIDDEN")  # unreachable after _check
+    assert isinstance(node, ast.List | ast.Tuple)  # guaranteed by _check
+    return [_eval(e, env) for e in node.elts]
 
 
 def compile_when(expr: str, pointer: str = "/when") -> Callable[[dict[str, Any]], bool]:
