@@ -4,9 +4,8 @@ import shutil
 from pathlib import Path
 
 import pytest
-
-from opagent_registry.loader import BUILTIN_DIR, RegistryLoadError, load_registry
 from opagent_registry.defaults import resolve_task_defaults
+from opagent_registry.loader import BUILTIN_DIR, RegistryLoadError, load_registry
 
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 
@@ -52,7 +51,7 @@ def test_inf_reg_001_builtin_registry_valid():
 def test_inf_reg_001_catalog_with_hash_rejected(tmp_path):
     d = _copy_builtin(tmp_path)
     p = d / "models" / "qwen3-vl-4b-instruct.yaml"
-    p.write_text(p.read_text().replace('role: weights }', 'role: weights, sha256: "' + "b" * 64 + '" }', 1))
+    p.write_text(p.read_text().replace("role: weights }", 'role: weights, sha256: "' + "b" * 64 + '" }', 1))
     with pytest.raises(RegistryLoadError, match="sha256"):
         load_registry(d)
 
@@ -65,7 +64,7 @@ def test_inf_reg_001_lock_entry_must_point_to_existing_variant_and_file(tmp_path
     with pytest.raises(RegistryLoadError, match="nope"):
         load_registry(d)
     _lock(d, [_pin("qwen3-vl-4b-instruct", "q4_k_m", ["Qwen3VL-4B-Instruct-Q4_K_M.gguf", "missing.gguf"])])
-    with pytest.raises(RegistryLoadError, match="missing.gguf"):
+    with pytest.raises(RegistryLoadError, match=r"missing\.gguf"):
         load_registry(d)
 
 
@@ -149,7 +148,9 @@ def test_inf_reg_005_task_defaults_and_overrides():
     assert d["caption"].model == "qwen3-vl-8b-instruct"
     assert d["classify"].model == "qwen3-vl-8b-instruct"
     assert d["embed"].model == "siglip2-so400m-384"
-    d2 = resolve_task_defaults(reg, overrides={"caption": "qwen3-vl-4b-instruct@q4_k_m", "classify": "qwen3-vl-2b-instruct"})
+    d2 = resolve_task_defaults(
+        reg, overrides={"caption": "qwen3-vl-4b-instruct@q4_k_m", "classify": "qwen3-vl-2b-instruct"}
+    )
     assert (d2["caption"].model, d2["caption"].variant) == ("qwen3-vl-4b-instruct", "q4_k_m")
     assert d2["classify"].model == "qwen3-vl-2b-instruct"
     assert d2["embed"].model == "siglip2-so400m-384"
@@ -181,4 +182,3 @@ def test_inf_reg_013_release_requires_all_pinned():
         if not r.builtin:
             for p in r.platforms:
                 assert p.sha256 and HEX64.match(p.sha256), f"{r.id} {p.os}-{p.arch} has no sha256"
-

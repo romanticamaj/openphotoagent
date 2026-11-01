@@ -1,7 +1,6 @@
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
-
 from opagent_core.hw import Gpu, HwSummary
 from opagent_doctor.probes import load_profile
 from opagent_registry.compat import compat
@@ -148,7 +147,14 @@ gpus = st.one_of(
     packs=st.lists(st.sampled_from(["llamacpp-cuda12", "llamacpp-cuda13", "llamacpp-vulkan"]), unique=True),
 )
 def test_inf_rt_011_always_one_combo_and_cpu_path(os, ram, gpu, packs):
-    hw = HwSummary(os=os, arch="x86_64", ram_gb=ram, cpu_count=8, gpus=(gpu,) if gpu else (), installed_packs=tuple((p, "x", None) for p in packs))
+    hw = HwSummary(
+        os=os,
+        arch="x86_64",
+        ram_gb=ram,
+        cpu_count=8,
+        gpus=(gpu,) if gpu else (),
+        installed_packs=tuple((p, "x", None) for p in packs),
+    )
     r = recommend(REG, hw, pin_states=ALL_PINNED)
     assert not r.unsupported
     assert r.embed is not None  # exactly one combination, never empty
@@ -160,7 +166,13 @@ def test_inf_rt_011_always_one_combo_and_cpu_path(os, ram, gpu, packs):
 @settings(max_examples=40, deadline=None)
 @given(ram=st.sampled_from([8, 16, 24, 36, 48, 64]))
 def test_inf_rt_011_mac(ram):
-    hw = HwSummary(os="macos", arch="arm64", ram_gb=ram, cpu_count=8, gpus=(Gpu("apple", "Apple M2", ram, unified=True, budget_gb=ram * 0.67),))
+    hw = HwSummary(
+        os="macos",
+        arch="arm64",
+        ram_gb=ram,
+        cpu_count=8,
+        gpus=(Gpu("apple", "Apple M2", ram, unified=True, budget_gb=ram * 0.67),),
+    )
     r = recommend(REG, hw, pin_states=ALL_PINNED)
     assert r.embed is not None and r.cpu_path in ("llamacpp-cpu", "siglip-fast") and r.packs == []
 

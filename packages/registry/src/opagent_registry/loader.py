@@ -51,7 +51,10 @@ class LoadedModel:
         pin = self.pins.get(variant)
         if pin is None:
             return list(v.files)
-        return [f.model_copy(update={"size": pin["files"][f.path].size, "sha256": pin["files"][f.path].sha256}) for f in v.files]
+        return [
+            f.model_copy(update={"size": pin["files"][f.path].size, "sha256": pin["files"][f.path].sha256})
+            for f in v.files
+        ]
 
     def revision(self, variant: str) -> str:
         pin = self.pins.get(variant)
@@ -106,7 +109,9 @@ def _validate_model(path: Path, data: Any, node: yaml.Node | None) -> tuple[Mode
     except ValidationError as e:
         mid = data.get("id") if isinstance(data, dict) else None
         return None, [
-            RegistryIssue(str(path), _line_of(node, tuple(err["loc"])), f"{'.'.join(map(str, err['loc']))}: {err['msg']}", mid)
+            RegistryIssue(
+                str(path), _line_of(node, tuple(err["loc"])), f"{'.'.join(map(str, err['loc']))}: {err['msg']}", mid
+            )
             for err in e.errors()
         ]
 
@@ -122,8 +127,8 @@ def _load_lock(path: Path) -> PinsLock:
 
 
 def _apply_pins(models: dict[str, LoadedModel], lock: PinsLock, lock_path: Path) -> None:
-    for m in models.values():
-        m.pin_state = {v.id: "unpinned" for v in m.spec.variants}
+    for lm in models.values():
+        lm.pin_state = {v.id: "unpinned" for v in lm.spec.variants}
     for pin in lock.pins:
         m = models.get(pin.model)
         if m is None or m.source != "builtin":
@@ -136,7 +141,9 @@ def _apply_pins(models: dict[str, LoadedModel], lock: PinsLock, lock_path: Path)
         locked = {f.path: f for f in pin.files}
         extra = set(locked) - catalog
         if extra:
-            raise RegistryLoadError(f"{lock_path}: {pin.model}@{pin.variant} pins files not in the catalog: {sorted(extra)}")
+            raise RegistryLoadError(
+                f"{lock_path}: {pin.model}@{pin.variant} pins files not in the catalog: {sorted(extra)}"
+            )
         if catalog - set(locked):
             raise RegistryLoadError(
                 f"{lock_path}: {pin.model}@{pin.variant} is partially pinned (missing {sorted(catalog - set(locked))})"
@@ -150,9 +157,13 @@ def _user_issues(spec: ModelSpec, path: Path) -> list[RegistryIssue]:
     for v in spec.variants:
         for f in v.files:
             if not f.sha256 or not f.size:
-                out.append(RegistryIssue(str(path), 1, f"{v.id}/{f.path}: user models must declare size and sha256", spec.id))
+                out.append(
+                    RegistryIssue(str(path), 1, f"{v.id}/{f.path}: user models must declare size and sha256", spec.id)
+                )
         if v.trust_remote_code:
-            out.append(RegistryIssue(str(path), 1, f"{v.id}: trust_remote_code requires explicit confirmation", spec.id))
+            out.append(
+                RegistryIssue(str(path), 1, f"{v.id}: trust_remote_code requires explicit confirmation", spec.id)
+            )
     return out
 
 
@@ -170,7 +181,9 @@ def load_registry(root: Path | None = None, user_dirs: list[Path] | None = None)
         for v in spec.variants:
             for f in v.files:
                 if f.size is not None or f.sha256 is not None:
-                    raise RegistryLoadError(f"{path}: catalog must not carry size/sha256 ({v.id}/{f.path}); use pins.lock")
+                    raise RegistryLoadError(
+                        f"{path}: catalog must not carry size/sha256 ({v.id}/{f.path}); use pins.lock"
+                    )
         if spec.id in models:
             raise RegistryLoadError(f"{path}: duplicate model id {spec.id}")
         models[spec.id] = LoadedModel(spec=spec, source="builtin", file=str(path))
@@ -206,7 +219,9 @@ def load_registry(root: Path | None = None, user_dirs: list[Path] | None = None)
                 errors.extend(issues)
                 continue
             issues = _user_issues(spec, path)
-            lm = LoadedModel(spec=spec, source="user", status="invalid" if issues else "valid", errors=issues, file=str(path))
+            lm = LoadedModel(
+                spec=spec, source="user", status="invalid" if issues else "valid", errors=issues, file=str(path)
+            )
             lm.pin_state = {v.id: ("unpinned" if issues else "pinned") for v in spec.variants}
             errors.extend(issues)
             models[spec.id] = lm  # same id: the user's file overrides the built-in one (03 §1.1)
