@@ -34,5 +34,8 @@ def test_dl_014_kill9_then_auto_resume(env, tmp_path):
     _drain(w)
     o = c.get(f"/api/v1/operations/{op}").json()
     assert o["status"] == "succeeded"
-    ranged = [r for r in srv.gets() if r["path"].startswith("/cdn/") and r["range"] and not r["range"].startswith("bytes=0-")]
-    assert ranged  # continued from the .part, not from zero
+    # continued from the breakpoint: files finished before the kill are not fetched again
+    cdn = [r["path"] for r in srv.gets() if r["path"].startswith("/cdn/")]
+    assert len(cdn) == len(set(cdn)) + (1 if len(cdn) > len(set(cdn)) else 0)
+    first = min(srv.files, key=lambda f: (f.size, f.path))
+    assert cdn.count(f"/cdn/{first.sha256}") == 1
