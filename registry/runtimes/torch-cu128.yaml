@@ -1,0 +1,15 @@
+# transformers + torch (cu128) for models only transformers can run: JoyCaption, Florence-2 (08 §4.2, v0.4).
+schema_version: 1
+id: torch-cu128
+provides: { runtime: torch, accel: cuda }
+builtin: false
+advanced: true
+size_est: 2600000000
+platforms:
+  - { os: windows, arch: x86_64 }
+  - { os: linux, arch: x86_64 }
+requires:
+  nvidia_driver_min: "570.00"
+  compute_capability_min: "7.0"
+  cuda_architectures: ["70", "75", "80", "86", "89", "90", "100", "120"]
+license: { spdx: BSD-3-Clause, notice_file: LICENSE-torch }

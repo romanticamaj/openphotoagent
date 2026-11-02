@@ -1,0 +1,11 @@
+# Mac advanced pack (08 §4.2, v0.4): mlx + mlx-vlm + an OpenAI-compatible server. Sizes are estimates.
+schema_version: 1
+id: mlx
+provides: { runtime: mlx, accel: metal }
+builtin: false
+advanced: true
+size_est: 250000000
+platforms:
+  - { os: macos, arch: arm64 }
+license: { spdx: MIT, notice_file: LICENSE-mlx }
+notes: "Apple Silicon only; throughput versus llama.cpp Metal is unverified (08 §3.1)."
