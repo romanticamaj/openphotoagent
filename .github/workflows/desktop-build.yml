@@ -1,0 +1,106 @@
+# Desktop installers (08 §5, C-27). Builds the pg pack, the relocatable Python runtime and the Tauri bundle on the
+# three platforms, enforces the 200 MB limit (DESK-030), runs the supervisor tests on each OS, and on a release tag
+# signs the updater artefacts and writes latest.json / beta.json (UPD-006). Unsigned "edge" builds otherwise.
+name: desktop-build
+on:
+  pull_request:
+    paths: ["apps/desktop/**", "apps/web/**", "tools/build_desktop_*", "tools/check_bundle_size.py", ".github/workflows/desktop-build.yml"]
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+  workflow_call:  # release-please (release_created) and nightly-desktop call this
+    inputs:
+      tag: { type: string, required: false, default: "" }
+permissions:
+  contents: read
+env:
+  UV_SYSTEM_CERTS: "1"
+jobs:
+  supervisor:
+    strategy:
+      fail-fast: false
+      matrix: { os: [windows-latest, macos-14, ubuntu-22.04] }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with: { components: "clippy, rustfmt" }
+      - uses: astral-sh/setup-uv@v6
+      - run: uv run --no-project python tools/cargo_tc.py
+      - working-directory: apps/desktop/supervisor
+        run: cargo fmt --check && cargo clippy --all-targets -- -D warnings
+      - uses: actions/upload-artifact@v4
+        with: { name: "tc-rust-${{ matrix.os }}", path: .tc/rust.json }
+
+  bundle:
+    needs: supervisor
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, target: x86_64-pc-windows-msvc, bundles: nsis, artefact: "bundle/nsis/*-setup.exe" }
+          - { os: macos-14, target: aarch64-apple-darwin, bundles: "app,dmg", artefact: "bundle/dmg/*.dmg" }
+          - { os: ubuntu-22.04, target: x86_64-unknown-linux-gnu, bundles: "appimage,deb", artefact: "bundle/appimage/*.AppImage" }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: astral-sh/setup-uv@v6
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - name: Linux WebView headers
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+      - run: pnpm install --frozen-lockfile && pnpm --filter web build
+      - name: MSVC dev shell (pgvector nmake)
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+      - name: pg pack (PG 17 + pgvector, built per platform; 08 §2.3)
+        shell: bash
+        run: bash tools/build_desktop_pg.sh build/desktop/pg
+      - name: Python runtime (python-build-standalone + relocatable venv; 08 D3)
+        shell: bash
+        run: uv run --no-project python tools/build_desktop_python.py build/desktop/python
+      - name: Tauri bundle
+        working-directory: apps/desktop/src-tauri
+        shell: bash
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          cargo install tauri-cli --version "^2" --locked
+          cargo tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+      - name: Size gate (≤ 200 MB, DESK-030)
+        shell: bash
+        run: uv run --no-project python tools/check_bundle_size.py apps/desktop/src-tauri/target/${{ matrix.target }}/release/${{ matrix.artefact }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-${{ matrix.target }}
+          path: apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/
+          retention-days: 7
+
+  manifest:
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.tag != ''
+    needs: bundle
+    runs-on: ubuntu-24.04
+    permissions: { contents: write }
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { path: dl, pattern: "desktop-*", merge-multiple: true }
+      - name: latest.json / beta.json
+        run: |
+          mkdir -p upd && find dl \( -name '*.nsis.zip*' -o -name '*.app.tar.gz*' -o -name '*.AppImage.tar.gz*' -o -name '*-setup.exe*' \) -exec cp {} upd/ \;
+          case "$TAG" in *-*) OUT=beta.json ;; *) OUT=latest.json ;; esac
+          python3 tools/gen_updater_manifest.py --version "$TAG" --dir upd \
+            --base-url "https://github.com/${{ github.repository }}/releases/download/$TAG" \
+            --notes "See CHANGELOG.md" --pub-date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --out "upd/$OUT"
+      - name: Attach installers and the manifest to the release
+        run: |
+          find dl \( -name '*-setup.exe' -o -name '*.dmg' -o -name '*.AppImage' -o -name '*.deb' \) -exec cp {} upd/ \;
+          gh release upload "$TAG" upd/* --clobber --repo "${{ github.repository }}"

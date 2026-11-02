@@ -278,7 +278,7 @@
 - 09（TDD 測試策略）撰寫時，把 §5 每一條轉成自動化測試或手動清單項目，並引用 02 §10、06 §4.7 的錯誤碼。
 - 04 的 wireframe 尚未涵蓋：Activity Center 抽屜、「連接 AI 助手」精靈、人物頁（07 §4.3 已有）、問照片面板（10 §9.3 已有）。建議 v0.1 開工前補 Activity Center 與簡化後的 onboarding 兩張。
 - 02 §5.1 原始 REST 表與 §10.2 新增端點分開維護，產生 OpenAPI 時要合併；建議實作時以 `packages/schemas` 為唯一來源。
-- `.github/workflows` 的 `desktop-build.yml`、`packs-build.yml`、`nightly-desktop.yml`（08 C-27）尚未建立。
+- `.github/workflows` 的 `desktop-build.yml`、`nightly-desktop.yml`、`docker.yml`、`release-gate.yml`、`nightly.yml`、`nightly-gpu.yml` 已建立（v0.1-D）；`packs-build.yml` 隨 GPU runtime pack 建置（需簽章金鑰，B-12）。
 
 ---
 

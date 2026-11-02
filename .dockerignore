@@ -1,0 +1,9 @@
+**/node_modules
+**/.venv
+**/target
+**/dist
+**/__pycache__
+.tc
+.git
+apps/desktop
+spikes

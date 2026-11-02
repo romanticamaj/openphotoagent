@@ -1,0 +1,11 @@
+# Unsigned "edge" desktop artefacts from main every night (08 §5.4): Actions artefacts kept 7 days, never a Release.
+name: nightly-desktop
+on:
+  schedule: [{ cron: "29 17 * * *" }]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    uses: ./.github/workflows/desktop-build.yml
+    secrets: inherit

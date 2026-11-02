@@ -1,0 +1,19 @@
+# Real models on real GPUs (09 §5.3, 11 B-1). Needs a self-hosted runner labelled `gpu` (the maintainer's machine or
+# a sponsored box); until one is registered this workflow queues and the cases stay pending-hardware.
+name: nightly-gpu
+on:
+  schedule: [{ cron: "43 19 * * *" }]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  gpu:
+    runs-on: [self-hosted, gpu]
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - run: uv sync
+      - run: OPAGENT_TC_RESULTS=.tc/py-gpu.json uv run pytest -q -m "real_model or gpu" -o addopts="-p no:cacheprovider --import-mode=importlib"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: tc-gpu, path: .tc/ }

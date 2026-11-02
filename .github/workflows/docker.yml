@@ -1,0 +1,37 @@
+# Docker all-in-one (DOCK-001..003). The cloud dev session has no Docker daemon; this workflow is the authority.
+name: docker
+on:
+  pull_request:
+    paths: ["deploy/**", "apps/**", "packages/**", ".github/workflows/docker.yml"]
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  allinone:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Photos fixture (read-only mount)
+        run: mkdir -p deploy/compose/photos/trip deploy/compose/sorted && cp fixtures/photos/basic/IMG_000*.jpg deploy/compose/photos/trip/ && chmod -R a+rwX deploy/compose/sorted
+      - name: compose up (DOCK-001)
+        run: docker compose -f deploy/compose/allinone.yml up -d --build --wait --wait-timeout 180
+      - name: Onboarding + one by-date organize against the container (DOCK-001)
+        run: pnpm --filter web exec playwright install --with-deps chromium && OPAGENT_E2E_BASE_URL=http://127.0.0.1:47800 pnpm --filter web exec playwright test e2e/docker
+      - name: Same web build as the desktop bundle (DOCK-002)
+        run: |
+          pnpm --filter web build
+          (cd apps/web/dist && find . -type f -print0 | sort -z | xargs -0 sha256sum) | sed 's#  \./#  apps/web/dist/#' > host.sha256
+          docker compose -f deploy/compose/allinone.yml exec -T opagent cat /app/web-dist.sha256 > image.sha256
+          diff <(awk '{print $1}' host.sha256) <(awk '{print $1}' image.sha256)
+      - name: Read-only source mount refuses writes at the OS layer (DOCK-003)
+        run: |
+          ! docker compose -f deploy/compose/allinone.yml exec -T opagent sh -c 'touch /photos/trip/x.jpg' 2>err.txt
+          grep -qi "read-only file system" err.txt
+      - if: always()
+        run: docker compose -f deploy/compose/allinone.yml logs --no-color | tail -200

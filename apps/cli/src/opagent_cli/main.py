@@ -49,6 +49,8 @@ def cmd_api(a: argparse.Namespace) -> None:
             print("LAN_PASSWORD_REQUIRED: set one with `opagent lan-password` first", file=sys.stderr, flush=True)
             raise SystemExit(5)
     bind_host = "0.0.0.0" if lan_hash else "127.0.0.1"  # noqa: S104 - LAN mode, login enforced
+    if not a.token_stdin and getattr(a, "host", None):  # container all-in-one: compose publishes to 127.0.0.1 only
+        bind_host = a.host
     sock = _bind_loopback(a.port, bind_host)
     if sock is None:
         other = _probe(a.port)
@@ -262,7 +264,9 @@ def cmd_dev(a: argparse.Namespace) -> None:
         [sys.executable, "-m", "opagent_cli", "worker", "--api", f"http://127.0.0.1:{a.port}", "--roots", a.roots]
     )
     try:
-        cmd_api(argparse.Namespace(dsn=dsn, port=a.port, web_dist=a.web_dist, token_stdin=False, home=None))
+        cmd_api(
+            argparse.Namespace(dsn=dsn, port=a.port, web_dist=a.web_dist, token_stdin=False, home=None, host=a.host)
+        )
     finally:
         worker.terminate()
         worker.wait(10)
@@ -300,6 +304,7 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--port", type=int, default=47800)
     p.add_argument("--roots", default=os.environ.get("OPAGENT_ROOTS", ""))
     p.add_argument("--web-dist", default=os.environ.get("OPAGENT_WEB_DIST"))
+    p.add_argument("--host", default=os.environ.get("OPAGENT_BIND_HOST"), help="container only: bind address")
     p.set_defaults(fn=cmd_dev)
     a = ap.parse_args(argv)
     a.fn(a)
