@@ -595,9 +595,9 @@ def _match(reg: Any, sha: str) -> str | None:
         for vid, pin in (m.pins or {}).items():
             v = m.spec.variant(vid)
             for f in v.files:
-                if f.role == "weights" and (pin.get("files") or {}).get(f.path) is not None:
-                    if pin["files"][f.path].sha256 == sha:
-                        return f"{mid}@{vid}"
+                locked = (pin.get("files") or {}).get(f.path)
+                if f.role == "weights" and locked is not None and locked.sha256 == sha:
+                    return f"{mid}@{vid}"
     return None
 
 

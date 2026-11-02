@@ -87,7 +87,7 @@ def scan_folder(root: Path) -> dict[str, Any]:
                 ggufs.setdefault(p.parent, []).append(p)
             elif ext in SAFE:
                 cands.append({"id": f"folder:{rel}", "name": rel, "format": SAFE[ext], "weights": _file(p)})
-    for folder, items in sorted(ggufs.items()):
+    for _folder, items in sorted(ggufs.items()):
         projs = [p for p in items if p.name.lower().startswith("mmproj")]
         for w in (p for p in items if p not in projs):
             c: dict[str, Any] = {"id": f"folder:{w.relative_to(root).as_posix()}", "name": w.name, "format": "gguf"}
