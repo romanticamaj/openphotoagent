@@ -16,6 +16,7 @@ members = [
     "opagent-db",
     "opagent-doctor",
     "opagent-fs-sandbox",
+    "opagent-geo",
     "opagent-inference-adapters",
     "opagent-inference-sdk",
     "opagent-registry",
@@ -1642,6 +1643,11 @@ requires-dist = [
 ]
 
 [[package]]
+name = "opagent-geo"
+version = "0.0.1"
+source = { editable = "packages/geo" }
+
+[[package]]
 name = "opagent-inference-adapters"
 version = "0.0.1"
 source = { editable = "packages/inference-adapters" }
@@ -1718,6 +1724,7 @@ source = { editable = "packages/search" }
 dependencies = [
     { name = "jieba" },
     { name = "opagent-core" },
+    { name = "opagent-geo" },
     { name = "opencc-python-reimplemented" },
     { name = "pyyaml" },
 ]
@@ -1726,6 +1733,7 @@ dependencies = [
 requires-dist = [
     { name = "jieba", specifier = ">=0.42" },
     { name = "opagent-core", editable = "packages/core" },
+    { name = "opagent-geo", editable = "packages/geo" },
     { name = "opencc-python-reimplemented", specifier = ">=0.1.7" },
     { name = "pyyaml" },
 ]
@@ -1817,6 +1825,7 @@ dev = [
     { name = "opagent-db" },
     { name = "opagent-doctor" },
     { name = "opagent-fs-sandbox" },
+    { name = "opagent-geo" },
     { name = "opagent-inference-adapters" },
     { name = "opagent-inference-sdk" },
     { name = "opagent-registry" },
@@ -1850,6 +1859,7 @@ dev = [
     { name = "opagent-db", editable = "packages/db" },
     { name = "opagent-doctor", editable = "packages/doctor" },
     { name = "opagent-fs-sandbox", editable = "packages/fs-sandbox" },
+    { name = "opagent-geo", editable = "packages/geo" },
     { name = "opagent-inference-adapters", editable = "packages/inference-adapters" },
     { name = "opagent-inference-sdk", editable = "packages/inference-sdk" },
     { name = "opagent-registry", editable = "packages/registry" },
