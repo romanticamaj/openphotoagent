@@ -141,3 +141,12 @@ def test_plan_016_year_where_eve_is_the_29th(gz):
 def test_plan_017_year_outside_the_table(gz):
     p = P("1850 過年", gz)
     assert "taken_at" not in p["filters"] and any("範圍" in e for e in p["planner"]["explain"])
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-PLAN-019")
+@pytest.mark.parametrize("q", ["photo", "photos", "的 照片", "the photos of"])
+def test_plan_019_stop_words_only_query_is_kept_as_typed(gz, q):
+    """回歸：只有停用詞、沒有任何條件的查詢被清成空字串，搜尋變成「全部照片」（VIS-002 search 頁）。"""
+    p = P(q, gz)
+    assert p["filters"] == {} and p["text"] == q
