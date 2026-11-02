@@ -11,6 +11,11 @@ export function fixLabelKey(code: string, f: Fix, exists: (k: string) => boolean
   return `fix.${f.id ?? f.type}`;
 }
 
+type T = (k: string, o?: Record<string, unknown>) => string;
+export function fixLabel(problem: Problem, f: Fix, _i: number, t: T, exists: (k: string) => boolean): string {
+  return t(fixLabelKey(problem.code, f, exists));
+}
+
 export function ProblemCard({ problem, onFix, tone = "warning" }: { problem: Problem; onFix?: (f: Fix) => void; tone?: "warning" | "danger" }) {
   const { t, i18n } = useTranslation();
   const params = problem.params ?? {};

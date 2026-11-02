@@ -802,6 +802,7 @@
 | I18N-004 | 偽語系 | pseudo-locale 字串加長 40% | 主要路由無文字截斷溢出（截圖 + DOM overflow 檢查） | V | #11 |
 | I18N-005 | 單人模式術語 | 單人模式全路由文字掃描 | 不出現「Worker」「Pipeline」「dry-run」「Workspace」「cascade」「fingerprint」（08 §8.3） | E | #8 |
 | I18N-006 | `Intl.DurationFormat` 缺席 | 刪除該 API（模擬 WebKitGTK） | 自製格式化器輸出與 golden 相同 | U | #31 |
+| I18N-007 | 修復按鈕都有文案（回歸） | 錯誤碼目錄中每個錯誤碼的每個 fix，zh-TW 與 en | 按鈕文字是翻譯後的文案，不是 `fix.*` 原始 key；未有專用 key 時取 06 §4.7「修復」欄（`errors.<code>.cta` 依 ` · ` 切分的第 i 段） | C | #11、DoD 5.4 |
 
 ---
 
