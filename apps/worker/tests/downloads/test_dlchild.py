@@ -46,7 +46,7 @@ def test_desk_006_stopping_the_worker_drops_its_download_child_without_reporting
     posted: list[str] = []
 
     class Client:
-        def post(self, url, json=None):  # noqa: A002 - mirrors httpx
+        def post(self, url, json=None):
             posted.append(url)
 
             class R:

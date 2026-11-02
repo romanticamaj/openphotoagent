@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import threading
+import time
 import uuid
 from pathlib import Path
 from typing import Any
@@ -25,6 +26,10 @@ class _Waiting(Exception):
     def __init__(self, reason: str) -> None:
         super().__init__(reason)
         self.reason = reason
+
+
+class _Abandoned(Exception):
+    """The worker is stopping: the download is dropped like a crash and resumed by the next worker (DL-014)."""
 
 
 class WorkerAgent:
@@ -48,6 +53,8 @@ class WorkerAgent:
         self.home = Path(home)
         self.home.mkdir(parents=True, exist_ok=True)
         self.backend = backend
+        self._active_child: Any = None  # the running download child (ADR-0007)
+        self._dl_abandon = threading.Event()
         self.download_reserve_floor: int | None = None  # None = 06 §2.5 default (max(2 GB, 2 %)); test harness only
         self.policy: Any = None  # ResourcePolicy: heavy labelling waits on battery / busy GPU (06 §5)
         self.hw_profile = hw_profile
@@ -162,6 +169,8 @@ class WorkerAgent:
             else:
                 result = getattr(self, f"_do_{task['kind']}")(task["payload"], task["id"])
             ok = True
+        except _Abandoned:
+            return  # report nothing: the restart recovery marks it interrupted and resumes it
         except _Waiting as w:  # e.g. SOURCE_OFFLINE: keep the task, retry automatically (SCAN-020)
             self.client.post(f"/worker-api/v1/tasks/{task['id']}/progress", json={"waiting_reason": w.reason})
             self.waiting[task["id"]] = (task, self.clock.monotonic())
@@ -397,7 +406,23 @@ class WorkerAgent:
         while self.run_once():
             pass
 
+    def stop_downloads(self) -> None:
+        """Worker shutdown: drop the running download (no report; parts kept) and wait for its supervisor."""
+        self._dl_abandon.set()
+        if self._dl_thread is not None:
+            self._dl_thread.join(10)
+        deadline = time.monotonic() + 10  # noqa: TID251 - shutdown wait on a real child process
+        while self._active_child is not None and time.monotonic() < deadline:  # noqa: TID251
+            time.sleep(0.05)  # noqa: TID251
+        self._dl_abandon.clear()
+
     def run_forever(self, stop: Any) -> None:
+        try:
+            self._run_forever(stop)
+        finally:
+            self.stop_downloads()
+
+    def _run_forever(self, stop: Any) -> None:
         while not stop.is_set():
             try:
                 busy = self.run_once(wait_s=0.5, background_downloads=True)
@@ -550,9 +575,14 @@ class WorkerAgent:
         child = ChildDownload(
             self.models_root, self.download_sources, p["op_id"], list(p["files"]), self.download_reserve_floor
         )
+        self._active_child = child
         progress = self._progress_poster(task_id, child.send)
         try:
             while True:
+                if self._dl_abandon.is_set():
+                    child.proc.terminate()  # like kill -9: parts stay on disk for the resume
+                    child.proc.join(5)
+                    raise _Abandoned()
                 ev = child.next_event()
                 if ev is None:
                     continue
@@ -562,6 +592,7 @@ class WorkerAgent:
                 elif kind == "result":
                     return dict(data)
         finally:
+            self._active_child = None
             child.close()
 
     def _post_embeddings(self, images: list[Any]) -> None:
