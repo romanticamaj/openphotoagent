@@ -455,7 +455,6 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
 
     text_q = p["text"] or body.message
     card: dict[str, Any] | None = None
-    template = False  # an answer built from data alone: the model is not asked
     if intent == "count":
         yield from run("count_photos", {"filters": filters, **({"query": text_q} if not filters else {})})
     elif intent == "action":
@@ -513,7 +512,6 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
             meta = _metadata_answer(body.message, info) if info else None
             if meta is not None:  # 10 §8.4: what metadata answers, the VLM is not asked (and nothing is guessed)
                 final = meta + f" [[photo:{pid}]]"
-                template = True
             elif info:
                 yield from run("describe_photo", {"id": pid, "question": body.message[:500]})
         else:
@@ -557,10 +555,7 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
                         turn_id=turn, endpoint=s.get("endpoint_url") or "", bytes_out=len(payload.encode()), images=0
                     )
                 )
-        if template:
-            raw = final or ""
-        else:
-            raw = final if final is not None else (llm.next(msgs).text or "")
+        raw = final if final is not None else (llm.next(msgs).text or "")  # a template (or the loop) answered
         for n, a in alias.items():  # back to real names, only here on this machine
             raw = raw.replace(a, n)
         grounded = G.ground(
