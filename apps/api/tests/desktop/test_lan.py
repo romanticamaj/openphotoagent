@@ -1,4 +1,4 @@
-""""Allow LAN access" (08 §1.3, 02 §6.3): the API binds beyond loopback only with account login enforced."""
+""" "Allow LAN access" (08 §1.3, 02 §6.3): the API binds beyond loopback only with account login enforced."""
 
 from datetime import timedelta
 

@@ -17,6 +17,7 @@ from urllib.parse import urlsplit
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
+from pydantic import BaseModel
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "[::1]", "::1"}
@@ -24,7 +25,16 @@ APP_ORIGINS = {"tauri://localhost", "http://tauri.localhost", "https://tauri.loc
 HANDOFF_TTL = timedelta(seconds=30)
 COOKIE = "opagent_session"
 PROTECTED = ("/api/v1", "/worker-api")
+LOGIN_PATH = "/api/v1/auth/login"
+LOGIN_MAX_FAILURES = 5
+LOGIN_WINDOW = timedelta(minutes=1)
 router = APIRouter()
+
+
+def hash_password(password: str) -> str:
+    from argon2 import PasswordHasher
+
+    return PasswordHasher().hash(password)
 
 
 def _host_ok(host: str) -> bool:
@@ -32,11 +42,15 @@ def _host_ok(host: str) -> bool:
     return name.lower() in LOOPBACK_HOSTS
 
 
-def _origin_ok(origin: str) -> bool:
+def _origin_ok(origin: str, host: str = "", lan: bool = False) -> bool:
     if origin in APP_ORIGINS:
         return True
     u = urlsplit(origin)
-    return u.scheme in ("http", "https") and (u.hostname or "") in LOOPBACK_HOSTS
+    if u.scheme not in ("http", "https"):
+        return False
+    if (u.hostname or "") in LOOPBACK_HOSTS:
+        return True
+    return lan and bool(host) and u.netloc.lower() == host.lower()  # LAN mode: same-origin pages only
 
 
 class DesktopGuard:
@@ -47,9 +61,13 @@ class DesktopGuard:
         if scope["type"] not in ("http", "websocket") or not self.state.launch_token:
             return await self.app(scope, receive, send)
         headers = {k.decode().lower(): v.decode() for k, v in scope.get("headers", [])}
-        if not _host_ok(headers.get("host", "")) or ("origin" in headers and not _origin_ok(headers["origin"])):
+        lan = self.state.lan_password_hash is not None
+        host = headers.get("host", "")
+        if not (lan or _host_ok(host)) or ("origin" in headers and not _origin_ok(headers["origin"], host, lan)):
             return await _deny(scope, receive, send, 403, "HOST_NOT_ALLOWED")
         path = scope.get("path", "")
+        if lan and path == LOGIN_PATH:
+            return await self.app(scope, receive, send)  # the one unauthenticated call in LAN mode
         if path.startswith(PROTECTED) and not self._authorized(headers, path):
             return await _deny(scope, receive, send, 401, "AUTH_REQUIRED")
         return await self.app(scope, receive, send)
@@ -85,6 +103,38 @@ def new_handoff(req: Request) -> dict[str, Any]:
     code = secrets.token_urlsafe(24)
     st.handoffs[code] = st.clock.now() + HANDOFF_TTL
     return {"code": code, "expires_in_s": int(HANDOFF_TTL.total_seconds())}
+
+
+class LoginIn(BaseModel):
+    password: str
+
+
+@router.post(LOGIN_PATH)
+def login(body: LoginIn, req: Request) -> JSONResponse:
+    """LAN mode only (08 §1.3): password login → HttpOnly session cookie. 5 failures a minute per client → 429."""
+    st = req.app.state.opa
+    if st.lan_password_hash is None:
+        raise HTTPException(404, detail={"code": "NOT_FOUND"})
+    from argon2 import PasswordHasher
+    from argon2.exceptions import InvalidHashError, VerificationError
+
+    who = req.client.host if req.client else "?"
+    now = st.clock.now()
+    recent = [t for t in st.login_failures.get(who, []) if now - t < LOGIN_WINDOW]
+    st.login_failures[who] = recent
+    if len(recent) >= LOGIN_MAX_FAILURES:
+        raise HTTPException(429, detail={"code": "LOGIN_RATE_LIMITED"})
+    try:
+        PasswordHasher().verify(st.lan_password_hash, body.password)
+    except (VerificationError, InvalidHashError):
+        recent.append(now)
+        raise HTTPException(401, detail={"code": "LOGIN_FAILED"}) from None
+    st.login_failures.pop(who, None)
+    sid = secrets.token_urlsafe(32)
+    st.sessions.add(sid)
+    r = JSONResponse({"ok": True})
+    r.set_cookie(COOKIE, sid, httponly=True, samesite="strict", path="/")
+    return r
 
 
 @router.get("/auth/handoff")

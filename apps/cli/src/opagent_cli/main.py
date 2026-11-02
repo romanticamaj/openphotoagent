@@ -42,13 +42,20 @@ def cmd_api(a: argparse.Namespace) -> None:
 
     setup_logging(home / "logs", "api", token=token)
     fp = data_fingerprint(home)
-    sock = _bind_loopback(a.port)
+    lan_hash = None
+    if getattr(a, "lan", False):  # "allow LAN access" (08 §1.3): only ever with login enforced
+        lan_hash = read_lan_password_hash(home)
+        if lan_hash is None:
+            print("LAN_PASSWORD_REQUIRED: set one with `opagent lan-password` first", file=sys.stderr, flush=True)
+            raise SystemExit(5)
+    bind_host = "0.0.0.0" if lan_hash else "127.0.0.1"  # noqa: S104 - LAN mode, login enforced
+    sock = _bind_loopback(a.port, bind_host)
     if sock is None:
         other = _probe(a.port)
         if other and other.get("app") == "openphotoagent" and other.get("data_fp") == fp:
             print(f"OpenPhotoAgent already runs on port {a.port} for this data folder", file=sys.stderr)
             raise SystemExit(3)  # the shell focuses that instance instead
-        sock = _bind_loopback(0)
+        sock = _bind_loopback(0, bind_host)
         assert sock is not None
     port = int(sock.getsockname()[1])
     if a.token_stdin:
@@ -57,7 +64,12 @@ def cmd_api(a: argparse.Namespace) -> None:
         create_all(a.dsn)  # dev / tests: schema straight from the models
     # same machine: the API serves the Worker's derived thumbnail cache directly (10 §3.4)
     app = create_app(
-        dsn=a.dsn, static_dir=a.web_dist, thumbs_dir=home / "worker" / "thumbs", launch_token=token, data_fp=fp
+        dsn=a.dsn,
+        static_dir=a.web_dist,
+        thumbs_dir=home / "worker" / "thumbs",
+        launch_token=token,
+        data_fp=fp,
+        lan_password_hash=lan_hash,
     )
     # the socket is bound and listening before run/api.json names it (DESK-035): no check-then-bind race
     write_run_file(home, {"port": port, "pid": os.getpid(), "version": __version__, "data_fp": fp})
@@ -91,13 +103,13 @@ def data_fingerprint(home: Path) -> str:
     return hashlib.sha256(str(Path(home).resolve()).encode()).hexdigest()[:16]
 
 
-def _bind_loopback(port: int) -> socket.socket | None:
-    """A listening socket on 127.0.0.1 only (DESK-014), or None when the port is taken."""
+def _bind_loopback(port: int, host: str = "127.0.0.1") -> socket.socket | None:
+    """A listening socket — 127.0.0.1 only (DESK-014) unless LAN mode — or None when the port is taken."""
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     if os.name != "nt":
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     try:
-        s.bind(("127.0.0.1", port))
+        s.bind((host, port))
         s.listen(2048)
     except OSError:
         s.close()
@@ -128,6 +140,41 @@ def write_run_file(home: Path, info: dict[str, object]) -> None:
         json.dump(info, f)
     os.chmod(tmp, 0o600)
     os.replace(tmp, run / "api.json")
+
+
+def lan_file(home: Path) -> Path:
+    return Path(home) / "config" / "lan.json"
+
+
+def read_lan_password_hash(home: Path) -> str | None:
+    import json
+
+    try:
+        h = json.loads(lan_file(home).read_text()).get("password_hash")
+    except (OSError, ValueError):
+        return None
+    return h if isinstance(h, str) and h.startswith("$argon2id$") else None
+
+
+def cmd_lan_password(a: argparse.Namespace) -> None:
+    """Set the LAN-access password (read from stdin; stored only as an argon2id hash, file mode 0600)."""
+    import json
+
+    from opagent_api.security import hash_password
+
+    pw = sys.stdin.readline().rstrip("\n")
+    if len(pw) < 8:
+        print("LAN_PASSWORD_TOO_SHORT: at least 8 characters", file=sys.stderr)
+        raise SystemExit(2)
+    home = Path(a.home) if a.home else _home()
+    f = lan_file(home)
+    f.parent.mkdir(parents=True, exist_ok=True)
+    tmp = f.with_suffix(".tmp")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as fh:
+        json.dump({"password_hash": hash_password(pw)}, fh)
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, f)
 
 
 def cmd_worker(a: argparse.Namespace) -> None:
@@ -184,7 +231,11 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--web-dist")
     p.add_argument("--token-stdin", action="store_true", help="desktop: read the launch token from stdin")
     p.add_argument("--home", help="data directory (the shell passes it; default OPAGENT_HOME or ~/.opagent)")
+    p.add_argument("--lan", action="store_true", help="allow LAN access (binds 0.0.0.0; password login enforced)")
     p.set_defaults(fn=cmd_api)
+    p = sub.add_parser("lan-password", help="set the LAN-access password from stdin")
+    p.add_argument("--home")
+    p.set_defaults(fn=cmd_lan_password)
     p = sub.add_parser("worker")
     p.add_argument("--api", required=True)
     p.add_argument("--roots", required=True, help="alias=path:mode,...")

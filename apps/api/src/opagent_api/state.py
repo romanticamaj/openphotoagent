@@ -17,7 +17,9 @@ class AppState:
     engine: Engine
     clock: Clock
     launch_token: str | None = None
+    lan_password_hash: str | None = None  # set only when "allow LAN access" is on (08 §1.3)
     handoffs: dict[str, Any] = field(default_factory=dict)  # one-time browser handoff codes → expiry
+    login_failures: dict[str, list[Any]] = field(default_factory=dict)  # LAN login rate limit per client
     sessions: set[str] = field(default_factory=set)  # browser sessions opened from the tray
     registry_dir: Path | None = None
     user_models_dir: Path | None = None
