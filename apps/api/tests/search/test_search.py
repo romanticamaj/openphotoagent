@@ -412,3 +412,49 @@ def test_rrf_004_duplicate_group_folds_into_its_representative(s):
     assert folded["total"] == 4
     full = s.search(q="beach", collapse_duplicates=False)
     assert {h["asset_id"] for h in full["items"]} >= set(ids[:3]) and full["total"] == 6
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-RRF-005", "SRCH-RRF-006")
+def test_rrf_005_006_matched_by_names_only_routes_that_hit_and_routes_switch_off(s):
+    dog = s.add(1, caption="狗在海邊", tags=["animal.dog"], groups=["dog", "beach"])
+    s.add(2, caption="山上的雲", groups=["mountain"])
+    s.index()
+    offline = s.search(q="狗", limit=10)  # before any worker runs: R1 off, the rest unchanged
+    assert "image_vector" in offline["degraded"]
+    assert all("image_vector" not in h["matched_by"] for h in offline["items"])
+    assert [h["asset_id"] for h in offline["items"]] == [dog]
+    stop = serve(s.w)
+    try:
+        on = s.search(q="狗", limit=10)
+        none = s.search(q="zzqv", limit=10)  # maps to no tag: R4 off; nothing in full text either
+    finally:
+        stop.set()
+    allowed = {"image_vector", "fulltext", "tag"}
+    for h in on["items"]:
+        assert set(h["matched_by"]) <= allowed
+    d = next(h for h in on["items"] if h["asset_id"] == dog)
+    assert {"fulltext", "tag"} <= set(d["matched_by"])
+    assert all("tag" not in h["matched_by"] and "fulltext" not in h["matched_by"] for h in none["items"])
+    no_text = s.search(filters={"tags_any": ["animal.dog"]})  # no text: R3 / R1 off, filter only
+    assert [h["matched_by"] for h in no_text["items"]] == [["filter"]]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-RRF-007")
+def test_rrf_007_scope_is_a_pre_filter_everywhere(s):
+    for i in range(1000):
+        s.add(i, caption="sunset beach", tags=["scene.beach"], category="travel", folder="secret", groups=["beach"])
+    inside = [
+        s.add(2000 + i, caption="sunset beach", tags=["scene.beach"], category="food", folder="ok") for i in range(3)
+    ]
+    s.index()
+    scope = {"scope": [{"source_id": s.src, "path": "ok"}]}
+    stop = serve(s.w)
+    try:
+        r = s.search(q="sunset beach", filters=scope, facets=["category"], limit=500)
+    finally:
+        stop.set()
+    assert sorted(h["asset_id"] for h in r["items"]) == sorted(inside)
+    assert r["total"] == 3 and r["next_cursor"] is None
+    assert r["facets"]["category"] == {"food": 3}  # counts never reveal the 1,000 outside the scope
