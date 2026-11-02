@@ -41,7 +41,7 @@ dev = [
 addopts = "-p no:cacheprovider --import-mode=importlib --allow-hosts=127.0.0.1,localhost,::1 -m 'not real_model and not gpu and not perf and not nightly and not release_gate'"
 testpaths = ["packages", "apps", "tests", "tools"]
 asyncio_mode = "auto"
-tmp_path_retention_policy = "failed"  # a full integration run writes ~0.5 GB of fixtures; keep only failures
+tmp_path_retention_count = 1  # a full integration run writes ~0.5 GB of fixtures; keep only the latest run
 asyncio_default_fixture_loop_scope = "function"
 markers = [
   "unit", "property", "contract", "integration", "e2e", "chaos", "security", "perf",
