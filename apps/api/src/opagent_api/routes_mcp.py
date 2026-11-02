@@ -166,7 +166,9 @@ class SettingsIn(BaseModel):
 def get_settings(req: Request) -> dict[str, Any]:
     st = _st(req)
     with st.engine.begin() as c:
-        s = (c.execute(select(workspace.c.settings).where(workspace.c.id == DEFAULT_WS)).scalar() or {}).get("mcp") or {}
+        s = (c.execute(select(workspace.c.settings).where(workspace.c.id == DEFAULT_WS)).scalar() or {}).get(
+            "mcp"
+        ) or {}
     d = Settings()
     return {k: s.get(k, getattr(d, k)) for k in Settings.__dataclass_fields__} | {"auto_approve": s.get("auto_approve")}
 

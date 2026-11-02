@@ -49,8 +49,10 @@ def test_fold_001_004_only_inside_the_folder(m):
     assert res["total_estimate"] == 2
     facets = m.ok(pat, "list_facets", {"fields": ["year", "tag", "folder"]})
     assert facets["total"] == 2 and facets["facets"]["year"] == [{"value": "2025", "display": "2025", "count": 2}]
-    assert all(v["value"]["source"] == "photos" and v["value"]["path"]["text"].startswith("2025")
-               for v in facets["facets"]["folder"])
+    assert all(
+        v["value"]["source"] == "photos" and v["value"]["path"]["text"].startswith("2025")
+        for v in facets["facets"]["folder"]
+    )
     tags = m.ok(pat, "list_tags", {})["tags"]
     assert [(t["key"], t["count"]) for t in tags] == [("animal.cat", 2)]
     for x in ("out1", "out2"):
@@ -108,7 +110,12 @@ def test_fold_005_no_absolute_paths_anywhere(m):
         m.call(
             pat,
             "propose_organize",
-            {"scope": {"filters": {}}, "action": "copy", "target": {"source": "sorted"}, "path_template": "{stem}{ext}"},
+            {
+                "scope": {"filters": {}},
+                "action": "copy",
+                "target": {"source": "sorted"},
+                "path_template": "{stem}{ext}",
+            },
         ),
     ]
     for o in outs:
@@ -130,9 +137,10 @@ def test_media_001_default_token_gets_no_images(m):
 @pytest.mark.integration
 @pytest.mark.tc("MCP-MEDIA-002")
 def test_media_002_strictest_policy_wins(m):
-    from PIL import Image
     import base64
     import io
+
+    from PIL import Image
 
     pat = m.token(["photos:read", "photos:media"])
     m.settings(media_policy="thumb_256")

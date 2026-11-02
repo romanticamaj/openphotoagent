@@ -495,7 +495,7 @@ rate_bucket = Table(  # Postgres token buckets for MCP rate limits (05 §3.7)
     Column("tokens", Float, nullable=False),
     Column("at", Float, nullable=False),
 )
-_APPEND_ONLY = DDL(
+_APPEND_ONLY = DDL(  # type: ignore[no-untyped-call]
     "CREATE OR REPLACE FUNCTION opagent_append_only() RETURNS trigger LANGUAGE plpgsql AS "
     "$$ BEGIN RAISE EXCEPTION '%% is append-only', TG_TABLE_NAME; END $$;"
     "CREATE TRIGGER mcp_call_log_append_only BEFORE UPDATE OR DELETE ON mcp_call_log "

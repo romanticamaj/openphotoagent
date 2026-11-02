@@ -124,8 +124,13 @@ def test_generated_inputs(lib, tool):
         _check(lib, tool, args, True)
 
     @settings(max_examples=50, deadline=None, suppress_health_check=list(HealthCheck), derandomize=True)
-    @given(hs.dictionaries(hs.sampled_from(["zz_unknown", "id", "limit", "k", "plan_id"]),
-                           hs.one_of(hs.integers(-5, 10**6), hs.text(max_size=3), hs.none()), min_size=1))
+    @given(
+        hs.dictionaries(
+            hs.sampled_from(["zz_unknown", "id", "limit", "k", "plan_id"]),
+            hs.one_of(hs.integers(-5, 10**6), hs.text(max_size=3), hs.none()),
+            min_size=1,
+        )
+    )
     def invalid(args):
         if not list(jsonschema.Draft202012Validator(schema).iter_errors(args)):
             return
@@ -154,7 +159,7 @@ def test_tool_001_search_extras(fresh):
 def test_tools_take_no_image_input():
     for name in ("find_similar", "find_photos_of_person", "search_photos", "get_photo"):
         props = json.dumps(BY_NAME[name].definition()["inputSchema"])
-        for word in ("base64", "image_data", "upload", "\"image\""):
+        for word in ("base64", "image_data", "upload", '"image"'):
             assert word not in props, (name, word)
     fs = BY_NAME["find_similar"].definition()["inputSchema"]["properties"]
     assert (fs["k"]["minimum"], fs["k"]["maximum"], fs["thumbnails"]["maximum"]) == (1, 50, 8)
@@ -198,10 +203,16 @@ def test_write_tool_rules(fresh):
     job = lib.ok(lib.pat, "run_labeling_job", {"scope": {"selection_id": sel}, "only_unlabeled": False})
     assert job["mode"] == "dry_run" and job["status"] == "running"  # no worker in this test: it waits
     assert lib.sql("select mode from job where id=:j", j=job["job_id"]).scalar() == "dry_run"
-    assert lib.sql("select count(*) from output_plan p join job j on j.id=p.job_id where j.id=:j",
-                   j=job["job_id"]).scalar() == 0
-    ui_job = lib.sql("insert into job(id, workspace_id, kind, status, params) values ('ui-job','default','label',"
-                     "'running','{}') returning id").scalar()
+    assert (
+        lib.sql(
+            "select count(*) from output_plan p join job j on j.id=p.job_id where j.id=:j", j=job["job_id"]
+        ).scalar()
+        == 0
+    )
+    ui_job = lib.sql(
+        "insert into job(id, workspace_id, kind, status, params) values ('ui-job','default','label',"
+        "'running','{}') returning id"
+    ).scalar()
     out = lib.call(lib.pat, "cancel_job", {"job_id": ui_job})["result"]
     assert out["isError"] and out["structuredContent"]["code"] == "NOT_FOUND"
     assert lib.ok(lib.pat, "cancel_job", {"job_id": job["job_id"]})["status"] in ("cancelling", "cancelled")
@@ -219,8 +230,11 @@ def test_organize_tool_rules(fresh):
     for i in range(25):
         lib.add(f"2025/more/{i}.jpg", caption="海邊", tags=("scene.beach",))
     lib.index()
-    out = lib.ok(lib.pat, "propose_organize", {"scope": {"filters": {}}, "action": "copy",
-                                               "target": {"source": "sorted"}, "path_template": "{stem}{ext}"})
+    out = lib.ok(
+        lib.pat,
+        "propose_organize",
+        {"scope": {"filters": {}}, "action": "copy", "target": {"source": "sorted"}, "path_template": "{stem}{ext}"},
+    )
     assert out["plan_id"] and out["approval_required"] is True and len(out["sample_actions"]) == 20
     for _ in range(3):
         st = lib.ok(lib.pat, "apply_organize", {"plan_id": out["plan_id"]})["status"]

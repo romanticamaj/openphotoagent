@@ -329,7 +329,9 @@ def maybe_finish(st: Any, c: Any, job_id: str) -> None:
     ).scalar_one()
     if open_items:
         return
-    if j.kind == "label":  # labels only (run_labeling_job): the legal "label, no output" path, never a plan (CORE-SM-005)
+    if (
+        j.kind == "label"
+    ):  # labels only (run_labeling_job): the legal "label, no output" path, never a plan (CORE-SM-005)
         for s in (JobStatus.planning, JobStatus.awaiting_approval):
             set_job_status(c, job_id, s, clock=st.clock)
         set_job_status(c, job_id, JobStatus.completed, clock=st.clock, finished_at=st.clock.now())
@@ -533,8 +535,13 @@ def start_label_job(
         tc = task_config_for("by-content-12", None, c)
         assert tc is not None
         rows = c.execute(
-            select(asset_location.c.asset_id, asset_location.c.rel_path, source.c.root_alias, source.c.sub_path,
-                   source.c.worker_id)
+            select(
+                asset_location.c.asset_id,
+                asset_location.c.rel_path,
+                source.c.root_alias,
+                source.c.sub_path,
+                source.c.worker_id,
+            )
             .join(source, source.c.id == asset_location.c.source_id)
             .where(asset_location.c.asset_id.in_(asset_ids or ["-"]), asset_location.c.missing.is_(False))
             .order_by(asset_location.c.asset_id, asset_location.c.rel_path)
@@ -556,8 +563,14 @@ def start_label_job(
                 kind="label",
                 status=JobStatus.queued.value,
                 mode="dry_run",
-                params={**origin, "preset": "by-content-12", "priority": priority, "worker_id": wid,
-                        "task_config": tc, "fingerprint": fp},
+                params={
+                    **origin,
+                    "preset": "by-content-12",
+                    "priority": priority,
+                    "worker_id": wid,
+                    "task_config": tc,
+                    "fingerprint": fp,
+                },
             )
         )
         ensure_operation(c, st.clock, jid, "job.label", {"kind": "job", "id": jid})
@@ -566,12 +579,23 @@ def start_label_job(
             c,
             st.clock,
             jid,
-            [(r.asset_id, r.root_alias, posixpath.join(r.sub_path.strip("/"), r.rel_path) if r.sub_path.strip("/")
-              else r.rel_path) for r in picked],
+            [
+                (
+                    r.asset_id,
+                    r.root_alias,
+                    posixpath.join(r.sub_path.strip("/"), r.rel_path) if r.sub_path.strip("/") else r.rel_path,
+                )
+                for r in picked
+            ],
             tc,
             fp,
         )
         maybe_finish(st, c, jid)
         status = c.execute(select(job.c.status).where(job.c.id == jid)).scalar_one()
-    return {"job_id": jid, "status": status, "estimated_items": n["total"], "cached_items": n["cached"],
-            "estimate": {"items": n["total"] - n["cached"]}}
+    return {
+        "job_id": jid,
+        "status": status,
+        "estimated_items": n["total"],
+        "cached_items": n["cached"],
+        "estimate": {"items": n["total"] - n["cached"]},
+    }

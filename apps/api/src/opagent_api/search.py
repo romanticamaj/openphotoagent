@@ -163,7 +163,10 @@ def _where(f: Filters, snapshot: str | None) -> tuple[list[Any], dict[str, Any]]
         ]
         w.append(search_doc.c.scope_keys.overlap(keys))
     if f.within is not None:
-        keys = [f"src:{s.source_id}:/" + s.path.strip("/") if s.path.strip("/") else f"src:{s.source_id}:/" for s in f.within]
+        keys = [
+            f"src:{s.source_id}:/" + s.path.strip("/") if s.path.strip("/") else f"src:{s.source_id}:/"
+            for s in f.within
+        ]
         w.append(search_doc.c.scope_keys.overlap(keys or ["-"]))
     if snapshot:
         w.append(search_doc.c.first_indexed_at <= datetime.fromisoformat(snapshot))

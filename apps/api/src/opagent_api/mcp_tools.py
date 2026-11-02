@@ -118,7 +118,7 @@ def within_scopes(ctx: Ctx, c: Any) -> list[dict[str, str]] | None:
 
 def visible_locations(ctx: Ctx, c: Any, asset_ids: list[str]) -> dict[str, list[dict[str, Any]]]:
     srcs = _sources(c)
-    out: dict[str, list[str]] = {}
+    out: dict[str, list[dict[str, Any]]] = {}
     if not asset_ids:
         return out
     for aid, sid, rel in c.execute(
@@ -172,7 +172,9 @@ def tag_display(key: str) -> str:
     return str(t.get("zh") or t.get("en") or key) if t else key
 
 
-def _summary(row: Any, locs: list[dict[str, Any]], score: float | None = None, matched: list[str] | None = None) -> dict[str, Any]:
+def _summary(
+    row: Any, locs: list[dict[str, Any]], score: float | None = None, matched: list[str] | None = None
+) -> dict[str, Any]:
     out: dict[str, Any] = {
         "id": row.asset_id,
         "uri": f"photo://{row.asset_id}",
@@ -182,7 +184,9 @@ def _summary(row: Any, locs: list[dict[str, Any]], score: float | None = None, m
         "tags": [tag_display(t) for t in row.tags or []],
         "caption": untrusted(row.caption, "vlm_caption") if row.caption else None,
         "location": locs[0] if locs else None,
-        "name": untrusted(posixpath.basename(locs[0]["path"]["text"]), "filename") if locs and locs[0]["path"] else None,
+        "name": untrusted(posixpath.basename(locs[0]["path"]["text"]), "filename")
+        if locs and locs[0]["path"]
+        else None,
     }
     if score is not None:
         out["score"] = round(float(score), 6)
@@ -224,8 +228,8 @@ def _thumb_bytes(ctx: Ctx, c: Any, aid: str, size: int) -> bytes | None:
         return None
     from PIL import Image
 
-    with Image.open(cands[-1]) as im:
-        im = im.convert("RGB")
+    with Image.open(cands[-1]) as src:
+        im = src.convert("RGB")
         im.thumbnail((size, size))
         buf = io.BytesIO()
         im.save(buf, "JPEG", quality=80)
@@ -268,7 +272,9 @@ def _search_body(ctx: Ctx, c: Any, args: dict[str, Any]) -> dict[str, Any]:
     if any(f.get(k) for k in ("persons_all", "persons_any", "persons_none")) and not (
         "faces:read" in ctx.tok.scopes and ctx.settings.faces_enabled
     ):
-        raise ToolError("MCP_INSUFFICIENT_SCOPE", "人物條件需要 faces:read，且人臉功能需在 app 內開啟", scope="faces:read")
+        raise ToolError(
+            "MCP_INSUFFICIENT_SCOPE", "人物條件需要 faces:read，且人臉功能需在 app 內開啟", scope="faces:read"
+        )
     srcs = _sources(c)
     folders = []
     for fr in f.get("folders") or []:
@@ -319,7 +325,9 @@ def search_photos(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
     inner = None
     if args.get("cursor"):
         try:
-            data = signer.open("cur", args["cursor"], token_id=ctx.tok.id, scope_key=ctx.tok.scope_key, now=st.clock.now())
+            data = signer.open(
+                "cur", args["cursor"], token_id=ctx.tok.id, scope_key=ctx.tok.scope_key, now=st.clock.now()
+            )
         except HandleError as e:
             raise ToolError("CURSOR_INVALID", str(e)) from None
         body, inner = data["b"], data["c"]
@@ -334,7 +342,9 @@ def search_photos(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
         withheld = attach_images(ctx, c, [x["id"] for x in results], int(args.get("thumbnails") or 0))
     now = st.clock.now()
     nxt = (
-        signer.issue("cur", {"b": body, "c": r["next_cursor"]}, token_id=ctx.tok.id, scope_key=ctx.tok.scope_key, now=now)
+        signer.issue(
+            "cur", {"b": body, "c": r["next_cursor"]}, token_id=ctx.tok.id, scope_key=ctx.tok.scope_key, now=now
+        )
         if r.get("next_cursor")
         else None
     )
@@ -412,8 +422,13 @@ def get_photo(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
                 ).scalars()
                 vis = visible_locations(ctx, c, list(others))
                 dups = sorted(vis)
-        withheld = attach_images(ctx, c, [a.id], 1 if int(args.get("thumbnail_size", 512)) else 0,
-                                 int(args.get("thumbnail_size", 512)) or 256)
+        withheld = attach_images(
+            ctx,
+            c,
+            [a.id],
+            1 if int(args.get("thumbnail_size", 512)) else 0,
+            int(args.get("thumbnail_size", 512)) or 256,
+        )
         ex = a.exif or {}
         camera = " ".join(str(ex[k]) for k in ("Make", "Model") if ex.get(k)) or None
     return {
@@ -446,7 +461,10 @@ def find_similar(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
     k = int(args.get("k") or 20)
     try:
         hits = similar(
-            args["id"], as_request(ctx.st), k=min(200, k * 3), exclude_duplicates=bool(args.get("exclude_duplicates", True))
+            args["id"],
+            as_request(ctx.st),
+            k=min(200, k * 3),
+            exclude_duplicates=bool(args.get("exclude_duplicates", True)),
         )["items"]
     except HTTPException:
         raise ToolError("NOT_FOUND", "這張照片還沒有影像向量") from None
@@ -468,8 +486,9 @@ def find_duplicates(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
     if args.get("cursor"):
         try:
             off = int(
-                ctx.signer().open("cur", args["cursor"], token_id=ctx.tok.id, scope_key=ctx.tok.scope_key,
-                                  now=ctx.st.clock.now())["o"]
+                ctx.signer().open(
+                    "cur", args["cursor"], token_id=ctx.tok.id, scope_key=ctx.tok.scope_key, now=ctx.st.clock.now()
+                )["o"]
             )
         except (HandleError, KeyError, ValueError) as e:
             raise ToolError("CURSOR_INVALID", str(e)) from None
@@ -481,7 +500,8 @@ def find_duplicates(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
             if kind not in (gk, "both"):
                 continue
             members = [
-                m for m in g["members"]
+                m
+                for m in g["members"]
                 if (s := srcs.get(m["source_id"])) is not None and location_visible(ctx, s, m["rel_path"])
             ]
             if len(members) < 2:
@@ -506,8 +526,9 @@ def find_duplicates(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
             )
     page = out[off : off + limit]
     nxt = (
-        ctx.signer().issue("cur", {"o": off + limit}, token_id=ctx.tok.id, scope_key=ctx.tok.scope_key,
-                           now=ctx.st.clock.now())
+        ctx.signer().issue(
+            "cur", {"o": off + limit}, token_id=ctx.tok.id, scope_key=ctx.tok.scope_key, now=ctx.st.clock.now()
+        )
         if off + limit < len(out)
         else None
     )
@@ -569,6 +590,7 @@ def list_facets(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
         cond = _scoped_docs(ctx, c, args.get("filters"))
         total = c.execute(select(func.count()).select_from(search_doc).where(cond)).scalar_one()
         for field in args["fields"]:
+            vals: list[dict[str, Any]]
             if field == "year":
                 rows = c.execute(
                     select(search_doc.c.taken_year, func.count())
@@ -591,7 +613,7 @@ def list_facets(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
                 ids = [r[0] for r in c.execute(select(search_doc.c.asset_id).where(cond)).all()]
                 counts: dict[str, int] = {}
                 folder: dict[str, tuple[str, str]] = {}
-                for aid, ls in visible_locations(ctx, c, ids).items():
+                for ls in visible_locations(ctx, c, ids).values():
                     src, rel = ls[0]["source"], posixpath.dirname(ls[0]["path"]["text"] if ls[0]["path"] else "")
                     key = f"{src}/{rel}"
                     folder[key] = (src, rel)
@@ -599,7 +621,9 @@ def list_facets(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
                 vals = [{"value": path_ref(*folder[k]), "display": None, "count": n} for k, n in counts.items()]
             else:  # country / admin1 / city / camera are not indexed yet (05 §11): empty, not invented
                 vals = []
-            out[field] = sorted(vals, key=lambda v: (-v["count"], json.dumps(v["value"], ensure_ascii=False)))[:limit]
+            out[field] = sorted(vals, key=lambda v: (-int(v["count"]), json.dumps(v["value"], ensure_ascii=False)))[
+                :limit
+            ]
     return {"facets": out, "total": int(total)}
 
 
@@ -608,7 +632,7 @@ def list_folders(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
     out = []
     with ctx.st.engine.begin() as c:
         modes = {}
-        for wid, roots in c.execute(select(worker.c.id, worker.c.roots)).all():
+        for (roots,) in c.execute(select(worker.c.roots)).all():
             for r in roots or []:
                 modes[r["alias"]] = r.get("mode", "ro")
         if kind in ("source", "both"):
@@ -702,8 +726,9 @@ def _asset_scope(ctx: Ctx, scope: dict[str, Any], limit: int) -> list[str]:
         body = _search_body(ctx, c, args)
     ids, cursor = [], None
     while True:
-        r = run_search(ctx.st, SearchIn(**{**body, "collapse_duplicates": False, "limit": 500, "cursor": cursor,
-                                         "facets": []}))
+        r = run_search(
+            ctx.st, SearchIn(**{**body, "collapse_duplicates": False, "limit": 500, "cursor": cursor, "facets": []})
+        )
         ids += [i["asset_id"] for i in r["items"]]
         if len(ids) > limit:
             raise ToolError("SCOPE_TOO_LARGE", f"超過 {limit} 張，請縮小範圍或在 app 內建立", max=limit)
@@ -726,7 +751,9 @@ def run_labeling_job(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
             )
         ).scalar_one()
     if running >= MCP_JOBS_CONCURRENT:
-        raise ToolError("MCP_JOB_LIMIT", f"同時最多 {MCP_JOBS_CONCURRENT} 個由 AI 助手發起的工作；更大的工作請在 app 內建立")
+        raise ToolError(
+            "MCP_JOB_LIMIT", f"同時最多 {MCP_JOBS_CONCURRENT} 個由 AI 助手發起的工作；更大的工作請在 app 內建立"
+        )
     ids = _asset_scope(ctx, args["scope"], MCP_JOB_MAX_ITEMS)
     out = start_label_job(
         ctx.st,
@@ -887,8 +914,11 @@ def propose_organize(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
         "plan_id": pid,
         "summary": {**summary, "actions": len(acts), "action": action, "target": f"{alias}/{sub}".rstrip("/")},
         "sample_actions": [
-            {"action": a["action"], "from": path_ref(a["src_alias"], a["src_rel"]),
-             "to": path_ref(a["dst_alias"], a["dst_rel"])}
+            {
+                "action": a["action"],
+                "from": path_ref(a["src_alias"], a["src_rel"]),
+                "to": path_ref(a["dst_alias"], a["dst_rel"]),
+            }
             for a in acts[:SAMPLE_ACTIONS]
         ],
         "conflicts": conflicts,
@@ -903,8 +933,11 @@ def get_organize_plan(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
     off = 0
     if args.get("cursor"):
         try:
-            off = int(ctx.signer().open("cur", args["cursor"], token_id=ctx.tok.id, scope_key=ctx.tok.scope_key,
-                                        now=ctx.st.clock.now())["o"])
+            off = int(
+                ctx.signer().open(
+                    "cur", args["cursor"], token_id=ctx.tok.id, scope_key=ctx.tok.scope_key, now=ctx.st.clock.now()
+                )["o"]
+            )
         except (HandleError, KeyError, ValueError) as e:
             raise ToolError("CURSOR_INVALID", str(e)) from None
     with ctx.st.engine.begin() as c:
@@ -927,8 +960,9 @@ def get_organize_plan(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
     del srcs
     page = acts[off : off + limit]
     nxt = (
-        ctx.signer().issue("cur", {"o": off + limit}, token_id=ctx.tok.id, scope_key=ctx.tok.scope_key,
-                           now=ctx.st.clock.now())
+        ctx.signer().issue(
+            "cur", {"o": off + limit}, token_id=ctx.tok.id, scope_key=ctx.tok.scope_key, now=ctx.st.clock.now()
+        )
         if off + limit < len(acts)
         else None
     )
@@ -1002,13 +1036,21 @@ def _request(ctx: Ctx, args: dict[str, Any], kind: str) -> dict[str, Any]:
             .order_by(approval.c.created_at.desc())
             .limit(1)
         ).first()
-        stale = ap is not None and (ap.status == "stale" or (ap.status in ("pending", "approved") and ap.plan_hash != h))
-        if stale and ap.status == "pending":
+        stale = ap is not None and (
+            ap.status == "stale" or (ap.status in ("pending", "approved") and ap.plan_hash != h)
+        )
+        if stale and ap is not None and ap.status == "pending":
             c.execute(update(approval).where(approval.c.id == ap.id).values(status="stale"))
     if stale:
         raise ToolError("PLAN_STALE", "計畫在請求核准後被改變，請重新產生計畫並再次請求核准")
     if ap is not None and ap.status == "approved":
-        return {"status": "applying", "approval_id": ap.id, "approval_url": None, "expires_at": None, "job_id": p.job_id}
+        return {
+            "status": "applying",
+            "approval_id": ap.id,
+            "approval_url": None,
+            "expires_at": None,
+            "job_id": p.job_id,
+        }
     if ap is not None and ap.status == "rejected":
         return {"status": "rejected", "approval_id": ap.id, "approval_url": None, "expires_at": None, "job_id": None}
     ok_status = ("draft",) if kind == "apply" else ("applied", "partially_applied")

@@ -43,7 +43,7 @@ def _untrusted_only(blob: dict, payload: str) -> None:
     def walk(v, inside):
         if isinstance(v, dict):
             here = inside or "origin" in v
-            for k, x in v.items():
+            for x in v.values():
                 walk(x, here)
         elif isinstance(v, list):
             for x in v:
@@ -109,8 +109,11 @@ def test_inj_write_paths_are_guarded(m):
     base = {"scope": {"photo_ids": [m.ids["MCP-INJ-014"]]}, "action": "copy", "target": {"source": "sorted"}}
     bad = m.call(pat, "propose_organize", {**base, "path_template": "../../{stem}"})["result"]
     assert bad["isError"] and bad["structuredContent"]["code"] == "TEMPLATE_INVALID"
-    esc = m.call(pat, "propose_organize", {**base, "target": {"source": "sorted", "path": "../x"},
-                                           "path_template": "{stem}{ext}"})["result"]
+    esc = m.call(
+        pat,
+        "propose_organize",
+        {**base, "target": {"source": "sorted", "path": "../x"}, "path_template": "{stem}{ext}"},
+    )["result"]
     assert esc["isError"] and esc["structuredContent"]["code"] == "PATH_INVALID"
     ok = m.ok(pat, "propose_organize", {**base, "path_template": "{stem}{ext}"})
     to = ok["sample_actions"][0]["to"]

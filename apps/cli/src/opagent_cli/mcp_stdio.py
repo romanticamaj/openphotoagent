@@ -63,7 +63,9 @@ class Relay:
     def handle(self, msg: dict[str, Any]) -> dict[str, Any] | None:
         rid = msg.get("id")
         if not self.token:
-            return _err(rid, -32001, "沒有 OpenPhotoAgent 存取權杖：請在 app 的「連接 AI 助手」建立，或執行 opagent login")
+            return _err(
+                rid, -32001, "沒有 OpenPhotoAgent 存取權杖：請在 app 的「連接 AI 助手」建立，或執行 opagent login"
+            )
         method = msg.get("method")
         params = dict(msg.get("params") or {})
         if method == "initialize":

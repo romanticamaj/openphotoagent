@@ -138,9 +138,7 @@ def _out(props: dict[str, Any], required: list[str] | None = None) -> dict[str, 
 
 _RESULTS = {"type": "array", "items": {"$ref": "#/$defs/PhotoSummary"}}
 _WITHHELD = {"type": ["string", "null"], "description": "scope_missing / policy / privacy_results_only"}
-_PLAN_STATUS = {
-    "enum": ["input_required", "approval_pending", "applying", "applied", "rejected", "expired", "stale"]
-}
+_PLAN_STATUS = {"enum": ["input_required", "approval_pending", "applying", "applied", "rejected", "expired", "stale"]}
 
 
 @dataclass(frozen=True)
@@ -264,7 +262,8 @@ TOOLS: list[Tool] = [
     _t(
         "find_similar",
         "找相似照片",
-        "以圖庫內某張照片的影像向量找相似照片（latent space 以圖搜圖）。只接受照片 id，不接受上傳影像。" + UNTRUSTED_NOTE,
+        "以圖庫內某張照片的影像向量找相似照片（latent space 以圖搜圖）。只接受照片 id，不接受上傳影像。"
+        + UNTRUSTED_NOTE,
         _in(
             {
                 "id": _ID,

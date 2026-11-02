@@ -77,8 +77,11 @@ def test_appr_002_no_token_can_approve(m):
 def test_appr_003_desktop_gets_a_deep_link_and_a_notification_event(embedded_pg, tmp_path):
     x = M(embedded_pg.dsn, tmp_path, launch_token="lt")
     pat = _setup(x)
-    pid = x.ok(pat, "propose_organize", {"scope": {"filters": {}}, "action": "copy", "target": {"source": "sorted"},
-                                          "path_template": TPL})["plan_id"]
+    pid = x.ok(
+        pat,
+        "propose_organize",
+        {"scope": {"filters": {}}, "action": "copy", "target": {"source": "sorted"}, "path_template": TPL},
+    )["plan_id"]
     out = x.ok(pat, "apply_organize", {"plan_id": pid})
     assert out["approval_url"] == f"openphotoagent://approvals/{out['approval_id']}"
     ev = x.sql("select payload from event where kind='approval.requested'").scalars().all()
@@ -167,4 +170,3 @@ def test_undo_is_also_only_a_request(m):
     req = m.ok(m.pat, "undo_organize", {"plan_id": pid})
     assert req["status"] in ("input_required", "approval_pending")
     assert m.sql("select count(*) from worker_task where kind='undo'").scalar() == 0
-

@@ -118,8 +118,12 @@ def test_trn_003_004_both_protocol_versions_and_stable_lists(live):
     for v in ("2026-07-28", "2025-11-25"):
         init = {**INIT, "params": {**INIT["params"], "protocolVersion": v}}
         disc = {"jsonrpc": "2.0", "id": 3, "method": "server/discover", "params": {"protocolVersion": v}}
-        call = {"jsonrpc": "2.0", "id": 4, "method": "tools/call",
-                "params": {"name": "list_tags", "arguments": {}, "protocolVersion": v}}
+        call = {
+            "jsonrpc": "2.0",
+            "id": 4,
+            "method": "tools/call",
+            "params": {"name": "list_tags", "arguments": {}, "protocolVersion": v},
+        }
         out = _session(lv.home, pat, [init, LIST, disc, call, LIST])
         assert out[0]["result"]["protocolVersion"] == v
         assert v in out[2]["result"]["supportedVersions"]

@@ -4,7 +4,6 @@ logged as denied with the reason; switches and credentials behave as specified."
 import pytest
 from opagent_mcp.scopes import ALL_SCOPES
 from opagent_mcp.tools import SERVER_VERSION, TOOLS
-
 from opagent_testing.mcp_harness import M
 
 V02 = sorted(t.name for t in TOOLS if t.available_from <= SERVER_VERSION)
@@ -33,7 +32,7 @@ def _apply_token(m):
 def test_scope_001_end_to_end_lists_and_denials(m):
     m.settings(allow_apply_requests=True, faces_enabled=True)
     by_scope = {t.name: t.scope for t in TOOLS}
-    tokens = [(s, [s]) for s in ISSUABLE] + [("organize:apply", None), ("all", ISSUABLE + ["organize:apply"])]
+    tokens = [(s, [s]) for s in ISSUABLE] + [("organize:apply", None), ("all", [*ISSUABLE, "organize:apply"])]
     for label, scopes in tokens:
         if scopes is None or "organize:apply" in scopes:
             pat = m.token(["photos:read"])

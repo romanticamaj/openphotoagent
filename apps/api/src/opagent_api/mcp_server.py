@@ -212,9 +212,7 @@ def _take(st: AppState, tok: Token, tool: str) -> int:
     now = st.clock.now()
     with st.engine.begin() as c:
         row = c.execute(
-            select(rate_bucket)
-            .where(rate_bucket.c.token_id == tok.id, rate_bucket.c.kind == kind)
-            .with_for_update()
+            select(rate_bucket).where(rate_bucket.c.token_id == tok.id, rate_bucket.c.kind == kind).with_for_update()
         ).first()
         b = Bucket.from_state(kind, {"tokens": row.tokens, "at": row.at}) if row else Bucket.new(kind, now=now)
         ok, retry = b.take(now=now)

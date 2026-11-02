@@ -4,6 +4,7 @@ says so, so the UI can warn. Client config files never contain the token."""
 
 from __future__ import annotations
 
+import contextlib
 import os
 from pathlib import Path
 from typing import Any
@@ -34,14 +35,12 @@ def _keyring() -> Any:
 def save(token: str, home: Path, profile: str = "default") -> dict[str, Any]:
     kr = _keyring()
     if kr is not None:
-        try:
+        with contextlib.suppress(Exception):  # any backend error (locked, no D-Bus): use the file instead
             kr.set_password(SERVICE, _user(profile), token)
             f = _file(home, profile)
             if f.exists():
                 f.unlink()
             return {"store": "keyring", "warning": None}
-        except Exception:
-            pass
     f = _file(home, profile)
     f.parent.mkdir(parents=True, exist_ok=True)
     fd = os.open(f, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
@@ -57,12 +56,10 @@ def load(home: Path, profile: str = "default") -> str | None:
         return env
     kr = _keyring()
     if kr is not None:
-        try:
+        with contextlib.suppress(Exception):
             v = kr.get_password(SERVICE, _user(profile))
             if v:
                 return str(v)
-        except Exception:
-            pass
     f = _file(home, profile)
     return f.read_text().strip() if f.exists() else None
 
@@ -70,10 +67,8 @@ def load(home: Path, profile: str = "default") -> str | None:
 def delete(home: Path, profile: str = "default") -> None:
     kr = _keyring()
     if kr is not None:
-        try:
+        with contextlib.suppress(Exception):
             kr.delete_password(SERVICE, _user(profile))
-        except Exception:
-            pass
     f = _file(home, profile)
     if f.exists():
         f.unlink()

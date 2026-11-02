@@ -2,8 +2,8 @@
 
 import pytest
 import sqlalchemy.exc
-from opagent_testing.clock import FakeClock
 from opagent_mcp.tools import TOOLS
+from opagent_testing.clock import FakeClock
 from opagent_testing.mcp_harness import M
 
 
@@ -73,8 +73,10 @@ def test_rate_004_propose_10_per_hour_and_10000_actions(m, monkeypatch):
 def test_rate_005_face_lookups_limited(m):
     m.settings(faces_enabled=True)
     pat = m.token(["photos:read", "faces:read"])
-    codes = [m.call(pat, "find_photos_of_person", {"person_ids": ["p1"]})["result"]["structuredContent"]["code"]
-             for _ in range(61)]
+    codes = [
+        m.call(pat, "find_photos_of_person", {"person_ids": ["p1"]})["result"]["structuredContent"]["code"]
+        for _ in range(61)
+    ]
     assert codes[:60] == ["NOT_FOUND"] * 60 and codes[60] == "RATE_LIMITED"
 
 
@@ -84,9 +86,16 @@ def test_aud_001_every_call_is_logged(m):
     m.settings(allow_apply_requests=True, faces_enabled=True)
     pat = m.token(["photos:read"])
     for t in TOOLS:
-        m.rpc(pat, "tools/call", {"name": t.name, "arguments": {}, "_meta": {
-            "io.modelcontextprotocol/clientInfo": {"name": "Claude Desktop", "version": "1.2.3"}}},
-            x_opa_transport="stdio")
+        m.rpc(
+            pat,
+            "tools/call",
+            {
+                "name": t.name,
+                "arguments": {},
+                "_meta": {"io.modelcontextprotocol/clientInfo": {"name": "Claude Desktop", "version": "1.2.3"}},
+            },
+            x_opa_transport="stdio",
+        )
     rows = m.calls()
     assert len(rows) == 27
     for r in rows:

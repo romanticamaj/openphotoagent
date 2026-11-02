@@ -49,7 +49,9 @@ def _view(c: Any, st: AppState, a: Any) -> dict[str, Any]:
             .group_by(output_action.c.action)
         ).all()
     )
-    tok = c.execute(select(mcp_token.c.id, mcp_token.c.name, mcp_token.c.seq).where(mcp_token.c.id == a.token_id)).first()
+    tok = c.execute(
+        select(mcp_token.c.id, mcp_token.c.name, mcp_token.c.seq).where(mcp_token.c.id == a.token_id)
+    ).first()
     return {
         "id": a.id,
         "plan_id": a.plan_id,
