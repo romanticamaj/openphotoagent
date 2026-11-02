@@ -286,11 +286,10 @@ def test_desk_011_worker_authenticates_with_the_launch_token_from_stdin(embedded
     stranger.terminate()
     w = _worker(port, home / "worker", f"photos={tmp_path / 'photos'}:ro", TOKEN)
     stop(w)
-    t0 = time.monotonic()  # noqa: TID251
+    deadline = time.monotonic() + 20  # noqa: TID251 - waiting on real processes
     while not _registered(embedded_pg.dsn):
-        assert time.monotonic() - t0 < 20 and w.poll() is None, (
-            w.stdout.read().decode()[-2000:] if w.poll() is not None else "never registered"
-        )  # noqa: TID251
+        out = w.stdout.read().decode()[-2000:] if w.poll() is not None else "never registered"
+        assert w.poll() is None and time.monotonic() < deadline, out  # noqa: TID251
         time.sleep(0.2)  # noqa: TID251
     assert (
         TOKEN not in Path(f"/proc/{w.pid}/cmdline").read_text()

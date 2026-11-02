@@ -220,14 +220,22 @@ def cmd_worker(a: argparse.Namespace) -> None:
     import httpx
     from opagent_worker.agent import WorkerAgent
 
-    client = httpx.Client(base_url=a.api, timeout=30)
+    token = sys.stdin.readline().strip() if a.token_stdin else None
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    client = httpx.Client(base_url=a.api, timeout=30, headers=headers)
+    if a.token_stdin:
+        watch_parent_pipe()
     backend = None
     if a.backend == "fake":  # v0.1-B: the FakeBackend until the real adapters land (slice 7)
         from opagent_inference.fake import FakeBackend
 
         backend = FakeBackend()
     agent = WorkerAgent(
-        client, roots=_parse_roots(a.roots), home=_home() / "worker", backend=backend, worker_id=a.worker_id
+        client,
+        roots=_parse_roots(a.roots),
+        home=Path(a.home) if a.home else _home() / "worker",
+        backend=backend,
+        worker_id=a.worker_id,
     )
     stop = threading.Event()
     signal.signal(signal.SIGTERM, lambda *_: stop.set())
@@ -285,6 +293,8 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--worker-id")
     p.add_argument("--backend", default="fake", choices=["fake", "none"])
     p.add_argument("--once", action="store_true", help="process what is queued, then exit")
+    p.add_argument("--home", help="worker state directory (default <OPAGENT_HOME>/worker)")
+    p.add_argument("--token-stdin", action="store_true", help="desktop: read the launch token from stdin")
     p.set_defaults(fn=cmd_worker)
     p = sub.add_parser("dev")
     p.add_argument("--port", type=int, default=47800)
