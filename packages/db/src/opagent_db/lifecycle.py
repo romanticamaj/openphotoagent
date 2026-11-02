@@ -89,7 +89,7 @@ class Backups:
         stamp = self._stamp()
         final = self.dir / f"{kind}-{stamp}.dump"
         tmp = self.dir / f".{final.name}.partial"
-        self.run(str(self.pg_bin / "pg_dump"), "-Fc", "-f", str(tmp), "-d", dsn)
+        self.run(*dump_args(str(self.pg_bin / "pg_dump"), dsn, str(tmp)))
         tmp.replace(final)
         return Backup(kind, final, stamp)
 
@@ -116,16 +116,27 @@ class Backups:
         return made
 
     def restore(self, dsn: str, item: Backup) -> None:
-        self.run(
-            str(self.pg_bin / "pg_restore"),
-            "--clean",
-            "--if-exists",
-            "--single-transaction",
-            "--no-owner",
-            "-d",
-            dsn,
-            str(item.path),
-        )
+        # the dump leaves out the bio schema (FACE-PRV-001); bio tables use the vector type, so --clean must not
+        # try to drop the extension: restore from a table of contents without EXTENSION entries
+        toc = item.path.with_suffix(".toc")
+        self.run(str(self.pg_bin / "pg_restore"), "-l", "-f", str(toc), str(item.path))
+        lines = toc.read_text(encoding="utf-8").splitlines()
+        toc.write_text("\n".join(x for x in lines if " EXTENSION " not in x) + "\n", encoding="utf-8")
+        try:
+            self.run(
+                str(self.pg_bin / "pg_restore"),
+                "--clean",
+                "--if-exists",
+                "--single-transaction",
+                "--no-owner",
+                "-L",
+                str(toc),
+                "-d",
+                dsn,
+                str(item.path),
+            )
+        finally:
+            toc.unlink(missing_ok=True)
 
 
 def ensure_database(dsn: str) -> None:
@@ -180,3 +191,8 @@ def migrate(dsn: str, backups: Backups) -> Backup | None:
 
 
 __all__ = ["SCHEMA_REVISION", "Backup", "Backups", "SchemaTooNew", "migrate", "schema_revision"]
+
+
+def dump_args(pg_dump: str, dsn: str, out: str) -> list[str]:
+    """Backups never include biometric data: the ``bio`` schema is excluded (07 §6.3; FACE-PRV-001)."""
+    return [pg_dump, "-Fc", "--exclude-schema=bio", "-f", out, "-d", dsn]

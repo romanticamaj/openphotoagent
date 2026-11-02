@@ -132,7 +132,7 @@ def query_vector(st: AppState, text_q: str, space: Any) -> list[float] | None:
 def active_space(c: Any) -> Any:
     return c.execute(
         select(embedding_space)
-        .where(embedding_space.c.status == "active")
+        .where(embedding_space.c.status == "active", embedding_space.c.modality == "image")
         .order_by(embedding_space.c.id.desc())
         .limit(1)
     ).first()

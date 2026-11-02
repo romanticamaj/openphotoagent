@@ -236,6 +236,9 @@ search_doc = Table(  # 05 §1.2: one row per asset, denormalised facets + applic
     Column("taken_year", Integer),
     Column("date_source", Text),
     Column("scope_keys", ARRAY(Text), nullable=False, server_default="{}"),
+    Column("person_ids", ARRAY(Text)),  # confirmed/auto persons (07 §3.3); NULL when faces are off
+    Column("person_ids_suggested", ARRAY(Text)),
+    Column("face_count", Integer),
     Column("review_state", Text),
     Column("confidence", Float),
     Column("body", Text, nullable=False, server_default=""),
@@ -264,6 +267,8 @@ embedding_space = Table(  # 05 §1.2
     Column("model_key", Text, nullable=False),
     Column("fingerprint", Text, nullable=False),
     Column("dim", Integer, nullable=False),
+    Column("modality", Text, nullable=False, server_default="image"),  # image | face (07 §3.2)
+    Column("thresholds", JSONB),  # face spaces: auto/suggest/margin/merge/find_* (07 §2.6)
     Column("status", Text, nullable=False, server_default="active"),  # building | active | retired
     _ts("created_at", server_default=func.now()),
     UniqueConstraint("fingerprint"),
@@ -432,6 +437,119 @@ event = Table(
     Column("payload", JSONB, nullable=False),
     _ts("at", server_default=func.now()),
 )
+
+# ---- faces (07 §3.2; v0.2). Biometric vectors live only in the separate ``bio`` schema ----
+person = Table(
+    "person",
+    metadata,
+    Column("id", Text, primary_key=True),
+    Column("workspace_id", Text, ForeignKey("workspace.id"), nullable=False),
+    Column("display_name", Text),  # NULL = unnamed group
+    Column("status", Text, nullable=False, server_default="unnamed"),  # unnamed | named | ignored | hidden
+    Column("origin", Text, nullable=False),  # cluster | user | merge | split
+    Column("is_frozen", Boolean, nullable=False, server_default="false"),  # any human action freezes it
+    Column("age_variation", Boolean, nullable=False, server_default="false"),
+    Column("cover_face_id", Text),
+    Column("merged_into", Text, ForeignKey("person.id")),
+    Column("created_by", Text, nullable=False),
+    _ts("created_at", server_default=func.now()),
+    _ts("updated_at", server_default=func.now()),
+)
+Index(
+    "person_name_uq",
+    person.c.workspace_id,
+    func.lower(person.c.display_name),
+    unique=True,
+    postgresql_where=person.c.display_name.is_not(None) & person.c.merged_into.is_(None),
+)
+face = Table(
+    "face",
+    metadata,
+    Column("id", Text, primary_key=True),
+    Column("workspace_id", Text, ForeignKey("workspace.id"), nullable=False),
+    Column("asset_id", Text, ForeignKey("asset.id", ondelete="CASCADE"), nullable=False),
+    Column("space_id", Integer, ForeignKey("embedding_space.id")),
+    Column("bbox", ARRAY(Float), nullable=False),  # normalised [x, y, w, h] after EXIF rotation
+    Column("landmarks", ARRAY(Float)),
+    Column("det_score", Float, nullable=False),
+    Column("quality", JSONB, nullable=False),
+    Column("quality_tier", Integer, nullable=False),  # 0 reject / 1 low / 2 ok / 3 good
+    Column("source", Text, nullable=False, server_default="detected"),  # detected | reference | manual
+    Column("person_id", Text, ForeignKey("person.id", ondelete="SET NULL")),
+    Column("state", Text, nullable=False, server_default="unassigned"),  # unassigned|suggested|auto|confirmed|ignored
+    Column("confidence", Float),
+    _ts("created_at", server_default=func.now()),
+)
+Index("face_asset_idx", face.c.asset_id)
+Index("face_person_idx", face.c.workspace_id, face.c.person_id)
+face_assignment = Table(  # append-only history; current = superseded_at IS NULL (07 §3.2)
+    "face_assignment",
+    metadata,
+    Column("id", Text, primary_key=True),
+    Column("face_id", Text, ForeignKey("face.id", ondelete="CASCADE"), nullable=False),
+    Column("person_id", Text, ForeignKey("person.id", ondelete="CASCADE"), nullable=False),
+    Column("kind", Text, nullable=False),  # auto | suggested | confirmed | rejected (cannot-link)
+    Column("confidence", Float),
+    Column("margin", Float),
+    Column("method", Text, nullable=False),  # online_knn | cluster | find | manual | merge | review | split
+    Column("space_id", Integer),
+    Column("actor", Text, nullable=False),
+    Column("undo_of", Text),  # merge: the batch this row can be undone with
+    Column("replaces", Text),  # the assignment this one superseded (undo restores it)
+    _ts("created_at", server_default=func.now()),
+    _ts("superseded_at"),
+)
+Index("fa_face_idx", face_assignment.c.face_id)
+person_link = Table(
+    "person_link",
+    metadata,
+    Column("workspace_id", Text, primary_key=True),
+    Column("person_a", Text, primary_key=True),
+    Column("person_b", Text, primary_key=True),
+    Column("kind", Text, primary_key=True),  # merge_suggestion | confusable
+    Column("score", Float),
+    Column("status", Text, nullable=False, server_default="open"),
+)
+face_cluster_run = Table(
+    "face_cluster_run",
+    metadata,
+    Column("id", Text, primary_key=True),
+    Column("workspace_id", Text, nullable=False),
+    Column("space_id", Integer),
+    Column("algo", Text, nullable=False),
+    Column("params", JSONB, nullable=False),
+    Column("input_faces", Integer),
+    Column("clusters", Integer),
+    Column("noise", Integer),
+    _ts("started_at"),
+    _ts("finished_at"),
+)
+face_consent = Table(  # who agreed to what, when (07 §4.2); never biometric data
+    "face_consent",
+    metadata,
+    Column("id", Text, primary_key=True),
+    Column("workspace_id", Text, nullable=False),
+    Column("user_id", Text, nullable=False),
+    Column("action", Text, nullable=False),  # enable | disable | purge | scope_change
+    Column("consent_text_version", Text, nullable=False),
+    Column("source_ids", JSONB),
+    Column("weights_license", Text),
+    _ts("at", server_default=func.now()),
+)
+BIO_DDL = """
+CREATE SCHEMA IF NOT EXISTS bio;
+CREATE TABLE IF NOT EXISTS bio.face_embedding (
+  workspace_id text NOT NULL, face_id text NOT NULL, space_id int NOT NULL, vec vector NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (workspace_id, face_id, space_id)
+) PARTITION BY LIST (workspace_id);
+CREATE TABLE IF NOT EXISTS bio.person_prototype (
+  workspace_id text NOT NULL, person_id text NOT NULL, space_id int NOT NULL, k smallint NOT NULL,
+  vec vector NOT NULL, member_count int, updated_at timestamptz,
+  PRIMARY KEY (workspace_id, person_id, space_id, k)
+) PARTITION BY LIST (workspace_id);
+"""
+sa_event.listen(face_consent, "after_create", DDL(BIO_DDL))  # type: ignore[no-untyped-call]
+
 
 # ---- MCP (05 §3.2, §3.6–§3.8; v0.2) ----
 mcp_token = Table(  # local PATs for `opagent mcp`; only the SHA-256 of the value is stored

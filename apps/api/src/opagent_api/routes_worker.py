@@ -212,7 +212,8 @@ def _lease_one(
             text(
                 "SELECT id FROM worker_task WHERE status='pending' AND (worker_id IS NULL OR worker_id=:w) "
                 "AND NOT (kind = ANY(CAST(:ex AS text[]))) "
-                "ORDER BY (lane = 'interactive') DESC, created_at, id LIMIT 1 FOR UPDATE SKIP LOCKED"
+                "ORDER BY (kind = 'face_purge') DESC, (lane = 'interactive') DESC, created_at, id "
+                "LIMIT 1 FOR UPDATE SKIP LOCKED"
             ),
             {"w": worker_id, "ex": list(exclude or [])},
         ).first()

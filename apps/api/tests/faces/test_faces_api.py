@@ -173,13 +173,14 @@ def test_mgt_001_merge_and_undo(f):
 @pytest.mark.tc("FACE-MGT-002")
 def test_mgt_002_split(f):
     f.enable()
-    ids = _library(f, people=(1,), per=10)
+    _library(f, people=(1,), per=10)
     f.post("/faces/cluster")
-    p1 = f.sql("select person_id from face where id=:i", i=ids[1][0]).scalar()
-    out = f.post(f"/people/{p1}/split", {"face_ids": ids[1][:5]})
+    p1 = f.get("/people")["people"][0]["id"]
+    mine = [x["id"] for x in f.get(f"/people/{p1}")["faces"]]
+    out = f.post(f"/people/{p1}/split", {"face_ids": mine[:5]})
     new = out["person_id"]
     assert f.sql("select is_frozen from person where id=:p", p=new).scalar() is True
-    assert f.sql("select count(*) from face where person_id=:p", p=p1).scalar() == 5
+    assert f.sql("select count(*) from face where person_id=:p", p=p1).scalar() == len(mine) - 5
     assert f.sql("select count(*) from face where person_id=:p", p=new).scalar() == 5
 
 
