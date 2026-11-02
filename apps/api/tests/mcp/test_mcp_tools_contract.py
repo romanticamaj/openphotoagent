@@ -48,7 +48,7 @@ ALL = ["photos:read", "photos:media", "labels:write", "jobs:run", "organize:prop
 
 
 @pytest.mark.contract
-@pytest.mark.tc(*TOOL_IDS.values())
+@pytest.mark.tc(*(TOOL_IDS[t] for t in V02))  # v0.3 tools are snapshotted too, but their behaviour lands in v0.3
 @pytest.mark.parametrize("tool", sorted(BY_NAME))
 def test_definition_matches_snapshot(tool):
     want = (SNAP / f"{tool}.json").read_text(encoding="utf-8")
