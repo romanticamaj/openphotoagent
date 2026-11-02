@@ -1,19 +1,22 @@
 import { Link, Outlet, createRootRoute, createRoute, createRouter, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { Suspense, lazy, useState } from "react";
 import { ActivityButton, ActivityDrawer, RecoveryCard } from "./features/activity/ActivityHost";
 import { useTranslation } from "react-i18next";
-import { OrganizeWizard } from "./features/organize/OrganizeWizard";
-import { ModelCard, ModelsPage } from "./features/models/ModelsPage";
-import { Welcome } from "./features/onboarding/Welcome";
-import { DoctorPage } from "./features/system/DoctorPage";
-import { SettingsPage } from "./features/system/SettingsPage";
-import { PlanPage } from "./features/organize/PlanPage";
-import { ReviewPage } from "./features/review/ReviewPage";
 import { SearchBar } from "./features/search/SearchBar";
-import { SearchPage } from "./features/search/SearchPage";
 import { PhotosPage } from "./features/viewer/PhotosPage";
 import { api } from "./lib/api";
+
+// only the photos route ships in the first load (PERF-003); every other page is its own chunk
+const OrganizeWizard = lazy(() => import("./features/organize/OrganizeWizard").then((m) => ({ default: m.OrganizeWizard })));
+const Welcome = lazy(() => import("./features/onboarding/Welcome").then((m) => ({ default: m.Welcome })));
+const DoctorPage = lazy(() => import("./features/system/DoctorPage").then((m) => ({ default: m.DoctorPage })));
+const SettingsPage = lazy(() => import("./features/system/SettingsPage").then((m) => ({ default: m.SettingsPage })));
+const PlanPage = lazy(() => import("./features/organize/PlanPage").then((m) => ({ default: m.PlanPage })));
+const ReviewPage = lazy(() => import("./features/review/ReviewPage").then((m) => ({ default: m.ReviewPage })));
+const SearchPage = lazy(() => import("./features/search/SearchPage").then((m) => ({ default: m.SearchPage })));
+const ModelsPage = lazy(() => import("./features/models/ModelsPage").then((m) => ({ default: m.ModelsPage })));
+const ModelCard = lazy(() => import("./features/models/ModelsPage").then((m) => ({ default: m.ModelCard })));
 
 function Shell() {
   const { t } = useTranslation();
@@ -45,7 +48,9 @@ function Shell() {
       </nav>
       <main className="page" id="main">
         <RecoveryCard onReview={() => setActivity(true)} />
-        <Outlet />
+        <Suspense fallback={<div aria-busy="true" />}>
+          <Outlet />
+        </Suspense>
       </main>
       <ActivityDrawer open={activity} setOpen={setActivity} />
     </div>

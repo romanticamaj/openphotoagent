@@ -782,7 +782,7 @@
 |----|------|-----------|------|----|---|
 | PERF-001 | 10 萬張 60 fps | 合成圖庫 100,000 張（09 §3.6），Chromium，參考規格 runner | 捲動 30 s：p95 frame ≤ 16.7 ms、掉幀 < 1%；nightly 回歸 > 10% 失敗 | F | #85、DoD 5.4 |
 | PERF-002 | 首屏 | 熱快取 | < 1 s 首屏（DoD）；可互動 < 300 ms（10 §5.1 目標，記錄） | F | DoD 5.4 |
-| PERF-003 | bundle 大小 | `size-limit` | 照片路由首次 ≤ 180 KB gzip；總預算 250 KB | F | — |
+| PERF-003 | bundle 大小 | `size-limit`；production web build，每個路由以全新 context 首次載入 | 照片路由首次 **JS** ≤ 180 KB gzip；**每路由**首次 JS ≤ 250 KB gzip；CSS（含字型 `@font-face`）只記錄（ADR-0006） | F | — |
 | PERF-004 | 掃描吞吐基準 | 10,000 張 SSD | 記錄 files/s；回歸 > 15% 失敗（nightly） | F | — |
 | PERF-005 | 推論吞吐基準 | 三台參考機、測試圖庫子集 1,000 張 | 記錄張/秒、VRAM、載入時間；回歸 > 10% 警示、> 20% 失敗；寫入 release notes | N | DoD 5.5 |
 | PERF-006 | 搜尋延遲 | 10 萬張，文字 + facet | p95 < 300 ms | F | DoD 5.4 |
