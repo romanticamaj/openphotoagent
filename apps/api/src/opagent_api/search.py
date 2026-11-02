@@ -55,6 +55,7 @@ class SearchIn(BaseModel):
     limit: int = Field(default=50, ge=1, le=500)
     cursor: str | None = None
     facets: list[str] = []
+    collapse_duplicates: bool = True  # one representative per near-duplicate group, with "+N" (05 §2.1)
     plan: bool = False  # run the rule-based planner on q (05 §2.3): NL dates / tags → filters, rest stays text
 
 
@@ -212,6 +213,11 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
     with st.engine.begin() as c:
         snapshot = cur["s"] if cur else str(c.execute(select(func.now())).scalar_one().isoformat())
         where, _ = _where(body.filters, snapshot)
+        if body.collapse_duplicates:  # pre-filter, so total / facets / selection agree (ADR-0005)
+            from opagent_db.schema import duplicate_member
+
+            hidden = select(duplicate_member.c.asset_id).where(duplicate_member.c.is_representative.is_(False))
+            where.append(search_doc.c.asset_id.notin_(hidden))
         space = active_space(c)
     qvec = None
     if q and body.semantic:
@@ -317,6 +323,22 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
         for a in page
         if a in rows
     ]
+    if body.collapse_duplicates and items:
+        from opagent_db.schema import duplicate_member
+
+        dm = duplicate_member.alias("dm")
+        with st.engine.begin() as c:
+            counts: dict[str, int] = dict(
+                c.execute(
+                    select(duplicate_member.c.asset_id, func.count(dm.c.asset_id) - 1)
+                    .join(dm, dm.c.group_id == duplicate_member.c.group_id)
+                    .where(duplicate_member.c.asset_id.in_([i["asset_id"] for i in items]))
+                    .group_by(duplicate_member.c.asset_id)
+                ).all()
+            )
+        for i in items:
+            if counts.get(i["asset_id"]):
+                i["duplicates"] = int(counts[i["asset_id"]])
     nxt = off + body.limit
     out: dict[str, Any] = {
         "items": items,
