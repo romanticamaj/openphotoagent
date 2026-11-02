@@ -152,7 +152,10 @@ export type Review = {
   final: { category: string } | null;
 };
 
+export type Capabilities = { deployment: string; single_user: boolean; features: Record<string, boolean> };
+
 export const api = {
+  capabilities: () => req<Capabilities>("GET", "/capabilities"),
   roots: () => req<Root[]>("GET", "/roots"),
   browse: (root: string, path: string) =>
     req<{ dirs: string[] }>("GET", `/fs/browse?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`),

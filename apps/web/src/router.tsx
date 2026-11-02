@@ -1,4 +1,5 @@
 import { Link, Outlet, createRootRoute, createRoute, createRouter, redirect } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { ActivityButton, ActivityDrawer, RecoveryCard } from "./features/activity/ActivityHost";
 import { useTranslation } from "react-i18next";
@@ -17,6 +18,8 @@ import { api } from "./lib/api";
 function Shell() {
   const { t } = useTranslation();
   const [activity, setActivity] = useState(false);
+  // single-user desktop/all-in-one: no organisation, workspace or worker management in the UI (08 §8, DESK-032)
+  const caps = useQuery({ queryKey: ["capabilities"], queryFn: api.capabilities, staleTime: Infinity });
   const nav: Array<[string, string]> = [
     ["/", "nav.photos"],
     ["/organize", "nav.organize"],
@@ -26,7 +29,7 @@ function Shell() {
     ["/settings", "nav.settings"],
   ];
   return (
-    <div className="shell">
+    <div className="shell" data-single-user={caps.data ? String(caps.data.single_user) : undefined}>
       <header className="topbar">
         <strong>{t("app.title")}</strong>
         <SearchBar />
