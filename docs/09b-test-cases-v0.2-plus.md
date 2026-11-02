@@ -42,6 +42,7 @@
 | SRCH-PLAN-015 | 「新年」不解析 | 「新年 煙火」 | 沒有日期 filter；「新年」留在 text；explain 提示「元旦／過年」 | U | #62 |
 | SRCH-PLAN-016 | 除夕在廿九的年份 | 「2030 過年」（初一 2030-02-03） | `2030-01-30..2030-02-08` | U | #62 |
 | SRCH-PLAN-017 | 對照表外的年份 | 「1850 過年」 | 不加日期 filter、不拋例外；explain 說明超出範圍 | U | #62 |
+| SRCH-PLAN-018 | planner chips（05 §2.3 UI） | 搜尋框輸入「2022 年 3 月」 | 顯示可移除的日期 chip（explain 文字）；結果數與 API 相同；移除 chip 後以剩餘條件重跑 | E | #62 |
 | CORE-LUNAR-001 | 初一對照表 | `opagent_core.lunar` | 1900–2099 每年一筆；2024-02-10、2025-01-29、2026-02-17、2030-02-03 正確；`gen_lunar_table.py --check` 一致 | U | #62 |
 
 ### 1.3 SRCH-IMG、SRCH-DUP：以圖搜圖與重複
