@@ -41,6 +41,6 @@ def test_img_001_find_similar(embedded_pg):
     assert [i["asset_id"] for i in items] == ["a", "b", "c"]  # cos(40°) = 0.766 ≥ 0.75; 90° excluded
     assert all(items[i]["score"] >= items[i + 1]["score"] for i in range(len(items) - 1))
     with_dups = c.get("/api/v1/assets/q/similar", params={"k": 20, "min_score": 0.75, "exclude_duplicates": False})
-    assert [i["asset_id"] for i in with_dups.json()["items"]][0] == "dup"
+    assert with_dups.json()["items"][0]["asset_id"] == "dup"
     assert c.get("/api/v1/assets/nope/similar").status_code == 404
     eng.dispose()

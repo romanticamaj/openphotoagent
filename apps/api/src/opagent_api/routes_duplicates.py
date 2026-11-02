@@ -7,10 +7,10 @@ from typing import Any
 
 from fastapi import APIRouter, Request
 from opagent_core.ids import uuid7
-from opagent_db.schema import asset, asset_embedding, asset_location, duplicate_member
+from opagent_db.schema import Vector, asset, asset_embedding, asset_location, duplicate_member
 from opagent_search.dedup import group_near
 from opagent_search.fusion import representative
-from sqlalchemy import delete, func, insert, select
+from sqlalchemy import bindparam, cast, delete, func, insert, select
 
 from .operations import ensure_operation, set_op_status
 from .search import active_space
@@ -114,10 +114,11 @@ def recluster(req: Request) -> dict[str, Any]:
         if space is not None and len(vecs) > BRUTE_VECTORS:
 
             def neighbors(i: int) -> list[int]:
+                qv = cast(bindparam("qv", str(items[i][2])), Vector())
                 rows = c.execute(
                     select(asset_embedding.c.asset_id)
                     .where(asset_embedding.c.space_id == space.id, asset_embedding.c.asset_id != items[i][0])
-                    .order_by(asset_embedding.c.vec.cosine_distance(str(items[i][2])))
+                    .order_by(asset_embedding.c.vec.op("<=>")(qv))
                     .limit(10)
                 ).scalars()
                 return [index[a] for a in rows if a in index]
@@ -134,3 +135,42 @@ def recluster(req: Request) -> dict[str, Any]:
             )
         set_op_status(c, st.clock, op_id, "succeeded")
     return {"operation_id": op_id, "groups": len(groups)}
+
+
+@router.get("/assets/{asset_id}/similar")
+def similar(
+    asset_id: str, req: Request, k: int = 20, min_score: float = 0.0, exclude_duplicates: bool = True
+) -> dict[str, Any]:
+    """find_similar (05 §2.2): the asset's own vector in the active space → k-NN by cosine; no inference."""
+    from fastapi import HTTPException
+    from sqlalchemy import and_, literal_column
+
+    st = _st(req)
+    k = max(1, min(int(k), 200))
+    with st.engine.begin() as c:
+        space = active_space(c)
+        vec = (
+            c.execute(
+                select(asset_embedding.c.vec).where(
+                    asset_embedding.c.asset_id == asset_id, asset_embedding.c.space_id == space.id
+                )
+            ).scalar()
+            if space is not None
+            else None
+        )
+        if vec is None:
+            raise HTTPException(404, detail={"code": "NOT_FOUND"})
+        qv = vec if isinstance(vec, str) else str([float(x) for x in vec])
+        dist = asset_embedding.c.vec.op("<=>")(cast(bindparam("qv", qv), Vector()))
+        q = (
+            select(asset_embedding.c.asset_id, (literal_column("1") - dist).label("score"))
+            .where(and_(asset_embedding.c.space_id == space.id, asset_embedding.c.asset_id != asset_id))
+            .order_by(dist, asset_embedding.c.asset_id)
+            .limit(k)
+        )
+        if exclude_duplicates:
+            group = select(duplicate_member.c.group_id).where(duplicate_member.c.asset_id == asset_id)
+            same = select(duplicate_member.c.asset_id).where(duplicate_member.c.group_id.in_(group))
+            q = q.where(asset_embedding.c.asset_id.notin_(same))
+        rows = c.execute(q).all()
+    return {"items": [{"asset_id": a, "score": round(float(s), 6)} for a, s in rows if float(s) >= min_score]}
