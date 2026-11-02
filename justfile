@@ -28,6 +28,11 @@ e2e:
     pnpm --filter web build-storybook
     pnpm --filter web e2e
 
+# perf budgets (VIEW-002/003/010, PERF-001/002/003/006) on a 100k-photo library; not part of PR CI
+perf:
+    pnpm --filter web build
+    OPAGENT_E2E_PERF=1 pnpm --filter web exec playwright test
+
 # ruff + mypy + import-linter + eslint + tsc
 lint:
     uv run ruff check .

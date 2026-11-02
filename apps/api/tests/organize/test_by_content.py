@@ -255,3 +255,36 @@ def test_desk_036_image_payloads_carry_the_content_hash(embedded_pg, sandbox_tre
     _drain(w)
     items = client.get(f"/api/v1/previews/{pv['id']}").json()["items"]
     assert items and all(i["ch"] == hashes[i["asset_id"]] for i in items)
+
+
+def _snapshot(root: Path) -> dict[str, tuple[str, int]]:
+    import blake3
+
+    return {
+        str(p.relative_to(root)): (blake3.blake3(p.read_bytes()).hexdigest(), p.stat().st_mtime_ns)
+        for p in sorted(root.rglob("*"))
+        if p.is_file()
+    }
+
+
+@pytest.mark.integration
+@pytest.mark.nightly
+@pytest.mark.tc("ORG-005")
+def test_org_005_full_library_default_settings_leaves_every_original_untouched(embedded_pg, sandbox_tree, tmp_path):
+    """Invariant 4 at library scale: 10,000 photos through scan → by-content → approve → apply (defaults: copy)."""
+    _photos(sandbox_tree.photos, "lib", 10_000)
+    before = _snapshot(sandbox_tree.photos)
+    client, w = _setup(
+        embedded_pg.dsn, sandbox_tree.roots, tmp_path / "w", FakeBackend(scores="random", seed=5), FakeBackend(seed=5)
+    )
+    j = client.post("/api/v1/jobs", json={**CONTENT, "source_id": _src(client)}).json()
+    while w.run_once() or w.process_items_once():
+        pass
+    j = client.get(f"/api/v1/jobs/{j['id']}").json()
+    assert j["status"] == "awaiting_approval", j
+    assert client.post(f"/api/v1/output-plans/{j['plan_id']}/approve", json={}).status_code in (200, 202)
+    while w.run_once() or w.process_items_once():
+        pass
+    plan = _plan(client, j)
+    assert plan["status"] == "applied" and sum(a["status"] == "done" for a in plan["actions"]) == 10_000
+    assert _snapshot(sandbox_tree.photos) == before  # content (BLAKE3) and mtime of every original unchanged

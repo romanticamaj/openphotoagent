@@ -227,3 +227,21 @@ def test_pg_001_app_database_created_on_first_start(embedded_pg):
     assert q(dsn, "SELECT current_database()") == f"fresh_{os.getpid()}"
     with psycopg.connect(embedded_pg.dsn, autocommit=True) as c:
         c.execute(f'DROP DATABASE "fresh_{os.getpid()}"')
+
+
+@pytest.mark.integration
+@pytest.mark.nightly
+@pytest.mark.tc("PG-010")
+def test_pg_010_fifty_starts_and_stops_without_failure(pg):
+    """Linux part of PG-010 (Windows with Defender and macOS run on the desktop CI matrix / reference machine)."""
+    p = pg()
+    failures = []
+    for i in range(50):
+        try:
+            dsn = p.start()
+            assert q(dsn, "SELECT 1") == 1
+        except Exception as e:
+            failures.append(f"{i}: {e!r}")
+        finally:
+            p.stop()
+    assert failures == []

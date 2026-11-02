@@ -4,8 +4,9 @@ const port = process.env.E2E_PORT || "47811";
 // docker.yml points the suite at the published container instead of the in-process test stack
 const external = process.env.OPAGENT_E2E_BASE_URL;
 export default defineConfig({
-  testDir: external ? "./e2e/docker" : "./e2e",
-  testIgnore: external ? [] : ["docker/**"],
+  testDir: external ? "./e2e/docker" : process.env.OPAGENT_E2E_PERF ? "./e2e/perf" : "./e2e",
+  // perf budgets run on their own (`just perf`): long, machine-dependent, never part of the PR e2e run
+  testIgnore: external ? [] : process.env.OPAGENT_E2E_PERF ? [] : ["docker/**", "perf/**"],
   fullyParallel: false,
   workers: 1,
   retries: 0,

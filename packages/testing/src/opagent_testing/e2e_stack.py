@@ -193,6 +193,7 @@ class Stack:
             from sqlalchemy import text
 
             n, tag = int(body.get("n", 1000)), str(body.get("tag", "beach"))
+            th = body.get("thumbhash")  # perf cases: every tile gets a real placeholder (VIEW-003)
             eng = engine_for(self.dsn)
             with eng.begin() as c:
                 c.execute(
@@ -200,9 +201,10 @@ class Stack:
                         "INSERT INTO asset(id, workspace_id, content_hash, size_bytes, taken_at, local_at, width, "
                         "height, thumbhash, exif) SELECT 'bulk'||g, 'default', 'bulkhash'||g, 1, "
                         "timestamptz '2022-01-01Z' + g * interval '1 hour', timestamp '2022-01-01' + g * interval "
-                        "'1 hour', 4000, 3000, NULL, '{}' FROM generate_series(1, :n) g"
+                        "'1 hour', CASE WHEN g % 3 = 0 THEN 3000 ELSE 4000 END, CASE WHEN g % 3 = 0 THEN 4000 ELSE 3000 END, "
+                        ":th, '{}' FROM generate_series(1, :n) g"
                     ),
-                    {"n": n},
+                    {"n": n, "th": th},
                 )
                 c.execute(
                     text(
