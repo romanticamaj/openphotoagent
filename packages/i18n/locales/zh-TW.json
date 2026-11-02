@@ -350,7 +350,8 @@
     "settings": "設定",
     "local": "100% 本機",
     "duplicates": "重複照片",
-    "people": "人物"
+    "people": "人物",
+    "ask": "問 AI"
   },
   "viewer": {
     "title": "照片",
@@ -688,5 +689,59 @@
     "typeNameFirst": "請先輸入圖庫名稱",
     "disableAndDelete": "停用並刪除",
     "disableOnly": "只停用"
+  },
+  "ask": {
+    "open": "✦ 問 AI",
+    "title": "問你的照片",
+    "close": "關閉",
+    "input": "問點什麼",
+    "placeholder": "例如：去年夏天在海邊的照片",
+    "send": "送出",
+    "stop": "停止",
+    "suggestions": "建議問題",
+    "mode": {
+      "local": "本地",
+      "cloud": "雲端"
+    },
+    "cloudWarning": "雲端模式：問題與照片的文字描述會送到你設定的外部服務；照片影像不會送出。",
+    "cpuAdvice": "這台電腦沒有可用的 GPU。問照片需要外部服務（OpenAI 相容 endpoint），或改用較慢的本地模式。",
+    "cpuSettings": "設定外部服務",
+    "cpuSlow": "使用較慢的本地模式",
+    "you": "你",
+    "ai": "AI",
+    "eta": "約 {s} s",
+    "elapsed": "{s} s",
+    "removeChip": "移除條件：{label}",
+    "rerun": "以這些條件重新執行",
+    "chipDate": "日期 {from}–{to}",
+    "chipTag": "標籤 {tag}",
+    "chipText": "文字「{text}」",
+    "found": "找到 {n} 張",
+    "cited": "引用的照片",
+    "openPhoto": "開啟照片",
+    "plan": {
+      "title": "整理計畫",
+      "pending": "待核准",
+      "summary": "{action} {count} 張 → {target}",
+      "open": "查看完整計畫",
+      "note": "核准後才會執行，之後可一鍵復原。"
+    },
+    "cancelled": "已停止",
+    "failed": "這次沒有完成，請再試一次",
+    "photo": {
+      "title": "問這張",
+      "input": "問這張照片"
+    },
+    "settings": {
+      "title": "AI 問照片",
+      "provider": "回答問題的模型",
+      "local": "本地（在這台電腦上執行）",
+      "external": "外部 OpenAI 相容服務",
+      "endpoint": "服務網址",
+      "retention": "對話保存天數（0 = 不保存）",
+      "save": "儲存",
+      "saved": "已儲存",
+      "cloudNote": "使用外部服務時，問題與照片的文字描述會送出；照片影像不會送出，人名以代稱取代。"
+    }
   }
 }

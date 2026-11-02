@@ -25,6 +25,8 @@ const PAGES = [
   () => import("./features/mcp/IntegrationsPage"),
   () => import("./features/mcp/ApprovalPage"),
   () => import("./features/people/PeoplePage"),
+  () => import("./features/ask/AskPanel"),
+  () => import("./features/ask/AssistantSettingsPage"),
 ];
 export function prefetchPages(delayMs = 3000) {
   if (typeof window === "undefined") return;
@@ -45,12 +47,15 @@ const PeoplePage = lazy(() => import("./features/people/PeoplePage").then((m) =>
 const FaceReview = lazy(() => import("./features/people/PeoplePage").then((m) => ({ default: m.FaceReview })));
 const FaceSettingsPage = lazy(() => import("./features/people/PeoplePage").then((m) => ({ default: m.FaceSettingsPage })));
 const FaceOptInCard = lazy(() => import("./features/people/PeoplePage").then((m) => ({ default: m.FaceOptInCard })));
+const AskPanel = lazy(() => import("./features/ask/AskPanel").then((m) => ({ default: m.AskPanel })));
+const AssistantSettingsPage = lazy(() => import("./features/ask/AssistantSettingsPage").then((m) => ({ default: m.AssistantSettingsPage })));
 const ModelsPage = lazy(() => import("./features/models/ModelsPage").then((m) => ({ default: m.ModelsPage })));
 const ModelCard = lazy(() => import("./features/models/ModelsPage").then((m) => ({ default: m.ModelCard })));
 
 function Shell() {
   const { t } = useTranslation();
   const [activity, setActivity] = useState(false);
+  const [asking, setAsking] = useState(false);
   // single-user desktop/all-in-one: no organisation, workspace or worker management in the UI (08 §8, DESK-032)
   const caps = useQuery({ queryKey: ["capabilities"], queryFn: api.capabilities, staleTime: Infinity });
   useEffect(() => prefetchPages(), []);
@@ -76,6 +81,9 @@ function Shell() {
         <strong>{t("app.title")}</strong>
         <SearchBar />
         <span className="text-xs text-[var(--text-muted)]">🔒 {t("nav.local")}</span>
+        <button type="button" aria-expanded={asking} onClick={() => setAsking(!asking)} className="rounded-[var(--radius-sm)] px-2 py-1 hover:bg-[var(--surface-2)]">
+          {t("ask.open")}
+        </button>
         <ActivityButton onToggle={() => setActivity(!activity)} />
       </header>
       <nav className="sidenav" aria-label={t("nav.label")}>
@@ -95,6 +103,11 @@ function Shell() {
           <Outlet />
         </Suspense>
       </main>
+      {asking ? (
+        <Suspense fallback={null}>
+          <AskPanel open={asking} onClose={() => setAsking(false)} />
+        </Suspense>
+      ) : null}
       <ActivityDrawer open={activity} setOpen={setActivity} />
     </div>
   );
@@ -143,6 +156,7 @@ const settingsRoute = createRoute({ getParentRoute: () => root, path: "/settings
 const integrationsRoute = createRoute({ getParentRoute: () => root, path: "/settings/integrations", component: IntegrationsPage });
 const peopleRoute = createRoute({ getParentRoute: () => root, path: "/people", component: PeoplePage });
 const faceReviewRoute = createRoute({ getParentRoute: () => root, path: "/people/review", component: FaceReview });
+const assistantRoute = createRoute({ getParentRoute: () => root, path: "/settings/assistant", component: AssistantSettingsPage });
 const faceSettingsRoute = createRoute({ getParentRoute: () => root, path: "/settings/faces", component: FaceSettingsPage });
 const approvalRoute = createRoute({ getParentRoute: () => root, path: "/approvals/$approvalId", component: ApprovalPage });
 const welcome = createRoute({ getParentRoute: () => root, path: "/welcome", component: Welcome });
@@ -165,7 +179,7 @@ const organize = createRoute({
   ),
 });
 
-export const router = createRouter({ routeTree: root.addChildren([photos, welcome, organize, plan, reviewRoute, search, duplicatesRoute, modelsRoute, modelRoute, doctorRoute, settingsRoute, integrationsRoute, approvalRoute, peopleRoute, faceReviewRoute, faceSettingsRoute]) });
+export const router = createRouter({ routeTree: root.addChildren([photos, welcome, organize, plan, reviewRoute, search, duplicatesRoute, modelsRoute, modelRoute, doctorRoute, settingsRoute, integrationsRoute, approvalRoute, peopleRoute, faceReviewRoute, faceSettingsRoute, assistantRoute]) });
 
 declare module "@tanstack/react-router" {
   interface Register {

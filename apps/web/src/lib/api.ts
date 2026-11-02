@@ -210,7 +210,23 @@ export type DuplicateGroup = {
 
 export type Capabilities = { deployment: string; single_user: boolean; features: Record<string, boolean> };
 
+export type AssistantSettings = {
+  provider: "local" | "openai_compat";
+  endpoint_url: string | null;
+  media_policy: string;
+  retention_days: number;
+  local_capable: boolean;
+  advice: "external_or_slow_local" | null;
+  loop_enabled: boolean;
+};
+export type AskSuggestion = { kind: string; text: string };
+
 export const api = {
+  assistantSettings: () => req<AssistantSettings>("GET", "/assistant-settings"),
+  putAssistantSettings: (patch: Partial<AssistantSettings>) => req<AssistantSettings>("PATCH", "/assistant-settings", patch),
+  askSuggestions: (photoId?: string) =>
+    req<{ suggestions: AskSuggestion[] }>("GET", `/ask/suggestions${photoId ? `?photo_id=${encodeURIComponent(photoId)}` : ""}`),
+  cancelAsk: (turnId: string) => req<unknown>("POST", `/ask/turns/${encodeURIComponent(turnId)}/cancel`),
   faceSettings: () => req<FaceSettings>("GET", "/faces/settings"),
   enableFaces: (sources: string[] | null = null) => req<FaceSettings>("POST", "/faces/enable", { consent: true, consent_text_version: "faces-v1", sources }),
   dismissFacePrompt: () => req<FaceSettings>("POST", "/faces/prompt/dismiss"),
