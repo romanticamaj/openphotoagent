@@ -339,6 +339,7 @@
     "import_renamed": "Import under a new name",
     "assistant": "Open the Ask-your-photos settings",
     "retry_later": "Try again later",
+    "confirm_remote_code": "Review and confirm the code",
     "retype": "Type it again"
   },
   "nav": {

@@ -365,6 +365,12 @@
     "severity": "W／T",
     "title": "顯示記憶體不足"
   },
+  "MODEL_REMOTE_CODE_UNCONFIRMED": {
+    "cta": "檢視並確認程式碼",
+    "message": "這個模型會在你的電腦上執行它自帶的程式碼（{files}），需要你先檢視並確認",
+    "severity": "B",
+    "title": "這個模型會在你的電腦上執行它自帶的程式碼（{files}）"
+  },
   "NET_PORT_IN_USE": {
     "cta": "自動改用其他連接埠",
     "message": "連接埠 {port} 已被 {process} 使用",

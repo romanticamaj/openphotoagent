@@ -758,6 +758,17 @@ preset_table = Table(
 )
 
 
+# invariant 10: the user's confirmation to run a model's own code, bound to the exact files (path → sha256)
+remote_code_consent = Table(
+    "remote_code_consent",
+    metadata,
+    Column("model_key", Text, primary_key=True),
+    Column("files", JSONB, nullable=False),
+    Column("confirmed_by", Text, nullable=False),
+    _ts("confirmed_at", nullable=False),
+)
+
+
 def engine_for(dsn: str) -> Engine:
     url = dsn.replace("postgresql://", "postgresql+psycopg://", 1)
     return create_engine(url, pool_pre_ping=True, future=True)

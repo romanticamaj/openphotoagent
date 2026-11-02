@@ -506,3 +506,73 @@ def job_vlm_key(c: Any, st: AppState, worker_id: str) -> str | None:
             return str(k)
     vlm = recommend(reg, ctx["hw"]).vlm
     return str(vlm) if vlm else None
+
+
+# ---------------------------------------------------------------- remote code (invariant 10, RT-TORCH-003)
+def remote_files(reg: Any, key: str) -> list[dict[str, str]] | None:
+    """The files a ``trust_remote_code`` variant would execute, with their pinned hashes; None when not needed."""
+    mid, _, vid = key.partition("@")
+    m = reg.models.get(mid)
+    if m is None:
+        return None
+    try:
+        v = m.spec.variant(vid)
+    except KeyError:
+        return None
+    if not v.trust_remote_code:
+        return None
+    locked = (m.pins.get(vid) or {}).get("files") or {}
+    out = []
+    for f in v.files:
+        if f.role == "remote_code":
+            pin = locked.get(f.path)
+            out.append({"path": f.path, "sha256": (pin.sha256 if pin is not None else f.sha256) or ""})
+    return sorted(out, key=lambda x: x["path"])
+
+
+def remote_code_confirmed(c: Any, key: str, files: list[dict[str, str]]) -> bool:
+    from opagent_db.schema import remote_code_consent
+
+    row = c.execute(select(remote_code_consent.c.files).where(remote_code_consent.c.model_key == key)).scalar()
+    want = {f["path"]: f["sha256"] for f in files}
+    return bool(row) and row == want and all(want.values())
+
+
+class RemoteCodeIn(BaseModel):
+    files: dict[str, str]
+
+
+@router.get("/models/{key}/remote-code")
+def get_remote_code(key: str, req: Request) -> dict[str, Any]:
+    st = _st(req)
+    files = remote_files(st.registry(), key)
+    if files is None:
+        raise HTTPException(404, detail={"code": "NOT_FOUND"})
+    with st.engine.begin() as c:
+        return {"files": files, "confirmed": remote_code_confirmed(c, key, files)}
+
+
+@router.post("/models/{key}/remote-code/confirm")
+def confirm_remote_code(key: str, body: RemoteCodeIn, req: Request) -> dict[str, Any]:
+    """The person read the list and agrees to run exactly these files (hashes); anything else is a 409."""
+    from opagent_db.schema import remote_code_consent
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+    from .approvals import ui_only
+
+    ui_only(req)
+    st = _st(req)
+    files = remote_files(st.registry(), key)
+    if files is None:
+        raise HTTPException(404, detail={"code": "NOT_FOUND"})
+    want = {f["path"]: f["sha256"] for f in files}
+    if body.files != want or not all(want.values()):
+        raise HTTPException(409, detail={"code": "REMOTE_CODE_CHANGED", "files": files})
+    now = st.clock.now()
+    with st.engine.begin() as c:
+        c.execute(
+            pg_insert(remote_code_consent)
+            .values(model_key=key, files=want, confirmed_by="local-user", confirmed_at=now)
+            .on_conflict_do_update(index_elements=["model_key"], set_={"files": want, "confirmed_at": now})
+        )
+    return {"model": key, "files": files, "confirmed_at": now.isoformat()}

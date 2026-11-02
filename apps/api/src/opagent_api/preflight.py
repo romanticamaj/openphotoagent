@@ -483,6 +483,11 @@ class Pre:
         m = self.reg.models.get(mid)
         if m is None:
             return
+        from .routes_models import remote_code_confirmed, remote_files
+
+        rc = remote_files(self.reg, key)
+        if rc is not None and not remote_code_confirmed(self.c, key, rc):  # invariant 10
+            self.add("MODEL_REMOTE_CODE_UNCONFIRMED", {"model": key, "files": [f["path"] for f in rc]}, "model")
         inst = self._installs("model").get(key)
         if inst is not None and inst.status == "files_missing":
             self.add("MODEL_FILES_MISSING", {"model": key}, "model")

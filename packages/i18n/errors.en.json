@@ -365,6 +365,12 @@
     "severity": "W／T",
     "title": "Out of GPU memory"
   },
+  "MODEL_REMOTE_CODE_UNCONFIRMED": {
+    "cta": "Review and confirm the code",
+    "message": "This model runs its own code on your computer ({files}); review and confirm it first",
+    "severity": "B",
+    "title": "This model runs its own code on your computer ({files})"
+  },
   "NET_PORT_IN_USE": {
     "cta": "Switch to a free port",
     "message": "Port {port} is used by {process}",
