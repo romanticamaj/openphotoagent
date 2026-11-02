@@ -102,6 +102,17 @@ asset_location = Table(
     _ts("last_seen_at", server_default=func.now()),
     UniqueConstraint("source_id", "rel_path"),
 )
+# near-duplicate groups from the `dedup` recluster (05 §2.2); exact duplicates are asset_location rows
+duplicate_member = Table(
+    "duplicate_member",
+    metadata,
+    Column("group_id", Text, nullable=False),
+    Column("asset_id", Text, ForeignKey("asset.id", ondelete="CASCADE"), primary_key=True),
+    Column("reason", Text, nullable=False, server_default="near"),
+    Column("is_representative", Boolean, nullable=False, server_default="false"),
+    _ts("computed_at", server_default=func.now()),
+)
+Index("duplicate_member_group", duplicate_member.c.group_id)
 job = Table(
     "job",
     metadata,

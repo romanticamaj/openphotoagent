@@ -78,13 +78,29 @@ export type Operation = {
 
 export type SearchBody = {
   q?: string | null;
+  plan?: boolean;
   filters?: { tags_all?: string[]; taken_from?: string; taken_to?: string; category?: string };
   limit?: number;
   cursor?: string | null;
   facets?: string[];
 };
 export type SearchHit = { asset_id: string; ch?: string | null; score: number; matched_by: string[]; category: string | null; tags: string[]; caption: string | null; taken_at: string | null };
-export type SearchResult = { items: SearchHit[]; facets: Record<string, Record<string, number>>; next_cursor: string | null; total: number; degraded: boolean };
+export type Planner = {
+  source: string;
+  confidence: number;
+  explain: string[];
+  text: string;
+  filters: { taken_at?: { from: string; to: string }; tags_any?: string[]; [k: string]: unknown };
+  unapplied: string[];
+};
+export type SearchResult = {
+  items: SearchHit[];
+  facets: Record<string, Record<string, number>>;
+  next_cursor: string | null;
+  total: number;
+  degraded: boolean;
+  planner?: Planner;
+};
 
 export type VariantView = {
   id: string;
@@ -130,7 +146,7 @@ export type Plan = {
   id: string;
   job_id: string;
   status: string;
-  summary: { copy: number; folders: number; total: number; move?: number };
+  summary: { copy: number; folders: number; total: number; move?: number; trash?: number };
   outcome: { done: number; renamed: number; same_skipped: number; skipped: number; failed: number } | null;
   actions?: PlanAction[];
 };
@@ -150,6 +166,15 @@ export type Review = {
   status: string;
   suggested: { category: string; confidence: number; candidates: Array<string | { id?: string; key?: string }> };
   final: { category: string } | null;
+};
+
+export type DuplicateMember = { asset_id: string; ch?: string | null; rel_path?: string | null; source_id?: string };
+export type DuplicateGroup = {
+  group_id: string;
+  reason: "hash" | "near";
+  members: DuplicateMember[];
+  representative: { asset_id: string };
+  reclaimable_bytes: number;
 };
 
 export type Capabilities = { deployment: string; single_user: boolean; features: Record<string, boolean> };
@@ -175,6 +200,8 @@ export const api = {
   plan: (id: string) => req<Plan>("GET", `/output-plans/${id}`),
   approve: (id: string, body: { move_confirmed?: boolean; confirm_text?: string } = {}) => req<Plan>("POST", `/output-plans/${id}/approve`, body),
   undo: (id: string) => req<Plan>("POST", `/output-plans/${id}/undo`),
+  duplicates: () => req<{ groups: DuplicateGroup[] }>("GET", "/duplicates"),
+  cleanupPlan: (group_ids: string[]) => req<{ plan_id: string; trash: number }>("POST", "/duplicates/cleanup-plan", { group_ids }),
   recommendation: (worker_id: string) => req<Recommendation>("GET", `/onboarding/recommendation?worker_id=${encodeURIComponent(worker_id)}`),
   installCombo: (worker_id: string, variants: string[]) =>
     req<{ operations: string[]; blocked: Array<{ variant: string; code: string }> }>("POST", "/onboarding/install", { worker_id, variants }),

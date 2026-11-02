@@ -77,7 +77,15 @@ export function Welcome() {
           <h2 className="text-lg font-semibold">{t(`onboarding.plan.${fastOrStd}`)}</h2>
           {vlmKey && (
             <p className="flex items-center gap-2 text-sm">
-              {vlm.data?.display_name ?? vlmKey} <CompatBadge compat={vlmCompat} />
+              {vlm.data?.display_name ?? vlmKey}{" "}
+              {vlm.data ? (
+                <CompatBadge compat={vlmCompat} />
+              ) : (
+                // not "unchecked": the check result is on its way (MDL-013)
+                <span data-testid="compat-loading" role="status" className="text-sm text-[var(--text-muted)]">
+                  {t("common.loading")}
+                </span>
+              )}
             </p>
           )}
           <p className="tnum">

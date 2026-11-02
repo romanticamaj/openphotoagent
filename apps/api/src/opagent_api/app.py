@@ -11,6 +11,7 @@ from opagent_db.schema import engine_for
 
 from . import (
     routes_doctor,
+    routes_duplicates,
     routes_models,
     routes_ops,
     routes_public,
@@ -70,6 +71,7 @@ def create_app(
     app.add_middleware(security.DesktopGuard, state=st)
     app.include_router(routes_public.router, prefix="/api/v1")
     app.include_router(routes_system.router, prefix="/api/v1")
+    app.include_router(routes_duplicates.router, prefix="/api/v1")
     app.include_router(routes_ops.router, prefix="/api/v1")
     app.include_router(routes_review.router, prefix="/api/v1")
     app.include_router(routes_models.router, prefix="/api/v1")

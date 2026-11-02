@@ -665,6 +665,46 @@ class WorkerAgent:
             res = asyncio.run(_wait(res))
         return {"vec": [float(x) for x in list(res[0])]}
 
+    def _do_embed_image(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """``embed.image`` RPC (05 §2.2): an uploaded query picture, fetched once from the API's memory, embedded
+        in memory and dropped — never written to disk (SRCH-IMG-002)."""
+        import asyncio
+        import io
+
+        import blake3
+        from opagent_inference.types import BatchRequest, ImageInput
+        from PIL import Image
+
+        from .imaging import oriented
+
+        if self.embedder is None:
+            return {"error": "MODEL_UNAVAILABLE"}
+        if p.get("fingerprint") and p["fingerprint"] != self.embedder.describe().model_fingerprint:
+            return {"error": "MODEL_UNAVAILABLE", "reason": "space mismatch"}
+        r = self.client.get(f"/worker-api/v1/blobs/{p['token']}")
+        if r.status_code != 200:
+            return {"error": "BLOB_GONE"}
+        data = r.content
+        try:
+            with Image.open(io.BytesIO(data)) as im:
+                pic = oriented(im).convert("RGB")
+        except Exception:
+            return {"error": "DECODE_FAILED"}
+        pic.thumbnail((512, 512))
+        buf = io.BytesIO()
+        pic.save(buf, "JPEG", quality=90)
+        img = ImageInput(item_id="query", content_hash=blake3.blake3(data).hexdigest(), data=buf.getvalue())
+        from opagent_inference.types import LoadOptions
+
+        embedder = self.embedder
+
+        async def go() -> Any:
+            await embedder.load(LoadOptions())  # no-op when already loaded
+            return await embedder.run_batch(BatchRequest(task_type="embed", items=[img]))
+
+        res = asyncio.run(go())
+        return {"vec": [float(x) for x in list(res[0].embedding)]}
+
     def _do_probe_root(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         """Preflight RPC: can this source be read right now? (first 10 entries, 06 §3.3 fs.roots)"""
         try:

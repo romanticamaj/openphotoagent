@@ -21,6 +21,7 @@ class AppState:
     backups_dir: Path | None = None  # desktop: Settings → Data backups (08 §2.3)
     pg_bin: Path | None = None
     dsn: str = ""
+    blobs: dict[str, bytes] = field(default_factory=dict)  # uploaded query images, memory only (SRCH-IMG-002)
     handoffs: dict[str, Any] = field(default_factory=dict)  # one-time browser handoff codes → expiry
     login_failures: dict[str, list[Any]] = field(default_factory=dict)  # LAN login rate limit per client
     sessions: set[str] = field(default_factory=set)  # browser sessions opened from the tray

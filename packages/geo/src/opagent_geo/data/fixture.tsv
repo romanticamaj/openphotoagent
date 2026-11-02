@@ -1,0 +1,10 @@
+# Test fixture only (09b SRCH-PLAN): a handful of places shaped like GeoNames cities1000 + alternateNames.
+# The product loads the real GeoNames extract built by tools/build_geonames.py (08 §4.1 GeoNames data).
+# geoname_id	name	country	admin1	population	names (zh-TW|ja|en, comma separated)
+1857910	Kyoto	JP	Kyoto	1463723	京都,京都市,Kyoto
+1859740	Kasuga	JP	Fukuoka	113000	春日,春日市,Kasuga
+1859734	Kasuga	JP	Hyogo	10000	春日,Kasuga
+1859731	Kasuga	JP	Gifu	2500	春日,Kasuga
+1850147	Tokyo	JP	Tokyo	9733276	東京,東京都,Tokyo
+1668341	Taipei	TW	Taipei	2646204	台北,臺北,台北市,臺北市,Taipei
+1853909	Osaka	JP	Osaka	2752412	大阪,大阪市,Osaka

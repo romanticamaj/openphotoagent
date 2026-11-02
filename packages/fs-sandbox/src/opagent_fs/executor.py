@@ -33,7 +33,7 @@ TRASH_DIR = ".opagent-trash"
 @dataclass(frozen=True)
 class Action:
     action_id: str
-    op: Literal["copy", "move", "sidecar_json", "sidecar_csv"]
+    op: Literal["copy", "move", "trash", "sidecar_json", "sidecar_csv", "sidecar_xmp"]
     src_alias: str
     src_rel: str
     dst_alias: str
@@ -137,8 +137,10 @@ class Executor:
         return suffixed(rel, n)
 
     def _one(self, plan_id: str, a: Action, move_confirmed: bool) -> ActionResult:
-        if a.op in ("sidecar_json", "sidecar_csv"):
+        if a.op in ("sidecar_json", "sidecar_csv", "sidecar_xmp"):
             return self._sidecar(plan_id, a)
+        if a.op == "trash":
+            return self._trash_action(plan_id, a)
         op, downgraded = effective_op(self.sb, a)
         if op == "move" and not move_confirmed:
             return ActionResult(a.action_id, "failed", error="MOVE_NOT_CONFIRMED")
@@ -265,10 +267,16 @@ class Executor:
             self.sb._root(alias)  # raises RootUnavailable when an external drive disappeared mid-copy
 
     def _sidecar(self, plan_id: str, a: Action) -> ActionResult:
-        """Write ``<stem>.opagent.json`` (or a batch CSV) atomically (tmp + rename); the photo is never touched."""
+        """Write ``<stem>.opagent.json``, a batch CSV or an XMP sidecar atomically (tmp + rename); the photo is never
+        touched (XMP-004)."""
         dst = self.sb.open_write(a.dst_alias, a.dst_rel)
         if a.op == "sidecar_csv":
             data = str((a.payload or {}).get("text", "")).encode()
+        elif a.op == "sidecar_xmp":  # merged into an existing XMP, which is backed up below (XMP-003)
+            from opagent_core.xmp import build_xmp
+
+            existing = dst.real.read_bytes() if self.fs.exists(dst.real) else None
+            data = build_xmp(a.payload or {}, existing)
         else:
             data = (json.dumps(a.payload or {}, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode()
         digest = blake3.blake3(data).hexdigest()
@@ -312,6 +320,56 @@ class Executor:
             },
         )
         return ActionResult(a.action_id, "done", dst.rel)
+
+    def _trash_action(self, plan_id: str, a: Action) -> ActionResult:
+        """`trash` (09b TRASH-*): into ``<root>/.opagent-trash/<plan>/<rel>`` by one atomic rename on the same root.
+        A read-only root refuses — never silently turned into another action (TRASH-004)."""
+        if self.sb.roots[a.src_alias].mode != "rw":
+            return ActionResult(a.action_id, "failed", error="FS_NOT_WRITABLE")
+        src = self.sb.open_write(a.src_alias, a.src_rel)
+        if not self.fs.exists(src.real) or self.fs.read_hash(src.real) != a.src_hash:
+            return ActionResult(a.action_id, "skipped", error="PLAN_STALE")
+        trash_rel = posixpath.join(TRASH_DIR, plan_id, src.rel)
+        crash_point("before_intent")
+        seq = self.journal.intent(
+            plan_id,
+            a.action_id,
+            "trash_move",
+            {"src": [a.src_alias, src.rel], "dst": [a.src_alias, trash_rel], "src_hash": a.src_hash},
+            {"src": {"exists": True, "hash": a.src_hash}, "dst": {"exists": False, "hash": None}},
+        )
+        crash_point("after_intent")
+        try:
+            self._trash(plan_id, src)
+        except OSError as e:
+            self.journal.record(plan_id, a.action_id, "trash_move", "rolled_back", {"error": str(e.errno)})
+            self._raise_if_waiting(e, a.src_alias)
+            return ActionResult(a.action_id, "failed", error="FS_FILE_LOCKED" if _is_lock_error(e) else "TRASH_FAILED")
+        post = {
+            "dst_rel": trash_rel,
+            "dst_hash": a.src_hash,
+            "trash_rel": trash_rel,
+            "trashed_at": self.clock.now().isoformat() if self.clock is not None else None,
+            "created_dirs": [],
+            "steps": [{"op": "trash_move", "pre": {"src_rel": src.rel}, "post": {"trash_rel": trash_rel}}],
+        }
+        self.journal.done(seq, post)
+        return ActionResult(a.action_id, "done", trash_rel)
+
+    def _undo_trash(self, plan_id: str, e: dict[str, Any], it: dict[str, Any]) -> ActionResult:
+        src_alias, src_rel = it["args"]["src"]
+        src = self.sb.open_write(src_alias, src_rel)
+        trash = self.sb.open_write(src_alias, e["post_state"]["trash_rel"])
+        if self.fs.exists(trash.real):
+            if self.fs.exists(src.real):
+                return ActionResult(e["action_id"], "conflict", src.rel, "UNDO_SOURCE_OCCUPIED")
+            self.fs.makedirs(src.real.parent)
+            crash_point("undo_before_restore")
+            self.fs.rename_noreplace(trash.real, src.real)
+        elif not self.fs.exists(src.real):
+            return ActionResult(e["action_id"], "conflict", src.rel, "UNDO_TRASH_EXPIRED")
+        self.journal.record(plan_id, e["action_id"], "trash_move", "undone", {}, ref=e["seq"])
+        return ActionResult(e["action_id"], "undone", src.rel)
 
     def _trash(self, plan_id: str, src: SafePath) -> str:
         """Move the source into ``<root>/.opagent-trash/<plan_id>/<rel>`` (same filesystem, so a rename)."""
@@ -362,6 +420,8 @@ class Executor:
                     "recovered": True,
                     "steps": [],
                 }
+                if op == "trash_move":
+                    post["trash_rel"] = dst.rel
                 if op == "move":
                     src = self.sb.resolve(*args["src"])
                     trash_rel = posixpath.join(TRASH_DIR, plan_id, src.rel)
@@ -433,6 +493,9 @@ class Executor:
             if reporter is not None:
                 reporter.progress(n, len(todo))
             it = intents[e["ref_seq"]]
+            if it["op"] == "trash_move":
+                results.append(self._undo_trash(plan_id, e, it))
+                continue
             dst_alias, _ = it["args"]["dst"]
             post = e["post_state"]
             dst = self.sb.open_write(dst_alias, post["dst_rel"])

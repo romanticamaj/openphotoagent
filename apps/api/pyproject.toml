@@ -12,6 +12,7 @@ dependencies = [
     "fastapi",
     "uvicorn",
     "argon2-cffi>=25.1.0",
+    "python-multipart>=0.0.33",
 ]
 
 [build-system]

@@ -7,35 +7,52 @@ import { useTranslation } from "react-i18next";
 import { Button } from "../../components/Button";
 import { api, mediaUrl, type SearchBody } from "../../lib/api";
 
-type Chip = { kind: "tag"; value: string } | { kind: "year"; value: string };
+type Chip = { kind: "tag"; value: string } | { kind: "year"; value: string } | { kind: "range"; value: string; from: string; to: string };
 
 export function SearchPage({ q }: { q: string }) {
   const { t, i18n } = useTranslation();
   const [chips, setChips] = useState<Chip[]>([]);
+  // the rule planner runs once per query; its filters become chips and the rest of the words stay the query (05 §2.3)
+  const [planned, setPlanned] = useState<{ text: string } | null>(null);
   const [sel, setSel] = useState<{ all: boolean; ids: Set<string>; anchor: number | null }>({ all: false, ids: new Set(), anchor: null });
   const [toast, setToast] = useState<string | null>(null);
   useEffect(() => {
     setChips([]);
+    setPlanned(null);
     setSel({ all: false, ids: new Set(), anchor: null });
   }, [q]);
 
   const body: SearchBody = useMemo(() => {
     const tags = chips.filter((c) => c.kind === "tag").map((c) => c.value);
     const year = chips.find((c) => c.kind === "year")?.value;
+    const range = chips.find((c): c is Extract<Chip, { kind: "range" }> => c.kind === "range");
+    if (!planned && q) return { q, plan: true, filters: {} };
     return {
-      q: q || null,
+      q: (planned ? planned.text : q) || null,
       filters: {
         ...(tags.length ? { tags_all: tags } : {}),
-        ...(year ? { taken_from: `${year}-01-01`, taken_to: `${year}-12-31` } : {}),
+        ...(range ? { taken_from: range.from, taken_to: range.to } : year ? { taken_from: `${year}-01-01`, taken_to: `${year}-12-31` } : {}),
       },
     };
-  }, [q, chips]);
+  }, [q, chips, planned]);
   const res = useInfiniteQuery({
     queryKey: ["search", body],
     queryFn: ({ pageParam }) => api.search({ ...body, limit: 100, cursor: pageParam, facets: ["tags", "year"] }),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.next_cursor,
   });
+  const plannerOut = res.data?.pages[0]?.planner;
+  useEffect(() => {
+    if (planned || !plannerOut) return;
+    const next: Chip[] = [];
+    const at = plannerOut.filters.taken_at;
+    if (at) {
+      const label = plannerOut.explain.find((e) => /→/.test(e) && /\d{4}/.test(e)) ?? `${at.from} – ${at.to}`;
+      next.push({ kind: "range", value: label, from: at.from, to: at.to });
+    }
+    setChips(next);
+    setPlanned({ text: plannerOut.text });
+  }, [plannerOut, planned]);
   const index = useQuery({ queryKey: ["search-index"], queryFn: api.searchIndex, refetchInterval: 5000 });
   const first = res.data?.pages[0];
   const hits = (res.data?.pages ?? []).flatMap((p) => p.items);

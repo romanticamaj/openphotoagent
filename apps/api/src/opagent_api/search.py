@@ -23,8 +23,6 @@ from sqlalchemy import and_, bindparam, false, func, or_, select, text
 from .state import AppState
 
 router = APIRouter()
-RRF_K = 60
-W = {"image_vector": 1.0, "fulltext": 1.0, "tag": 1.2}
 PER_ROUTE = 200
 MIN_WORD_HITS = 5  # fewer word-AND hits → downgrade to bigram AND (05 §1.3 rule 3)
 RPC_TIMEOUT_S = 2.0
@@ -42,6 +40,7 @@ class Scope(BaseModel):
 
 class Filters(BaseModel):
     tags_all: list[str] | None = None
+    tags_any: list[str] | None = None
     category: str | None = None
     taken_from: str | None = None
     taken_to: str | None = None
@@ -56,6 +55,8 @@ class SearchIn(BaseModel):
     limit: int = Field(default=50, ge=1, le=500)
     cursor: str | None = None
     facets: list[str] = []
+    collapse_duplicates: bool = True  # one representative per near-duplicate group, with "+N" (05 §2.1)
+    plan: bool = False  # run the rule-based planner on q (05 §2.3): NL dates / tags → filters, rest stays text
 
 
 # ---- cursors ----
@@ -137,6 +138,8 @@ def _where(f: Filters, snapshot: str | None) -> tuple[list[Any], dict[str, Any]]
     w: list[Any] = [search_doc.c.workspace_id == "default"]
     if f.tags_all:
         w.append(search_doc.c.tags.contains(f.tags_all))
+    if f.tags_any:
+        w.append(search_doc.c.tags.overlap(f.tags_any))
     if f.category:
         w.append(search_doc.c.category == f.category)
     if f.taken_from:
@@ -172,6 +175,65 @@ def _ft_cond(tsq: str, en: str, tag: str) -> Any:
     return text(f"({cond})").bindparams(*params)
 
 
+UNINDEXED = ("place", "camera_make", "persons_all")  # planner filters the search index cannot apply yet
+
+
+def _apply_plan(st: AppState, body: SearchIn, q: str) -> tuple[dict[str, Any], SearchIn]:
+    from zoneinfo import ZoneInfo
+
+    from opagent_geo.gazetteer import Gazetteer
+    from opagent_search.planner import plan
+
+    tz = ZoneInfo("Asia/Taipei")
+    p = plan(q, today=st.clock.now().astimezone(tz).date(), tz=tz, gazetteer=Gazetteer.default())
+    if p["planner"]["confidence"] < LLM_PLAN_BELOW:
+        llm = _llm_plan(st, q)
+        if llm is not None:
+            p = llm
+    f = body.filters.model_copy()
+    pf = p["filters"]
+    if "taken_at" in pf and not (f.taken_from or f.taken_to):
+        f.taken_from, f.taken_to = pf["taken_at"]["from"], pf["taken_at"]["to"]
+    # tag words stay in the query text, where the tag route (R4) ranks by them; as a hard filter they would cut
+    # the image-vector route's recall (a photo of a dog that nobody tagged "dog" would vanish)
+    flat = {**p["planner"], "filters": pf, "text": p["text"], "unapplied": [k for k in UNINDEXED if k in pf]}
+    return flat, body.model_copy(update={"filters": f, "q": p["text"]})
+
+
+LLM_PLAN_BELOW = 0.6  # rule confidence under which the worker's LLM is asked (05 §2.3)
+LLM_PLAN_TIMEOUT_S = 1.5
+
+
+def _llm_plan(st: AppState, q: str) -> dict[str, Any] | None:
+    """``query.plan`` RPC on the interactive lane: structured output from the loaded VLM/LLM; ``None`` when no
+    worker answers within 1.5 s or it cannot plan (SRCH-PLAN-011) — the rules result is used then."""
+    import uuid
+
+    with st.engine.begin() as c:
+        w = _worker_online(c, st)
+        if w is None:
+            return None
+        tid = "rpc-" + uuid.uuid4().hex[:12]
+        c.execute(
+            worker_task.insert().values(id=tid, kind="query_plan", lane="interactive", worker_id=w.id, payload={"q": q})
+        )
+    deadline = time.monotonic() + LLM_PLAN_TIMEOUT_S  # noqa: TID251 - waits on a real worker over the wire
+    while time.monotonic() < deadline:  # noqa: TID251
+        with st.engine.begin() as c:
+            row = c.execute(select(worker_task.c.status, worker_task.c.result).where(worker_task.c.id == tid)).first()
+        if row is not None and row.status in ("done", "failed"):
+            res = row.result or {}
+            if row.status == "done" and isinstance(res.get("filters"), dict) and isinstance(res.get("text"), str):
+                return {
+                    "text": res["text"],
+                    "filters": res["filters"],
+                    "planner": {"source": "llm", **res.get("planner", {})},
+                }
+            return None
+        time.sleep(0.02)  # noqa: TID251
+    return None
+
+
 def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
     from opagent_search.tokenize import to_tsquery
 
@@ -182,9 +244,18 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
         raise HTTPException(400, detail={"code": "CURSOR_INVALID"})
     degraded: list[str] = []
     q = (body.q or "").strip()
+    planned: dict[str, Any] | None = None
+    if body.plan and q:
+        planned, body = _apply_plan(st, body, q)
+        q = (body.q or "").strip()
     with st.engine.begin() as c:
         snapshot = cur["s"] if cur else str(c.execute(select(func.now())).scalar_one().isoformat())
         where, _ = _where(body.filters, snapshot)
+        if body.collapse_duplicates:  # pre-filter, so total / facets / selection agree (ADR-0005)
+            from opagent_db.schema import duplicate_member
+
+            hidden = select(duplicate_member.c.asset_id).where(duplicate_member.c.is_representative.is_(False))
+            where.append(search_doc.c.asset_id.notin_(hidden))
         space = active_space(c)
     qvec = None
     if q and body.semantic:
@@ -233,13 +304,12 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                     .limit(PER_ROUTE)
                 )
                 routes["image_vector"] = [r[0] for r in c.execute(vq, {"qv": str(qvec)})]
-            scores: dict[str, float] = {}
-            matched: dict[str, list[str]] = {}
-            for name, ids in routes.items():
-                for rk, aid in enumerate(ids, 1):
-                    scores[aid] = scores.get(aid, 0.0) + W[name] / (RRF_K + rk)
-                    matched.setdefault(aid, []).append(name)
-            ranked = sorted(scores, key=lambda a: (-scores[a], a))
+            from opagent_search.fusion import fuse, route_weights
+
+            fused = fuse(routes, route_weights(q))
+            scores = {f.asset_id: f.score for f in fused}
+            matched = {f.asset_id: f.matched_by for f in fused}
+            ranked = [f.asset_id for f in fused]
             vec_ids = routes.get("image_vector") or []
             if vec_ids:
                 member.append(search_doc.c.asset_id.in_(vec_ids))
@@ -291,6 +361,22 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
         for a in page
         if a in rows
     ]
+    if body.collapse_duplicates and items:
+        from opagent_db.schema import duplicate_member
+
+        dm = duplicate_member.alias("dm")
+        with st.engine.begin() as c:
+            counts: dict[str, int] = dict(
+                c.execute(
+                    select(duplicate_member.c.asset_id, func.count(dm.c.asset_id) - 1)
+                    .join(dm, dm.c.group_id == duplicate_member.c.group_id)
+                    .where(duplicate_member.c.asset_id.in_([i["asset_id"] for i in items]))
+                    .group_by(duplicate_member.c.asset_id)
+                ).all()
+            )
+        for i in items:
+            if counts.get(i["asset_id"]):
+                i["duplicates"] = int(counts[i["asset_id"]])
     nxt = off + body.limit
     out: dict[str, Any] = {
         "items": items,
@@ -302,6 +388,8 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
     }
     if degraded:
         out["notice"] = "degraded_search"
+    if planned is not None:
+        out["planner"] = planned  # shown as removable filter chips (05 §2.3)
     return out
 
 
@@ -329,6 +417,78 @@ def _facets(c: Any, ids: list[str] | None, where: list[Any], fields: list[str]) 
 @router.post("/search")
 def search(body: SearchIn, req: Request) -> dict[str, Any]:
     return run_search(_st(req), body)
+
+
+MAX_UPLOAD = 30 * 1024 * 1024
+
+
+@router.post("/search/by-image")
+async def search_by_image(req: Request) -> dict[str, Any]:
+    """Search with an uploaded picture (05 §2.2). The bytes live only in this process's memory: the worker fetches
+    them once by token over the worker channel; nothing reaches the database, the data dir or any cache."""
+    import secrets
+
+    from starlette.concurrency import run_in_threadpool
+
+    form = await req.form()
+    up = form.get("file")
+    if up is None or isinstance(up, str):
+        raise HTTPException(400, detail={"code": "FILE_REQUIRED"})
+    data = await up.read()
+    if not data or len(data) > MAX_UPLOAD:
+        raise HTTPException(400, detail={"code": "FILE_TOO_LARGE" if data else "FILE_REQUIRED"})
+    k = max(1, min(int(str(form.get("k") or 20)), 200))
+    st = _st(req)
+    token = secrets.token_urlsafe(24)
+    st.blobs[token] = data
+    try:
+        return await run_in_threadpool(_by_image, st, token, k)
+    finally:
+        st.blobs.pop(token, None)
+
+
+def _by_image(st: AppState, token: str, k: int) -> dict[str, Any]:
+    import uuid
+
+    with st.engine.begin() as c:
+        space = active_space(c)
+        w = _worker_online(c, st)
+        if space is None or w is None:
+            return {"items": [], "degraded": ["image_vector"], "notice": "degraded_search"}
+        tid = "rpc-" + uuid.uuid4().hex[:12]
+        c.execute(
+            worker_task.insert().values(
+                id=tid,
+                kind="embed_image",
+                lane="interactive",
+                worker_id=w.id,
+                payload={"token": token, "fingerprint": space.fingerprint},
+            )
+        )
+    vec = None
+    deadline = time.monotonic() + RPC_TIMEOUT_S * 3  # noqa: TID251 - waits on a real worker over the wire
+    while time.monotonic() < deadline:  # noqa: TID251
+        with st.engine.begin() as c:
+            row = c.execute(select(worker_task.c.status, worker_task.c.result).where(worker_task.c.id == tid)).first()
+        if row is not None and row.status in ("done", "failed"):
+            v = (row.result or {}).get("vec")
+            vec = [float(x) for x in v] if v else None
+            break
+        time.sleep(0.02)  # noqa: TID251
+    if vec is None:
+        return {"items": [], "degraded": ["image_vector"], "notice": "degraded_search"}
+    with st.engine.begin() as c:
+        rows = c.execute(
+            select(
+                asset_embedding.c.asset_id,
+                (1 - asset_embedding.c.vec.op("<=>")(text("CAST(:qv AS vector)"))).label("s"),
+            )
+            .where(asset_embedding.c.space_id == space.id)
+            .order_by(text("s DESC"), asset_embedding.c.asset_id)
+            .limit(k),
+            {"qv": str(vec)},
+        ).all()
+    return {"items": [{"asset_id": a, "score": round(float(sc), 6), "matched_by": ["image_vector"]} for a, sc in rows]}
 
 
 def index_status(c: Any) -> dict[str, Any]:
@@ -360,6 +520,17 @@ class EmbeddingsIn(BaseModel):
 
 
 worker_router = APIRouter()
+
+
+@worker_router.get("/blobs/{token}")
+def fetch_blob(token: str, req: Request) -> Any:
+    """An uploaded query image, handed to the worker once and then forgotten (SRCH-IMG-002)."""
+    from fastapi.responses import Response as Raw
+
+    data = _st(req).blobs.pop(token, None)
+    if data is None:
+        raise HTTPException(404, detail={"code": "NOT_FOUND"})
+    return Raw(content=data, media_type="application/octet-stream")
 
 
 @worker_router.post("/embeddings")

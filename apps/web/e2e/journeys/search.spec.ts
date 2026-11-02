@@ -104,3 +104,23 @@ test("[E2E-SEL-002] Shift 範圍選取 → 標籤、類別寫 review；「移到
   await expect(page).toHaveURL(/\/plans\//);
   await expect(page.getByTestId("plan-summary")).toHaveText(/^將複製 10 張到 1 個資料夾/);
 });
+
+test.describe("planner chips", () => {
+  test.use({ scenario: { photos: "library", library: true } });
+
+  test("[SRCH-PLAN-018] 自然語言日期變成可移除的 chip：結果數與 API 一致，移除後重跑", async ({ page, request }) => {
+    await request.post("/__e2e/bulk-library", { data: { n: 3214, tag: "beach" } }); // hourly from 2022-01-01
+    await page.goto(`/search?q=${encodeURIComponent("2022 年 3 月")}`);
+    const chips = page.getByRole("list", { name: "篩選條件" });
+    const date = chips.getByRole("listitem").filter({ hasText: "2022-03" });
+    await expect(date).toBeVisible();
+    const api = await (
+      await request.post("/api/v1/search", { data: { q: "", filters: { taken_from: "2022-03-01", taken_to: "2022-04-01" }, limit: 1 } })
+    ).json();
+    expect(api.total).toBe(31 * 24); // March 2022, one photo per hour
+    await expect(page.getByTestId("result-count")).toContainText(api.total.toLocaleString("en-US"));
+    await date.getByRole("button").click(); // remove the chip: the query runs again without it
+    await expect(date).toHaveCount(0);
+    await expect(page.getByTestId("result-count")).not.toContainText(api.total.toLocaleString("en-US"));
+  });
+});

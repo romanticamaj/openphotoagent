@@ -9,6 +9,7 @@ export const go = (page: Page, path: string, lang: string) => page.goto(`${path}
 
 export const ROUTES: Route[] = [
   { name: "onboarding", open: (p, _s, l) => go(p, "/welcome", l).then(() => undefined) },
+  { name: "duplicates", open: async (p, _s, l) => void (await go(p, "/duplicates", l), await p.getByRole("heading", { level: 1 }).waitFor()) },
   { name: "photos", open: async (p, _s, l) => void (await go(p, "/", l), await p.getByRole("gridcell").first().waitFor()) },
   {
     name: "lightbox",

@@ -164,6 +164,21 @@ class Stack:
                 shutil.copy2(f, inbox / f.name)
             return {"inbox": str(inbox)}
 
+        @ctl.post("/dup-library")
+        def dup_library() -> dict[str, str]:
+            """Each trip photo at two places in a writable root (sorted/dups/a, sorted/dups/b), scanned: 20 exact
+            duplicate groups to clean up (TRASH-005)."""
+            dups = self.sorted / "dups"
+            for sub in ("a", "b"):
+                (dups / sub).mkdir(parents=True, exist_ok=True)
+                for f in sorted((self.photos / "trip").glob("*.jpg")):
+                    shutil.copy2(f, dups / sub / f.name)
+            client = httpx.Client(base_url=f"http://127.0.0.1:{self.port}", timeout=30)
+            src = client.post("/api/v1/sources", json={"root_alias": "sorted", "sub_path": "dups"}).json()["id"]
+            client.post(f"/api/v1/sources/{src}/scan").raise_for_status()
+            self._wait(client, lambda: self._scan_done(src), 60)
+            return {"dups": str(dups), "source_id": src}
+
         @ctl.post("/big-move-plan")
         def big_move_plan(body: dict[str, int]) -> dict[str, str]:
             return self._big_move_plan(int(body.get("n", 10_001)))
@@ -248,11 +263,19 @@ class Stack:
     def _wipe_db(self) -> None:
         from opagent_db.schema import engine_for, metadata
         from sqlalchemy import text
+        from sqlalchemy.exc import OperationalError
 
         eng = engine_for(self.dsn)
-        with eng.begin() as c:
-            names = ", ".join(f'"{t.name}"' for t in metadata.sorted_tables)
-            c.execute(text(f"TRUNCATE {names} RESTART IDENTITY CASCADE"))
+        names = ", ".join(f'"{t.name}"' for t in metadata.sorted_tables)
+        for attempt in range(5):  # a request left over from the previous test may hold a lock: PG picks one victim
+            try:
+                with eng.begin() as c:
+                    c.execute(text(f"TRUNCATE {names} RESTART IDENTITY CASCADE"))
+                break
+            except OperationalError as e:
+                if "deadlock" not in str(e) or attempt == 4:
+                    raise
+                time.sleep(0.2 * (attempt + 1))  # noqa: TID251 - test harness only
         eng.dispose()
         self.app.state.opa.ensure_workspace()
 

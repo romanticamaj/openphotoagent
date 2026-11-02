@@ -586,4 +586,4 @@ PR 總牆鐘時間目標 ≤ 15 分鐘（job 並行）。Required checks：上�
 | Q-T2 | PR 用 tiny GGUF／ONNX 模型 | M0-T1 選定；若找不到夠小的 VLM，PR 的 llama.cpp 契約測試只驗證程序管理與 OpenAI 相容協定（FakeRuntime），結構化輸出只在 nightly |
 | Q-T3 | self-hosted GPU runner 的維運（安全隔離、只跑 main 分支、不跑 fork PR） | nightly-gpu 只在 main 與受信任分支執行；runner 使用專用帳號、無 secrets 之外的權限 |
 | Q-T4 | Windows runner 上的第二磁碟與 OneDrive 佔位檔模擬 | M0-T1 (c) |
-| Q-T5 | 「過年」等中文日期表達的精確範圍 | 產品決定後回填 SRCH-PLAN-005 |
+| Q-T5 | 「過年」等中文日期表達的精確範圍 | ✅ ADR-0008：初一 −4 天到初一 +5 天（半開）；SRCH-PLAN-005、013～017 |

@@ -1,6 +1,7 @@
 import json
 import threading
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -374,3 +375,149 @@ def test_srch_fac_005_total_facets_and_selection_cover_every_match(s):
     assert sel["count"] == 330
     upd = s.client.post(f"/api/v1/selections/{sel['id']}/labels", json={"tags": ["海邊"]}).json()
     assert upd["updated"] == 330
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-RRF-003")
+def test_rrf_003_filter_only_query_sorts_by_date_without_ranking(s):
+    for i, day in enumerate([1, 15, 28, 40, 3]):  # 2024-03-02, -16, -29, 04-10 (outside), 03-04
+        s.add(i, caption=f"photo {i}", taken=datetime(2024, 3, 1, 12, tzinfo=UTC) + timedelta(days=day))
+    s.index()
+    r = s.search(q="2024 年 3 月的照片", plan=True)
+    assert r["planner"]["filters"]["taken_at"] == {"from": "2024-03-01", "to": "2024-04-01"}
+    assert r["planner"]["text"] == ""
+    ids = [h["asset_id"] for h in r["items"]]
+    taken = [h["taken_at"] for h in r["items"]]
+    assert len(ids) == 4 and taken == sorted(taken, reverse=True)  # taken_at desc
+    assert all(h["matched_by"] == ["filter"] for h in r["items"])  # no RRF, no vector route
+    assert "image_vector" not in r.get("degraded", [])
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-RRF-004")
+def test_rrf_004_duplicate_group_folds_into_its_representative(s):
+    ids = [s.add(i, caption="beach sunset", tags=["scene.beach"]) for i in range(6)]
+    s.index()
+    s.sql(
+        "insert into duplicate_member(group_id, asset_id, is_representative) values"
+        " ('g', :a, true), ('g', :b, false), ('g', :c, false)",
+        a=ids[0],
+        b=ids[1],
+        c=ids[2],
+    )
+    folded = s.search(q="beach")
+    got = [h["asset_id"] for h in folded["items"]]
+    assert ids[0] in got and ids[1] not in got and ids[2] not in got
+    rep = next(h for h in folded["items"] if h["asset_id"] == ids[0])
+    assert rep["duplicates"] == 2  # shown as "+2"
+    assert folded["total"] == 4
+    full = s.search(q="beach", collapse_duplicates=False)
+    assert {h["asset_id"] for h in full["items"]} >= set(ids[:3]) and full["total"] == 6
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-RRF-005", "SRCH-RRF-006")
+def test_rrf_005_006_matched_by_names_only_routes_that_hit_and_routes_switch_off(s):
+    dog = s.add(1, caption="狗在海邊", tags=["animal.dog"], groups=["dog", "beach"])
+    s.add(2, caption="山上的雲", groups=["mountain"])
+    s.index()
+    offline = s.search(q="狗", limit=10)  # before any worker runs: R1 off, the rest unchanged
+    assert "image_vector" in offline["degraded"]
+    assert all("image_vector" not in h["matched_by"] for h in offline["items"])
+    assert [h["asset_id"] for h in offline["items"]] == [dog]
+    stop = serve(s.w)
+    try:
+        on = s.search(q="狗", limit=10)
+        none = s.search(q="zzqv", limit=10)  # maps to no tag: R4 off; nothing in full text either
+    finally:
+        stop.set()
+    allowed = {"image_vector", "fulltext", "tag"}
+    for h in on["items"]:
+        assert set(h["matched_by"]) <= allowed
+    d = next(h for h in on["items"] if h["asset_id"] == dog)
+    assert {"fulltext", "tag"} <= set(d["matched_by"])
+    assert all("tag" not in h["matched_by"] and "fulltext" not in h["matched_by"] for h in none["items"])
+    no_text = s.search(filters={"tags_any": ["animal.dog"]})  # no text: R3 / R1 off, filter only
+    assert [h["matched_by"] for h in no_text["items"]] == [["filter"]]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-RRF-007")
+def test_rrf_007_scope_is_a_pre_filter_everywhere(s):
+    for i in range(1000):
+        s.add(i, caption="sunset beach", tags=["scene.beach"], category="travel", folder="secret", groups=["beach"])
+    inside = [
+        s.add(2000 + i, caption="sunset beach", tags=["scene.beach"], category="food", folder="ok") for i in range(3)
+    ]
+    s.index()
+    scope = {"scope": [{"source_id": s.src, "path": "ok"}]}
+    stop = serve(s.w)
+    try:
+        r = s.search(q="sunset beach", filters=scope, facets=["category"], limit=500)
+    finally:
+        stop.set()
+    assert sorted(h["asset_id"] for h in r["items"]) == sorted(inside)
+    assert r["total"] == 3 and r["next_cursor"] is None
+    assert r["facets"]["category"] == {"food": 3}  # counts never reveal the 1,000 outside the scope
+
+
+def _files(*roots):
+    out = set()
+    for r in roots:
+        out |= {p for p in Path(r).rglob("*") if p.is_file()}
+    return out
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-IMG-002")
+def test_img_002_search_by_uploaded_image_keeps_it_in_memory(s, tmp_path):
+    import blake3
+
+    data = (Path(__file__).resolve().parents[4] / "fixtures/photos/basic/IMG_0003.jpg").read_bytes()
+    target = s.add(1, caption="x")
+    for i in range(2, 8):
+        s.add(i, caption="y")
+    s.index()
+    space = s.sql("select id from embedding_space order by id desc limit 1").scalar_one()
+    s.sql(
+        "update asset_embedding set vec = :v where asset_id = :a and space_id = :s",
+        v=str(s.fb.embed_vector(blake3.blake3(data).hexdigest())),
+        a=target,
+        s=space,
+    )
+    before = _files(tmp_path)
+    stop = serve(s.w)
+    try:
+        r = s.client.post("/api/v1/search/by-image", files={"file": ("q.jpg", data, "image/jpeg")}, data={"k": "5"})
+    finally:
+        stop.set()
+    assert r.status_code == 200, r.text
+    items = r.json()["items"]
+    assert items[0]["asset_id"] == target and items[0]["matched_by"] == ["image_vector"]
+    new = _files(tmp_path) - before
+    # only the worker loop's own SQLite bookkeeping may appear — no image, no blob store, no cache entry
+    assert all(p.name.endswith((".db", ".db-wal", ".db-shm")) for p in new), new
+    assert not any(data[:4096] in p.read_bytes() for p in _files(tmp_path))
+    assert not s.client.app.state.opa.blobs  # dropped from memory once the worker fetched it
+    with s.eng.begin() as c:  # and never stored in the database: task payloads carry a token, not the bytes
+        sizes = [len(json.dumps(p)) for (p,) in c.execute(text("select payload from worker_task"))]
+    assert max(sizes) < len(data)
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-PLAN-011")
+def test_plan_011_llm_planner_times_out_to_rules(s):
+    import time
+
+    s.add(1, caption="something")
+    s.index()
+    # the worker is registered and online, but nothing serves its queue: the query.plan RPC never returns
+    t0 = time.monotonic()  # noqa: TID251 - measures the RPC deadline
+    r = s.search(q="那張很有感覺的照片", plan=True, semantic=False)
+    took = time.monotonic() - t0  # noqa: TID251
+    assert r["planner"]["source"] == "rules"
+    assert r["planner"]["confidence"] < 0.6
+    assert 1.4 <= took < 3.0  # waited the 1.5 s planner budget, then used the rules
+    with s.eng.begin() as c:
+        kinds = [k for (k,) in c.execute(text("select kind from worker_task where kind = 'query_plan'"))]
+    assert kinds == ["query_plan"]
