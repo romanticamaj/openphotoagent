@@ -203,6 +203,12 @@
     "severity": "B",
     "title": "你的 {gpu}（{sm}）需要較新的執行套件"
   },
+  "GPU_BUDGET_EXCEEDED": {
+    "cta": "明天再試",
+    "message": "這個 AI 助手今天的 GPU 預算（600 秒）已用完，{retry_after_s} 秒後重置",
+    "severity": "B",
+    "title": "這個 AI 助手今天的 GPU 預算（600 秒）已用完"
+  },
   "GPU_BUSY_EXTERNAL": {
     "cta": "關閉後重試（改用較小模型）",
     "message": "其他程式正在佔用 {gb} GB VRAM（{process}）",

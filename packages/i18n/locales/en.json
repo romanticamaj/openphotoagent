@@ -338,6 +338,7 @@
     "check_updates": "Check for updates",
     "import_renamed": "Import under a new name",
     "assistant": "Open the Ask-your-photos settings",
+    "retry_later": "Try again later",
     "retype": "Type it again"
   },
   "nav": {

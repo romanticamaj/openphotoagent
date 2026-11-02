@@ -702,6 +702,12 @@ ASSISTANT_ENDPOINT_INSECURE:
     type: open_settings
   severity: blocker
   transient: false
+GPU_BUDGET_EXCEEDED:
+  fixes:
+  - target: retry_later
+    type: retry
+  severity: blocker
+  transient: true
 QUERY_EXPIRED:
   fixes:
   - target: drop_again

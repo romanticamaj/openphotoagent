@@ -589,6 +589,7 @@ mcp_call_log = Table(  # every MCP request; append-only (MCP-AUD-003)
     Column("plan_id", Text),
     Column("job_id", Text),
     Column("latency_ms", Integer),
+    Column("gpu_ms", Integer, nullable=False, server_default="0"),  # VLM time spent for this call (MCP-RATE-002)
     Column("actor_kind", Text, nullable=False, server_default="mcp"),  # mcp | builtin-assistant (10 §10.3)
     Column("conversation_id", Text),
     Column("turn_id", Text),

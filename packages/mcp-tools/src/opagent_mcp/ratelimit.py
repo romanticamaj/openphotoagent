@@ -20,7 +20,9 @@ LIMITS = {
     "jobs": Limit(burst=10, per_window=10, window_s=60),
     "faces_find": Limit(burst=60, per_window=60, window_s=60),
     "faces_list": Limit(burst=30, per_window=30, window_s=60),
+    "describe": Limit(burst=30, per_window=30, window_s=60),  # 05 §3.7: 30 / minute, plus the GPU budget
 }
+GPU_TOOLS = frozenset({"describe_photo", "verify_photos", "compare_photos"})
 # a full bucket starts with burst + one window's allowance: 151st read inside a minute is refused (MCP-RATE-001)
 MCP_JOBS_CONCURRENT = 2
 MCP_JOB_MAX_ITEMS = 50_000
@@ -34,6 +36,7 @@ def kind_for(tool: str) -> str:
         "run_labeling_job": "jobs",
         "find_photos_of_person": "faces_find",
         "list_people": "faces_list",
+        **{t: "describe" for t in GPU_TOOLS},
     }.get(tool, "read")
 
 

@@ -1369,7 +1369,8 @@ def _vlm(ctx: Ctx, mode: str, ids: list[str], text_: str) -> dict[str, Any] | No
             )
         )
     self_tid = tid
-    deadline = time.monotonic() + VLM_WAIT_S  # noqa: TID251 - waits on a real worker over the wire
+    wait = float(getattr(ctx.st, "vlm_wait_s", VLM_WAIT_S))
+    deadline = time.monotonic() + wait  # noqa: TID251 - waits on a real worker over the wire
     while time.monotonic() < deadline:  # noqa: TID251
         with ctx.st.engine.begin() as c:
             row = c.execute(

@@ -203,6 +203,12 @@
     "severity": "B",
     "title": "Your {gpu} ({sm}) needs a newer runtime pack"
   },
+  "GPU_BUDGET_EXCEEDED": {
+    "cta": "Try again tomorrow",
+    "message": "This AI assistant used today's GPU budget (600 s); it resets in {retry_after_s} s",
+    "severity": "B",
+    "title": "This AI assistant used today's GPU budget (600 s)"
+  },
   "GPU_BUSY_EXTERNAL": {
     "cta": "Retry after closing it (use smaller model)",
     "message": "Another program is using {gb} GB of VRAM ({process})",

@@ -1730,12 +1730,14 @@ name = "opagent-assistant"
 version = "0.0.1"
 source = { editable = "packages/assistant" }
 dependencies = [
+    { name = "httpx" },
     { name = "opagent-core" },
     { name = "opagent-mcp-tools" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "httpx" },
     { name = "opagent-core", editable = "packages/core" },
     { name = "opagent-mcp-tools", editable = "packages/mcp-tools" },
 ]
