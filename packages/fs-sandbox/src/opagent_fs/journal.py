@@ -90,12 +90,12 @@ class Journal:
         self._emit(f"journal.{phase}")
 
     def trash_records(self) -> list[tuple[str, str, str | None]]:
-        """(plan_id, source alias, trashed_at) for every committed move."""
+        """(plan_id, source alias, trashed_at) for every committed move or trash action."""
         out = []
         purged = {r[0] for r in self._db.execute("SELECT plan_id FROM journal WHERE phase='purged'")}
         rows = self._db.execute(
             "SELECT d.plan_id, i.args, d.post_state FROM journal d JOIN journal i ON i.seq = d.ref_seq "
-            "WHERE d.phase='done' AND d.op='move'"
+            "WHERE d.phase='done' AND d.op IN ('move', 'trash_move')"
         ).fetchall()
         for plan_id, args, post in rows:
             if plan_id in purged:
