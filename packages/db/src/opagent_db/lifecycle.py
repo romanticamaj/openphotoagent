@@ -16,6 +16,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import psycopg
+import psycopg.conninfo
+import psycopg.sql
 from alembic import command
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
@@ -116,6 +118,16 @@ class Backups:
             dsn,
             str(item.path),
         )
+
+
+def ensure_database(dsn: str) -> None:
+    """Create the app database named in ``dsn`` when missing (connecting through the ``postgres`` database)."""
+    info = psycopg.conninfo.conninfo_to_dict(dsn)
+    name = str(info.get("dbname") or "")
+    admin = psycopg.conninfo.make_conninfo(dsn, dbname="postgres")
+    with psycopg.connect(admin, autocommit=True) as c:
+        if c.execute("SELECT 1 FROM pg_database WHERE datname = %s", (name,)).fetchone() is None:
+            c.execute(psycopg.sql.SQL("CREATE DATABASE {}").format(psycopg.sql.Identifier(name)))
 
 
 def schema_revision(dsn: str) -> str | None:

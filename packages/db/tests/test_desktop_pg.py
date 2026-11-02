@@ -9,6 +9,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import psycopg
+import psycopg.conninfo
 import pytest
 from opagent_db.embedded import EmbeddedPg, PgAlreadyRunning, PgError
 from opagent_db.lifecycle import SCHEMA_REVISION, Backups, SchemaTooNew, migrate, schema_revision
@@ -213,3 +214,16 @@ def test_pg_012_shell_runs_postgres_directly_from_prepared_argv(base):
     finally:
         proc.terminate()  # SIGTERM = smart shutdown of the postmaster we own
         proc.wait(30)
+
+
+@pytest.mark.integration
+@pytest.mark.tc("PG-001")
+def test_pg_001_app_database_created_on_first_start(embedded_pg):
+    from opagent_db.lifecycle import ensure_database
+
+    dsn = psycopg.conninfo.make_conninfo(embedded_pg.dsn, dbname=f"fresh_{os.getpid()}")
+    ensure_database(dsn)
+    ensure_database(dsn)  # idempotent on every later start
+    assert q(dsn, "SELECT current_database()") == f"fresh_{os.getpid()}"
+    with psycopg.connect(embedded_pg.dsn, autocommit=True) as c:
+        c.execute(f'DROP DATABASE "fresh_{os.getpid()}"')

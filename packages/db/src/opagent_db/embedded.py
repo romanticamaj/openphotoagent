@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import glob
 import os
+import shlex
 import shutil
 import socket
 import subprocess
@@ -144,14 +145,47 @@ class EmbeddedPg:
             raise PgAlreadyRunning(f"postgres pid {pid} already owns {self.data}")
         pidfile.unlink(missing_ok=True)  # crash leftover (08 §2.3, DESK-009)
 
-    def _server_opts(self) -> str:
+    def server_args(self) -> list[str]:
         if not self.desktop:
-            return f"-p {self.port} -k {self.home} -c listen_addresses=127.0.0.1"
+            return ["-p", str(self.port), "-k", str(self.home), "-c", "listen_addresses=127.0.0.1"]
         ram = self.ram_gb if self.ram_gb is not None else _total_ram_gb()
-        return (
-            f"-p {self.port} -k {self.run_dir} -c listen_addresses='' -c unix_socket_permissions=0700"
-            f" -c shared_buffers={shared_buffers_for(ram)} -c fsync=on -c synchronous_commit=on"
-        )
+        return [
+            "-p",
+            str(self.port),
+            "-k",
+            str(self.run_dir),
+            "-c",
+            "listen_addresses=",
+            "-c",
+            "unix_socket_permissions=0700",
+            "-c",
+            f"shared_buffers={shared_buffers_for(ram)}",
+            "-c",
+            "fsync=on",
+            "-c",
+            "synchronous_commit=on",
+        ]
+
+    def prepare(self) -> list[str]:
+        """Everything before the server runs — initdb once, run dir, stale pid — and the argv that starts it.
+        The desktop shell executes this argv itself so it owns the postmaster PID (08 §1.1)."""
+        self.home.mkdir(parents=True, exist_ok=True)
+        self._own(self.home)
+        try:
+            if not (self.data / "PG_VERSION").exists():
+                self._initdb()
+        except subprocess.CalledProcessError as e:
+            mapped = self._failed(e)
+            if mapped is not None:
+                raise mapped from e
+            raise
+        if self.desktop:
+            self.run_dir.mkdir(mode=0o700, exist_ok=True)
+            os.chmod(self.run_dir, 0o700)
+            self._own(self.run_dir)
+        self._clear_stale_pid()
+        self.port = self.port or free_port()
+        return [*self.prefix, str(self.bin / "postgres"), "-D", str(self.data), *self.server_args()]
 
     def _failed(self, err: subprocess.CalledProcessError) -> PgError | None:
         try:
@@ -163,23 +197,14 @@ class EmbeddedPg:
         return None
 
     def start(self) -> str:
-        self.home.mkdir(parents=True, exist_ok=True)
-        self._own(self.home)
+        self.prepare()
         try:
-            if not (self.data / "PG_VERSION").exists():
-                self._initdb()
-            if self.desktop:
-                self.run_dir.mkdir(mode=0o700, exist_ok=True)
-                os.chmod(self.run_dir, 0o700)
-                self._own(self.run_dir)
-            self._clear_stale_pid()
-            self.port = self.port or free_port()
             self.run_as(
                 str(self.bin / "pg_ctl"),
                 "-D",
                 str(self.data),
                 "-o",
-                self._server_opts(),
+                shlex.join(self.server_args()),
                 "-l",
                 str(self.home / "pg.log"),
                 "-w",

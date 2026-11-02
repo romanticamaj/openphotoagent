@@ -104,8 +104,9 @@ def prepare_database(dsn: str, home: Path) -> None:
 
     from opagent_core.clock import SystemClock
     from opagent_db.embedded import find_pg_bin
-    from opagent_db.lifecycle import Backups, SchemaTooNew, migrate
+    from opagent_db.lifecycle import Backups, SchemaTooNew, ensure_database, migrate
 
+    ensure_database(dsn)  # the shell starts a bare postmaster; the app database is created on first start
     backups = Backups(home / "backups", find_pg_bin(), SystemClock())
     try:
         migrate(dsn, backups)
@@ -195,6 +196,26 @@ def cmd_lan_password(a: argparse.Namespace) -> None:
     os.replace(tmp, f)
 
 
+def cmd_pg_prepare(a: argparse.Namespace) -> None:
+    """For the desktop shell (08 §1.1, §2.3): initdb once, socket dir, stale pid check; print the postgres argv
+    and DSNs as JSON. The shell runs the argv itself and supervises that PID."""
+    import json
+
+    from opagent_db.embedded import EmbeddedPg, PgAlreadyRunning, PgError
+
+    home = Path(a.home) if a.home else _home() / "pg"
+    pg = EmbeddedPg(home, desktop=True, ram_gb=a.ram_gb)
+    try:
+        argv = pg.prepare()
+    except PgAlreadyRunning as e:
+        print(json.dumps({"code": "PG_ALREADY_RUNNING", "detail": str(e)}), file=sys.stderr)
+        raise SystemExit(3) from e
+    except PgError as e:
+        print(json.dumps({"code": e.code, "params": e.params}), file=sys.stderr)
+        raise SystemExit(6) from e
+    print(json.dumps({"argv": argv, "dsn": pg.dsn, "admin_dsn": pg.dsn_for("postgres"), "data": str(pg.data)}))
+
+
 def cmd_worker(a: argparse.Namespace) -> None:
     import httpx
     from opagent_worker.agent import WorkerAgent
@@ -251,6 +272,10 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--home", help="data directory (the shell passes it; default OPAGENT_HOME or ~/.opagent)")
     p.add_argument("--lan", action="store_true", help="allow LAN access (binds 0.0.0.0; password login enforced)")
     p.set_defaults(fn=cmd_api)
+    p = sub.add_parser("pg-prepare", help="desktop shell: prepare the embedded database, print its argv")
+    p.add_argument("--home")
+    p.add_argument("--ram-gb", type=float)
+    p.set_defaults(fn=cmd_pg_prepare)
     p = sub.add_parser("lan-password", help="set the LAN-access password from stdin")
     p.add_argument("--home")
     p.set_defaults(fn=cmd_lan_password)
