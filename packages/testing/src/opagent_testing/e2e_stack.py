@@ -263,7 +263,6 @@ class Stack:
     def _wipe_db(self) -> None:
         from opagent_db.schema import engine_for, metadata
         from sqlalchemy import text
-
         from sqlalchemy.exc import OperationalError
 
         eng = engine_for(self.dsn)
