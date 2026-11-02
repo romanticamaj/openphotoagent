@@ -126,7 +126,7 @@ def serve(pipe: Any, host: str, port: int, fake: bool) -> None:
             if not r:
                 return False
             try:
-                return self.connection.recv(1, socket.MSG_PEEK) == b""
+                return bool(self.connection.recv(1, socket.MSG_PEEK) == b"")
             except OSError:
                 return True
 

@@ -79,7 +79,8 @@ extend-immutable-calls = ["opagent_core.decide.Policy"]
 "packages/core/src/opagent_core/clock.py" = ["TID251"]
 # FakeRuntime is a separate process standing in for llama-server (real wall-clock behaviour is what it simulates)
 "packages/testing/src/opagent_testing/fake_llama_server.py" = ["TID251"]
-"packages/testing/src/opagent_testing/hfserver.py" = ["TID251"]  # simulated external CDN (throttling, connection timing)
+"packages/testing/src/opagent_testing/hfserver.py" = ["TID251"]
+"packages/inference-adapters/src/opagent_adapters/torch_server.py" = ["TID251"]  # a separate server process: request deadlines are wall-clock  # simulated external CDN (throttling, connection timing)
 "tools/**" = ["TID251", "S", "DTZ", "RUF005", "E501"]
 
 [tool.mypy]
