@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import threading
 import time
@@ -500,11 +501,22 @@ def main() -> None:
         time.sleep(1.0)  # noqa: TID251 - let uvicorn bind before the worker registers over HTTP
         st.reset()
 
+    def orphan_watch() -> None:
+        # Playwright may SIGKILL the node launcher; then nobody would stop PG or delete the base directory
+        parent = os.getppid()
+        while not server.should_exit:
+            if os.getppid() != parent:
+                server.should_exit = True
+                return
+            time.sleep(0.5)  # noqa: TID251
+
     threading.Thread(target=first_reset, daemon=True).start()
+    threading.Thread(target=orphan_watch, daemon=True).start()
     try:
         server.run()
     finally:
         st.close()
+        shutil.rmtree(a.base, ignore_errors=True)  # PG cluster + photo trees: never left in the temp dir
 
 
 if __name__ == "__main__":
