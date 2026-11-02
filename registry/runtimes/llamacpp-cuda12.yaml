@@ -1,0 +1,14 @@
+# CUDA 12.4 build: no sm_120 kernels (08 §3.1). Driver floor for CUDA 12.4 【未驗證】.
+schema_version: 1
+id: llamacpp-cuda12
+provides: { runtime: llama.cpp, accel: cuda }
+builtin: false
+size_est: 420000000
+platforms:
+  - { os: windows, arch: x86_64 }
+  - { os: linux, arch: x86_64 }
+requires:
+  nvidia_driver_min: "550.00"
+  compute_capability_min: "6.1"
+  cuda_architectures: ["61", "70", "75", "80", "86", "89", "90"]
+license: { spdx: MIT, notice_file: LICENSE-llama.cpp }

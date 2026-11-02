@@ -149,3 +149,22 @@ def test_out_exe_022_plan_summary_sentence():
     )
     mv = plan_summary(move=5, folders=2, lang="zh-TW")
     assert mv.startswith("將移動 5 張到 2 個資料夾") and "原檔不動" not in mv and "復原" in mv
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ORG-006")
+def test_sidecar_csv_is_written_verbatim_and_undone(mk, sandbox_tree):
+    """The batch CSV (ORG-006) goes through the same journaled sidecar path: exact bytes, never the photo, undoable."""
+    ex, acts, _ = mk()
+    src = sandbox_tree.photos / "0.jpg"
+    before = b3(src)
+    text = "file,caption\r\n0.jpg,'=1+1\r\n"
+    csv_act = Action(
+        "c0", "sidecar_csv", "photos", "0.jpg", "sorted", "out/opagent-export.csv", before, payload={"text": text}
+    )
+    rep = ex.apply("pc", [csv_act])
+    assert [r.status for r in rep.results] == ["done"]
+    assert (sandbox_tree.sorted / "out/opagent-export.csv").read_bytes() == text.encode()
+    assert b3(src) == before
+    ex.undo("pc")
+    assert not (sandbox_tree.sorted / "out/opagent-export.csv").exists()

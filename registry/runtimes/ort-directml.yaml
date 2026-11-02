@@ -1,0 +1,7 @@
+schema_version: 1
+id: ort-directml
+provides: { runtime: onnx, accel: directml }
+builtin: true
+platforms:
+  - { os: windows, arch: x86_64 }
+license: { spdx: MIT, notice_file: LICENSE-onnxruntime }

@@ -2,7 +2,7 @@
 set shell := ["bash", "-uc"]
 export UV_SYSTEM_CERTS := "1"
 
-py_fast := "not integration and not e2e and not chaos and not perf and not real_model and not gpu"
+py_fast := "not integration and not e2e and not chaos and not perf and not real_model and not gpu and not release_gate and not nightly"
 
 default:
     @just --list
@@ -19,11 +19,12 @@ test:
 
 # integration (real PostgreSQL) + chaos subset
 test-int:
-    OPAGENT_TC_RESULTS=.tc/py-int.json uv run pytest -q -m "(integration or chaos) and not nightly"
+    OPAGENT_TC_RESULTS=.tc/py-int.json uv run pytest -q -m "(integration or chaos) and not nightly and not release_gate"
 
 # Playwright against the web build + all-in-one backend with FakeBackend
 e2e:
     pnpm --filter web build
+    pnpm --filter web build-storybook
     pnpm --filter web e2e
 
 # ruff + mypy + import-linter + eslint + tsc
@@ -31,8 +32,10 @@ lint:
     uv run ruff check .
     uv run ruff format --check .
     uv run mypy -p opagent_core -p opagent_fs -p opagent_schemas
-    uv run mypy -p opagent_inference -p opagent_db -p opagent_api -p opagent_worker -p opagent_cli -p opagent_testing
+    uv run mypy -p opagent_inference -p opagent_adapters -p opagent_registry -p opagent_doctor -p opagent_search -p opagent_db -p opagent_api -p opagent_worker -p opagent_cli -p opagent_testing
     uv run lint-imports
+    uv run python tools/gen_error_i18n.py --check
+    uv run python tools/gen_problem_stories.py --check
     pnpm -r --if-present lint
     pnpm -r --if-present typecheck
 

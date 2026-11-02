@@ -1,0 +1,18 @@
+# Test-only catalog entry (not shipped): a non-commercial, consent-required VLM for MDL-002 / MDL-011.
+schema_version: 1
+id: fixture-nc-vlm
+display_name: "Fixture NC VLM"
+family: qwen3-vl
+kind: vlm
+capabilities: [caption, tag, classify]
+license: { spdx: CC-BY-NC-4.0, weights: CC-BY-NC-4.0, commercial_use: false, redistributable: false, requires_acceptance: true, url: "https://example.invalid/license" }
+source: { hf_repo: fixture/nc-vlm }
+structured_output: json_schema
+variants:
+  - id: q4
+    runtime: llama.cpp
+    quant: Q4_K_M
+    files:
+      - { repo: fixture/nc-vlm, path: "nc-q4.gguf" }
+    vram_gb: { weights: 3.0, mmproj: 0.5, runtime_overhead: 0.5 }
+    requires: { runtime_pack: ["llamacpp-*"], os: [windows, linux], min_ram_gb: 8, accel_any: [cuda, vulkan, cpu] }

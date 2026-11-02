@@ -25,7 +25,16 @@ from opagent_core.path_template import DateSource
 from opagent_fs.safepath import Sandbox
 from PIL import Image
 
-from .imaging import RawPreviewMissing, dhash, open_image, oriented, phash, thumbhash_encode, write_thumbnails
+from .imaging import (
+    RawPreviewMissing,
+    dhash,
+    exif_summary,
+    open_image,
+    oriented,
+    phash,
+    thumbhash_encode,
+    write_thumbnails,
+)
 
 __all__ = ["Image", "dhash", "phash", "thumbhash_encode"]
 
@@ -361,6 +370,7 @@ def _scan_one(
                 "thumbhash": base64.b64encode(thumbhash_encode(im)).decode(),
                 "phash": phash(im),
                 "dhash": dhash(im),
+                "exif": exif_summary(raw_im),
             }
             if thumbs_dir is not None:
                 extra["thumbs"] = write_thumbnails(im, Path(thumbs_dir), h)

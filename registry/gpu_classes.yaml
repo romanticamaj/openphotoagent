@@ -1,0 +1,11 @@
+# Memory bandwidth (GB/s) per GPU class for speed priors (06 §1.4). Values from docs/06 §1.4 and vendor spec sheets;
+# fp16_tflops is left null until benchmark data exists (the formula then uses bandwidth only).
+schema_version: 1
+classes:
+  - { id: rtx-5070-ti, match: ["RTX 5070 Ti"], bandwidth_gbs: 896, fp16_tflops: null, compute_capability: "12.0" }
+  - { id: rtx-4060, match: ["RTX 4060"], bandwidth_gbs: 272, fp16_tflops: null, compute_capability: "8.9" }
+  - { id: rtx-4090, match: ["RTX 4090"], bandwidth_gbs: 1008, fp16_tflops: null, compute_capability: "8.9" }
+  - { id: rtx-5090, match: ["RTX 5090"], bandwidth_gbs: 1792, fp16_tflops: null, compute_capability: "12.0" }
+  - { id: rtx-3090, match: ["RTX 3090"], bandwidth_gbs: 936, fp16_tflops: null, compute_capability: "8.6" }
+  - { id: rtx-3080, match: ["RTX 3080"], bandwidth_gbs: 760, fp16_tflops: null, compute_capability: "8.6" }
+  - { id: m4-pro, match: ["Apple M4 Pro"], bandwidth_gbs: 273, fp16_tflops: null, compute_capability: null }

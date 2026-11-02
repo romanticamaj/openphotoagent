@@ -48,3 +48,6 @@ mutants/
 apps/web/e2e/.run/
 apps/web/dist/
 *.tsbuildinfo
+apps/web/storybook-static/
+apps/web/test-results/
+apps/web/playwright-report/

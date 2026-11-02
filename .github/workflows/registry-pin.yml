@@ -1,0 +1,40 @@
+# ADR-0002: pin built-in registry variants (commit sha, size, sha256) into registry/pins.lock via a bot PR.
+# Requires a GitHub App token (secrets.PIN_APP_ID / PIN_APP_PRIVATE_KEY): PRs opened with GITHUB_TOKEN do not run CI.
+name: registry-pin
+on:
+  push:
+    branches: [main]
+    paths: ["registry/models/**"]
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 1"
+permissions:
+  contents: read
+jobs:
+  pin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv run --with huggingface_hub --with pyyaml python tools/pin_registry.py
+      - run: uv run pytest packages/registry -q
+      - id: app
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.PIN_APP_ID }}
+          private-key: ${{ secrets.PIN_APP_PRIVATE_KEY }}
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ steps.app.outputs.token }}
+          branch: bot/registry-pin
+          commit-message: "chore(registry): pin built-in model variants"
+          title: "chore(registry): pin built-in model variants"
+          body: "Automated by registry-pin.yml (ADR-0002). Review the diff: revisions must be commit shas; sizes/sha256 come from the Hugging Face API at pin time."
+          add-paths: registry/pins.lock
+  check:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv run --with huggingface_hub --with pyyaml python tools/pin_registry.py --check

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test } from "../fixtures";
 import { snapshot, tree } from "../fsutil";
 
 test("[E2E-B-001] 依日期端到端：選資料夾 → 依日期 → 預設輸出 → 預覽 → 核准 → 完成 → 復原", { tag: ["@critical"] }, async ({ page }) => {
@@ -6,7 +6,7 @@ test("[E2E-B-001] 依日期端到端：選資料夾 → 依日期 → 預設輸�
   const photosBefore = snapshot(t.photos);
   const sortedBefore = snapshot(t.sorted);
 
-  await page.goto("/");
+  await page.goto("/organize"); // 04 §8.1: photos is the home page; organize has its own route
   // 1. choose a folder inside an allowed root
   await page.getByRole("button", { name: "photos" }).click();
   await page.getByRole("button", { name: "trip", exact: true }).click();

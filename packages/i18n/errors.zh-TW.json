@@ -1,0 +1,428 @@
+{
+  "CHECK_CRASHED": {
+    "cta": "重新檢查（複製診斷報告）",
+    "message": "環境檢查「{check}」本身失敗",
+    "severity": "W",
+    "title": "環境檢查「{check}」本身失敗"
+  },
+  "DECODE_FAILED": {
+    "cta": "查看清單",
+    "message": "{n} 張檔案損毀或格式不支援，已略過",
+    "severity": "W",
+    "title": "{n} 張檔案損毀或格式不支援"
+  },
+  "DECODE_HEIC_MISSING": {
+    "cta": "一鍵修復解碼器",
+    "message": "無法解碼 HEIC，{n} 張 iPhone 照片會被略過",
+    "severity": "W",
+    "title": "無法解碼 HEIC"
+  },
+  "DECODE_RAW_MISSING": {
+    "cta": "下載 RAW 解碼套件",
+    "message": "無法讀取 RAW，{n} 張會被略過",
+    "severity": "W",
+    "title": "無法讀取 RAW"
+  },
+  "DISK_INSUFFICIENT_MODELS": {
+    "cta": "管理已安裝模型（更改目錄／改用較小版本）",
+    "message": "模型目錄空間不足：需要 {req}，剩 {free}",
+    "severity": "B",
+    "title": "模型目錄空間不足：需要 {req}"
+  },
+  "DISK_INSUFFICIENT_THUMBS": {
+    "cta": "更改縮圖位置（只產生小縮圖）",
+    "message": "縮圖目錄空間不足：約需 {req}，剩 {free}",
+    "severity": "B",
+    "title": "縮圖目錄空間不足：約需 {req}"
+  },
+  "DISK_LOW_THUMBS": {
+    "cta": "管理儲存空間",
+    "message": "縮圖目錄剩 {free}，處理完後會低於 {pct}%",
+    "severity": "W",
+    "title": "縮圖目錄剩 {free}"
+  },
+  "DL_CHECKSUM_MISMATCH": {
+    "cta": "換來源重試",
+    "message": "下載的檔案與預期不符（已重試）",
+    "severity": "B",
+    "title": "下載的檔案與預期不符（已重試）"
+  },
+  "DL_MIRROR_FAILED": {
+    "cta": "重試（更換鏡像）",
+    "message": "鏡像 {mirror} 無法下載，已改回官方來源",
+    "severity": "B／T",
+    "title": "鏡像 {mirror} 無法下載"
+  },
+  "DL_NOT_FOUND": {
+    "cta": "更新模型目錄",
+    "message": "遠端找不到檔案（模型目錄可能過期）",
+    "severity": "B",
+    "title": "遠端找不到檔案（模型目錄可能過期）"
+  },
+  "DL_RATE_LIMITED": {
+    "cta": "設定 HF token 提高額度",
+    "message": "下載來源限流，{s} 秒後自動重試",
+    "severity": "W／T",
+    "title": "下載來源限流"
+  },
+  "DL_REMOTE_CHANGED": {
+    "cta": "查看下載",
+    "message": "遠端檔案在續傳期間被更新，已從頭重新下載",
+    "severity": "W",
+    "title": "遠端檔案在續傳期間被更新"
+  },
+  "DL_UNVERIFIED_SOURCE": {
+    "cta": "仍要繼續（取消）",
+    "message": "只能從鏡像取得 metadata，無法用官方雜湊驗證",
+    "severity": "W",
+    "title": "只能從鏡像取得 metadata"
+  },
+  "EGRESS_POLICY_BLOCKS": {
+    "cta": "改用本機模型（調整隱私設定）",
+    "message": "此 Workspace 的隱私設定不允許把影像送到外部服務",
+    "severity": "B",
+    "title": "此 Workspace 的隱私設定不允許把影像送到外部服務"
+  },
+  "EXTERNAL_ENDPOINT_UNREACHABLE": {
+    "cta": "檢查 endpoint 設定",
+    "message": "連不到外部模型服務 {url}",
+    "severity": "B／T",
+    "title": "連不到外部模型服務 {url}"
+  },
+  "FFMPEG_MISSING": {
+    "cta": "下載 ffmpeg（保持略過）",
+    "message": "沒有 ffmpeg，{n} 部影片將略過（不產生縮圖）",
+    "severity": "W",
+    "title": "沒有 ffmpeg"
+  },
+  "FS_FILE_LOCKED": {
+    "cta": "關閉該程式後重試",
+    "message": "「{path}」正被其他程式使用，已重試 {n} 次",
+    "severity": "W／T",
+    "title": "「{path}」正被其他程式使用"
+  },
+  "FS_NOT_WRITABLE": {
+    "cta": "選擇其他位置",
+    "message": "無法寫入「{path}」",
+    "severity": "B",
+    "title": "無法寫入「{path}」"
+  },
+  "FS_PERMISSION_DENIED": {
+    "cta": "授予資料夾權限（macOS：完整磁碟取用權）",
+    "message": "沒有權限讀取「{path}」",
+    "severity": "B",
+    "title": "沒有權限讀取「{path}」"
+  },
+  "FS_ROOT_NOT_ALLOWED": {
+    "cta": "新增允許資料夾",
+    "message": "「{path}」不在 Worker 允許的資料夾內",
+    "severity": "B",
+    "title": "「{path}」不在 Worker 允許的資料夾內"
+  },
+  "FS_ROOT_UNAVAILABLE": {
+    "cta": "重試（掛載說明）",
+    "message": "「{root}」目前無法存取（NAS 未掛載？）",
+    "severity": "B／T",
+    "title": "「{root}」目前無法存取（NAS 未掛載？）"
+  },
+  "GPU_ARCH_UNSUPPORTED": {
+    "cta": "安裝 CUDA 12.8 套件（改用 llama.cpp）",
+    "message": "你的 {gpu}（{sm}）需要較新的執行套件",
+    "severity": "B",
+    "title": "你的 {gpu}（{sm}）需要較新的執行套件"
+  },
+  "GPU_BUSY_EXTERNAL": {
+    "cta": "關閉後重試（改用較小模型）",
+    "message": "其他程式正在佔用 {gb} GB VRAM（{process}）",
+    "severity": "W／T",
+    "title": "其他程式正在佔用 {gb} GB VRAM（{process}）"
+  },
+  "GPU_DOCKER_NO_PASSTHROUGH": {
+    "cta": "複製 GPU compose 指令",
+    "message": "容器看不到 GPU，可能沒有啟用 NVIDIA runtime",
+    "severity": "B",
+    "title": "容器看不到 GPU"
+  },
+  "GPU_DRIVER_TOO_OLD": {
+    "cta": "開啟驅動下載頁（改用 Vulkan／CPU）",
+    "message": "顯示卡驅動 {v} 太舊，需要 ≥ {min}",
+    "severity": "B",
+    "title": "顯示卡驅動 {v} 太舊"
+  },
+  "GPU_NOT_FOUND": {
+    "cta": "改用 CPU 輕量組合（GPU 設定說明）",
+    "message": "沒有偵測到可用的 GPU，將使用 CPU（較慢）",
+    "severity": "W",
+    "title": "沒有偵測到可用的 GPU"
+  },
+  "HF_AUTH_REQUIRED": {
+    "cta": "設定 HF token",
+    "message": "這個模型需要 Hugging Face 登入 token",
+    "severity": "B",
+    "title": "這個模型需要 Hugging Face 登入 token"
+  },
+  "HF_GATED_ACCESS_PENDING": {
+    "cta": "前往模型頁申請，再重試",
+    "message": "需要先在 Hugging Face 網站上同意 {model} 的使用條款",
+    "severity": "B",
+    "title": "需要先在 Hugging Face 網站上同意 {model} 的使用條款"
+  },
+  "JOB_CONFLICT_RUNNING": {
+    "cta": "查看該任務（排在它後面）",
+    "message": "同一個來源已有任務「{job}」在執行",
+    "severity": "B",
+    "title": "同一個來源已有任務「{job}」在執行"
+  },
+  "JOB_NOTHING_TO_DO": {
+    "cta": "只重套門檻／規則（強制重跑）",
+    "message": "所有照片都已處理過（快取命中 100%）",
+    "severity": "W",
+    "title": "所有照片都已處理過（快取命中 100%）"
+  },
+  "LICENSE_CONSENT_REQUIRED": {
+    "cta": "閱讀並同意授權",
+    "message": "使用 {model} 前需要同意 {license}",
+    "severity": "B",
+    "title": "使用 {model} 前需要同意 {license}"
+  },
+  "MCP_DISABLED": {
+    "cta": "啟用 MCP",
+    "message": "MCP 伺服器尚未啟用",
+    "severity": "B",
+    "title": "MCP 伺服器尚未啟用"
+  },
+  "MCP_TOKEN_INVALID": {
+    "cta": "重新產生 token",
+    "message": "MCP token 無效或已過期",
+    "severity": "B",
+    "title": "MCP token 無效或已過期"
+  },
+  "MODEL_CAPABILITY_MISMATCH": {
+    "cta": "換一個模型",
+    "message": "{model} 不支援 {task}",
+    "severity": "B",
+    "title": "{model} 不支援 {task}"
+  },
+  "MODEL_CORRUPT": {
+    "cta": "重新下載損毀檔案",
+    "message": "{model} 檔案驗證失敗",
+    "severity": "B",
+    "title": "{model} 檔案驗證失敗"
+  },
+  "MODEL_DOWNLOADING": {
+    "cta": "查看下載進度",
+    "message": "{model} 下載中（{pct}%），完成後自動解鎖",
+    "severity": "B／T",
+    "title": "{model} 下載中（{pct}%）"
+  },
+  "MODEL_FILES_MISSING": {
+    "cta": "重新下載（重新指定位置）",
+    "message": "{model} 的檔案不見了（外部資料夾被移動？）",
+    "severity": "B",
+    "title": "{model} 的檔案不見了（外部資料夾被移動？）"
+  },
+  "MODEL_IN_USE": {
+    "cta": "任務完成後再執行",
+    "message": "{model} 正被 {n} 個任務使用",
+    "severity": "B",
+    "title": "{model} 正被 {n} 個任務使用"
+  },
+  "MODEL_LOAD_FAILED": {
+    "cta": "重試（改用其他 variant）",
+    "message": "無法載入 {model}：{reason}",
+    "severity": "B",
+    "title": "無法載入 {model}"
+  },
+  "MODEL_NOT_INSTALLED": {
+    "cta": "下載（{size} · {eta}）",
+    "message": "需要 {model}（{size}），尚未下載",
+    "severity": "B",
+    "title": "需要 {model}（{size}）"
+  },
+  "MODEL_NOT_PINNED": {
+    "cta": "更新模型目錄／改用其他 variant",
+    "message": "這個 variant 尚未完成雜湊釘選，為了安全暫不提供下載",
+    "severity": "B",
+    "title": "這個 variant 尚未完成雜湊釘選"
+  },
+  "MODEL_OOM": {
+    "cta": "改用較小模型（降低解析度）",
+    "message": "顯示記憶體不足，已自動降低批次重試",
+    "severity": "W／T",
+    "title": "顯示記憶體不足"
+  },
+  "NET_PORT_IN_USE": {
+    "cta": "自動改用其他連接埠",
+    "message": "連接埠 {port} 已被 {process} 使用",
+    "severity": "B",
+    "title": "連接埠 {port} 已被 {process} 使用"
+  },
+  "NET_TLS_INTERCEPTED": {
+    "cta": "設定自訂 CA",
+    "message": "連線憑證不受信任（公司網路代理？）",
+    "severity": "B",
+    "title": "連線憑證不受信任（公司網路代理？）"
+  },
+  "NET_UNREACHABLE": {
+    "cta": "重試（設定鏡像／代理）",
+    "message": "無法連線到 {host}",
+    "severity": "B／T",
+    "title": "無法連線到 {host}"
+  },
+  "OLLAMA_NOT_RUNNING": {
+    "cta": "複製「ollama serve」並重試",
+    "message": "連不到 Ollama（{url}）",
+    "severity": "B／T",
+    "title": "連不到 Ollama（{url}）"
+  },
+  "ORT_EP_UNAVAILABLE": {
+    "cta": "下載 GPU 版 ONNX Runtime（繼續用 CPU）",
+    "message": "{ep} 加速不可用，人臉與 tagger 將用 CPU",
+    "severity": "W",
+    "title": "{ep} 加速不可用"
+  },
+  "OUTPUT_TARGET_INSIDE_SOURCE": {
+    "cta": "選擇其他輸出位置",
+    "message": "輸出位置位於來源資料夾內，會造成重複處理",
+    "severity": "B",
+    "title": "輸出位置位於來源資料夾內"
+  },
+  "PACK_CHECKSUM_MISMATCH": {
+    "cta": "重試（換來源）",
+    "message": "「{pack}」執行套件檔案的雜湊與簽章索引不符，已拒絕並清除暫存",
+    "severity": "B",
+    "title": "「{pack}」執行套件檔案的雜湊與簽章索引不符"
+  },
+  "PACK_INCOMPATIBLE": {
+    "cta": "安裝相容版本 {locked}",
+    "message": "「{pack}」版本 {v} 與此 app 不相容（需要 pack_api {range}）",
+    "severity": "B",
+    "title": "「{pack}」版本 {v} 與此 app 不相容（需要 pack_api {range}）"
+  },
+  "PACK_SIGNATURE_INVALID": {
+    "cta": "從其他鏡像重試（回報問題）",
+    "message": "「{pack}」執行套件的簽章驗證失敗，已拒絕安裝",
+    "severity": "B",
+    "title": "「{pack}」執行套件的簽章驗證失敗"
+  },
+  "PACK_UNSAFE_ARCHIVE": {
+    "cta": "回報問題",
+    "message": "「{pack}」執行套件內容不安全（{reason}），已拒絕安裝",
+    "severity": "B",
+    "title": "「{pack}」執行套件內容不安全（{reason}）"
+  },
+  "PERF_CPU_ONLY_SLOW": {
+    "cta": "改用外部 endpoint（仍要繼續）",
+    "message": "只能用 CPU 執行，{n} 張約需 {eta}",
+    "severity": "W",
+    "title": "只能用 CPU 執行"
+  },
+  "PERMISSION_DENIED_ROLE": {
+    "cta": "請求管理員核准",
+    "message": "需要 {permission} 權限",
+    "severity": "B",
+    "title": "需要 {permission} 權限"
+  },
+  "PLAN_STALE": {
+    "cta": "重新探測衝突",
+    "message": "計畫建立後有 {n} 個檔案被變更",
+    "severity": "B",
+    "title": "計畫建立後有 {n} 個檔案被變更"
+  },
+  "RAM_INSUFFICIENT": {
+    "cta": "改用較小模型",
+    "message": "需要 {need} GB 系統記憶體，目前 {total} GB",
+    "severity": "B",
+    "title": "需要 {need} GB 系統記憶體"
+  },
+  "RUNTIME_CRASHED": {
+    "cta": "重試（看 log）",
+    "message": "推論程式意外結束（已自動重啟 {n} 次）",
+    "severity": "B／T",
+    "title": "推論程式意外結束（已自動重啟 {n} 次）"
+  },
+  "RUNTIME_PACK_BROKEN": {
+    "cta": "重新安裝套件（改用 CPU 版）",
+    "message": "「{pack}」無法啟動：{reason}",
+    "severity": "B",
+    "title": "「{pack}」無法啟動"
+  },
+  "RUNTIME_PACK_MISSING": {
+    "cta": "下載套件",
+    "message": "需要「{pack}」執行套件（{size}）",
+    "severity": "B",
+    "title": "需要「{pack}」執行套件（{size}）"
+  },
+  "RUNTIME_TIMEOUT": {
+    "cta": "重試失敗項目",
+    "message": "模型回應逾時，已降低並行數重試",
+    "severity": "W／T",
+    "title": "模型回應逾時"
+  },
+  "RUNTIME_UNSUPPORTED_PLATFORM": {
+    "cta": "改用 llama.cpp",
+    "message": "{runtime} 不支援 {os}（vLLM 只支援 Linux／WSL2）",
+    "severity": "B",
+    "title": "{runtime} 不支援 {os}（vLLM 只支援 Linux／WSL2）"
+  },
+  "SEARCH_INDEX_INCOMPLETE": {
+    "cta": "建立索引（{eta}）",
+    "message": "{n} 張照片尚未建立搜尋向量，結果可能不完整",
+    "severity": "W",
+    "title": "{n} 張照片尚未建立搜尋向量"
+  },
+  "SEARCH_MODEL_MISMATCH": {
+    "cta": "重建索引（{eta}）",
+    "message": "搜尋索引是用 {old} 建立的，與目前預設 {new} 不同",
+    "severity": "W",
+    "title": "搜尋索引是用 {old} 建立的"
+  },
+  "TIME_SKEW": {
+    "cta": "複製時間同步指令",
+    "message": "系統時間與伺服器相差 {s} 秒",
+    "severity": "W／B",
+    "title": "系統時間與伺服器相差 {s} 秒"
+  },
+  "UNDO_TARGET_MODIFIED": {
+    "cta": "檢視衝突（略過這些檔案）",
+    "message": "{n} 個已整理的檔案之後被修改，無法安全還原",
+    "severity": "B",
+    "title": "{n} 個已整理的檔案之後被修改"
+  },
+  "VRAM_INSUFFICIENT": {
+    "cta": "改用 {alt}（{alt_gb} GB）",
+    "message": "{model} 需要約 {need} GB VRAM，你的 GPU 有 {total} GB",
+    "severity": "B",
+    "title": "{model} 需要約 {need} GB VRAM"
+  },
+  "VRAM_OFFLOAD": {
+    "cta": "改用較小模型（仍要繼續）",
+    "message": "VRAM 不足以全部放進 GPU，{model} 部分層改在 CPU 執行（約慢 {pct}%）",
+    "severity": "W",
+    "title": "VRAM 不足以全部放進 GPU"
+  },
+  "VRAM_SEQUENTIAL": {
+    "cta": "了解序列模式",
+    "message": "無法與 Embedding 同時載入，將輪流執行（約多 {pct}% 時間）",
+    "severity": "W",
+    "title": "無法與 Embedding 同時載入"
+  },
+  "WORKER_OFFLINE": {
+    "cta": "重新連線（看啟動指令）",
+    "message": "Worker「{name}」已離線 {duration}，需要它的功能暫停",
+    "severity": "B／T",
+    "title": "Worker「{name}」已離線 {duration}"
+  },
+  "WORKER_VERSION_MISMATCH": {
+    "cta": "更新 Worker",
+    "message": "Worker 版本 {w} 與伺服器 {s} 不相容",
+    "severity": "B",
+    "title": "Worker 版本 {w} 與伺服器 {s} 不相容"
+  },
+  "WSL_GPU_UNAVAILABLE": {
+    "cta": "複製 WSL 設定指令（改用 llama.cpp）",
+    "message": "WSL2 內看不到 GPU，vLLM 無法執行",
+    "severity": "B",
+    "title": "WSL2 內看不到 GPU"
+  }
+}

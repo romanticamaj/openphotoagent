@@ -9,15 +9,18 @@ from typing import Any
 from fastapi import APIRouter, Request, Response
 from opagent_core.state_machine import JobStatus
 from opagent_db.schema import (
+    event,
     job,
     journal_mirror,
+    operation,
     output_action,
     output_plan,
+    source,
     worker,
     worker_task,
 )
 from pydantic import BaseModel
-from sqlalchemy import select, text, update
+from sqlalchemy import false, func, insert, or_, select, text, true, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
 from . import organize
@@ -27,7 +30,13 @@ from .operations import ensure_operation, set_op_status
 from .state import AppState
 
 router = APIRouter()
-TASK_OP_TYPES = {"scan": "scan", "apply": "output.apply", "undo": "output.undo"}
+TASK_OP_TYPES = {
+    "scan": "scan",
+    "apply": "output.apply",
+    "undo": "output.undo",
+    "download": "model.download",
+    "remove": "model.remove",
+}
 LEASE_S = 120
 
 
@@ -40,11 +49,23 @@ class RegisterIn(BaseModel):
     name: str = "local"
     roots: list[dict[str, str]]
     models: dict[str, str] = {}  # task -> model_fingerprint of the loaded/installed backend
+    hw: dict[str, Any] | None = None  # doctor's hardware summary (compat input, 06 §1.2)
+    protocol_version: str = "1.0"
+    deployment: str = "desktop"
+    gpu_requested: bool = False
+    doctor: list[dict[str, Any]] = []  # failing/warning doctor results, as consumed by preflight
+    doctor_results: list[dict[str, Any]] = []  # full results (06 §3.5)
+    roots_status: dict[str, str] = {}  # alias -> ok | denied | unavailable
+    packs_status: dict[str, Any] = {}
+    disk_free: dict[str, int] | None = None
+    boot_id: str | None = None  # one per worker process: a new value means the previous process is gone
 
 
 class LeaseIn(BaseModel):
     worker_id: str
     wait_s: float = 0.0
+    exclude_kinds: list[str] = []
+    boot_id: str | None = None  # e.g. "download" while the worker's download slot is busy (06 §2.4)
 
 
 class CompleteIn(BaseModel):
@@ -56,7 +77,32 @@ class CompleteIn(BaseModel):
 def register(body: RegisterIn, req: Request) -> dict[str, str]:
     roots = [{"alias": r["alias"], "mode": r.get("mode", "ro")} for r in body.roots]  # never absolute paths
     st = _st(req)
+    caps = {
+        "models": body.models,
+        "hw": body.hw,
+        "protocol_version": body.protocol_version,
+        "deployment": body.deployment,
+        "gpu_requested": body.gpu_requested,
+        "doctor": body.doctor,
+        "roots_status": body.roots_status,
+        "packs_status": body.packs_status,
+        "disk_free": body.disk_free or {},
+        "doctor_results": body.doctor_results,
+        "boot_id": body.boot_id,
+    }
     with st.engine.begin() as c:
+        prev = c.execute(select(worker.c.capabilities).where(worker.c.id == body.worker_id)).scalar() or {}
+        before = {r["check_id"]: r["status"] for r in prev.get("doctor_results") or []}
+        after = {r["check_id"]: r["status"] for r in body.doctor_results}
+        changed = sorted(k for k in after if k in before and before[k] != after[k])
+        # leases held by any other process of this worker are orphaned (restart, crash, kill -9)
+        new_process = body.boot_id is None or prev.get("boot_id") != body.boot_id
+        _recover_downloads(c, st, body.worker_id, body.boot_id)
+        _recover_jobs(c, st, body.worker_id, body.boot_id, interrupt_running=new_process and bool(prev))
+        if changed:  # preflight results depending on these checks must be recomputed (DOC-019)
+            c.execute(
+                insert(event).values(kind="doctor.changed", payload={"worker_id": body.worker_id, "checks": changed})
+            )
         c.execute(
             pg_insert(worker)
             .values(
@@ -64,7 +110,8 @@ def register(body: RegisterIn, req: Request) -> dict[str, str]:
                 name=body.name,
                 roots=roots,
                 last_heartbeat_at=st.clock.now(),
-                capabilities={"models": body.models},
+                capabilities=caps,
+                disk_free=body.disk_free,
             )
             .on_conflict_do_update(
                 index_elements=["id"],
@@ -72,28 +119,112 @@ def register(body: RegisterIn, req: Request) -> dict[str, str]:
                     "roots": roots,
                     "status": "online",
                     "last_heartbeat_at": st.clock.now(),
-                    "capabilities": {"models": body.models},
+                    "capabilities": caps,
+                    "disk_free": body.disk_free,
                 },
             )
         )
     return {"worker_id": body.worker_id}
 
 
-def _lease_one(st: AppState, worker_id: str) -> dict[str, Any] | None:
+def _recover_downloads(c: Any, st: AppState, worker_id: str, boot: str | None = None) -> None:
+    """A (re)registering worker lost its in-flight downloads (crash, kill -9): mark them interrupted and re-queue
+    them; the downloader resumes from its .part files (06 §2.2, §5.8; DL-014)."""
+    from opagent_db.schema import operation
+
+    rows = c.execute(
+        select(worker_task.c.id).where(
+            worker_task.c.worker_id == worker_id,
+            worker_task.c.kind == "download",
+            worker_task.c.status == "leased",
+            or_(
+                true() if boot is None else false(),
+                worker_task.c.lease_boot.is_(None),
+                worker_task.c.lease_boot != boot,
+            ),
+        )
+    ).all()
+    for (tid,) in rows:
+        c.execute(update(worker_task).where(worker_task.c.id == tid).values(status="pending", lease_expires_at=None))
+        op = c.execute(select(operation.c.status, operation.c.progress).where(operation.c.id == tid)).first()
+        if op is None:
+            continue
+        if op.status == "running":
+            set_op_status(c, st.clock, tid, "interrupted")
+        set_op_status(c, st.clock, tid, "queued")
+        c.execute(
+            update(operation)
+            .where(operation.c.id == tid)
+            .values(progress={**(op.progress or {}), "auto_resumed": True})
+        )
+
+
+def _recover_jobs(
+    c: Any, st: AppState, worker_id: str, boot: str | None = None, interrupt_running: bool = False
+) -> None:
+    """Items the previous process had leased are lost: give them back and pause their jobs as interrupted, so the
+    person sees what stopped and continues it (06 §5.3 interrupted, invariant 9; OP-006)."""
+    from opagent_db.schema import job_item
+
+    from .operations import ensure_operation
+
+    rows = c.execute(
+        select(job_item.c.id, job_item.c.job_id).where(
+            job_item.c.lease_owner == worker_id,
+            job_item.c.status.in_(("leased", "running")),
+            or_(true() if boot is None else false(), job_item.c.lease_boot.is_(None), job_item.c.lease_boot != boot),
+        )
+    ).all()
+    jobs = {r.job_id for r in rows}
+    if rows:
+        q.release(c, worker_id, [r.id for r in rows])
+    if interrupt_running:  # a new process: its running jobs stopped with the old one, leased or not
+        from opagent_db.schema import source
+
+        jobs |= {
+            j
+            for (j,) in c.execute(
+                select(job.c.id)
+                .join(source, source.c.id == job.c.params["source_id"].astext)
+                .where(job.c.status == "running", source.c.worker_id == worker_id)
+            )
+        }
+    for jid in sorted(jobs):
+        status = c.execute(select(job.c.status).where(job.c.id == jid)).scalar()
+        if status != "running":
+            continue
+        ensure_operation(c, st.clock, jid, "job.label", {"kind": "job", "id": jid})
+        set_op_status(c, st.clock, jid, "running")
+        set_op_status(c, st.clock, jid, "interrupted")
+        set_job_status(c, jid, JobStatus.paused, clock=st.clock)
+
+
+def _lease_one(
+    st: AppState, worker_id: str, exclude: list[str] | None = None, boot: str | None = None
+) -> dict[str, Any] | None:
     with st.engine.begin() as c:
+        c.execute(
+            update(worker).where(worker.c.id == worker_id).values(last_heartbeat_at=st.clock.now(), status="online")
+        )
         row = c.execute(
             text(
                 "SELECT id FROM worker_task WHERE status='pending' AND (worker_id IS NULL OR worker_id=:w) "
-                "ORDER BY created_at, id LIMIT 1 FOR UPDATE SKIP LOCKED"
+                "AND NOT (kind = ANY(CAST(:ex AS text[]))) "
+                "ORDER BY (lane = 'interactive') DESC, created_at, id LIMIT 1 FOR UPDATE SKIP LOCKED"
             ),
-            {"w": worker_id},
+            {"w": worker_id, "ex": list(exclude or [])},
         ).first()
         if row is None:
             return None
         t = c.execute(
             update(worker_task)
             .where(worker_task.c.id == row.id)
-            .values(status="leased", worker_id=worker_id, lease_expires_at=st.clock.now() + timedelta(seconds=LEASE_S))
+            .values(
+                status="leased",
+                worker_id=worker_id,
+                lease_boot=boot,
+                lease_expires_at=st.clock.now() + timedelta(seconds=LEASE_S),
+            )
             .returning(worker_task)
         ).first()
         assert t is not None
@@ -116,7 +247,7 @@ def lease(body: LeaseIn, req: Request) -> Any:
     st = _st(req)
     deadline = st.clock.monotonic() + body.wait_s
     while True:
-        task = _lease_one(st, body.worker_id)
+        task = _lease_one(st, body.worker_id, body.exclude_kinds, body.boot_id)
         if task is not None:
             return task
         if st.clock.monotonic() >= deadline:
@@ -131,6 +262,7 @@ class JournalIn(BaseModel):
 
 class LeasesIn(BaseModel):
     worker_id: str
+    boot_id: str | None = None
     max_items: int = 16
     loaded_models: list[str] = []
     lanes: list[str] | None = None
@@ -140,7 +272,7 @@ class LeasesIn(BaseModel):
 def leases(body: LeasesIn, req: Request) -> Any:
     st = _st(req)
     with st.engine.begin() as c:
-        items = q.lease(c, st.clock, body.worker_id, body.max_items, body.loaded_models, body.lanes)
+        items = q.lease(c, st.clock, body.worker_id, body.max_items, body.loaded_models, body.lanes, body.boot_id)
     if not items:
         return Response(status_code=204)
     return {"items": items}
@@ -223,19 +355,23 @@ def mirror_journal(body: JournalIn, req: Request) -> dict[str, int]:
 
 
 class ProgressIn(BaseModel):
+    progress: dict[str, Any] | None = None  # {done, total, unit, ...} for byte/item progress (downloads)
+    events: list[dict[str, Any]] = []  # streamed stage events (ORG-008 try-one)
     entries: list[dict[str, Any]] = []
     cursor: str | None = None
     waiting_reason: str | None = None
 
 
 @router.post("/tasks/{task_id}/progress")
-def task_progress(task_id: str, body: ProgressIn, req: Request) -> dict[str, str]:
+def task_progress(task_id: str, body: ProgressIn, req: Request) -> dict[str, Any]:
     """Scan pages (1,000 entries) with a resume cursor (SCAN-019); waiting states such as SOURCE_OFFLINE (SCAN-020)."""
     st = _st(req)
     with st.engine.begin() as c:
         t = c.execute(select(worker_task).where(worker_task.c.id == task_id).with_for_update()).first()
         if t is None or t.status != "leased":
             return {"status": "ignored"}
+        for ev in body.events:
+            c.execute(insert(event).values(kind="preview.stage", payload={**ev, "task_id": task_id}))
         if body.entries:
             organize.upsert_entries(st, c, t.payload["source_id"], body.entries)
         payload = dict(t.payload)
@@ -246,11 +382,24 @@ def task_progress(task_id: str, body: ProgressIn, req: Request) -> dict[str, str
             .where(worker_task.c.id == task_id)
             .values(payload=payload, lease_expires_at=st.clock.now() + timedelta(seconds=LEASE_S))
         )
+
+        op = c.execute(select(operation.c.status).where(operation.c.id == task_id)).first()
+        op_status = op.status if op else None
+        if body.progress is not None and op is not None:
+            keep = c.execute(select(operation.c.progress).where(operation.c.id == task_id)).scalar() or {}
+            sticky = {k: keep[k] for k in ("auto_resumed",) if k in keep}  # 「已自動繼續」 outlives new progress
+            c.execute(update(operation).where(operation.c.id == task_id).values(progress={**body.progress, **sticky}))
         if body.waiting_reason:
             set_op_status(c, st.clock, task_id, "waiting", body.waiting_reason)
-        elif t.kind in TASK_OP_TYPES:
+            if body.waiting_reason == "SOURCE_OFFLINE" and t.payload.get("source_id"):
+                c.execute(update(source).where(source.c.id == t.payload["source_id"]).values(status="offline"))
+        elif t.kind in TASK_OP_TYPES and op_status not in ("paused", "pausing", "cancelling", "cancelled"):
             set_op_status(c, st.clock, task_id, "running")
-    return {"status": "ok"}
+    # control channel: the worker checks this after each progress report (06 §2.2 true pause/cancel)
+    control = {"paused": "pause", "pausing": "pause", "cancelling": "cancel", "cancelled": "cancel"}.get(
+        op_status or ""
+    )
+    return {"status": "ok", "control": control}
 
 
 @router.post("/tasks/{task_id}/complete")
@@ -265,16 +414,36 @@ def complete(task_id: str, body: CompleteIn, req: Request) -> dict[str, str]:
             .where(worker_task.c.id == task_id)
             .values(status="done" if body.ok else "failed", result=body.result)
         )
-        handler = {"scan": _on_scan, "apply": _on_apply, "undo": _on_undo}.get(t.kind)
+        from .routes_models import on_download_complete, on_remove_complete
+
+        handler = {
+            "scan": _on_scan,
+            "apply": _on_apply,
+            "undo": _on_undo,
+            "estimate": _on_estimate,
+            "download": on_download_complete,
+            "remove": on_remove_complete,
+        }.get(t.kind)
         if t.kind in TASK_OP_TYPES:
             waiting = body.result.get("status") == "waiting"
-            set_op_status(
-                c,
-                st.clock,
-                t.id,
-                "waiting" if waiting else "succeeded" if body.ok else "failed",
-                body.result.get("waiting_reason") if waiting else None,
-            )
+            rs = body.result.get("status")
+            if rs == "paused" and body.result.get("waiting_reason"):  # paused_auto, e.g. disk full (DL-011)
+                set_op_status(c, st.clock, t.id, "waiting", body.result["waiting_reason"])
+            elif rs == "paused":  # resume re-queues the task and the download continues from its .part
+                set_op_status(c, st.clock, t.id, "paused", "PAUSED_BY_USER")  # confirms a pausing op
+            elif rs == "cancelled" or (
+                rs == "partially_applied"
+                and c.execute(select(operation.c.status).where(operation.c.id == t.id)).scalar() == "cancelling"
+            ):  # the worker stopped as asked; what it finished stays (OUT-EXE-017)
+                set_op_status(c, st.clock, t.id, "cancelled")
+            else:
+                set_op_status(
+                    c,
+                    st.clock,
+                    t.id,
+                    "waiting" if waiting else "succeeded" if body.ok and rs != "failed" else "failed",
+                    body.result.get("waiting_reason") if waiting else None,
+                )
         if handler and body.ok:
             handler(st, c, t, body.result)
         elif handler and t.job_id and t.kind == "scan":
@@ -283,8 +452,31 @@ def complete(task_id: str, body: CompleteIn, req: Request) -> dict[str, str]:
 
 
 def _on_scan(st: AppState, c: Any, t: Any, result: dict[str, Any]) -> None:
+    c.execute(update(source).where(source.c.id == t.payload["source_id"]).values(status="online"))
     organize.upsert_entries(st, c, t.payload["source_id"], result.get("entries") or [])
+    _index_source(c, t.payload["source_id"])
     organize.finish_scan(st, c, t)
+
+
+def _index_source(c: Any, src_id: str) -> None:
+    """Scanned photos are searchable by date, folder and file name before any model has run (05 §2)."""
+    from opagent_db.schema import asset_location, index_outbox
+
+    from . import labels
+
+    c.execute(
+        index_outbox.insert().from_select(
+            ["asset_id"],
+            select(asset_location.c.asset_id).where(
+                asset_location.c.source_id == src_id, asset_location.c.missing.is_(False)
+            ),
+        )
+    )
+    labels.drain_index(c)
+
+
+def _on_estimate(st: AppState, c: Any, t: Any, result: dict[str, Any]) -> None:
+    organize.finish_estimate(st, c, t.payload["job_id"], result)
 
 
 def _on_apply(st: AppState, c: Any, t: Any, result: dict[str, Any]) -> None:
@@ -294,21 +486,32 @@ def _on_apply(st: AppState, c: Any, t: Any, result: dict[str, Any]) -> None:
         c.execute(
             update(output_action)
             .where(output_action.c.id == r["action_id"])
-            .values(status=r["status"], error=r.get("error"), dst_rel=r.get("dst_rel") or output_action.c.dst_rel)
+            .values(
+                status=r["status"],
+                error=r.get("error"),
+                dst_rel=r.get("dst_rel") or output_action.c.dst_rel,
+                conflict=r.get("conflict") or "none",
+            )
         )
         done += r["status"] == "done"
-    total = len(result["results"])
-    c.execute(
-        update(output_plan)
-        .where(output_plan.c.id == pid)
-        .values(status="applied" if done == total else "partially_applied")
-    )
+    failed = sum(r["status"] == "failed" for r in result["results"])
+    total = c.execute(
+        select(func.count()).select_from(output_action).where(output_action.c.plan_id == pid)
+    ).scalar_one()
+    stopped = len(result["results"]) < total  # cancelled/paused between actions (OUT-EXE-017)
+    if stopped and not done:
+        status = "cancelled"
+    elif stopped or failed:
+        status = "partially_applied"
+    else:
+        status = "applied"  # identical copies skipped still count as applied
+    c.execute(update(output_plan).where(output_plan.c.id == pid).values(status=status))
     set_job_status(
         c,
         t.job_id,
         JobStatus.completed,
         finished_at=st.clock.now(),
-        counters={"total": total, "done": done, "failed": total - done},
+        counters={"total": total, "done": done, "failed": failed},
     )
 
 

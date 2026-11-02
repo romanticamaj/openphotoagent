@@ -335,12 +335,13 @@
 
 | ID | 標題 | 前置／輸入 | 預期 | 層 | # |
 |----|------|-----------|------|----|---|
-| INF-REG-001 | 內建 YAML 全部通過 schema | `registry/models/*.yaml`、`registry/runtimes/*.yaml`、`gpu_classes.yaml` | 全部通過 JSON Schema；`variants[].files[]` 皆有 `size` 與 `sha256` | C | #15 |
-| INF-REG-002 | 缺 sha256 拒絕 | 變體檔案缺 sha256 | registry 載入錯誤（內建檔 CI 失敗；使用者檔則該模型標 `invalid` 不影響其他） | U | #24 |
+| INF-REG-001 | 內建 YAML 與 lock 全部通過 schema | `registry/models/*.yaml`、`registry/runtimes/*.yaml`、`gpu_classes.yaml`、`registry/pins.lock` | 全部通過 JSON Schema；catalog 不含 `size`／`sha256`；每個 lock 條目指向存在的 variant 與檔案；合併後每個 `pinned` variant 的每個檔案都有 `size > 0` 與 64-hex `sha256`（ADR-0002） | C | #15 |
+| INF-REG-002 | 缺 sha256 拒絕 | 使用者 YAML 檔案缺 sha256；內建 lock 條目 sha256 缺漏或格式錯；內建 variant 沒有 lock 條目 | 使用者檔：該模型標 `invalid`，不影響其他；內建 lock 條目不完整：載入錯誤（CI 失敗）；內建 variant 無 lock 條目：載入為 `unpinned`（ADR-0002） | U | #24 |
 | INF-REG-003 | 使用者自訂 YAML | 在 `models/custom/` 放合法 YAML | Models 頁出現、跑過 compat；`source=user` | I | #24 |
 | INF-REG-004 | 自訂 YAML 壞掉 | 語法錯誤／欄位錯誤 | 顯示錯誤與檔名行號，registry 其餘照常 | U | #24 |
 | INF-REG-005 | 每任務預設 | `tasks_default_rank` 與 `task_default_model` 覆寫 | caption、classify、embed 各自解析到指定 variant | U | #25 |
 | INF-REG-006 | 預設組合授權 | 檔位預設組合的所有 variant | `license.weights` 皆為 Apache-2.0 或同等寬鬆，`redistributable=true`；否則 CI 失敗 | C | #21 |
+| INF-REG-013 | 發版前全部釘選 | release gate：所有內建 variant 與 runtime pack | 每個內建 variant 都是 `pinned`；每個 runtime pack 都有 sha256；否則 release gate 失敗（與 INF-REG-001 合起來等價於原本的「全部有 sha256」，ADR-0002） | G | #15 |
 
 ### 6.2 INF-CONF：InferenceBackend／Adapter 一致性套件（`packages/inference-sdk/conformance`）
 
@@ -423,6 +424,7 @@
 | INF-RT-009 | Linux NVIDIA | `hw:linux-rtx3090` | cuda13（或 12）pack + 建議 `ort-cuda` | U | #22 |
 | INF-RT-010 | 不支援平台 | `hw:intel-mac`、`hw:linux-arm64` | 明確「不支援」訊息與文件連結；不崩潰 | U | #1 |
 | INF-RT-011 | 性質：永遠有退路 | Hypothesis 組合 hw 探針欄位 | 恰一個推薦組合；必有一條 CPU 可執行路徑（llama.cpp CPU 或 SigLIP 快速模式） | P | #28 |
+| INF-RT-012 | 不推薦未釘選 variant | 最佳 variant 為 `unpinned`，次佳為 `pinned` | 跳過 unpinned，推薦次佳 pinned variant；說明列出「尚未釘選」（ADR-0002） | U | #28 |
 
 ---
 
@@ -471,6 +473,7 @@
 | DL-020 | onboarding 下載順序 | 推薦組合含 SigLIP2 + VLM | SigLIP2 排第一；完成後立即開始建索引，以文搜圖在 VLM 完成前可用 | I/E | DoD 5.2 |
 | DL-021 | 限速 | 設定 20 MB/s | 10 秒平均 ∈ [18, 22] MB/s | I | — |
 | DL-022 | 優先下載 | 佇列第 2 位按「優先下載」 | 目前下載暫停（保留斷點），被提升者開始 | I | — |
+| DL-023 | 退避中取消（ADR-0004） | 來源連線被拒，下載在退避重試中（`waiting: NET_UNREACHABLE`）→ 取消 | Operation 顯示 `waiting` + NET_UNREACHABLE 問題卡（retry／鏡像／代理）；取消後 ≤ 2 s 到 `cancelled`；不再對來源發出請求；`.part` 已刪除 | I | #24、#32 |
 
 ### 7.3 DOC：Environment Doctor（`hw:<profile>` 探針注入，09 §3.4）
 
@@ -602,6 +605,7 @@
 | PF-081 | InferenceError 映射 | OOM、TIMEOUT、BAD_INPUT、RUNTIME | `MODEL_OOM`、`RUNTIME_TIMEOUT`、`DECODE_FAILED`、`MODEL_LOAD_FAILED`／`RUNTIME_CRASHED`；`job_item.error_code` 同一套 | U | #27 |
 | PF-082 | problem+json 全域 | schemathesis 對全部 `/api/v1` 端點產生錯誤輸入 | 所有 4xx／5xx 都是 RFC 9457 + `code` 欄位；無 HTML 錯誤頁 | C | #27 |
 | PF-083 | 永遠有退路 | 對 PF-004、005、012、013、017 的狀態各自選 `choose_alternative` | 套用後 preflight `ready=true`，且 FakeBackend 下 Job 可跑完 | I | #28、DoD 5.2 |
+| PF-084 | 不需模型的工作不受 GPU 檢查阻擋（回歸） | `hw:nvidia-drv535`：依日期 vs 依內容 | 依日期 0 blocker；依內容仍顯示 GPU_DRIVER_TOO_OLD 與修復 | I | #27、#28 |
 
 ---
 
@@ -628,6 +632,7 @@
 | OP-015 | 完成回寫觀測 | Operation 成功 | 寫 `perf_observation`（吞吐、載入時間、頻寬）與 `eta_calibration(actual/predicted_p50)` | I | #30 |
 | OP-016 | 同 lane 重新排序 | `POST /operations/reorder` | 只在同 worker × lane 生效；跨 lane 回 400 | I | — |
 | OP-017 | 等待原因目錄 | 參數化 13 個 code：QUEUED_BEHIND、WAITING_GPU_SLOT、WAITING_MODEL_DOWNLOAD、WAITING_MODEL_LOAD、WORKER_OFFLINE、DISK_INSUFFICIENT_*、NET_UNREACHABLE、PAUSED_BY_USER、PAUSED_ERROR_RATE、PAUSED_ON_BATTERY、PAUSED_GPU_CONTENDED、PAUSED_NOT_IDLE、SOURCE_OFFLINE | 每個都有 zh-TW/en 顯示文字與 CTA；`status=waiting` 或自動 paused 時 `waiting_reason` 必填（schema 驗證） | C/E | #32、DoD 5.2 |
+| OP-018 | 等待中暫停／取消（ADR-0004，回歸） | `waiting` 的 Operation：(a) Worker 持有 lease；(b) 沒有 lease | (a) 暫停 → `pausing`、取消 → `cancelling`，Worker 確認後才到 `paused`／`cancelled`；(b) 直接到 `paused`（`waiting_reason=PAUSED_BY_USER`）／`cancelled`；兩者狀態都真的改變 | I | #32、#47 |
 
 ### 9.2 ETA：估算（FakeClock 驅動，06 §2.3、§5.5）
 
@@ -703,6 +708,7 @@
 | SRCH-FAC-002 | 日期來源 | 含 `date_source=mtime` 的照片 | facet 計入並可用 `date_source` 篩選 | I | #40 |
 | SRCH-FAC-003 | facet 同 pre-filter | 限定某資料夾範圍 | facet 計數只含範圍內；範圍外不可推知 | I/S | — |
 | SRCH-FAC-004 | 分頁游標 | 第 2 頁游標被竄改 | 400（簽章驗證失敗）；正常游標在資料新增後不重複不遺漏 | I/S | — |
+| SRCH-FAC-005 | 結果集合＝全部符合（ADR-0005，回歸） | 330 張含「beach」（> 每路 200） | `total`＝SQL 參考計數 330；facet 加總＝330；翻頁無重複無遺漏；全選 selection 計數＝330，批次標籤恰好套用 330 張 | I | #64、#91 |
 | SRCH-SEM-001 | 以文搜圖 | `fb:vectors(deterministic)`：查詢向量與 `img:semantic` 中「狗 + 海灘」最近 | top-5 含全部 3 張目標；nightly 真 SigLIP2 英文查詢 `a dog on the beach` 的 recall@10 ≥ 0.8（**待 M0 確認**） | I/N | #64 |
 | SRCH-SEM-002 | Worker 離線降級 | 停止 worker | 文字搜尋照常；回應 `notice=degraded_search`；UI 顯示 | I | #64 |
 | SRCH-SEM-003 | 索引進度 | 30,000 張中 12,300 有向量 | UI「已可搜尋 12,300 / 30,000 張」；`SEARCH_INDEX_INCOMPLETE` warning | I/E | DoD 5.4 |

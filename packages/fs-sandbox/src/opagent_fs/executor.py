@@ -33,7 +33,7 @@ TRASH_DIR = ".opagent-trash"
 @dataclass(frozen=True)
 class Action:
     action_id: str
-    op: Literal["copy", "move", "sidecar_json"]
+    op: Literal["copy", "move", "sidecar_json", "sidecar_csv"]
     src_alias: str
     src_rel: str
     dst_alias: str
@@ -105,7 +105,7 @@ class Executor:
         plan_id: str,
         actions: list[Action],
         move_confirmed: bool = False,
-        control: Callable[[], str] | None = None,
+        control: Callable[[], str | None] | None = None,
     ) -> ApplyReport:
         """Apply actions in order. ``control()`` is consulted between actions: ``pause`` stops with status
         ``paused``; ``cancel`` stops with ``partially_applied`` (OUT-EXE-017/018). A full disk or an unplugged
@@ -137,7 +137,7 @@ class Executor:
         return suffixed(rel, n)
 
     def _one(self, plan_id: str, a: Action, move_confirmed: bool) -> ActionResult:
-        if a.op == "sidecar_json":
+        if a.op in ("sidecar_json", "sidecar_csv"):
             return self._sidecar(plan_id, a)
         op, downgraded = effective_op(self.sb, a)
         if op == "move" and not move_confirmed:
@@ -265,9 +265,12 @@ class Executor:
             self.sb._root(alias)  # raises RootUnavailable when an external drive disappeared mid-copy
 
     def _sidecar(self, plan_id: str, a: Action) -> ActionResult:
-        """Write ``<stem>.opagent.json`` atomically (tmp + rename); the photo itself is never touched."""
+        """Write ``<stem>.opagent.json`` (or a batch CSV) atomically (tmp + rename); the photo is never touched."""
         dst = self.sb.open_write(a.dst_alias, a.dst_rel)
-        data = (json.dumps(a.payload or {}, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode()
+        if a.op == "sidecar_csv":
+            data = str((a.payload or {}).get("text", "")).encode()
+        else:
+            data = (json.dumps(a.payload or {}, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode()
         digest = blake3.blake3(data).hexdigest()
         if self.fs.exists(dst.real) and self.fs.read_hash(dst.real) == digest:
             return ActionResult(a.action_id, "skipped", dst.rel, conflict="exists_same")

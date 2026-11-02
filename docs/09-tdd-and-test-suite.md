@@ -129,7 +129,7 @@ flowchart LR
 | Integration | I | pytest + **真 PostgreSQL 17**（`embedded_pg` fixture；Linux 另跑 testcontainers `pgvector/pgvector:pg17` 一致性）、真檔案系統（tmpfs、ext4、NTFS、APFS）、錄製 HF 伺服器 | queue／lease、executor、scanner、download、preflight、search SQL | `apps/*/tests/integration/`、`packages/*/tests/integration/` | `test_<feature>_it.py` | Linux PR < 8 min；OS 矩陣每 OS < 12 min |
 | E2E | E | Playwright（Chromium + WebKit）對 **web build**；同一份 spec 以 mock `backend_info()` 跑 **desktop build**；後端 all-in-one + FakeBackend | 使用者旅程 A／B、搜尋、Lightbox、整理、待確認 | `apps/web/e2e/` | `<journey>.spec.ts` | PR 煙霧子集 < 12 min；nightly 全套 < 60 min |
 | 桌面煙霧 | D | `tauri-driver` + WebdriverIO（Windows、Linux）；macOS 手動清單（WKWebView 沒有 WebDriver，11 V-9） | 殼監管、單一實例、IPC、asset protocol、通知、更新 | `apps/desktop/smoke/`、Rust `apps/desktop/src-tauri/tests/` | `desk_*.e2e.ts` | nightly < 30 min／OS |
-| Visual regression | V | Playwright `toHaveScreenshot` + Storybook test-runner（只在 Linux Chromium、字型釘選、動態區域遮罩） | 元件 light/dark、每個錯誤碼 ProblemCard、主要路由 | `apps/web/e2e/visual/`、`*.stories.tsx` | — | nightly < 15 min；PR 只跑變更元件的 story |
+| Visual regression | V | Playwright `toHaveScreenshot`（對建置後的 Storybook `iframe.html?id=…` 與實際路由）+ Storybook `addon-vitest`（Vitest browser mode 執行 `play`；ADR-0003）（只在 Linux Chromium、字型釘選、動態區域遮罩） | 元件 light/dark、每個錯誤碼 ProblemCard、主要路由 | `apps/web/e2e/visual/`、`*.stories.tsx` | — | nightly < 15 min；PR 只跑變更元件的 story |
 | a11y | A | `@axe-core/playwright`、Storybook a11y addon、鍵盤腳本 | 全路由 0 serious/critical、grid／dialog 語意、鍵盤旅程 | `apps/web/e2e/a11y/` | — | PR 3 路由；nightly 全部 |
 | Performance | F | Playwright + CDP tracing、`size-limit`、pytest-benchmark、`k6`（API） | 10 萬張捲動、首屏、bundle、API 延遲、吞吐基準 | `tests/perf/` | `perf_<area>.py/.ts` | nightly < 30 min；回歸 > 10% 警示、> 20% 失敗（個別案例另有門檻） |
 | Security | S | Hypothesis fuzz、紅隊集、`bandit`、`semgrep`、`pip-audit`、`pnpm audit`、`cargo audit`、`gitleaks` | 路徑沙箱、pack 驗證、loopback 認證、MCP scope／injection、redaction | `tests/security/`、各套件 `tests/**` 標 `security` marker | — | PR 確定性部分 < 5 min；nightly fuzz 1M 例 |
@@ -449,6 +449,7 @@ PR 總牆鐘時間目標 ≤ 15 分鐘（job 並行）。Required checks：上�
 3. 最近 3 次 nightly 與 nightly-gpu 全綠；不可隔離清單（§1.6）中沒有任何 quarantine。
 4. 覆蓋率與 mutation 門檻（§5.6）達標。
 5. 安裝包 ≤ 200 MB；SBOM 與 sha256 產生；四台參考機效能紀錄已附上。
+6. INF-REG-013：所有內建模型 variant 都已在 `registry/pins.lock` 釘選（ADR-0002），`registry-pin.yml` 最近一次 nightly 驗證仍可解析。
 
 ### 5.6 覆蓋率與 mutation testing
 

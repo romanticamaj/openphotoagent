@@ -1,0 +1,6 @@
+file,source,category,decision,confidence,caption,tags,taken_at,generated_at
+IMG_0001.jpg,IMG_0001.jpg,plants,accepted,1.0,,,2023-01-15T09:30:00+08:00,<masked>
+IMG_0002.jpg,IMG_0002.jpg,landscape,accepted,1.0,,,2023-02-21T10:30:00+08:00,<masked>
+IMG_0003.jpg,IMG_0003.jpg,transport,accepted,1.0,,,2023-03-30T11:30:00+08:00,<masked>
+IMG_0004.jpg,IMG_0004.jpg,pets,accepted,1.0,,,2023-05-06T12:30:00+08:00,<masked>
+IMG_0005.jpg,IMG_0005.jpg,pets,accepted,1.0,,,2023-06-12T13:30:00+08:00,<masked>

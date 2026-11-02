@@ -22,15 +22,16 @@ def test_scan_024_output_target_inside_source_not_scanned(embedded_pg, tmp_path)
     w = WorkerAgent(client, roots=[{"alias": "lib", "path": str(lib), "mode": "rw"}], home=tmp_path / "w")
     w.register()
     src = client.post("/api/v1/sources", json={"root_alias": "lib", "sub_path": ""}).json()
-    client.post(
-        "/api/v1/jobs",
-        json={
-            "kind": "organize",
-            "source_id": src["id"],
-            "preset": "by-date",
-            "target": {"root_alias": "lib", "sub_path": "sorted"},
-        },
-    )
+    body = {
+        "kind": "organize",
+        "source_id": src["id"],
+        "preset": "by-date",
+        "target": {"root_alias": "lib", "sub_path": "sorted"},
+    }
+    r = client.post("/api/v1/jobs", json=body)  # preflight blocks by default (PF-056)
+    assert r.status_code == 409 and r.json()["blockers"][0]["code"] == "OUTPUT_TARGET_INSIDE_SOURCE"
+    r = client.post("/api/v1/jobs", json={**body, "advanced": {"allow_target_inside_source": True}})  # user insists
+    assert r.status_code == 201
     w.run_until_idle()
     eng = engine_for(embedded_pg.dsn)
     with eng.begin() as c:

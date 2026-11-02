@@ -1,0 +1,113 @@
+{
+  "client.notifications": {
+    "title": "系統通知權限"
+  },
+  "db.health": {
+    "title": "資料庫狀態"
+  },
+  "decode.heic": {
+    "title": "HEIC 解碼"
+  },
+  "decode.raw": {
+    "title": "RAW 解碼"
+  },
+  "disk.db": {
+    "title": "資料庫磁碟空間"
+  },
+  "disk.models": {
+    "title": "模型目錄空間"
+  },
+  "disk.thumbs": {
+    "title": "縮圖目錄空間"
+  },
+  "fs.long_paths": {
+    "title": "Windows 長路徑"
+  },
+  "fs.roots": {
+    "title": "允許的資料夾"
+  },
+  "gpu.blackwell_torch": {
+    "title": "PyTorch 與新世代 GPU"
+  },
+  "gpu.cuda_runtime": {
+    "title": "CUDA 執行套件相容性"
+  },
+  "gpu.docker_passthrough": {
+    "title": "容器內的 GPU"
+  },
+  "gpu.driver": {
+    "title": "顯示卡驅動版本"
+  },
+  "gpu.enumerate": {
+    "title": "顯示卡偵測"
+  },
+  "gpu.metal": {
+    "title": "Apple Metal"
+  },
+  "gpu.rocm": {
+    "title": "AMD ROCm 權限"
+  },
+  "gpu.vram": {
+    "title": "顯示記憶體"
+  },
+  "mcp.server": {
+    "title": "MCP 伺服器"
+  },
+  "net.hf": {
+    "title": "連線到 Hugging Face"
+  },
+  "net.hf_token": {
+    "title": "Hugging Face 登入 token"
+  },
+  "net.ports": {
+    "title": "連接埠"
+  },
+  "os.arch_support": {
+    "title": "CPU 架構支援"
+  },
+  "os.platform": {
+    "title": "作業系統與平台"
+  },
+  "runtime.llamacpp": {
+    "title": "llama.cpp 執行環境"
+  },
+  "runtime.ollama": {
+    "title": "Ollama 連線"
+  },
+  "runtime.ort_ep": {
+    "title": "ONNX Runtime 加速"
+  },
+  "runtime.packs": {
+    "title": "執行套件自我測試"
+  },
+  "runtime.vllm": {
+    "title": "vLLM 執行環境"
+  },
+  "search.index": {
+    "title": "搜尋索引"
+  },
+  "sys.power": {
+    "title": "電源狀態"
+  },
+  "sys.ram": {
+    "title": "系統記憶體"
+  },
+  "time.skew": {
+    "title": "系統時間"
+  },
+  "tool.exiftool": {
+    "title": "EXIF 寫入工具（exiftool）"
+  },
+  "tool.ffmpeg": {
+    "title": "影片縮圖工具（ffmpeg）"
+  },
+  "worker.link": {
+    "title": "本機引擎連線"
+  },
+  "worker.version": {
+    "title": "本機引擎版本"
+  },
+  "wsl.gpu": {
+    "title": "WSL2 中的 GPU"
+  }
+}

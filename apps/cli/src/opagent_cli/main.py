@@ -33,7 +33,8 @@ def cmd_api(a: argparse.Namespace) -> None:
     from opagent_db.schema import create_all
 
     create_all(a.dsn)
-    app = create_app(dsn=a.dsn, static_dir=a.web_dist)
+    # same machine: the API serves the Worker's derived thumbnail cache directly (10 §3.4)
+    app = create_app(dsn=a.dsn, static_dir=a.web_dist, thumbs_dir=_home() / "worker" / "thumbs")
     uvicorn.run(app, host="127.0.0.1", port=a.port, log_level="warning")
 
 

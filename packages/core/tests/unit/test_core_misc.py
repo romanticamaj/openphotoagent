@@ -88,3 +88,13 @@ def test_null_reporter_and_failed_projection():
     project_job_status(op, "failed")
     assert op.status == OpStatus.failed
     assert datetime(2026, 1, 1, tzinfo=UTC).tzinfo is UTC
+
+
+@pytest.mark.unit
+def test_uuid7_is_monotonic_within_a_millisecond():
+    """RFC 9562 §6.2 method 1: a counter in rand_a keeps ids in creation order inside one millisecond, so ordering
+    by id (e.g. ranking ties) is the order things were created, run after run."""
+    clk = FakeClock()
+    ids = [uuid7(clk) for _ in range(5000)]  # the clock does not move: all in one millisecond (counter overflows)
+    assert ids == sorted(ids) and len(set(ids)) == len(ids)
+    assert all(uuid.UUID(i).version == 7 for i in ids)

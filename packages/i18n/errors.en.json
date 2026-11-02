@@ -1,0 +1,428 @@
+{
+  "CHECK_CRASHED": {
+    "cta": "Re-run (copy diagnostics)",
+    "message": "The environment check “{check}” itself failed",
+    "severity": "W",
+    "title": "The environment check “{check}” itself failed"
+  },
+  "DECODE_FAILED": {
+    "cta": "View list",
+    "message": "{n} files are damaged or unsupported and were skipped",
+    "severity": "W",
+    "title": "{n} files are damaged or unsupported and were skipped"
+  },
+  "DECODE_HEIC_MISSING": {
+    "cta": "Fix HEIC decoder",
+    "message": "HEIC cannot be decoded; {n} iPhone photos will be skipped",
+    "severity": "W",
+    "title": "HEIC cannot be decoded"
+  },
+  "DECODE_RAW_MISSING": {
+    "cta": "Download RAW decoder",
+    "message": "RAW files cannot be read; {n} files will be skipped",
+    "severity": "W",
+    "title": "RAW files cannot be read"
+  },
+  "DISK_INSUFFICIENT_MODELS": {
+    "cta": "Manage models (change folder / smaller variant)",
+    "message": "Not enough space for models: {req} needed, {free} left",
+    "severity": "B",
+    "title": "Not enough space for models"
+  },
+  "DISK_INSUFFICIENT_THUMBS": {
+    "cta": "Change thumbnail location (small only)",
+    "message": "Not enough space for thumbnails: about {req} needed, {free} left",
+    "severity": "B",
+    "title": "Not enough space for thumbnails"
+  },
+  "DISK_LOW_THUMBS": {
+    "cta": "Manage storage",
+    "message": "The thumbnail folder has {free} left and will drop below {pct}% after processing",
+    "severity": "W",
+    "title": "The thumbnail folder has {free} left and will drop below {pct}% after processing"
+  },
+  "DL_CHECKSUM_MISMATCH": {
+    "cta": "Retry from another source",
+    "message": "The downloaded file does not match the expected hash (already retried)",
+    "severity": "B",
+    "title": "The downloaded file does not match the expected hash (already retried)"
+  },
+  "DL_MIRROR_FAILED": {
+    "cta": "Retry (change mirror)",
+    "message": "The mirror {mirror} failed; switched back to the official source",
+    "severity": "B／T",
+    "title": "The mirror {mirror} failed"
+  },
+  "DL_NOT_FOUND": {
+    "cta": "Update model catalog",
+    "message": "The remote file was not found (the model catalogue may be out of date)",
+    "severity": "B",
+    "title": "The remote file was not found (the model catalogue may be out of date)"
+  },
+  "DL_RATE_LIMITED": {
+    "cta": "Add HF token for higher limits",
+    "message": "The download source is rate-limiting; retrying automatically in {s} s",
+    "severity": "W／T",
+    "title": "The download source is rate-limiting"
+  },
+  "DL_REMOTE_CHANGED": {
+    "cta": "View download",
+    "message": "The remote file changed while resuming; it was downloaded again from the start",
+    "severity": "W",
+    "title": "The remote file changed while resuming"
+  },
+  "DL_UNVERIFIED_SOURCE": {
+    "cta": "Continue anyway (cancel)",
+    "message": "Only a mirror's metadata is available; the official hash cannot be verified",
+    "severity": "W",
+    "title": "Only a mirror's metadata is available"
+  },
+  "EGRESS_POLICY_BLOCKS": {
+    "cta": "Use local model (change policy)",
+    "message": "This workspace's privacy settings do not allow sending images to external services",
+    "severity": "B",
+    "title": "This workspace's privacy settings do not allow sending images to external services"
+  },
+  "EXTERNAL_ENDPOINT_UNREACHABLE": {
+    "cta": "Check endpoint settings",
+    "message": "Cannot reach the external model service {url}",
+    "severity": "B／T",
+    "title": "Cannot reach the external model service {url}"
+  },
+  "FFMPEG_MISSING": {
+    "cta": "Download ffmpeg (keep skipping)",
+    "message": "ffmpeg is missing; {n} videos will be skipped (no thumbnails)",
+    "severity": "W",
+    "title": "ffmpeg is missing"
+  },
+  "FS_FILE_LOCKED": {
+    "cta": "Retry after closing the other app",
+    "message": "“{path}” is in use by another program (retried {n} times)",
+    "severity": "W／T",
+    "title": "“{path}” is in use by another program (retried {n} times)"
+  },
+  "FS_NOT_WRITABLE": {
+    "cta": "Choose another location",
+    "message": "Cannot write to “{path}”",
+    "severity": "B",
+    "title": "Cannot write to “{path}”"
+  },
+  "FS_PERMISSION_DENIED": {
+    "cta": "Grant folder access",
+    "message": "No permission to read “{path}”",
+    "severity": "B",
+    "title": "No permission to read “{path}”"
+  },
+  "FS_ROOT_NOT_ALLOWED": {
+    "cta": "Add allowed folder",
+    "message": "“{path}” is not inside a folder the worker is allowed to use",
+    "severity": "B",
+    "title": "“{path}” is not inside a folder the worker is allowed to use"
+  },
+  "FS_ROOT_UNAVAILABLE": {
+    "cta": "Retry (mount guide)",
+    "message": "“{root}” is not reachable right now (NAS not mounted?)",
+    "severity": "B／T",
+    "title": "“{root}” is not reachable right now (NAS not mounted?)"
+  },
+  "GPU_ARCH_UNSUPPORTED": {
+    "cta": "Install CUDA 12.8 pack (use llama.cpp)",
+    "message": "Your {gpu} ({sm}) needs a newer runtime pack",
+    "severity": "B",
+    "title": "Your {gpu} ({sm}) needs a newer runtime pack"
+  },
+  "GPU_BUSY_EXTERNAL": {
+    "cta": "Retry after closing it (use smaller model)",
+    "message": "Another program is using {gb} GB of VRAM ({process})",
+    "severity": "W／T",
+    "title": "Another program is using {gb} GB of VRAM ({process})"
+  },
+  "GPU_DOCKER_NO_PASSTHROUGH": {
+    "cta": "Copy GPU compose command",
+    "message": "The container cannot see the GPU; the NVIDIA runtime may not be enabled",
+    "severity": "B",
+    "title": "The container cannot see the GPU"
+  },
+  "GPU_DRIVER_TOO_OLD": {
+    "cta": "Open driver download (use Vulkan/CPU)",
+    "message": "GPU driver {v} is too old; {min} or newer is required",
+    "severity": "B",
+    "title": "GPU driver {v} is too old"
+  },
+  "GPU_NOT_FOUND": {
+    "cta": "Use CPU-friendly models (GPU setup guide)",
+    "message": "No usable GPU was found; the CPU will be used (slower)",
+    "severity": "W",
+    "title": "No usable GPU was found"
+  },
+  "HF_AUTH_REQUIRED": {
+    "cta": "Set HF token",
+    "message": "This model needs a Hugging Face login token",
+    "severity": "B",
+    "title": "This model needs a Hugging Face login token"
+  },
+  "HF_GATED_ACCESS_PENDING": {
+    "cta": "Request access on HF, then retry",
+    "message": "You need to accept the terms of {model} on the Hugging Face website first",
+    "severity": "B",
+    "title": "You need to accept the terms of {model} on the Hugging Face website first"
+  },
+  "JOB_CONFLICT_RUNNING": {
+    "cta": "View job (queue after it)",
+    "message": "A job “{job}” is already running on the same source",
+    "severity": "B",
+    "title": "A job “{job}” is already running on the same source"
+  },
+  "JOB_NOTHING_TO_DO": {
+    "cta": "Re-apply thresholds (force rerun)",
+    "message": "Every photo has already been processed (100% cache hits)",
+    "severity": "W",
+    "title": "Every photo has already been processed (100% cache hits)"
+  },
+  "LICENSE_CONSENT_REQUIRED": {
+    "cta": "Review & accept license",
+    "message": "You need to accept {license} before using {model}",
+    "severity": "B",
+    "title": "You need to accept {license} before using {model}"
+  },
+  "MCP_DISABLED": {
+    "cta": "Enable MCP",
+    "message": "The MCP server is not enabled",
+    "severity": "B",
+    "title": "The MCP server is not enabled"
+  },
+  "MCP_TOKEN_INVALID": {
+    "cta": "Regenerate token",
+    "message": "The MCP token is invalid or expired",
+    "severity": "B",
+    "title": "The MCP token is invalid or expired"
+  },
+  "MODEL_CAPABILITY_MISMATCH": {
+    "cta": "Pick another model",
+    "message": "{model} does not support {task}",
+    "severity": "B",
+    "title": "{model} does not support {task}"
+  },
+  "MODEL_CORRUPT": {
+    "cta": "Re-download corrupt files",
+    "message": "{model} failed file verification",
+    "severity": "B",
+    "title": "{model} failed file verification"
+  },
+  "MODEL_DOWNLOADING": {
+    "cta": "View download",
+    "message": "{model} is downloading ({pct}%); this unlocks automatically when it finishes",
+    "severity": "B／T",
+    "title": "{model} is downloading ({pct}%)"
+  },
+  "MODEL_FILES_MISSING": {
+    "cta": "Re-download (relocate)",
+    "message": "The files of {model} are missing (was the external folder moved?)",
+    "severity": "B",
+    "title": "The files of {model} are missing (was the external folder moved?)"
+  },
+  "MODEL_IN_USE": {
+    "cta": "Do it after jobs finish",
+    "message": "{model} is used by {n} jobs",
+    "severity": "B",
+    "title": "{model} is used by {n} jobs"
+  },
+  "MODEL_LOAD_FAILED": {
+    "cta": "Retry (use another variant)",
+    "message": "Cannot load {model}: {reason}",
+    "severity": "B",
+    "title": "Cannot load {model}"
+  },
+  "MODEL_NOT_INSTALLED": {
+    "cta": "Download ({size} · {eta})",
+    "message": "{model} ({size}) is needed and not downloaded yet",
+    "severity": "B",
+    "title": "{model} ({size}) is needed and not downloaded yet"
+  },
+  "MODEL_NOT_PINNED": {
+    "cta": "Update model catalog / Use another variant",
+    "message": "This variant has not been hash-pinned yet, so it cannot be downloaded safely",
+    "severity": "B",
+    "title": "This variant has not been hash-pinned yet, so it cannot be downloaded safely"
+  },
+  "MODEL_OOM": {
+    "cta": "Use smaller model (lower resolution)",
+    "message": "Out of GPU memory; retried automatically with a smaller batch",
+    "severity": "W／T",
+    "title": "Out of GPU memory"
+  },
+  "NET_PORT_IN_USE": {
+    "cta": "Switch to a free port",
+    "message": "Port {port} is used by {process}",
+    "severity": "B",
+    "title": "Port {port} is used by {process}"
+  },
+  "NET_TLS_INTERCEPTED": {
+    "cta": "Configure custom CA",
+    "message": "The connection certificate is not trusted (company proxy?)",
+    "severity": "B",
+    "title": "The connection certificate is not trusted (company proxy?)"
+  },
+  "NET_UNREACHABLE": {
+    "cta": "Retry (set mirror / proxy)",
+    "message": "Cannot connect to {host}",
+    "severity": "B／T",
+    "title": "Cannot connect to {host}"
+  },
+  "OLLAMA_NOT_RUNNING": {
+    "cta": "Copy \"ollama serve\" & retry",
+    "message": "Cannot reach Ollama ({url})",
+    "severity": "B／T",
+    "title": "Cannot reach Ollama ({url})"
+  },
+  "ORT_EP_UNAVAILABLE": {
+    "cta": "Download GPU ONNX Runtime (keep CPU)",
+    "message": "{ep} acceleration is unavailable; faces and taggers will use the CPU",
+    "severity": "W",
+    "title": "{ep} acceleration is unavailable"
+  },
+  "OUTPUT_TARGET_INSIDE_SOURCE": {
+    "cta": "Choose another output",
+    "message": "The output folder is inside the source folder, which would process files twice",
+    "severity": "B",
+    "title": "The output folder is inside the source folder, which would process files twice"
+  },
+  "PACK_CHECKSUM_MISMATCH": {
+    "cta": "Retry (other source)",
+    "message": "The “{pack}” runtime pack file does not match the signed index; it was rejected and the staging area cleaned",
+    "severity": "B",
+    "title": "The “{pack}” runtime pack file does not match the signed index"
+  },
+  "PACK_INCOMPATIBLE": {
+    "cta": "Install compatible version {locked}",
+    "message": "“{pack}” version {v} is not compatible with this app (needs pack_api {range})",
+    "severity": "B",
+    "title": "“{pack}” version {v} is not compatible with this app (needs pack_api {range})"
+  },
+  "PACK_SIGNATURE_INVALID": {
+    "cta": "Retry from another mirror (report issue)",
+    "message": "The signature of the “{pack}” runtime pack is invalid; installation was refused",
+    "severity": "B",
+    "title": "The signature of the “{pack}” runtime pack is invalid"
+  },
+  "PACK_UNSAFE_ARCHIVE": {
+    "cta": "Report the problem",
+    "message": "The “{pack}” runtime pack contents are unsafe ({reason}); installation was refused",
+    "severity": "B",
+    "title": "The “{pack}” runtime pack contents are unsafe ({reason})"
+  },
+  "PERF_CPU_ONLY_SLOW": {
+    "cta": "Use external endpoint (continue anyway)",
+    "message": "Only the CPU can run this; {n} photos will take about {eta}",
+    "severity": "W",
+    "title": "Only the CPU can run this"
+  },
+  "PERMISSION_DENIED_ROLE": {
+    "cta": "Request approval",
+    "message": "The {permission} permission is required",
+    "severity": "B",
+    "title": "The {permission} permission is required"
+  },
+  "PLAN_STALE": {
+    "cta": "Re-check conflicts",
+    "message": "{n} files changed after the plan was created",
+    "severity": "B",
+    "title": "{n} files changed after the plan was created"
+  },
+  "RAM_INSUFFICIENT": {
+    "cta": "Use a smaller model",
+    "message": "{need} GB of system memory is required; you have {total} GB",
+    "severity": "B",
+    "title": "{need} GB of system memory is required"
+  },
+  "RUNTIME_CRASHED": {
+    "cta": "Retry (view logs)",
+    "message": "The inference process stopped unexpectedly (restarted automatically {n} times)",
+    "severity": "B／T",
+    "title": "The inference process stopped unexpectedly (restarted automatically {n} times)"
+  },
+  "RUNTIME_PACK_BROKEN": {
+    "cta": "Reinstall pack (use CPU build)",
+    "message": "“{pack}” cannot start: {reason}",
+    "severity": "B",
+    "title": "“{pack}” cannot start"
+  },
+  "RUNTIME_PACK_MISSING": {
+    "cta": "Download pack",
+    "message": "The “{pack}” runtime pack is required ({size})",
+    "severity": "B",
+    "title": "The “{pack}” runtime pack is required ({size})"
+  },
+  "RUNTIME_TIMEOUT": {
+    "cta": "Retry failed items",
+    "message": "The model timed out; retrying with lower concurrency",
+    "severity": "W／T",
+    "title": "The model timed out"
+  },
+  "RUNTIME_UNSUPPORTED_PLATFORM": {
+    "cta": "Switch to llama.cpp",
+    "message": "{runtime} does not support {os} (vLLM supports Linux/WSL2 only)",
+    "severity": "B",
+    "title": "{runtime} does not support {os} (vLLM supports Linux/WSL2 only)"
+  },
+  "SEARCH_INDEX_INCOMPLETE": {
+    "cta": "Build index ({eta})",
+    "message": "{n} photos have no search vectors yet; results may be incomplete",
+    "severity": "W",
+    "title": "{n} photos have no search vectors yet"
+  },
+  "SEARCH_MODEL_MISMATCH": {
+    "cta": "Reindex ({eta})",
+    "message": "The search index was built with {old}, which differs from the current default {new}",
+    "severity": "W",
+    "title": "The search index was built with {old}, which differs from the current default {new}"
+  },
+  "TIME_SKEW": {
+    "cta": "Copy time-sync command",
+    "message": "The system clock differs from the server by {s} seconds",
+    "severity": "W／B",
+    "title": "The system clock differs from the server by {s} seconds"
+  },
+  "UNDO_TARGET_MODIFIED": {
+    "cta": "Review conflicts (skip them)",
+    "message": "{n} organized files were modified afterwards and cannot be restored safely",
+    "severity": "B",
+    "title": "{n} organized files were modified afterwards and cannot be restored safely"
+  },
+  "VRAM_INSUFFICIENT": {
+    "cta": "Use {alt} ({alt_gb} GB)",
+    "message": "{model} needs about {need} GB of VRAM; your GPU has {total} GB",
+    "severity": "B",
+    "title": "{model} needs about {need} GB of VRAM"
+  },
+  "VRAM_OFFLOAD": {
+    "cta": "Use smaller model (continue anyway)",
+    "message": "Not enough VRAM to fit {model} on the GPU; some layers run on the CPU (about {pct}% slower)",
+    "severity": "W",
+    "title": "Not enough VRAM to fit {model} on the GPU"
+  },
+  "VRAM_SEQUENTIAL": {
+    "cta": "Learn about sequential mode",
+    "message": "Cannot load together with the embedding model; they will take turns (about {pct}% longer)",
+    "severity": "W",
+    "title": "Cannot load together with the embedding model"
+  },
+  "WORKER_OFFLINE": {
+    "cta": "Reconnect (show start command)",
+    "message": "Worker “{name}” has been offline for {duration}; features that need it are paused",
+    "severity": "B／T",
+    "title": "Worker “{name}” has been offline for {duration}"
+  },
+  "WORKER_VERSION_MISMATCH": {
+    "cta": "Update worker",
+    "message": "Worker version {w} is not compatible with server {s}",
+    "severity": "B",
+    "title": "Worker version {w} is not compatible with server {s}"
+  },
+  "WSL_GPU_UNAVAILABLE": {
+    "cta": "Copy WSL setup (use llama.cpp)",
+    "message": "WSL2 cannot see the GPU, so vLLM cannot run",
+    "severity": "B",
+    "title": "WSL2 cannot see the GPU, so vLLM cannot run"
+  }
+}

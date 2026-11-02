@@ -1,0 +1,16 @@
+{
+  "caption": null,
+  "category": "plants",
+  "confidence": 1.0,
+  "content_hash": "e87aecc517159ccf31bbb791efbdeded2a2cd022463536a91ef266d3079cbfd9",
+  "date_source": "exif_offset",
+  "decided_by": "embedding",
+  "decision": "accepted",
+  "file": "IMG_0001.jpg",
+  "generated_at": "<masked>",
+  "model_fingerprint": "cascade-caaeedbe78830b75",
+  "schema": "opagent.sidecar/1",
+  "source": "IMG_0001.jpg",
+  "tags": [],
+  "taken_at": "2023-01-15T09:30:00+08:00"
+}

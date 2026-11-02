@@ -74,6 +74,7 @@ def lease(
     max_items: int,
     loaded: list[str] | None = None,
     lanes: list[str] | None = None,
+    boot_id: str | None = None,
 ) -> list[dict[str, Any]]:
     """Lease up to ``max_items`` pending items of running jobs. Interactive lane first, then model affinity
     (items whose task matches an already-loaded model, Q-017), then FIFO."""
@@ -88,7 +89,8 @@ def lease(
           ORDER BY (ji.lane = 'interactive') DESC, (ji.task = ANY(CAST(:loaded AS text[]))) DESC, j.created_at,
                    ji.seq, ji.id
           LIMIT :n FOR UPDATE OF ji SKIP LOCKED)
-        UPDATE job_item SET status = 'leased', lease_owner = :w, lease_expires_at = :exp, attempts = attempts + 1
+        UPDATE job_item SET status = 'leased', lease_owner = :w, lease_boot = :boot, lease_expires_at = :exp,
+               attempts = attempts + 1
         FROM c WHERE job_item.id = c.id
         RETURNING job_item.id, job_item.job_id, job_item.asset_id, job_item.root_alias, job_item.rel,
                   job_item.task, job_item.lane, job_item.attempts
@@ -96,6 +98,7 @@ def lease(
         {
             "now": now,
             "w": worker_id,
+            "boot": boot_id,
             "exp": now + timedelta(seconds=LEASE_S),
             "n": max_items,
             "loaded": loaded or [],
@@ -185,6 +188,10 @@ def report(conn: Any, clock: Any, worker_id: str, items: list[dict[str, Any]]) -
                 .on_conflict_do_nothing(index_elements=["asset_id", "task_config_hash", "model_fingerprint"])
                 .returning(result.c.id)
             ).scalar()
+            if rid is not None:
+                from .labels import on_result
+
+                on_result(_St(clock), conn, ji.job_id, ji.asset_id, rid, out)
             if rid is None:  # duplicate / late report: keep the first result (Q-004, Q-005)
                 rid = conn.execute(
                     select(result.c.id).where(
@@ -229,6 +236,9 @@ def report(conn: Any, clock: Any, worker_id: str, items: list[dict[str, Any]]) -
         conn.execute(select(job_item.c.job_id).where(job_item.c.id == it["job_item_id"])).scalar() for it in items
     }:
         if jid:
+            from .labels import drain_index
+
+            drain_index(conn)
             finish_cancel_if_idle(conn, clock, jid)
             from .organize import maybe_finish
 

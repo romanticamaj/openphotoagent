@@ -612,7 +612,7 @@ Sidecar     [✓] XMP（dc:subject / dc:description / lr:hierarchicalSubject）
 | i18n | i18next + react-i18next + ICU | §4.7 |
 | 圖示 | Lucide | 與 shadcn 一致 |
 | 測試 | Vitest + Testing Library；**Playwright**（E2E + axe a11y + 視覺回歸）；MSW（以 OpenAPI 產生 mock） | 前端可完全脫離後端開發 |
-| 元件文件 | Storybook 8（含深淺主題、zh-TW/en、pseudo-locale 切換） | 設計系統對外文件 |
+| 元件文件 | Storybook 10（`@storybook/react-vite`，版本釘選；含深淺主題、zh-TW/en、pseudo-locale 切換；ADR-0003） | 設計系統對外文件 |
 
 ### 5.3 SSE 事件 → 快取映射
 

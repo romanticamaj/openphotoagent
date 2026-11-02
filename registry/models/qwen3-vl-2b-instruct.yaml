@@ -1,0 +1,27 @@
+# VRAM numbers are estimates (08 §3.3 「約 2–3 GB」【估算】); file names 【未驗證】 until pinned (ADR-0002).
+schema_version: 1
+id: qwen3-vl-2b-instruct
+display_name: "Qwen3-VL 2B Instruct"
+family: qwen3-vl
+kind: vlm
+capabilities: [caption, tag, classify]
+languages: [en, zh-Hant, zh-Hans, ja]
+license: { spdx: Apache-2.0, weights: Apache-2.0, commercial_use: true, redistributable: true, requires_acceptance: false, url: "https://huggingface.co/Qwen/Qwen3-VL-2B-Instruct" }
+source: { hf_repo: Qwen/Qwen3-VL-2B-Instruct, revision: main }
+structured_output: json_schema
+supports_logprobs: true
+image: { min_pixels: 200704, max_pixels: 1003520, default_pixels: 401408 }
+tasks_default_rank: { caption: 3, tag: 3, classify: 3 }
+tiers: [mac8, cpu]
+variants:
+  - id: q4_k_m
+    runtime: llama.cpp
+    quant: Q4_K_M
+    revision: main
+    files:
+      - { repo: Qwen/Qwen3-VL-2B-Instruct-GGUF, path: "Qwen3VL-2B-Instruct-Q4_K_M.gguf", role: weights }
+      - { repo: Qwen/Qwen3-VL-2B-Instruct-GGUF, path: "mmproj-Qwen3VL-2B-Instruct-F16.gguf", role: mmproj }
+    vram_gb: { weights: 1.1, mmproj: 0.6, runtime_overhead: 0.5 }
+    recommended_batch: 2
+    requires: { runtime_pack: ["llamacpp-*"], os: [windows, macos, linux], min_ram_gb: 4, accel_any: [cuda, metal, vulkan, rocm, cpu] }
+notes: "Mac 8 GB 與純 CPU 的可選 caption 模型（CPU 約 0.05–0.2 張/秒【估算】）。"

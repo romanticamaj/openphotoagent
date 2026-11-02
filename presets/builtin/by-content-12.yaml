@@ -6,6 +6,9 @@ task_configs:
   - task_type: classify
     prompt_template_ref: builtin:fused_v1
     label_set: builtin-12@1
+    strategy: cascade            # rules → SigLIP2 → VLM → review (03 §3.3)
+    rules:
+      - { if: "exif.is_screenshot == true", then: documents }
 categories:
   - { key: people, zh-TW: 人物, en: People, description: { zh-TW: 以人物為主角的照片，包含自拍與合照, en: Photos where people are the main subject, including selfies and group shots } }
   - { key: landscape, zh-TW: 風景, en: Landscape, description: { zh-TW: 山、海、天空、田野等自然景觀, en: "Natural scenery: mountains, sea, sky, fields" } }

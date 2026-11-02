@@ -12,6 +12,7 @@ from PIL import Image, ImageOps
 
 RAW_EXT = {".dng", ".nef", ".arw", ".cr2", ".cr3", ".raf", ".orf", ".rw2", ".pef", ".srw", ".nrw"}
 THUMB_SIZES = (256, 512)
+PREVIEW_SIZES = (1024,)  # p1024: Lightbox first sharp frame (10 §3.4)
 _HEIF = False
 
 
@@ -98,7 +99,7 @@ def oriented(im: Image.Image) -> Image.Image:
 
 
 def write_thumbnails(im: Image.Image, dst_dir: Path, content_hash: str) -> list[str]:
-    """t256/t512 WebP, EXIF orientation applied, never upscaled (02 §4.1 stage 3)."""
+    """t256/t512 thumbnails + p1024 preview as WebP, EXIF orientation applied, never upscaled (02 §4.1 stage 3)."""
     d = dst_dir / content_hash[:2]
     d.mkdir(parents=True, exist_ok=True)
     out = []
@@ -107,6 +108,11 @@ def write_thumbnails(im: Image.Image, dst_dir: Path, content_hash: str) -> list[
         t.thumbnail((size, size), Image.Resampling.LANCZOS)
         t.convert("RGB").save(d / f"{content_hash}.t{size}.webp", "WEBP", quality=82)
         out.append(f"t{size}")
+    for size in PREVIEW_SIZES:
+        t = im.copy()
+        t.thumbnail((size, size), Image.Resampling.LANCZOS)
+        t.convert("RGB").save(d / f"{content_hash}.p{size}.webp", "WEBP", quality=85)
+        out.append(f"p{size}")
     return out
 
 
@@ -209,3 +215,69 @@ def thumbhash_encode(im: Image.Image) -> bytes:
             out[pos] |= round(15 * f) << ((idx & 1) << 2)
             idx += 1
     return bytes(out)
+
+
+_SHOT = ("screenshot", "screen shot", "螢幕擷取", "螢幕快照", "截圖", "スクリーンショット")
+
+
+def exif_facts(im: Image.Image, rel: str) -> dict[str, object]:
+    """Facts for the rule DSL (``exif.*``). Values are untrusted data, used only for comparisons (invariant 6)."""
+    ex = im.getexif()
+    make = str(ex.get(0x010F) or "").strip() or None
+    model = str(ex.get(0x0110) or "").strip() or None
+    name = rel.rsplit("/", 1)[-1].lower()
+    is_shot = (im.format == "PNG" and make is None) and any(s in name for s in _SHOT)
+    return {
+        "is_screenshot": bool(is_shot),
+        "camera_make": make,
+        "camera_model": model,
+        "has_gps": 0x8825 in ex,
+    }
+
+
+def _num(v: object) -> float | None:
+    try:
+        return round(float(v), 4)  # type: ignore[arg-type]
+    except (TypeError, ValueError, ZeroDivisionError):
+        return None
+
+
+def _gps(ifd: dict[int, object]) -> dict[str, float] | None:
+    def deg(vals: object, ref: object) -> float | None:
+        try:
+            d, m, s = (float(x) for x in vals)  # type: ignore[attr-defined]
+        except (TypeError, ValueError, ZeroDivisionError):
+            return None
+        v = d + m / 60 + s / 3600
+        return round(-v if str(ref).upper() in ("S", "W") else v, 6)
+
+    lat, lon = deg(ifd.get(2), ifd.get(1)), deg(ifd.get(4), ifd.get(3))
+    if lat is None or lon is None or not (-90 <= lat <= 90 and -180 <= lon <= 180):
+        return None
+    return {"lat": lat, "lon": lon}
+
+
+def exif_summary(im: Image.Image) -> dict[str, object]:
+    """Info-panel EXIF (10 §3.5): camera, lens, exposure, GPS only when the file has it. Untrusted display data
+    (invariant 6): strings are trimmed and length-capped, never interpreted."""
+    ex = im.getexif()
+    sub = ex.get_ifd(0x8769) if ex else {}
+
+    def s(v: object) -> str | None:
+        t = str(v or "").replace("\x00", "").strip()
+        return t[:120] or None
+
+    out: dict[str, object] = {
+        "camera_make": s(ex.get(0x010F)),
+        "camera_model": s(ex.get(0x0110)),
+        "lens": s(sub.get(0xA434)),
+        "iso": _num(sub.get(0x8827)),
+        "exposure_s": _num(sub.get(0x829A)),
+        "f_number": _num(sub.get(0x829D)),
+        "focal_mm": _num(sub.get(0x920A)),
+    }
+    if 0x8825 in ex:
+        g = _gps(dict(ex.get_ifd(0x8825)))
+        if g:
+            out["gps"] = g
+    return {k: v for k, v in out.items() if v is not None}

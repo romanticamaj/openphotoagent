@@ -18,13 +18,16 @@ ERROR_CODE_MAP: dict[str, str] = {
 
 
 class InferenceError(Exception):
-    def __init__(self, code: ErrorCode, retryable: bool, message: str = "") -> None:
+    def __init__(self, code: ErrorCode, retryable: bool, message: str = "", phase: str = "run") -> None:
         super().__init__(message or code)
         self.code = code
         self.retryable = retryable
+        self.phase = phase
 
     @property
     def error_code(self) -> str:
+        if self.code == "RUNTIME" and self.phase == "load":
+            return "MODEL_LOAD_FAILED"  # 06 §4.6: RUNTIME → MODEL_LOAD_FAILED while loading, else RUNTIME_CRASHED
         return ERROR_CODE_MAP[self.code]
 
 

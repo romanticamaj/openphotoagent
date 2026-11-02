@@ -88,6 +88,11 @@ OP_EDGES = [
     ("running", "interrupted"),
     ("interrupted", "queued"),
     ("interrupted", "cancelled"),
+    # ADR-0004: pause/cancel while waiting (via the worker when it holds the lease, directly otherwise)
+    ("waiting", "pausing"),
+    ("waiting", "cancelling"),
+    ("waiting", "paused"),
+    ("waiting", "cancelled"),
 ]
 
 

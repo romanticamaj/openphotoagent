@@ -24,8 +24,12 @@ def _st(req: Request) -> AppState:
 
 
 @router.get("/operations")
-def list_operations(req: Request, status: str = "active", limit: int = 200) -> list[dict[str, Any]]:
+def list_operations(
+    req: Request, status: str = "active", limit: int = 200, type: str | None = None
+) -> list[dict[str, Any]]:
     q = select(operation)
+    if type:
+        q = q.where(operation.c.type == type)
     if status == "active":
         q = q.where(operation.c.status.in_(ACTIVE))
     elif status == "failed":
@@ -68,6 +72,12 @@ def _resume_blockers(c: Any, op: Any) -> list[dict[str, Any]]:
     return []
 
 
+def _leased(c: Any, op_id: str) -> bool:
+    from opagent_db.schema import worker_task
+
+    return bool(c.execute(select(worker_task.c.status).where(worker_task.c.id == op_id)).scalar() == "leased")
+
+
 @router.post("/operations/{op_id}/{action}")
 def control(op_id: str, action: str, req: Request) -> dict[str, Any]:
     st = _st(req)
@@ -80,11 +90,30 @@ def control(op_id: str, action: str, req: Request) -> dict[str, Any]:
             if blockers:
                 raise HTTPException(409, detail={"code": "PREFLIGHT_BLOCKED", "blockers": blockers})
             set_op_status(c, st.clock, op_id, "running")
+            if op.type == "job.label":  # an interrupted/paused job continues where it stopped (OP-006)
+                from opagent_core.state_machine import JobStatus
+                from opagent_db.schema import job
+
+                from .db import set_job_status
+
+                if c.execute(select(job.c.status).where(job.c.id == op_id)).scalar() == "paused":
+                    set_job_status(c, op_id, JobStatus.running, clock=st.clock)
+            from opagent_db.schema import worker_task
+            from sqlalchemy import update as _upd
+
+            c.execute(  # a paused download task resumes from its .part (06 §2.2)
+                _upd(worker_task)
+                .where(worker_task.c.id == op_id, worker_task.c.status == "done", worker_task.c.kind == "download")
+                .values(status="pending", lease_expires_at=None)
+            )
+        elif action == "pause" and op.status == "waiting" and _leased(c, op_id):
+            set_op_status(c, st.clock, op_id, "pausing")  # the worker confirms when it has stopped (ADR-0004)
         elif action == "pause":
             set_op_status(c, st.clock, op_id, "pausing")
             set_op_status(c, st.clock, op_id, "paused", "PAUSED_BY_USER")
         elif action == "cancel":
-            set_op_status(c, st.clock, op_id, "cancelling" if op.status == "running" else "cancelled")
+            held = op.status == "running" or (op.status == "waiting" and _leased(c, op_id))
+            set_op_status(c, st.clock, op_id, "cancelling" if held else "cancelled")
         else:
             raise HTTPException(404, detail={"code": "NOT_FOUND"})
     return get_operation(op_id, req)

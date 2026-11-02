@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import Any
+from collections.abc import Sequence
+from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Request
 from opagent_core.ids import uuid7
@@ -41,11 +42,17 @@ class JobIn(BaseModel):
     preset: str = "by-date"
     target: Target
     mode: str = "dry_run"
+    action: Literal["copy", "move"] = "copy"  # 02 §6.2: copy by default; move is an advanced opt-in (ORG-004)
+    advanced: dict[str, Any] = Field(default_factory=dict)
+    models: dict[str, Any] | None = None  # {embed, vlm, pack}; None = the worker's configured backend
+    categories: list[dict[str, Any]] | None = None  # preset "custom": [{key, name, description, examples}]
+    queue_after: bool = False
 
 
 class PreflightIn(BaseModel):
     action: str
     params: dict[str, Any] = Field(default_factory=dict)
+    fingerprint: str | None = None
 
 
 @router.get("/capabilities")
@@ -135,84 +142,28 @@ def list_sources(req: Request) -> list[dict[str, Any]]:
 
 @router.post("/preflight")
 def preflight(body: PreflightIn, req: Request) -> dict[str, Any]:
-    # v0.1 skeleton: by-date needs no model; full gate registry arrives with slice 8 (06 §4)
-    blockers: list[dict[str, Any]] = []
-    warnings: list[dict[str, Any]] = []
-    p = body.params
-    if body.action == "job.start" and p.get("kind") == "label" and p.get("rerun_of"):
-        from opagent_core.config_hash import config_hash
+    """06 §4.2: one engine for every action (opagent_api.preflight)."""
+    from .preflight import run_preflight
 
-        with _st(req).engine.begin() as c:
-            assets = [r[0] for r in c.execute(select(job_item.c.asset_id).where(job_item.c.job_id == p["rerun_of"]))]
-            have = c.execute(
-                select(func.count())
-                .select_from(result)
-                .where(
-                    result.c.asset_id.in_(assets),
-                    result.c.task_config_hash == config_hash(p.get("task_config") or {}),
-                    result.c.model_fingerprint == p.get("fingerprint"),
-                )
-            ).scalar_one()
-        if assets and have == len(assets):  # 100 % cache hit (06 §4.7 #51)
-            warnings.append(
-                {
-                    "code": "JOB_NOTHING_TO_DO",
-                    "severity": "warning",
-                    "fixes": [
-                        {"id": "reapply_thresholds", "kind": "auto_fix", "label_key": "fix.reapply_thresholds"},
-                        {
-                            "id": "force_rerun",
-                            "kind": "choose_alternative",
-                            "label_key": "fix.force_rerun",
-                            "consequence_key": "fix.force_rerun.consequence",
-                        },
-                    ],
-                }
-            )
-    elif body.action == "job.start" and p.get("kind", "organize") == "organize":
-        from . import organize
-
-        with _st(req).engine.begin() as c:
-            running = organize.active_job_for_source(c, p.get("source_id", "")) if p.get("source_id") else None
-            tc = organize.task_config_for(p.get("preset", "by-date"))
-            has_model = True
-            if tc is not None:
-                caps = [r[0] or {} for r in c.execute(select(worker.c.capabilities))]
-                has_model = any(tc["task_type"] in (cap.get("models") or {}) for cap in caps)
-        if running:  # 06 §4.7 #52
-            blockers.append(
-                {
-                    "code": "JOB_CONFLICT_RUNNING",
-                    "severity": "blocker",
-                    "params": {"job": running},
-                    "fixes": [
-                        {"id": "view_job", "kind": "open_route", "route": f"/jobs/{running}"},
-                        {
-                            "id": "queue_after",
-                            "kind": "choose_alternative",
-                            "consequence_key": "fix.queue_after.consequence",
-                        },
-                    ],
-                }
-            )
-        if not has_model:
-            blockers.append(
-                {
-                    "code": "MODEL_NOT_INSTALLED",
-                    "severity": "blocker",
-                    "fixes": [{"id": "download_model", "kind": "auto_fix"}],
-                }
-            )
-    return {"ready": not blockers, "blockers": blockers, "warnings": warnings}
+    st = _st(req)
+    with st.engine.begin() as c:
+        return run_preflight(c, st, body.action, body.params, body.fingerprint)
 
 
 @router.post("/jobs", status_code=201)
 def create_job(body: JobIn, req: Request) -> dict[str, Any]:
     st = _st(req)
+    if body.action == "move" and not body.advanced.get("allow_move"):
+        raise HTTPException(
+            422, detail={"code": "MOVE_REQUIRES_ADVANCED", "fixes": [{"id": "open_advanced", "type": "open_settings"}]}
+        )
     with st.engine.begin() as c:
         s = c.execute(select(source).where(source.c.id == body.source_id)).first()
         if s is None:
             raise HTTPException(404, detail={"code": "NOT_FOUND"})
+        from .preflight import enforce
+
+        enforce(c, st, "job.start", body.model_dump())  # server-side enforcement (PF-073)
         jid = uuid7(st.clock)
         c.execute(
             insert(job).values(
@@ -224,39 +175,44 @@ def create_job(body: JobIn, req: Request) -> dict[str, Any]:
                 params=body.model_dump(),
             )
         )
+        from .operations import ensure_operation
+
+        ensure_operation(c, st.clock, jid, "job.label", {"kind": "job", "id": jid})  # visible in Activity (OP-001)
+        # never index the output folder when it lives inside the source (SCAN-024)
+        inside = body.target.root_alias == s.root_alias and body.target.sub_path.strip("/")
+        from .routes_viewer import scan_task
+
         c.execute(
-            insert(worker_task).values(
-                id=uuid7(st.clock),
-                kind="scan",
-                job_id=jid,
-                worker_id=s.worker_id,
-                payload={
-                    "job_id": jid,
-                    "source_id": s.id,
-                    "root_alias": s.root_alias,
-                    "sub_path": s.sub_path,
-                    "include": s.include,
-                    "exclude": s.exclude,
-                    # never index the output folder when it lives inside the source (SCAN-024)
-                    "exclude_subtrees": [body.target.sub_path.strip("/")]
-                    if body.target.root_alias == s.root_alias and body.target.sub_path.strip("/")
-                    else [],
-                },
-            )
+            insert(worker_task).values(**scan_task(st, s, jid, [body.target.sub_path.strip("/")] if inside else []))
         )
     return get_job(jid, req)
 
 
 @router.get("/jobs/{job_id}")
 def get_job(job_id: str, req: Request) -> dict[str, Any]:
+    from opagent_db.schema import operation, review
+
     from . import queue as q
 
     with _st(req).engine.begin() as c:
         r = c.execute(select(job).where(job.c.id == job_id)).first()
         cnt = q.counters(c, job_id)
-    if r is None:
-        raise HTTPException(404, detail={"code": "NOT_FOUND"})
+        if r is None:
+            raise HTTPException(404, detail={"code": "NOT_FOUND"})
+        waiting = c.execute(
+            select(operation.c.waiting_reason)
+            .join(worker_task, worker_task.c.id == operation.c.id)
+            .where(worker_task.c.job_id == job_id, operation.c.status == "waiting")
+            .limit(1)
+        ).scalar()
+        src_status = c.execute(select(source.c.status).where(source.c.id == (r.params or {}).get("source_id"))).scalar()
+        pending = c.execute(
+            select(func.count()).select_from(review).where(review.c.job_id == job_id, review.c.status == "pending")
+        ).scalar_one()
     d = dict(r._mapping)
+    d["waiting_reason"] = waiting  # e.g. SOURCE_OFFLINE: waiting, not failed (SCAN-020)
+    d["source_status"] = src_status
+    d["reviews_pending"] = pending
     if cnt["total"]:
         d["counters"] = {**(d.get("counters") or {}), **cnt}
         to_infer = cnt["total"] - cnt["cached"]
@@ -312,15 +268,65 @@ def resume_job(job_id: str, req: Request) -> dict[str, Any]:
     return get_job(job_id, req)
 
 
+class CancelIn(BaseModel):
+    mode: Literal["graceful", "immediate"] = "graceful"
+    confirm: bool = False
+
+
+CANCEL_CONFIRM_ABOVE_S = 60.0
+
+
+def _discard_estimate(c: Any, job_id: str) -> tuple[int, float]:
+    """Work an immediate cancel throws away: photos in flight × measured seconds per photo (06 §5.3, OP-012)."""
+    from opagent_db.schema import perf_observation
+
+    owners = c.execute(
+        select(job_item.c.lease_owner, func.count())
+        .where(job_item.c.job_id == job_id, job_item.c.status.in_(("leased", "running")))
+        .group_by(job_item.c.lease_owner)
+    ).all()
+    n = sum(k for _, k in owners)
+    rate = c.execute(
+        select(perf_observation.c.items_per_s)
+        .where(
+            perf_observation.c.worker_id.in_([o for o, _ in owners] or ["-"]),
+            perf_observation.c.items_per_s.is_not(None),
+        )
+        .order_by(perf_observation.c.id.desc())
+        .limit(1)
+    ).scalar()
+    per_item = 1.0 / float(rate) if rate else 2.0  # basis: observed, else a conservative prior
+    return n, n * per_item
+
+
 @router.post("/jobs/{job_id}/cancel")
-def cancel_job(job_id: str, req: Request) -> dict[str, Any]:
-    """running -> cancelling; pending items are cancelled; finished results are kept for the cache (Q-012)."""
+def cancel_job(job_id: str, req: Request, body: CancelIn | None = None) -> dict[str, Any]:
+    """running -> cancelling; pending items are cancelled; finished results are kept for the cache (Q-012).
+    graceful lets the leased batch finish; immediate gives the leases back, after confirmation when that discards
+    more than a minute of work (OP-012)."""
     from . import queue as q
 
+    body = body or CancelIn()
     st = _st(req)
     with st.engine.begin() as c:
+        if body.mode == "immediate":
+            n, discard = _discard_estimate(c, job_id)
+            if discard > CANCEL_CONFIRM_ABOVE_S and not body.confirm:
+                raise HTTPException(
+                    409, detail={"code": "CANCEL_DISCARDS_WORK", "n": n, "discard_s": round(discard, 1)}
+                )
         _ensure_job_op(c, st, job_id)
         cur = c.execute(select(job.c.status).where(job.c.id == job_id)).scalar_one()
+        if cur == "applying":  # stop between file actions; what is done stays done and can be undone (OUT-EXE-017)
+            from .operations import set_op_status
+
+            for (tid,) in c.execute(
+                select(worker_task.c.id).where(
+                    worker_task.c.job_id == job_id, worker_task.c.kind == "apply", worker_task.c.status == "leased"
+                )
+            ):
+                set_op_status(c, st.clock, tid, "cancelling")
+            return get_job(job_id, req)
         if cur in ("queued", "paused"):
             set_job_status(c, job_id, JobStatus.cancelled, clock=st.clock)
         else:
@@ -330,6 +336,19 @@ def cancel_job(job_id: str, req: Request) -> dict[str, Any]:
             .where(job_item.c.job_id == job_id, job_item.c.status == "pending")
             .values(status="cancelled")
         )
+        if body.mode == "immediate":  # give the in-flight batch back now; its results will be ignored
+            leased = c.execute(
+                select(job_item.c.id, job_item.c.lease_owner).where(
+                    job_item.c.job_id == job_id, job_item.c.status.in_(("leased", "running"))
+                )
+            ).all()
+            for owner in {r.lease_owner for r in leased}:
+                q.release(c, owner, [r.id for r in leased if r.lease_owner == owner])
+            c.execute(
+                update(job_item)
+                .where(job_item.c.job_id == job_id, job_item.c.status == "pending")
+                .values(status="cancelled")
+            )
         q.finish_cancel_if_idle(c, st.clock, job_id)
     return get_job(job_id, req)
 
@@ -368,6 +387,7 @@ def reapply(job_id: str, body: ReapplyIn, req: Request) -> dict[str, Any]:
 class PreviewIn(BaseModel):
     source_id: str
     preset: str = "by-content-12"
+    categories: list[dict[str, Any]] | None = None  # preset "custom": [{key, name, description, examples}]
     target: Target | None = None
     k: int = 10
     seed: int = 42
@@ -439,7 +459,66 @@ def get_preview(preview_id: str, req: Request) -> dict[str, Any]:
             raise HTTPException(404, detail={"code": "NOT_FOUND"})
         ready = bool(j.params.get("preview_ready"))
         items = _preview_items(c, j, None, None) if ready else []
-    return {"id": preview_id, "status": "ready" if ready else "running", "items": items}
+    return {
+        "id": preview_id,
+        "status": "ready" if ready else "running",
+        "items": items,
+        "estimate": j.params.get("estimate"),  # library-wide forecast (ORG-007); null until the worker reports
+    }
+
+
+class TryIn(BaseModel):
+    asset_id: str
+
+
+@router.post("/previews/{preview_id}/try", status_code=201)
+def try_one(preview_id: str, body: TryIn, req: Request) -> dict[str, Any]:
+    """「試跑這張」: one photo through the cascade on the interactive lane; stages stream as SSE ``preview.stage``."""
+    from opagent_db.schema import asset_location
+
+    from . import organize
+
+    st = _st(req)
+    with st.engine.begin() as c:
+        j = c.execute(select(job).where(job.c.id == preview_id, job.c.kind == "preview")).first()
+        if j is None:
+            raise HTTPException(404, detail={"code": "NOT_FOUND"})
+        s = c.execute(select(source).where(source.c.id == j.params["source_id"])).first()
+        if s is None:
+            raise HTTPException(404, detail={"code": "NOT_FOUND"})
+        loc = c.execute(
+            select(asset_location.c.rel_path).where(
+                asset_location.c.asset_id == body.asset_id, asset_location.c.source_id == s.id
+            )
+        ).first()
+        if loc is None:
+            raise HTTPException(404, detail={"code": "NOT_FOUND"})
+        tid = uuid7(st.clock)
+        tc = j.params.get("task_config") or organize.task_config_for(
+            j.params.get("preset", "by-content-12"), j.params.get("categories"), c
+        )
+        c.execute(
+            insert(worker_task).values(
+                id=tid,
+                kind="try_one",
+                lane="interactive",
+                job_id=preview_id,
+                worker_id=s.worker_id,
+                payload={"root_alias": s.root_alias, "rel": loc.rel_path, "asset_id": body.asset_id, "task_config": tc},
+            )
+        )
+    return {"id": tid, "lane": "interactive", "status": "pending"}
+
+
+@router.get("/previews/{preview_id}/try/{task_id}")
+def get_try(preview_id: str, task_id: str, req: Request) -> dict[str, Any]:
+    with _st(req).engine.begin() as c:
+        t = c.execute(
+            select(worker_task).where(worker_task.c.id == task_id, worker_task.c.job_id == preview_id)
+        ).first()
+    if t is None:
+        raise HTTPException(404, detail={"code": "NOT_FOUND"})
+    return {"id": t.id, "status": t.status, "result": t.result}
 
 
 @router.post("/previews/{preview_id}/rerender")
@@ -473,8 +552,25 @@ def get_plan(plan_id: str, req: Request) -> dict[str, Any]:
         "job_id": p.job_id,
         "status": p.status,
         "summary": p.summary,
+        "outcome": _outcome(acts) if p.status not in ("draft", "superseded") else None,
         "actions": [{k: v for k, v in a._mapping.items() if k != "plan_id"} for a in acts],
     }
+
+
+def _outcome(acts: Sequence[Any]) -> dict[str, int]:
+    """What applying did: copied/moved, renamed because a different file had the name, identical copies skipped."""
+    out = {"done": 0, "renamed": 0, "same_skipped": 0, "skipped": 0, "failed": 0}
+    for a in acts:
+        if a.status == "done":
+            out["done"] += 1
+            out["renamed"] += a.conflict == "exists_diff"
+        elif a.status == "skipped" and a.conflict == "exists_same":
+            out["same_skipped"] += 1
+        elif a.status == "skipped":
+            out["skipped"] += 1
+        elif a.status == "failed":
+            out["failed"] += 1
+    return out
 
 
 def _plan_job(c: Any, plan_id: str) -> tuple[Any, Any]:
@@ -517,7 +613,9 @@ def approve(plan_id: str, req: Request, body: ApproveIn | None = None) -> dict[s
         acts = c.execute(
             select(output_action).where(output_action.c.plan_id == plan_id).order_by(output_action.c.seq)
         ).all()
-        wid = c.execute(select(worker_task.c.worker_id).where(worker_task.c.job_id == j.id)).scalars().first()
+        wid = c.execute(select(worker_task.c.worker_id).where(worker_task.c.job_id == j.id)).scalars().first() or (
+            j.params or {}
+        ).get("worker_id")
         c.execute(
             insert(worker_task).values(
                 id=uuid7(st.clock),
@@ -526,6 +624,7 @@ def approve(plan_id: str, req: Request, body: ApproveIn | None = None) -> dict[s
                 worker_id=wid,
                 payload={
                     "plan_id": plan_id,
+                    "move_confirmed": bool(body.move_confirmed),
                     "actions": [
                         {
                             "action_id": a.id,
@@ -535,6 +634,7 @@ def approve(plan_id: str, req: Request, body: ApproveIn | None = None) -> dict[s
                             "dst_alias": a.dst_alias,
                             "dst_rel": a.dst_rel,
                             "src_hash": a.src_hash,
+                            **({"payload": a.payload} if a.payload is not None else {}),
                         }
                         for a in acts
                     ],
@@ -553,7 +653,9 @@ def undo(plan_id: str, req: Request) -> dict[str, Any]:
             raise HTTPException(409, detail={"code": "PLAN_NOT_APPLIED", "status": p.status})
         set_job_status(c, j.id, JobStatus.undoing)
         c.execute(update(output_plan).where(output_plan.c.id == plan_id).values(status="undoing"))
-        wid = c.execute(select(worker_task.c.worker_id).where(worker_task.c.job_id == j.id)).scalars().first()
+        wid = c.execute(select(worker_task.c.worker_id).where(worker_task.c.job_id == j.id)).scalars().first() or (
+            j.params or {}
+        ).get("worker_id")
         c.execute(
             insert(worker_task).values(
                 id=uuid7(st.clock), kind="undo", job_id=j.id, worker_id=wid, payload={"plan_id": plan_id}

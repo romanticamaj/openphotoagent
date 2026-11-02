@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from sqlalchemy import (
     BigInteger,
     Boolean,
     Column,
+    Computed,
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     MetaData,
     Table,
@@ -17,8 +21,9 @@ from sqlalchemy import (
     create_engine,
     func,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TSVECTOR
 from sqlalchemy.engine import Engine
+from sqlalchemy.types import UserDefinedType
 
 metadata = MetaData()
 
@@ -75,9 +80,14 @@ asset = Table(
     Column("thumbhash", Text),
     Column("phash", Text),
     Column("dhash", Text),
+    Column("exif", JSONB, nullable=False, server_default="{}"),  # display summary (10 §3.5); untrusted data
+    # wall-clock time the photo belongs to (capture time, else file mtime) and its month: the timeline axis (10 §2)
+    Column("local_at", DateTime(timezone=False)),
+    Column("month_at", DateTime(timezone=False), Computed("date_trunc('month', local_at)", persisted=True)),
     _ts("created_at", server_default=func.now()),
     UniqueConstraint("workspace_id", "content_hash"),
 )
+Index("asset_timeline", asset.c.workspace_id, asset.c.month_at, asset.c.local_at.desc())
 asset_location = Table(
     "asset_location",
     metadata,
@@ -131,6 +141,7 @@ output_action = Table(
     Column("src_hash", Text, nullable=False),
     Column("date_source", Text),
     Column("conflict", Text, nullable=False, server_default="none"),
+    Column("payload", JSONB),  # sidecar content (sidecar_json / sidecar_csv)
     Column("status", Text, nullable=False, server_default="planned"),
     Column("error", Text),
 )
@@ -149,6 +160,7 @@ job_item = Table(
     Column("attempts", Integer, nullable=False, server_default="0"),
     Column("max_attempts", Integer, nullable=False, server_default="3"),
     Column("lease_owner", Text),
+    Column("lease_boot", Text),  # the worker process that holds the lease (restart recovery, OP-006)
     _ts("lease_expires_at"),
     _ts("next_attempt_at"),
     Column("error_code", Text),
@@ -171,6 +183,98 @@ result = Table(
     _ts("created_at", server_default=func.now()),
     UniqueConstraint("asset_id", "task_config_hash", "model_fingerprint"),
 )
+review = Table(  # 02 §3.2 review; REV-*
+    "review",
+    metadata,
+    Column("id", Text, primary_key=True),
+    Column("asset_id", Text, ForeignKey("asset.id"), nullable=False),
+    Column("job_id", Text),
+    Column("result_id", Text),
+    Column("status", Text, nullable=False, server_default="pending"),  # pending|approved|corrected|skipped
+    Column("reason", Text),  # low_confidence | conflict | inline
+    Column("suggested", JSONB),
+    Column("corrected", JSONB),
+    Column("source", Text),  # review | review_skip | inline
+    _ts("created_at", server_default=func.now()),
+    _ts("resolved_at"),
+)
+Index("review_job_status", review.c.job_id, review.c.status)
+
+
+class Vector(UserDefinedType):  # type: ignore[type-arg]
+    """pgvector ``vector`` (dimension-agnostic column; 05 §1.5 — halfvec + per-space HNSW where pgvector ≥ 0.7)."""
+
+    cache_ok = True
+
+    def get_col_spec(self, **kw: Any) -> str:
+        return "vector"
+
+
+search_doc = Table(  # 05 §1.2: one row per asset, denormalised facets + application-tokenised tsvector
+    "search_doc",
+    metadata,
+    Column("asset_id", Text, ForeignKey("asset.id"), primary_key=True),
+    Column("workspace_id", Text, nullable=False, server_default="default"),
+    Column("caption", Text),
+    Column("tags", ARRAY(Text), nullable=False, server_default="{}"),  # canonical keys
+    Column("tag_labels", JSONB),
+    Column("category", Text),
+    Column("taken_at", DateTime(timezone=True)),
+    Column("taken_year", Integer),
+    Column("date_source", Text),
+    Column("scope_keys", ARRAY(Text), nullable=False, server_default="{}"),
+    Column("review_state", Text),
+    Column("confidence", Float),
+    Column("body", Text, nullable=False, server_default=""),
+    Column("tsv", TSVECTOR),
+    _ts("first_indexed_at", server_default=func.now()),  # pagination snapshots (SRCH-FAC-004)
+    _ts("updated_at", server_default=func.now()),
+)
+selection = Table(  # a query handle (10 §6): what "select all results" means, re-resolved on the server
+    "selection",
+    metadata,
+    Column("id", Text, primary_key=True),
+    Column("query", JSONB),
+    Column("asset_ids", ARRAY(Text)),
+    Column("count", Integer, nullable=False),
+    _ts("created_at", server_default=func.now()),
+)
+Index("search_doc_tsv", search_doc.c.tsv, postgresql_using="gin")
+Index("search_doc_tags", search_doc.c.tags, postgresql_using="gin")
+Index("search_doc_scope", search_doc.c.scope_keys, postgresql_using="gin")
+Index("search_doc_ws_taken", search_doc.c.workspace_id, search_doc.c.taken_at)
+
+embedding_space = Table(  # 05 §1.2
+    "embedding_space",
+    metadata,
+    Column("id", Integer, primary_key=True, autoincrement=True),
+    Column("model_key", Text, nullable=False),
+    Column("fingerprint", Text, nullable=False),
+    Column("dim", Integer, nullable=False),
+    Column("status", Text, nullable=False, server_default="active"),  # building | active | retired
+    _ts("created_at", server_default=func.now()),
+    UniqueConstraint("fingerprint"),
+)
+
+asset_embedding = Table(  # 05 §1.2
+    "asset_embedding",
+    metadata,
+    Column("asset_id", Text, ForeignKey("asset.id"), primary_key=True),
+    Column("space_id", Integer, ForeignKey("embedding_space.id"), primary_key=True),
+    Column("vec", Vector(), nullable=False),
+    Column("source_hash", Text),
+    _ts("created_at", server_default=func.now()),
+)
+
+index_outbox = Table(  # 02 §10: asset changes → search_doc, processed in order
+    "index_outbox",
+    metadata,
+    Column("id", BigInteger, primary_key=True, autoincrement=True),
+    Column("asset_id", Text, nullable=False),
+    _ts("created_at", server_default=func.now()),
+    _ts("processed_at"),
+)
+
 operation = Table(  # 06 §5.1 / 02 §10.1
     "operation",
     metadata,
@@ -215,7 +319,47 @@ perf_observation = Table(  # 06 §5.5 / 02 §10.1
     Column("items_per_s", Float),
     Column("bytes_per_s", Float),
     Column("load_s", Float),
+    Column("vram_gb", Float),  # measured after load (INF-VRAM-005)
     _ts("at"),
+)
+
+installation = Table(  # 06 §1.7 / 02 §10.1: an artifact or pack installed on a worker
+    "installation",
+    metadata,
+    Column("id", Text, primary_key=True),
+    Column("worker_id", Text, nullable=False),
+    Column("kind", Text, nullable=False),  # model | pack
+    Column("key", Text, nullable=False),  # model@variant | pack id
+    Column("status", Text, nullable=False, server_default="installed"),
+    Column("size_bytes", BigInteger),
+    Column("files", JSONB),
+    Column("managed", Boolean, nullable=False, server_default="true"),
+    _ts("created_at", server_default=func.now()),
+    UniqueConstraint("worker_id", "kind", "key"),
+)
+
+audit_log = Table(  # 06 §3.6: every auto_fix and privileged action (DOC-017)
+    "audit_log",
+    metadata,
+    Column("id", BigInteger, primary_key=True, autoincrement=True),
+    _ts("at", server_default=func.now()),
+    Column("actor", Text, nullable=False),
+    Column("action", Text, nullable=False),
+    Column("target", Text),
+    Column("outcome", Text),
+    Column("details", JSONB),
+)
+
+license_acceptance = Table(  # 06 §1.9
+    "license_acceptance",
+    metadata,
+    Column("id", BigInteger, primary_key=True, autoincrement=True),
+    Column("workspace_id", Text, nullable=False),
+    Column("model_id", Text, nullable=False),
+    Column("license_id", Text, nullable=False),
+    Column("license_hash", Text, nullable=False),
+    _ts("accepted_at", server_default=func.now()),
+    _ts("revoked_at"),
 )
 eta_calibration = Table(
     "eta_calibration",
@@ -246,6 +390,8 @@ worker_task = Table(
     Column("status", Text, nullable=False, server_default="pending"),
     Column("worker_id", Text),
     Column("job_id", Text),
+    Column("lane", Text, nullable=False, server_default="normal"),  # interactive tasks jump the queue (ORG-008)
+    Column("lease_boot", Text),  # the worker process that holds the lease (restart recovery, OP-006)
     _ts("lease_expires_at"),
     Column("result", JSONB),
     _ts("created_at", server_default=func.now()),
@@ -281,6 +427,10 @@ def engine_for(dsn: str) -> Engine:
 
 
 def create_all(dsn: str) -> None:
+    from sqlalchemy import text
+
     eng = engine_for(dsn)
+    with eng.begin() as c:
+        c.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
     metadata.create_all(eng)
     eng.dispose()

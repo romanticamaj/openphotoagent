@@ -1,0 +1,7 @@
+schema_version: 1
+id: ort-coreml
+provides: { runtime: onnx, accel: coreml }
+builtin: true
+platforms:
+  - { os: macos, arch: arm64 }
+license: { spdx: MIT, notice_file: LICENSE-onnxruntime }

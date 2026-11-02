@@ -7,6 +7,7 @@ change through the journaled executor (invariant 3).
 from __future__ import annotations
 
 import os
+import threading
 import uuid
 from pathlib import Path
 from typing import Any
@@ -33,7 +34,11 @@ class WorkerAgent:
         roots: list[dict[str, str]],
         home: Path,
         backend: Any = None,
+        embedder: Any = None,
         worker_id: str | None = None,
+        hw_profile: str | None = None,
+        models_root: Path | None = None,
+        download_sources: list[str] | None = None,
         name: str = "local",
         clock: Any = None,
     ) -> None:
@@ -43,6 +48,14 @@ class WorkerAgent:
         self.home = Path(home)
         self.home.mkdir(parents=True, exist_ok=True)
         self.backend = backend
+        self.hw_profile = hw_profile
+        self.doctor_env: dict[str, Any] = {}  # raw-fact overrides for the doctor (tests / FakeWorkerLink)
+        self.models_root = Path(models_root) if models_root else self.home / "models"
+        self.download_sources = download_sources or ["https://huggingface.co"]
+        caps = backend.describe().task_types if backend is not None else ()
+        self.embedder = embedder if embedder is not None else (backend if "embed" in caps else None)
+        self._cascade: Any = None
+        self._facts: dict[str, dict[str, Any]] = {}
         self.worker_id = worker_id or self._load_id()
         self.name = name
         self.executor = Executor(self.sb, RealFs(), Journal(self.home / "journal.db"))
@@ -53,6 +66,40 @@ class WorkerAgent:
         self.page_size = 1000
         self.crash_after_pages: int | None = None  # test hook: simulate kill -9 after N reported pages
         self.last_scan_skipped_before_cursor = 0
+        self._dl_thread: threading.Thread | None = None
+        self.boot_id = uuid.uuid4().hex  # one per process (restart detection, OP-006)
+        self.apply_throttle_s = 0.0  # test hook (E2E-B-008): pause between file actions
+
+    @property
+    def cascade_fingerprint(self) -> str:
+        """Cache-key fingerprint of the whole cascade (invariant 7): embedder + VLM fingerprints."""
+        import hashlib
+
+        parts = [self.embedder.describe().model_fingerprint if self.embedder else "-"]
+        parts.append(self.backend.describe().model_fingerprint if self.backend else "-")
+        return "cascade-" + hashlib.sha256("|".join(parts).encode()).hexdigest()[:16]
+
+    def doctor_report(self) -> dict[str, Any]:
+        """Quick doctor checks on this machine (06 §3); results feed preflight via the control plane."""
+        import asyncio
+
+        from opagent_doctor.checks import Ctx, run_checks, to_preflight
+        from opagent_doctor.probes import collect_env, collect_probes, read_profile
+
+        probes = read_profile(self.hw_profile)["probes"] if self.hw_profile else collect_probes()
+        roots = [{"alias": r.alias, "path": str(r.path), "mode": r.mode} for r in self.roots]
+        env = {**collect_env(roots, str(self.models_root)), **self.doctor_env}
+        results = asyncio.run(run_checks(Ctx(probes=probes, env=env, clock=self.clock), group="quick"))
+        return {"doctor": to_preflight(results), "doctor_results": [r.to_dict() for r in results]}
+
+    def hw_summary(self) -> dict[str, Any]:
+        """Doctor's hardware summary: a recorded/synthesized profile in tests, live probes otherwise."""
+        from dataclasses import asdict
+
+        from opagent_doctor.probes import collect_probes, load_profile, summarize
+
+        hw = load_profile(self.hw_profile) if self.hw_profile else summarize(collect_probes())
+        return asdict(hw)
 
     def _load_id(self) -> str:
         f = self.home / "worker_id"
@@ -63,27 +110,44 @@ class WorkerAgent:
         return wid
 
     def register(self) -> None:
-        models = {}
+        models: dict[str, str] = {}
         if self.backend is not None:
             info = self.backend.describe()
             models = {t: info.model_fingerprint for t in info.task_types}
+        if self.embedder is not None:  # an embed-only worker (VLM still downloading) can already search
+            models["embed"] = self.embedder.describe().model_fingerprint
+            if self.backend is not None:
+                models["classify"] = self.cascade_fingerprint
         r = self.client.post(
             "/worker-api/v1/register",
             json={
                 "worker_id": self.worker_id,
                 "name": self.name,
+                "boot_id": self.boot_id,
                 "models": models,
+                "hw": self.hw_summary(),
+                **self.doctor_report(),
                 "roots": [{"alias": r.alias, "mode": r.mode} for r in self.roots],
             },
         )
         r.raise_for_status()
 
-    def run_once(self, wait_s: float = 0.0) -> bool:
-        r = self.client.post("/worker-api/v1/lease", json={"worker_id": self.worker_id, "wait_s": wait_s})
+    def run_once(self, wait_s: float = 0.0, background_downloads: bool = False) -> bool:
+        """Lease and run one task. With ``background_downloads`` (the long-running loop) a download runs on its own
+        thread — one at a time (06 §2.4) — so browsing, scans and labelling keep going meanwhile (04 §8.2 W6 ∥ W7)."""
+        busy = self._dl_thread is not None and self._dl_thread.is_alive()
+        body: dict[str, Any] = {"worker_id": self.worker_id, "wait_s": wait_s, "boot_id": self.boot_id}
+        if background_downloads and busy:
+            body["exclude_kinds"] = ["download"]
+        r = self.client.post("/worker-api/v1/lease", json=body)
         if r.status_code == 204:
             return False
         r.raise_for_status()
         task = r.json()
+        if background_downloads and task["kind"] == "download":
+            self._dl_thread = threading.Thread(target=self._run_task, args=(task,), daemon=True)
+            self._dl_thread.start()
+            return True
         self._run_task(task)
         return True
 
@@ -116,6 +180,7 @@ class WorkerAgent:
             "/worker-api/v1/leases",
             json={
                 "worker_id": self.worker_id,
+                "boot_id": self.boot_id,
                 "max_items": self.batch_size,
                 "loaded_models": [t for t in getattr(self, "loaded_tasks", [])],
             },
@@ -190,6 +255,9 @@ class WorkerAgent:
             side = self.backend.describe().preferred_input.max_side if self.backend else 512
             with open_image(sp.real) as im:
                 im.load()
+                from .imaging import exif_facts
+
+                self._facts[it["id"]] = exif_facts(im, it["rel"])
                 pic = oriented(im).convert("RGB")
                 pic.thumbnail((side, side))
                 import io
@@ -225,6 +293,9 @@ class WorkerAgent:
                 prepared.append((it, inp))
         if not prepared:
             return reports
+        tc0 = prepared[0][0].get("task_config") or {}
+        if tc0.get("strategy") == "cascade" and self.embedder is not None:
+            return reports + self._infer_cascade(prepared, tc0)
         backend = self.backend
         asyncio.run(backend.load(LoadOptions()))
         fp = backend.describe().model_fingerprint
@@ -275,6 +346,45 @@ class WorkerAgent:
         run(prepared)
         return reports
 
+    def _infer_cascade(self, prepared: list[tuple[dict[str, Any], Any]], tc: dict[str, Any]) -> list[dict[str, Any]]:
+        """By-content organize: rules → embedding → VLM → decision (03 §3.3). Stages are reported so the control
+        plane can re-apply thresholds without inference (ADR-0001)."""
+        import asyncio
+
+        from opagent_inference.cascade import Cascade, Item
+
+        if self._cascade is None:
+            self._cascade = Cascade(self.embedder, self.backend)
+        items = [Item(inp, self._facts.pop(it["id"], {})) for it, inp in prepared]
+        results = asyncio.run(self._cascade.run(items, self._taxonomy_for(self._cascade, tc)))
+        self._post_embeddings([inp for _, inp in prepared])
+        fp = self.cascade_fingerprint
+        reports = []
+        for (it, _), r in zip(prepared, results, strict=True):
+            o = r.outcome
+            reports.append(
+                {
+                    "job_item_id": it["id"],
+                    "attempt": it["attempt"],
+                    "status": "ok",
+                    "idempotency_key": f"{it['id']}:{it['attempt']}",
+                    "model_fingerprint": fp,
+                    "provenance": {"stages": r.provenance, "adapter": "cascade", "error": r.error},
+                    "output": {
+                        "category": o.category or "other",
+                        "confidence": o.confidence,
+                        "caption": r.caption,
+                        "tags": r.tags or [],
+                        "decision": o.decision,
+                        "source": o.source,
+                        "reason": o.reason,
+                        "stages": r.stages,
+                        "stage_fingerprint": r.model_fingerprint,
+                    },
+                }
+            )
+        return reports
+
     def run_until_idle(self) -> None:
         while self.run_once():
             pass
@@ -282,7 +392,7 @@ class WorkerAgent:
     def run_forever(self, stop: Any) -> None:
         while not stop.is_set():
             try:
-                busy = self.run_once(wait_s=0.5)
+                busy = self.run_once(wait_s=0.5, background_downloads=True)
                 if self.backend is not None:
                     busy = bool(self.process_items_once()) or busy
                 self.tick_waiting()
@@ -338,11 +448,27 @@ class WorkerAgent:
             cache=self.cache,
             exclude_subtrees=p.get("exclude_subtrees") or [],
             after=p.get("cursor"),
+            thumbs_dir=self.home / "thumbs",
         )
 
     def _do_apply(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         actions = [Action(**a) for a in p["actions"]]
-        rep = self.executor.apply(p["plan_id"], actions, move_confirmed=bool(p.get("move_confirmed")))
+        done = [0]
+
+        def control() -> str | None:
+            """Between file actions: report progress and pick up pause/cancel from the control channel."""
+            if self.apply_throttle_s:
+                threading.Event().wait(self.apply_throttle_s)
+            r = self.client.post(
+                f"/worker-api/v1/tasks/{task_id}/progress",
+                json={"progress": {"done": done[0], "total": len(actions), "unit": "files"}},
+            )
+            done[0] += 1
+            return r.json().get("control") if r.status_code == 200 else None
+
+        rep = self.executor.apply(
+            p["plan_id"], actions, move_confirmed=bool(p.get("move_confirmed")), control=control if task_id else None
+        )
         return {
             "results": [r.__dict__ for r in rep.results],
             "status": rep.status,
@@ -353,9 +479,255 @@ class WorkerAgent:
         res = self.executor.undo(p["plan_id"])
         return {"results": [r.__dict__ for r in res]}
 
+    def _do_download(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """model.download (06 §2): progress is streamed to the Operation; the CP records the installation."""
+        import asyncio
+
+        from .downloads import CancelToken, DlFile, Downloader, DownloadError
+
+        token = CancelToken()
+        last = [0.0]
+
+        def progress(ev: dict[str, Any]) -> None:
+            now = self.clock.monotonic()
+            waiting = ev.get("waiting_reason")
+            if not waiting and now - last[0] < 0.25 and ev["done_bytes"] < ev["total_bytes"]:
+                return
+            last[0] = now
+            body: dict[str, Any] = {
+                "progress": {
+                    "done": ev["done_bytes"],
+                    "total": ev["total_bytes"],
+                    "unit": "bytes",
+                    "file": ev.get("file"),
+                    **({"retry_in_s": ev.get("retry_in_s")} if waiting else {}),
+                }
+            }
+            if waiting:
+                body["waiting_reason"] = waiting
+            r = self.client.post(f"/worker-api/v1/tasks/{task_id}/progress", json=body)
+            ctl = r.json().get("control") if r.status_code == 200 else None
+            if ctl == "pause":
+                token.pause()
+            elif ctl == "cancel":
+                token.cancel()
+
+        d = Downloader(self.models_root, sources=self.download_sources, on_progress=progress, clock=self.clock)
+        files = [DlFile(f["repo"], f["revision"], f["path"], int(f["size"]), f["sha256"]) for f in p["files"]]
+        try:
+            res = asyncio.run(d.download(p["op_id"], files, token))
+        except DownloadError as e:
+            return {"status": "failed", "error_code": e.code, "details": e.details, "permanent": e.permanent}
+        return {
+            "status": res.status,
+            "error_code": res.error_code,
+            "warnings": res.warnings,
+            "installed": res.installed,
+            "waiting_reason": res.waiting_reason,
+        }
+
+    def _post_embeddings(self, images: list[Any]) -> None:
+        """Upload image vectors computed by the cascade (searchable right away, 05 §1.1)."""
+        if self._cascade is None or self.embedder is None:
+            return
+        items = [
+            {"content_hash": i.content_hash, "vec": [float(x) for x in self._cascade.image_cache[i.content_hash]]}
+            for i in images
+            if i.content_hash in self._cascade.image_cache
+        ]
+        if not items:
+            return
+        info = self.embedder.describe()
+        self.client.post(
+            "/worker-api/v1/embeddings",
+            json={
+                "worker_id": self.worker_id,
+                "model_key": info.adapter_key,
+                "fingerprint": info.model_fingerprint,
+                "dim": len(items[0]["vec"]),
+                "items": items,
+            },
+        )
+
+    def _do_embed_assets(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """search.reindex: embed assets that have no vector in the active space."""
+        import asyncio
+
+        from opagent_inference.cascade import Cascade, Item
+
+        if self.embedder is None:
+            return {"error": "MODEL_UNAVAILABLE"}
+        if self._cascade is None:
+            self._cascade = Cascade(self.embedder, self.backend)
+        images = []
+        for k, it in enumerate(p["items"]):
+            inp, _fail = self._prepare({"id": f"ix{k}", "root_alias": it["root_alias"], "rel": it["rel"], "attempt": 1})
+            self._facts.pop(f"ix{k}", None)
+            if inp is not None:
+                images.append(inp)
+
+        from opagent_inference.types import LoadOptions
+
+        embedder, cascade = self.embedder, self._cascade
+
+        async def go() -> None:
+            await embedder.load(LoadOptions())
+            await cascade._embed([Item(i) for i in images])
+
+        asyncio.run(go())
+        self._post_embeddings(images)
+        return {"embedded": len(images)}
+
+    def _do_embed_text(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """``embed.text`` RPC (05 §2.6): the query vector must come from the same space as the stored vectors."""
+        import asyncio
+        import inspect
+
+        if self.embedder is None:
+            return {"error": "MODEL_UNAVAILABLE"}
+        if p.get("fingerprint") and p["fingerprint"] != self.embedder.describe().model_fingerprint:
+            return {"error": "MODEL_UNAVAILABLE", "reason": "space mismatch"}
+        res: Any = self.embedder.embed_texts([p["text"]])
+        if inspect.isawaitable(res):
+
+            async def _wait(a: Any) -> Any:
+                return await a
+
+            res = asyncio.run(_wait(res))
+        return {"vec": [float(x) for x in list(res[0])]}
+
+    def _do_probe_root(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """Preflight RPC: can this source be read right now? (first 10 entries, 06 §3.3 fs.roots)"""
+        try:
+            sp = self.sb.resolve(p["root_alias"], p.get("sub_path") or "")
+            with os.scandir(sp.real) as it:
+                for _i, _e in zip(range(10), it, strict=False):
+                    pass
+            return {"state": "ok"}
+        except PermissionError:
+            return {"state": "EACCES"}
+        except (FileNotFoundError, RootUnavailable):
+            return {"state": "ENOENT"}
+
+    def _do_fix(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """Whitelisted auto-fixes executed on this machine (06 §3.6). Desktop-shell actions (open a system settings
+        panel, switch the API port) are forwarded to the shell, which owns those capabilities."""
+        fid = p["fix_id"]
+        if fid == "cleanup_downloads":
+            import shutil
+
+            d = self.models_root / ".downloads"
+            freed = sum(f.stat().st_size for f in d.rglob("*") if f.is_file()) if d.exists() else 0
+            shutil.rmtree(d, ignore_errors=True)
+            return {"status": "done", "freed_bytes": freed}
+        return {"status": "forwarded_to_shell", "fix_id": fid}
+
+    def _do_remove(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """Delete an installation's snapshot links and blobs under the models root only."""
+        from .downloads import DlFile, Downloader
+
+        d = Downloader(self.models_root, sources=self.download_sources)
+        freed = 0
+        for f in p.get("files") or []:
+            df = DlFile(f["repo"], f["revision"], f["path"], int(f["size"]), f["sha256"])
+            for path in (d._snapshot(df), d._blob(df)):
+                if path.is_symlink() or path.exists():
+                    if path == d._blob(df):
+                        freed += path.stat().st_size
+                    path.unlink()
+        return {"status": "done", "freed_bytes": freed}
+
+    def _do_try_one(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """One photo through the cascade, streaming each stage to the UI (ORG-008)."""
+        import asyncio
+
+        from opagent_inference.cascade import Cascade, Item
+
+        def send(stage: str, **data: Any) -> None:
+            self.client.post(f"/worker-api/v1/tasks/{task_id}/progress", json={"events": [{"stage": stage, **data}]})
+
+        inp, _fail = self._prepare({"id": "try", "root_alias": p["root_alias"], "rel": p["rel"], "attempt": 1})
+        facts = self._facts.pop("try", {})
+        if inp is None:
+            send("decision", decision="failed", error="DECODE_FAILED")
+            return {"decision": "failed", "error": "DECODE_FAILED"}
+        send("rules")
+        cas = Cascade(self.embedder, self.backend, on_stage=send)
+        if self._cascade is not None:  # share caches with the batch cascade
+            cas.image_cache, cas.text_cache, cas.vlm_cache = (
+                self._cascade.image_cache,
+                self._cascade.text_cache,
+                self._cascade.vlm_cache,
+            )
+        [r] = asyncio.run(cas.run([Item(inp, facts)], self._taxonomy_for(cas, p["task_config"])))
+        out = {
+            "asset_id": p["asset_id"],
+            "decision": r.outcome.decision,
+            "category": r.outcome.category,
+            "confidence": r.outcome.confidence,
+            "source": r.outcome.source,
+            "caption": r.caption,
+            "tags": r.tags,
+        }
+        send("decision", **{k: v for k, v in out.items() if k != "asset_id"})
+        return out
+
+    def _do_estimate(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        import asyncio
+
+        from opagent_inference.cascade import Cascade
+
+        if self.embedder is None:
+            return {"counts": {}, "routed_to_vlm": 0, "n_embedded": 0, "total": p["total"]}
+        if self._cascade is None:
+            self._cascade = Cascade(self.embedder, self.backend)
+        images = []
+        for k, it in enumerate(p["items"]):
+            inp, _fail = self._prepare({"id": f"est{k}", "root_alias": p["root_alias"], "rel": it["rel"], "attempt": 1})
+            self._facts.pop(f"est{k}", None)
+            if inp is not None:
+                images.append(inp)
+        est = asyncio.run(self._cascade.estimate(images, self._taxonomy_for(self._cascade, p["task_config"])))
+        return {
+            "counts": est.counts,
+            "routed_to_vlm": est.routed_to_vlm,
+            "n_embedded": len(images),
+            "total": p["total"],
+        }
+
+    def _taxonomy_for(self, cas: Any, tc: dict[str, Any]) -> Any:
+        """Taxonomy with the example photos of custom categories embedded as prototypes (03 §3.3)."""
+        import asyncio
+
+        tax = _taxonomy(tc)
+        for cdef, raw in zip(tax.classes, tc.get("classes") or [], strict=False):
+            refs = raw.get("examples") or []
+            if not refs:
+                continue
+            imgs = []
+            for k, ref in enumerate(refs):
+                inp, _fail = self._prepare(
+                    {"id": f"ex{k}", "root_alias": ref["root_alias"], "rel": ref["rel"], "attempt": 1}
+                )
+                self._facts.pop(f"ex{k}", None)
+                if inp is not None:
+                    imgs.append(inp)
+            if imgs:
+                cdef.examples = [v.tolist() for v in asyncio.run(cas.image_vectors(imgs))]
+        return tax
+
     def _do_browse(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         sp = self.sb.resolve(p["root_alias"], p.get("path", ""))
         dirs = sorted(
             e.name for e in os.scandir(sp.real) if e.is_dir(follow_symlinks=False) and not e.name.startswith(".")
         )
         return {"dirs": dirs}
+
+
+def _taxonomy(tc: dict[str, Any]) -> Any:
+    from opagent_inference.cascade import ClassDef, Taxonomy
+
+    classes = [ClassDef(c["id"], c.get("name") or c["id"], c.get("description") or "") for c in tc.get("classes") or []]
+    if not classes:
+        classes = [ClassDef(k, k) for k in tc.get("categories") or []]
+    return Taxonomy(classes=classes, rules=list(tc.get("rules") or []))

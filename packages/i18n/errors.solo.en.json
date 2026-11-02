@@ -1,0 +1,19 @@
+{
+  "EGRESS_POLICY_BLOCKS": {
+    "message": "This library's privacy settings do not allow sending images to external services",
+    "title": "This library's privacy settings do not allow sending images to external services"
+  },
+  "FS_ROOT_NOT_ALLOWED": {
+    "message": "“{path}” is not inside a folder the local engine is allowed to use",
+    "title": "“{path}” is not inside a folder the local engine is allowed to use"
+  },
+  "WORKER_OFFLINE": {
+    "message": "Local engine “{name}” has been offline for {duration}; features that need it are paused",
+    "title": "Local engine “{name}” has been offline for {duration}"
+  },
+  "WORKER_VERSION_MISMATCH": {
+    "cta": "Update local engine",
+    "message": "Local engine version {w} is not compatible with server {s}",
+    "title": "Local engine version {w} is not compatible with server {s}"
+  }
+}
