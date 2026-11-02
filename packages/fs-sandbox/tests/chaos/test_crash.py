@@ -45,8 +45,8 @@ class Lab:
                     "op": op,
                     "src_alias": "photos",
                     "src_rel": rel,
-                    "dst_alias": "sorted",
-                    "dst_rel": f"{2020 + i % 2}/{i % 5:02d}/IMG_{i:04d}.jpg",
+                    "dst_alias": "photos" if op == "trash" else "sorted",
+                    "dst_rel": rel if op == "trash" else f"{2020 + i % 2}/{i % 5:02d}/IMG_{i:04d}.jpg",
                     "src_hash": b3(p),
                 }
             )
@@ -63,7 +63,7 @@ class Lab:
                         "payload": {"schema_version": 1, "i": i},
                     }
                 )
-        mode = "rw" if op == "move" else "ro"
+        mode = "rw" if op in ("move", "trash") else "ro"
         self.spec = base / "spec.json"
         self.spec.write_text(
             json.dumps(
@@ -215,3 +215,18 @@ def test_out_crash_012_ten_thousand_actions_fifty_random_crashes(tmp_path):
         assert r.returncode in (0, 137), r.stderr
         assert lab.run("recover").returncode == 0
     lab.check_inv(ref)
+
+
+@pytest.mark.chaos
+@pytest.mark.tc("TRASH-008")
+@pytest.mark.parametrize("point", ["before_intent", "after_intent", "during_trash", "after_trash"])
+def test_trash_008_kill_around_the_rename_loses_nothing(tmp_path, point):
+    lab = Lab(tmp_path / "lab", 6, op="trash")
+    reference = reference_tree(tmp_path, 6, "trash")
+    r = lab.run("apply", crash=point, nth=3)
+    assert r.returncode == 137, r.stderr[-2000:]
+    r = lab.run("recover")
+    assert r.returncode == 0, r.stderr
+    lab.check_inv(reference)
+    for rel, (h, _mt) in lab.src_contents.items():  # after the final undo every photo is back in place
+        assert (lab.photos / rel).exists() and b3(lab.photos / rel) == h
