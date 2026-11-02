@@ -19,6 +19,7 @@ import argparse
 import json
 import os
 import shutil
+import subprocess
 import threading
 import time
 from pathlib import Path
@@ -493,6 +494,27 @@ class Stack:
         self.pg.stop()
 
 
+def reclaim(base: Path) -> None:
+    """Start from an empty base: a previous run killed with SIGKILL may have left its postmaster and files."""
+    from opagent_db.embedded import find_pg_bin
+
+    for pid_file in base.glob("**/postmaster.pid"):
+        data = pid_file.parent
+        prefix = ["runuser", "-u", "postgres", "--"] if hasattr(os, "geteuid") and os.geteuid() == 0 else []
+        subprocess.run(
+            [*prefix, str(find_pg_bin() / "pg_ctl"), "-D", str(data), "-m", "immediate", "stop"],
+            capture_output=True,
+            check=False,
+        )
+    if base.exists():
+        for child in base.iterdir():
+            if child.is_dir():
+                shutil.rmtree(child, ignore_errors=True)
+            else:
+                child.unlink(missing_ok=True)
+    base.mkdir(parents=True, exist_ok=True)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=47811)
@@ -500,6 +522,7 @@ def main() -> None:
     ap.add_argument("--web-dist")
     ap.add_argument("--rate-bps", type=float, default=1_500_000)
     a = ap.parse_args()
+    reclaim(Path(a.base))
     st = Stack(Path(a.base), a.port, a.web_dist, a.rate_bps)
     server = uvicorn.Server(uvicorn.Config(st.app, host="127.0.0.1", port=a.port, log_level="warning"))
 
