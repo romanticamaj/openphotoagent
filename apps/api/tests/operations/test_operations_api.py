@@ -281,17 +281,19 @@ def test_desk_020_tray_pauses_and_resumes_every_heavy_operation(env):
             ("S1", "scan", "running"),
             ("T1", "thumbnail", "queued"),
             ("D1", "model.download", "running"),  # not heavy: downloads keep going (06 §5)
-            ("X1", "scan", "completed"),
+            ("X1", "scan", "succeeded"),
         ]:
             ensure_operation(c, env.clk, oid, typ)
             if status != "queued":
-                set_op_status(c, env.clk, oid, status)
+                set_op_status(c, env.clk, oid, "running")
+            if status == "succeeded":
+                set_op_status(c, env.clk, oid, "succeeded")
     r = env.client.post("/api/v1/operations/pause-all")
     assert r.status_code == 200 and sorted(r.json()["paused"]) == ["S1", "T1"]
     with env.eng.begin() as c:
         rows = {o.id: (o.status, o.waiting_reason) for o in c.execute(select(operation)).all()}
     assert rows["S1"] == ("paused", "PAUSED_BY_USER") and rows["T1"] == ("paused", "PAUSED_BY_USER")
-    assert rows["D1"][0] == "running" and rows["X1"][0] == "completed"
+    assert rows["D1"][0] == "running" and rows["X1"][0] == "succeeded"
     r = env.client.post("/api/v1/operations/resume-all")
     assert sorted(r.json()["resumed"]) == ["S1", "T1"]
     with env.eng.begin() as c:
