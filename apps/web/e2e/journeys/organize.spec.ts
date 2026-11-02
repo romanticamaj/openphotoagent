@@ -65,6 +65,9 @@ test.describe("reviews", () => {
     await page.getByRole("button", { name: "建立整理計畫" }).click();
     const banner = page.getByTestId("review-banner");
     await expect(banner).toContainText(/有 \d+ 張待確認/, { timeout: 60_000 });
+    // read the count once labelling is done (the escape hatch below needs that state too): while the job still
+    // runs, new reviews keep arriving and the number on the banner is a moving value
+    await expect(banner.getByRole("button", { name: /全部放到「其他」|略過/ })).toBeVisible({ timeout: 60_000 });
     const pending = Number((await banner.textContent())!.match(/有 (\d+) 張/)![1]);
     await banner.getByRole("link", { name: "開始確認" }).click();
     const counter = page.getByTestId("review-remaining");
