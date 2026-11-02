@@ -63,10 +63,12 @@ test("[VIEW-003] 無空白格：快速捲動 50 幀，沒有任何 tile 只有�
       g.drawImage(img, 0, 0);
       const k = img.width / window.innerWidth;
       const out: string[] = [];
+      // only the part of a tile visible inside the grid's scroll viewport (not what is clipped under the top bar)
+      const v = document.querySelector('[data-testid="photo-grid"]')!.getBoundingClientRect();
       for (const el of Array.from(document.querySelectorAll<HTMLElement>('[role="gridcell"]'))) {
         const r = el.getBoundingClientRect();
-        const x0 = Math.max(0, r.left + 4), y0 = Math.max(0, r.top + 4);
-        const x1 = Math.min(window.innerWidth, r.right - 4), y1 = Math.min(window.innerHeight, r.bottom - 4);
+        const x0 = Math.max(v.left, r.left + 4), y0 = Math.max(v.top, r.top + 4);
+        const x1 = Math.min(v.right, r.right - 4), y1 = Math.min(v.bottom, r.bottom - 4);
         if (x1 - x0 < 16 || y1 - y0 < 16) continue; // only tiles substantially on screen
         const d = g.getImageData(x0 * k, y0 * k, (x1 - x0) * k, (y1 - y0) * k).data;
         let min = 255, max = 0;
