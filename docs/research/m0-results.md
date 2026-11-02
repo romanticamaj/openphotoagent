@@ -67,3 +67,13 @@ git clone https://github.com/romanticamaj/openphotoagent && cd openphotoagent &&
 ### 3.3 回傳
 
 把 `spikes/m0/results/*.json` 與 `fixtures/hw/*.yaml` commit 到 `spike/m0-hardware` 分支並開 PR；或直接在本機跑 GOALS.md 的 `M0-hardware` goal。未通過的項目依 09 §6「不通過時」欄位更新 03／06／08。
+
+
+## v0.3 留待真機驗證的項目（2026-11-02）
+
+| 項目 | 雲端已驗證 | 待你的電腦或 GPU runner |
+|---|---|---|
+| 問照片的本地 LLM | `OpenAICompatLLM`（ASK-LLM-001）以錄製回應驗證 tool call、壞 JSON、逾時、探測 | Worker 啟動 llama-server `--jinja`（S3/S7）。S7 通過前，tool loop 只在探測 3/3 時開啟；本地模式目前只用確定性模板回答 |
+| ASK-EVAL-002 全集、ASK-PERF-001 延遲 | 60 題小集（ASK-EVAL-001）：引用有效率 1.0、拒答 1.0、統計 1.0、recall@50 1.0、precision@12 0.85 | 300 題全集與延遲：nightly GPU runner |
+| Mini benchmark 真模型 | BENCH-001～003 以 FakeBackend 候選驗證 | Qwen3-VL、SigLIP2 實際分數與 VRAM：在 5070 Ti 上跑 `/benchmarks` |
+| Watch folder 的 FSEvents 與 ReadDirectoryChangesW | Linux inotify（WATCH-001～006） | macOS 與 Windows 由 CI OS 矩陣執行 |

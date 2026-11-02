@@ -947,6 +947,7 @@ flowchart LR
 - 檔案事件做 debounce（同資料夾 120 s 無新事件才觸發，避免手機同步時連續觸發）；大量匯入自動降為 `priority=low`。
 - 自動套用與 MCP 共用 §3.6 第 4 點的 `auto_approve` 規則與上限；**move 永遠需要人工**。
 - outbound webhook 沿用 02 §8.4（HMAC 簽章）；入站 webhook 例：NAS 同步完成、Immich 上傳事件 → 觸發 scan。
+- **（v0.3 實作補充）** 每個來源一個 automation。開啟時先做一次補掃（WATCH-004）。Worker 監看資料夾：本機磁碟用原生事件；SMB、NFS 等網路磁碟改為定期增量掃描，UI 會說明原因（WATCH-006）。檔案要等「資料夾安靜 `debounce_s`」而且「大小 `stable_s` 秒內不變」才處理（WATCH-002）。API 把批次合併成每個來源只排一個掃描，超過 500 個新檔就降為 low 優先（WATCH-005）。掃描完成後只標註新照片。有整理規則時改為建立 dry-run 整理工作，停在待核准的計畫；新批次進來會把還沒核准的舊草稿標為 superseded，由新計畫涵蓋。`move` 不能搭配 `auto_non_destructive`（`WATCH_MOVE_NEEDS_APPROVAL`）。
 - MCP 端 v1 可加 `create_automation`（需 `ws_admin` 對應的新 scope `automations:write`，預設不開放）。
 
 ---
