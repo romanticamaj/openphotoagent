@@ -16,7 +16,9 @@ def _count(dsn):
 @pytest.mark.integration
 @pytest.mark.tc("PG-006")
 def test_pg_006_backup_now_then_restore_through_the_api(embedded_pg, tmp_path):
-    c = TestClient(create_app(dsn=embedded_pg.dsn, clock=FakeClock(), backups_dir=tmp_path / "backups", pg_bin=find_pg_bin()))
+    c = TestClient(
+        create_app(dsn=embedded_pg.dsn, clock=FakeClock(), backups_dir=tmp_path / "backups", pg_bin=find_pg_bin())
+    )
     c.post("/worker-api/v1/register", json={"worker_id": "w1", "roots": [{"alias": "photos", "mode": "ro"}]})
     c.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": "a"})
     n0 = _count(embedded_pg.dsn)

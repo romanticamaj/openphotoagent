@@ -35,6 +35,8 @@ def create_app(
     thumbs_dir: Any = None,
     data_fp: str | None = None,
     lan_password_hash: str | None = None,
+    backups_dir: Any = None,
+    pg_bin: Any = None,
 ) -> FastAPI:
     from opagent_core.version import VERSION
 
@@ -46,6 +48,9 @@ def create_app(
         clock=clock or SystemClock(),
         launch_token=launch_token,
         lan_password_hash=lan_password_hash,
+        backups_dir=Path(backups_dir) if backups_dir else None,
+        pg_bin=Path(pg_bin) if pg_bin else None,
+        dsn=dsn,
         registry_dir=Path(registry_dir) if registry_dir else None,
         user_models_dir=Path(user_models_dir) if user_models_dir else None,
         thumbs_dir=Path(thumbs_dir) if thumbs_dir else None,

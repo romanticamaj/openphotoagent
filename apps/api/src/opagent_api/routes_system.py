@@ -5,8 +5,10 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import Any
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import JSONResponse
 from opagent_db.schema import asset, output_action, output_plan
+from pydantic import BaseModel
 from sqlalchemy import func, select
 
 from .state import AppState
@@ -51,3 +53,49 @@ def trash_summary(req: Request) -> dict[str, Any]:
         "earliest_expiry": expiry.isoformat() if expiry else None,
         "retention_days": TRASH_RETENTION_DAYS,
     }
+
+
+def _backups(st: AppState) -> Any:
+    from opagent_db.embedded import find_pg_bin
+    from opagent_db.lifecycle import Backups
+
+    if st.backups_dir is None:
+        raise HTTPException(404, detail={"code": "BACKUPS_UNAVAILABLE"})  # Docker / dev: the operator backs up PG
+    return Backups(st.backups_dir, st.pg_bin or find_pg_bin(), st.clock)
+
+
+def _view(b: Any) -> dict[str, Any]:
+    return {"name": b.path.name, "kind": b.kind, "at": b.at, "size_bytes": b.path.stat().st_size}
+
+
+@router.get("/system/backups")
+def list_backups(req: Request) -> dict[str, Any]:
+    st: AppState = req.app.state.opa
+    return {"items": [_view(b) for b in _backups(st).list()]}
+
+
+@router.post("/system/backup", status_code=201)
+def backup_now(req: Request) -> dict[str, Any]:
+    st: AppState = req.app.state.opa
+    return _view(_backups(st).manual(st.dsn))
+
+
+class RestoreIn(BaseModel):
+    name: str
+    confirm: bool = False
+
+
+@router.post("/system/restore")
+def restore(body: RestoreIn, req: Request) -> JSONResponse:
+    """Replace the database with a listed backup. Everything written since is lost, so the UI confirms first."""
+    st: AppState = req.app.state.opa
+    bk = _backups(st)
+    item = bk.find(body.name)
+    if item is None:
+        raise HTTPException(404, detail={"code": "BACKUP_NOT_FOUND"})
+    if not body.confirm:
+        return JSONResponse({"code": "RESTORE_CONFIRM_REQUIRED", "backup": _view(item)}, status_code=409)
+    st.engine.dispose()  # no pooled connection holds locks while objects are dropped and recreated
+    bk.restore(st.dsn, item)
+    st.engine.dispose()
+    return JSONResponse({"restored": _view(item)})

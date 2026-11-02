@@ -18,6 +18,9 @@ class AppState:
     clock: Clock
     launch_token: str | None = None
     lan_password_hash: str | None = None  # set only when "allow LAN access" is on (08 §1.3)
+    backups_dir: Path | None = None  # desktop: Settings → Data backups (08 §2.3)
+    pg_bin: Path | None = None
+    dsn: str = ""
     handoffs: dict[str, Any] = field(default_factory=dict)  # one-time browser handoff codes → expiry
     login_failures: dict[str, list[Any]] = field(default_factory=dict)  # LAN login rate limit per client
     sessions: set[str] = field(default_factory=set)  # browser sessions opened from the tray

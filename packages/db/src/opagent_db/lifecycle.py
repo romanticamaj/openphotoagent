@@ -56,12 +56,12 @@ def _default_runner(*args: str) -> subprocess.CompletedProcess[str]:
 
 @dataclass(frozen=True)
 class Backup:
-    kind: str  # "daily" | "pre-migration"
+    kind: str  # "daily" | "pre-migration" | "manual"
     path: Path
     at: str  # sortable UTC stamp
 
 
-_NAME = re.compile(r"^(daily|pre-migration)-(\d{8}T\d{6}\d{6})\.dump$")
+_NAME = re.compile(r"^(daily|pre-migration|manual)-(\d{8}T\d{6}\d{6})\.dump$")
 
 
 class Backups:
@@ -92,6 +92,14 @@ class Backups:
         self.run(str(self.pg_bin / "pg_dump"), "-Fc", "-f", str(tmp), "-d", dsn)
         tmp.replace(final)
         return Backup(kind, final, stamp)
+
+    def manual(self, dsn: str) -> Backup:
+        """Settings → Data → "back up now" (kept until the user deletes it)."""
+        return self._dump(dsn, "manual")
+
+    def find(self, name: str) -> Backup | None:
+        """By file name only — never a path (the UI names a listed backup)."""
+        return next((b for b in self.list() if b.path.name == name), None)
 
     def pre_migration(self, dsn: str) -> Backup:
         return self._dump(dsn, "pre-migration")
