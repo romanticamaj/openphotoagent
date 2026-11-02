@@ -68,7 +68,7 @@ class WindowsPower:
         s = SPS()
         if not ctypes.windll.kernel32.GetSystemPowerStatus(ctypes.byref(s)):  # type: ignore[attr-defined]
             return True
-        return s.ACLineStatus != 0  # 0 = offline (battery), 1 = online, 255 = unknown
+        return bool(s.ACLineStatus != 0)  # 0 = offline (battery), 1 = online, 255 = unknown
 
 
 def system_power() -> SysfsPower | MacPower | WindowsPower:
