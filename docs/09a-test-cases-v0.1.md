@@ -846,6 +846,7 @@
 | DESK-033 | Photos Library 選擇提示 | macOS 選 `Photos Library.photoslibrary` | 顯示封裝格式說明 | D/M | #54 |
 | DESK-034 | 桌面煙霧總表 | Win、Linux：tauri-driver + WebdriverIO；macOS：手動清單 | 啟動 → onboarding（FakeBackend 模式）→ 依日期整理 → undo → 搜尋 → 結束，全程無錯誤 | D/M | DoD 5.5 |
 | DESK-035 | `run/api.json` 出現時 port 已在 listen（回歸） | 啟動 api，偵測到 `run/api.json` 後立即連線，重複 5 次 | 每次都連得上；port 由同一個已 bind 的 socket 提供（沒有「檢查空閒 → 稍後 bind」的競態） | I | #8 |
+| DESK-036 | 桌面傳輸與媒體解析（10 §5.4） | 殼注入 `__OPA_PLATFORM__`（backend `{baseUrl, token}`、`thumbsDir`、`assetUrl`） | REST 改打 `baseUrl` 並帶 `Bearer`；事件流以 fetch 讀 SSE 並帶 token；縮圖 URL＝`assetUrl(<thumbsDir>/<ch[:2]>/<ch>.<variant>.webp)`；影像 payload（時間軸、搜尋、待確認、預覽）都帶 `ch`；Web build 行為不變 | U/I | #8、#93 |
 
 ### 13.2 PG：嵌入式 PostgreSQL 17 + pgvector（08 §2.3）
 

@@ -226,3 +226,32 @@ def test_inf_cas_005_info_panel_exposes_source_and_fingerprint(embedded_pg, sand
     lab = info["labels"][0]
     assert lab["source"] in ("embedding", "vlm", "consensus", "rule") and lab["model_fingerprint"]
     assert lab["decision"] in ("accepted", "needs_review", "other") and "stages" in lab
+
+
+@pytest.mark.integration
+@pytest.mark.tc("DESK-036")
+def test_desk_036_image_payloads_carry_the_content_hash(embedded_pg, sandbox_tree, tmp_path):
+    """The desktop UI reads thumbnails from the local cache by content hash (10 §5.4): every payload that
+    shows a photo carries ``ch``."""
+    _photos(sandbox_tree.photos, "m", 4)
+    client, w = _setup(
+        embedded_pg.dsn, sandbox_tree.roots, tmp_path / "w", FakeBackend(scores="low"), FakeBackend(vlm_p=0.4)
+    )
+    src = _src(client)
+    j = _job(client, w, src)
+    eng = engine_for(embedded_pg.dsn)
+    with eng.begin() as c:
+        hashes = dict(c.execute(text("select id, content_hash from asset")).all())
+    eng.dispose()
+    assert len(hashes) == 4
+    month = client.get("/api/v1/timeline/buckets").json()["buckets"][0]["month"]
+    for a in client.get(f"/api/v1/timeline/buckets/{month}").json()["assets"]:
+        assert a["ch"] == hashes[a["id"]]
+    for r in _reviews(client, j["id"])["items"]:
+        assert r["ch"] == hashes[r["asset_id"]]
+    hits = client.post("/api/v1/search", json={"q": "photo"}).json()["items"]
+    assert hits and all(h["ch"] == hashes[h["asset_id"]] for h in hits)
+    pv = client.post("/api/v1/previews", json={"source_id": src, "k": 4}).json()
+    _drain(w)
+    items = client.get(f"/api/v1/previews/{pv['id']}").json()["items"]
+    assert items and all(i["ch"] == hashes[i["asset_id"]] for i in items)
