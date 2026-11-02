@@ -56,6 +56,7 @@ class Stack:
         self.sorted = base / "roots" / "sorted"
         self.thumbs = self.home / "worker" / "thumbs"
         siglip, qwen = _files(SIGLIP, 0), _files(QWEN, 10)
+        self.default_rate_bps = rate_bps
         self.hf = HfServer(SIGLIP_REPO, siglip, more={QWEN_REPO: qwen}, rate_bps=rate_bps).start()
         self.registry = base / "registry"
         if self.registry.exists():
@@ -286,6 +287,7 @@ class Stack:
 
         self._stop_worker()
         self._wipe_db()
+        self.hf.rate_bps = self.default_rate_bps  # a previous test may have slowed the model host (slow-downloads)
         self._photos(photos)
         wh = self.home / "worker"
         if wh.exists():
