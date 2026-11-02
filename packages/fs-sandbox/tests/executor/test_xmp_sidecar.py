@@ -39,10 +39,10 @@ def test_xmp_001_004_written_next_to_the_photo_which_is_untouched(env, helpers):
 def test_xmp_003_005_existing_xmp_is_merged_backed_up_and_restored_by_undo(env, helpers):
     _photo(env, "b/IMG_2.jpg", b"jpeg")
     old = (
-        '<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">'
-        '<rdf:Description rdf:about="" xmlns:xmp="http://ns.adobe.com/xap/1.0/" xmp:Rating="5"/>'
-        "</rdf:RDF></x:xmpmeta>"
-    ).encode()
+        b'<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">'
+        b'<rdf:Description rdf:about="" xmlns:xmp="http://ns.adobe.com/xap/1.0/" xmp:Rating="5"/>'
+        b"</rdf:RDF></x:xmpmeta>"
+    )
     x = _photo(env, "b/IMG_2.xmp", old)
     env.ex.apply("py", [_xmp_action("b/IMG_2.jpg", "b/IMG_2.xmp")])
     merged = x.read_bytes()

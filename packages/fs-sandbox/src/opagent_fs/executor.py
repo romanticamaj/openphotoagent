@@ -33,7 +33,7 @@ TRASH_DIR = ".opagent-trash"
 @dataclass(frozen=True)
 class Action:
     action_id: str
-    op: Literal["copy", "move", "trash", "sidecar_json", "sidecar_csv"]
+    op: Literal["copy", "move", "trash", "sidecar_json", "sidecar_csv", "sidecar_xmp"]
     src_alias: str
     src_rel: str
     dst_alias: str
@@ -137,7 +137,7 @@ class Executor:
         return suffixed(rel, n)
 
     def _one(self, plan_id: str, a: Action, move_confirmed: bool) -> ActionResult:
-        if a.op in ("sidecar_json", "sidecar_csv"):
+        if a.op in ("sidecar_json", "sidecar_csv", "sidecar_xmp"):
             return self._sidecar(plan_id, a)
         if a.op == "trash":
             return self._trash_action(plan_id, a)
@@ -267,10 +267,16 @@ class Executor:
             self.sb._root(alias)  # raises RootUnavailable when an external drive disappeared mid-copy
 
     def _sidecar(self, plan_id: str, a: Action) -> ActionResult:
-        """Write ``<stem>.opagent.json`` (or a batch CSV) atomically (tmp + rename); the photo is never touched."""
+        """Write ``<stem>.opagent.json``, a batch CSV or an XMP sidecar atomically (tmp + rename); the photo is never
+        touched (XMP-004)."""
         dst = self.sb.open_write(a.dst_alias, a.dst_rel)
         if a.op == "sidecar_csv":
             data = str((a.payload or {}).get("text", "")).encode()
+        elif a.op == "sidecar_xmp":  # merged into an existing XMP, which is backed up below (XMP-003)
+            from opagent_core.xmp import build_xmp
+
+            existing = dst.real.read_bytes() if self.fs.exists(dst.real) else None
+            data = build_xmp(a.payload or {}, existing)
         else:
             data = (json.dumps(a.payload or {}, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode()
         digest = blake3.blake3(data).hexdigest()
