@@ -271,3 +271,28 @@ def test_eta_018_estimate_before_start(env):
     assert [b["phase"] for b in r["breakdown"]] == ["model_download", "model_load", "embed", "infer", "postprocess"]
     dl = r["breakdown"][0]
     assert dl["basis"] == "none" and dl["hint"]["zh-TW"] == "100 Mbps 約 15 分鐘 · 1 Gbps 約 1.5 分鐘"
+
+
+@pytest.mark.integration
+@pytest.mark.tc("DESK-020")
+def test_desk_020_tray_pauses_and_resumes_every_heavy_operation(env):
+    with env.eng.begin() as c:
+        for oid, typ, status in [
+            ("S1", "scan", "running"),
+            ("T1", "thumbnail", "queued"),
+            ("D1", "model.download", "running"),  # not heavy: downloads keep going (06 §5)
+            ("X1", "scan", "completed"),
+        ]:
+            ensure_operation(c, env.clk, oid, typ)
+            if status != "queued":
+                set_op_status(c, env.clk, oid, status)
+    r = env.client.post("/api/v1/operations/pause-all")
+    assert r.status_code == 200 and sorted(r.json()["paused"]) == ["S1", "T1"]
+    with env.eng.begin() as c:
+        rows = {o.id: (o.status, o.waiting_reason) for o in c.execute(select(operation)).all()}
+    assert rows["S1"] == ("paused", "PAUSED_BY_USER") and rows["T1"] == ("paused", "PAUSED_BY_USER")
+    assert rows["D1"][0] == "running" and rows["X1"][0] == "completed"
+    r = env.client.post("/api/v1/operations/resume-all")
+    assert sorted(r.json()["resumed"]) == ["S1", "T1"]
+    with env.eng.begin() as c:
+        assert {o.id: o.status for o in c.execute(select(operation)).all()}["S1"] == "running"
