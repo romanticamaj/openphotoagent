@@ -47,6 +47,10 @@ def create_app(
     st.ensure_workspace()
     app.state.opa = st
     install_problem_handlers(app)
+    from . import security
+
+    app.include_router(security.router)
+    app.add_middleware(security.DesktopGuard, state=st)
     app.include_router(routes_public.router, prefix="/api/v1")
     app.include_router(routes_ops.router, prefix="/api/v1")
     app.include_router(routes_review.router, prefix="/api/v1")

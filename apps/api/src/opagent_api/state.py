@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +17,8 @@ class AppState:
     engine: Engine
     clock: Clock
     launch_token: str | None = None
+    handoffs: dict[str, Any] = field(default_factory=dict)  # one-time browser handoff codes → expiry
+    sessions: set[str] = field(default_factory=set)  # browser sessions opened from the tray
     registry_dir: Path | None = None
     user_models_dir: Path | None = None
     thumbs_dir: Path | None = None
