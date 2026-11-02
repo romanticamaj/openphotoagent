@@ -100,7 +100,8 @@ test.describe("activity", () => {
     const job = await (await request.post("/api/v1/jobs", { data: { kind: "organize", preset: "by-content-12", source_id: src, target: { root_alias: "sorted", sub_path: "" } } })).json();
     await expect.poll(async () => (await (await request.get(`/api/v1/jobs/${job.id}`)).json()).counters?.leased ?? 0, { timeout: 30_000 }).toBeGreaterThan(0);
     await page.goto("/");
-    await page.keyboard.press("ControlOrMeta+j");
+    // the button, not Ctrl+J: right after navigation the shortcut listener may not be attached yet
+    await page.getByRole("button", { name: /^活動/ }).click();
     const drawer = page.getByRole("dialog", { name: "活動" });
     const row = drawer.locator(`[data-op="${job.id}"]`);
     await row.getByRole("button", { name: "取消" }).click();
