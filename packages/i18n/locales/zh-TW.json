@@ -4,7 +4,8 @@
   },
   "common": {
     "working": "處理中…",
-    "percent": "{n}%"
+    "percent": "{n}%",
+    "loading": "正在檢查…"
   },
   "organize": {
     "pickFolder": "選擇要整理的資料夾",

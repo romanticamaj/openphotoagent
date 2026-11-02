@@ -4,7 +4,8 @@
   },
   "common": {
     "working": "Working…",
-    "percent": "{n}%"
+    "percent": "{n}%",
+    "loading": "Checking…"
   },
   "organize": {
     "pickFolder": "Choose a folder to organize",
