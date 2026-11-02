@@ -361,7 +361,7 @@
 | ID | 標題 | 前置／輸入 | 預期 | 層 | # |
 |----|------|-----------|------|----|---|
 | RT-PACK-012 | 新 pack 的平台過濾 | `mlx`（macos-arm64）、`vllm-cu128`（linux-x64）、`torch-cu128`／`torch-mps`／`torch-cpu` 列入 registry；hw profile：m3-16、linux-rtx3090、rtx5070ti-win11 | 推薦清單只含該平台可用的 pack；在 Windows 安裝 `vllm-cu128` 回 `RUNTIME_UNSUPPORTED_PLATFORM`，並附 Docker／WSL2 說明 CTA | I | #23 |
-| RT-PACK-013 | 大 pack 分段 | `vllm-cu128` 分成 3 段（每段 ≤ 2 GiB，測試用小檔模擬） | 逐段續傳；組合後先驗 sha256 再驗逐檔 manifest；任一段損毀時整包拒絕（`PACK_SIGNATURE_INVALID`），不會留下半套 | I | #23 |
+| RT-PACK-013 | 大 pack 分段 | `vllm-cu128` 分成 3 段（每段 ≤ 2 GiB，測試用小檔模擬） | 逐段續傳；組合後先驗 sha256 再驗逐檔 manifest；任一段損毀時整包拒絕（`PACK_CHECKSUM_MISMATCH`），不會留下半套 | I | #23 |
 | RT-PACK-014 | pack 建置可重現 | `tools/build_pack.py` 打包測試目錄兩次 | 兩次輸出 byte 相同；manifest 含逐檔 sha256；拒絕絕對路徑、`..`、symlink；`packs.yml` workflow matrix 含 vllm／mlx／torch | U/C | #23 |
 | RT-VLLM-001 | vLLM adapter 一致性 | 假 runtime `--flavor vllm`（結構化輸出用 `guided_json`） | INF-CONF-001～013 全綠；非 Linux 回 `RUNTIME_UNSUPPORTED_PLATFORM` | C/N | #23 |
 | RT-MLX-001 | MLX adapter 一致性 | 假 runtime `--flavor mlx`（沒有 logprobs） | INF-CONF 全綠；信心來源標 `self_report`（不是 logprob）；非 macOS arm64 回 unsupported | C/N | #23 |

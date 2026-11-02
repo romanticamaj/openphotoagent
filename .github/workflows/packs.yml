@@ -1,0 +1,50 @@
+# Runtime packs (08 §4.2–§4.3): built per platform, archived reproducibly (tools/build_pack.py), split into
+# ≤ 2 GiB parts, and uploaded to a `packs-YYYY.MM.N` release. These tags never match `v*.*.*`, so app releases
+# (release-on-tag.yml, release-please) are not triggered. Signing the index needs PACK_SIGNING_KEY (BLOCKERS).
+name: packs
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "packs-YYYY.MM.N"
+        required: true
+  push:
+    tags: ["packs-*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { pack: llamacpp-vulkan, os: ubuntu-24.04, platform: linux-x86_64 }
+          - { pack: llamacpp-cuda13, os: ubuntu-24.04, platform: linux-x86_64 }
+          - { pack: vllm-cu128, os: ubuntu-24.04, platform: linux-x86_64 }
+          - { pack: torch-cu128, os: ubuntu-24.04, platform: linux-x86_64 }
+          - { pack: torch-cpu, os: ubuntu-24.04, platform: linux-x86_64 }
+          - { pack: torch-cu128, os: windows-2025, platform: windows-x86_64 }
+          - { pack: torch-cpu, os: windows-2025, platform: windows-x86_64 }
+          - { pack: mlx, os: macos-15, platform: macos-arm64 }
+          - { pack: torch-mps, os: macos-15, platform: macos-arm64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Assemble the pack tree
+        shell: bash
+        run: bash packs/${{ matrix.pack }}/assemble.sh "$RUNNER_TEMP/tree" "${{ matrix.platform }}"
+      - name: Archive reproducibly
+        shell: bash
+        run: |
+          uv run python tools/build_pack.py "$RUNNER_TEMP/tree" "${{ matrix.pack }}-${{ matrix.platform }}.tar.zst" > entry.json
+          split -b 1900m -d -a 2 "${{ matrix.pack }}-${{ matrix.platform }}.tar.zst" "${{ matrix.pack }}-${{ matrix.platform }}.tar.zst.part"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.pack }}-${{ matrix.platform }}
+          path: |
+            entry.json
+            *.tar.zst.part*

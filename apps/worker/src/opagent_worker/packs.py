@@ -188,9 +188,31 @@ class PackInstaller:
         self._set_active(e["id"], e["version"])
         return InstallResult("installed", e["id"], e["version"], None, str(final))
 
+    def _parts(self, e: dict[str, Any]) -> bytes:
+        """Large packs come in parts (≤ 2 GiB each, 08 §4.3). Each verified part is kept in staging, so an
+        interrupted install resumes with the next part; a bad part discards them all (RT-PACK-013)."""
+        stem = self.root / ".staging" / f"{e['id']}-{e['version']}"
+        files = []
+        for n, part in enumerate(e["parts"], 1):
+            f = stem.with_name(f"{stem.name}.part{n:02d}")
+            if not (f.exists() and hashlib.sha256(f.read_bytes()).hexdigest() == part["sha256"]):
+                data = self._get(part["url"])
+                if hashlib.sha256(data).hexdigest() != part["sha256"]:
+                    for old in stem.parent.glob(f"{stem.name}.part*"):
+                        old.unlink(missing_ok=True)
+                    raise PackError("PACK_CHECKSUM_MISMATCH", pack=e["id"], part=n)
+                tmp = f.with_suffix(f.suffix + ".tmp")
+                tmp.write_bytes(data)
+                os.replace(tmp, f)
+            files.append(f)
+        blob = b"".join(f.read_bytes() for f in files)
+        for f in files:
+            f.unlink(missing_ok=True)
+        return blob
+
     def _download_and_stage(self, e: dict[str, Any]) -> Path:
         try:
-            return self._stage(e, self._get(e["url"]))
+            return self._stage(e, self._parts(e) if e.get("parts") else self._get(e["url"]))
         finally:
             for p in (self.root / ".staging").glob("*.tmp"):
                 p.unlink(missing_ok=True)
