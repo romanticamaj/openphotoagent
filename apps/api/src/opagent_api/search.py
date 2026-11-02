@@ -381,6 +381,78 @@ def search(body: SearchIn, req: Request) -> dict[str, Any]:
     return run_search(_st(req), body)
 
 
+MAX_UPLOAD = 30 * 1024 * 1024
+
+
+@router.post("/search/by-image")
+async def search_by_image(req: Request) -> dict[str, Any]:
+    """Search with an uploaded picture (05 §2.2). The bytes live only in this process's memory: the worker fetches
+    them once by token over the worker channel; nothing reaches the database, the data dir or any cache."""
+    import secrets
+
+    from starlette.concurrency import run_in_threadpool
+
+    form = await req.form()
+    up = form.get("file")
+    if up is None or isinstance(up, str):
+        raise HTTPException(400, detail={"code": "FILE_REQUIRED"})
+    data = await up.read()
+    if not data or len(data) > MAX_UPLOAD:
+        raise HTTPException(400, detail={"code": "FILE_TOO_LARGE" if data else "FILE_REQUIRED"})
+    k = max(1, min(int(str(form.get("k") or 20)), 200))
+    st = _st(req)
+    token = secrets.token_urlsafe(24)
+    st.blobs[token] = data
+    try:
+        return await run_in_threadpool(_by_image, st, token, k)
+    finally:
+        st.blobs.pop(token, None)
+
+
+def _by_image(st: AppState, token: str, k: int) -> dict[str, Any]:
+    import uuid
+
+    with st.engine.begin() as c:
+        space = active_space(c)
+        w = _worker_online(c, st)
+        if space is None or w is None:
+            return {"items": [], "degraded": ["image_vector"], "notice": "degraded_search"}
+        tid = "rpc-" + uuid.uuid4().hex[:12]
+        c.execute(
+            worker_task.insert().values(
+                id=tid,
+                kind="embed_image",
+                lane="interactive",
+                worker_id=w.id,
+                payload={"token": token, "fingerprint": space.fingerprint},
+            )
+        )
+    vec = None
+    deadline = time.monotonic() + RPC_TIMEOUT_S * 3  # noqa: TID251 - waits on a real worker over the wire
+    while time.monotonic() < deadline:  # noqa: TID251
+        with st.engine.begin() as c:
+            row = c.execute(select(worker_task.c.status, worker_task.c.result).where(worker_task.c.id == tid)).first()
+        if row is not None and row.status in ("done", "failed"):
+            v = (row.result or {}).get("vec")
+            vec = [float(x) for x in v] if v else None
+            break
+        time.sleep(0.02)  # noqa: TID251
+    if vec is None:
+        return {"items": [], "degraded": ["image_vector"], "notice": "degraded_search"}
+    with st.engine.begin() as c:
+        rows = c.execute(
+            select(
+                asset_embedding.c.asset_id,
+                (1 - asset_embedding.c.vec.op("<=>")(text("CAST(:qv AS vector)"))).label("s"),
+            )
+            .where(asset_embedding.c.space_id == space.id)
+            .order_by(text("s DESC"), asset_embedding.c.asset_id)
+            .limit(k),
+            {"qv": str(vec)},
+        ).all()
+    return {"items": [{"asset_id": a, "score": round(float(sc), 6), "matched_by": ["image_vector"]} for a, sc in rows]}
+
+
 def index_status(c: Any) -> dict[str, Any]:
     space = active_space(c)
     total = c.execute(select(func.count()).select_from(search_doc)).scalar_one()
@@ -410,6 +482,17 @@ class EmbeddingsIn(BaseModel):
 
 
 worker_router = APIRouter()
+
+
+@worker_router.get("/blobs/{token}")
+def fetch_blob(token: str, req: Request) -> Any:
+    """An uploaded query image, handed to the worker once and then forgotten (SRCH-IMG-002)."""
+    from fastapi.responses import Response as Raw
+
+    data = _st(req).blobs.pop(token, None)
+    if data is None:
+        raise HTTPException(404, detail={"code": "NOT_FOUND"})
+    return Raw(content=data, media_type="application/octet-stream")
 
 
 @worker_router.post("/embeddings")

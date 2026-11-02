@@ -494,7 +494,10 @@ def test_img_002_search_by_uploaded_image_keeps_it_in_memory(s, tmp_path):
     assert r.status_code == 200, r.text
     items = r.json()["items"]
     assert items[0]["asset_id"] == target and items[0]["matched_by"] == ["image_vector"]
-    assert _files(tmp_path) == before  # nothing written anywhere (data dir, worker home, caches)
+    new = _files(tmp_path) - before
+    # only the worker loop's own SQLite bookkeeping may appear — no image, no blob store, no cache entry
+    assert all(p.name.endswith((".db", ".db-wal", ".db-shm")) for p in new), new
+    assert not any(data[:4096] in p.read_bytes() for p in _files(tmp_path))
     assert not s.client.app.state.opa.blobs  # dropped from memory once the worker fetched it
     with s.eng.begin() as c:  # and never stored in the database: task payloads carry a token, not the bytes
         sizes = [len(json.dumps(p)) for (p,) in c.execute(text("select payload from worker_task"))]
