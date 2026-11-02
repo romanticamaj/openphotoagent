@@ -84,3 +84,26 @@ test.describe("ask about one photo", () => {
     await expect(box.getByTestId("ask-answer")).toContainText(/拍攝於 20\d\d 年 \d+ 月 \d+ 日/);
   });
 });
+
+test.describe("ask shortcut", () => {
+  test.use({ scenario: { photos: "trip", library: true } });
+
+  test("[ASK-UI-002] ⌘I／Ctrl+I 開關問 AI；與活動抽屜（⌘J）互斥；關閉後焦點回到開啟它的地方", async ({ page }) => {
+    await page.goto("/");
+    const opener = page.getByRole("button", { name: "✦ 問 AI" });
+    await opener.focus();
+    await page.keyboard.press("Control+i");
+    const panel = page.getByRole("complementary", { name: "問你的照片" });
+    await expect(panel).toBeVisible();
+    await expect(panel.getByRole("textbox", { name: "問點什麼" })).toBeFocused();
+    await page.keyboard.press("Control+j"); // Activity keeps ⌘J (ACT-005): opening it closes Ask
+    await expect(page.getByRole("dialog", { name: "活動" })).toBeVisible();
+    await expect(panel).toHaveCount(0);
+    await page.keyboard.press("Control+i"); // and the reverse
+    await expect(panel).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "活動" })).toHaveCount(0);
+    await page.keyboard.press("Control+i");
+    await expect(panel).toHaveCount(0);
+    await expect(opener).toBeFocused();
+  });
+});

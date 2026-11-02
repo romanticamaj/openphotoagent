@@ -8,6 +8,7 @@ type S = StoryObj<typeof ProblemCard>;
 
 export const ApprovalExpired: S = { args: { problem: {"code": "APPROVAL_EXPIRED", "params": {}, "fixes": [{"id": "request_again", "type": "retry", "target": "request_again"}]} } };
 export const ApprovalNotPending: S = { args: { problem: {"code": "APPROVAL_NOT_PENDING", "params": {"status": "‹status›"}, "fixes": [{"id": "plan", "type": "open_settings", "target": "plan"}]} } };
+export const AssistantEndpointInsecure: S = { args: { problem: {"code": "ASSISTANT_ENDPOINT_INSECURE", "params": {"url": "‹url›"}, "fixes": [{"id": "assistant", "type": "open_settings", "target": "assistant"}]} } };
 export const BenchGoldenTooSmall: S = { args: { problem: {"code": "BENCH_GOLDEN_TOO_SMALL", "params": {"min": "‹min›", "n": "‹n›", "per_class": "‹per_class›"}, "fixes": [{"id": "label_golden", "type": "open_settings", "target": "label_golden"}]} } };
 export const CheckCrashed: S = { args: { problem: {"code": "CHECK_CRASHED", "params": {"check": "‹check›"}, "fixes": [{"id": "rerun_check", "type": "retry", "target": "rerun_check"}, {"id": "copy_diagnostics", "type": "open_docs", "target": "copy-diagnostics"}]} } };
 export const ConfirmTextMismatch: S = { args: { problem: {"code": "CONFIRM_TEXT_MISMATCH", "params": {"expected": "‹expected›"}, "fixes": [{"id": "retype", "type": "retry", "target": "retype"}]} } };

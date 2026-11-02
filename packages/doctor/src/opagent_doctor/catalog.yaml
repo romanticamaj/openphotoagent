@@ -696,6 +696,12 @@ PRESET_KEY_TAKEN:
     type: retry
   severity: warning
   transient: false
+ASSISTANT_ENDPOINT_INSECURE:
+  fixes:
+  - target: assistant
+    type: open_settings
+  severity: blocker
+  transient: false
 QUERY_EXPIRED:
   fixes:
   - target: drop_again

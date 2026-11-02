@@ -913,6 +913,7 @@ Fix 共有欄位：`fix_id`、`type`、`label`、`primary`、`requires_permissio
 | 102 | `PRESET_TOO_NEW` | B | 這個檔案來自較新的版本（格式 {found}，此版支援到 {supported}） | 檢查更新 | Check for updates |
 | 103 | `PRESET_TOO_LARGE` | B | 檔案太大（上限 {max} bytes） | 選擇其他檔案 | Choose another file |
 | 104 | `PRESET_KEY_TAKEN` | W | 已有名為「{key}」的整理方式 | 以新名稱匯入 | Import under a new name |
+| 105 | `ASSISTANT_ENDPOINT_INSECURE` | B | 外部服務必須使用 https（本機 127.0.0.1 除外）：{url} | 改用 https 網址 | Use an https URL |
 | 100 | `CONFIRM_TEXT_MISMATCH` | B | 確認文字不正確（應為「{expected}」） | 重新輸入 | Type it again |
 
 > （回寫 W-1，09 §9）#63–#68 由 09 的 PF-063～PF-066 與 OUT-EXE-016 提出；08 §10 的 `PACK_MISSING`、`DRIVER_TOO_OLD` 分別對應本表的 `RUNTIME_PACK_MISSING`、`GPU_DRIVER_TOO_OLD`。

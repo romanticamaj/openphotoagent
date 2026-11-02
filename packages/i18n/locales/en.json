@@ -337,6 +337,7 @@
     "choose_file": "Choose another file",
     "check_updates": "Check for updates",
     "import_renamed": "Import under a new name",
+    "assistant": "Open the Ask-your-photos settings",
     "retype": "Type it again"
   },
   "nav": {

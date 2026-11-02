@@ -26,6 +26,7 @@ EN = {
     "PRESET_TOO_NEW": "This file comes from a newer version (format {found}; this version supports up to {supported})",
     "PRESET_TOO_LARGE": "The file is too large (limit {max} bytes)",
     "PRESET_KEY_TAKEN": "An organize preset named “{key}” already exists",
+    "ASSISTANT_ENDPOINT_INSECURE": "An external service must use https (only 127.0.0.1 may use http): {url}",
     "QUERY_EXPIRED": "The dropped photo was removed from memory after 10 minutes, for privacy",
     "CONFIRM_TEXT_MISMATCH": "The confirmation text does not match (expected “{expected}”)",
     "NOT_FOUND": "This item was not found (it may not exist, or it is outside this token's folders)",

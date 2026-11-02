@@ -23,6 +23,8 @@ class AppState:
     dsn: str = ""
     ask_turns: dict[str, Any] = field(default_factory=dict)  # running assistant turns (cancel flags)
     llm: Any = None  # the assistant's model (llama-server / OpenAI-compatible); FakeLLM in tests
+    llm_cache: dict[str, Any] | None = None  # configured endpoint clients, by URL
+    llm_transport: Any = None  # tests: an httpx transport standing in for the endpoint
     ask_tool_delay_s: float = 0.0  # test hook: a slow tool
     face_queries: dict[str, Any] = field(default_factory=dict)  # 「拖照片找人」 vectors, memory only (FACE-FIND-002)
     blobs: dict[str, bytes] = field(default_factory=dict)  # uploaded query images, memory only (SRCH-IMG-002)

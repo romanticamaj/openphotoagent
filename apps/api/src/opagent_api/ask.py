@@ -96,13 +96,43 @@ def _settings(st: AppState) -> dict[str, Any]:
         "endpoint_url": None,
         "media_policy": "none",
         "retention_days": 90,
+        "has_api_key": False,
         **(s.get("assistant") or {}),
     }
+
+
+def _home(st: AppState) -> Any:
+    from pathlib import Path
+
+    return st.home or Path.home() / ".opagent"
+
+
+def configured_llm(st: AppState, s: dict[str, Any]) -> Any:
+    """The model the settings ask for. Cloud: the user's OpenAI-compatible endpoint (https only). Local: a
+    llama-server the worker runs — until the worker manages one (M0-S3/S7, pending hardware) answers come from the
+    deterministic templates, which is what FakeLLM's empty reply yields."""
+    if s.get("provider") == "openai_compat" and s.get("endpoint_url"):
+        cache = getattr(st, "llm_cache", None)
+        if cache is None:
+            cache = st.llm_cache = {}
+        k = str(s["endpoint_url"])
+        if k not in cache:
+            from opagent_assistant.openai_compat import OpenAICompatLLM
+            from opagent_mcp import credstore
+
+            key = credstore.load(_home(st), kind="assistant-key") if s.get("has_api_key") else None
+            tools = [BY_NAME[n].definition() for n in BY_NAME if n not in NEVER_OFFERED]
+            cache[k] = OpenAICompatLLM(
+                k, api_key=key, tools=tools, transport=getattr(st, "llm_transport", None), name="external"
+            )
+        return cache[k]
+    return FakeLLM()
 
 
 class SettingsIn(BaseModel):
     provider: str | None = Field(default=None, pattern="^(local|openai_compat)$")
     endpoint_url: str | None = None
+    api_key: str | None = Field(default=None, max_length=500)  # kept in the OS keyring, never in the database
     media_policy: str | None = Field(default=None, pattern="^(none|thumb_256)$")
     retention_days: int | None = Field(default=None, ge=0, le=3650)
 
@@ -143,9 +173,23 @@ def get_settings(req: Request) -> dict[str, Any]:
 def patch_settings(body: SettingsIn, req: Request) -> dict[str, Any]:
     ui_only(req)
     st: AppState = req.app.state.opa
+    from opagent_assistant.openai_compat import is_local
+
+    if body.endpoint_url and not is_local(body.endpoint_url) and not body.endpoint_url.startswith("https://"):
+        from opagent_doctor.codes import problem
+
+        raise HTTPException(422, detail=problem("ASSISTANT_ENDPOINT_INSECURE", {"url": body.endpoint_url[:200]}))
+    patch = body.model_dump(exclude_none=True)
+    key = patch.pop("api_key", None)
+    if key is not None:
+        from opagent_mcp import credstore
+
+        credstore.save(key, _home(st), kind="assistant-key")
+        patch["has_api_key"] = bool(key)
+        st.llm_cache = {}
     with st.engine.begin() as c:
         cur = c.execute(select(workspace.c.settings).where(workspace.c.id == DEFAULT_WS)).scalar() or {}
-        a = {**(cur.get("assistant") or {}), **body.model_dump(exclude_none=True)}
+        a = {**(cur.get("assistant") or {}), **patch}
         c.execute(update(workspace).where(workspace.c.id == DEFAULT_WS).values(settings={**cur, "assistant": a}))
     return _settings(st)
 
@@ -346,7 +390,8 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
     s = _settings(st)
     keep = int(s.get("retention_days", 90)) > 0
     cloud = s.get("provider") == "openai_compat"
-    llm = getattr(st, "llm", None) or FakeLLM()
+    llm = getattr(st, "llm", None) or configured_llm(st, s)
+    sent_before = int(getattr(llm, "bytes_out", 0) or 0)
     if cloud and isinstance(llm, FakeLLM):
         llm.cloud = True  # type: ignore[attr-defined]
     with st.engine.begin() as c:
@@ -628,15 +673,20 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
         for n, a in alias.items():
             q = q.replace(n, a)
         msgs = [{"role": "system", "content": SYSTEM}, {"role": "user", "content": q}, *tool_msgs]
-        if cloud:
-            payload = json.dumps(msgs, ensure_ascii=False)
+        raw = final if final is not None else (llm.next(msgs).text or "")  # a template (or the loop) answered
+        if cloud:  # what actually left this machine in this turn (ASK-PRV-004)
+            measured = getattr(llm, "bytes_out", None)
+            n = (
+                int(measured) - sent_before
+                if isinstance(measured, int)
+                else len(json.dumps(msgs, ensure_ascii=False).encode())
+            )
             with st.engine.begin() as c:
                 c.execute(
                     insert(assistant_egress_log).values(
-                        turn_id=turn, endpoint=s.get("endpoint_url") or "", bytes_out=len(payload.encode()), images=0
+                        turn_id=turn, endpoint=s.get("endpoint_url") or "", bytes_out=n, images=0
                     )
                 )
-        raw = final if final is not None else (llm.next(msgs).text or "")  # a template (or the loop) answered
         for n, a in alias.items():  # back to real names, only here on this machine
             raw = raw.replace(a, n)
         grounded = G.ground(

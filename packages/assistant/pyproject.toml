@@ -3,7 +3,7 @@ name = "opagent-assistant"
 version = "0.0.1"
 requires-python = ">=3.12"
 description = "AI 問照片 (10 §8–§11): grounding, loop limits, memory, untrusted-text isolation; pure"
-dependencies = ["opagent-core", "opagent-mcp-tools"]
+dependencies = ["opagent-core", "opagent-mcp-tools", "httpx"]
 
 [build-system]
 requires = ["hatchling"]

@@ -329,6 +329,8 @@
 | ASK-MEM-001 | 追問 delta | 「只要有狗的」 | 以工作集 filters 合併新條件 | U | #100 |
 | ASK-MEM-002 | 保存與刪除 | `retention_days=0`；一鍵刪除 | 不保存；刪除後 conversation／message／step／citation 皆無 | I | #105 |
 | ASK-UI-001 | 建議問題 chips 依資料產生 | 圖庫 top tag 為「貓」、最近年份 2025；Lightbox 單張 | 「我有幾張貓？」「貓的照片」「2025 年的照片」；單張先給「在哪裡／什麼時候」；**不呼叫 LLM** | I | #100 |
+| ASK-UI-002 | 快捷鍵與面板互斥 | `⌘I`／`Ctrl+I`；面板開著時按 `⌘J` | ⌘I 開關問 AI；開活動中心（⌘J，ACT-005）會關掉問 AI，反之亦然；關閉後焦點回到開啟它的元素（ADR-0013） | E | #102 |
+| ASK-LLM-001 | OpenAI 相容 client | llama-server `--jinja` 或外部 endpoint；tool call、壞 JSON、未提供的 tool、逾時、探測 | 只接受本輪提供的 tool 與合法 JSON 物件；逾時安靜回空答案；從不送影像；探測 3/3 才開 tool loop；外部 endpoint 必須 https；API key 存 OS keyring、不回傳；egress log 記實際送出的 bytes | C/I | #101、#105 |
 
 ---
 

@@ -11,6 +11,12 @@
     "severity": "B",
     "title": "這個請求已經處理過（{status}）"
   },
+  "ASSISTANT_ENDPOINT_INSECURE": {
+    "cta": "改用 https 網址",
+    "message": "外部服務必須使用 https（本機 127.0.0.1 除外）：{url}",
+    "severity": "B",
+    "title": "外部服務必須使用 https（本機 127.0.0.1 除外）"
+  },
   "BENCH_GOLDEN_TOO_SMALL": {
     "cta": "繼續標註",
     "message": "標準答案集標註不足：需要至少 {min} 張、每類至少 {per_class} 張（目前 {n} 張）",

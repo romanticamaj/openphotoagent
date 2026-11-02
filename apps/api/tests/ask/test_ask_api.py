@@ -233,3 +233,38 @@ def test_ui_001_suggestions_come_from_the_library_not_the_model(m):
     assert st.llm.seen == []
     one = m.client.get("/api/v1/ask/suggestions", params={"photo_id": m.cats[0]}, headers=m.ui).json()
     assert [x["text"] for x in one["suggestions"]][:2] == ["這張是在哪裡拍的？", "這張是什麼時候拍的？"]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-LLM-001", "ASK-PRV-004")
+def test_llm_001_configured_endpoint_is_used_and_its_key_never_shown(m, tmp_path, monkeypatch):
+    import httpx
+
+    monkeypatch.delenv("OPAGENT_TOKEN", raising=False)
+    st = m.client.app.state.opa
+    st.home = tmp_path / "home"
+    st.llm = None
+    seen = []
+
+    def handle(req):
+        seen.append(req)
+        return httpx.Response(200, json={"choices": [{"message": {"role": "assistant", "content": "好的"}}]})
+
+    st.llm_transport = httpx.MockTransport(handle)
+    r = m.client.patch(
+        "/api/v1/assistant-settings",
+        json={"provider": "openai_compat", "endpoint_url": "https://llm.example/v1", "api_key": "sk-secret"},
+        headers=m.ui,
+    )
+    assert r.status_code == 200 and "sk-secret" not in r.text and r.json()["has_api_key"] is True
+    r = m.client.post("/api/v1/ask", json={"message": "海邊的貓"}, headers=m.ui)
+    ev = events(r.text)
+    assert seen and seen[0].headers["authorization"] == "Bearer sk-secret"
+    assert str(seen[0].url) == "https://llm.example/v1/chat/completions"
+    assert ev[0][1]["mode"] == "cloud"
+    sent = sum(len(x.content) for x in seen)
+    assert m.sql("select bytes_out from assistant_egress_log").scalar() == sent  # what actually left
+    insecure = m.client.patch(
+        "/api/v1/assistant-settings", json={"endpoint_url": "http://llm.example/v1"}, headers=m.ui
+    )
+    assert insecure.status_code == 422 and insecure.json()["code"] == "ASSISTANT_ENDPOINT_INSECURE"
