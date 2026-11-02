@@ -50,6 +50,7 @@ QUERY_TTL_S = 600
 SPACE_RETAIN = timedelta(days=7)
 VANISHED_AFTER = timedelta(days=30)
 K = 16
+LARGE_POOL = 50_000  # above this, HDBSCAN gives way to a k-NN graph + Chinese Whispers (07 §2.3)
 
 
 def _st(req: Request) -> AppState:
@@ -462,7 +463,21 @@ def run_cluster(st: AppState, ws: str) -> dict[str, Any]:
     run_id = uuid7(st.clock)
     groups: list[set[str]] = []
     noise = 0
-    if len(ids) >= F.MIN_GROUP:
+    algo = "hdbscan"
+    if len(ids) > LARGE_POOL:
+        algo = "knn_graph+chinese_whispers"
+        x = np.array([vecs[i] for i in ids], dtype=np.float32)
+        edges: dict[tuple[str, str], float] = {}
+        for start in range(0, len(ids), 1024):  # k-NN graph in blocks (k=32): memory stays bounded
+            sims = x[start : start + 1024] @ x.T
+            for r, row in enumerate(sims):
+                a = ids[start + r]
+                for j in np.argsort(-row)[1:33]:
+                    edges[(a, ids[int(j)])] = float(row[j])
+        found = F.chinese_whispers(ids, edges, seed=0)
+        groups = [g for g in found if len(g) >= F.MIN_GROUP]
+        noise = sum(len(g) for g in found if len(g) < F.MIN_GROUP)
+    elif len(ids) >= F.MIN_GROUP:
         x = np.array([vecs[i] for i in ids], dtype=np.float32)
         labels = HDBSCAN(min_cluster_size=F.MIN_GROUP, min_samples=2, metric="euclidean").fit_predict(x)
         by: dict[int, set[str]] = {}
@@ -490,14 +505,15 @@ def run_cluster(st: AppState, ws: str) -> dict[str, Any]:
                 cur = c.execute(select(face.c.person_id).where(face.c.id == fid)).scalar()
                 if cur != pid:
                     _write(c, st, fid, pid, "auto", "cluster", "system", space_id=space)
-        c.execute(insert(face_cluster_run).values(id=run_id, workspace_id=ws, space_id=space, algo="hdbscan",
-                                                  params={"min_cluster_size": F.MIN_GROUP, "min_samples": 2},
+        c.execute(insert(face_cluster_run).values(id=run_id, workspace_id=ws, space_id=space, algo=algo,
+                                                  params={"min_cluster_size": F.MIN_GROUP, "min_samples": 2,
+                                                          "large_pool": LARGE_POOL},
                                                   input_faces=len(ids), clusters=len(groups), noise=noise,
                                                   started_at=st.clock.now(), finished_at=st.clock.now()))
         for (aid,) in c.execute(select(face.c.asset_id).where(face.c.workspace_id == ws).distinct()).all():
             c.execute(insert(index_outbox).values(asset_id=aid))
     _merge_suggestions(st, ws, space)
-    return {"run_id": run_id, "clusters": len(groups), "noise": noise, "input_faces": len(ids)}
+    return {"run_id": run_id, "algo": algo, "clusters": len(groups), "noise": noise, "input_faces": len(ids)}
 
 
 def _merge_suggestions(st: AppState, ws: str, space: int) -> None:

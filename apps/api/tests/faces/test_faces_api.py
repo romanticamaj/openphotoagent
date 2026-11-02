@@ -256,7 +256,7 @@ def test_tpl_001_person_fanout(f):
     names = {}
     for p in f.get("/people")["people"]:
         rel = f.sql("select l.rel_path from face x join asset_location l on l.asset_id=x.asset_id where "
-                    "x.person_id=:p limit 1", p=p["id"]).scalar()
+                    "x.person_id=:p and l.rel_path not like '%%p1_p2%%' order by l.rel_path limit 1", p=p["id"]).scalar()
         names[p["id"]] = "媽媽" if "_p1" in rel else "爸爸"
         f.post(f"/people/{p['id']}/name", {"name": names[p["id"]]})
     out = f.post("/faces/plan-by-person", {"target": {"root_alias": "sorted", "sub_path": ""},

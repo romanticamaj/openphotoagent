@@ -181,3 +181,40 @@ def find_tiers(
 def reference_faces(assignments: Iterable[tuple[str, str]]) -> list[str]:
     """Only faces a person confirmed grow the reference set; automatic ones never do (no drift; FACE-FIND-003)."""
     return [f for f, kind in assignments if kind == "confirmed"]
+
+
+def chinese_whispers(
+    nodes: Sequence[str], edges: dict[tuple[str, str], float], seed: int = 0, iterations: int = 20,
+    min_weight: float = THRESHOLDS["suggest"],
+) -> list[set[str]]:
+    """Graph clustering for pools too large for HDBSCAN (07 §2.3, > 50k faces): each node repeatedly takes the
+    label with the highest summed edge weight among its neighbours. Edges below ``min_weight`` are ignored so weak
+    bridges do not chain two people together. Deterministic for a given ``seed``."""
+    import random
+
+    nbrs: dict[str, dict[str, float]] = {n: {} for n in nodes}
+    for (a, b), w in edges.items():
+        if w >= min_weight and a in nbrs and b in nbrs:
+            nbrs[a][b] = max(w, nbrs[a].get(b, 0.0))
+            nbrs[b][a] = max(w, nbrs[b].get(a, 0.0))
+    label = {n: n for n in nodes}
+    order = sorted(nodes)
+    rnd = random.Random(seed)
+    for _ in range(iterations):
+        rnd.shuffle(order)
+        changed = False
+        for n in order:
+            if not nbrs[n]:
+                continue
+            votes: dict[str, float] = {}
+            for m, w in nbrs[n].items():
+                votes[label[m]] = votes.get(label[m], 0.0) + w
+            best = max(sorted(votes), key=lambda k: votes[k])
+            if best != label[n]:
+                label[n], changed = best, True
+        if not changed:
+            break
+    groups: dict[str, set[str]] = {}
+    for n, lab in label.items():
+        groups.setdefault(lab, set()).add(n)
+    return sorted(groups.values(), key=lambda g: sorted(g)[0])
