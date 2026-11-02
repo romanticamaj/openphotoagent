@@ -251,17 +251,26 @@ flowchart TB
 ## 🚀 快速開始
 
 > [!IMPORTANT]
-> 目前還不能執行，以下是 **v0.1** 規劃中的使用方式。
+> 預發佈階段。桌面安裝包從 `v0.1.0` 起會出現在 [Releases](https://github.com/romanticamaj/openphotoagent/releases)；在那之前請用 Docker 或從原始碼執行。真實模型的 adapter 還在等實機驗證，目前推論使用內建的測試後端（見 `docs/BLOCKERS.md`）。
 
-**桌面版：** 到 [Releases](https://github.com/romanticamaj/openphotoagent/releases) 下載你的作業系統的安裝檔（約 150 MB，不需要管理員權限），打開後選照片資料夾，照著唯一的推薦組合按「開始」。模型會在背景下載，同時開始掃描你的照片。
+**桌面版（v0.1.0 起）：** 下載你的作業系統的安裝包（≤ 200 MB，不需要系統管理員權限），開啟後選擇照片資料夾，照著唯一的推薦設定走即可。模型會在背景下載，同時掃描你的圖庫。
 
-**Docker：**
+**Docker（all-in-one）：**
 
 ```bash
 git clone https://github.com/romanticamaj/openphotoagent && cd openphotoagent
-cp deploy/compose/.env.example .env      # 設定 PHOTO_ROOTS=/path/to/photos
-docker compose -f deploy/compose/allinone.yml up -d
-open http://localhost:8080               # 首次啟動會偵測 GPU 並推薦模型
+OPAGENT_PHOTOS=/path/to/photos OPAGENT_SORTED=/path/to/sorted \
+  docker compose -f deploy/compose/allinone.yml up -d --build
+open http://127.0.0.1:47800              # 照片以唯讀掛載；整理結果寫到 sorted 資料夾
+```
+
+**從原始碼（開發者）：**
+
+```bash
+uv tool install rust-just && just setup   # uv + pnpm workspace；需要 PostgreSQL 16+ 與 pgvector
+pnpm --filter web build
+OPAGENT_ROOTS="photos=/path/to/photos:ro,sorted=/path/to/sorted:rw" \
+OPAGENT_WEB_DIST=apps/web/dist just dev   # http://127.0.0.1:47800
 ```
 
 支援 NVIDIA、AMD、Intel GPU（建議 VRAM 6 GB 以上）、Apple Silicon Mac（建議 16 GB），或只有 CPU 的快速模式。環境醫生會告訴你這台電腦能跑什麼，缺什麼也會告訴你怎麼補。
