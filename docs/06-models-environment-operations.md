@@ -902,6 +902,13 @@ Fix 共有欄位：`fix_id`、`type`、`label`、`primary`、`requires_permissio
 | 91 | `SELECTION_EMPTY` | B | 沒有符合的照片 | 放寬條件 | Broaden the filters |
 | 92 | `APPROVAL_EXPIRED` | B | 核准請求已過期（30 分鐘） | 請 AI 助手重新請求 | Ask the assistant to request again |
 | 93 | `APPROVAL_NOT_PENDING` | B | 這個請求已經處理過（{status}） | 查看計畫 | Open the plan |
+| 94 | `FACE_SCOPE_REQUIRED` | B | 人物條件需要先開啟人臉辨識 | 開啟人臉辨識 | Turn on face recognition |
+| 95 | `FACES_DISABLED` | B | 人臉辨識沒有開啟 | 開啟人臉辨識 | Turn on face recognition |
+| 96 | `FACES_NOT_FOR_SOURCE` | W | 這個來源沒有開啟人臉辨識 | 調整人臉辨識的來源 | Change the sources for face recognition |
+| 97 | `FACE_CONSENT_REQUIRED` | B | 開啟人臉辨識前需要同意人臉資料的處理方式 | 閱讀並同意 | Read and agree |
+| 98 | `PERSON_NAME_TAKEN` | W | 已有同名的人物 | 合併兩個人物 | Merge the two people |
+| 99 | `QUERY_EXPIRED` | W | 拖入的照片已超過 10 分鐘，為了隱私已從記憶體移除 | 重新拖入照片 | Drop the photo again |
+| 100 | `CONFIRM_TEXT_MISMATCH` | B | 確認文字不正確（應為「{expected}」） | 重新輸入 | Type it again |
 
 > （回寫 W-1，09 §9）#63–#68 由 09 的 PF-063～PF-066 與 OUT-EXE-016 提出；08 §10 的 `PACK_MISSING`、`DRIVER_TOO_OLD` 分別對應本表的 `RUNTIME_PACK_MISSING`、`GPU_DRIVER_TOO_OLD`。
 

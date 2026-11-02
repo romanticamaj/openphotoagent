@@ -1254,6 +1254,8 @@ class ReembedIn(BaseModel):
 
 @worker_router.post("/faces/reembed")
 def reembed(body: ReembedIn, req: Request) -> dict[str, Any]:
+    if not body.migration_id.isdigit():
+        raise HTTPException(404, detail={"code": "NOT_FOUND"})
     with bio_session(_st(req)) as c:
         c.execute(
             text(
@@ -1270,6 +1272,8 @@ def complete_migration(mid: str, req: Request) -> dict[str, Any]:
     """Human decisions carry over unchanged (they reference faces, not vectors); then switch atomically and
     retire the old space, deleted after 7 days by maintenance."""
     st = _st(req)
+    if not mid.isdigit():
+        raise HTTPException(404, detail={"code": "NOT_FOUND"})
     new = int(mid)
     with st.engine.begin() as c:
         s = fsettings(c)

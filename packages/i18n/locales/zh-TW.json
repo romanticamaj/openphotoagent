@@ -330,7 +330,10 @@
     "mcp": "開啟「連接 AI 助手」",
     "faces": "開啟人臉設定",
     "request_again": "請 AI 助手重新請求",
-    "organize": "在 app 內建立整理"
+    "organize": "在 app 內建立整理",
+    "people": "開啟人物頁",
+    "drop_again": "重新拖入照片",
+    "retype": "重新輸入"
   },
   "nav": {
     "label": "主要導覽",

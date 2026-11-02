@@ -330,7 +330,10 @@
     "mcp": "Open Connect AI assistants",
     "faces": "Open face settings",
     "request_again": "Ask the assistant again",
-    "organize": "Organize in the app"
+    "organize": "Organize in the app",
+    "people": "Open People",
+    "drop_again": "Drop the photo again",
+    "retype": "Type it again"
   },
   "nav": {
     "label": "Main navigation",

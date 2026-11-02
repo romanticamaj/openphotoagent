@@ -17,6 +17,12 @@
     "severity": "W",
     "title": "The environment check “{check}” itself failed"
   },
+  "CONFIRM_TEXT_MISMATCH": {
+    "cta": "Type it again",
+    "message": "The confirmation text does not match (expected “{expected}”)",
+    "severity": "B",
+    "title": "The confirmation text does not match (expected “{expected}”)"
+  },
   "CURSOR_INVALID": {
     "cta": "Search again",
     "message": "The page cursor is invalid or expired",
@@ -118,6 +124,30 @@
     "message": "Cannot reach the external model service {url}",
     "severity": "B／T",
     "title": "Cannot reach the external model service {url}"
+  },
+  "FACES_DISABLED": {
+    "cta": "Turn on face recognition",
+    "message": "Face recognition is off",
+    "severity": "B",
+    "title": "Face recognition is off"
+  },
+  "FACES_NOT_FOR_SOURCE": {
+    "cta": "Change the sources for face recognition",
+    "message": "Face recognition is not on for this source",
+    "severity": "W",
+    "title": "Face recognition is not on for this source"
+  },
+  "FACE_CONSENT_REQUIRED": {
+    "cta": "Read and agree",
+    "message": "Agreeing to how face data is handled is required first",
+    "severity": "B",
+    "title": "Agreeing to how face data is handled is required first"
+  },
+  "FACE_SCOPE_REQUIRED": {
+    "cta": "Turn on face recognition",
+    "message": "Person filters need face recognition to be on",
+    "severity": "B",
+    "title": "Person filters need face recognition to be on"
   },
   "FFMPEG_MISSING": {
     "cta": "Download ffmpeg (keep skipping)",
@@ -401,6 +431,12 @@
     "severity": "B",
     "title": "The {permission} permission is required"
   },
+  "PERSON_NAME_TAKEN": {
+    "cta": "Merge the two people",
+    "message": "Another person already has this name",
+    "severity": "W",
+    "title": "Another person already has this name"
+  },
   "PLAN_NOT_APPLIED": {
     "cta": "Check the plan status",
     "message": "The plan has not been applied, so there is nothing to undo",
@@ -418,6 +454,12 @@
     "message": "{n} files changed after the plan was created",
     "severity": "B",
     "title": "{n} files changed after the plan was created"
+  },
+  "QUERY_EXPIRED": {
+    "cta": "Drop the photo again",
+    "message": "The dropped photo was removed from memory after 10 minutes, for privacy",
+    "severity": "W",
+    "title": "The dropped photo was removed from memory after 10 minutes, for privacy"
   },
   "RAM_INSUFFICIENT": {
     "cta": "Use a smaller model",
