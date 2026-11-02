@@ -40,6 +40,8 @@ describe("desktop platform (10 §5.4, 08 §1.3)", () => {
   it("[DESK-036] thumbnails come from the local cache through the asset protocol", () => {
     desktop();
     expect(mediaUrl("a1", "t512", "abcdef")).toBe(`asset://localhost/${encodeURIComponent("/data/worker/thumbs/ab/abcdef.t512.webp")}`);
+    // an id seen once with its hash (a dragged example photo) resolves without it later
+    expect(mediaUrl("a1", "t256")).toBe(`asset://localhost/${encodeURIComponent("/data/worker/thumbs/ab/abcdef.t256.webp")}`);
   });
 
   it("[DESK-036] SSE over fetch: events are parsed and the token is sent", async () => {

@@ -118,7 +118,7 @@ export function SearchPage({ q }: { q: string }) {
               style={{ position: "relative" }}
               onClick={(e) => clickHit(i, h.asset_id, e.shiftKey)}
             >
-              <img src={mediaUrl(h.asset_id, "t256")} alt={h.caption ?? ""} loading="lazy" onError={(e) => (e.currentTarget.style.visibility = "hidden")} />
+              <img src={mediaUrl(h.asset_id, "t256", h.ch)} alt={h.caption ?? ""} loading="lazy" onError={(e) => (e.currentTarget.style.visibility = "hidden")} />
               <span data-matched={h.matched_by.join(" ")} className="absolute bottom-1 left-1 flex gap-1 text-[10px]">
                 {h.matched_by
                   .filter((m) => m !== "filter")

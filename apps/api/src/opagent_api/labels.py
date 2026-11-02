@@ -11,7 +11,7 @@ from typing import Any
 
 from opagent_core.decide import Policy, VlmResult, decide, redecide
 from opagent_core.ids import uuid7
-from opagent_db.schema import event, index_outbox, job_item, result, review, search_doc
+from opagent_db.schema import asset, event, index_outbox, job_item, result, review, search_doc
 from sqlalchemy import and_, func, insert, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
@@ -241,9 +241,11 @@ def review_view(r: Any, c: Any) -> dict[str, Any]:
         }
     elif r.status == "skipped":
         final = {"category": "other", "source": r.source or "review_skip"}
+    ch = c.execute(select(asset.c.content_hash).where(asset.c.id == r.asset_id)).scalar()
     return {
         "id": r.id,
         "asset_id": r.asset_id,
+        "ch": ch,
         "job_id": r.job_id,
         "status": r.status,
         "reason": r.reason,

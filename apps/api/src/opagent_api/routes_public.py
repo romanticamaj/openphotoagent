@@ -446,7 +446,13 @@ def _preview_items(c: Any, j: Any, thresholds: dict[str, float] | None, template
     planned = plan(organize.plan_items(c, j, rows, labels), j.params["preset"], "", template=template)
     by = {a.asset_id: a for a in planned}
     return [
-        {"asset_id": r.asset_id, "rel": r.rel_path, **labels[r.asset_id], "dst_rel": by[r.asset_id].dst_rel}
+        {
+            "asset_id": r.asset_id,
+            "ch": r.content_hash,
+            "rel": r.rel_path,
+            **labels[r.asset_id],
+            "dst_rel": by[r.asset_id].dst_rel,
+        }
         for r in rows
     ]
 

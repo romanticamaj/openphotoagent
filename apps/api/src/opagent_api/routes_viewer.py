@@ -92,7 +92,13 @@ def bucket(month: str, req: Request) -> dict[str, Any]:
     if month != UNKNOWN and not _MONTH.match(month):
         raise HTTPException(422, detail={"code": "VALIDATION", "field": "month"})
     q = select(
-        asset.c.id, asset.c.width, asset.c.height, asset.c.thumbhash, asset.c.local_at, asset.c.date_source
+        asset.c.id,
+        asset.c.width,
+        asset.c.height,
+        asset.c.thumbhash,
+        asset.c.local_at,
+        asset.c.date_source,
+        asset.c.content_hash,
     ).where(asset.c.workspace_id == DEFAULT_WS)
     if month == UNKNOWN:
         q = q.where(asset.c.month_at.is_(None)).order_by(asset.c.id)
@@ -110,6 +116,7 @@ def bucket(month: str, req: Request) -> dict[str, Any]:
                 "w": r.width,
                 "h": r.height,
                 "thumbhash": r.thumbhash,
+                "ch": r.content_hash,  # desktop: thumbnail path in the local cache (10 §5.4)
                 "taken_at": r.local_at.isoformat() if r.local_at else None,
                 "flags": ["date_from_mtime"] if r.date_source == "mtime" else [],
             }

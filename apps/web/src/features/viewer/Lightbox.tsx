@@ -45,7 +45,7 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
     for (const f of film) {
       if (Math.abs(f.ord - ord) === 1) {
         const im = new Image();
-        im.src = mediaUrl(f.a.id, "t512");
+        im.src = mediaUrl(f.a.id, "t512", f.a.ch);
       }
     }
   }, [film, ord]);
@@ -117,7 +117,7 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
           <>
             <img
               key={`${asset.id}-t512`}
-              src={mediaUrl(asset.id, "t512")}
+              src={mediaUrl(asset.id, "t512", asset.ch)}
               alt=""
               data-variant="t512"
               onLoad={() => setStage((s) => s ?? "t512")}
@@ -126,7 +126,7 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
             {stage !== null && (
               <img
                 key={`${asset.id}-p1024`}
-                src={mediaUrl(asset.id, "p1024")}
+                src={mediaUrl(asset.id, "p1024", asset.ch)}
                 alt={asset.taken_at ? t("viewer.photoAlt", { date: asset.taken_at.slice(0, 10) }) : ""}
                 data-variant="p1024"
                 onLoad={() => setStage("p1024")}
@@ -146,7 +146,7 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
             aria-current={f.ord === ord}
             aria-label={t("lightbox.position", { n: f.ord + 1, total: grid.total })}
             onClick={() => setOrd(f.ord)}
-            style={{ backgroundImage: `url(${mediaUrl(f.a.id, "t256")}), url(${placeholder(f.a.thumbhash) ?? ""})` }}
+            style={{ backgroundImage: `url(${mediaUrl(f.a.id, "t256", f.a.ch)}), url(${placeholder(f.a.thumbhash) ?? ""})` }}
           />
         ))}
       </nav>

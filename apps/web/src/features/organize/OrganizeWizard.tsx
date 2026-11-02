@@ -334,7 +334,7 @@ function PreviewPanel({
             onDragStart={(e) => e.dataTransfer.setData("text/asset-id", it.asset_id)}
             className="space-y-1 rounded-[var(--radius-md)] bg-[var(--surface)] p-1"
           >
-            <img src={mediaUrl(it.asset_id, "t256")} alt="" className="aspect-square w-full rounded-[var(--radius-photo)] object-cover" />
+            <img src={mediaUrl(it.asset_id, "t256", it.ch)} alt="" className="aspect-square w-full rounded-[var(--radius-photo)] object-cover" />
             <figcaption className="text-xs">
               <span>{it.decision === "other" ? names.get("other") ?? "other" : (names.get(it.category_key) ?? it.category_key)}</span>{" "}
               <span className="tnum text-[var(--text-muted)]">{t("common.percent", { n: Math.round((it.confidence ?? 0) * 100) })}</span>{" "}
