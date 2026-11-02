@@ -238,3 +238,63 @@ def test_desk_006_api_exits_when_the_shell_pipe_closes(embedded_pg, tmp_path, st
     p.stdin.close()  # what the OS does when the shell is killed
     p.wait(timeout=5)
     assert p.returncode is not None
+
+
+def _worker(api_port: int, home: Path, roots: str, token: str | None):
+    env = {k: v for k, v in os.environ.items() if not k.startswith("OPAGENT_")}
+    argv = [
+        sys.executable,
+        "-I",
+        "-m",
+        "opagent_cli",
+        "worker",
+        "--api",
+        f"http://127.0.0.1:{api_port}",
+        "--roots",
+        roots,
+        "--home",
+        str(home),
+        "--worker-id",
+        "desk-w",
+    ]
+    if token is not None:
+        argv.append("--token-stdin")
+    p = subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env)
+    if token is not None:
+        p.stdin.write((token + "\n").encode())
+        p.stdin.flush()
+    return p
+
+
+def _registered(dsn):
+    with psycopg.connect(dsn) as c:
+        return c.execute("SELECT count(*) FROM worker WHERE id = 'desk-w'").fetchone()[0] == 1
+
+
+@pytest.mark.integration
+@pytest.mark.tc("DESK-011", "DESK-006")
+def test_desk_011_worker_authenticates_with_the_launch_token_from_stdin(embedded_pg, tmp_path, stop):
+    home = tmp_path / "w"
+    (tmp_path / "photos").mkdir()
+    api = _launch(embedded_pg.dsn, home, _free_port())
+    stop(api)
+    port = _wait_run(home, api)["port"]
+    stranger = _worker(port, home / "worker-x", f"photos={tmp_path / 'photos'}:ro", None)
+    stop(stranger)
+    time.sleep(2)  # noqa: TID251 - give an unauthenticated worker time to (fail to) register
+    assert not _registered(embedded_pg.dsn)
+    stranger.terminate()
+    w = _worker(port, home / "worker", f"photos={tmp_path / 'photos'}:ro", TOKEN)
+    stop(w)
+    t0 = time.monotonic()  # noqa: TID251
+    while not _registered(embedded_pg.dsn):
+        assert time.monotonic() - t0 < 20 and w.poll() is None, (
+            w.stdout.read().decode()[-2000:] if w.poll() is not None else "never registered"
+        )  # noqa: TID251
+        time.sleep(0.2)  # noqa: TID251
+    assert (
+        TOKEN not in Path(f"/proc/{w.pid}/cmdline").read_text()
+        and TOKEN not in Path(f"/proc/{w.pid}/environ").read_text()
+    )
+    w.stdin.close()  # the shell is gone
+    w.wait(timeout=10)
