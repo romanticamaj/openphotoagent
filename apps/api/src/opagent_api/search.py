@@ -23,8 +23,6 @@ from sqlalchemy import and_, bindparam, false, func, or_, select, text
 from .state import AppState
 
 router = APIRouter()
-RRF_K = 60
-W = {"image_vector": 1.0, "fulltext": 1.0, "tag": 1.2}
 PER_ROUTE = 200
 MIN_WORD_HITS = 5  # fewer word-AND hits → downgrade to bigram AND (05 §1.3 rule 3)
 RPC_TIMEOUT_S = 2.0
@@ -233,13 +231,12 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                     .limit(PER_ROUTE)
                 )
                 routes["image_vector"] = [r[0] for r in c.execute(vq, {"qv": str(qvec)})]
-            scores: dict[str, float] = {}
-            matched: dict[str, list[str]] = {}
-            for name, ids in routes.items():
-                for rk, aid in enumerate(ids, 1):
-                    scores[aid] = scores.get(aid, 0.0) + W[name] / (RRF_K + rk)
-                    matched.setdefault(aid, []).append(name)
-            ranked = sorted(scores, key=lambda a: (-scores[a], a))
+            from opagent_search.fusion import fuse, route_weights
+
+            fused = fuse(routes, route_weights(q))
+            scores = {f.asset_id: f.score for f in fused}
+            matched = {f.asset_id: f.matched_by for f in fused}
+            ranked = [f.asset_id for f in fused]
             vec_ids = routes.get("image_vector") or []
             if vec_ids:
                 member.append(search_doc.c.asset_id.in_(vec_ids))

@@ -11,7 +11,7 @@ from opagent_search.fusion import combine_vectors, fuse, representative, route_w
 @pytest.mark.tc("SRCH-RRF-001")
 def test_rrf_001_formula_and_weights():
     routes = {"image_vector": ["A", "B"], "fulltext": ["B", "C"], "tag": ["X", "Y", "A"]}
-    out = fuse(routes, route_weights('cat'))
+    out = fuse(routes, route_weights("cat"))
     scores = {r.asset_id: r.score for r in out}
     assert math.isclose(scores["A"], 1.0 / 61 + 1.2 / 63)
     assert math.isclose(scores["B"], 1.0 / 62 + 1.0 / 61)
