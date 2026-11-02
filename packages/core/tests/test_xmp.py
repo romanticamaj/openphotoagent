@@ -69,11 +69,11 @@ def test_xmp_006_untrusted_text_is_escaped_and_valid():
 @pytest.mark.tc("XMP-006")
 def test_xmp_006_hostile_existing_xmp_is_not_expanded():
     bomb = (
-        '<?xml version="1.0"?><!DOCTYPE lolz [<!ENTITY lol "lol"><!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;">'
-        '<!ENTITY lol3 "&lol2;&lol2;&lol2;&lol2;">]>'
-        '<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">'
-        '<rdf:Description rdf:about="">&lol3;</rdf:Description></rdf:RDF></x:xmpmeta>'
-    ).encode()
+        b'<?xml version="1.0"?><!DOCTYPE lolz [<!ENTITY lol "lol"><!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;">'
+        b'<!ENTITY lol3 "&lol2;&lol2;&lol2;&lol2;">]>'
+        b'<x:xmpmeta xmlns:x="adobe:ns:meta/"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">'
+        b'<rdf:Description rdf:about="">&lol3;</rdf:Description></rdf:RDF></x:xmpmeta>'
+    )
     out = build_xmp(PAYLOAD, bomb)
     assert b"lollol" not in out  # never expanded: the file is treated as unreadable (its backup keeps it)
     assert _bag(_desc(out), "dc:subject") == ["貓", "海灘"]
