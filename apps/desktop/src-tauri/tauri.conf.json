@@ -53,7 +53,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "PENDING-B12: set from `tauri signer generate` (docs/BLOCKERS.md)",
+      "pubkey": "PENDING-B5: set from `tauri signer generate` (docs/BLOCKERS.md)",
       "endpoints": [
         "https://github.com/romanticamaj/openphotoagent/releases/latest/download/latest.json"
       ]
