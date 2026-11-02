@@ -89,7 +89,12 @@ def export(body: ExportIn, req: Request) -> dict[str, Any]:
                     "model_version": pred.model_fingerprint,
                     "score": float(pred.confidence or 0.0),
                     "result": [
-                        {"from_name": FROM, "to_name": "image", "type": "choices", "value": {"choices": [pred.category]}}
+                        {
+                            "from_name": FROM,
+                            "to_name": "image",
+                            "type": "choices",
+                            "value": {"choices": [pred.category]},
+                        }
                     ],
                 }
             ]
