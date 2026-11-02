@@ -306,6 +306,8 @@ class Stack:
             models_root=wh / "models",
             download_sources=[self.hf.url if net == "on" else DEAD],
         )
+        # stand-in models are a few MB: do not make the suite depend on the host's spare gigabytes (06 §2.5 reserve)
+        self.worker.download_reserve_floor = 0
         self.worker.register()
         self._thread = threading.Thread(target=self.worker.run_forever, args=(self._stop,), daemon=True)
         self._thread.start()
@@ -384,6 +386,8 @@ class Stack:
             models_root=old.models_root,
             download_sources=old.download_sources,
         )
+        # stand-in models are a few MB: do not make the suite depend on the host's spare gigabytes (06 §2.5 reserve)
+        self.worker.download_reserve_floor = 0
         self.worker.register()
         self._thread = threading.Thread(target=self.worker.run_forever, args=(self._stop,), daemon=True)
         self._thread.start()

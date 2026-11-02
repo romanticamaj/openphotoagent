@@ -26,7 +26,13 @@ PROGRESS_EVERY_S = 0.25
 
 
 def child_main(
-    events: Any, control: Any, models_root: str, sources: list[str], op_id: str, files: list[dict[str, Any]]
+    events: Any,
+    control: Any,
+    models_root: str,
+    sources: list[str],
+    op_id: str,
+    files: list[dict[str, Any]],
+    reserve_floor: int | None = None,
 ) -> None:
     from .downloads import CancelToken, DlFile, Downloader, DownloadError
 
@@ -54,7 +60,7 @@ def child_main(
         last[0] = now
         events.send(("progress", ev))
 
-    d = Downloader(Path(models_root), sources=sources, on_progress=progress)
+    d = Downloader(Path(models_root), sources=sources, on_progress=progress, reserve_floor=reserve_floor)
     dl = [DlFile(f["repo"], f["revision"], f["path"], int(f["size"]), f["sha256"]) for f in files]
     try:
         res = asyncio.run(d.download(op_id, dl, token))
@@ -73,7 +79,14 @@ def child_main(
 class ChildDownload:
     """Worker-side handle: start, read events, forward controls, and enforce cancel ≤ 2 s (DL-005)."""
 
-    def __init__(self, models_root: Path, sources: list[str], op_id: str, files: list[dict[str, Any]]) -> None:
+    def __init__(
+        self,
+        models_root: Path,
+        sources: list[str],
+        op_id: str,
+        files: list[dict[str, Any]],
+        reserve_floor: int | None = None,
+    ) -> None:
         import multiprocessing as mp
 
         ctx = mp.get_context("spawn")
@@ -81,7 +94,7 @@ class ChildDownload:
         ctl_r, self._ctl_w = ctx.Pipe(duplex=False)
         self.proc = ctx.Process(
             target=child_main,
-            args=(ev_w, ctl_r, str(models_root), list(sources), op_id, files),
+            args=(ev_w, ctl_r, str(models_root), list(sources), op_id, files, reserve_floor),
             daemon=True,
             name=f"opagent-download-{op_id}",
         )

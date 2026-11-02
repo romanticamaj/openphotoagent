@@ -48,6 +48,7 @@ class WorkerAgent:
         self.home = Path(home)
         self.home.mkdir(parents=True, exist_ok=True)
         self.backend = backend
+        self.download_reserve_floor: int | None = None  # None = 06 §2.5 default (max(2 GB, 2 %)); test harness only
         self.policy: Any = None  # ResourcePolicy: heavy labelling waits on battery / busy GPU (06 §5)
         self.hw_profile = hw_profile
         self.doctor_env: dict[str, Any] = {}  # raw-fact overrides for the doctor (tests / FakeWorkerLink)
@@ -522,7 +523,13 @@ class WorkerAgent:
 
         token = CancelToken()
         progress = self._progress_poster(task_id, lambda c: token.pause() if c == "pause" else token.cancel())
-        d = Downloader(self.models_root, sources=self.download_sources, on_progress=progress, clock=self.clock)
+        d = Downloader(
+            self.models_root,
+            sources=self.download_sources,
+            on_progress=progress,
+            clock=self.clock,
+            reserve_floor=self.download_reserve_floor,
+        )
         files = [DlFile(f["repo"], f["revision"], f["path"], int(f["size"]), f["sha256"]) for f in p["files"]]
         try:
             res = asyncio.run(d.download(p["op_id"], files, token))
@@ -540,7 +547,9 @@ class WorkerAgent:
         """model.download in the long-running loop: the same Downloader in a child process (ADR-0007)."""
         from .dlchild import ChildDownload
 
-        child = ChildDownload(self.models_root, self.download_sources, p["op_id"], list(p["files"]))
+        child = ChildDownload(
+            self.models_root, self.download_sources, p["op_id"], list(p["files"]), self.download_reserve_floor
+        )
         progress = self._progress_poster(task_id, child.send)
         try:
             while True:

@@ -45,6 +45,7 @@ def env(embedded_pg, sandbox_tree, tmp_path):
         models_root=tmp_path / "models",
         download_sources=[srv.url],
     )
+    w.download_reserve_floor = 0  # files are ~200 KB: the 06 §2.5 reserve is covered by DL-010/011, not here
     w.register()
     yield {"client": client, "worker": w, "srv": srv, "user": user, "tmp": tmp_path, "dsn": embedded_pg.dsn}
     srv.stop()
