@@ -10,6 +10,7 @@ import base64
 import hashlib
 import hmac
 import json
+import re
 import secrets
 import time
 from datetime import datetime
@@ -41,11 +42,15 @@ class Scope(BaseModel):
 class Filters(BaseModel):
     tags_all: list[str] | None = None
     tags_any: list[str] | None = None
+    tags_none: list[str] | None = None
     category: str | None = None
+    categories: list[str] | None = None
     taken_from: str | None = None
     taken_to: str | None = None
     date_source: str | None = None
     scope: list[Scope] | None = None
+    # an MCP token's folders (05 §3.2): ANDed with everything else, so a caller can only narrow it (MCP-FOLD-001)
+    within: list[Scope] | None = None
 
 
 class SearchIn(BaseModel):
@@ -140,8 +145,12 @@ def _where(f: Filters, snapshot: str | None) -> tuple[list[Any], dict[str, Any]]
         w.append(search_doc.c.tags.contains(f.tags_all))
     if f.tags_any:
         w.append(search_doc.c.tags.overlap(f.tags_any))
+    if f.tags_none:
+        w.append(~search_doc.c.tags.overlap(f.tags_none))
     if f.category:
         w.append(search_doc.c.category == f.category)
+    if f.categories:
+        w.append(search_doc.c.category.in_(f.categories))
     if f.taken_from:
         w.append(search_doc.c.taken_at >= datetime.fromisoformat(f.taken_from))
     if f.taken_to:
@@ -153,6 +162,9 @@ def _where(f: Filters, snapshot: str | None) -> tuple[list[Any], dict[str, Any]]
             f"src:{s.source_id}:/" + s.path.strip("/") if s.path.strip("/") else f"src:{s.source_id}:/" for s in f.scope
         ]
         w.append(search_doc.c.scope_keys.overlap(keys))
+    if f.within is not None:
+        keys = [f"src:{s.source_id}:/" + s.path.strip("/") if s.path.strip("/") else f"src:{s.source_id}:/" for s in f.within]
+        w.append(search_doc.c.scope_keys.overlap(keys or ["-"]))
     if snapshot:
         w.append(search_doc.c.first_indexed_at <= datetime.fromisoformat(snapshot))
     return w, {}
@@ -175,6 +187,7 @@ def _ft_cond(tsq: str, en: str, tag: str) -> Any:
     return text(f"({cond})").bindparams(*params)
 
 
+_CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
 UNINDEXED = ("place", "camera_make", "persons_all")  # planner filters the search index cannot apply yet
 
 
@@ -239,6 +252,8 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
 
     from .labels import tokenizer
 
+    # control characters carry no meaning in a query, and PostgreSQL cannot store NUL in text/JSON (SRCH-TOK-009)
+    body = body.model_copy(update={"q": _CONTROL.sub("", body.q)}) if body.q else body
     cur = _unsign(body.cursor) if body.cursor else None
     if cur and cur.get("h") != _qhash(body):
         raise HTTPException(400, detail={"code": "CURSOR_INVALID"})
