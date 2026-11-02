@@ -55,5 +55,9 @@ def test_dup_004_union_find_equals_brute_force_transitive_closure():
 @pytest.mark.unit
 @pytest.mark.tc("SRCH-DUP-004")
 def test_dup_004_embedding_neighbours_join_too():
-    items = [("a", "0000000000000000", [1.0, 0.0]), ("b", "ffffffffffffffff", [0.99, 0.05]), ("c", "00000000ffffffff", [0.0, 1.0])]
+    items = [
+        ("a", "0000000000000000", [1.0, 0.0]),
+        ("b", "ffffffffffffffff", [0.99, 0.05]),
+        ("c", "00000000ffffffff", [0.0, 1.0]),
+    ]
     assert group_near(items, max_hamming=6, min_cosine=0.97) == [["a", "b"]]
