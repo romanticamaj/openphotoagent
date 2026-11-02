@@ -1,9 +1,27 @@
 {
+  "APPROVAL_EXPIRED": {
+    "cta": "請 AI 助手重新請求",
+    "message": "核准請求已過期（30 分鐘）",
+    "severity": "B",
+    "title": "核准請求已過期（30 分鐘）"
+  },
+  "APPROVAL_NOT_PENDING": {
+    "cta": "查看計畫",
+    "message": "這個請求已經處理過（{status}）",
+    "severity": "B",
+    "title": "這個請求已經處理過（{status}）"
+  },
   "CHECK_CRASHED": {
     "cta": "重新檢查（複製診斷報告）",
     "message": "環境檢查「{check}」本身失敗",
     "severity": "W",
     "title": "環境檢查「{check}」本身失敗"
+  },
+  "CURSOR_INVALID": {
+    "cta": "重新搜尋",
+    "message": "分頁游標無效或已過期",
+    "severity": "B",
+    "title": "分頁游標無效或已過期"
   },
   "DB_SCHEMA_TOO_NEW": {
     "cta": "用備份還原 · 安裝新版",
@@ -179,6 +197,12 @@
     "severity": "B",
     "title": "需要先在 Hugging Face 網站上同意 {model} 的使用條款"
   },
+  "INVALID_ARGUMENT": {
+    "cta": "修正參數後重試",
+    "message": "參數不符合工具的格式：{detail}",
+    "severity": "B",
+    "title": "參數不符合工具的格式"
+  },
   "JOB_CONFLICT_RUNNING": {
     "cta": "查看該任務（排在它後面）",
     "message": "同一個來源已有任務「{job}」在執行",
@@ -191,17 +215,47 @@
     "severity": "W",
     "title": "所有照片都已處理過（快取命中 100%）"
   },
+  "JOB_NOT_CANCELLABLE": {
+    "cta": "查看工作狀態",
+    "message": "工作狀態為 {status}，無法取消",
+    "severity": "B",
+    "title": "工作狀態為 {status}"
+  },
   "LICENSE_CONSENT_REQUIRED": {
     "cta": "閱讀並同意授權",
     "message": "使用 {model} 前需要同意 {license}",
     "severity": "B",
     "title": "使用 {model} 前需要同意 {license}"
   },
+  "MCP_APPLY_REQUESTS_DISABLED": {
+    "cta": "在「連接 AI 助手」開啟",
+    "message": "這個工作區沒有開放 AI 助手請求套用整理",
+    "severity": "B",
+    "title": "這個工作區沒有開放 AI 助手請求套用整理"
+  },
   "MCP_DISABLED": {
     "cta": "啟用 MCP",
     "message": "MCP 伺服器尚未啟用",
     "severity": "B",
     "title": "MCP 伺服器尚未啟用"
+  },
+  "MCP_FACES_DISABLED": {
+    "cta": "在人臉設定開啟",
+    "message": "人臉功能沒有開放給 AI 助手",
+    "severity": "B",
+    "title": "人臉功能沒有開放給 AI 助手"
+  },
+  "MCP_INSUFFICIENT_SCOPE": {
+    "cta": "在「連接 AI 助手」重新授權",
+    "message": "這個權杖沒有「{scope}」權限",
+    "severity": "B",
+    "title": "這個權杖沒有「{scope}」權限"
+  },
+  "MCP_JOB_LIMIT": {
+    "cta": "在 app 內建立工作",
+    "message": "AI 助手同時最多只能執行 {n} 個工作",
+    "severity": "B",
+    "title": "AI 助手同時最多只能執行 {n} 個工作"
   },
   "MCP_TOKEN_INVALID": {
     "cta": "重新產生 token",
@@ -281,6 +335,12 @@
     "severity": "B／T",
     "title": "無法連線到 {host}"
   },
+  "NOT_FOUND": {
+    "cta": "確認 ID 與資料夾範圍",
+    "message": "找不到這個項目（可能不存在，或不在這個權杖的資料夾範圍內）",
+    "severity": "B",
+    "title": "找不到這個項目（可能不存在"
+  },
   "OLLAMA_NOT_RUNNING": {
     "cta": "複製「ollama serve」並重試",
     "message": "連不到 Ollama（{url}）",
@@ -323,6 +383,12 @@
     "severity": "B",
     "title": "「{pack}」執行套件內容不安全（{reason}）"
   },
+  "PATH_INVALID": {
+    "cta": "改用相對路徑",
+    "message": "路徑必須是根目錄內的相對路徑",
+    "severity": "B",
+    "title": "路徑必須是根目錄內的相對路徑"
+  },
   "PERF_CPU_ONLY_SLOW": {
     "cta": "改用外部 endpoint（仍要繼續）",
     "message": "只能用 CPU 執行，{n} 張約需 {eta}",
@@ -335,6 +401,18 @@
     "severity": "B",
     "title": "需要 {permission} 權限"
   },
+  "PLAN_NOT_APPLIED": {
+    "cta": "查看計畫狀態",
+    "message": "計畫尚未套用，沒有可復原的變更",
+    "severity": "B",
+    "title": "計畫尚未套用"
+  },
+  "PLAN_NOT_DRAFT": {
+    "cta": "重新產生計畫",
+    "message": "計畫已不是待核准的草稿（{status}）",
+    "severity": "B",
+    "title": "計畫已不是待核准的草稿（{status}）"
+  },
   "PLAN_STALE": {
     "cta": "重新探測衝突",
     "message": "計畫建立後有 {n} 個檔案被變更",
@@ -346,6 +424,12 @@
     "message": "需要 {need} GB 系統記憶體，目前 {total} GB",
     "severity": "B",
     "title": "需要 {need} GB 系統記憶體"
+  },
+  "RATE_LIMITED": {
+    "cta": "稍後重試",
+    "message": "呼叫太頻繁，{retry_after_s} 秒後再試",
+    "severity": "W",
+    "title": "呼叫太頻繁"
   },
   "RUNTIME_CRASHED": {
     "cta": "重試（看 log）",
@@ -377,6 +461,12 @@
     "severity": "B",
     "title": "{runtime} 不支援 {os}（vLLM 只支援 Linux／WSL2）"
   },
+  "SCOPE_TOO_LARGE": {
+    "cta": "縮小範圍，或在 app 內建立",
+    "message": "範圍超過 {max} 張，AI 助手不能一次處理",
+    "severity": "B",
+    "title": "範圍超過 {max} 張"
+  },
   "SEARCH_INDEX_INCOMPLETE": {
     "cta": "建立索引（{eta}）",
     "message": "{n} 張照片尚未建立搜尋向量，結果可能不完整",
@@ -388,6 +478,36 @@
     "message": "搜尋索引是用 {old} 建立的，與目前預設 {new} 不同",
     "severity": "W",
     "title": "搜尋索引是用 {old} 建立的"
+  },
+  "SELECTION_EMPTY": {
+    "cta": "放寬條件",
+    "message": "沒有符合的照片",
+    "severity": "B",
+    "title": "沒有符合的照片"
+  },
+  "SELECTION_INVALID": {
+    "cta": "重新搜尋取得新的 selection_id",
+    "message": "selection_id 無效、已過期，或屬於其他權杖",
+    "severity": "B",
+    "title": "selection_id 無效、已過期"
+  },
+  "SELECTION_TOO_LARGE": {
+    "cta": "縮小篩選條件",
+    "message": "選取超過 {max} 張",
+    "severity": "B",
+    "title": "選取超過 {max} 張"
+  },
+  "TARGET_NOT_WRITABLE": {
+    "cta": "從 list_folders 選擇可寫入的資料夾",
+    "message": "目標資料夾不能寫入，或不在權杖的資料夾範圍內",
+    "severity": "B",
+    "title": "目標資料夾不能寫入"
+  },
+  "TEMPLATE_INVALID": {
+    "cta": "修正路徑樣板",
+    "message": "路徑樣板無效：{detail}",
+    "severity": "B",
+    "title": "路徑樣板無效"
   },
   "TIME_SKEW": {
     "cta": "複製時間同步指令",

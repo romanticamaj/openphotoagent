@@ -516,3 +516,123 @@ PACK_UNSAFE_ARCHIVE:
     type: open_docs
   severity: blocker
   transient: false
+NOT_FOUND:
+  fixes:
+  - target: mcp/folder-scope
+    type: open_docs
+  severity: blocker
+  transient: false
+INVALID_ARGUMENT:
+  fixes:
+  - target: mcp/tools
+    type: open_docs
+  severity: blocker
+  transient: false
+RATE_LIMITED:
+  fixes:
+  - target: retry
+    type: retry
+  severity: warning
+  transient: true
+MCP_JOB_LIMIT:
+  fixes:
+  - target: organize
+    type: open_settings
+  severity: blocker
+  transient: false
+SCOPE_TOO_LARGE:
+  fixes:
+  - target: mcp/limits
+    type: open_docs
+  severity: blocker
+  transient: false
+SELECTION_TOO_LARGE:
+  fixes:
+  - target: search/filters
+    type: open_docs
+  severity: blocker
+  transient: false
+SELECTION_INVALID:
+  fixes:
+  - target: search_again
+    type: retry
+  severity: blocker
+  transient: false
+CURSOR_INVALID:
+  fixes:
+  - target: search_again
+    type: retry
+  severity: blocker
+  transient: false
+TARGET_NOT_WRITABLE:
+  fixes:
+  - target: mcp/folder-scope
+    type: open_docs
+  severity: blocker
+  transient: false
+TEMPLATE_INVALID:
+  fixes:
+  - target: organize/path-template
+    type: open_docs
+  severity: blocker
+  transient: false
+PATH_INVALID:
+  fixes:
+  - target: mcp/folder-scope
+    type: open_docs
+  severity: blocker
+  transient: false
+PLAN_NOT_DRAFT:
+  fixes:
+  - target: new_plan
+    type: retry
+  severity: blocker
+  transient: false
+PLAN_NOT_APPLIED:
+  fixes:
+  - target: plan
+    type: open_settings
+  severity: blocker
+  transient: false
+JOB_NOT_CANCELLABLE:
+  fixes:
+  - target: activity
+    type: open_settings
+  severity: blocker
+  transient: false
+MCP_APPLY_REQUESTS_DISABLED:
+  fixes:
+  - target: mcp
+    type: open_settings
+  severity: blocker
+  transient: false
+MCP_FACES_DISABLED:
+  fixes:
+  - target: faces
+    type: open_settings
+  severity: blocker
+  transient: false
+MCP_INSUFFICIENT_SCOPE:
+  fixes:
+  - target: mcp
+    type: open_settings
+  severity: blocker
+  transient: false
+SELECTION_EMPTY:
+  fixes:
+  - target: search/filters
+    type: open_docs
+  severity: blocker
+  transient: false
+APPROVAL_EXPIRED:
+  fixes:
+  - target: request_again
+    type: retry
+  severity: blocker
+  transient: false
+APPROVAL_NOT_PENDING:
+  fixes:
+  - target: plan
+    type: open_settings
+  severity: blocker
+  transient: false

@@ -1,9 +1,27 @@
 {
+  "APPROVAL_EXPIRED": {
+    "cta": "Ask the assistant to request again",
+    "message": "The approval request expired (30 minutes)",
+    "severity": "B",
+    "title": "The approval request expired (30 minutes)"
+  },
+  "APPROVAL_NOT_PENDING": {
+    "cta": "Open the plan",
+    "message": "This request has already been decided ({status})",
+    "severity": "B",
+    "title": "This request has already been decided ({status})"
+  },
   "CHECK_CRASHED": {
     "cta": "Re-run (copy diagnostics)",
     "message": "The environment check “{check}” itself failed",
     "severity": "W",
     "title": "The environment check “{check}” itself failed"
+  },
+  "CURSOR_INVALID": {
+    "cta": "Search again",
+    "message": "The page cursor is invalid or expired",
+    "severity": "B",
+    "title": "The page cursor is invalid or expired"
   },
   "DB_SCHEMA_TOO_NEW": {
     "cta": "Restore from a backup · Install the newer version",
@@ -179,6 +197,12 @@
     "severity": "B",
     "title": "You need to accept the terms of {model} on the Hugging Face website first"
   },
+  "INVALID_ARGUMENT": {
+    "cta": "Fix the arguments and retry",
+    "message": "The arguments do not match the tool's schema: {detail}",
+    "severity": "B",
+    "title": "The arguments do not match the tool's schema"
+  },
   "JOB_CONFLICT_RUNNING": {
     "cta": "View job (queue after it)",
     "message": "A job “{job}” is already running on the same source",
@@ -191,17 +215,47 @@
     "severity": "W",
     "title": "Every photo has already been processed (100% cache hits)"
   },
+  "JOB_NOT_CANCELLABLE": {
+    "cta": "Check the job status",
+    "message": "The job is {status} and cannot be cancelled",
+    "severity": "B",
+    "title": "The job is {status} and cannot be cancelled"
+  },
   "LICENSE_CONSENT_REQUIRED": {
     "cta": "Review & accept license",
     "message": "You need to accept {license} before using {model}",
     "severity": "B",
     "title": "You need to accept {license} before using {model}"
   },
+  "MCP_APPLY_REQUESTS_DISABLED": {
+    "cta": "Turn it on in Connect AI assistants",
+    "message": "This workspace does not let AI assistants request applying a plan",
+    "severity": "B",
+    "title": "This workspace does not let AI assistants request applying a plan"
+  },
   "MCP_DISABLED": {
     "cta": "Enable MCP",
     "message": "The MCP server is not enabled",
     "severity": "B",
     "title": "The MCP server is not enabled"
+  },
+  "MCP_FACES_DISABLED": {
+    "cta": "Turn it on in face settings",
+    "message": "Face features are not available to AI assistants",
+    "severity": "B",
+    "title": "Face features are not available to AI assistants"
+  },
+  "MCP_INSUFFICIENT_SCOPE": {
+    "cta": "Re-authorize in Connect AI assistants",
+    "message": "This token lacks the “{scope}” permission",
+    "severity": "B",
+    "title": "This token lacks the “{scope}” permission"
+  },
+  "MCP_JOB_LIMIT": {
+    "cta": "Create the job in the app",
+    "message": "An AI assistant can run at most {n} jobs at a time",
+    "severity": "B",
+    "title": "An AI assistant can run at most {n} jobs at a time"
   },
   "MCP_TOKEN_INVALID": {
     "cta": "Regenerate token",
@@ -281,6 +335,12 @@
     "severity": "B／T",
     "title": "Cannot connect to {host}"
   },
+  "NOT_FOUND": {
+    "cta": "Check the ID and folder scope",
+    "message": "This item was not found (it may not exist, or it is outside this token's folders)",
+    "severity": "B",
+    "title": "This item was not found (it may not exist, or it is outside this token's folders)"
+  },
   "OLLAMA_NOT_RUNNING": {
     "cta": "Copy \"ollama serve\" & retry",
     "message": "Cannot reach Ollama ({url})",
@@ -323,6 +383,12 @@
     "severity": "B",
     "title": "The “{pack}” runtime pack contents are unsafe ({reason})"
   },
+  "PATH_INVALID": {
+    "cta": "Use a relative path",
+    "message": "A path must be relative and stay inside its root",
+    "severity": "B",
+    "title": "A path must be relative and stay inside its root"
+  },
   "PERF_CPU_ONLY_SLOW": {
     "cta": "Use external endpoint (continue anyway)",
     "message": "Only the CPU can run this; {n} photos will take about {eta}",
@@ -335,6 +401,18 @@
     "severity": "B",
     "title": "The {permission} permission is required"
   },
+  "PLAN_NOT_APPLIED": {
+    "cta": "Check the plan status",
+    "message": "The plan has not been applied, so there is nothing to undo",
+    "severity": "B",
+    "title": "The plan has not been applied, so there is nothing to undo"
+  },
+  "PLAN_NOT_DRAFT": {
+    "cta": "Make a new plan",
+    "message": "The plan is no longer a draft awaiting approval ({status})",
+    "severity": "B",
+    "title": "The plan is no longer a draft awaiting approval ({status})"
+  },
   "PLAN_STALE": {
     "cta": "Re-check conflicts",
     "message": "{n} files changed after the plan was created",
@@ -346,6 +424,12 @@
     "message": "{need} GB of system memory is required; you have {total} GB",
     "severity": "B",
     "title": "{need} GB of system memory is required"
+  },
+  "RATE_LIMITED": {
+    "cta": "Retry later",
+    "message": "Too many calls; retry in {retry_after_s} s",
+    "severity": "W",
+    "title": "Too many calls"
   },
   "RUNTIME_CRASHED": {
     "cta": "Retry (view logs)",
@@ -377,6 +461,12 @@
     "severity": "B",
     "title": "{runtime} does not support {os} (vLLM supports Linux/WSL2 only)"
   },
+  "SCOPE_TOO_LARGE": {
+    "cta": "Narrow the scope, or use the app",
+    "message": "More than {max} photos: too many for an AI assistant at once",
+    "severity": "B",
+    "title": "More than {max} photos"
+  },
   "SEARCH_INDEX_INCOMPLETE": {
     "cta": "Build index ({eta})",
     "message": "{n} photos have no search vectors yet; results may be incomplete",
@@ -388,6 +478,36 @@
     "message": "The search index was built with {old}, which differs from the current default {new}",
     "severity": "W",
     "title": "The search index was built with {old}, which differs from the current default {new}"
+  },
+  "SELECTION_EMPTY": {
+    "cta": "Broaden the filters",
+    "message": "No photos match",
+    "severity": "B",
+    "title": "No photos match"
+  },
+  "SELECTION_INVALID": {
+    "cta": "Search again for a new selection_id",
+    "message": "The selection_id is invalid, expired or belongs to another token",
+    "severity": "B",
+    "title": "The selection_id is invalid, expired or belongs to another token"
+  },
+  "SELECTION_TOO_LARGE": {
+    "cta": "Narrow the filters",
+    "message": "The selection has more than {max} photos",
+    "severity": "B",
+    "title": "The selection has more than {max} photos"
+  },
+  "TARGET_NOT_WRITABLE": {
+    "cta": "Pick a writable folder from list_folders",
+    "message": "The target folder is not writable or is outside this token's folders",
+    "severity": "B",
+    "title": "The target folder is not writable or is outside this token's folders"
+  },
+  "TEMPLATE_INVALID": {
+    "cta": "Fix the path template",
+    "message": "The path template is invalid: {detail}",
+    "severity": "B",
+    "title": "The path template is invalid"
   },
   "TIME_SKEW": {
     "cta": "Copy time-sync command",
