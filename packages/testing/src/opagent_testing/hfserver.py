@@ -20,10 +20,16 @@ from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any
 
+_CHUNK = 64 * 1024 * 1024
+
 
 @functools.lru_cache(maxsize=16)
 def _content(path: str, seed: int, size: int) -> bytes:
-    return random.Random(f"{path}:{seed}").randbytes(size)  # noqa: S311 - seeded test bytes
+    rng = random.Random(f"{path}:{seed}")  # noqa: S311 - seeded test bytes
+    if size <= _CHUNK:  # unchanged bytes for every existing (pinned) fixture
+        return rng.randbytes(size)
+    # randbytes(n) overflows a C int above ~256 MB (DL-019 serves 1 GB): build it in chunks
+    return b"".join(rng.randbytes(min(_CHUNK, size - o)) for o in range(0, size, _CHUNK))
 
 
 @functools.lru_cache(maxsize=64)
@@ -220,3 +226,13 @@ class HfServer:
         if self._httpd:
             self._httpd.shutdown()
             self._httpd.server_close()
+
+
+def serve_in_child(conn: Any, repo: str, path: str, size: int, seed: int, rate_bps: float | None) -> None:
+    """Entry point for a ``multiprocessing`` child: one file served from another process, like a remote host
+    (DL-019 measures worker throughput, which a server sharing the test's GIL would distort)."""
+    srv = HfServer(repo, [HfFile(path, size, seed=seed)], rate_bps=rate_bps).start()
+    f = srv.files[0]
+    conn.send((srv.url, f.path, f.size, f.sha256))
+    conn.recv()  # until the parent says stop
+    srv.stop()
