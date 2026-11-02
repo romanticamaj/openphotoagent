@@ -408,3 +408,29 @@
 - 有效 scope 永不含 `organize:apply`（property test）。
 
 **同步修改的規格**：08 C-21、05 §3.2（`organize:apply` 註記）、09b §8.6。
+
+---
+
+## ADR-0016：v0.5 的 workspace 隔離採「每個 workspace 一個資料庫」
+
+- 日期：2026-11-02｜狀態：已採納｜影響：02 §1.3、09b §8.4（MU-SEC-003）
+
+**問題**：MU-SEC-003 要求 workspace A 的使用者、token、Worker 存取 B 的資產、計畫、搜尋、MCP 一律 404，搜尋 total 不含 B。02 §1.3 原本寫的是「業務表帶 workspace_id，TenantContext＋Repository 過濾，v2 再開 RLS」。現有程式碼以單一 workspace 寫成：約 557 個查詢點、79 處 `DEFAULT_WS`，還有多個以 id 直查、沒有 workspace 條件的端點。
+
+**審議**（兩個 sub-agent，各自論證一方）：
+- **單一資料庫＋過濾＋RLS**：符合原規格；一套備份、migration 和連線池；多 workspace 的使用者與共用 Worker 較自然。代價是要替約 26 張子表補 `workspace_id`、composite FK，並逐一改寫 150～250 個查詢。只要漏一個過濾就是跨租戶洩漏（IDOR）。RLS 可以讓遺漏變成 fail closed，但 superuser 連線、背景工作與 outbox 都必須逐筆設定 context，同樣容易出錯。
+- **每個 workspace 一個資料庫**：隔離是結構性的，A 的 engine 根本連不到 B 的資料列，所以遺漏過濾也不會洩漏。現有的 `create_app(dsn)`、`migrate(dsn)`、`pg_dump`、`embedded_pg` 的 template clone 都已經以 DSN 為單位。代價有四：連線數（NAS 的 `max_connections`）、N 個資料庫的 migration、跨 workspace 的管理檢視要在應用層 fan-out、一個 Worker 服務多個 workspace 時需要 CP 端排程。
+
+**決定**：
+- v0.5 採用**每個 workspace 一個資料庫**（同一個 Postgres server）。
+  - 主資料庫存放控制表（`app_user`、`membership`、`user_session`、`enrollment_code`、`worker_credential`、`worker_nonce`，以及 OAuth grant），同時也是 `default` workspace 的資料。
+  - 其他 workspace 各自有一個 `opagent_ws_<id>` 資料庫，含完整 schema。
+- 控制平面的 guard 就是 TenantContext：依 session 選擇的 workspace，或 token、Worker credential 綁定的 workspace，把請求分派給該 workspace 的內部 app。
+  - **認證只讀主資料庫**；workspace 資料庫裡的控制表一律不使用。
+  - 內部 app 的連線池很小，而且延遲建立。
+- 一個 Worker credential 只綁一個 workspace。同一台機器要服務多個 workspace 時，每個 workspace 各配對一次（v0.5 的限制）。跨 workspace 的 GPU 排程與 org 層總覽留到之後，以應用層 fan-out 處理。
+- 各表保留 `workspace_id` 欄位並照常寫入，日後要合併資料庫或啟用 RLS 時不必重新設計。
+- 不違反 CLAUDE.md §4 的任何不變量：SafePath、journal、Operation 都是 workspace 內的資料，恢復也在 workspace 內完成。
+
+**影響的測試 ID**：MU-SEC-003（以兩個資料庫的情境驗證 404 與 total）。
+**同步修改的規格**：02 §1.3「資料隔離」。
