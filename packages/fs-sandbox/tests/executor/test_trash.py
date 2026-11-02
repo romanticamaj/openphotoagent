@@ -69,3 +69,29 @@ def test_trash_006_retention_purge_then_undo_reports_expired(env, helpers):
     assert not (env.tree.sorted / ".opagent-trash" / "old").exists()
     assert [(r.status, r.error) for r in ex.undo("old")] == [("conflict", "UNDO_TRASH_EXPIRED")]
     assert [r.status for r in ex.undo("new")] == ["undone"] and q.exists()
+
+
+@pytest.mark.integration
+@pytest.mark.tc("TRASH-003")
+def test_trash_003_undo_never_overwrites_a_new_file_in_the_old_place(env, helpers):
+    a, p = trash_action(env.tree, "z/IMG_6.jpg", b"six", helpers)
+    env.ex.apply("plan6", [a])
+    p.write_bytes(b"someone put a new file here")
+    res = env.ex.undo("plan6")
+    assert [(r.status, r.error, r.dst_rel) for r in res] == [("conflict", "UNDO_SOURCE_OCCUPIED", "z/IMG_6.jpg")]
+    assert p.read_bytes() == b"someone put a new file here"
+    assert (env.tree.sorted / ".opagent-trash" / "plan6" / "z" / "IMG_6.jpg").read_bytes() == b"six"
+
+
+@pytest.mark.integration
+@pytest.mark.tc("TRASH-006")
+def test_trash_006_undo_after_purge_names_the_photo(env, helpers):
+    clk = FakeClock()
+    ex = Executor(env.sb, env.fs, env.journal, clock=clk)
+    a, _ = trash_action(env.tree, "w/IMG_7.jpg", b"seven", helpers)
+    ex.apply("p7", [a])
+    clk.advance(timedelta(days=31).total_seconds())
+    ex.purge_trash(retention_days=30)
+    assert [(r.status, r.error, r.dst_rel) for r in ex.undo("p7")] == [
+        ("conflict", "UNDO_TRASH_EXPIRED", "w/IMG_7.jpg")
+    ]
