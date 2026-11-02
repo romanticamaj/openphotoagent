@@ -17,7 +17,7 @@ import pytest
 TOKEN = "s" * 64
 
 
-def _launch(dsn, home: Path, port: int, extra_env=None, pre=()):
+def _launch(dsn, home: Path, port: int, extra_env=None, pre=(), extra_args=()):
     env = {k: v for k, v in os.environ.items() if not k.startswith("OPAGENT_")}
     env.update(extra_env or {})
     argv = [
@@ -34,6 +34,7 @@ def _launch(dsn, home: Path, port: int, extra_env=None, pre=()):
         "--token-stdin",
         "--home",
         str(home),
+        *extra_args,
     ]
     p = subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env)
     p.stdin.write((TOKEN + "\n").encode())
@@ -198,3 +199,29 @@ def test_desk_035_port_listens_before_run_file_appears(embedded_pg, tmp_path, st
             pass
         p.terminate()
         p.wait(10)
+
+
+@pytest.mark.integration
+@pytest.mark.tc("DESK-015")
+def test_desk_015_lan_mode_needs_a_password_then_binds_all_interfaces(embedded_pg, tmp_path, stop):
+    home = tmp_path / "lan"
+    port = _free_port()
+    p = _launch(embedded_pg.dsn, home, port, extra_args=["--lan"])
+    stop(p)
+    out, _ = p.communicate(timeout=60)
+    assert p.returncode == 5 and b"LAN_PASSWORD_REQUIRED" in out  # never open to the network without login
+    r = subprocess.run(
+        [sys.executable, "-I", "-m", "opagent_cli", "lan-password", "--home", str(home)],
+        input=b"correct horse\n",
+        capture_output=True,
+        timeout=60,
+    )
+    assert r.returncode == 0, r.stderr
+    cfg = json.loads((home / "config" / "lan.json").read_text())
+    assert cfg["password_hash"].startswith("$argon2id$") and "correct horse" not in json.dumps(cfg)
+    assert stat.S_IMODE((home / "config" / "lan.json").stat().st_mode) == 0o600
+    p = _launch(embedded_pg.dsn, home, port, extra_args=["--lan"])
+    stop(p)
+    _wait_run(home, p)
+    assert _listening(port) == ["00000000"]
+    assert httpx.get(f"http://127.0.0.1:{port}/api/v1/capabilities").status_code == 401
