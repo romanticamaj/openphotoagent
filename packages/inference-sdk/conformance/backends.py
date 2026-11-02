@@ -84,6 +84,11 @@ from opagent_adapters.testing import llamacpp_harness, openai_sibling, ort_harne
 
 HARNESSES["llamacpp-fakeruntime"] = llamacpp_harness(Harness, sibling=openai_sibling)
 HARNESSES["ort-tiny"] = ort_harness(Harness)
+# v0.4 advanced packs, through FakeRuntime flavours that enforce each runtime's request style (RT-VLLM-001, RT-MLX-001)
+from opagent_adapters.testing import managed_harness  # noqa: E402
+
+HARNESSES["vllm-fakeruntime"] = managed_harness(Harness, "vllm")
+HARNESSES["mlx-fakeruntime"] = managed_harness(Harness, "mlx")
 
 FACTORIES: dict[str, Callable[[], InferenceBackend]] = {
     name: (lambda h=h: h.make_fn(h)) for name, h in HARNESSES.items()

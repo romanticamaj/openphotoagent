@@ -51,6 +51,7 @@ def check_items(items: list[Any]) -> list[ImageInput]:
 
 class OpenAICompatAdapter:
     adapter_key = "openai-compatible"
+    confidence_source = "self_report"  # the model states high/medium/low in its JSON; no logprobs are used
 
     def __init__(
         self,
@@ -138,6 +139,8 @@ class OpenAICompatAdapter:
             body["response_format"] = {"type": "json_schema", "json_schema": {"name": "fused", "schema": schema}}
         elif self.structured_output == "json_object":
             body["response_format"] = {"type": "json_object"}
+        elif self.structured_output == "guided_json":  # vLLM's own structured-output parameter
+            body["guided_json"] = schema
         return body
 
     async def _post(self, client: httpx.AsyncClient, body: dict[str, Any]) -> str:
@@ -199,6 +202,7 @@ class OpenAICompatAdapter:
                             "retried": res.retried,
                             "flags": res.flags,
                             "contains_image_text": res.contains_image_text,
+                            "confidence_source": self.confidence_source,
                         },
                         usage={},
                     )
