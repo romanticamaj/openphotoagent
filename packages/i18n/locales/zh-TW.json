@@ -81,7 +81,8 @@
     "moveGo": "移動",
     "moveNeedAck": "請先勾選確認",
     "moveNeedText": "請輸入確認字串",
-    "close": "取消"
+    "close": "取消",
+    "summaryTrash": "將移到垃圾桶 {count} 張，保留每組的代表張。可隨時復原"
   },
   "eta": {
     "slow": {
@@ -325,7 +326,8 @@
     "models": "模型",
     "doctor": "系統",
     "settings": "設定",
-    "local": "100% 本機"
+    "local": "100% 本機",
+    "duplicates": "重複照片"
   },
   "viewer": {
     "title": "照片",
@@ -544,5 +546,17 @@
     "applyDone": "整理完成",
     "modelReady": "模型已下載完成",
     "failed": "有一項工作失敗，點這裡查看原因"
+  },
+  "duplicates": {
+    "title": "重複照片",
+    "selectAll": "全選",
+    "groups": "{count} 組",
+    "reclaimable": "可釋放 {size}",
+    "representative": "代表張",
+    "exact": "完全相同",
+    "near": "近似",
+    "makePlan": "產生清理計畫（移到垃圾桶 {count} 張）",
+    "empty": "沒有找到重複照片",
+    "explain": "每組保留代表張（解析度最高、檔案最大、最早拍攝），其餘移到原資料夾的垃圾桶，可隨時復原。"
   }
 }

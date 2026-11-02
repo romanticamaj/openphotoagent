@@ -49,9 +49,11 @@ export function PlanPage({ planId }: { planId: string }) {
       {status === "draft" && (
         <>
           <p data-testid="plan-summary" className="text-lg">
-            {moves
-              ? t("organize.summaryMove", { count: moves, folders: p.summary.folders })
-              : t("organize.summaryCopy", { count: p.summary.copy, folders: p.summary.folders })}
+            {p.summary.trash
+              ? t("organize.summaryTrash", { count: p.summary.trash })
+              : moves
+                ? t("organize.summaryMove", { count: moves, folders: p.summary.folders })
+                : t("organize.summaryCopy", { count: p.summary.copy, folders: p.summary.folders })}
           </p>
           <PlanTree actions={p.actions ?? []} />
           <Button

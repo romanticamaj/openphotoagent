@@ -21,6 +21,7 @@ const PAGES = [
   () => import("./features/review/ReviewPage"),
   () => import("./features/search/SearchPage"),
   () => import("./features/models/ModelsPage"),
+  () => import("./features/duplicates/DuplicatesPage"),
 ];
 export function prefetchPages(delayMs = 3000) {
   if (typeof window === "undefined") return;
@@ -33,6 +34,7 @@ const SettingsPage = lazy(() => import("./features/system/SettingsPage").then((m
 const PlanPage = lazy(() => import("./features/organize/PlanPage").then((m) => ({ default: m.PlanPage })));
 const ReviewPage = lazy(() => import("./features/review/ReviewPage").then((m) => ({ default: m.ReviewPage })));
 const SearchPage = lazy(() => import("./features/search/SearchPage").then((m) => ({ default: m.SearchPage })));
+const DuplicatesPage = lazy(() => import("./features/duplicates/DuplicatesPage").then((m) => ({ default: m.DuplicatesPage })));
 const ModelsPage = lazy(() => import("./features/models/ModelsPage").then((m) => ({ default: m.ModelsPage })));
 const ModelCard = lazy(() => import("./features/models/ModelsPage").then((m) => ({ default: m.ModelCard })));
 
@@ -50,6 +52,7 @@ function Shell() {
     ["/", "nav.photos"],
     ["/organize", "nav.organize"],
     ["/review", "nav.review"],
+    ["/duplicates", "nav.duplicates"],
     ["/models", "nav.models"],
     ["/system/doctor", "nav.doctor"],
     ["/settings", "nav.settings"],
@@ -108,6 +111,7 @@ const reviewRoute = createRoute({
     return <ReviewPage jobId={job} />;
   },
 });
+const duplicatesRoute = createRoute({ getParentRoute: () => root, path: "/duplicates", component: DuplicatesPage });
 const modelsRoute = createRoute({ getParentRoute: () => root, path: "/models", component: ModelsPage });
 const modelRoute = createRoute({
   getParentRoute: () => root,
@@ -139,7 +143,7 @@ const organize = createRoute({
   ),
 });
 
-export const router = createRouter({ routeTree: root.addChildren([photos, welcome, organize, plan, reviewRoute, search, modelsRoute, modelRoute, doctorRoute, settingsRoute]) });
+export const router = createRouter({ routeTree: root.addChildren([photos, welcome, organize, plan, reviewRoute, search, duplicatesRoute, modelsRoute, modelRoute, doctorRoute, settingsRoute]) });
 
 declare module "@tanstack/react-router" {
   interface Register {

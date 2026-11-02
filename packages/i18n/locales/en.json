@@ -81,7 +81,8 @@
     "moveGo": "Move",
     "moveNeedAck": "Tick the confirmation first",
     "moveNeedText": "Type the confirmation text",
-    "close": "Cancel"
+    "close": "Cancel",
+    "summaryTrash": "Move {count} to the trash, keeping one copy of each group. You can undo at any time"
   },
   "eta": {
     "slow": {
@@ -325,7 +326,8 @@
     "models": "Models",
     "doctor": "System",
     "settings": "Settings",
-    "local": "100% on this computer"
+    "local": "100% on this computer",
+    "duplicates": "Duplicates"
   },
   "viewer": {
     "title": "Photos",
@@ -544,5 +546,17 @@
     "applyDone": "Organizing finished",
     "modelReady": "The model finished downloading",
     "failed": "A task failed — click to see why"
+  },
+  "duplicates": {
+    "title": "Duplicate photos",
+    "selectAll": "Select all",
+    "groups": "{count} groups",
+    "reclaimable": "{size} can be freed",
+    "representative": "Kept",
+    "exact": "Identical",
+    "near": "Similar",
+    "makePlan": "Create clean-up plan (move {count} to trash)",
+    "empty": "No duplicates found",
+    "explain": "Each group keeps its best copy (highest resolution, largest file, earliest date); the others move to the folder's trash and can be restored at any time."
   }
 }
