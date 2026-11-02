@@ -57,6 +57,9 @@ export function SettingsPage() {
         <h2 id="mcp-h" className="font-semibold">{t("mcp.title")}</h2>
         <p className="text-sm text-[var(--text-muted)]">{t("mcp.intro")}</p>
         <Link to="/settings/integrations" className="underline">{t("mcp.open")}</Link>
+        <p>
+          <Link to="/settings/faces" className="underline">{t("settings.faces")}</Link>
+        </p>
       </section>
       <section aria-labelledby="engine-h" className="space-y-2">
         <h2 id="engine-h" className="font-semibold">{t("settings.engine")}</h2>

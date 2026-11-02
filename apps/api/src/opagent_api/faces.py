@@ -136,13 +136,45 @@ def get_settings(req: Request) -> dict[str, Any]:
                 worker_task.c.kind == "face_purge", worker_task.c.status.in_(("pending", "leased"))
             )
         ).scalar_one()
+    with _st(req).engine.begin() as c:
+        name = c.execute(select(workspace.c.name).where(workspace.c.id == DEFAULT_WS)).scalar()
     return {
         "enabled": bool(s.get("enabled")),
+        "prompt_dismissed": bool(s.get("prompt_dismissed")),
+        "workspace_name": name,
         "sources": s.get("sources"),
         "space_id": s.get("space_id"),
         "show_people": bool(s.get("enabled")),
         "worker_purge_pending": bool(pending),
     }
+
+
+@router.post("/faces/prompt/dismiss")
+def dismiss_prompt(req: Request) -> dict[str, Any]:
+    """「稍後」 on the opt-in card: never asked again on the photos page; Settings still has the switch."""
+    ui_only(req)
+    st = _st(req)
+    with st.engine.begin() as c:
+        _put(c, DEFAULT_WS, {**fsettings(c), "prompt_dismissed": True})
+    return get_settings(req)
+
+
+class DisableIn(BaseModel):
+    delete: bool = True  # the UI ticks 「同時刪除」 by default (07 §6.3; FACE-PRG-004)
+    confirm: str | None = None
+
+
+@router.post("/faces/disable")
+def disable(body: DisableIn, req: Request) -> dict[str, Any]:
+    ui_only(req)
+    st = _st(req)
+    if body.delete:
+        return {"purged": purge(PurgeIn(confirm=body.confirm or ""), req)}
+    with st.engine.begin() as c:
+        _put(c, DEFAULT_WS, {**fsettings(c), "enabled": False})
+        c.execute(insert(face_consent).values(id=uuid7(st.clock), workspace_id=DEFAULT_WS, user_id="local",
+                                              action="disable", consent_text_version="-", at=st.clock.now()))
+    return {"purged": None}
 
 
 class EnableIn(BaseModel):
@@ -581,8 +613,8 @@ def reject(fid: str, body: PersonIn, req: Request) -> dict[str, Any]:
     """「不是此人」: a cannot-link that online assignment and clustering always respect (FACE-ASN-006)."""
     st = _st(req)
     with st.engine.begin() as c:
-        cur = c.execute(select(face.c.person_id).where(face.c.id == fid)).scalar()
-        if cur == body.person_id:
+        cur = _current(c, [fid]).get(fid)  # auto, confirmed or a pending suggestion for this person
+        if cur is not None and cur.person_id == body.person_id:
             _write(c, st, fid, None, "unassigned", "review", "user:local")
         c.execute(insert(face_assignment).values(id=uuid7(st.clock), face_id=fid, person_id=body.person_id,
                                                  kind="rejected", method="review", actor="user:local",
@@ -894,7 +926,8 @@ def purge_workspace(st: AppState, ws: str) -> dict[str, Any]:
         for aid in assets:
             c.execute(insert(index_outbox).values(asset_id=aid))
         cur = c.execute(select(workspace.c.settings).where(workspace.c.id == ws)).scalar() or {}
-        c.execute(update(workspace).where(workspace.c.id == ws).values(settings={**cur, "faces": {"enabled": False}}))
+        c.execute(update(workspace).where(workspace.c.id == ws).values(
+            settings={**cur, "faces": {"enabled": False, "prompt_dismissed": True}}))
         c.execute(insert(face_consent).values(id=uuid7(st.clock), workspace_id=ws, user_id="local", action="purge",
                                               consent_text_version="-", at=st.clock.now()))
         report = {"faces": int(n_faces), "embeddings": int(emb or 0), "prototypes": int(protos or 0),

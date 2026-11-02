@@ -24,6 +24,7 @@ const PAGES = [
   () => import("./features/duplicates/DuplicatesPage"),
   () => import("./features/mcp/IntegrationsPage"),
   () => import("./features/mcp/ApprovalPage"),
+  () => import("./features/people/PeoplePage"),
 ];
 export function prefetchPages(delayMs = 3000) {
   if (typeof window === "undefined") return;
@@ -40,6 +41,10 @@ const DuplicatesPage = lazy(() => import("./features/duplicates/DuplicatesPage")
 const IntegrationsPage = lazy(() => import("./features/mcp/IntegrationsPage").then((m) => ({ default: m.IntegrationsPage })));
 const ApprovalPage = lazy(() => import("./features/mcp/ApprovalPage").then((m) => ({ default: m.ApprovalPage })));
 const ApprovalInbox = lazy(() => import("./features/mcp/ApprovalPage").then((m) => ({ default: m.ApprovalInbox })));
+const PeoplePage = lazy(() => import("./features/people/PeoplePage").then((m) => ({ default: m.PeoplePage })));
+const FaceReview = lazy(() => import("./features/people/PeoplePage").then((m) => ({ default: m.FaceReview })));
+const FaceSettingsPage = lazy(() => import("./features/people/PeoplePage").then((m) => ({ default: m.FaceSettingsPage })));
+const FaceOptInCard = lazy(() => import("./features/people/PeoplePage").then((m) => ({ default: m.FaceOptInCard })));
 const ModelsPage = lazy(() => import("./features/models/ModelsPage").then((m) => ({ default: m.ModelsPage })));
 const ModelCard = lazy(() => import("./features/models/ModelsPage").then((m) => ({ default: m.ModelCard })));
 
@@ -53,8 +58,11 @@ function Shell() {
     const n = platform().notify && notificationFor(d as OpStatusEvent);
     if (n) platform().notify!(t(n.key), n.route);
   });
+  // 「人物」 appears only once faces are on (07 §4.1; FACE-GATE-001)
+  const faces = useQuery({ queryKey: ["face-settings"], queryFn: api.faceSettings, staleTime: 30_000 });
   const nav: Array<[string, string]> = [
     ["/", "nav.photos"],
+    ...(faces.data?.enabled ? ([["/people", "nav.people"]] as Array<[string, string]>) : []),
     ["/organize", "nav.organize"],
     ["/review", "nav.review"],
     ["/duplicates", "nav.duplicates"],
@@ -81,6 +89,7 @@ function Shell() {
         <RecoveryCard onReview={() => setActivity(true)} />
         <Suspense fallback={null}>
           <ApprovalInbox />
+          <FaceOptInCard />
         </Suspense>
         <Suspense fallback={<div aria-busy="true" />}>
           <Outlet />
@@ -132,6 +141,9 @@ const modelRoute = createRoute({
 const doctorRoute = createRoute({ getParentRoute: () => root, path: "/system/doctor", component: DoctorPage });
 const settingsRoute = createRoute({ getParentRoute: () => root, path: "/settings", component: SettingsPage });
 const integrationsRoute = createRoute({ getParentRoute: () => root, path: "/settings/integrations", component: IntegrationsPage });
+const peopleRoute = createRoute({ getParentRoute: () => root, path: "/people", component: PeoplePage });
+const faceReviewRoute = createRoute({ getParentRoute: () => root, path: "/people/review", component: FaceReview });
+const faceSettingsRoute = createRoute({ getParentRoute: () => root, path: "/settings/faces", component: FaceSettingsPage });
 const approvalRoute = createRoute({ getParentRoute: () => root, path: "/approvals/$approvalId", component: ApprovalPage });
 const welcome = createRoute({ getParentRoute: () => root, path: "/welcome", component: Welcome });
 const search = createRoute({
@@ -153,7 +165,7 @@ const organize = createRoute({
   ),
 });
 
-export const router = createRouter({ routeTree: root.addChildren([photos, welcome, organize, plan, reviewRoute, search, duplicatesRoute, modelsRoute, modelRoute, doctorRoute, settingsRoute, integrationsRoute, approvalRoute]) });
+export const router = createRouter({ routeTree: root.addChildren([photos, welcome, organize, plan, reviewRoute, search, duplicatesRoute, modelsRoute, modelRoute, doctorRoute, settingsRoute, integrationsRoute, approvalRoute, peopleRoute, faceReviewRoute, faceSettingsRoute]) });
 
 declare module "@tanstack/react-router" {
   interface Register {

@@ -342,7 +342,8 @@
     "doctor": "系統",
     "settings": "設定",
     "local": "100% 本機",
-    "duplicates": "重複照片"
+    "duplicates": "重複照片",
+    "people": "人物"
   },
   "viewer": {
     "title": "照片",
@@ -554,7 +555,8 @@
     "engine": "本機引擎",
     "folders": "照片資料夾",
     "readOnly": "唯讀",
-    "writable": "可寫入"
+    "writable": "可寫入",
+    "faces": "人臉辨識設定"
   },
   "notify": {
     "labelDone": "整理預覽已完成，可以檢查計畫了",
@@ -647,5 +649,37 @@
     "follow": "查看進度",
     "card": "{client} 請求整理 {n} 張照片",
     "open": "查看並決定"
+  },
+  "faces": {
+    "card": "想用人臉找照片嗎？人臉辨識預設關閉，只在這台電腦上計算。",
+    "learnMore": "了解並設定",
+    "later": "稍後",
+    "people": "人物",
+    "review": "確認人臉",
+    "unnamed": "未命名",
+    "count": "{n} 張照片",
+    "others": "其他臉孔：{n} 張",
+    "transparency": "人臉資料只存在這台電腦；可在設定一鍵全部刪除。",
+    "reviewDone": "目前沒有需要確認的人臉",
+    "isThis": "這是不是 {name}？",
+    "score": "相似度",
+    "keys": "按 Y 確認、N 不是、S 略過",
+    "yes": "是",
+    "no": "不是",
+    "skip": "略過",
+    "settings": "人臉辨識",
+    "explain": "開啟後會在這台電腦上偵測照片中的臉並分群，讓你用人物找照片。不做年齡、性別或情緒推論，也不會上傳。",
+    "enable": "開啟人臉辨識",
+    "disable": "停用人臉辨識",
+    "purged": "已刪除 {faces} 張臉與 {persons} 個人物的資料",
+    "consent": "人臉特徵屬於生物特徵資料。只在這台電腦計算與儲存，可隨時一鍵刪除；請只對你有權處理的照片開啟。",
+    "agree": "我了解並同意在這台電腦上處理人臉資料",
+    "needConsent": "請先勾選同意",
+    "agreeAndEnable": "同意並開啟",
+    "alsoDelete": "同時刪除所有人臉資料（建議）",
+    "typeName": "輸入圖庫名稱「{name}」以確認",
+    "typeNameFirst": "請先輸入圖庫名稱",
+    "disableAndDelete": "停用並刪除",
+    "disableOnly": "只停用"
   }
 }
