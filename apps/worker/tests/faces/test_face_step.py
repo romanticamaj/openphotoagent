@@ -29,7 +29,7 @@ class W:
         self.w.register()
         self.src = self.client.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": ""}).json()["id"]
         self.client.post(f"/api/v1/sources/{self.src}/scan")
-        while self.w.process_tasks_once():
+        while self.w.run_once():
             pass
 
     def sql(self, q, **p):
