@@ -78,8 +78,8 @@ def test_plan_008_camera_make(gz, q):
 @pytest.mark.tc("SRCH-PLAN-009")
 def test_plan_009_remaining_words(gz):
     p = P("夕陽 很美 的 照片", gz)
-    assert p["text"] == "夕陽 很美"  # 的／照片 are stop words
-    assert p["filters"] == {}
+    assert p["text"] == "夕陽 很美"  # 的／照片 are stop words; a tag word stays in text as well (05 §2.3)
+    assert "taken_at" not in p["filters"] and "place" not in p["filters"]
 
 
 @pytest.mark.unit

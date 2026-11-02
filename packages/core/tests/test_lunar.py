@@ -1,7 +1,4 @@
-import subprocess
-import sys
 from datetime import date
-from pathlib import Path
 
 import pytest
 from opagent_core.lunar import lunar_new_year

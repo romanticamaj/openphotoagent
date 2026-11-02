@@ -15,21 +15,43 @@ DATA = Path(__file__).with_name("data")
 
 # country names users type (zh-TW / ja / en) → ISO 3166-1 alpha-2
 COUNTRIES: dict[str, str] = {
-    "日本": "JP", "japan": "JP", "日本國": "JP",
-    "台灣": "TW", "臺灣": "TW", "taiwan": "TW",
-    "韓國": "KR", "南韓": "KR", "korea": "KR", "south korea": "KR",
-    "中國": "CN", "china": "CN",
-    "香港": "HK", "hong kong": "HK",
-    "美國": "US", "usa": "US", "united states": "US",
-    "英國": "GB", "uk": "GB", "united kingdom": "GB",
-    "法國": "FR", "france": "FR",
-    "德國": "DE", "germany": "DE",
-    "義大利": "IT", "意大利": "IT", "italy": "IT",
-    "泰國": "TH", "thailand": "TH",
-    "越南": "VN", "vietnam": "VN",
-    "新加坡": "SG", "singapore": "SG",
-    "澳洲": "AU", "australia": "AU",
-    "加拿大": "CA", "canada": "CA",
+    "日本": "JP",
+    "japan": "JP",
+    "日本國": "JP",
+    "台灣": "TW",
+    "臺灣": "TW",
+    "taiwan": "TW",
+    "韓國": "KR",
+    "南韓": "KR",
+    "korea": "KR",
+    "south korea": "KR",
+    "中國": "CN",
+    "china": "CN",
+    "香港": "HK",
+    "hong kong": "HK",
+    "美國": "US",
+    "usa": "US",
+    "united states": "US",
+    "英國": "GB",
+    "uk": "GB",
+    "united kingdom": "GB",
+    "法國": "FR",
+    "france": "FR",
+    "德國": "DE",
+    "germany": "DE",
+    "義大利": "IT",
+    "意大利": "IT",
+    "italy": "IT",
+    "泰國": "TH",
+    "thailand": "TH",
+    "越南": "VN",
+    "vietnam": "VN",
+    "新加坡": "SG",
+    "singapore": "SG",
+    "澳洲": "AU",
+    "australia": "AU",
+    "加拿大": "CA",
+    "canada": "CA",
 }
 
 
@@ -50,7 +72,7 @@ class Gazetteer:
     def __init__(self, places: list[tuple[Place, list[str]]]) -> None:
         self._by_name: dict[str, list[Place]] = {}
         for place, names in places:
-            for n in {_norm(x) for x in names + [place.name]}:
+            for n in {_norm(x) for x in [*names, place.name]}:
                 self._by_name.setdefault(n, []).append(place)
         for lst in self._by_name.values():
             lst.sort(key=lambda p: (-p.population, p.geoname_id))
