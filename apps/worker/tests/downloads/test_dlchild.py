@@ -31,3 +31,52 @@ def test_desk_006_download_child_leaves_with_the_worker_and_keeps_parts(tmp_path
         assert list((tmp_path / "models").rglob("*.part")), "partial data is kept for the next worker to resume"
     finally:
         srv.stop()
+
+
+@pytest.mark.integration
+@pytest.mark.tc("DESK-006")
+def test_desk_006_stopping_the_worker_drops_its_download_child_without_reporting(tmp_path):
+    """Regression (ADR-0007): a stopped worker must not leave a download running that later reports into whatever
+    runs next; it is dropped like a crash (parts kept) and the restart recovery resumes it (DL-014)."""
+    import threading
+
+    from opagent_worker.agent import WorkerAgent
+
+    srv = HfServer(REPO, [HfFile("big.bin", 40 * 1024 * 1024, seed=2)], rate_bps=2 * 1024 * 1024).start()
+    posted: list[str] = []
+
+    class Client:
+        def post(self, url, json=None):  # noqa: A002 - mirrors httpx
+            posted.append(url)
+
+            class R:
+                status_code = 200
+
+                @staticmethod
+                def json():
+                    return {}
+
+            return R()
+
+    try:
+        f = srv.files[0]
+        w = WorkerAgent(
+            Client(), roots=[], home=tmp_path / "w", models_root=tmp_path / "models", download_sources=[srv.url]
+        )
+        w.download_reserve_floor = 0
+        files = [{"repo": REPO, "revision": "main", "path": f.path, "size": f.size, "sha256": f.sha256}]
+        task = {"id": "t1", "kind": "download", "payload": {"op_id": "op1", "files": files}}
+        th = threading.Thread(target=w._run_task, args=(task, True), daemon=True)
+        th.start()
+        deadline = time.monotonic() + 30  # noqa: TID251
+        while not any("/progress" in u for u in posted) and time.monotonic() < deadline:  # noqa: TID251
+            time.sleep(0.05)  # noqa: TID251
+        child = w._active_child
+        assert child is not None and child.proc.is_alive()
+        w.stop_downloads()
+        th.join(5)
+        assert not th.is_alive() and not child.proc.is_alive()
+        assert not any(u.endswith("/complete") for u in posted)  # nothing reported after the stop
+        assert list((tmp_path / "models").rglob("*.part"))
+    finally:
+        srv.stop()
