@@ -328,6 +328,7 @@
 | ASK-PERF-001 | 延遲 | 16 GB 參考機、10 萬張 | `turn.started` < 150 ms；檢索型首 token < 2 s；統計模板 < 500 ms（nightly 記錄並守門 +20%） | N/F | #100 |
 | ASK-MEM-001 | 追問 delta | 「只要有狗的」 | 以工作集 filters 合併新條件 | U | #100 |
 | ASK-MEM-002 | 保存與刪除 | `retention_days=0`；一鍵刪除 | 不保存；刪除後 conversation／message／step／citation 皆無 | I | #105 |
+| ASK-UI-001 | 建議問題 chips 依資料產生 | 圖庫 top tag 為「貓」、最近年份 2025；Lightbox 單張 | 「我有幾張貓？」「貓的照片」「2025 年的照片」；單張先給「在哪裡／什麼時候」；**不呼叫 LLM** | I | #100 |
 
 ---
 

@@ -187,7 +187,8 @@ def test_eval_small_set(lib):
                 good = "沒有位置資訊" in text
             else:
                 good = f"{t.year} 年 {t.month} 月 {t.day} 日" in text
-            m["single"].append(good and "99" not in text)
+            good = good and "99 張" not in text  # the boast must not survive (IDs may contain 99)
+            m["single"].append(good)
         elif kind == "action":
             card = out["cards"][0] if out["cards"] else {}
             p = card.get("payload") or {}

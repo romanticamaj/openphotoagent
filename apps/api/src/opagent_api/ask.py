@@ -47,6 +47,7 @@ NEVER_OFFERED = {"apply_organize", "undo_organize"}  # 10 §8.3: the assistant c
 ACTION = re.compile(r"整理|移到|移動到|複製到|搬到|加到|標上|copy|move", re.IGNORECASE)
 COMPLEX = re.compile(r"比較|每月|每年|誰|趨勢|哪一年|which year|compare", re.IGNORECASE)
 SINGLE = re.compile(r"這張|this photo")
+EDITED = "使用你編輯的條件"
 WHERE = re.compile(r"哪裡|在哪|where", re.IGNORECASE)
 WHEN = re.compile(r"什麼時候|何時|哪一天|幾月|when", re.IGNORECASE)
 CAMERA = re.compile(r"相機|哪台|camera", re.IGNORECASE)
@@ -106,9 +107,36 @@ class SettingsIn(BaseModel):
     retention_days: int | None = Field(default=None, ge=0, le=3650)
 
 
+def machine(st: AppState) -> dict[str, Any]:
+    """What the local machine can run (10 §8.2): no GPU → suggest an external endpoint or the slow local mode
+    (ASK-PRV-005); ≤ 8 GB or a small model → the general tool loop stays off (ASK-LOOP-004)."""
+    from opagent_db.schema import worker
+
+    with st.engine.begin() as c:
+        caps = c.execute(
+            select(worker.c.capabilities).order_by(worker.c.last_heartbeat_at.desc().nulls_last()).limit(1)
+        ).scalar()
+    hw = (caps or {}).get("hw") or {}
+    gpus = hw.get("gpus") or []
+    vram = max((float(g.get("vram_total_gb") or 0.0) for g in gpus), default=0.0)
+    unified = any(g.get("unified") for g in gpus)
+    if unified:  # Apple silicon: the model shares system memory
+        vram = max(vram, float(hw.get("ram_gb") or 0.0) * 0.6)
+    capable = vram >= 6.0 if hw else True  # nothing reported yet: do not nag
+    return {
+        "vram_gb": vram if hw else 16.0,
+        "local_capable": capable,
+        "advice": None if capable else "external_or_slow_local",
+    }
+
+
 @router.get("/assistant-settings")
 def get_settings(req: Request) -> dict[str, Any]:
-    return _settings(req.app.state.opa)
+    st = req.app.state.opa
+    mc = machine(st)
+    llm = getattr(st, "llm", None) or FakeLLM()
+    on = loop_enabled(vram_gb=mc["vram_gb"], model_params_b=8, tool_calling_ok=llm.tool_calling_ok)
+    return {**_settings(st), **{k: v for k, v in mc.items() if k != "vram_gb"}, "loop_enabled": on}
 
 
 @router.patch("/assistant-settings")
@@ -127,6 +155,8 @@ class AskIn(BaseModel):
     conversation_id: str | None = None
     context: dict[str, Any] = Field(default_factory=dict)
     today: str | None = None  # tests pin "today"; the server uses its clock otherwise
+    filters: dict[str, Any] | None = None  # edited chips (ASK-SSE-004): run these, do not parse the question again
+    text: str | None = None  # the text part that goes with edited chips
     person_names: dict[str, str] = Field(default_factory=dict)  # name → person id known to the UI
 
 
@@ -160,6 +190,45 @@ def ask(body: AskIn, req: Request) -> StreamingResponse:
             st.ask_turns.pop(turn, None)
 
     return StreamingResponse(sse(), media_type="text/event-stream")
+
+
+@router.get("/ask/suggestions")
+def suggestions(req: Request, photo_id: str | None = None) -> dict[str, Any]:
+    """10 §9.2: suggested questions from the library itself (top tags, recent years) — never from the model."""
+    from opagent_db.schema import search_doc
+    from sqlalchemy import func, text
+
+    from .mcp_tools import tag_display
+
+    if photo_id:  # Lightbox: questions metadata can answer first
+        return {
+            "suggestions": [
+                {"kind": "single", "text": "這張是在哪裡拍的？"},
+                {"kind": "single", "text": "這張是什麼時候拍的？"},
+                {"kind": "single", "text": "這張照片裡有什麼？"},
+            ]
+        }
+    out: list[dict[str, str]] = []
+    with req.app.state.opa.engine.begin() as c:
+        tags = c.execute(
+            text(
+                "SELECT tag, count(*) AS n FROM search_doc, unnest(tags) AS tag"
+                " GROUP BY tag ORDER BY n DESC, tag LIMIT 2"
+            )
+        ).all()
+        years = c.execute(
+            select(func.extract("year", search_doc.c.taken_at).label("y"))
+            .where(search_doc.c.taken_at.is_not(None))
+            .group_by("y")
+            .order_by(text("y DESC"))
+            .limit(1)
+        ).all()
+    for row in tags:
+        name = tag_display(row.tag)
+        out += [{"kind": "count", "text": f"我有幾張{name}？"}, {"kind": "retrieval", "text": f"{name}的照片"}]
+    for (y,) in years:
+        out.append({"kind": "year", "text": f"{int(y)} 年的照片"})
+    return {"suggestions": out}
 
 
 @router.post("/ask/turns/{turn_id}/cancel")
@@ -285,7 +354,7 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
         settings = mcp_settings(c)
     ctx = H.Ctx(st=st, tok=AssistantToken(faces_on), settings=settings, proto="2026-07-28", client="builtin-assistant")
     intent = route(body.message, body.context)
-    vram = 16.0
+    vram = float(machine(st)["vram_gb"])
     path = (
         "loop"
         if intent == "complex" and loop_enabled(vram_gb=vram, model_params_b=8, tool_calling_ok=llm.tool_calling_ok)
@@ -370,13 +439,25 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
     sid, d, t0 = started("understand", "理解問題")
     yield "step.started", d
     today = date.fromisoformat(body.today) if body.today else st.clock.now().date()
-    p = plan(body.message, today=today)
     filters: dict[str, Any] = {}
-    if "taken_at" in p["filters"]:
-        filters["taken_at"] = p["filters"]["taken_at"]
-    if p["filters"].get("tags_any"):
-        filters["tags_any"] = p["filters"]["tags_any"]
-    yield "filters", {"applied_filters": filters, "planner_explain": p["planner"]["explain"], "editable": True}
+    if body.filters is not None:  # the user edited the chips: run exactly those (ASK-SSE-004)
+        p: dict[str, Any] = {"text": body.text or "", "filters": dict(body.filters), "planner": {"explain": [EDITED]}}
+        filters = {k: v for k, v in body.filters.items() if k in ("taken_at", "tags_any", "tags_all")}
+    else:
+        p = plan(body.message, today=today)
+        if "taken_at" in p["filters"]:
+            filters["taken_at"] = p["filters"]["taken_at"]
+        if p["filters"].get("tags_any"):
+            filters["tags_any"] = p["filters"]["tags_any"]
+    yield (
+        "filters",
+        {
+            "applied_filters": filters,
+            "text": p["text"],
+            "planner_explain": p["planner"]["explain"],
+            "editable": True,
+        },
+    )
     yield "step.completed", completed(sid, t0, "ok", "；".join(p["planner"]["explain"]) or "以文字搜尋")
 
     seen: set[str] = set()
@@ -453,7 +534,7 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
             summary = "完成"
         yield "step.completed", completed(sid, t0, "ok", summary, name)
 
-    text_q = p["text"] or body.message
+    text_q = p["text"] if body.filters is not None else (p["text"] or body.message)
     card: dict[str, Any] | None = None
     if intent == "count":
         yield from run("count_photos", {"filters": filters, **({"query": text_q} if not filters else {})})

@@ -177,3 +177,59 @@ def test_mem_002_retention_zero_and_delete(m):
     m.client.patch("/api/v1/assistant-settings", json={"retention_days": 0}, headers=m.ui)
     ask(m, "海邊的貓", FakeLLM([_cite_first]))
     assert m.sql("select count(*) from message").scalar() == 0
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-SSE-004")
+def test_sse_004_edited_chips_rerun_without_reparsing(m):
+    ev = ask(m, "2025 年海邊的貓", FakeLLM([Reply(text="")]), today="2026-11-02")
+    f = next(d for e, d in ev if e == "filters")
+    assert "taken_at" in f["applied_filters"] and f["text"]
+    edited = {k: v for k, v in f["applied_filters"].items() if k != "taken_at"}
+    ev2 = ask(m, "2025 年海邊的貓", FakeLLM([Reply(text="")]), filters=edited, text=f["text"])
+    f2 = next(d for e, d in ev2 if e == "filters")
+    assert f2["applied_filters"] == edited and f2["planner_explain"] == ["使用你編輯的條件"]
+    understand = next(d for e, d in ev2 if e == "step.completed")
+    assert understand["summary"] == "使用你編輯的條件"
+
+
+def _hw(m, profile):
+    from dataclasses import asdict
+
+    from opagent_doctor.probes import load_profile
+
+    m.sql(
+        "update worker set capabilities = jsonb_set(coalesce(capabilities, '{}'::jsonb), '{hw}', CAST(:h AS jsonb))",
+        h=json.dumps(asdict(load_profile(profile))),
+    )
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-PRV-005", "ASK-LOOP-004")
+def test_prv_005_cpu_machine_and_loop_004_small_gpu(m):
+    _hw(m, "no-gpu-linux")
+    s = m.client.get("/api/v1/assistant-settings", headers=m.ui).json()
+    assert s["local_capable"] is False and s["advice"] == "external_or_slow_local"
+    _hw(m, "rtx4060-laptop")  # 8 GB: the general tool loop is off, fast path only
+    s = m.client.get("/api/v1/assistant-settings", headers=m.ui).json()
+    assert s["local_capable"] is True and s["loop_enabled"] is False
+    ev = ask(m, "比較 2023 和 2024 每月拍了多少", FakeLLM(endless_tool="list_facets"))
+    assert ev[0][1]["path"] == "fast" and not [
+        d for e, d in ev if e == "step.started" and d.get("tool") == "list_facets"
+    ]
+    _hw(m, "rtx5070ti-win11")
+    assert m.client.get("/api/v1/assistant-settings", headers=m.ui).json()["loop_enabled"] is True
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-UI-001")
+def test_ui_001_suggestions_come_from_the_library_not_the_model(m):
+    st = m.client.app.state.opa
+    st.llm = FakeLLM(endless_tool="list_tags")  # must not be called
+    out = m.client.get("/api/v1/ask/suggestions", headers=m.ui).json()
+    texts = [x["text"] for x in out["suggestions"]]
+    assert "我有幾張貓？" in texts and "貓的照片" in texts and any("2025 年" in t for t in texts)
+    assert all(x["kind"] in ("count", "retrieval", "year") for x in out["suggestions"])
+    assert st.llm.seen == []
+    one = m.client.get("/api/v1/ask/suggestions", params={"photo_id": m.cats[0]}, headers=m.ui).json()
+    assert [x["text"] for x in one["suggestions"]][:2] == ["這張是在哪裡拍的？", "這張是什麼時候拍的？"]
