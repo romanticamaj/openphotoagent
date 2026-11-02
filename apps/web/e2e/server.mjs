@@ -1,7 +1,7 @@
 // Starts the E2E stack (opagent_testing.e2e_stack): embedded PG + API serving dist/ + in-process Worker on
 // FakeBackend + recorded HF server + synthesized hardware profile. Specs reset it per test via POST /__e2e/reset.
 import { spawn } from "node:child_process";
-import { chmodSync, mkdtempSync } from "node:fs";
+import { chmodSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -20,4 +20,8 @@ const child = spawn(
 const stop = () => child.kill("SIGTERM");
 process.on("SIGTERM", stop);
 process.on("SIGINT", stop);
-child.on("exit", (code) => process.exit(code ?? 0));
+// the stack holds a whole PG cluster plus photo trees: never leave it behind in the temp dir
+child.on("exit", (code) => {
+  rmSync(base, { recursive: true, force: true });
+  process.exit(code ?? 0);
+});
