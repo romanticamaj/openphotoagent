@@ -78,13 +78,29 @@ export type Operation = {
 
 export type SearchBody = {
   q?: string | null;
+  plan?: boolean;
   filters?: { tags_all?: string[]; taken_from?: string; taken_to?: string; category?: string };
   limit?: number;
   cursor?: string | null;
   facets?: string[];
 };
 export type SearchHit = { asset_id: string; ch?: string | null; score: number; matched_by: string[]; category: string | null; tags: string[]; caption: string | null; taken_at: string | null };
-export type SearchResult = { items: SearchHit[]; facets: Record<string, Record<string, number>>; next_cursor: string | null; total: number; degraded: boolean };
+export type Planner = {
+  source: string;
+  confidence: number;
+  explain: string[];
+  text: string;
+  filters: { taken_at?: { from: string; to: string }; tags_any?: string[]; [k: string]: unknown };
+  unapplied: string[];
+};
+export type SearchResult = {
+  items: SearchHit[];
+  facets: Record<string, Record<string, number>>;
+  next_cursor: string | null;
+  total: number;
+  degraded: boolean;
+  planner?: Planner;
+};
 
 export type VariantView = {
   id: string;

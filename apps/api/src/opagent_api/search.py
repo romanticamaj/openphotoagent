@@ -194,8 +194,8 @@ def _apply_plan(st: AppState, body: SearchIn, q: str) -> tuple[dict[str, Any], S
     pf = p["filters"]
     if "taken_at" in pf and not (f.taken_from or f.taken_to):
         f.taken_from, f.taken_to = pf["taken_at"]["from"], pf["taken_at"]["to"]
-    if pf.get("tags_any"):
-        f.tags_any = sorted(set(f.tags_any or []) | set(pf["tags_any"]))
+    # tag words stay in the query text, where the tag route (R4) ranks by them; as a hard filter they would cut
+    # the image-vector route's recall (a photo of a dog that nobody tagged "dog" would vanish)
     flat = {**p["planner"], "filters": pf, "text": p["text"], "unapplied": [k for k in UNINDEXED if k in pf]}
     return flat, body.model_copy(update={"filters": f, "q": p["text"]})
 
