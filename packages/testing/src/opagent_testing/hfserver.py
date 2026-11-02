@@ -228,11 +228,10 @@ class HfServer:
             self._httpd.server_close()
 
 
-def serve_in_child(conn: Any, repo: str, path: str, size: int, seed: int, rate_bps: float | None) -> None:
-    """Entry point for a ``multiprocessing`` child: one file served from another process, like a remote host
+def serve_in_child(conn: Any, repo: str, files: list[tuple[str, int, int]], rate_bps: float | None) -> None:
+    """Entry point for a ``multiprocessing`` child: files served from another process, like a remote host
     (DL-019 measures worker throughput, which a server sharing the test's GIL would distort)."""
-    srv = HfServer(repo, [HfFile(path, size, seed=seed)], rate_bps=rate_bps).start()
-    f = srv.files[0]
-    conn.send((srv.url, f.path, f.size, f.sha256))
+    srv = HfServer(repo, [HfFile(p, n, seed=s) for p, n, s in files], rate_bps=rate_bps).start()
+    conn.send((srv.url, [(f.path, f.size, f.sha256) for f in srv.files]))
     conn.recv()  # until the parent says stop
     srv.stop()
