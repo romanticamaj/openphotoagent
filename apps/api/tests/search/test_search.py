@@ -502,3 +502,22 @@ def test_img_002_search_by_uploaded_image_keeps_it_in_memory(s, tmp_path):
     with s.eng.begin() as c:  # and never stored in the database: task payloads carry a token, not the bytes
         sizes = [len(json.dumps(p)) for (p,) in c.execute(text("select payload from worker_task"))]
     assert max(sizes) < len(data)
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-PLAN-011")
+def test_plan_011_llm_planner_times_out_to_rules(s):
+    import time
+
+    s.add(1, caption="something")
+    s.index()
+    # the worker is registered and online, but nothing serves its queue: the query.plan RPC never returns
+    t0 = time.monotonic()  # noqa: TID251 - measures the RPC deadline
+    r = s.search(q="那張很有感覺的照片", plan=True, semantic=False)
+    took = time.monotonic() - t0  # noqa: TID251
+    assert r["planner"]["source"] == "rules"
+    assert r["planner"]["confidence"] < 0.6
+    assert 1.4 <= took < 3.0  # waited the 1.5 s planner budget, then used the rules
+    with s.eng.begin() as c:
+        kinds = [k for (k,) in c.execute(text("select kind from worker_task where kind = 'query_plan'"))]
+    assert kinds == ["query_plan"]
