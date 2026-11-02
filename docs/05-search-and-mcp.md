@@ -283,6 +283,8 @@ SELECT * FROM fused ORDER BY score DESC LIMIT :limit OFFSET :offset;
 | 本地 LLM（可選） | 規則信心 < 0.6 或使用者開啟時：Worker interactive lane 用已載入的 VLM/LLM（例：Qwen3-VL-8B 純文字模式）以 **structured output（同上 JSON Schema，tag/category enum 由 label set 帶入）** 解析；並產生 `semantic_text_en`（SigLIP2 英文較穩，見 03） | Worker（RPC `query.plan`，timeout 1.5s，逾時用規則結果） |
 | 外部 agent（MCP） | Claude 等 client 本身就是 LLM：tool description 說明 filter 欄位與 `semantic_text_en`，agent 直接填；server 只做驗證與正規化（例如把「Japan」映射成 `JP`） | — |
 
+（回寫 ADR-0008）「過年」與同義詞（春節、農曆新年、農曆年、新春、舊曆年、大年）＝ `[初一 −4 天, 初一 +5 天)`；「新年」不解析；沒有年份時取最近一次已開始的過年；初一對照表內建（1900–2099）。
+
 UI（04）需把 planner 結果顯示為可移除的 filter chips（「2025 年 ×」「日本 ×」「貓 ×」），這也是給使用者的可解釋性。
 
 ### 2.4 可選 VLM rerank

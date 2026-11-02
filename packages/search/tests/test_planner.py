@@ -101,3 +101,43 @@ def test_plan_012_never_raises_and_ranges_are_ordered(q):
     t = p["filters"].get("taken_at")
     if t:
         assert t["from"] < t["to"]
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-PLAN-005")
+def test_plan_005_lunar_new_year(gz):
+    assert P("2025 過年", gz)["filters"]["taken_at"] == {"from": "2025-01-25", "to": "2025-02-03"}
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-PLAN-013")
+def test_plan_013_lunar_new_year_without_a_year_is_the_latest_one(gz):
+    assert P("過年", gz)["filters"]["taken_at"] == {"from": "2026-02-13", "to": "2026-02-22"}
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-PLAN-014")
+@pytest.mark.parametrize("q", ["2025 春節", "2025農曆新年", "民國 114 年過年"])
+def test_plan_014_synonyms(gz, q):
+    assert P(q, gz)["filters"]["taken_at"] == {"from": "2025-01-25", "to": "2025-02-03"}
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-PLAN-015")
+def test_plan_015_new_year_alone_is_not_resolved(gz):
+    p = P("新年 煙火", gz)
+    assert "taken_at" not in p["filters"] and "新年" in p["text"]
+    assert any("元旦" in e and "過年" in e for e in p["planner"]["explain"])
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-PLAN-016")
+def test_plan_016_year_where_eve_is_the_29th(gz):
+    assert P("2030 過年", gz)["filters"]["taken_at"] == {"from": "2030-01-30", "to": "2030-02-08"}
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-PLAN-017")
+def test_plan_017_year_outside_the_table(gz):
+    p = P("1850 過年", gz)
+    assert "taken_at" not in p["filters"] and any("範圍" in e for e in p["planner"]["explain"])
