@@ -16,7 +16,7 @@ def test_desk_006_download_child_leaves_with_the_worker_and_keeps_parts(tmp_path
     try:
         f = srv.files[0]
         files = [{"repo": REPO, "revision": "main", "path": f.path, "size": f.size, "sha256": f.sha256}]
-        c = ChildDownload(tmp_path / "models", [srv.url], "op1", files)
+        c = ChildDownload(tmp_path / "models", [srv.url], "op1", files, reserve_floor=0)  # subject: exit, not disk
         seen = None
         deadline = time.monotonic() + 60  # noqa: TID251 - waiting on a real process
         while seen is None and time.monotonic() < deadline:  # noqa: TID251
