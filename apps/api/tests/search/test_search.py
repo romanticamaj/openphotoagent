@@ -374,3 +374,19 @@ def test_srch_fac_005_total_facets_and_selection_cover_every_match(s):
     assert sel["count"] == 330
     upd = s.client.post(f"/api/v1/selections/{sel['id']}/labels", json={"tags": ["海邊"]}).json()
     assert upd["updated"] == 330
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-RRF-003")
+def test_rrf_003_filter_only_query_sorts_by_date_without_ranking(s):
+    for i, day in enumerate([1, 15, 28, 40, 3]):  # 2024-03-02, -16, -29, 04-10 (outside), 03-04
+        s.add(i, caption=f"photo {i}", taken=datetime(2024, 3, 1, 12, tzinfo=UTC) + timedelta(days=day))
+    s.index()
+    r = s.search(q="2024 年 3 月的照片", plan=True)
+    assert r["planner"]["filters"]["taken_at"] == {"from": "2024-03-01", "to": "2024-04-01"}
+    assert r["planner"]["text"] == ""
+    ids = [h["asset_id"] for h in r["items"]]
+    taken = [h["taken_at"] for h in r["items"]]
+    assert len(ids) == 4 and taken == sorted(taken, reverse=True)  # taken_at desc
+    assert all(h["matched_by"] == ["filter"] for h in r["items"])  # no RRF, no vector route
+    assert "image_vector" not in r.get("degraded", [])
