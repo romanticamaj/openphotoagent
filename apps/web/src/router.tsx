@@ -27,6 +27,7 @@ const PAGES = [
   () => import("./features/people/PeoplePage"),
   () => import("./features/ask/AskPanel"),
   () => import("./features/ask/AssistantSettingsPage"),
+  () => import("./features/map/MapPage"),
 ];
 export function prefetchPages(delayMs = 3000) {
   if (typeof window === "undefined") return;
@@ -49,6 +50,7 @@ const FaceSettingsPage = lazy(() => import("./features/people/PeoplePage").then(
 const FaceOptInCard = lazy(() => import("./features/people/PeoplePage").then((m) => ({ default: m.FaceOptInCard })));
 const AskPanel = lazy(() => import("./features/ask/AskPanel").then((m) => ({ default: m.AskPanel })));
 const AssistantSettingsPage = lazy(() => import("./features/ask/AssistantSettingsPage").then((m) => ({ default: m.AssistantSettingsPage })));
+const MapPage = lazy(() => import("./features/map/MapPage").then((m) => ({ default: m.MapPage })));
 const ModelsPage = lazy(() => import("./features/models/ModelsPage").then((m) => ({ default: m.ModelsPage })));
 const ModelCard = lazy(() => import("./features/models/ModelsPage").then((m) => ({ default: m.ModelCard })));
 
@@ -98,6 +100,7 @@ function Shell() {
   const nav: Array<[string, string]> = [
     ["/", "nav.photos"],
     ...(faces.data?.enabled ? ([["/people", "nav.people"]] as Array<[string, string]>) : []),
+    ["/map", "nav.map"],
     ["/organize", "nav.organize"],
     ["/review", "nav.review"],
     ["/duplicates", "nav.duplicates"],
@@ -186,6 +189,7 @@ const settingsRoute = createRoute({ getParentRoute: () => root, path: "/settings
 const integrationsRoute = createRoute({ getParentRoute: () => root, path: "/settings/integrations", component: IntegrationsPage });
 const peopleRoute = createRoute({ getParentRoute: () => root, path: "/people", component: PeoplePage });
 const faceReviewRoute = createRoute({ getParentRoute: () => root, path: "/people/review", component: FaceReview });
+const mapRoute = createRoute({ getParentRoute: () => root, path: "/map", component: MapPage });
 const assistantRoute = createRoute({ getParentRoute: () => root, path: "/settings/assistant", component: AssistantSettingsPage });
 const faceSettingsRoute = createRoute({ getParentRoute: () => root, path: "/settings/faces", component: FaceSettingsPage });
 const approvalRoute = createRoute({ getParentRoute: () => root, path: "/approvals/$approvalId", component: ApprovalPage });
@@ -209,7 +213,7 @@ const organize = createRoute({
   ),
 });
 
-export const router = createRouter({ routeTree: root.addChildren([photos, welcome, organize, plan, reviewRoute, search, duplicatesRoute, modelsRoute, modelRoute, doctorRoute, settingsRoute, integrationsRoute, approvalRoute, peopleRoute, faceReviewRoute, faceSettingsRoute, assistantRoute]) });
+export const router = createRouter({ routeTree: root.addChildren([photos, welcome, organize, plan, reviewRoute, search, duplicatesRoute, modelsRoute, modelRoute, doctorRoute, settingsRoute, integrationsRoute, approvalRoute, peopleRoute, faceReviewRoute, faceSettingsRoute, assistantRoute, mapRoute]) });
 
 declare module "@tanstack/react-router" {
   interface Register {

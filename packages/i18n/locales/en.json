@@ -355,7 +355,8 @@
     "local": "100% on this computer",
     "duplicates": "Duplicates",
     "people": "People",
-    "ask": "Ask AI"
+    "ask": "Ask AI",
+    "map": "Map"
   },
   "viewer": {
     "title": "Photos",
@@ -747,5 +748,33 @@
       "saved": "Saved",
       "cloudNote": "With an external service, questions and photo text descriptions are sent; images are not, and names are replaced by placeholders."
     }
+  },
+  "map": {
+    "title": "Map",
+    "label": "Map",
+    "cluster": "{n} photos",
+    "noLocation": "No location: {n}",
+    "inArea": "{n} photos in this area",
+    "photo": "Photo"
+  },
+  "compare": {
+    "title": "Compare",
+    "open": "Compare",
+    "close": "Close",
+    "photo": "Photo {n}",
+    "tooFew": "Select 2 to 4 photos to compare",
+    "tooMany": "Compare at most {n} photos"
+  },
+  "captionIndex": {
+    "title": "Find photos by their descriptions",
+    "help": "Turns each photo's description into a multilingual vector, so a Chinese query finds English descriptions and the other way round.",
+    "none": "No index yet",
+    "active": "In use: {model} ({n} photos)",
+    "model": "Text model",
+    "build": "Build index",
+    "building": "Building a new index: {model}",
+    "progress": "Build progress",
+    "switch": "Switch to the new index",
+    "notReady": "The new index is still being built; search keeps using the current one until you switch"
   }
 }

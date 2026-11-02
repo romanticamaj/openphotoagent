@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { CaptionIndex } from "./CaptionIndex";
 import { CompatBadge } from "../../components/CompatBadge";
 import { api, type ModelView } from "../../lib/api";
 import { formatBytes } from "../../lib/format";
@@ -21,6 +22,7 @@ export function ModelsPage() {
   return (
     <section className="mx-auto max-w-4xl space-y-4 p-8">
       <h1 className="text-xl font-semibold">{t("models.title")}</h1>
+      <CaptionIndex />
       <table className="w-full text-left text-sm">
         <thead>
           <tr>

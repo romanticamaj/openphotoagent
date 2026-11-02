@@ -355,7 +355,8 @@
     "local": "100% 本機",
     "duplicates": "重複照片",
     "people": "人物",
-    "ask": "問 AI"
+    "ask": "問 AI",
+    "map": "地圖"
   },
   "viewer": {
     "title": "照片",
@@ -747,5 +748,33 @@
       "saved": "已儲存",
       "cloudNote": "使用外部服務時，問題與照片的文字描述會送出；照片影像不會送出，人名以代稱取代。"
     }
+  },
+  "map": {
+    "title": "地圖",
+    "label": "地圖",
+    "cluster": "{n} 張照片",
+    "noLocation": "沒有位置：{n} 張",
+    "inArea": "這個範圍有 {n} 張",
+    "photo": "照片"
+  },
+  "compare": {
+    "title": "比較",
+    "open": "比較",
+    "close": "關閉",
+    "photo": "第 {n} 張",
+    "tooFew": "選 2 到 4 張照片才能比較",
+    "tooMany": "最多比較 {n} 張"
+  },
+  "captionIndex": {
+    "title": "以文字描述找照片",
+    "help": "把每張照片的描述轉成多語向量，用中文也能找到英文描述的照片（反過來也可以）。",
+    "none": "還沒有建立索引",
+    "active": "使用中：{model}（{n} 張）",
+    "model": "文字模型",
+    "build": "建立索引",
+    "building": "正在建立新索引：{model}",
+    "progress": "建立進度",
+    "switch": "切換到新索引",
+    "notReady": "新索引還在建立中，完成後才能切換；切換前搜尋會繼續使用目前的索引"
   }
 }

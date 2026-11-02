@@ -53,7 +53,13 @@ def build_index(body: IndexIn, req: Request) -> dict[str, Any]:
             c.execute(update(embedding_space).where(embedding_space.c.id == old.id).values(status="retired"))
         sid = c.execute(
             insert(embedding_space)
-            .values(model_key=body.model_key, fingerprint="", dim=0, modality="caption", status="building")
+            .values(
+                model_key=body.model_key,
+                fingerprint=f"caption:{body.model_key}:pending:{uuid7(st.clock)}",
+                dim=0,
+                modality="caption",
+                status="building",
+            )
             .returning(embedding_space.c.id)
         ).scalar_one()
         rows = c.execute(
@@ -114,7 +120,12 @@ def on_captions_embedded(st: AppState, c: Any, t: Any, res: dict[str, Any]) -> N
     c.execute(
         update(embedding_space)
         .where(embedding_space.c.id == sid)
-        .values(thresholds=th, fingerprint=res.get("fingerprint") or sp.fingerprint, dim=int(res.get("dim") or sp.dim))
+        .values(
+            thresholds=th,
+            # namespaced: a caption space never collides with an image space of the same model fingerprint
+            fingerprint=f"caption:{sp.model_key}:{res['fingerprint']}" if res.get("fingerprint") else sp.fingerprint,
+            dim=int(res.get("dim") or sp.dim),
+        )
     )
     if th["done"] >= int(th.get("total", 0)):
         _finish(st, c, sid)

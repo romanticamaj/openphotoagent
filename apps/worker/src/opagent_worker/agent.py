@@ -711,7 +711,10 @@ class WorkerAgent:
         emb = self.text_embedders.get(p.get("model") or "") if p.get("modality") == "caption" else self.embedder
         if emb is None:
             return {"error": "MODEL_UNAVAILABLE"}
-        if p.get("fingerprint") and p["fingerprint"] != emb.describe().model_fingerprint:
+        own = emb.describe().model_fingerprint
+        if p.get("modality") == "caption":
+            own = f"caption:{p.get('model')}:{own}"
+        if p.get("fingerprint") and p["fingerprint"] != own:
             return {"error": "MODEL_UNAVAILABLE", "reason": "space mismatch"}
         res: Any = emb.embed_texts([p["text"]])
         if inspect.isawaitable(res):
