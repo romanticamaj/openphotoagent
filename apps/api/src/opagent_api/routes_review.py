@@ -84,7 +84,16 @@ def patch_labels(asset_id: str, body: LabelPatch, req: Request) -> dict[str, Any
         return {"asset_id": asset_id, "review": labels.review_view(r, c)}
 
 
-def apply_correction(st: Any, c: Any, asset_id: str, category: str | None, tags: list[str] | None, reason: str) -> str:
+def apply_correction(
+    st: Any,
+    c: Any,
+    asset_id: str,
+    category: str | None,
+    tags: list[str] | None,
+    reason: str,
+    caption: str | None = None,
+    note: str | None = None,
+) -> str:
     """A person's label for one photo: a corrected review that wins over the model and resolves pending ones."""
     from opagent_core.ids import uuid7
     from opagent_db.schema import index_outbox
@@ -95,6 +104,10 @@ def apply_correction(st: Any, c: Any, asset_id: str, category: str | None, tags:
         corrected["category"] = category
     if tags is not None:
         corrected["tags"] = tags
+    if caption is not None:
+        corrected["caption"] = caption
+    if note:
+        corrected["note"] = note[:500]
     c.execute(
         insert(review).values(
             id=rid,

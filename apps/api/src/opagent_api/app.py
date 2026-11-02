@@ -10,8 +10,11 @@ from opagent_core.clock import Clock, SystemClock
 from opagent_db.schema import engine_for
 
 from . import (
+    approvals,
+    mcp_server,
     routes_doctor,
     routes_duplicates,
+    routes_mcp,
     routes_models,
     routes_ops,
     routes_public,
@@ -38,6 +41,7 @@ def create_app(
     lan_password_hash: str | None = None,
     backups_dir: Any = None,
     pg_bin: Any = None,
+    home: Any = None,
 ) -> FastAPI:
     from opagent_core.version import VERSION
 
@@ -55,6 +59,7 @@ def create_app(
         registry_dir=Path(registry_dir) if registry_dir else None,
         user_models_dir=Path(user_models_dir) if user_models_dir else None,
         thumbs_dir=Path(thumbs_dir) if thumbs_dir else None,
+        home=Path(home) if home else None,
     )
     st.ensure_workspace()
     app.state.opa = st
@@ -70,6 +75,9 @@ def create_app(
 
     app.add_middleware(security.DesktopGuard, state=st)
     app.include_router(routes_public.router, prefix="/api/v1")
+    app.include_router(routes_mcp.router, prefix="/api/v1")
+    app.include_router(approvals.router, prefix="/api/v1")
+    app.include_router(mcp_server.router)
     app.include_router(routes_system.router, prefix="/api/v1")
     app.include_router(routes_duplicates.router, prefix="/api/v1")
     app.include_router(routes_ops.router, prefix="/api/v1")
@@ -106,7 +114,7 @@ def create_app(
                 except StarletteHTTPException as e:
                     if (
                         e.status_code != 404
-                        or path.startswith(("api/", "worker-api/"))
+                        or path.startswith(("api/", "worker-api/", "mcp/"))
                         or "." in path.rsplit("/", 1)[-1]
                     ):
                         raise

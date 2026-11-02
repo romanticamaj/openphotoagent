@@ -7,6 +7,10 @@
     "message": "“{path}” is not inside a folder the local engine is allowed to use",
     "title": "“{path}” is not inside a folder the local engine is allowed to use"
   },
+  "MCP_APPLY_REQUESTS_DISABLED": {
+    "message": "This library does not let AI assistants request applying a plan",
+    "title": "This library does not let AI assistants request applying a plan"
+  },
   "WORKER_OFFLINE": {
     "message": "Local engine “{name}” has been offline for {duration}; features that need it are paused",
     "title": "Local engine “{name}” has been offline for {duration}"

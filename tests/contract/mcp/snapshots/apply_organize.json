@@ -1,0 +1,73 @@
+{
+  "annotations": {
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false,
+    "readOnlyHint": false
+  },
+  "description": "請使用者在 app 內核准並套用計畫。這個工具永遠不會直接改動檔案：它建立一個 30 分鐘內有效的核准請求並回傳核准連結；使用者核准後再呼叫一次，才會回 applying 與 job_id。",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "confirmation_note": {
+        "maxLength": 500,
+        "type": "string"
+      },
+      "plan_id": {
+        "maxLength": 64,
+        "type": "string"
+      }
+    },
+    "required": [
+      "plan_id"
+    ],
+    "type": "object"
+  },
+  "name": "apply_organize",
+  "outputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "approval_id": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "approval_url": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "expires_at": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "job_id": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "status": {
+        "enum": [
+          "input_required",
+          "approval_pending",
+          "applying",
+          "applied",
+          "rejected",
+          "expired",
+          "stale"
+        ]
+      }
+    },
+    "required": [
+      "status"
+    ],
+    "type": "object"
+  },
+  "title": "請求套用整理計畫"
+}

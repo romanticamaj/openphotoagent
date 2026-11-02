@@ -239,13 +239,42 @@ class Stack:
             eng.dispose()
             return {"inserted": n}
 
+        @ctl.get("/client-config")
+        def client_config(client: str) -> dict[str, Any]:
+            """Where the connect wizard will write (a sandboxed home with an existing config, MCP-PAT-002)."""
+            from opagent_api import mcp_clients
+
+            return {"path": str(mcp_clients.config_path(client))}
+
+        @ctl.post("/mcp-apply-grant")
+        def mcp_apply_grant(body: dict[str, Any]) -> dict[str, Any]:
+            """organize:apply is never issued by the UI (CLAUDE.md §3); a v0.5 OAuth grant could hold it."""
+            from opagent_db.schema import engine_for, mcp_token
+            from sqlalchemy import func, update
+
+            eng = engine_for(self.dsn)
+            with eng.begin() as c:
+                c.execute(
+                    update(mcp_token)
+                    .where(mcp_token.c.id == body["token_id"])
+                    .values(scopes=func.array_append(mcp_token.c.scopes, "organize:apply"))
+                )
+            eng.dispose()
+            return {"ok": True}
+
         @ctl.get("/hf")
         def hf() -> dict[str, Any]:
             return {"url": self.hf.url, "gets": len(self.hf.gets())}
 
         from starlette.routing import Mount
 
-        app = create_app(dsn=self.dsn, static_dir=self.web_dist, registry_dir=self.registry, thumbs_dir=self.thumbs)
+        app = create_app(
+            dsn=self.dsn,
+            static_dir=self.web_dist,
+            registry_dir=self.registry,
+            thumbs_dir=self.thumbs,
+            home=self.home / "data",
+        )
         app.router.routes.insert(0, Mount("/__e2e", app=ctl))  # before the SPA catch-all mount
         return app
 
@@ -278,6 +307,22 @@ class Stack:
                 time.sleep(0.2 * (attempt + 1))  # noqa: TID251 - test harness only
         eng.dispose()
         self.app.state.opa.ensure_workspace()
+
+    def _client_configs(self) -> None:
+        """AI client config files live in a sandboxed home; Claude Desktop already has another server configured."""
+        from opagent_api import mcp_clients
+
+        home = self.base / "client-home"
+        if home.exists():
+            shutil.rmtree(home)
+        os.environ["OPAGENT_CLIENT_CONFIG_HOME"] = str(home)
+        os.environ["PYTHON_KEYRING_BACKEND"] = "keyring.backends.fail.Keyring"  # never the developer's keyring
+        os.environ["OPAGENT_CLI_PATH"] = str(self.base / "app" / "bin" / "opagent")
+        p = mcp_clients.config_path("claude-desktop")
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps({"mcpServers": {"other": {"command": "/usr/bin/other-server"}}}, indent=2) + "\n")
+        (self.home / "data" / "secrets").mkdir(parents=True, exist_ok=True)
+        shutil.rmtree(self.home / "data" / "secrets")
 
     def _photos(self, which: str) -> None:
         for d in (self.photos, self.sorted):
@@ -313,6 +358,7 @@ class Stack:
         self._wipe_db()
         self.hf.rate_bps = self.default_rate_bps  # a previous test may have slowed the model host (slow-downloads)
         self._photos(photos)
+        self._client_configs()
         wh = self.home / "worker"
         if wh.exists():
             shutil.rmtree(wh)

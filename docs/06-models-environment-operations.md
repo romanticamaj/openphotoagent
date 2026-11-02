@@ -882,6 +882,26 @@ Fix 共有欄位：`fix_id`、`type`、`label`、`primary`、`requires_permissio
 | 71 | `PACK_UNSAFE_ARCHIVE` | B | 「{pack}」執行套件內容不安全（{reason}），已拒絕安裝 | 回報問題 | Report the problem |
 | 72 | `DISK_INSUFFICIENT_DB` | B | 資料庫所在磁碟空間不足（剩 {free}），已停止啟動；資料不會被刪除 | 釋放空間後重試 | Free up space and retry |
 | 73 | `DB_SCHEMA_TOO_NEW` | B | 資料庫由較新版本的 app 建立（{found}），此版本無法降級使用；資料未被更動 | 用備份還原 · 安裝新版 | Restore from a backup · Install the newer version |
+| 74 | `NOT_FOUND` | B | 找不到這個項目（可能不存在，或不在這個權杖的資料夾範圍內） | 確認 ID 與資料夾範圍 | Check the ID and folder scope |
+| 75 | `INVALID_ARGUMENT` | B | 參數不符合工具的格式：{detail} | 修正參數後重試 | Fix the arguments and retry |
+| 76 | `RATE_LIMITED` | W | 呼叫太頻繁，{retry_after_s} 秒後再試 | 稍後重試 | Retry later |
+| 77 | `MCP_JOB_LIMIT` | B | AI 助手同時最多只能執行 {n} 個工作 | 在 app 內建立工作 | Create the job in the app |
+| 78 | `SCOPE_TOO_LARGE` | B | 範圍超過 {max} 張，AI 助手不能一次處理 | 縮小範圍，或在 app 內建立 | Narrow the scope, or use the app |
+| 79 | `SELECTION_TOO_LARGE` | B | 選取超過 {max} 張 | 縮小篩選條件 | Narrow the filters |
+| 80 | `SELECTION_INVALID` | B | selection_id 無效、已過期，或屬於其他權杖 | 重新搜尋取得新的 selection_id | Search again for a new selection_id |
+| 81 | `CURSOR_INVALID` | B | 分頁游標無效或已過期 | 重新搜尋 | Search again |
+| 82 | `TARGET_NOT_WRITABLE` | B | 目標資料夾不能寫入，或不在權杖的資料夾範圍內 | 從 list_folders 選擇可寫入的資料夾 | Pick a writable folder from list_folders |
+| 83 | `TEMPLATE_INVALID` | B | 路徑樣板無效：{detail} | 修正路徑樣板 | Fix the path template |
+| 84 | `PATH_INVALID` | B | 路徑必須是根目錄內的相對路徑 | 改用相對路徑 | Use a relative path |
+| 85 | `PLAN_NOT_DRAFT` | B | 計畫已不是待核准的草稿（{status}） | 重新產生計畫 | Make a new plan |
+| 86 | `PLAN_NOT_APPLIED` | B | 計畫尚未套用，沒有可復原的變更 | 查看計畫狀態 | Check the plan status |
+| 87 | `JOB_NOT_CANCELLABLE` | B | 工作狀態為 {status}，無法取消 | 查看工作狀態 | Check the job status |
+| 88 | `MCP_APPLY_REQUESTS_DISABLED` | B | 這個工作區沒有開放 AI 助手請求套用整理 | 在「連接 AI 助手」開啟 | Turn it on in Connect AI assistants |
+| 89 | `MCP_FACES_DISABLED` | B | 人臉功能沒有開放給 AI 助手 | 在人臉設定開啟 | Turn it on in face settings |
+| 90 | `MCP_INSUFFICIENT_SCOPE` | B | 這個權杖沒有「{scope}」權限 | 在「連接 AI 助手」重新授權 | Re-authorize in Connect AI assistants |
+| 91 | `SELECTION_EMPTY` | B | 沒有符合的照片 | 放寬條件 | Broaden the filters |
+| 92 | `APPROVAL_EXPIRED` | B | 核准請求已過期（30 分鐘） | 請 AI 助手重新請求 | Ask the assistant to request again |
+| 93 | `APPROVAL_NOT_PENDING` | B | 這個請求已經處理過（{status}） | 查看計畫 | Open the plan |
 
 > （回寫 W-1，09 §9）#63–#68 由 09 的 PF-063～PF-066 與 OUT-EXE-016 提出；08 §10 的 `PACK_MISSING`、`DRIVER_TOO_OLD` 分別對應本表的 `RUNTIME_PACK_MISSING`、`GPU_DRIVER_TOO_OLD`。
 

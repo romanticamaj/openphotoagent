@@ -5,7 +5,8 @@
   "common": {
     "working": "Working…",
     "percent": "{n}%",
-    "loading": "Checking…"
+    "loading": "Checking…",
+    "done": "Done"
   },
   "organize": {
     "pickFolder": "Choose a folder to organize",
@@ -559,5 +560,79 @@
     "makePlan": "Create clean-up plan (move {count} to trash)",
     "empty": "No duplicates found",
     "explain": "Each group keeps its best copy (highest resolution, largest file, earliest date); the others move to the folder's trash and can be restored at any time."
+  },
+  "mcp": {
+    "title": "Connect AI assistants",
+    "intro": "Let Claude Desktop, Claude Code or Cursor search your photos over MCP. Read-only by default; every file change needs your approval here.",
+    "open": "Manage connected AI assistants",
+    "connect": "Connect AI assistant",
+    "apps": "Connected apps",
+    "none": "No AI assistant is connected yet",
+    "usage": "{calls} calls · {images} images sent",
+    "revoke": "Revoke",
+    "workspace": "Library settings",
+    "allowApply": "Let AI assistants request applying a plan (you still approve)",
+    "mediaPolicy": "Thumbnail limit",
+    "media": {
+      "none": "No thumbnails",
+      "thumb_256": "Up to 256 px",
+      "thumb_512": "Up to 512 px"
+    },
+    "trifecta": "Do not connect the same AI assistant to your photos and to tools that can send things out (such as email) with auto-approval on.",
+    "wizard": "Connect AI assistant",
+    "pickClient": "Which AI assistant?",
+    "client": {
+      "claude-desktop": "Claude Desktop",
+      "claude-code": "Claude Code",
+      "cursor": "Cursor"
+    },
+    "permissions": "Permissions",
+    "scope": {
+      "read": "Search and read photo information",
+      "media": "Allow sending thumbnails",
+      "propose": "Allow making organize plans (you still approve applying)"
+    },
+    "mediaEgress": "With this on, {client} receives photo thumbnails, and they are sent to that app's AI provider.",
+    "create": "Create and continue",
+    "storedKeyring": "The access token is in the system keyring, never in a config file.",
+    "storedFile": "No system keyring is available; the token is stored in a file only you can read.",
+    "willWrite": "Will write {path} (the old file is backed up first):",
+    "write": "Write config",
+    "skipWrite": "I'll set it up myself",
+    "written": "Wrote {path}",
+    "backup": "The previous config is at {path}",
+    "restartClient": "Restart {client}."
+  },
+  "approval": {
+    "title": {
+      "apply": "An AI assistant asks to apply a plan",
+      "undo": "An AI assistant asks to undo a plan"
+    },
+    "requestedBy": "Requested by {client} (grant #{grant}) at {time}",
+    "note": "Note",
+    "count": "{action} {n}",
+    "action": {
+      "copy": "Copy",
+      "move": "Move",
+      "symlink": "Link",
+      "hardlink": "Hard link",
+      "trash": "Move to trash",
+      "sidecar_xmp": "Write XMP",
+      "sidecar_json": "Write JSON"
+    },
+    "status": {
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "expired": "Expired",
+      "stale": "The plan changed; ask again"
+    },
+    "confirmMove": "I understand this moves {n} photos (can be undone)",
+    "typeToConfirm": "Type “{text}” to confirm",
+    "needMoveConfirm": "Confirm the move first",
+    "approve": "Approve and apply",
+    "reject": "Reject",
+    "follow": "See progress",
+    "card": "{client} asks to organize {n} photos",
+    "open": "Review and decide"
   }
 }

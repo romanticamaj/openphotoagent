@@ -1,0 +1,59 @@
+{
+  "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": false
+  },
+  "description": "把照片加入相簿；photo_ids 或 selection_id 二擇一。",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "oneOf": [
+      {
+        "required": [
+          "photo_ids"
+        ]
+      },
+      {
+        "required": [
+          "selection_id"
+        ]
+      }
+    ],
+    "properties": {
+      "collection_id": {
+        "maxLength": 64,
+        "type": "string"
+      },
+      "photo_ids": {
+        "items": {
+          "maxLength": 64,
+          "type": "string"
+        },
+        "maxItems": 500,
+        "minItems": 1,
+        "type": "array"
+      },
+      "selection_id": {
+        "maxLength": 2048,
+        "type": "string"
+      }
+    },
+    "required": [
+      "collection_id"
+    ],
+    "type": "object"
+  },
+  "name": "add_to_collection",
+  "outputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "count": {
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "title": "加入相簿"
+}

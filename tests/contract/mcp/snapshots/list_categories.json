@@ -1,0 +1,232 @@
+{
+  "annotations": {
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": true
+  },
+  "description": "分類與照片數，附目前的 label set 版本。",
+  "inputSchema": {
+    "$defs": {
+      "FolderRef": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "description": "相對路徑，例 2024/Japan；禁止 .. 與絕對路徑",
+            "maxLength": 500,
+            "type": "string"
+          },
+          "source": {
+            "description": "list_folders 回傳的 source alias",
+            "maxLength": 100,
+            "type": "string"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "type": "object"
+      },
+      "PhotoFilters": {
+        "additionalProperties": false,
+        "properties": {
+          "camera": {
+            "maxLength": 100,
+            "type": "string"
+          },
+          "categories": {
+            "items": {
+              "maxLength": 100,
+              "type": "string"
+            },
+            "maxItems": 20,
+            "type": "array"
+          },
+          "duplicates": {
+            "default": "collapse",
+            "enum": [
+              "include",
+              "collapse",
+              "only"
+            ]
+          },
+          "favorite": {
+            "type": "boolean"
+          },
+          "folders": {
+            "items": {
+              "$ref": "#/$defs/FolderRef"
+            },
+            "maxItems": 20,
+            "type": "array"
+          },
+          "media_kind": {
+            "default": "any",
+            "enum": [
+              "photo",
+              "screenshot",
+              "raw",
+              "any"
+            ]
+          },
+          "min_confidence": {
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          },
+          "min_megapixels": {
+            "maximum": 1000,
+            "minimum": 0,
+            "type": "number"
+          },
+          "orientation": {
+            "enum": [
+              "landscape",
+              "portrait",
+              "square"
+            ]
+          },
+          "persons_all": {
+            "description": "需要 faces:read",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 5,
+            "type": "array"
+          },
+          "persons_any": {
+            "description": "需要 faces:read",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 5,
+            "type": "array"
+          },
+          "persons_none": {
+            "description": "需要 faces:read",
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 5,
+            "type": "array"
+          },
+          "place": {
+            "additionalProperties": false,
+            "properties": {
+              "admin1": {
+                "maxLength": 100,
+                "type": "string"
+              },
+              "city": {
+                "maxLength": 100,
+                "type": "string"
+              },
+              "country_code": {
+                "description": "ISO 3166-1 alpha-2",
+                "pattern": "^[A-Z]{2}$",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "rating_min": {
+            "maximum": 5,
+            "minimum": 0,
+            "type": "integer"
+          },
+          "review_state": {
+            "enum": [
+              "any",
+              "pending",
+              "approved",
+              "corrected"
+            ]
+          },
+          "tags_all": {
+            "items": {
+              "maxLength": 100,
+              "type": "string"
+            },
+            "maxItems": 20,
+            "type": "array"
+          },
+          "tags_any": {
+            "items": {
+              "maxLength": 100,
+              "type": "string"
+            },
+            "maxItems": 20,
+            "type": "array"
+          },
+          "tags_none": {
+            "items": {
+              "maxLength": 100,
+              "type": "string"
+            },
+            "maxItems": 20,
+            "type": "array"
+          },
+          "taken_at": {
+            "additionalProperties": false,
+            "properties": {
+              "from": {
+                "description": "含當日，workspace 時區",
+                "format": "date",
+                "type": "string"
+              },
+              "to": {
+                "description": "不含當日",
+                "format": "date",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "filters": {
+        "$ref": "#/$defs/PhotoFilters"
+      }
+    },
+    "type": "object"
+  },
+  "name": "list_categories",
+  "outputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "categories": {
+        "items": {
+          "properties": {
+            "count": {
+              "type": "integer"
+            },
+            "display": {
+              "type": "string"
+            },
+            "key": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "label_set_version": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "categories",
+      "label_set_version"
+    ],
+    "type": "object"
+  },
+  "title": "列出分類"
+}

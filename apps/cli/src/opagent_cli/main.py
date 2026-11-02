@@ -279,6 +279,37 @@ def cmd_dev(a: argparse.Namespace) -> None:
         pg.stop()
 
 
+def cmd_mcp(a: argparse.Namespace) -> None:
+    """stdio MCP server for AI clients (05 §3.1): a thin relay to the running app; no DB, no photos, no worker."""
+    from opagent_mcp.credstore import load
+
+    from opagent_cli.mcp_stdio import Relay, serve
+
+    home = Path(a.home) if a.home else _home()
+    readonly = a.readonly or os.environ.get("OPAGENT_MCP_READONLY") == "1"
+    serve(Relay(home, load(home, a.profile), server=a.server, readonly=readonly))
+
+
+def cmd_login(a: argparse.Namespace) -> None:
+    """Store a PAT made in the app's 「連接 AI 助手」 page in the OS keyring (MCP-PAT-001)."""
+    from opagent_mcp.credstore import save
+
+    home = Path(a.home) if a.home else _home()
+    if a.token_stdin:
+        token = sys.stdin.readline().strip()
+    else:
+        import getpass
+
+        token = getpass.getpass("OpenPhotoAgent token (opagent_pat_…): ").strip()
+    if not token.startswith("opagent_pat_"):
+        sys.exit("not an OpenPhotoAgent token: it starts with opagent_pat_")
+    r = save(token, home, a.profile)
+    if r["store"] == "keyring":
+        print("saved in the system keyring")
+    else:
+        print(f"no system keyring available: saved to {r['path']} (readable only by you)", file=sys.stderr)
+
+
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(prog="opagent")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -306,6 +337,17 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--home", help="worker state directory (default <OPAGENT_HOME>/worker)")
     p.add_argument("--token-stdin", action="store_true", help="desktop: read the launch token from stdin")
     p.set_defaults(fn=cmd_worker)
+    p = sub.add_parser("mcp", help="MCP server over stdio for AI assistants (Claude Desktop, Claude Code, Cursor)")
+    p.add_argument("--server", help="app address (default: read <data dir>/run/api.json)")
+    p.add_argument("--readonly", action="store_true", help="only offer read-only tools")
+    p.add_argument("--profile", default="default")
+    p.add_argument("--home")
+    p.set_defaults(fn=cmd_mcp)
+    p = sub.add_parser("login", help="store an OpenPhotoAgent access token in the system keyring")
+    p.add_argument("--token-stdin", action="store_true")
+    p.add_argument("--profile", default="default")
+    p.add_argument("--home")
+    p.set_defaults(fn=cmd_login)
     p = sub.add_parser("dev")
     p.add_argument("--port", type=int, default=47800)
     p.add_argument("--roots", default=os.environ.get("OPAGENT_ROOTS", ""))

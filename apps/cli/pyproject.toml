@@ -2,7 +2,7 @@
 name = "opagent-cli"
 version = "0.0.1"
 requires-python = ">=3.12"
-dependencies = ["opagent-api", "opagent-worker", "opagent-db", "uvicorn", "httpx"]
+dependencies = ["opagent-api", "opagent-worker", "opagent-db", "opagent-mcp-tools", "uvicorn", "httpx", "keyring>=25"]
 
 [project.scripts]
 opagent = "opagent_cli.main:main"

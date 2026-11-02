@@ -10,13 +10,40 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
   const { url, headers } = await endpoint(`/api/v1${path}`);
   const r = await fetch(url, {
     method,
-    headers: body === undefined ? headers : { ...headers, "Content-Type": "application/json" },
+    // only the app's own pages send this; a cross-site page cannot without a CORS preflight (MCP-APPR-002)
+    headers: body === undefined ? { ...headers, "X-OPA-UI": "1" } : { ...headers, "X-OPA-UI": "1", "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!r.ok) throw new ApiError(r.status, await r.json().catch(() => null));
   return (await r.json()) as T;
 }
 
+export type McpToken = {
+  id: string;
+  number: number;
+  name: string;
+  client: string | null;
+  scopes: string[];
+  folders: Array<{ source: string; path: string }>;
+  revoked: boolean;
+  calls: number;
+  images_returned: number;
+  last_used_at: string | null;
+};
+export type McpSettings = { allow_apply_requests: boolean; faces_enabled: boolean; media_policy: string; exif_free_text: boolean };
+export type McpClientProposal = { client: string; path: string; exists: boolean; before: unknown; after: { command: string; args: string[] }; command_line: string | null };
+export type Approval = {
+  id: string;
+  plan_id: string;
+  kind: "apply" | "undo";
+  status: string;
+  client: string | null;
+  grant: { id: string; name: string; number: number } | null;
+  requested_at: string;
+  expires_at: string;
+  note: string | null;
+  counts: Record<string, number>;
+};
 export type TimelineAsset = { id: string; ch?: string | null; w: number | null; h: number | null; thumbhash: string | null; taken_at: string | null; flags: string[] };
 export type Label = {
   result_id: string;
@@ -141,7 +168,7 @@ export type Job = {
   source_status?: string | null;
   reviews_pending?: number;
 };
-export type PlanAction = { id: string; asset_id: string; action: string; src_rel: string; dst_alias: string; dst_rel: string; status: string; conflict: string };
+export type PlanAction = { id: string; asset_id: string; action: string; src_alias?: string; src_rel: string; dst_alias: string; dst_rel: string; status: string; conflict: string };
 export type Plan = {
   id: string;
   job_id: string;
@@ -180,6 +207,18 @@ export type DuplicateGroup = {
 export type Capabilities = { deployment: string; single_user: boolean; features: Record<string, boolean> };
 
 export const api = {
+  mcpTokens: () => req<McpToken[]>("GET", "/mcp/tokens"),
+  revokeMcpToken: (id: string) => req<{ revoked: boolean }>("DELETE", `/mcp/tokens/${encodeURIComponent(id)}`),
+  mcpSettings: () => req<McpSettings>("GET", "/mcp/settings"),
+  putMcpSettings: (patch: Record<string, unknown>) => req<McpSettings>("PUT", "/mcp/settings", patch),
+  connectMcpClient: (client: string, scopes: string[]) =>
+    req<McpToken & { credential: { store: string; warning: string | null } }>("POST", `/mcp/clients/${client}/connect`, { scopes }),
+  mcpClientProposal: (client: string) => req<McpClientProposal>("GET", `/mcp/clients/${client}/proposal`),
+  installMcpClient: (client: string) => req<{ path: string; backup: string | null }>("POST", `/mcp/clients/${client}/install`),
+  approvals: (status = "pending") => req<Approval[]>("GET", `/approvals?status=${status}`),
+  approval: (id: string) => req<Approval>("GET", `/approvals/${encodeURIComponent(id)}`),
+  decideApproval: (id: string, body: { decision: string; move_confirmed: boolean; confirm_text: string | null }) =>
+    req<{ status: string; job_id?: string }>("POST", `/approvals/${encodeURIComponent(id)}/decision`, body),
   capabilities: () => req<Capabilities>("GET", "/capabilities"),
   roots: () => req<Root[]>("GET", "/roots"),
   browse: (root: string, path: string) =>

@@ -1,0 +1,81 @@
+{
+  "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": false
+  },
+  "description": "修正照片的標籤、分類或說明（等同人工覆核，不動原檔）。id 或 selection_id（≤ 500 張）二擇一。",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "oneOf": [
+      {
+        "required": [
+          "id"
+        ]
+      },
+      {
+        "required": [
+          "selection_id"
+        ]
+      }
+    ],
+    "properties": {
+      "add_tags": {
+        "items": {
+          "maxLength": 100,
+          "type": "string"
+        },
+        "maxItems": 20,
+        "type": "array"
+      },
+      "caption": {
+        "maxLength": 2000,
+        "type": "string"
+      },
+      "category": {
+        "maxLength": 100,
+        "type": "string"
+      },
+      "id": {
+        "maxLength": 64,
+        "type": "string"
+      },
+      "note": {
+        "maxLength": 500,
+        "type": "string"
+      },
+      "remove_tags": {
+        "items": {
+          "maxLength": 100,
+          "type": "string"
+        },
+        "maxItems": 20,
+        "type": "array"
+      },
+      "selection_id": {
+        "maxLength": 2048,
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "name": "update_labels",
+  "outputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "review_ids": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "updated": {
+        "type": "integer"
+      }
+    },
+    "type": "object"
+  },
+  "title": "修正標註"
+}

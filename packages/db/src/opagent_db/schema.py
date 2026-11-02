@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from sqlalchemy import (
+    DDL,
     BigInteger,
     Boolean,
     Column,
@@ -21,6 +22,7 @@ from sqlalchemy import (
     create_engine,
     func,
 )
+from sqlalchemy import event as sa_event
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TSVECTOR
 from sqlalchemy.engine import Engine
 from sqlalchemy.types import UserDefinedType
@@ -430,6 +432,76 @@ event = Table(
     Column("payload", JSONB, nullable=False),
     _ts("at", server_default=func.now()),
 )
+
+# ---- MCP (05 §3.2, §3.6–§3.8; v0.2) ----
+mcp_token = Table(  # local PATs for `opagent mcp`; only the SHA-256 of the value is stored
+    "mcp_token",
+    metadata,
+    Column("id", Text, primary_key=True),
+    Column("seq", Integer, nullable=False),  # "grant #12" on the approval page
+    Column("name", Text, nullable=False),
+    Column("client", Text),
+    Column("token_hash", Text, nullable=False, unique=True),
+    Column("prefix", Text, nullable=False),
+    Column("scopes", ARRAY(Text), nullable=False),
+    Column("folder_scopes", JSONB, nullable=False, server_default="[]"),
+    Column("media_policy", Text),
+    _ts("created_at", server_default=func.now()),
+    _ts("last_used_at"),
+    _ts("revoked_at"),
+)
+mcp_call_log = Table(  # every MCP request; append-only (MCP-AUD-003)
+    "mcp_call_log",
+    metadata,
+    Column("id", BigInteger, primary_key=True, autoincrement=True),
+    _ts("at", server_default=func.now()),
+    Column("token_id", Text),
+    Column("client_name", Text),
+    Column("client_version", Text),
+    Column("transport", Text),
+    Column("method", Text, nullable=False),
+    Column("tool", Text),
+    Column("args_redacted", JSONB),
+    Column("args_hash", Text),
+    Column("status", Text, nullable=False),
+    Column("error_code", Text),
+    Column("result_count", Integer),
+    Column("media_count", Integer, nullable=False, server_default="0"),
+    Column("media_bytes", BigInteger, nullable=False, server_default="0"),
+    Column("plan_id", Text),
+    Column("job_id", Text),
+    Column("latency_ms", Integer),
+)
+approval = Table(  # an agent's request to apply/undo a plan; decided only in the app (05 §3.6)
+    "approval",
+    metadata,
+    Column("id", Text, primary_key=True),
+    Column("plan_id", Text, ForeignKey("output_plan.id"), nullable=False),
+    Column("kind", Text, nullable=False),  # apply | undo
+    Column("plan_hash", Text, nullable=False),
+    Column("token_id", Text),
+    Column("client_name", Text),
+    Column("note", Text),
+    Column("status", Text, nullable=False),  # pending | approved | rejected | expired | stale
+    _ts("created_at", nullable=False),
+    _ts("expires_at", nullable=False),
+    _ts("decided_at"),
+)
+rate_bucket = Table(  # Postgres token buckets for MCP rate limits (05 §3.7)
+    "rate_bucket",
+    metadata,
+    Column("token_id", Text, primary_key=True),
+    Column("kind", Text, primary_key=True),
+    Column("tokens", Float, nullable=False),
+    Column("at", Float, nullable=False),
+)
+_APPEND_ONLY = DDL(  # type: ignore[no-untyped-call]
+    "CREATE OR REPLACE FUNCTION opagent_append_only() RETURNS trigger LANGUAGE plpgsql AS "
+    "$$ BEGIN RAISE EXCEPTION '%% is append-only', TG_TABLE_NAME; END $$;"
+    "CREATE TRIGGER mcp_call_log_append_only BEFORE UPDATE OR DELETE ON mcp_call_log "
+    "FOR EACH ROW EXECUTE FUNCTION opagent_append_only();"
+)
+sa_event.listen(mcp_call_log, "after_create", _APPEND_ONLY)
 
 
 def engine_for(dsn: str) -> Engine:

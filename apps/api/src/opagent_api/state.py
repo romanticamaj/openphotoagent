@@ -28,6 +28,12 @@ class AppState:
     registry_dir: Path | None = None
     user_models_dir: Path | None = None
     thumbs_dir: Path | None = None
+    home: Path | None = None  # data folder: the local MCP credential fallback lives here (MCP-PAT-001)
+    public_url: str = "http://127.0.0.1:47800"  # web/Docker approval links (05 §3.6)
+    handle_key: bytes = field(default_factory=lambda: __import__("secrets").token_bytes(32))  # MCP cursors
+
+    def workspace_settings(self, c: Any) -> dict[str, Any]:
+        return dict(c.execute(select(workspace.c.settings).where(workspace.c.id == DEFAULT_WS)).scalar() or {})
 
     def registry(self) -> Any:
         """Built-in catalog + pins + the user's YAML (re-read so a new custom model shows up, INF-REG-003)."""
