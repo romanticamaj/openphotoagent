@@ -389,3 +389,16 @@ def test_det_truncated_and_tier0_stored_without_embedding(f):
 
     with bio_session(f.client.app.state.opa) as c:
         assert c.execute(sqlalchemy.text("select count(*) from bio.face_embedding")).scalar() == 1
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-CLU-005")
+def test_clu_005_large_pool_uses_the_knn_graph_path(f, monkeypatch):
+    import opagent_api.faces as faces_mod
+
+    monkeypatch.setattr(faces_mod, "LARGE_POOL", 20)  # the 50k path, forced on a small library (timing: nightly)
+    f.enable()
+    _library(f, people=(1, 2, 3), per=10)
+    run = f.post("/faces/cluster")
+    assert run["algo"] == "knn_graph+chinese_whispers" and run["clusters"] == 3
+    assert f.sql("select algo from face_cluster_run").scalar() == "knn_graph+chinese_whispers"

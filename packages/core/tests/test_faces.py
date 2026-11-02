@@ -146,3 +146,14 @@ def test_find_001_two_tiers_and_asset_max():
 def test_find_003_only_confirmed_join_the_reference_set():
     assigns = [("f1", "confirmed"), ("f2", "auto"), ("f3", "suggested"), ("f4", "confirmed"), ("f5", "rejected")]
     assert F.reference_faces(assigns) == ["f1", "f4"]
+
+
+@pytest.mark.unit
+@pytest.mark.tc("FACE-CLU-005")
+def test_clu_005_chinese_whispers_on_a_knn_graph():
+    # two cliques joined by one weak edge, plus a singleton
+    edges = {("a", "b"): 0.9, ("b", "c"): 0.9, ("a", "c"): 0.9, ("x", "y"): 0.9, ("y", "z"): 0.9, ("x", "z"): 0.9,
+             ("c", "x"): 0.46}
+    groups = F.chinese_whispers(["a", "b", "c", "x", "y", "z", "lonely"], edges, seed=7)
+    assert sorted(sorted(g) for g in groups) == [["a", "b", "c"], ["lonely"], ["x", "y", "z"]]
+    assert F.chinese_whispers(["a"], {}, seed=1) == [{"a"}]
