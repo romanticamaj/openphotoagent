@@ -11,7 +11,7 @@ class TcReporter {
     for (const m of title.matchAll(ID)) (this.results[m[1]] ||= []).push({ nodeid: title, outcome });
   }
   onEnd() {
-    const out = join(ROOT, ".tc", "e2e.json");
+    const out = join(ROOT, ".tc", process.env.OPAGENT_E2E_PERF ? "e2e-perf.json" : "e2e.json"); // perf runs separately
     mkdirSync(dirname(out), { recursive: true });
     writeFileSync(out, JSON.stringify(this.results, null, 1));
   }
