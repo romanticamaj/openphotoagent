@@ -68,9 +68,11 @@ def test_mcp_people_tools(m):
     assert got["structuredContent"]["media_withheld_reason"] == "policy"  # mcp_face_media_policy none
     found = m.ok(pat, "find_photos_of_person", {"person_ids": [m.ids["mom"]]})
     assert found["total"] == 7 and found["selection_id"].startswith("sel_")
-    sel = m.ok(pat, "find_photos_of_person", {"person_ids": [m.ids["mom"], m.ids["dad"]], "mode": "all"})
-    assert [r["id"] for r in sel["results"]] == [m.both]
     hidden = m.call(pat, "get_person", {"person_id": m.ids["dad"]})["result"]  # unnamed: not exposed
     assert hidden["isError"] and hidden["structuredContent"]["code"] == "NOT_FOUND"
+    m.client.post(f"/api/v1/people/{m.ids['dad']}/name", json={"name": "爸爸"}, headers=m.ui)
+    m.index()
+    sel = m.ok(pat, "find_photos_of_person", {"person_ids": [m.ids["mom"], m.ids["dad"]], "mode": "all"})
+    assert [r["id"] for r in sel["results"]] == [m.both]
     res = m.ok(pat, "search_photos", {"query": "合照", "filters": {"persons_any": [m.ids["mom"]]}})
     assert [r["id"] for r in res["results"]] == [m.both]

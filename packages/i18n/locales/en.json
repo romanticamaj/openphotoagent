@@ -317,7 +317,20 @@
     "view_download": "View the download",
     "view_job": "View the job",
     "vulkan": "Use Vulkan",
-    "wsl___install": "Install WSL"
+    "wsl___install": "Install WSL",
+    "mcp/folder_scope": "Folder scope help",
+    "mcp/tools": "Tool reference",
+    "mcp/limits": "Usage limits",
+    "search/filters": "Adjust filters",
+    "search_again": "Search again",
+    "organize/path_template": "Path template help",
+    "new_plan": "Make a new plan",
+    "plan": "Open the plan",
+    "activity": "Open Activity",
+    "mcp": "Open Connect AI assistants",
+    "faces": "Open face settings",
+    "request_again": "Ask the assistant again",
+    "organize": "Organize in the app"
   },
   "nav": {
     "label": "Main navigation",

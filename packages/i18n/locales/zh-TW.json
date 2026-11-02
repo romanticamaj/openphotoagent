@@ -317,7 +317,20 @@
     "view_download": "查看下載",
     "view_job": "查看工作",
     "vulkan": "改用 Vulkan",
-    "wsl___install": "安裝 WSL"
+    "wsl___install": "安裝 WSL",
+    "mcp/folder_scope": "查看資料夾範圍說明",
+    "mcp/tools": "查看工具說明",
+    "mcp/limits": "查看使用上限",
+    "search/filters": "調整篩選條件",
+    "search_again": "重新搜尋",
+    "organize/path_template": "查看路徑樣板說明",
+    "new_plan": "重新產生計畫",
+    "plan": "開啟計畫",
+    "activity": "開啟活動",
+    "mcp": "開啟「連接 AI 助手」",
+    "faces": "開啟人臉設定",
+    "request_again": "請 AI 助手重新請求",
+    "organize": "在 app 內建立整理"
   },
   "nav": {
     "label": "主要導覽",
