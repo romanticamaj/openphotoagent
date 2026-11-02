@@ -10,7 +10,7 @@
 | v0.2 | 180 | 175 | 0 | 0 | 5 | 0 |
 | v0.3 | 55 | 53 | 0 | 0 | 2 | 0 |
 | v0.4 | 31 | 28 | 0 | 0 | 3 | 0 |
-| v0.5 | 29 | 0 | 0 | 0 | 29 | 0 |
+| v0.5 | 34 | 0 | 0 | 0 | 34 | 0 |
 | v1.0 | 1 | 0 | 0 | 0 | 1 | 0 |
 
 ## 依模組
@@ -129,7 +129,7 @@
 | v0.5 | MCP-TRN | 1 | 0 | 1 | 0 |
 | v0.5 | MU-AUTH | 3 | 0 | 3 | 0 |
 | v0.5 | MU-DEPLOY | 2 | 0 | 2 | 0 |
-| v0.5 | MU-OAUTH | 3 | 0 | 3 | 0 |
+| v0.5 | MU-OAUTH | 8 | 0 | 8 | 0 |
 | v0.5 | MU-PRIV | 5 | 0 | 5 | 0 |
 | v0.5 | MU-RBAC | 3 | 0 | 3 | 0 |
 | v0.5 | MU-SEC | 4 | 0 | 4 | 0 |
@@ -1052,6 +1052,11 @@
 | MU-OAUTH-001 | v0.5 | I | #73 | 未開始 | 0 | grant 撤銷即時 |
 | MU-OAUTH-002 | v0.5 | C | #73 | 未開始 | 0 | Protected Resource Metadata |
 | MU-OAUTH-003 | v0.5 | S | #73 | 未開始 | 0 | scope 與 audience |
+| MU-OAUTH-004 | v0.5 | S | #73 | 未開始 | 0 | PKCE 與 redirect 嚴格 |
+| MU-OAUTH-005 | v0.5 | S | #73 | 未開始 | 0 | refresh 輪替與重用偵測 |
+| MU-OAUTH-006 | v0.5 | S | #73 | 未開始 | 0 | CIMD 的 SSRF 防護 |
+| MU-OAUTH-007 | v0.5 | I | #73 | 未開始 | 0 | 端到端探索 |
+| MU-OAUTH-008 | v0.5 | U | #73 | 未開始 | 0 | 有效 scope 永不含 organize:apply |
 | SEC-AUDIT-001 | v1.0 | S |  | 未開始 | 0 | v1.0 安全審查 |
 
 ## 不在目錄中的 ID（請補到 09a／09b）

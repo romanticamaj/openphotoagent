@@ -430,6 +430,9 @@ sequenceDiagram
 | `jobs:run` | job:create | run_labeling_job, cancel_job（只產生結果/標註，**不動檔案**） | 否 |
 | `organize:propose` | job:create（dry_run） | propose_organize | 否 |
 | `organize:apply` | output:apply（**僅能「請求」套用**） | apply_organize, undo_organize → 一律進人工核准（§3.6） | 否；且 workspace 需開啟 `mcp.allow_apply_requests` |
+
+> **（ADR-0015）** `organize:apply` 依 CLAUDE.md §3 **永遠不發給 MCP token**：PAT 精靈與 OAuth 同意流程都不會授予它，請求中帶有它時直接剔除。上表保留它，只是為了說明 `apply_organize`／`undo_organize` 在桌面版只能「請求核准」（§3.6），不能直接執行。
+
 | `faces:read`（審查補充，07 §5.1，v0.2） | face:read | list_people, get_person, find_photos_of_person；search_photos 的 `persons_*` filter 與 `person` facet；`PhotoSummary.people` | **否**；workspace 還必須設定 `mcp.faces_enabled=true`（預設 false） |
 | `faces:media`（審查補充，07 §5.1，v0.2） | face:read + media | 人臉裁切縮圖（`person://{id}/cover`、`face://{id}/thumb`） | 否；受 `mcp_face_media_policy` 限制（預設 `none`） |
 

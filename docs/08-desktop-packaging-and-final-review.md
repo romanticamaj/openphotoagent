@@ -469,7 +469,7 @@ jobs:
 | C-18 | 04 §5.6、§7.2 M3 | Tauri 是選用、放在 M3 | — | Tauri 改為**主要交付形態**、放在 M1（v0.1）；`platform` 抽象和 `/capabilities` 驅動的 UI（§1.6）放進 M1 | P0 |
 | C-19 | 04 §6 W12 | 「偵測到 Tauri 版時直接寫入 Claude Desktop 設定」 | 方向正確 | 擴大成「連接 AI 助手」精靈：偵測 Claude Desktop、Claude Code、Cursor 的設定檔 → 顯示 diff → 寫入 `opagent mcp` 的**絕對路徑**；PAT 自動建立並存入 keyring。只能寫入這幾個已知設定檔路徑 | P1 |
 | C-20 | 05 | §3.1、§3.10 | `opagent mcp` 假設在 PATH；all-in-one 連 `127.0.0.1:8080` | 桌面版：`opagent mcp` 從 `run/api.json` 自動找到 port；設定檔寫 app 內 CLI 的絕對路徑；`/mcp` HTTP 在桌面版**預設關閉**（port 可能變動，stdio 比較穩），進階時才開並強制 PAT | P0 |
-| C-21 | 05 | §3.2.2 OAuth 2.1 AS、§6 v1 | v1 要內建完整的 Authorization Server | **延到 v0.5（自架多人 control plane）**。v0.5 開工前重新評估：是否改成「委託外部 IdP（Authentik、Keycloak）當 AS，CP 只當 RS」，以降低自寫 AS 的安全風險。桌面與單人 Docker 只用 PAT | P1 |
+| C-21 | 05 | §3.2.2 OAuth 2.1 AS、§6 v1 | v1 要內建完整的 Authorization Server | **延到 v0.5（自架多人 control plane）**。v0.5 開工前重新評估：是否改成「委託外部 IdP（Authentik、Keycloak）當 AS，CP 只當 RS」，以降低自寫 AS 的安全風險。桌面與單人 Docker 只用 PAT | P1。**定案（ADR-0015，使用者 2026-11-02）**：v0.5 內建精簡 AS（Authlib，code＋PKCE），外部 IdP 之後以進階模式提供 |
 | C-22 | 05 §3.6、04 §1.5 | 套用核准走瀏覽器 `approval_url` | 桌面沒有固定 URL | 桌面版的 `approval_url` 改為 `openphotoagent://approvals/{id}`（deep link），同時發 OS 通知；Web 版維持 https URL | P1 |
 | C-23 | 05 §1.4、§6 v2；00 §5 v2 | 人臉群組放 v2；內建 chat 助手放 v2 | 方向改變 | 人臉 → **v0.2**（07）；「AI 問照片」→ **v0.3**（10），重用 `packages/mcp-tools` 的 ToolRegistry 與 agent loop | P0 |
 | C-24 | 05 §1.2 | `embedding_space.modality` 只有 image、text | 人臉向量 | 增加 `face`；`search_doc` 增加 `person_ids int[]`（GIN），讓 facet 與 MCP 可以用人物過濾。07 細節另外定義 | P0 |

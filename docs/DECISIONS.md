@@ -371,3 +371,40 @@
 - SigLIP2 文字塔是為圖文配對訓練，64 token 上限太緊，而且與 R1 重疊，不採用。
 
 **影響**：SRCH-R2-001～004 以假的多語 embedder 驗證流程；真模型的召回、延遲與量化漂移列入 nightly（研究文件第 1～7 項）；模型 registry 新增兩筆 `text_embed` 條目（sha 由 `registry-pin.yml` 釘選）。
+
+## ADR-0015：C-21 定案 — v0.5 內建精簡的 OAuth 2.1 授權伺服器，外部 IdP 之後再以進階模式提供
+
+- 日期：2026-11-02｜狀態：已採納（**使用者決定**，2026-11-02）｜審議：2 個獨立 sub-agent，分別論證「內建 AS」與「委託外部 IdP」
+
+**背景**：08 C-21 把 OAuth AS 延到 v0.5，並要求開工前重新評估是否改為委託外部 IdP（Authentik、Keycloak），CP 只當 RS。GOALS v0.5 規定：未定案時停下來回報。
+
+**兩份審議的共識**：
+- 不論 AS 由誰提供，scope、資料夾範圍、media policy、workspace 這些授權政策都存在 CP 自己的 `oauth_grant`。有效權限 = RBAC ∩ grant。
+- 撤銷 grant 時，下一個 MCP 呼叫就失敗（MU-OAUTH-001）。
+- `organize:apply` 永遠不出現在 MCP token 的有效 scope 中。
+- PAT 保留為退路。
+
+**分歧**：
+- **內建 AS**：沒有 IdP 的 NAS／homelab 使用者也能使用；PKCE、RFC 8707 `resource`、client 註冊都由我們掌握；可在 CI 中確定性地測試。代價是要維護一份安全關鍵的程式碼。
+- **外部 IdP**：自己的安全程式碼較少。但很多自架者沒有 IdP，而且 IdP 對 MCP client 註冊（DCR／CIMD）的支援未經驗證。
+
+**決定**（使用者選擇）：
+- v0.5 內建精簡 AS，以 **Authlib** 的 AuthorizationServer／ResourceProtector 實作，不自寫流程或加密。功能刻意縮小：
+  - 只支援 authorization code ＋ PKCE S256、public client；不支援 implicit、password、client_credentials。
+  - redirect_uri 完全比對，只接受 loopback 或 https。
+  - 回應帶 `iss`（RFC 9207）；access token 為綁定 audience 的 15 分鐘 JWT。
+  - refresh token 不透明、每次輪替；偵測到重用時撤銷整個 grant 家族。
+  - CIMD 抓取強化：只接受 https、DNS 解析後拒絕私有與 link-local 位址、限制大小與時間。
+  - 同意頁顯示 client_id 的網域，不只顯示 client 自報的名稱。
+- AS 建在可替換的 RS 介面之上，**外部 IdP 模式之後以進階選項加入**（v0.5.x／v1.x），仍保留 CP 端的 grant 表。
+- 人類登入維持本機帳號或 OIDC（02 ADR-006），與 MCP 的 AS 分開。
+- 05 §3.2 的 `organize:apply` 寫法與 CLAUDE.md §3 衝突。依 CLAUDE.md（優先序較高的定案）：OAuth 同意流程**永遠不會**授予此 scope，請求中帶有它時直接剔除。
+
+**影響的測試 ID**：MU-OAUTH-001～003 依此實作，並新增審議建議的 MU-OAUTH-004～008：
+- PKCE 與 redirect 嚴格比對、授權碼重用；
+- refresh 輪替與重用時撤銷；
+- CIMD 的 SSRF 防護；
+- 端到端探索（PRM → AS metadata → authorize → token → tools/call）；
+- 有效 scope 永不含 `organize:apply`（property test）。
+
+**同步修改的規格**：08 C-21、05 §3.2（`organize:apply` 註記）、09b §8.6。

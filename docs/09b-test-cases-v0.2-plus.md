@@ -483,7 +483,13 @@
 | MU-OAUTH-002 | Protected Resource Metadata | `GET /.well-known/oauth-protected-resource` | 依 RFC 9728 指向授權伺服器；401 帶 `WWW-Authenticate` 的 resource_metadata | C | #73 |
 | MU-OAUTH-003 | scope 與 audience | access token 的 aud 不是本 CP，或 scope 含 `organize:apply` | 拒絕；`organize:apply` 永遠不發給 MCP token（不變量 5） | S | #73 |
 
-> 8.6 的授權伺服器做法依 08 C-21 定案（內建 AS 或委託外部 IdP）；定案前只實作與 C-21 無關的部分（PAT over HTTP，以及 MU-OAUTH-002 的 metadata 骨架）。
+| MU-OAUTH-004 | PKCE 與 redirect 嚴格 | 缺 code_challenge 或用 `plain`；redirect_uri 只差路徑或結尾斜線；授權碼重用 | 全部拒絕；授權碼重用時，撤銷用它發出的所有 token | S | #73 |
+| MU-OAUTH-005 | refresh 輪替與重用偵測 | 出示已被輪替掉的 refresh token | 撤銷整個 grant 家族；下一個 MCP 呼叫失敗 | S | #73 |
+| MU-OAUTH-006 | CIMD 的 SSRF 防護 | client_id URL 解析到 127.0.0.1、10/8、169.254/16、`[::1]`；轉址到私有 IP；回應超過 64 KB | 一律拒絕，請求不會到達目標（以假的 DNS resolver 驗證） | S | #73 |
+| MU-OAUTH-007 | 端到端探索 | 401 → PRM（RFC 9728）→ AS metadata（RFC 8414）→ 帶 `resource` 的 authorize → token → `tools/call` | 成功；scope 不足時回 403 `insufficient_scope`；撤銷後下一個呼叫失敗 | I | #73 |
+| MU-OAUTH-008 | 有效 scope 永不含 organize:apply | 任意請求的 scope 組合（property） | 發出的 token 與同意頁都不含 `organize:apply` | U/S | #73 |
+
+> 8.6 依 **ADR-0015**（C-21 定案）：v0.5 內建精簡 AS（Authlib），外部 IdP 之後以進階模式提供。
 
 ## 9. v1.0（骨架；開工前細化）
 
