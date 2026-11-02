@@ -1,6 +1,7 @@
 import json
 import threading
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -458,3 +459,43 @@ def test_rrf_007_scope_is_a_pre_filter_everywhere(s):
     assert sorted(h["asset_id"] for h in r["items"]) == sorted(inside)
     assert r["total"] == 3 and r["next_cursor"] is None
     assert r["facets"]["category"] == {"food": 3}  # counts never reveal the 1,000 outside the scope
+
+
+def _files(*roots):
+    out = set()
+    for r in roots:
+        out |= {p for p in Path(r).rglob("*") if p.is_file()}
+    return out
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-IMG-002")
+def test_img_002_search_by_uploaded_image_keeps_it_in_memory(s, tmp_path):
+    import blake3
+
+    data = (Path(__file__).resolve().parents[4] / "fixtures/photos/basic/IMG_0003.jpg").read_bytes()
+    target = s.add(1, caption="x")
+    for i in range(2, 8):
+        s.add(i, caption="y")
+    s.index()
+    space = s.sql("select id from embedding_space order by id desc limit 1").scalar_one()
+    s.sql(
+        "update asset_embedding set vec = :v where asset_id = :a and space_id = :s",
+        v=str(s.fb.embed_vector(blake3.blake3(data).hexdigest())),
+        a=target,
+        s=space,
+    )
+    before = _files(tmp_path)
+    stop = serve(s.w)
+    try:
+        r = s.client.post("/api/v1/search/by-image", files={"file": ("q.jpg", data, "image/jpeg")}, data={"k": "5"})
+    finally:
+        stop.set()
+    assert r.status_code == 200, r.text
+    items = r.json()["items"]
+    assert items[0]["asset_id"] == target and items[0]["matched_by"] == ["image_vector"]
+    assert _files(tmp_path) == before  # nothing written anywhere (data dir, worker home, caches)
+    assert not s.client.app.state.opa.blobs  # dropped from memory once the worker fetched it
+    with s.eng.begin() as c:  # and never stored in the database: task payloads carry a token, not the bytes
+        sizes = [len(json.dumps(p)) for (p,) in c.execute(text("select payload from worker_task"))]
+    assert max(sizes) < len(data)
