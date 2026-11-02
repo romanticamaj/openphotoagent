@@ -288,3 +288,26 @@ def test_org_005_full_library_default_settings_leaves_every_original_untouched(e
     plan = _plan(client, j)
     assert plan["status"] == "applied" and sum(a["status"] == "done" for a in plan["actions"]) == 10_000
     assert _snapshot(sandbox_tree.photos) == before  # content (BLAKE3) and mtime of every original unchanged
+
+
+@pytest.mark.integration
+@pytest.mark.tc("DESK-023")
+def test_desk_023_job_waits_on_battery_and_continues_on_mains(embedded_pg, sandbox_tree, tmp_path):
+    from opagent_worker.policy import FakePower, ResourcePolicy
+
+    _photos(sandbox_tree.photos, "bat", 6)
+    client, w = _setup(
+        embedded_pg.dsn, sandbox_tree.roots, tmp_path / "w", FakeBackend(scores="low"), FakeBackend(vlm_p=0.9)
+    )
+    power = FakePower(on_ac=False)
+    w.policy = ResourcePolicy(power=power)
+    j = client.post("/api/v1/jobs", json={**CONTENT, "source_id": _src(client)}).json()
+    for _ in range(50):  # scan and planning still run; labelling must not
+        if not w.run_once():
+            break
+    assert w.process_items_once() == 0
+    op = client.get(f"/api/v1/operations/{j['id']}").json()
+    assert op["status"] == "waiting" and op["waiting_reason"] == "PAUSED_ON_BATTERY"
+    power.on_ac = True  # plugged back in: continues by itself
+    _drain(w)
+    assert client.get(f"/api/v1/jobs/{j['id']}").json()["status"] == "awaiting_approval"
