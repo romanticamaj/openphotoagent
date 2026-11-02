@@ -22,6 +22,8 @@ const PAGES = [
   () => import("./features/search/SearchPage"),
   () => import("./features/models/ModelsPage"),
   () => import("./features/duplicates/DuplicatesPage"),
+  () => import("./features/mcp/IntegrationsPage"),
+  () => import("./features/mcp/ApprovalPage"),
 ];
 export function prefetchPages(delayMs = 3000) {
   if (typeof window === "undefined") return;
@@ -35,6 +37,9 @@ const PlanPage = lazy(() => import("./features/organize/PlanPage").then((m) => (
 const ReviewPage = lazy(() => import("./features/review/ReviewPage").then((m) => ({ default: m.ReviewPage })));
 const SearchPage = lazy(() => import("./features/search/SearchPage").then((m) => ({ default: m.SearchPage })));
 const DuplicatesPage = lazy(() => import("./features/duplicates/DuplicatesPage").then((m) => ({ default: m.DuplicatesPage })));
+const IntegrationsPage = lazy(() => import("./features/mcp/IntegrationsPage").then((m) => ({ default: m.IntegrationsPage })));
+const ApprovalPage = lazy(() => import("./features/mcp/ApprovalPage").then((m) => ({ default: m.ApprovalPage })));
+const ApprovalInbox = lazy(() => import("./features/mcp/ApprovalPage").then((m) => ({ default: m.ApprovalInbox })));
 const ModelsPage = lazy(() => import("./features/models/ModelsPage").then((m) => ({ default: m.ModelsPage })));
 const ModelCard = lazy(() => import("./features/models/ModelsPage").then((m) => ({ default: m.ModelCard })));
 
@@ -74,6 +79,9 @@ function Shell() {
       </nav>
       <main className="page" id="main">
         <RecoveryCard onReview={() => setActivity(true)} />
+        <Suspense fallback={null}>
+          <ApprovalInbox />
+        </Suspense>
         <Suspense fallback={<div aria-busy="true" />}>
           <Outlet />
         </Suspense>
@@ -123,6 +131,8 @@ const modelRoute = createRoute({
 });
 const doctorRoute = createRoute({ getParentRoute: () => root, path: "/system/doctor", component: DoctorPage });
 const settingsRoute = createRoute({ getParentRoute: () => root, path: "/settings", component: SettingsPage });
+const integrationsRoute = createRoute({ getParentRoute: () => root, path: "/settings/integrations", component: IntegrationsPage });
+const approvalRoute = createRoute({ getParentRoute: () => root, path: "/approvals/$approvalId", component: ApprovalPage });
 const welcome = createRoute({ getParentRoute: () => root, path: "/welcome", component: Welcome });
 const search = createRoute({
   getParentRoute: () => root,
@@ -143,7 +153,7 @@ const organize = createRoute({
   ),
 });
 
-export const router = createRouter({ routeTree: root.addChildren([photos, welcome, organize, plan, reviewRoute, search, duplicatesRoute, modelsRoute, modelRoute, doctorRoute, settingsRoute]) });
+export const router = createRouter({ routeTree: root.addChildren([photos, welcome, organize, plan, reviewRoute, search, duplicatesRoute, modelsRoute, modelRoute, doctorRoute, settingsRoute, integrationsRoute, approvalRoute]) });
 
 declare module "@tanstack/react-router" {
   interface Register {

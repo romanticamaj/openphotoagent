@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 // Settings (04 §3.12, single-user): language, appearance, and the local engine's photo folders (read-only here —
 // adding a folder is done in the app's own folder picker, never through the API: invariant 2).
 import { useQuery } from "@tanstack/react-query";
@@ -52,6 +53,11 @@ export function SettingsPage() {
           <option value="dark">{t("settings.themeDark")}</option>
         </select>
       </label>
+      <section aria-labelledby="mcp-h" className="space-y-2">
+        <h2 id="mcp-h" className="font-semibold">{t("mcp.title")}</h2>
+        <p className="text-sm text-[var(--text-muted)]">{t("mcp.intro")}</p>
+        <Link to="/settings/integrations" className="underline">{t("mcp.open")}</Link>
+      </section>
       <section aria-labelledby="engine-h" className="space-y-2">
         <h2 id="engine-h" className="font-semibold">{t("settings.engine")}</h2>
         <h3 className="text-sm text-[var(--text-muted)]">{t("settings.folders")}</h3>

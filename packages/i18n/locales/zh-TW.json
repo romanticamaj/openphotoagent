@@ -5,7 +5,8 @@
   "common": {
     "working": "處理中…",
     "percent": "{n}%",
-    "loading": "正在檢查…"
+    "loading": "正在檢查…",
+    "done": "完成"
   },
   "organize": {
     "pickFolder": "選擇要整理的資料夾",
@@ -559,5 +560,79 @@
     "makePlan": "產生清理計畫（移到垃圾桶 {count} 張）",
     "empty": "沒有找到重複照片",
     "explain": "每組保留代表張（解析度最高、檔案最大、最早拍攝），其餘移到原資料夾的垃圾桶，可隨時復原。"
+  },
+  "mcp": {
+    "title": "連接 AI 助手",
+    "intro": "讓 Claude Desktop、Claude Code、Cursor 透過 MCP 搜尋你的照片。預設只能讀取；任何檔案變更都要你在這裡核准。",
+    "open": "管理已連接的 AI 助手",
+    "connect": "連接 AI 助手",
+    "apps": "已連接的 App",
+    "none": "還沒有連接任何 AI 助手",
+    "usage": "{calls} 次呼叫・送出 {images} 張影像",
+    "revoke": "撤銷",
+    "workspace": "工作區設定",
+    "allowApply": "允許 AI 助手請求套用整理（仍需你核准）",
+    "mediaPolicy": "縮圖上限",
+    "media": {
+      "none": "不送縮圖",
+      "thumb_256": "最大 256 px",
+      "thumb_512": "最大 512 px"
+    },
+    "trifecta": "請不要讓同一個 AI 助手同時連接照片與能對外寄送的工具（例如 email）並開啟自動核准。",
+    "wizard": "連接 AI 助手精靈",
+    "pickClient": "要連接哪個 AI 助手？",
+    "client": {
+      "claude-desktop": "Claude Desktop",
+      "claude-code": "Claude Code",
+      "cursor": "Cursor"
+    },
+    "permissions": "權限",
+    "scope": {
+      "read": "搜尋與讀取照片資訊",
+      "media": "允許傳送縮圖",
+      "propose": "允許產生整理計畫（套用仍需你核准）"
+    },
+    "mediaEgress": "勾選後，{client} 會取得照片縮圖，這些影像會送到該 App 的 AI 服務供應商。",
+    "create": "建立並繼續",
+    "storedKeyring": "存取權杖已存入系統鑰匙圈，不會寫進設定檔。",
+    "storedFile": "這台電腦沒有可用的系統鑰匙圈，存取權杖存在資料夾中只有你能讀取的檔案。",
+    "willWrite": "將寫入 {path}（原檔會先備份）：",
+    "write": "寫入設定",
+    "skipWrite": "我自己設定",
+    "written": "已寫入 {path}",
+    "backup": "原設定備份在 {path}",
+    "restartClient": "請重新啟動 {client}。"
+  },
+  "approval": {
+    "title": {
+      "apply": "AI 助手請求套用整理",
+      "undo": "AI 助手請求復原整理"
+    },
+    "requestedBy": "由 {client}（grant #{grant}）於 {time} 提出",
+    "note": "附註",
+    "count": "{action} {n} 張",
+    "action": {
+      "copy": "複製",
+      "move": "移動",
+      "symlink": "建立連結",
+      "hardlink": "建立硬連結",
+      "trash": "移到垃圾桶",
+      "sidecar_xmp": "寫入 XMP",
+      "sidecar_json": "寫入 JSON"
+    },
+    "status": {
+      "approved": "已核准",
+      "rejected": "已拒絕",
+      "expired": "已過期",
+      "stale": "計畫已改變，請重新請求"
+    },
+    "confirmMove": "我了解這會移動 {n} 張照片（可復原）",
+    "typeToConfirm": "請輸入「{text}」確認",
+    "needMoveConfirm": "請先確認移動",
+    "approve": "核准並套用",
+    "reject": "拒絕",
+    "follow": "查看進度",
+    "card": "{client} 請求整理 {n} 張照片",
+    "open": "查看並決定"
   }
 }
