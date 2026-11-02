@@ -56,7 +56,9 @@ def test_pg_001_012_initdb_once_utf8_socket_only(pg):
     p = pg()
     dsn = p.start()
     assert q(dsn, "SHOW server_encoding") == "UTF8"
-    assert q(dsn, "SELECT datcollate FROM pg_database WHERE datname = current_database()").lower().replace("-", "") in ("c.utf8",)
+    assert q(dsn, "SELECT datcollate FROM pg_database WHERE datname = current_database()").lower().replace("-", "") in (
+        "c.utf8",
+    )
     assert q(dsn, "SHOW listen_addresses") == ""  # Unix socket only (mac/linux)
     run = p.home / "run"
     assert stat.S_IMODE(run.stat().st_mode) == 0o700
@@ -119,12 +121,12 @@ def test_pg_004_008_backup_before_migration_and_no_downgrade(pg, base):
     migrate(dsn, bk)  # fresh database: schema created, no backup needed
     assert schema_revision(dsn) == SCHEMA_REVISION and bk.list() == []
     with psycopg.connect(dsn, autocommit=True) as c:
-        c.execute("UPDATE schema_meta SET revision = %s", (SCHEMA_REVISION - 1,))
+        c.execute("DELETE FROM alembic_version")  # back at base: the head migration is pending
     migrate(dsn, bk)
     assert [b.kind for b in bk.list()] == ["pre-migration"]  # dumped before upgrading
     assert schema_revision(dsn) == SCHEMA_REVISION
     with psycopg.connect(dsn, autocommit=True) as c:
-        c.execute("UPDATE schema_meta SET revision = %s", (SCHEMA_REVISION + 1,))
+        c.execute("UPDATE alembic_version SET version_num = 'ffff_written_by_a_newer_app'")
     with pytest.raises(SchemaTooNew) as e:
         migrate(dsn, bk)
     assert e.value.code == "DB_SCHEMA_TOO_NEW" and "restore" in e.value.hint

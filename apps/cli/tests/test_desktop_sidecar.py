@@ -11,6 +11,7 @@ import time
 from pathlib import Path
 
 import httpx
+import psycopg
 import pytest
 
 TOKEN = "s" * 64
@@ -146,3 +147,36 @@ def test_desk_027_user_python_environment_is_ignored(embedded_pg, tmp_path, stop
     info = _wait_run(home, p)
     assert httpx.get(f"http://127.0.0.1:{info['port']}/healthz").status_code == 200
     assert not marker.exists()
+
+
+# API start-up against the app database (08 §2.3): Alembic with a backup first; a newer database refuses to start
+@pytest.mark.integration
+@pytest.mark.tc("PG-004")
+def test_pg_004_api_start_backs_up_before_pending_migration(embedded_pg, tmp_path, stop):
+    # the test template was built by create_all, never stamped: from Alembic's view the baseline is pending
+    home = tmp_path / "home"
+    p = _launch(embedded_pg.dsn, home, _free_port())
+    stop(p)
+    _wait_run(home, p)
+    dumps = sorted((home / "backups").glob("pre-migration-*.dump"))
+    assert len(dumps) == 1 and dumps[0].stat().st_size > 0
+    with psycopg.connect(embedded_pg.dsn) as c:
+        assert c.execute("SELECT version_num FROM alembic_version").fetchone() is not None
+
+
+@pytest.mark.integration
+@pytest.mark.tc("PG-008")
+def test_pg_008_api_refuses_a_newer_database(embedded_pg, tmp_path, stop):
+    with psycopg.connect(embedded_pg.dsn, autocommit=True) as c:
+        c.execute("CREATE TABLE IF NOT EXISTS alembic_version (version_num varchar(32) PRIMARY KEY)")
+        c.execute("INSERT INTO alembic_version VALUES ('ffff_written_by_a_newer_app')")
+    home = tmp_path / "home"
+    p = _launch(embedded_pg.dsn, home, _free_port())
+    stop(p)
+    out, _ = p.communicate(timeout=60)
+    assert p.returncode == 4, out.decode()[-2000:]
+    text = out.decode()
+    assert "DB_SCHEMA_TOO_NEW" in text and "restore" in text
+    assert not (home / "run" / "api.json").exists()  # never served
+    with psycopg.connect(embedded_pg.dsn) as c:  # and nothing was touched
+        assert c.execute("SELECT version_num FROM alembic_version").fetchone()[0] == "ffff_written_by_a_newer_app"
