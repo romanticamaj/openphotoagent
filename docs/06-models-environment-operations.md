@@ -879,6 +879,8 @@ Fix 共有欄位：`fix_id`、`type`、`label`、`primary`、`requires_permissio
 | 69 | `MODEL_NOT_PINNED` | B | 這個 variant 尚未完成雜湊釘選，為了安全暫不提供下載 | 更新模型目錄／改用其他 variant | Update model catalog / Use another variant |
 | 70 | `PACK_CHECKSUM_MISMATCH` | B | 「{pack}」執行套件檔案的雜湊與簽章索引不符，已拒絕並清除暫存 | 重試（換來源） | Retry (other source) |
 | 71 | `PACK_UNSAFE_ARCHIVE` | B | 「{pack}」執行套件內容不安全（{reason}），已拒絕安裝 | 回報問題 | Report the problem |
+| 72 | `DISK_INSUFFICIENT_DB` | B | 資料庫所在磁碟空間不足（剩 {free}），已停止啟動；資料不會被刪除 | 釋放空間後重試 | Free up space and retry |
+| 73 | `DB_SCHEMA_TOO_NEW` | B | 資料庫由較新版本的 app 建立（{found}），此版本無法降級使用；資料未被更動 | 用備份還原 · 安裝新版 | Restore from a backup · Install the newer version |
 
 > （回寫 W-1，09 §9）#63–#68 由 09 的 PF-063～PF-066 與 OUT-EXE-016 提出；08 §10 的 `PACK_MISSING`、`DRIVER_TOO_OLD` 分別對應本表的 `RUNTIME_PACK_MISSING`、`GPU_DRIVER_TOO_OLD`。
 

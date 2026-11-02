@@ -40,6 +40,8 @@ EN = {
     "DECODE_RAW_MISSING": "RAW files cannot be read; {n} files will be skipped",
     "DECODE_FAILED": "{n} files are damaged or unsupported and were skipped",
     "FFMPEG_MISSING": "ffmpeg is missing; {n} videos will be skipped (no thumbnails)",
+    "DB_SCHEMA_TOO_NEW": "The database was created by a newer version of the app ({found}); this version cannot downgrade it and nothing was changed",
+    "DISK_INSUFFICIENT_DB": "The disk holding the database is full ({free} left); startup stopped and no data was deleted",
     "DISK_INSUFFICIENT_MODELS": "Not enough space for models: {req} needed, {free} left",
     "DISK_INSUFFICIENT_THUMBS": "Not enough space for thumbnails: about {req} needed, {free} left",
     "DISK_LOW_THUMBS": "The thumbnail folder has {free} left and will drop below {pct}% after processing",

@@ -5,6 +5,12 @@
     "severity": "W",
     "title": "環境檢查「{check}」本身失敗"
   },
+  "DB_SCHEMA_TOO_NEW": {
+    "cta": "用備份還原 · 安裝新版",
+    "message": "資料庫由較新版本的 app 建立（{found}），此版本無法降級使用；資料未被更動",
+    "severity": "B",
+    "title": "資料庫由較新版本的 app 建立（{found}）"
+  },
   "DECODE_FAILED": {
     "cta": "查看清單",
     "message": "{n} 張檔案損毀或格式不支援，已略過",
@@ -22,6 +28,12 @@
     "message": "無法讀取 RAW，{n} 張會被略過",
     "severity": "W",
     "title": "無法讀取 RAW"
+  },
+  "DISK_INSUFFICIENT_DB": {
+    "cta": "釋放空間後重試",
+    "message": "資料庫所在磁碟空間不足（剩 {free}），已停止啟動；資料不會被刪除",
+    "severity": "B",
+    "title": "資料庫所在磁碟空間不足（剩 {free}）"
   },
   "DISK_INSUFFICIENT_MODELS": {
     "cta": "管理已安裝模型（更改目錄／改用較小版本）",

@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import os
 import signal
+import socket
 import subprocess
 import sys
 import threading
@@ -41,23 +42,47 @@ def cmd_api(a: argparse.Namespace) -> None:
 
     setup_logging(home / "logs", "api", token=token)
     fp = data_fingerprint(home)
-    port = a.port
-    if not _port_free(port):
-        other = _probe(port)
+    sock = _bind_loopback(a.port)
+    if sock is None:
+        other = _probe(a.port)
         if other and other.get("app") == "openphotoagent" and other.get("data_fp") == fp:
-            print(f"OpenPhotoAgent already runs on port {port} for this data folder", file=sys.stderr)
+            print(f"OpenPhotoAgent already runs on port {a.port} for this data folder", file=sys.stderr)
             raise SystemExit(3)  # the shell focuses that instance instead
-        port = _free_port()
-    create_all(a.dsn)
+        sock = _bind_loopback(0)
+        assert sock is not None
+    port = int(sock.getsockname()[1])
+    if a.token_stdin:
+        prepare_database(a.dsn, home)
+    else:
+        create_all(a.dsn)  # dev / tests: schema straight from the models
     # same machine: the API serves the Worker's derived thumbnail cache directly (10 §3.4)
     app = create_app(
         dsn=a.dsn, static_dir=a.web_dist, thumbs_dir=home / "worker" / "thumbs", launch_token=token, data_fp=fp
     )
+    # the socket is bound and listening before run/api.json names it (DESK-035): no check-then-bind race
     write_run_file(home, {"port": port, "pid": os.getpid(), "version": __version__, "data_fp": fp})
-    uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning")
+    uvicorn.Server(uvicorn.Config(app, log_level="warning")).run(sockets=[sock])
 
 
 from opagent_core.version import VERSION as __version__  # noqa: E402
+
+
+def prepare_database(dsn: str, home: Path) -> None:
+    """Desktop start-up (08 §2.3): Alembic to head with a pg_dump first when anything is pending (PG-004), then
+    the daily backup (PG-005). A database written by a newer app stops start-up with exit code 4 (PG-008)."""
+    import json
+
+    from opagent_core.clock import SystemClock
+    from opagent_db.embedded import find_pg_bin
+    from opagent_db.lifecycle import Backups, SchemaTooNew, migrate
+
+    backups = Backups(home / "backups", find_pg_bin(), SystemClock())
+    try:
+        migrate(dsn, backups)
+    except SchemaTooNew as e:
+        print(json.dumps({"code": e.code, "params": e.params, "hint": e.hint}), file=sys.stderr, flush=True)
+        raise SystemExit(4) from e
+    backups.daily(dsn)
 
 
 def data_fingerprint(home: Path) -> str:
@@ -66,23 +91,19 @@ def data_fingerprint(home: Path) -> str:
     return hashlib.sha256(str(Path(home).resolve()).encode()).hexdigest()[:16]
 
 
-def _port_free(port: int) -> bool:
-    import socket
-
-    with socket.socket() as s:
-        try:
-            s.bind(("127.0.0.1", port))
-        except OSError:
-            return False
-    return True
-
-
-def _free_port() -> int:
-    import socket
-
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        return int(s.getsockname()[1])
+def _bind_loopback(port: int) -> socket.socket | None:
+    """A listening socket on 127.0.0.1 only (DESK-014), or None when the port is taken."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    if os.name != "nt":
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    try:
+        s.bind(("127.0.0.1", port))
+        s.listen(2048)
+    except OSError:
+        s.close()
+        return None
+    s.set_inheritable(True)
+    return s
 
 
 def _probe(port: int) -> dict[str, str] | None:
