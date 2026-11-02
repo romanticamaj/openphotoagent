@@ -28,6 +28,8 @@ def test_gate_005_remote_runtime_refused_for_face_models(tmp_path):
     spec = yaml.safe_load((BUILTIN_DIR / "models/auraface-v1.yaml").read_text())
     spec["id"] = "my-remote-face"
     spec["variants"][0]["runtime"] = "openai-compatible"
+    for f in spec["variants"][0]["files"]:  # a well-formed user model, so the runtime rule is what refuses it
+        f.update(size=1000, sha256="a" * 64)
     (tmp_path / "my-remote-face.yaml").write_text(yaml.safe_dump(spec))
     reg = load_registry(user_dirs=[tmp_path])
     m = reg.models["my-remote-face"]

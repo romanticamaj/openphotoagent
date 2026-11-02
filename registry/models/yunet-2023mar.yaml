@@ -1,0 +1,23 @@
+# YuNet face detector (OpenCV zoo, MIT). Bundled with the installer (07 §1.4); file sha pinned by registry-pin.yml.
+schema_version: 1
+id: yunet-2023mar
+display_name: "YuNet 2023mar"
+family: yunet
+kind: face_detector
+capabilities: [face_detect, face_landmarks]
+license: { spdx: MIT, weights: MIT, commercial_use: true, redistributable: true, requires_acceptance: false, url: "https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet" }
+source: { hf_repo: opencv/face_detection_yunet, revision: main }
+defaults: { bundled: true, score_threshold: 0.7, nms: 0.3, input_long_side: 1280, max_faces: 50 }
+privacy: { local_only: true }
+variants:
+  - id: onnx-fp32
+    runtime: onnx
+    quant: fp32
+    revision: main
+    files:
+      - { repo: opencv/face_detection_yunet, path: "face_detection_yunet_2023mar.onnx", role: detector }
+    vram_gb: { weights: 0 }
+    ram_gb: 0.1
+    recommended_batch: 1
+    requires: { runtime_pack: ["ort-*"], os: [windows, macos, linux], accel_any: [cpu, cuda, directml, coreml] }
+notes: "人臉偵測與 5 點 landmark；不做任何屬性推論。"

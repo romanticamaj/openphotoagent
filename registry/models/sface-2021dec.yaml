@@ -1,0 +1,24 @@
+# SFace (OpenCV zoo, Apache-2.0): CPU fallback face embedder (07 §1.4).
+schema_version: 1
+id: sface-2021dec
+display_name: "SFace 2021dec (CPU)"
+family: sface
+kind: face_embedder
+capabilities: [face_embed]
+license: { spdx: Apache-2.0, weights: Apache-2.0, commercial_use: true, redistributable: true, requires_acceptance: false, url: "https://github.com/opencv/opencv_zoo/tree/main/models/face_recognition_sface" }
+source: { hf_repo: opencv/face_recognition_sface, revision: main }
+embedding: { dim: 128, normalize: true, similarity: cosine }
+privacy: { local_only: true }
+variants:
+  - id: onnx-fp32
+    runtime: onnx
+    quant: fp32
+    device: cpu
+    revision: main
+    files:
+      - { repo: opencv/face_recognition_sface, path: "face_recognition_sface_2021dec.onnx", role: embedder }
+    vram_gb: { weights: 0 }
+    ram_gb: 0.2
+    recommended_batch: 16
+    requires: { runtime_pack: ["ort-cpu"], os: [windows, macos, linux], accel_any: [cpu] }
+notes: "沒有 GPU 時的人臉 embedding 後備。"

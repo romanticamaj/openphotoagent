@@ -1,0 +1,24 @@
+# InsightFace buffalo_l: non-commercial research weights. Never bundled, never in the repo; downloaded only after
+# the user accepts the licence (07 §1.4). Only detection and recognition files — no attribute models.
+schema_version: 1
+id: insightface-buffalo-l
+display_name: "InsightFace buffalo_l（非商用授權）"
+family: insightface
+kind: face_embedder
+capabilities: [face_embed]
+license: { spdx: LicenseRef-InsightFace-NonCommercial, weights: non-commercial research only, commercial_use: false, redistributable: false, requires_acceptance: true, url: "https://github.com/deepinsight/insightface/tree/master/python-package#license" }
+source: { hf_repo: deepinsight/buffalo_l, revision: main }
+embedding: { dim: 512, normalize: true, similarity: cosine }
+privacy: { local_only: true }
+variants:
+  - id: onnx-fp32
+    runtime: onnx
+    quant: fp32
+    revision: main
+    files:
+      - { repo: deepinsight/buffalo_l, path: "w600k_r50.onnx", role: embedder }
+      - { repo: deepinsight/buffalo_l, path: "det_10g.onnx", role: detector }
+    vram_gb: { weights: 0.4, runtime_overhead: 0.2 }
+    recommended_batch: 64
+    requires: { runtime_pack: ["ort-*"], os: [windows, macos, linux], accel_any: [cuda, directml, coreml, cpu] }
+notes: "使用者同意非商用授權後才下載；不隨安裝包散布。"
