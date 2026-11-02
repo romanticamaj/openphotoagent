@@ -60,6 +60,7 @@ class WorkerAgent:
         self.home.mkdir(parents=True, exist_ok=True)
         self.backend = backend
         self.bench_backends: dict[str, Any] = {}  # benchmark candidates by name (03 §6); loaded on demand
+        self.text_embedders: dict[str, Any] = {}  # caption text models by registry key (R2, ADR-0014)
         self.face_backend = face_backend  # detection + embedding run only here, on the decoded image (07 §2.2)
         self._faces: dict[str, tuple[str, list[dict[str, Any]]]] = {}
         self._active_child: Any = None  # the running download child (ADR-0007)
@@ -707,11 +708,12 @@ class WorkerAgent:
         import asyncio
         import inspect
 
-        if self.embedder is None:
+        emb = self.text_embedders.get(p.get("model") or "") if p.get("modality") == "caption" else self.embedder
+        if emb is None:
             return {"error": "MODEL_UNAVAILABLE"}
-        if p.get("fingerprint") and p["fingerprint"] != self.embedder.describe().model_fingerprint:
+        if p.get("fingerprint") and p["fingerprint"] != emb.describe().model_fingerprint:
             return {"error": "MODEL_UNAVAILABLE", "reason": "space mismatch"}
-        res: Any = self.embedder.embed_texts([p["text"]])
+        res: Any = emb.embed_texts([p["text"]])
         if inspect.isawaitable(res):
 
             async def _wait(a: Any) -> Any:
@@ -719,6 +721,19 @@ class WorkerAgent:
 
             res = asyncio.run(_wait(res))
         return {"vec": [float(x) for x in list(res[0])]}
+
+    def _do_embed_captions(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """R2 (05 §2): caption text → multilingual vector with the space's text model (ADR-0014)."""
+        emb = self.text_embedders.get(p["model"])
+        if emb is None:
+            raise RuntimeError("MODEL_UNAVAILABLE")
+        items = p["items"]
+        vecs = emb.embed_texts([it["text"] for it in items])
+        return {
+            "vectors": {it["asset_id"]: [float(x) for x in v] for it, v in zip(items, vecs, strict=True)},
+            "fingerprint": emb.describe().model_fingerprint,
+            "dim": len(vecs[0]) if vecs else 0,
+        }
 
     def _do_hash_sha1(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         """Immich matches assets by SHA-1 (02 §8.2); only the worker reads the photos (invariant 1)."""

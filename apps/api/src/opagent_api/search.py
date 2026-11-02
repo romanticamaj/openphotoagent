@@ -101,7 +101,7 @@ def _worker_online(c: Any, st: AppState) -> Any:
     return w if st.clock.now() - hb <= timedelta(seconds=90) else None
 
 
-def query_vector(st: AppState, text_q: str, space: Any) -> list[float] | None:
+def query_vector(st: AppState, text_q: str, space: Any, modality: str = "image") -> list[float] | None:
     """``embed.text`` RPC on the interactive lane; ``None`` when no worker answers within 2 s (SRCH-SEM-002)."""
     import uuid
 
@@ -116,7 +116,12 @@ def query_vector(st: AppState, text_q: str, space: Any) -> list[float] | None:
                 kind="embed_text",
                 lane="interactive",
                 worker_id=w.id,
-                payload={"text": text_q, "fingerprint": space.fingerprint},
+                payload={
+                    "text": text_q,
+                    "fingerprint": space.fingerprint,
+                    "modality": modality,
+                    "model": space.model_key,
+                },
             )
         )
     deadline = time.monotonic() + RPC_TIMEOUT_S  # noqa: TID251 - waits on a real worker over the wire
@@ -291,7 +296,15 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
             hidden = select(duplicate_member.c.asset_id).where(duplicate_member.c.is_representative.is_(False))
             where.append(search_doc.c.asset_id.notin_(hidden))
         space = active_space(c)
+        from .routes_caption import caption_space
+
+        cspace = caption_space(c)
     qvec = None
+    cvec = None
+    if q and body.semantic and cspace is not None:
+        cvec = query_vector(st, q, cspace, modality="caption")
+        if cvec is None:
+            degraded.append("caption_vector")
     if q and body.semantic:
         qvec = query_vector(st, q, space)
         if qvec is None:
@@ -338,13 +351,28 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                     .limit(PER_ROUTE)
                 )
                 routes["image_vector"] = [r[0] for r in c.execute(vq, {"qv": str(qvec)})]
+            if cvec is not None and cspace is not None:  # R2: multilingual caption vectors (05 §2, ADR-0014)
+                cq = (
+                    select(search_doc.c.asset_id)
+                    .join(
+                        asset_embedding,
+                        and_(
+                            asset_embedding.c.asset_id == search_doc.c.asset_id,
+                            asset_embedding.c.space_id == cspace.id,
+                        ),
+                    )
+                    .where(and_(*where))
+                    .order_by(text("asset_embedding.vec <=> CAST(:qv AS vector)"), search_doc.c.asset_id)
+                    .limit(PER_ROUTE)
+                )
+                routes["caption_vector"] = [r[0] for r in c.execute(cq, {"qv": str(cvec)})]
             from opagent_search.fusion import fuse, route_weights
 
             fused = fuse(routes, route_weights(q))
             scores = {f.asset_id: f.score for f in fused}
             matched = {f.asset_id: f.matched_by for f in fused}
             ranked = [f.asset_id for f in fused]
-            vec_ids = routes.get("image_vector") or []
+            vec_ids = (routes.get("image_vector") or []) + (routes.get("caption_vector") or [])
             if vec_ids:
                 member.append(search_doc.c.asset_id.in_(vec_ids))
             match = or_(*member) if member else false()
