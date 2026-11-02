@@ -782,7 +782,7 @@
 |----|------|-----------|------|----|---|
 | PERF-001 | 10 萬張 60 fps | 合成圖庫 100,000 張（09 §3.6），Chromium，參考規格 runner | 捲動 30 s：p95 frame ≤ 16.7 ms、掉幀 < 1%；nightly 回歸 > 10% 失敗 | F | #85、DoD 5.4 |
 | PERF-002 | 首屏 | 熱快取 | < 1 s 首屏（DoD）；可互動 < 300 ms（10 §5.1 目標，記錄） | F | DoD 5.4 |
-| PERF-003 | bundle 大小 | `size-limit` | 照片路由首次 ≤ 180 KB gzip；總預算 250 KB | F | — |
+| PERF-003 | bundle 大小 | `size-limit`；production web build，每個路由以全新 context 首次載入 | 照片路由首次 **JS** ≤ 180 KB gzip；**每路由**首次 JS ≤ 250 KB gzip；CSS（含字型 `@font-face`）只記錄（ADR-0006） | F | — |
 | PERF-004 | 掃描吞吐基準 | 10,000 張 SSD | 記錄 files/s；回歸 > 15% 失敗（nightly） | F | — |
 | PERF-005 | 推論吞吐基準 | 三台參考機、測試圖庫子集 1,000 張 | 記錄張/秒、VRAM、載入時間；回歸 > 10% 警示、> 20% 失敗；寫入 release notes | N | DoD 5.5 |
 | PERF-006 | 搜尋延遲 | 10 萬張，文字 + facet | p95 < 300 ms | F | DoD 5.4 |
@@ -802,6 +802,7 @@
 | I18N-004 | 偽語系 | pseudo-locale 字串加長 40% | 主要路由無文字截斷溢出（截圖 + DOM overflow 檢查） | V | #11 |
 | I18N-005 | 單人模式術語 | 單人模式全路由文字掃描 | 不出現「Worker」「Pipeline」「dry-run」「Workspace」「cascade」「fingerprint」（08 §8.3） | E | #8 |
 | I18N-006 | `Intl.DurationFormat` 缺席 | 刪除該 API（模擬 WebKitGTK） | 自製格式化器輸出與 golden 相同 | U | #31 |
+| I18N-007 | 修復按鈕都有文案（回歸） | 錯誤碼目錄中每個錯誤碼的每個 fix，zh-TW 與 en | 按鈕文字是翻譯後的文案，不是 `fix.*` 原始 key；未有專用 key 時取 06 §4.7「修復」欄（`errors.<code>.cta` 依 ` · ` 切分的第 i 段） | C | #11、DoD 5.4 |
 
 ---
 
@@ -845,6 +846,8 @@
 | DESK-032 | capabilities 驅動 UI | `GET /capabilities` 回 `single_user=true` | UI 無 Org／Workspace 選單、無 Workers 頁 | E | #8、DoD 5.1 |
 | DESK-033 | Photos Library 選擇提示 | macOS 選 `Photos Library.photoslibrary` | 顯示封裝格式說明 | D/M | #54 |
 | DESK-034 | 桌面煙霧總表 | Win、Linux：tauri-driver + WebdriverIO；macOS：手動清單 | 啟動 → onboarding（FakeBackend 模式）→ 依日期整理 → undo → 搜尋 → 結束，全程無錯誤 | D/M | DoD 5.5 |
+| DESK-035 | `run/api.json` 出現時 port 已在 listen（回歸） | 啟動 api，偵測到 `run/api.json` 後立即連線，重複 5 次 | 每次都連得上；port 由同一個已 bind 的 socket 提供（沒有「檢查空閒 → 稍後 bind」的競態） | I | #8 |
+| DESK-036 | 桌面傳輸與媒體解析（10 §5.4） | 殼注入 `__OPA_PLATFORM__`（backend `{baseUrl, token}`、`thumbsDir`、`assetUrl`） | REST 改打 `baseUrl` 並帶 `Bearer`；事件流以 fetch 讀 SSE 並帶 token；縮圖 URL＝`assetUrl(<thumbsDir>/<ch[:2]>/<ch>.<variant>.webp)`；影像 payload（時間軸、搜尋、待確認、預覽）都帶 `ch`；Web build 行為不變 | U/I | #8、#93 |
 
 ### 13.2 PG：嵌入式 PostgreSQL 17 + pgvector（08 §2.3）
 

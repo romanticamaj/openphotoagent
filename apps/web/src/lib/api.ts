@@ -1,3 +1,4 @@
+import { endpoint, platform } from "./platform";
 // Thin REST client for /api/v1 (replaced by the OpenAPI-generated ts-client in slice 9/10).
 export class ApiError extends Error {
   constructor(public status: number, public body: unknown) {
@@ -6,16 +7,17 @@ export class ApiError extends Error {
 }
 
 async function req<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const r = await fetch(`/api/v1${path}`, {
+  const { url, headers } = await endpoint(`/api/v1${path}`);
+  const r = await fetch(url, {
     method,
-    headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+    headers: body === undefined ? headers : { ...headers, "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!r.ok) throw new ApiError(r.status, await r.json().catch(() => null));
   return (await r.json()) as T;
 }
 
-export type TimelineAsset = { id: string; w: number | null; h: number | null; thumbhash: string | null; taken_at: string | null; flags: string[] };
+export type TimelineAsset = { id: string; ch?: string | null; w: number | null; h: number | null; thumbhash: string | null; taken_at: string | null; flags: string[] };
 export type Label = {
   result_id: string;
   category: string | null;
@@ -40,7 +42,19 @@ export type AssetInfo = {
 };
 export type Variant = "t256" | "t512" | "p1024";
 
-export const mediaUrl = (id: string, variant: Variant) => `/api/v1/assets/${encodeURIComponent(id)}/media?variant=${variant}`;
+/** A photo's derived image. Desktop: straight from the local cache through the asset protocol, keyed by the
+ *  content hash `ch` (10 §5.4); web: the API endpoint. */
+const knownHash = new Map<string, string>(); // ids seen with their hash (e.g. dragged examples carry only the id)
+
+export function mediaUrl(id: string, variant: Variant, ch?: string | null): string {
+  const p = platform();
+  if (ch) knownHash.set(id, ch);
+  else ch = knownHash.get(id);
+  if (p.kind === "desktop" && ch && p.thumbsDir && p.assetUrl) {
+    return p.assetUrl(`${p.thumbsDir}/${ch.slice(0, 2)}/${ch}.${variant}.webp`);
+  }
+  return `/api/v1/assets/${encodeURIComponent(id)}/media?variant=${variant}`;
+}
 
 export type Recommendation = {
   mode: "standard" | "fast" | "unsupported";
@@ -69,7 +83,7 @@ export type SearchBody = {
   cursor?: string | null;
   facets?: string[];
 };
-export type SearchHit = { asset_id: string; score: number; matched_by: string[]; category: string | null; tags: string[]; caption: string | null; taken_at: string | null };
+export type SearchHit = { asset_id: string; ch?: string | null; score: number; matched_by: string[]; category: string | null; tags: string[]; caption: string | null; taken_at: string | null };
 export type SearchResult = { items: SearchHit[]; facets: Record<string, Record<string, number>>; next_cursor: string | null; total: number; degraded: boolean };
 
 export type VariantView = {
@@ -120,7 +134,7 @@ export type Plan = {
   outcome: { done: number; renamed: number; same_skipped: number; skipped: number; failed: number } | null;
   actions?: PlanAction[];
 };
-export type PreviewItem = { asset_id: string; rel: string; category_key: string; decision: string; confidence: number; source: string; dst_rel: string };
+export type PreviewItem = { asset_id: string; ch?: string | null; rel: string; category_key: string; decision: string; confidence: number; source: string; dst_rel: string };
 export type Preview = {
   id: string;
   status: "running" | "ready";
@@ -131,13 +145,17 @@ export type Category = { key: string; name: string; description: string; example
 export type Review = {
   id: string;
   asset_id: string;
+  ch?: string | null;
   job_id: string;
   status: string;
   suggested: { category: string; confidence: number; candidates: Array<string | { id?: string; key?: string }> };
   final: { category: string } | null;
 };
 
+export type Capabilities = { deployment: string; single_user: boolean; features: Record<string, boolean> };
+
 export const api = {
+  capabilities: () => req<Capabilities>("GET", "/capabilities"),
   roots: () => req<Root[]>("GET", "/roots"),
   browse: (root: string, path: string) =>
     req<{ dirs: string[] }>("GET", `/fs/browse?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`),

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import tempfile
 from collections.abc import Iterator
 
@@ -33,8 +34,11 @@ def embedded_pg_cluster() -> Iterator[_pg.PgCluster]:
     except ImportError:  # pragma: no cover - db package always present in the workspace
         pass
     cluster = _pg.start_cluster(base, init)
-    yield cluster
-    _pg.stop_cluster(cluster)
+    try:
+        yield cluster
+    finally:
+        _pg.stop_cluster(cluster)
+        shutil.rmtree(base, ignore_errors=True)  # a cluster per session would otherwise pile up in the temp dir
 
 
 @pytest.fixture

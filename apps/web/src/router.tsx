@@ -1,22 +1,51 @@
 import { Link, Outlet, createRootRoute, createRoute, createRouter, redirect } from "@tanstack/react-router";
-import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { ActivityButton, ActivityDrawer, RecoveryCard } from "./features/activity/ActivityHost";
 import { useTranslation } from "react-i18next";
-import { OrganizeWizard } from "./features/organize/OrganizeWizard";
-import { ModelCard, ModelsPage } from "./features/models/ModelsPage";
-import { Welcome } from "./features/onboarding/Welcome";
-import { DoctorPage } from "./features/system/DoctorPage";
-import { SettingsPage } from "./features/system/SettingsPage";
-import { PlanPage } from "./features/organize/PlanPage";
-import { ReviewPage } from "./features/review/ReviewPage";
 import { SearchBar } from "./features/search/SearchBar";
-import { SearchPage } from "./features/search/SearchPage";
 import { PhotosPage } from "./features/viewer/PhotosPage";
 import { api } from "./lib/api";
+import { useServerEvent } from "./lib/events";
+import { notificationFor, type OpStatusEvent } from "./lib/notify";
+import { platform } from "./lib/platform";
+
+// only the photos route ships in the first load (PERF-003); every other page is its own chunk, fetched once the
+// first screen has settled so that moving between pages stays instant
+const PAGES = [
+  () => import("./features/organize/OrganizeWizard"),
+  () => import("./features/onboarding/Welcome"),
+  () => import("./features/system/DoctorPage"),
+  () => import("./features/system/SettingsPage"),
+  () => import("./features/organize/PlanPage"),
+  () => import("./features/review/ReviewPage"),
+  () => import("./features/search/SearchPage"),
+  () => import("./features/models/ModelsPage"),
+];
+export function prefetchPages(delayMs = 3000) {
+  if (typeof window === "undefined") return;
+  window.setTimeout(() => PAGES.forEach((load) => void load().catch(() => undefined)), delayMs);
+}
+const OrganizeWizard = lazy(() => import("./features/organize/OrganizeWizard").then((m) => ({ default: m.OrganizeWizard })));
+const Welcome = lazy(() => import("./features/onboarding/Welcome").then((m) => ({ default: m.Welcome })));
+const DoctorPage = lazy(() => import("./features/system/DoctorPage").then((m) => ({ default: m.DoctorPage })));
+const SettingsPage = lazy(() => import("./features/system/SettingsPage").then((m) => ({ default: m.SettingsPage })));
+const PlanPage = lazy(() => import("./features/organize/PlanPage").then((m) => ({ default: m.PlanPage })));
+const ReviewPage = lazy(() => import("./features/review/ReviewPage").then((m) => ({ default: m.ReviewPage })));
+const SearchPage = lazy(() => import("./features/search/SearchPage").then((m) => ({ default: m.SearchPage })));
+const ModelsPage = lazy(() => import("./features/models/ModelsPage").then((m) => ({ default: m.ModelsPage })));
+const ModelCard = lazy(() => import("./features/models/ModelsPage").then((m) => ({ default: m.ModelCard })));
 
 function Shell() {
   const { t } = useTranslation();
   const [activity, setActivity] = useState(false);
+  // single-user desktop/all-in-one: no organisation, workspace or worker management in the UI (08 §8, DESK-032)
+  const caps = useQuery({ queryKey: ["capabilities"], queryFn: api.capabilities, staleTime: Infinity });
+  useEffect(() => prefetchPages(), []);
+  useServerEvent("operation.status", (d) => {
+    const n = platform().notify && notificationFor(d as OpStatusEvent);
+    if (n) platform().notify!(t(n.key), n.route);
+  });
   const nav: Array<[string, string]> = [
     ["/", "nav.photos"],
     ["/organize", "nav.organize"],
@@ -26,7 +55,7 @@ function Shell() {
     ["/settings", "nav.settings"],
   ];
   return (
-    <div className="shell">
+    <div className="shell" data-single-user={caps.data ? String(caps.data.single_user) : undefined}>
       <header className="topbar">
         <strong>{t("app.title")}</strong>
         <SearchBar />
@@ -42,7 +71,9 @@ function Shell() {
       </nav>
       <main className="page" id="main">
         <RecoveryCard onReview={() => setActivity(true)} />
-        <Outlet />
+        <Suspense fallback={<div aria-busy="true" />}>
+          <Outlet />
+        </Suspense>
       </main>
       <ActivityDrawer open={activity} setOpen={setActivity} />
     </div>

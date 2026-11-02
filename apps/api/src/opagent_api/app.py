@@ -16,6 +16,7 @@ from . import (
     routes_public,
     routes_review,
     routes_selection,
+    routes_system,
     routes_viewer,
     routes_worker,
     search,
@@ -32,14 +33,24 @@ def create_app(
     registry_dir: Any = None,
     user_models_dir: Any = None,
     thumbs_dir: Any = None,
+    data_fp: str | None = None,
+    lan_password_hash: str | None = None,
+    backups_dir: Any = None,
+    pg_bin: Any = None,
 ) -> FastAPI:
-    app = FastAPI(title="OpenPhotoAgent API", version="0.1.0-dev")
+    from opagent_core.version import VERSION
+
+    app = FastAPI(title="OpenPhotoAgent API", version=VERSION)
     from pathlib import Path
 
     st = AppState(
         engine=engine_for(dsn),
         clock=clock or SystemClock(),
         launch_token=launch_token,
+        lan_password_hash=lan_password_hash,
+        backups_dir=Path(backups_dir) if backups_dir else None,
+        pg_bin=Path(pg_bin) if pg_bin else None,
+        dsn=dsn,
         registry_dir=Path(registry_dir) if registry_dir else None,
         user_models_dir=Path(user_models_dir) if user_models_dir else None,
         thumbs_dir=Path(thumbs_dir) if thumbs_dir else None,
@@ -47,7 +58,18 @@ def create_app(
     st.ensure_workspace()
     app.state.opa = st
     install_problem_handlers(app)
+    from . import security
+
+    app.include_router(security.router)
+
+    @app.get("/healthz")
+    def healthz() -> dict[str, Any]:
+        """Identity for port-conflict checks (08 §1.3): which app, which data folder — no secrets."""
+        return {"app": "openphotoagent", "version": app.version, "data_fp": data_fp}
+
+    app.add_middleware(security.DesktopGuard, state=st)
     app.include_router(routes_public.router, prefix="/api/v1")
+    app.include_router(routes_system.router, prefix="/api/v1")
     app.include_router(routes_ops.router, prefix="/api/v1")
     app.include_router(routes_review.router, prefix="/api/v1")
     app.include_router(routes_models.router, prefix="/api/v1")

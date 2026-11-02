@@ -21,6 +21,7 @@ def test_dl_014_kill9_then_auto_resume(env, tmp_path):
         f"c = TestClient(create_app(dsn={env['dsn']!r}, registry_dir={str(env['tmp'] / 'registry')!r}))\n"
         f"w = WorkerAgent(c, roots=[], home={str(env['tmp'] / 'w')!r}, worker_id='w1', hw_profile='rtx5070ti-win11', "
         f"models_root={str(env['tmp'] / 'models')!r}, download_sources=[{srv.url!r}])\n"
+        "w.download_reserve_floor = 0\n"  # ~200 KB files; the disk reserve is DL-010/011's subject
         "w.run_once()\n"
     )
     e = {**os.environ, "OPAGENT_TEST_MODE": "1", "OPAGENT_CRASH_AT": "download_chunk", "OPAGENT_CRASH_NTH": "2"}

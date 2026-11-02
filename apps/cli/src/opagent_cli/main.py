@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import os
 import signal
+import socket
 import subprocess
 import sys
 import threading
@@ -28,29 +29,222 @@ def _parse_roots(spec: str) -> list[dict[str, str]]:
 
 
 def cmd_api(a: argparse.Namespace) -> None:
+    """API process. Desktop mode (``--token-stdin``): the shell writes the launch token on stdin — never argv or the
+    environment (DESK-012); binds 127.0.0.1 only (DESK-014); resolves port conflicts and records the actual port in
+    ``<home>/run/api.json`` (0600) for the tray, the browser handoff and ``opagent mcp`` (DESK-010)."""
     import uvicorn
     from opagent_api.app import create_app
     from opagent_db.schema import create_all
 
-    create_all(a.dsn)
+    token = sys.stdin.readline().strip() if a.token_stdin else None
+    home = Path(a.home) if a.home else _home()
+    from .logs import setup_logging
+
+    setup_logging(home / "logs", "api", token=token)
+    fp = data_fingerprint(home)
+    lan_hash = None
+    if getattr(a, "lan", False):  # "allow LAN access" (08 §1.3): only ever with login enforced
+        lan_hash = read_lan_password_hash(home)
+        if lan_hash is None:
+            print("LAN_PASSWORD_REQUIRED: set one with `opagent lan-password` first", file=sys.stderr, flush=True)
+            raise SystemExit(5)
+    bind_host = "0.0.0.0" if lan_hash else "127.0.0.1"  # noqa: S104 - LAN mode, login enforced
+    if not a.token_stdin and getattr(a, "host", None):  # container all-in-one: compose publishes to 127.0.0.1 only
+        bind_host = a.host
+    sock = _bind_loopback(a.port, bind_host)
+    if sock is None:
+        other = _probe(a.port)
+        if other and other.get("app") == "openphotoagent" and other.get("data_fp") == fp:
+            print(f"OpenPhotoAgent already runs on port {a.port} for this data folder", file=sys.stderr)
+            raise SystemExit(3)  # the shell focuses that instance instead
+        sock = _bind_loopback(0, bind_host)
+        assert sock is not None
+    port = int(sock.getsockname()[1])
+    if a.token_stdin:
+        prepare_database(a.dsn, home)
+    else:
+        create_all(a.dsn)  # dev / tests: schema straight from the models
     # same machine: the API serves the Worker's derived thumbnail cache directly (10 §3.4)
-    app = create_app(dsn=a.dsn, static_dir=a.web_dist, thumbs_dir=_home() / "worker" / "thumbs")
-    uvicorn.run(app, host="127.0.0.1", port=a.port, log_level="warning")
+    app = create_app(
+        dsn=a.dsn,
+        static_dir=a.web_dist,
+        thumbs_dir=home / "worker" / "thumbs",
+        launch_token=token,
+        data_fp=fp,
+        lan_password_hash=lan_hash,
+        backups_dir=home / "backups" if a.token_stdin else None,  # Settings → Data on the desktop (08 §2.3)
+    )
+    # the socket is bound and listening before run/api.json names it (DESK-035): no check-then-bind race
+    write_run_file(home, {"port": port, "pid": os.getpid(), "version": __version__, "data_fp": fp})
+    if a.token_stdin:
+        watch_parent_pipe()  # from here on, the shell disappearing stops us (start-up exits report their own codes)
+    uvicorn.Server(uvicorn.Config(app, log_level="warning")).run(sockets=[sock])
+
+
+from opagent_core.version import VERSION as __version__  # noqa: E402
+
+
+def watch_parent_pipe() -> None:
+    """Orphan protection where the OS has none (macOS, 08 §1.1): the shell keeps our stdin open for its whole
+    life; EOF means it is gone, so stop — SIGTERM first for a graceful uvicorn shutdown, then hard exit."""
+
+    def wait() -> None:
+        try:
+            while sys.stdin.buffer.read(4096):
+                pass
+        except (OSError, ValueError):
+            pass
+        os.kill(os.getpid(), signal.SIGTERM)
+        threading.Timer(3.0, lambda: os._exit(0)).start()
+
+    threading.Thread(target=wait, name="parent-pipe", daemon=True).start()
+
+
+def prepare_database(dsn: str, home: Path) -> None:
+    """Desktop start-up (08 §2.3): Alembic to head with a pg_dump first when anything is pending (PG-004), then
+    the daily backup (PG-005). A database written by a newer app stops start-up with exit code 4 (PG-008)."""
+    import json
+
+    from opagent_core.clock import SystemClock
+    from opagent_db.embedded import find_pg_bin
+    from opagent_db.lifecycle import Backups, SchemaTooNew, ensure_database, migrate
+
+    ensure_database(dsn)  # the shell starts a bare postmaster; the app database is created on first start
+    backups = Backups(home / "backups", find_pg_bin(), SystemClock())
+    try:
+        migrate(dsn, backups)
+    except SchemaTooNew as e:
+        print(json.dumps({"code": e.code, "params": e.params, "hint": e.hint}), file=sys.stderr, flush=True)
+        raise SystemExit(4) from e
+    backups.daily(dsn)
+
+
+def data_fingerprint(home: Path) -> str:
+    import hashlib
+
+    return hashlib.sha256(str(Path(home).resolve()).encode()).hexdigest()[:16]
+
+
+def _bind_loopback(port: int, host: str = "127.0.0.1") -> socket.socket | None:
+    """A listening socket — 127.0.0.1 only (DESK-014) unless LAN mode — or None when the port is taken."""
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    if os.name != "nt":
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    try:
+        s.bind((host, port))
+        s.listen(2048)
+    except OSError:
+        s.close()
+        return None
+    s.set_inheritable(True)
+    return s
+
+
+def _probe(port: int) -> dict[str, str] | None:
+    import httpx
+
+    try:
+        r = httpx.get(f"http://127.0.0.1:{port}/healthz", timeout=1.0)
+        return dict(r.json()) if r.status_code == 200 else None
+    except (httpx.HTTPError, ValueError):
+        return None
+
+
+def write_run_file(home: Path, info: dict[str, object]) -> None:
+    """Atomic, owner-only (0600) — it names the port of a token-protected API."""
+    import json
+
+    run = Path(home) / "run"
+    run.mkdir(parents=True, exist_ok=True)
+    tmp = run / "api.json.tmp"
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
+        json.dump(info, f)
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, run / "api.json")
+
+
+def lan_file(home: Path) -> Path:
+    return Path(home) / "config" / "lan.json"
+
+
+def read_lan_password_hash(home: Path) -> str | None:
+    import json
+
+    try:
+        h = json.loads(lan_file(home).read_text()).get("password_hash")
+    except (OSError, ValueError):
+        return None
+    return h if isinstance(h, str) and h.startswith("$argon2id$") else None
+
+
+def cmd_lan_password(a: argparse.Namespace) -> None:
+    """Set the LAN-access password (read from stdin; stored only as an argon2id hash, file mode 0600)."""
+    import json
+
+    from opagent_api.security import hash_password
+
+    pw = sys.stdin.readline().rstrip("\n")
+    if len(pw) < 8:
+        print("LAN_PASSWORD_TOO_SHORT: at least 8 characters", file=sys.stderr)
+        raise SystemExit(2)
+    home = Path(a.home) if a.home else _home()
+    f = lan_file(home)
+    f.parent.mkdir(parents=True, exist_ok=True)
+    tmp = f.with_suffix(".tmp")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as fh:
+        json.dump({"password_hash": hash_password(pw)}, fh)
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, f)
+
+
+def cmd_pg_prepare(a: argparse.Namespace) -> None:
+    """For the desktop shell (08 §1.1, §2.3): initdb once, socket dir, stale pid check; print the postgres argv
+    and DSNs as JSON. The shell runs the argv itself and supervises that PID."""
+    import json
+
+    from opagent_db.embedded import EmbeddedPg, PgAlreadyRunning, PgError
+
+    home = Path(a.home) if a.home else _home() / "pg"
+    pg = EmbeddedPg(home, desktop=True, ram_gb=a.ram_gb)
+    try:
+        argv = pg.prepare()
+    except PgAlreadyRunning as e:
+        print(json.dumps({"code": "PG_ALREADY_RUNNING", "detail": str(e)}), file=sys.stderr)
+        raise SystemExit(3) from e
+    except PgError as e:
+        print(json.dumps({"code": e.code, "params": e.params}), file=sys.stderr)
+        raise SystemExit(6) from e
+    print(json.dumps({"argv": argv, "dsn": pg.dsn, "admin_dsn": pg.dsn_for("postgres"), "data": str(pg.data)}))
 
 
 def cmd_worker(a: argparse.Namespace) -> None:
     import httpx
     from opagent_worker.agent import WorkerAgent
 
-    client = httpx.Client(base_url=a.api, timeout=30)
+    token = sys.stdin.readline().strip() if a.token_stdin else None
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    client = httpx.Client(base_url=a.api, timeout=30, headers=headers)
+    if a.token_stdin:
+        watch_parent_pipe()
     backend = None
     if a.backend == "fake":  # v0.1-B: the FakeBackend until the real adapters land (slice 7)
         from opagent_inference.fake import FakeBackend
 
         backend = FakeBackend()
     agent = WorkerAgent(
-        client, roots=_parse_roots(a.roots), home=_home() / "worker", backend=backend, worker_id=a.worker_id
+        client,
+        roots=_parse_roots(a.roots),
+        home=Path(a.home) if a.home else _home() / "worker",
+        backend=backend,
+        worker_id=a.worker_id,
     )
+    if a.token_stdin:  # desktop: pause heavy labelling on battery (06 §5, DESK-023)
+        from opagent_worker.policy import ResourcePolicy
+        from opagent_worker.power import system_power
+
+        agent.policy = ResourcePolicy(power=system_power())
     stop = threading.Event()
     signal.signal(signal.SIGTERM, lambda *_: stop.set())
     while not stop.is_set():
@@ -76,7 +270,9 @@ def cmd_dev(a: argparse.Namespace) -> None:
         [sys.executable, "-m", "opagent_cli", "worker", "--api", f"http://127.0.0.1:{a.port}", "--roots", a.roots]
     )
     try:
-        cmd_api(argparse.Namespace(dsn=dsn, port=a.port, web_dist=a.web_dist))
+        cmd_api(
+            argparse.Namespace(dsn=dsn, port=a.port, web_dist=a.web_dist, token_stdin=False, home=None, host=a.host)
+        )
     finally:
         worker.terminate()
         worker.wait(10)
@@ -90,18 +286,31 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--dsn", required=True)
     p.add_argument("--port", type=int, default=47800)
     p.add_argument("--web-dist")
+    p.add_argument("--token-stdin", action="store_true", help="desktop: read the launch token from stdin")
+    p.add_argument("--home", help="data directory (the shell passes it; default OPAGENT_HOME or ~/.opagent)")
+    p.add_argument("--lan", action="store_true", help="allow LAN access (binds 0.0.0.0; password login enforced)")
     p.set_defaults(fn=cmd_api)
+    p = sub.add_parser("pg-prepare", help="desktop shell: prepare the embedded database, print its argv")
+    p.add_argument("--home")
+    p.add_argument("--ram-gb", type=float)
+    p.set_defaults(fn=cmd_pg_prepare)
+    p = sub.add_parser("lan-password", help="set the LAN-access password from stdin")
+    p.add_argument("--home")
+    p.set_defaults(fn=cmd_lan_password)
     p = sub.add_parser("worker")
     p.add_argument("--api", required=True)
     p.add_argument("--roots", required=True, help="alias=path:mode,...")
     p.add_argument("--worker-id")
     p.add_argument("--backend", default="fake", choices=["fake", "none"])
     p.add_argument("--once", action="store_true", help="process what is queued, then exit")
+    p.add_argument("--home", help="worker state directory (default <OPAGENT_HOME>/worker)")
+    p.add_argument("--token-stdin", action="store_true", help="desktop: read the launch token from stdin")
     p.set_defaults(fn=cmd_worker)
     p = sub.add_parser("dev")
     p.add_argument("--port", type=int, default=47800)
     p.add_argument("--roots", default=os.environ.get("OPAGENT_ROOTS", ""))
     p.add_argument("--web-dist", default=os.environ.get("OPAGENT_WEB_DIST"))
+    p.add_argument("--host", default=os.environ.get("OPAGENT_BIND_HOST"), help="container only: bind address")
     p.set_defaults(fn=cmd_dev)
     a = ap.parse_args(argv)
     a.fn(a)

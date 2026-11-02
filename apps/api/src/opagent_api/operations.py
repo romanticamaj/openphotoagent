@@ -49,7 +49,7 @@ def ensure_operation(conn: Any, clock: Any, op_id: str, op_type: str, subject: d
 
 def set_op_status(conn: Any, clock: Any, op_id: str, target: str, waiting_reason: str | None = None) -> None:
     row = conn.execute(
-        select(operation.c.status, operation.c.seq).where(operation.c.id == op_id).with_for_update()
+        select(operation.c.status, operation.c.seq, operation.c.type).where(operation.c.id == op_id).with_for_update()
     ).first()
     if row is None or row.status == target:
         return
@@ -89,6 +89,7 @@ def set_op_status(conn: Any, clock: Any, op_id: str, target: str, waiting_reason
             payload={
                 "v": 1,
                 "id": op_id,
+                "type": row.type,  # lets the desktop UI pick which finished work raises an OS notification
                 "seq": seq,
                 "status": target,
                 "waiting_reason": waiting_reason,

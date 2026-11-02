@@ -26,6 +26,21 @@ DECODE_RAW_MISSING:
     type: download
   severity: warning
   transient: false
+DB_SCHEMA_TOO_NEW:
+  fixes:
+  - target: data-backups
+    type: open_settings
+  - target: update
+    type: open_docs
+  severity: blocker
+  transient: false
+DISK_INSUFFICIENT_DB:
+  fixes:
+  - target: storage
+    type: open_settings
+  - type: retry
+  severity: blocker
+  transient: true
 DISK_INSUFFICIENT_MODELS:
   fixes:
   - target: smaller_variant

@@ -251,17 +251,26 @@ flowchart TB
 ## 🚀 Quick start
 
 > [!IMPORTANT]
-> Not runnable yet. This is the planned experience for **v0.1**.
+> Pre-release. Desktop installers appear on [Releases](https://github.com/romanticamaj/openphotoagent/releases) from `v0.1.0`; until then use Docker or run from source. Inference currently uses the built-in test backend until the real model adapters are verified on hardware (see `docs/BLOCKERS.md`).
 
-**Desktop:** download the installer for your OS from [Releases](https://github.com/romanticamaj/openphotoagent/releases) (about 150 MB, no admin rights needed), open it, pick your photo folder, and follow the single recommended setup. Models download in the background while your library is scanned.
+**Desktop (from v0.1.0):** download the installer for your OS (≤ 200 MB, no admin rights needed), open it, pick your photo folder, and follow the single recommended setup. Models download in the background while your library is scanned.
 
-**Docker:**
+**Docker (all-in-one):**
 
 ```bash
 git clone https://github.com/romanticamaj/openphotoagent && cd openphotoagent
-cp deploy/compose/.env.example .env      # set PHOTO_ROOTS=/path/to/photos
-docker compose -f deploy/compose/allinone.yml up -d
-open http://localhost:8080               # onboarding detects your GPU and suggests models
+OPAGENT_PHOTOS=/path/to/photos OPAGENT_SORTED=/path/to/sorted \
+  docker compose -f deploy/compose/allinone.yml up -d --build
+open http://127.0.0.1:47800              # photos are mounted read-only; results go to the sorted folder
+```
+
+**From source (developers):**
+
+```bash
+uv tool install rust-just && just setup   # uv + pnpm workspaces; needs PostgreSQL 16+ with pgvector
+pnpm --filter web build
+OPAGENT_ROOTS="photos=/path/to/photos:ro,sorted=/path/to/sorted:rw" \
+OPAGENT_WEB_DIST=apps/web/dist just dev   # http://127.0.0.1:47800
 ```
 
 Works on NVIDIA, AMD and Intel GPUs (6 GB+ VRAM recommended), Apple Silicon Macs (16 GB recommended), or CPU only in fast mode. The environment doctor tells you what your machine can run and how to fix anything that's missing.

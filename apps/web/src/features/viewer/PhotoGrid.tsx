@@ -314,7 +314,7 @@ export function PhotoGrid({
                           >
                             {!fast && (
                               <img
-                                src={mediaUrl(a.id, r.height > 256 ? "t512" : "t256")}
+                                src={mediaUrl(a.id, r.height > 256 ? "t512" : "t256", a.ch)}
                                 alt=""
                                 decoding="async"
                                 loading="lazy"

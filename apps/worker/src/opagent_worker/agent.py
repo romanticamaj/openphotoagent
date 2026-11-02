@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import os
 import threading
+import time
 import uuid
 from pathlib import Path
 from typing import Any
@@ -25,6 +26,10 @@ class _Waiting(Exception):
     def __init__(self, reason: str) -> None:
         super().__init__(reason)
         self.reason = reason
+
+
+class _Abandoned(Exception):
+    """The worker is stopping: the download is dropped like a crash and resumed by the next worker (DL-014)."""
 
 
 class WorkerAgent:
@@ -48,6 +53,10 @@ class WorkerAgent:
         self.home = Path(home)
         self.home.mkdir(parents=True, exist_ok=True)
         self.backend = backend
+        self._active_child: Any = None  # the running download child (ADR-0007)
+        self._dl_abandon = threading.Event()
+        self.download_reserve_floor: int | None = None  # None = 06 §2.5 default (max(2 GB, 2 %)); test harness only
+        self.policy: Any = None  # ResourcePolicy: heavy labelling waits on battery / busy GPU (06 §5)
         self.hw_profile = hw_profile
         self.doctor_env: dict[str, Any] = {}  # raw-fact overrides for the doctor (tests / FakeWorkerLink)
         self.models_root = Path(models_root) if models_root else self.home / "models"
@@ -124,6 +133,7 @@ class WorkerAgent:
                 "worker_id": self.worker_id,
                 "name": self.name,
                 "boot_id": self.boot_id,
+                "app_version": _version(),
                 "models": models,
                 "hw": self.hw_summary(),
                 **self.doctor_report(),
@@ -145,16 +155,22 @@ class WorkerAgent:
         r.raise_for_status()
         task = r.json()
         if background_downloads and task["kind"] == "download":
-            self._dl_thread = threading.Thread(target=self._run_task, args=(task,), daemon=True)
+            # the thread only supervises: the bytes move in a child process (ADR-0007, DL-019)
+            self._dl_thread = threading.Thread(target=self._run_task, args=(task, True), daemon=True)
             self._dl_thread.start()
             return True
         self._run_task(task)
         return True
 
-    def _run_task(self, task: dict[str, Any]) -> None:
+    def _run_task(self, task: dict[str, Any], in_child: bool = False) -> None:
         try:
-            result = getattr(self, f"_do_{task['kind']}")(task["payload"], task["id"])
+            if in_child:
+                result = self._download_in_child(task["payload"], task["id"])
+            else:
+                result = getattr(self, f"_do_{task['kind']}")(task["payload"], task["id"])
             ok = True
+        except _Abandoned:
+            return  # report nothing: the restart recovery marks it interrupted and resumes it
         except _Waiting as w:  # e.g. SOURCE_OFFLINE: keep the task, retry automatically (SCAN-020)
             self.client.post(f"/worker-api/v1/tasks/{task['id']}/progress", json={"waiting_reason": w.reason})
             self.waiting[task["id"]] = (task, self.clock.monotonic())
@@ -183,6 +199,7 @@ class WorkerAgent:
                 "boot_id": self.boot_id,
                 "max_items": self.batch_size,
                 "loaded_models": [t for t in getattr(self, "loaded_tasks", [])],
+                "paused_reason": self.policy.paused_reason() if self.policy is not None else None,
             },
         )
         if r.status_code == 204:
@@ -389,7 +406,23 @@ class WorkerAgent:
         while self.run_once():
             pass
 
+    def stop_downloads(self) -> None:
+        """Worker shutdown: drop the running download (no report; parts kept) and wait for its supervisor."""
+        self._dl_abandon.set()
+        if self._dl_thread is not None:
+            self._dl_thread.join(10)
+        deadline = time.monotonic() + 10  # noqa: TID251 - shutdown wait on a real child process
+        while self._active_child is not None and time.monotonic() < deadline:  # noqa: TID251
+            time.sleep(0.05)  # noqa: TID251
+        self._dl_abandon.clear()
+
     def run_forever(self, stop: Any) -> None:
+        try:
+            self._run_forever(stop)
+        finally:
+            self.stop_downloads()
+
+    def _run_forever(self, stop: Any) -> None:
         while not stop.is_set():
             try:
                 busy = self.run_once(wait_s=0.5, background_downloads=True)
@@ -479,13 +512,8 @@ class WorkerAgent:
         res = self.executor.undo(p["plan_id"])
         return {"results": [r.__dict__ for r in res]}
 
-    def _do_download(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
-        """model.download (06 §2): progress is streamed to the Operation; the CP records the installation."""
-        import asyncio
-
-        from .downloads import CancelToken, DlFile, Downloader, DownloadError
-
-        token = CancelToken()
+    def _progress_poster(self, task_id: str, on_control: Any) -> Any:
+        """Stream download progress to the Operation (≤ 4/s) and hand pause/cancel requests back (06 §2)."""
         last = [0.0]
 
         def progress(ev: dict[str, Any]) -> None:
@@ -507,12 +535,26 @@ class WorkerAgent:
                 body["waiting_reason"] = waiting
             r = self.client.post(f"/worker-api/v1/tasks/{task_id}/progress", json=body)
             ctl = r.json().get("control") if r.status_code == 200 else None
-            if ctl == "pause":
-                token.pause()
-            elif ctl == "cancel":
-                token.cancel()
+            if ctl in ("pause", "cancel"):
+                on_control(ctl)
 
-        d = Downloader(self.models_root, sources=self.download_sources, on_progress=progress, clock=self.clock)
+        return progress
+
+    def _do_download(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """model.download (06 §2), in-process (one-shot runs and tests with an injected clock)."""
+        import asyncio
+
+        from .downloads import CancelToken, DlFile, Downloader, DownloadError
+
+        token = CancelToken()
+        progress = self._progress_poster(task_id, lambda c: token.pause() if c == "pause" else token.cancel())
+        d = Downloader(
+            self.models_root,
+            sources=self.download_sources,
+            on_progress=progress,
+            clock=self.clock,
+            reserve_floor=self.download_reserve_floor,
+        )
         files = [DlFile(f["repo"], f["revision"], f["path"], int(f["size"]), f["sha256"]) for f in p["files"]]
         try:
             res = asyncio.run(d.download(p["op_id"], files, token))
@@ -525,6 +567,33 @@ class WorkerAgent:
             "installed": res.installed,
             "waiting_reason": res.waiting_reason,
         }
+
+    def _download_in_child(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """model.download in the long-running loop: the same Downloader in a child process (ADR-0007)."""
+        from .dlchild import ChildDownload
+
+        child = ChildDownload(
+            self.models_root, self.download_sources, p["op_id"], list(p["files"]), self.download_reserve_floor
+        )
+        self._active_child = child
+        progress = self._progress_poster(task_id, child.send)
+        try:
+            while True:
+                if self._dl_abandon.is_set():
+                    child.proc.terminate()  # like kill -9: parts stay on disk for the resume
+                    child.proc.join(5)
+                    raise _Abandoned()
+                ev = child.next_event()
+                if ev is None:
+                    continue
+                kind, data = ev
+                if kind == "progress":
+                    progress(data)
+                elif kind == "result":
+                    return dict(data)
+        finally:
+            self._active_child = None
+            child.close()
 
     def _post_embeddings(self, images: list[Any]) -> None:
         """Upload image vectors computed by the cascade (searchable right away, 05 §1.1)."""
@@ -731,3 +800,9 @@ def _taxonomy(tc: dict[str, Any]) -> Any:
     if not classes:
         classes = [ClassDef(k, k) for k in tc.get("categories") or []]
     return Taxonomy(classes=classes, rules=list(tc.get("rules") or []))
+
+
+def _version() -> str:
+    from opagent_core.version import VERSION
+
+    return VERSION

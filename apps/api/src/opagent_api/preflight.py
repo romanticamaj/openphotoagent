@@ -132,6 +132,12 @@ class Pre:
         if int(ver.split(".")[0]) != PROTOCOL_MAJOR:
             self.add("WORKER_VERSION_MISMATCH", {"w": ver, "s": f"{PROTOCOL_MAJOR}.0"}, "worker")
             return False
+        from opagent_core.version import VERSION
+
+        app_ver = self.caps.get("app_version")
+        if self.caps.get("deployment") == "desktop" and app_ver and app_ver != VERSION:  # one bundle, one version
+            self.add("WORKER_VERSION_MISMATCH", {"w": app_ver, "s": VERSION}, "worker")
+            return False
         self.gates.append({"id": "worker", "status": "ok"})
         return True
 

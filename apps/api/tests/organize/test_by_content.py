@@ -226,3 +226,88 @@ def test_inf_cas_005_info_panel_exposes_source_and_fingerprint(embedded_pg, sand
     lab = info["labels"][0]
     assert lab["source"] in ("embedding", "vlm", "consensus", "rule") and lab["model_fingerprint"]
     assert lab["decision"] in ("accepted", "needs_review", "other") and "stages" in lab
+
+
+@pytest.mark.integration
+@pytest.mark.tc("DESK-036")
+def test_desk_036_image_payloads_carry_the_content_hash(embedded_pg, sandbox_tree, tmp_path):
+    """The desktop UI reads thumbnails from the local cache by content hash (10 §5.4): every payload that
+    shows a photo carries ``ch``."""
+    _photos(sandbox_tree.photos, "m", 4)
+    client, w = _setup(
+        embedded_pg.dsn, sandbox_tree.roots, tmp_path / "w", FakeBackend(scores="low"), FakeBackend(vlm_p=0.4)
+    )
+    src = _src(client)
+    j = _job(client, w, src)
+    eng = engine_for(embedded_pg.dsn)
+    with eng.begin() as c:
+        hashes = dict(c.execute(text("select id, content_hash from asset")).all())
+    eng.dispose()
+    assert len(hashes) == 4
+    month = client.get("/api/v1/timeline/buckets").json()["buckets"][0]["month"]
+    for a in client.get(f"/api/v1/timeline/buckets/{month}").json()["assets"]:
+        assert a["ch"] == hashes[a["id"]]
+    for r in _reviews(client, j["id"])["items"]:
+        assert r["ch"] == hashes[r["asset_id"]]
+    hits = client.post("/api/v1/search", json={"q": "photo"}).json()["items"]
+    assert hits and all(h["ch"] == hashes[h["asset_id"]] for h in hits)
+    pv = client.post("/api/v1/previews", json={"source_id": src, "k": 4}).json()
+    _drain(w)
+    items = client.get(f"/api/v1/previews/{pv['id']}").json()["items"]
+    assert items and all(i["ch"] == hashes[i["asset_id"]] for i in items)
+
+
+def _snapshot(root: Path) -> dict[str, tuple[str, int]]:
+    import blake3
+
+    return {
+        str(p.relative_to(root)): (blake3.blake3(p.read_bytes()).hexdigest(), p.stat().st_mtime_ns)
+        for p in sorted(root.rglob("*"))
+        if p.is_file()
+    }
+
+
+@pytest.mark.integration
+@pytest.mark.nightly
+@pytest.mark.tc("ORG-005")
+def test_org_005_full_library_default_settings_leaves_every_original_untouched(embedded_pg, sandbox_tree, tmp_path):
+    """Invariant 4 at library scale: 10,000 photos through scan → by-content → approve → apply (defaults: copy)."""
+    _photos(sandbox_tree.photos, "lib", 10_000)
+    before = _snapshot(sandbox_tree.photos)
+    client, w = _setup(
+        embedded_pg.dsn, sandbox_tree.roots, tmp_path / "w", FakeBackend(scores="random", seed=5), FakeBackend(seed=5)
+    )
+    j = client.post("/api/v1/jobs", json={**CONTENT, "source_id": _src(client)}).json()
+    while w.run_once() or w.process_items_once():
+        pass
+    j = client.get(f"/api/v1/jobs/{j['id']}").json()
+    assert j["status"] == "awaiting_approval", j
+    assert client.post(f"/api/v1/output-plans/{j['plan_id']}/approve", json={}).status_code in (200, 202)
+    while w.run_once() or w.process_items_once():
+        pass
+    plan = _plan(client, j)
+    assert plan["status"] == "applied" and sum(a["status"] == "done" for a in plan["actions"]) == 10_000
+    assert _snapshot(sandbox_tree.photos) == before  # content (BLAKE3) and mtime of every original unchanged
+
+
+@pytest.mark.integration
+@pytest.mark.tc("DESK-023")
+def test_desk_023_job_waits_on_battery_and_continues_on_mains(embedded_pg, sandbox_tree, tmp_path):
+    from opagent_worker.policy import FakePower, ResourcePolicy
+
+    _photos(sandbox_tree.photos, "bat", 6)
+    client, w = _setup(
+        embedded_pg.dsn, sandbox_tree.roots, tmp_path / "w", FakeBackend(scores="low"), FakeBackend(vlm_p=0.9)
+    )
+    power = FakePower(on_ac=False)
+    w.policy = ResourcePolicy(power=power)
+    j = client.post("/api/v1/jobs", json={**CONTENT, "source_id": _src(client)}).json()
+    for _ in range(50):  # scan and planning still run; labelling must not
+        if not w.run_once():
+            break
+    assert w.process_items_once() == 0
+    op = client.get(f"/api/v1/operations/{j['id']}").json()
+    assert op["status"] == "waiting" and op["waiting_reason"] == "PAUSED_ON_BATTERY"
+    power.on_ac = True  # plugged back in: continues by itself
+    _drain(w)
+    assert client.get(f"/api/v1/jobs/{j['id']}").json()["status"] == "awaiting_approval"

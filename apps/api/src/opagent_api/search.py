@@ -16,7 +16,7 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
-from opagent_db.schema import asset_embedding, embedding_space, search_doc, worker, worker_task
+from opagent_db.schema import asset, asset_embedding, embedding_space, search_doc, worker, worker_task
 from pydantic import BaseModel, Field
 from sqlalchemy import and_, bindparam, false, func, or_, select, text
 
@@ -274,9 +274,13 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
             else {}
         )
         facets = _facets(c, None, [*where, match] if q else where, body.facets)
+        hashes = (
+            dict(c.execute(select(asset.c.id, asset.c.content_hash).where(asset.c.id.in_(page))).all()) if page else {}
+        )
     items = [
         {
             "asset_id": a,
+            "ch": hashes.get(a),  # desktop thumbnails by content hash (10 §5.4)
             "score": round(scores.get(a, 0.0), 6),
             "matched_by": matched.get(a, []),
             "category": rows[a].category,

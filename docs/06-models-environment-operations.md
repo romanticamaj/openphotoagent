@@ -352,6 +352,7 @@ flowchart LR
 - 優先序：使用者正在等的（preflight fix 觸發的、Onboarding 中的）> 手動下載 > 背景預取（例如 registry 推薦的後備 variant）。可以在 Activity Center 拖曳排序，或用「優先下載」把項目移到最前面，目前正在下載的項目會被暫停（保留斷點）。
 - 一個 Operation 內的多個檔案依「小檔先下」（tokenizer、config 先完成，讓 resolve 錯誤儘早浮現），大檔則分段並行。
 - 下載不會占用 GPU slot，因此永遠可以和 Job 並行（M5）。
+- （回寫 ADR-0007）Worker 的常駐迴圈把每個下載放在**子進程**執行（各 OS 一律 `spawn`）：進度與暫停／取消經兩條單向 pipe 傳遞；Worker 消失時子進程讀到 EOF，保留 `.part` 後結束（續傳見 DL-014）；取消送出 1 s 後仍未結束就 `terminate()`，維持 ≤ 2 s（DL-005）。續傳狀態每 8 MB、停止時與分段完成時寫入。目的：下載不與標註、掃描爭用同一個 GIL（DL-019）。
 
 ### 2.5 磁碟預檢與執行中監控
 
@@ -879,6 +880,8 @@ Fix 共有欄位：`fix_id`、`type`、`label`、`primary`、`requires_permissio
 | 69 | `MODEL_NOT_PINNED` | B | 這個 variant 尚未完成雜湊釘選，為了安全暫不提供下載 | 更新模型目錄／改用其他 variant | Update model catalog / Use another variant |
 | 70 | `PACK_CHECKSUM_MISMATCH` | B | 「{pack}」執行套件檔案的雜湊與簽章索引不符，已拒絕並清除暫存 | 重試（換來源） | Retry (other source) |
 | 71 | `PACK_UNSAFE_ARCHIVE` | B | 「{pack}」執行套件內容不安全（{reason}），已拒絕安裝 | 回報問題 | Report the problem |
+| 72 | `DISK_INSUFFICIENT_DB` | B | 資料庫所在磁碟空間不足（剩 {free}），已停止啟動；資料不會被刪除 | 釋放空間後重試 | Free up space and retry |
+| 73 | `DB_SCHEMA_TOO_NEW` | B | 資料庫由較新版本的 app 建立（{found}），此版本無法降級使用；資料未被更動 | 用備份還原 · 安裝新版 | Restore from a backup · Install the newer version |
 
 > （回寫 W-1，09 §9）#63–#68 由 09 的 PF-063～PF-066 與 OUT-EXE-016 提出；08 §10 的 `PACK_MISSING`、`DRIVER_TOO_OLD` 分別對應本表的 `RUNTIME_PACK_MISSING`、`GPU_DRIVER_TOO_OLD`。
 

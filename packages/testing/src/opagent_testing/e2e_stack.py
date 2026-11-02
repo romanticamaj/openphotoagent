@@ -17,7 +17,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
+import subprocess
 import threading
 import time
 from pathlib import Path
@@ -55,6 +57,7 @@ class Stack:
         self.sorted = base / "roots" / "sorted"
         self.thumbs = self.home / "worker" / "thumbs"
         siglip, qwen = _files(SIGLIP, 0), _files(QWEN, 10)
+        self.default_rate_bps = rate_bps
         self.hf = HfServer(SIGLIP_REPO, siglip, more={QWEN_REPO: qwen}, rate_bps=rate_bps).start()
         self.registry = base / "registry"
         if self.registry.exists():
@@ -193,6 +196,7 @@ class Stack:
             from sqlalchemy import text
 
             n, tag = int(body.get("n", 1000)), str(body.get("tag", "beach"))
+            th = body.get("thumbhash")  # perf cases: every tile gets a real placeholder (VIEW-003)
             eng = engine_for(self.dsn)
             with eng.begin() as c:
                 c.execute(
@@ -200,9 +204,11 @@ class Stack:
                         "INSERT INTO asset(id, workspace_id, content_hash, size_bytes, taken_at, local_at, width, "
                         "height, thumbhash, exif) SELECT 'bulk'||g, 'default', 'bulkhash'||g, 1, "
                         "timestamptz '2022-01-01Z' + g * interval '1 hour', timestamp '2022-01-01' + g * interval "
-                        "'1 hour', 4000, 3000, NULL, '{}' FROM generate_series(1, :n) g"
+                        "'1 hour', CASE WHEN g % 3 = 0 THEN 3000 ELSE 4000 END, "
+                        "CASE WHEN g % 3 = 0 THEN 4000 ELSE 3000 END, "
+                        ":th, '{}' FROM generate_series(1, :n) g"
                     ),
-                    {"n": n},
+                    {"n": n, "th": th},
                 )
                 c.execute(
                     text(
@@ -282,6 +288,7 @@ class Stack:
 
         self._stop_worker()
         self._wipe_db()
+        self.hf.rate_bps = self.default_rate_bps  # a previous test may have slowed the model host (slow-downloads)
         self._photos(photos)
         wh = self.home / "worker"
         if wh.exists():
@@ -302,6 +309,8 @@ class Stack:
             models_root=wh / "models",
             download_sources=[self.hf.url if net == "on" else DEAD],
         )
+        # stand-in models are a few MB: do not make the suite depend on the host's spare gigabytes (06 §2.5 reserve)
+        self.worker.download_reserve_floor = 0
         self.worker.register()
         self._thread = threading.Thread(target=self.worker.run_forever, args=(self._stop,), daemon=True)
         self._thread.start()
@@ -380,6 +389,8 @@ class Stack:
             models_root=old.models_root,
             download_sources=old.download_sources,
         )
+        # stand-in models are a few MB: do not make the suite depend on the host's spare gigabytes (06 §2.5 reserve)
+        self.worker.download_reserve_floor = 0
         self.worker.register()
         self._thread = threading.Thread(target=self.worker.run_forever, args=(self._stop,), daemon=True)
         self._thread.start()
@@ -483,6 +494,27 @@ class Stack:
         self.pg.stop()
 
 
+def reclaim(base: Path) -> None:
+    """Start from an empty base: a previous run killed with SIGKILL may have left its postmaster and files."""
+    from opagent_db.embedded import find_pg_bin
+
+    for pid_file in base.glob("**/postmaster.pid"):
+        data = pid_file.parent
+        prefix = ["runuser", "-u", "postgres", "--"] if hasattr(os, "geteuid") and os.geteuid() == 0 else []
+        subprocess.run(
+            [*prefix, str(find_pg_bin() / "pg_ctl"), "-D", str(data), "-m", "immediate", "stop"],
+            capture_output=True,
+            check=False,
+        )
+    if base.exists():
+        for child in base.iterdir():
+            if child.is_dir():
+                shutil.rmtree(child, ignore_errors=True)
+            else:
+                child.unlink(missing_ok=True)
+    base.mkdir(parents=True, exist_ok=True)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--port", type=int, default=47811)
@@ -490,6 +522,7 @@ def main() -> None:
     ap.add_argument("--web-dist")
     ap.add_argument("--rate-bps", type=float, default=1_500_000)
     a = ap.parse_args()
+    reclaim(Path(a.base))
     st = Stack(Path(a.base), a.port, a.web_dist, a.rate_bps)
     server = uvicorn.Server(uvicorn.Config(st.app, host="127.0.0.1", port=a.port, log_level="warning"))
 
@@ -497,11 +530,22 @@ def main() -> None:
         time.sleep(1.0)  # noqa: TID251 - let uvicorn bind before the worker registers over HTTP
         st.reset()
 
+    def orphan_watch() -> None:
+        # Playwright may SIGKILL the node launcher; then nobody would stop PG or delete the base directory
+        parent = os.getppid()
+        while not server.should_exit:
+            if os.getppid() != parent:
+                server.should_exit = True
+                return
+            time.sleep(0.5)  # noqa: TID251
+
     threading.Thread(target=first_reset, daemon=True).start()
+    threading.Thread(target=orphan_watch, daemon=True).start()
     try:
         server.run()
     finally:
         st.close()
+        shutil.rmtree(a.base, ignore_errors=True)  # PG cluster + photo trees: never left in the temp dir
 
 
 if __name__ == "__main__":

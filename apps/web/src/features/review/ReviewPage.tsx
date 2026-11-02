@@ -79,7 +79,7 @@ export function ReviewPage({ jobId }: { jobId: string }) {
           <img
             data-testid="review-photo"
             data-asset={cur.asset_id}
-            src={mediaUrl(cur.asset_id, "p1024")}
+            src={mediaUrl(cur.asset_id, "p1024", cur.ch)}
             alt=""
             className="max-h-[80vh] max-w-full object-contain"
           />

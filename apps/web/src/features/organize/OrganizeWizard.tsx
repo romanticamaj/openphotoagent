@@ -2,7 +2,7 @@
 // where → for content methods a live 10-photo preview with threshold sliders, the library-wide forecast and custom
 // category cards that accept dragged example photos → create the plan → the plan page (approve, apply, undo).
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button, type DisabledReason } from "../../components/Button";
@@ -334,7 +334,7 @@ function PreviewPanel({
             onDragStart={(e) => e.dataTransfer.setData("text/asset-id", it.asset_id)}
             className="space-y-1 rounded-[var(--radius-md)] bg-[var(--surface)] p-1"
           >
-            <img src={mediaUrl(it.asset_id, "t256")} alt="" className="aspect-square w-full rounded-[var(--radius-photo)] object-cover" />
+            <img src={mediaUrl(it.asset_id, "t256", it.ch)} alt="" className="aspect-square w-full rounded-[var(--radius-photo)] object-cover" />
             <figcaption className="text-xs">
               <span>{it.decision === "other" ? names.get("other") ?? "other" : (names.get(it.category_key) ?? it.category_key)}</span>{" "}
               <span className="tnum text-[var(--text-muted)]">{t("common.percent", { n: Math.round((it.confidence ?? 0) * 100) })}</span>{" "}
@@ -480,12 +480,13 @@ function JobProgress({ job, onSkipped }: { job: Job; onSkipped: (planId: string)
           {job.waiting_reason === "SOURCE_OFFLINE" ? t("organize.waitingSource") : t(`waiting.${job.waiting_reason}.text`, { defaultValue: job.waiting_reason })}
         </p>
       )}
+      {(job.reviews_pending ?? 0) > 0 && <PrefetchReview />}
       {(job.reviews_pending ?? 0) > 0 && (
         <div data-testid="review-banner" className="flex items-center gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3">
           <span>{t("organize.reviewBanner", { n: job.reviews_pending })}</span>
-          <a href={`/review?job=${job.id}`} className="rounded-[var(--radius-md)] bg-[var(--accent)] px-3 py-1.5 text-[var(--accent-fg)]">
+          <Link to="/review" search={{ job: job.id }} className="rounded-[var(--radius-md)] bg-[var(--accent)] px-3 py-1.5 text-[var(--accent-fg)]">
             {t("organize.startReview")}
-          </a>
+          </Link>
           {job.status === "awaiting_approval" && (
             <button type="button" onClick={() => skip.mutate()} className="rounded-[var(--radius-md)] border border-[var(--border)] px-3 py-1.5">
               {t("organize.skipAllToOther")}
@@ -509,4 +510,12 @@ export function Blockers({ error }: { error: unknown }) {
       ))}
     </div>
   );
+}
+
+/** The review page is its own chunk (PERF-003): fetch it as soon as its entry point is on screen. */
+function PrefetchReview() {
+  useEffect(() => {
+    void import("../review/ReviewPage").catch(() => undefined);
+  }, []);
+  return null;
 }

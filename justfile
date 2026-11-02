@@ -16,6 +16,7 @@ setup:
 test:
     OPAGENT_TC_RESULTS=.tc/py-fast.json uv run pytest -q -m "{{py_fast}}"
     pnpm -r --if-present test
+    uv run python tools/cargo_tc.py
 
 # integration (real PostgreSQL) + chaos subset
 test-int:
@@ -26,6 +27,11 @@ e2e:
     pnpm --filter web build
     pnpm --filter web build-storybook
     pnpm --filter web e2e
+
+# perf budgets (VIEW-002/003/010, PERF-001/002/003/006) on a 100k-photo library; not part of PR CI
+perf:
+    pnpm --filter web build
+    OPAGENT_E2E_PERF=1 pnpm --filter web exec playwright test
 
 # ruff + mypy + import-linter + eslint + tsc
 lint:
@@ -38,6 +44,7 @@ lint:
     uv run python tools/gen_problem_stories.py --check
     pnpm -r --if-present lint
     pnpm -r --if-present typecheck
+    cd apps/desktop/supervisor && cargo fmt --check && cargo clippy -q --all-targets -- -D warnings
 
 # regenerate docs/generated/coverage-status.md
 tc-status:

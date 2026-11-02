@@ -5,6 +5,12 @@
     "severity": "W",
     "title": "The environment check “{check}” itself failed"
   },
+  "DB_SCHEMA_TOO_NEW": {
+    "cta": "Restore from a backup · Install the newer version",
+    "message": "The database was created by a newer version of the app ({found}); this version cannot downgrade it and nothing was changed",
+    "severity": "B",
+    "title": "The database was created by a newer version of the app ({found})"
+  },
   "DECODE_FAILED": {
     "cta": "View list",
     "message": "{n} files are damaged or unsupported and were skipped",
@@ -22,6 +28,12 @@
     "message": "RAW files cannot be read; {n} files will be skipped",
     "severity": "W",
     "title": "RAW files cannot be read"
+  },
+  "DISK_INSUFFICIENT_DB": {
+    "cta": "Free up space and retry",
+    "message": "The disk holding the database is full ({free} left); startup stopped and no data was deleted",
+    "severity": "B",
+    "title": "The disk holding the database is full ({free} left)"
   },
   "DISK_INSUFFICIENT_MODELS": {
     "cta": "Manage models (change folder / smaller variant)",

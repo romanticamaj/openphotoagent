@@ -162,7 +162,7 @@ function FolderStep() {
           <h2 id="collage-h" className="text-lg font-semibold">{t("onboarding.collage")}</h2>
           <div data-testid="scan-collage" className="grid grid-cols-6 gap-0.5">
             {(wall.data ?? []).map((a) => (
-              <img key={a.id} src={mediaUrl(a.id, "t256")} alt="" className="aspect-square w-full rounded-[var(--radius-photo)] object-cover" />
+              <img key={a.id} src={mediaUrl(a.id, "t256", a.ch)} alt="" className="aspect-square w-full rounded-[var(--radius-photo)] object-cover" />
             ))}
           </div>
           {(wall.data ?? []).length === 0 && <p role="status">{t("onboarding.scanning")}</p>}

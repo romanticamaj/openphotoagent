@@ -78,6 +78,61 @@ def _leased(c: Any, op_id: str) -> bool:
     return bool(c.execute(select(worker_task.c.status).where(worker_task.c.id == op_id)).scalar() == "leased")
 
 
+# heavy work the tray's "pause all / resume all" acts on (06 §5; downloads keep going)
+HEAVY_TYPES = ("job.label", "scan", "thumbnail", "reindex", "face.reembed", "model.load", "benchmark.run")
+
+
+@router.post("/operations/pause-all")
+def pause_all(req: Request) -> dict[str, Any]:
+    """System tray "pause all" (08 §6, DESK-020): every queued/running/waiting heavy operation → PAUSED_BY_USER."""
+    st = _st(req)
+    done: list[str] = []
+    with st.engine.begin() as c:
+        rows = c.execute(
+            select(operation.c.id, operation.c.status)
+            .where(operation.c.type.in_(HEAVY_TYPES), operation.c.status.in_(("queued", "running", "waiting")))
+            .with_for_update()
+        ).all()
+        for oid, status in rows:
+            if status == "waiting" and _leased(c, oid):
+                set_op_status(c, st.clock, oid, "pausing")  # the worker confirms (ADR-0004)
+            elif status in ("queued", "waiting"):  # not started: queued → waiting → paused (06 §5.3, ADR-0004)
+                if status == "queued":
+                    set_op_status(c, st.clock, oid, "waiting", "PAUSED_BY_USER")
+                set_op_status(c, st.clock, oid, "paused", "PAUSED_BY_USER")
+            else:
+                set_op_status(c, st.clock, oid, "pausing")
+                set_op_status(c, st.clock, oid, "paused", "PAUSED_BY_USER")
+            done.append(oid)
+    return {"paused": done}
+
+
+@router.post("/operations/resume-all")
+def resume_all(req: Request) -> dict[str, Any]:
+    """Tray "resume all": operations the user paused (not those blocked by preflight) continue."""
+    st = _st(req)
+    with st.engine.begin() as c:
+        ids = (
+            c.execute(
+                select(operation.c.id).where(
+                    operation.c.type.in_(HEAVY_TYPES),
+                    operation.c.status == "paused",
+                    operation.c.waiting_reason == "PAUSED_BY_USER",
+                )
+            )
+            .scalars()
+            .all()
+        )
+    resumed: list[str] = []
+    for oid in ids:
+        try:
+            control(oid, "resume", req)
+            resumed.append(oid)
+        except HTTPException:
+            pass  # still blocked (e.g. preflight): stays paused with its reason shown
+    return {"resumed": resumed}
+
+
 @router.post("/operations/{op_id}/{action}")
 def control(op_id: str, action: str, req: Request) -> dict[str, Any]:
     st = _st(req)

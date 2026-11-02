@@ -20,6 +20,8 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
+      - uses: dtolnay/rust-toolchain@stable
+        with: { components: "clippy, rustfmt" }
       - run: uv sync && pnpm install --frozen-lockfile
       - run: uv tool install rust-just
       - run: just lint
@@ -44,6 +46,16 @@ jobs:
       - run: pnpm install --frozen-lockfile && pnpm -r --if-present test
       - uses: actions/upload-artifact@v4
         with: { name: tc-ts, path: .tc/ }
+
+  unit-rust:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: astral-sh/setup-uv@v6
+      - run: uv run --no-project python tools/cargo_tc.py
+      - uses: actions/upload-artifact@v4
+        with: { name: tc-rust, path: .tc/ }
 
   integration-linux:
     runs-on: ubuntu-24.04
@@ -113,7 +125,7 @@ jobs:
           TEST_CHANGE_APPROVED: ${{ contains(github.event.pull_request.labels.*.name, 'test-change-approved') && '1' || '0' }}
 
   tc-status:
-    needs: [unit-py, unit-ts, integration-linux, e2e-smoke]
+    needs: [unit-py, unit-ts, unit-rust, integration-linux, e2e-smoke]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4

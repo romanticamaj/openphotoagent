@@ -111,7 +111,7 @@ def create_source(body: SourceIn, req: Request) -> dict[str, Any]:
         w = c.execute(select(worker.c.id, worker.c.roots)).all()
         owner = next((wid for wid, rs in w if any(r["alias"] == body.root_alias for r in rs)), None)
         if owner is None:
-            raise HTTPException(409, detail={"code": "FS_ROOT_NOT_ALLOWED", "root_alias": body.root_alias})
+            raise HTTPException(403, detail={"code": "FS_ROOT_NOT_ALLOWED", "root_alias": body.root_alias})
         existing = c.execute(
             select(source.c.id).where(
                 source.c.root_alias == body.root_alias, source.c.sub_path == body.sub_path.strip("/")
@@ -446,7 +446,13 @@ def _preview_items(c: Any, j: Any, thresholds: dict[str, float] | None, template
     planned = plan(organize.plan_items(c, j, rows, labels), j.params["preset"], "", template=template)
     by = {a.asset_id: a for a in planned}
     return [
-        {"asset_id": r.asset_id, "rel": r.rel_path, **labels[r.asset_id], "dst_rel": by[r.asset_id].dst_rel}
+        {
+            "asset_id": r.asset_id,
+            "ch": r.content_hash,
+            "rel": r.rel_path,
+            **labels[r.asset_id],
+            "dst_rel": by[r.asset_id].dst_rel,
+        }
         for r in rows
     ]
 

@@ -1,0 +1,18 @@
+# docker compose -f deploy/compose/allinone.yml up        (DOCK-001)
+# Photos are mounted read-only (DOCK-003: writes fail at the OS layer as a second guard behind SafePath).
+# The port is published on the host's loopback only: the all-in-one image has no login (single user, 08 §1.3).
+services:
+  opagent:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    image: ghcr.io/romanticamaj/openphotoagent:edge
+    ports:
+      - "127.0.0.1:47800:47800"
+    volumes:
+      - opagent-data:/data
+      - ${OPAGENT_PHOTOS:-./photos}:/photos:ro
+      - ${OPAGENT_SORTED:-./sorted}:/sorted
+    restart: unless-stopped
+volumes:
+  opagent-data:

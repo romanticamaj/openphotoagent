@@ -1,0 +1,33 @@
+# Release gate (09 §5.4, 11 §5): every v0.1 test id (layer ≠ M) has a passing result, plus layer-G cases.
+name: release-gate
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths: ["release-please-config.json", ".release-please-manifest.json", "version.txt"]
+permissions:
+  contents: read
+env:
+  UV_SYSTEM_CERTS: "1"
+jobs:
+  gate-cases:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync
+      - run: OPAGENT_TC_RESULTS=.tc/py-gate.json uv run pytest -q -m release_gate -o addopts="-p no:cacheprovider --import-mode=importlib"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: tc-gate, path: .tc/ }
+  gate:
+    needs: gate-cases
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Collect results from the latest ci / desktop / nightly runs on this ref
+        uses: dawidd6/action-download-artifact@v6
+        with: { workflow_search: true, name: "tc-.*", name_is_regexp: true, path: dl, if_no_artifact_found: warn }
+      - uses: actions/download-artifact@v4
+        with: { name: tc-gate, path: dl/tc-gate }
+      - run: mkdir -p .tc && find dl -name '*.json' -exec cp {} .tc/ \; && python3 tools/tc_status.py --gate=v0.1

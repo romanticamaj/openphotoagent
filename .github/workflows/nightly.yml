@@ -1,0 +1,29 @@
+# Nightly (09 §5.3): long-running cases (crash-kill loops, fuzz, 10 GB downloads, mutation) and real-model CPU cases.
+name: nightly
+on:
+  schedule: [{ cron: "17 18 * * *" }]
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  UV_SYSTEM_CERTS: "1"
+  OPAGENT_HYPOTHESIS_PROFILE: nightly
+jobs:
+  nightly:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: PostgreSQL 17 + pgvector
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-17 postgresql-17-pgvector
+          echo "OPAGENT_PG_BIN=/usr/lib/postgresql/17/bin" >> $GITHUB_ENV
+      - run: uv sync
+      - run: OPAGENT_TC_RESULTS=.tc/py-nightly.json uv run pytest -q -m "nightly and not gpu" -o addopts="-p no:cacheprovider --import-mode=importlib --allow-hosts=127.0.0.1,localhost,::1"
+      - run: uv run python tools/mutate_diff.py --all
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: tc-nightly, path: .tc/ }

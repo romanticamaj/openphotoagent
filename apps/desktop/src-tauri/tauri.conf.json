@@ -1,0 +1,69 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "OpenPhotoAgent",
+  "version": "0.0.1",
+  "identifier": "io.github.romanticamaj.openphotoagent",
+  "build": {
+    "frontendDist": "../../web/dist",
+    "devUrl": "http://localhost:5173",
+    "beforeBuildCommand": "pnpm --filter web build"
+  },
+  "app": {
+    "windows": [],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost data: blob:; connect-src 'self' http://127.0.0.1:*; style-src 'self' 'unsafe-inline'; font-src 'self' data:",
+      "assetProtocol": {
+        "enable": true,
+        "scope": {
+          "allow": [],
+          "deny": []
+        }
+      }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis",
+      "app",
+      "dmg",
+      "appimage",
+      "deb"
+    ],
+    "icon": [
+      "icons/icon.png"
+    ],
+    "resources": {
+      "../../../build/desktop/python/": "python/",
+      "../../../build/desktop/pg/": "pg/"
+    },
+    "createUpdaterArtifacts": true,
+    "license": "Apache-2.0",
+    "category": "Photography",
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    },
+    "linux": {
+      "deb": {
+        "depends": []
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "PENDING-B5: set from `tauri signer generate` (docs/BLOCKERS.md)",
+      "endpoints": [
+        "https://github.com/romanticamaj/openphotoagent/releases/latest/download/latest.json"
+      ]
+    },
+    "deep-link": {
+      "desktop": {
+        "schemes": [
+          "openphotoagent"
+        ]
+      }
+    }
+  }
+}
