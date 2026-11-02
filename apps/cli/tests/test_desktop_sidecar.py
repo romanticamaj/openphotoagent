@@ -180,3 +180,21 @@ def test_pg_008_api_refuses_a_newer_database(embedded_pg, tmp_path, stop):
     assert not (home / "run" / "api.json").exists()  # never served
     with psycopg.connect(embedded_pg.dsn) as c:  # and nothing was touched
         assert c.execute("SELECT version_num FROM alembic_version").fetchone()[0] == "ffff_written_by_a_newer_app"
+
+
+@pytest.mark.integration
+@pytest.mark.tc("DESK-035")
+def test_desk_035_port_listens_before_run_file_appears(embedded_pg, tmp_path, stop):
+    """Regression: the shell reads run/api.json and connects at once; the port must already be accepting."""
+    for i in range(5):
+        home = tmp_path / f"h{i}"
+        p = _launch(embedded_pg.dsn, home, _free_port())
+        stop(p)
+        f = home / "run" / "api.json"
+        while not f.exists():  # tight poll: catch the earliest moment the file is visible
+            assert p.poll() is None, p.stdout.read().decode()[-2000:]
+        info = json.loads(f.read_text())
+        with socket.create_connection(("127.0.0.1", info["port"]), timeout=2):
+            pass
+        p.terminate()
+        p.wait(10)
