@@ -26,7 +26,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from opagent_db.schema import audit_log, mcp_call_log, mcp_token, rate_bucket, workspace
-from opagent_mcp.ratelimit import Bucket, kind_for
+from opagent_mcp.ratelimit import GPU_SECONDS_PER_DAY, GPU_TOOLS, Bucket, kind_for
 from opagent_mcp.redact import redact
 from opagent_mcp.scopes import Settings, allowed, visible
 from opagent_mcp.tools import BY_NAME, SERVER_VERSION
@@ -206,6 +206,27 @@ def _log(st: AppState, tok: Token, msg: dict[str, Any], req: Request, **row: Any
         )
 
 
+def _gpu_over(st: AppState, tok: Token, tool: str) -> int:
+    """Seconds until tomorrow (UTC) when today's VLM time for this token reached the budget, else 0."""
+    if tool not in GPU_TOOLS:
+        return 0
+    from datetime import datetime, timedelta
+
+    from sqlalchemy import func
+
+    now = st.clock.now()
+    day = datetime(now.year, now.month, now.day, tzinfo=now.tzinfo)
+    with st.engine.begin() as c:
+        used = c.execute(
+            select(func.coalesce(func.sum(mcp_call_log.c.gpu_ms), 0)).where(
+                mcp_call_log.c.token_id == tok.id, mcp_call_log.c.at >= day
+            )
+        ).scalar_one()
+    if int(used) < GPU_SECONDS_PER_DAY * 1000:
+        return 0
+    return max(1, int((day + timedelta(days=1) - now).total_seconds()))
+
+
 def _take(st: AppState, tok: Token, tool: str) -> int:
     """0 when the call may proceed, otherwise ``retry_after_s`` (05 §3.7, Postgres token bucket)."""
     kind = kind_for(tool)
@@ -271,12 +292,17 @@ def _call(
         _log(st, tok, msg, req, **base, status="rate_limited", error_code="RATE_LIMITED", latency_ms=ms())
         err = ToolError("RATE_LIMITED", f"呼叫太頻繁，請在 {retry} 秒後再試", retry_after_s=retry)
         return {"jsonrpc": "2.0", "id": rid, "result": _error_result(err)}
+    over = _gpu_over(st, tok, name)
+    if over:  # 600 GPU-seconds a day per token (05 §3.7, MCP-RATE-002)
+        _log(st, tok, msg, req, **base, status="rate_limited", error_code="GPU_BUDGET_EXCEEDED", latency_ms=ms())
+        err = ToolError("GPU_BUDGET_EXCEEDED", "今天的 GPU 預算已用完，明天再試", retry_after_s=over)
+        return {"jsonrpc": "2.0", "id": rid, "result": _error_result(err)}
     ctx = handlers.Ctx(st=st, tok=tok, settings=settings, proto=proto, client=_client_info(msg, req)[0] or tok.client)
     try:
         try:
             out = getattr(handlers, name)(ctx, args)
         except HTTPException as e:  # a domain refusal from the shared REST code becomes a tool error, never a 500
-            d = e.detail if isinstance(e.detail, dict) else {}
+            d: dict[str, Any] = e.detail if isinstance(e.detail, dict) else {}
             raise ToolError(str(d.get("code") or f"HTTP_{e.status_code}"), str(d.get("code") or e.detail)) from None
     except ToolError as err:
         _log(st, tok, msg, req, **base, status="error", error_code=err.code, latency_ms=ms())
@@ -295,6 +321,7 @@ def _call(
         plan_id=out.get("plan_id"),
         job_id=out.get("job_id"),
         latency_ms=ms(),
+        gpu_ms=int(out.get("latency_ms") or 0) if name in GPU_TOOLS else 0,
     )
     if name in WRITE_TOOLS:  # side effects are mirrored to the general audit log (MCP-AUD-004)
         with st.engine.begin() as c:

@@ -666,6 +666,48 @@ PERSON_NAME_TAKEN:
     type: open_settings
   severity: warning
   transient: false
+BENCH_GOLDEN_TOO_SMALL:
+  fixes:
+  - target: label_golden
+    type: open_settings
+  severity: blocker
+  transient: false
+PRESET_INVALID:
+  fixes:
+  - target: choose_file
+    type: retry
+  severity: blocker
+  transient: false
+PRESET_TOO_NEW:
+  fixes:
+  - target: check_updates
+    type: open_settings
+  severity: blocker
+  transient: false
+PRESET_TOO_LARGE:
+  fixes:
+  - target: choose_file
+    type: retry
+  severity: blocker
+  transient: false
+PRESET_KEY_TAKEN:
+  fixes:
+  - target: import_renamed
+    type: retry
+  severity: warning
+  transient: false
+ASSISTANT_ENDPOINT_INSECURE:
+  fixes:
+  - target: assistant
+    type: open_settings
+  severity: blocker
+  transient: false
+GPU_BUDGET_EXCEEDED:
+  fixes:
+  - target: retry_later
+    type: retry
+  severity: blocker
+  transient: true
 QUERY_EXPIRED:
   fixes:
   - target: drop_again

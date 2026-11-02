@@ -2,12 +2,15 @@
 // panel with EXIF and every AI label's model and decision layer, inline correction (→ review), reveal in file
 // manager on desktop only. role="dialog" aria-modal; position is announced through aria-live.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, mediaUrl, type AssetInfo, type TimelineAsset } from "../../lib/api";
 import { platform } from "../../lib/platform";
 import { placeholder } from "../../lib/thumbhash";
 import type { GridApi } from "./PhotoGrid";
+
+// 「問這張」 loads with the ask chunk, not with the photos route (PERF-003)
+const AskPhoto = lazy(() => import("../ask/AskPanel").then((m) => ({ default: m.AskPhoto })));
 
 const FILM = 7;
 
@@ -289,6 +292,9 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
           ) : null}
         </form>
       </section>
+      <Suspense fallback={null}>
+        <AskPhoto assetId={id} />
+      </Suspense>
       {(a.locations ?? []).length > 0 && (
         <section aria-labelledby="loc-h">
           <h2 id="loc-h" className="mb-2 font-semibold">{t("lightbox.exif.locations")}</h2>

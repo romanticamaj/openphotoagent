@@ -12,7 +12,7 @@ import copy
 from dataclasses import dataclass
 from typing import Any
 
-SERVER_VERSION = "0.2.0"
+SERVER_VERSION = "0.3.0"
 SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema"
 
 UNTRUSTED_TEXT: dict[str, Any] = {

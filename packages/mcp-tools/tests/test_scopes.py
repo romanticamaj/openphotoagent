@@ -73,7 +73,7 @@ def test_scope_gate(tool, token):
 @pytest.mark.tc("MCP-SCOPE-001")
 def test_version_gate_and_visible_order():
     every = frozenset(ALL_SCOPES)
-    later = [t.name for t in TOOLS if t.available_from > SERVER_VERSION]
+    later = [t.name for t in TOOLS if t.available_from > "0.2.0"]
     assert sorted(later) == sorted(
         [
             "describe_photo",
@@ -87,10 +87,15 @@ def test_version_gate_and_visible_order():
         ]
     )
     for name in later:
-        assert allowed(BY_NAME[name], every, ON) == (False, "not_available")
-    names = [t.name for t in visible(every, ON)]
+        assert allowed(BY_NAME[name], every, ON, version="0.2.0") == (False, "not_available")
+        assert allowed(BY_NAME[name], every, ON, version=SERVER_VERSION) == (True, None)
+    names = [t.name for t in visible(every, ON, "0.2.0")]
     assert names == sorted(names) and not set(names) & set(later) and len(names) == 19
-    assert [t.name for t in visible(frozenset({"photos:read"}), OFF)] == sorted(t for t in READ if t not in later)
+    old_read = [t.name for t in visible(frozenset({"photos:read"}), OFF, "0.2.0")]
+    assert old_read == sorted(t for t in READ if t not in later)
+    now = [t.name for t in visible(every, ON)]
+    assert SERVER_VERSION == "0.3.0" and now == sorted(now) and len(now) == 27
+    assert [t.name for t in visible(frozenset({"photos:read"}), OFF)] == sorted(READ)
     assert visible(frozenset(), ON) == []
 
 

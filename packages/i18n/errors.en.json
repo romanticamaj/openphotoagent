@@ -11,6 +11,18 @@
     "severity": "B",
     "title": "This request has already been decided ({status})"
   },
+  "ASSISTANT_ENDPOINT_INSECURE": {
+    "cta": "Use an https URL",
+    "message": "An external service must use https (only 127.0.0.1 may use http): {url}",
+    "severity": "B",
+    "title": "An external service must use https (only 127.0.0.1 may use http)"
+  },
+  "BENCH_GOLDEN_TOO_SMALL": {
+    "cta": "Label more photos",
+    "message": "The golden set needs at least {min} labelled photos and {per_class} per class ({n} so far)",
+    "severity": "B",
+    "title": "The golden set needs at least {min} labelled photos and {per_class} per class ({n} so far)"
+  },
   "CHECK_CRASHED": {
     "cta": "Re-run (copy diagnostics)",
     "message": "The environment check “{check}” itself failed",
@@ -190,6 +202,12 @@
     "message": "Your {gpu} ({sm}) needs a newer runtime pack",
     "severity": "B",
     "title": "Your {gpu} ({sm}) needs a newer runtime pack"
+  },
+  "GPU_BUDGET_EXCEEDED": {
+    "cta": "Try again tomorrow",
+    "message": "This AI assistant used today's GPU budget (600 s); it resets in {retry_after_s} s",
+    "severity": "B",
+    "title": "This AI assistant used today's GPU budget (600 s)"
   },
   "GPU_BUSY_EXTERNAL": {
     "cta": "Retry after closing it (use smaller model)",
@@ -454,6 +472,30 @@
     "message": "{n} files changed after the plan was created",
     "severity": "B",
     "title": "{n} files changed after the plan was created"
+  },
+  "PRESET_INVALID": {
+    "cta": "Choose another file",
+    "message": "This organize preset file is invalid or unsafe ({reason} at {pointer}); nothing was imported",
+    "severity": "B",
+    "title": "This organize preset file is invalid or unsafe ({reason} at {pointer})"
+  },
+  "PRESET_KEY_TAKEN": {
+    "cta": "Import under a new name",
+    "message": "An organize preset named “{key}” already exists",
+    "severity": "W",
+    "title": "An organize preset named “{key}” already exists"
+  },
+  "PRESET_TOO_LARGE": {
+    "cta": "Choose another file",
+    "message": "The file is too large (limit {max} bytes)",
+    "severity": "B",
+    "title": "The file is too large (limit {max} bytes)"
+  },
+  "PRESET_TOO_NEW": {
+    "cta": "Check for updates",
+    "message": "This file comes from a newer version (format {found}; this version supports up to {supported})",
+    "severity": "B",
+    "title": "This file comes from a newer version (format {found}"
   },
   "QUERY_EXPIRED": {
     "cta": "Drop the photo again",

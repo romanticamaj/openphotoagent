@@ -339,3 +339,14 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
 }
+
+/* 「問 AI」 side panel (10 §9.3): 420 px on the right, a full-screen sheet on phones */
+.ask-panel {
+  position: fixed;
+  top: 48px;
+  right: 0;
+  bottom: 0;
+  width: min(420px, 100vw);
+  z-index: 30;
+  overflow: hidden;
+}

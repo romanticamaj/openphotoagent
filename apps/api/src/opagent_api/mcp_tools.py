@@ -81,7 +81,9 @@ def path_ref(alias: str, rel: str) -> dict[str, Any]:
 
 
 def _full(s: Any, rel: str) -> str:
-    return posixpath.join(s.sub_path.strip("/"), rel) if s.sub_path.strip("/") else rel
+    """A location's path under its root alias. ``asset_location.rel_path`` is already relative to the root — not to
+    the source's sub-path — so it is used as is (MCP-FOLD-006, MCP-TOOL-028)."""
+    return rel
 
 
 def _inside(path: str, prefix: str) -> bool:
@@ -107,11 +109,9 @@ def within_scopes(ctx: Ctx, c: Any) -> list[dict[str, str]] | None:
             if f["source"] != s.root_alias:
                 continue
             p = f.get("path", "").strip("/")
-            if _inside(p, sub) and p != sub and sub:
-                out.append({"source_id": s.id, "path": p[len(sub) + 1 :]})
-            elif not sub:
+            if _inside(p, sub):  # the folder is (inside) this source: scope keys are root-relative paths
                 out.append({"source_id": s.id, "path": p})
-            elif _inside(sub, p):
+            elif _inside(sub, p):  # the folder contains the whole source
                 out.append({"source_id": s.id, "path": ""})
     return out or [{"source_id": "-", "path": ""}]
 
@@ -284,10 +284,10 @@ def _search_body(ctx: Ctx, c: Any, args: dict[str, Any]) -> dict[str, Any]:
                 if ".." in p.split("/") or p.startswith("/"):
                     raise ToolError("PATH_INVALID", "path 只能是根目錄內的相對路徑")
                 sub = s.sub_path.strip("/")
-                if not sub:
+                if _inside(p, sub):  # root-relative, like the scope keys (MCP-FOLD-006)
                     folders.append({"source_id": s.id, "path": p})
-                elif _inside(p, sub):
-                    folders.append({"source_id": s.id, "path": p[len(sub) + 1 :] if p != sub else ""})
+                elif _inside(sub, p):
+                    folders.append({"source_id": s.id, "path": ""})
     cats = f.get("categories") or []
     taken = f.get("taken_at") or {}
     query = " ".join(x for x in (args.get("query"), args.get("semantic_text_en")) if x) or None
@@ -1235,3 +1235,187 @@ def fix_labels(code: str) -> list[str]:
     from .i18n_labels import label
 
     return [label(f"fix.{f['id']}") for f in fixes_for(code)][:3]
+
+
+# ---------------------------------------------------------------- v0.3 tools (10 §8.3; 05 §3.3.5)
+def count_photos(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
+    """The only source of numbers for the assistant (ASK-GRD-002): a count over the same search the grid uses."""
+    from .search import SearchIn, run_search
+
+    with ctx.st.engine.begin() as c:
+        body = _search_body(
+            ctx,
+            c,
+            {"filters": args.get("filters") or {}, "query": args.get("query"), "parse_query": bool(args.get("query"))},
+        )
+    r = run_search(ctx.st, SearchIn(**{**body, "limit": 1, "facets": [], "collapse_duplicates": False}))
+    basis = (
+        "tag"
+        if (args.get("filters") or {}).get("tags_any") or (args.get("filters") or {}).get("tags_all")
+        else (
+            "face"
+            if any((args.get("filters") or {}).get(k) for k in ("persons_all", "persons_any"))
+            else ("semantic" if args.get("query") else "filter")
+        )
+    )
+    return {"count": int(r["total"]), "basis": basis}
+
+
+def _ids_arg(ctx: Ctx, args: dict[str, Any], limit: int = 500) -> list[str]:
+    if args.get("selection_id"):
+        return resolve_selection(ctx, args["selection_id"], limit)
+    ids = list(dict.fromkeys(args.get("photo_ids") or []))
+    with ctx.st.engine.begin() as c:
+        vis = visible_locations(ctx, c, ids)
+    if any(i not in vis for i in ids):
+        raise ToolError("NOT_FOUND", "找不到這張照片")
+    return ids
+
+
+def create_collection(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
+    from opagent_core.path_template import sanitize_segment
+    from opagent_db.schema import collection, collection_member
+
+    name = sanitize_segment(args["name"].replace("{", "（").replace("}", "）"))[:100]  # never a template (INJ-017)
+    ids = _ids_arg(ctx, args) if (args.get("photo_ids") or args.get("selection_id")) else []
+    cid = uuid7(ctx.st.clock)
+    with ctx.st.engine.begin() as c:
+        c.execute(
+            insert(collection).values(
+                id=cid, workspace_id=DEFAULT_WS, name=name, description=(args.get("description") or "")[:500] or None
+            )
+        )
+        for a in ids:
+            c.execute(insert(collection_member).values(collection_id=cid, asset_id=a))
+    return {"collection_id": cid, "count": len(ids), "uri": f"collection://{cid}"}
+
+
+def _members(ctx: Ctx, args: dict[str, Any], add: bool) -> dict[str, Any]:
+    from opagent_db.schema import collection, collection_member
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+    ids = _ids_arg(ctx, args)
+    with ctx.st.engine.begin() as c:
+        if c.execute(select(collection.c.id).where(collection.c.id == args["collection_id"])).scalar() is None:
+            raise ToolError("NOT_FOUND", "找不到這個相簿")
+        for a in ids:
+            if add:
+                c.execute(
+                    pg_insert(collection_member)
+                    .values(collection_id=args["collection_id"], asset_id=a)
+                    .on_conflict_do_nothing()
+                )
+            else:
+                c.execute(
+                    collection_member.delete().where(
+                        collection_member.c.collection_id == args["collection_id"], collection_member.c.asset_id == a
+                    )
+                )
+    return {"count": len(ids)}
+
+
+def add_to_collection(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
+    return _members(ctx, args, True)
+
+
+def remove_from_collection(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
+    return _members(ctx, args, False)
+
+
+def list_collections(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
+    from opagent_db.schema import collection, collection_member
+
+    with ctx.st.engine.begin() as c:
+        rows = c.execute(
+            select(collection.c.id, collection.c.name, func.count(collection_member.c.asset_id).label("n"))
+            .outerjoin(collection_member, collection_member.c.collection_id == collection.c.id)
+            .group_by(collection.c.id)
+            .order_by(collection.c.created_at.desc(), collection.c.id)
+            .limit(int(args.get("limit") or 50))
+        ).all()
+    return {"collections": [{"id": r.id, "name": untrusted(r.name, "user"), "count": int(r.n)} for r in rows]}
+
+
+VLM_WAIT_S = 5.0
+
+
+def _vlm(ctx: Ctx, mode: str, ids: list[str], text_: str) -> dict[str, Any] | None:
+    """``vlm_ask`` RPC on the interactive lane; ``None`` when the worker does not answer in time (queued)."""
+    import time
+
+    from opagent_db.schema import worker_task
+
+    with ctx.st.engine.begin() as c:
+        srcs = _sources(c)
+        items = []
+        for aid in ids:
+            loc = c.execute(
+                select(asset_location.c.source_id, asset_location.c.rel_path).where(
+                    asset_location.c.asset_id == aid, asset_location.c.missing.is_(False)
+                )
+            ).first()
+            if loc is not None:
+                s = srcs[loc.source_id]
+                items.append({"asset_id": aid, "root_alias": s.root_alias, "rel": _full(s, loc.rel_path)})
+        tid = uuid7(ctx.st.clock)
+        w = c.execute(select(worker.c.id).order_by(worker.c.last_heartbeat_at.desc().nulls_last()).limit(1)).scalar()
+        c.execute(
+            insert(worker_task).values(
+                id=tid,
+                kind="vlm_ask",
+                lane="interactive",
+                worker_id=w,
+                payload={"mode": mode, "items": items, "text": text_},
+            )
+        )
+    self_tid = tid
+    wait = float(getattr(ctx.st, "vlm_wait_s", VLM_WAIT_S))
+    deadline = time.monotonic() + wait  # noqa: TID251 - waits on a real worker over the wire
+    while time.monotonic() < deadline:  # noqa: TID251
+        with ctx.st.engine.begin() as c:
+            row = c.execute(
+                select(worker_task.c.status, worker_task.c.result).where(worker_task.c.id == self_tid)
+            ).first()
+        if row is not None and row.status in ("done", "failed"):
+            return dict(row.result or {}) | {"task_id": self_tid}
+        time.sleep(0.05)  # noqa: TID251
+    return {"queued": True, "task_id": self_tid}
+
+
+def describe_photo(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
+    with ctx.st.engine.begin() as c:
+        _require_visible(ctx, c, args["id"])
+    out = _vlm(ctx, "describe", [args["id"]], args.get("question") or "詳細描述這張照片") or {}
+    if out.get("queued"):
+        return {"job_id": out["task_id"], "status": "queued"}
+    return {
+        "answer": untrusted(out.get("answer") or "", "vlm_caption"),
+        "model_version": out.get("model") or "",
+        "latency_ms": int(out.get("latency_ms") or 0),
+        "status": "done",
+    }
+
+
+def verify_photos(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
+    ids = _ids_arg(ctx, {"photo_ids": args["photo_ids"]})
+    out = _vlm(ctx, "verify", ids, args["condition"]) or {}
+    if out.get("queued"):
+        return {"results": [], "job_id": out["task_id"], "status": "queued"}
+    res = [
+        {
+            "id": r["asset_id"],
+            "verdict": r["verdict"],
+            "score": r["score"],
+            "reason": untrusted((r.get("reason") or "")[:30], "vlm_caption"),
+        }
+        for r in out.get("results") or []
+    ]
+    return {"results": res}
+
+
+def compare_photos(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
+    ids = _ids_arg(ctx, {"photo_ids": args["photo_ids"]})
+    out = _vlm(ctx, "compare", ids, args.get("question") or "比較這些照片") or {}
+    if out.get("queued"):
+        return {"answer": None, "job_id": out["task_id"], "status": "queued"}
+    return {"answer": untrusted(out.get("answer") or "", "vlm_caption")}

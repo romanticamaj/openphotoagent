@@ -7,8 +7,8 @@
 | 版本 | 總數 | 綠 | 部分 | 紅 | 未開始 | 廢止 |
 |---|---|---|---|---|---|---|
 | v0.1 | 616 | 588 | 0 | 2 | 26 | 0 |
-| v0.2 | 180 | 132 | 0 | 0 | 48 | 0 |
-| v0.3 | 51 | 0 | 0 | 0 | 51 | 0 |
+| v0.2 | 181 | 175 | 0 | 0 | 6 | 0 |
+| v0.3 | 55 | 53 | 0 | 0 | 2 | 0 |
 | v0.4 | 6 | 0 | 0 | 0 | 6 | 0 |
 | v0.5 | 6 | 0 | 0 | 0 | 6 | 0 |
 | v1.0 | 1 | 0 | 0 | 0 | 1 | 0 |
@@ -68,25 +68,25 @@
 | v0.1 | VIEW | 11 | 11 | 0 | 0 |
 | v0.1 | VIS | 3 | 3 | 0 | 0 |
 | v0.2 | CORE-LUNAR | 1 | 1 | 0 | 0 |
-| v0.2 | FACE-ASN | 6 | 0 | 6 | 0 |
-| v0.2 | FACE-CLU | 5 | 0 | 5 | 0 |
-| v0.2 | FACE-DET | 4 | 0 | 4 | 0 |
-| v0.2 | FACE-FIND | 4 | 0 | 4 | 0 |
-| v0.2 | FACE-GATE | 5 | 0 | 5 | 0 |
-| v0.2 | FACE-MGT | 5 | 0 | 5 | 0 |
+| v0.2 | FACE-ASN | 6 | 6 | 0 | 0 |
+| v0.2 | FACE-CLU | 5 | 5 | 0 | 0 |
+| v0.2 | FACE-DET | 4 | 4 | 0 | 0 |
+| v0.2 | FACE-FIND | 4 | 4 | 0 | 0 |
+| v0.2 | FACE-GATE | 5 | 5 | 0 | 0 |
+| v0.2 | FACE-MGT | 5 | 5 | 0 | 0 |
 | v0.2 | FACE-N | 1 | 0 | 1 | 0 |
-| v0.2 | FACE-PRG | 4 | 0 | 4 | 0 |
-| v0.2 | FACE-PRV | 4 | 0 | 4 | 0 |
-| v0.2 | FACE-REV | 1 | 0 | 1 | 0 |
-| v0.2 | FACE-SPACE | 2 | 0 | 2 | 0 |
-| v0.2 | FACE-TPL | 1 | 0 | 1 | 0 |
+| v0.2 | FACE-PRG | 4 | 4 | 0 | 0 |
+| v0.2 | FACE-PRV | 4 | 4 | 0 | 0 |
+| v0.2 | FACE-REV | 1 | 1 | 0 | 0 |
+| v0.2 | FACE-SPACE | 2 | 2 | 0 | 0 |
+| v0.2 | FACE-TPL | 1 | 1 | 0 | 0 |
 | v0.2 | MCP-APPR | 8 | 8 | 0 | 0 |
 | v0.2 | MCP-AUD | 4 | 4 | 0 | 0 |
-| v0.2 | MCP-FOLD | 5 | 5 | 0 | 0 |
+| v0.2 | MCP-FOLD | 6 | 6 | 0 | 0 |
 | v0.2 | MCP-INJ | 21 | 21 | 0 | 0 |
 | v0.2 | MCP-MEDIA | 6 | 6 | 0 | 0 |
 | v0.2 | MCP-PAT | 4 | 4 | 0 | 0 |
-| v0.2 | MCP-RATE | 5 | 4 | 1 | 0 |
+| v0.2 | MCP-RATE | 5 | 5 | 0 | 0 |
 | v0.2 | MCP-SCOPE | 8 | 8 | 0 | 0 |
 | v0.2 | MCP-TOOL | 19 | 19 | 0 | 0 |
 | v0.2 | MCP-TRN | 5 | 5 | 0 | 0 |
@@ -98,20 +98,22 @@
 | v0.2 | SRCH-RRF | 9 | 8 | 1 | 0 |
 | v0.2 | TRASH | 8 | 8 | 0 | 0 |
 | v0.2 | XMP | 6 | 5 | 1 | 0 |
-| v0.3 | ASK-ACT | 2 | 0 | 2 | 0 |
-| v0.3 | ASK-EVAL | 2 | 0 | 2 | 0 |
-| v0.3 | ASK-GRD | 6 | 0 | 6 | 0 |
-| v0.3 | ASK-LOOP | 4 | 0 | 4 | 0 |
-| v0.3 | ASK-MEM | 2 | 0 | 2 | 0 |
+| v0.3 | ASK-ACT | 2 | 2 | 0 | 0 |
+| v0.3 | ASK-EVAL | 2 | 1 | 1 | 0 |
+| v0.3 | ASK-GRD | 6 | 6 | 0 | 0 |
+| v0.3 | ASK-LLM | 1 | 1 | 0 | 0 |
+| v0.3 | ASK-LOOP | 4 | 4 | 0 | 0 |
+| v0.3 | ASK-MEM | 2 | 2 | 0 | 0 |
 | v0.3 | ASK-PERF | 1 | 0 | 1 | 0 |
-| v0.3 | ASK-PRV | 5 | 0 | 5 | 0 |
-| v0.3 | ASK-SEC | 3 | 0 | 3 | 0 |
-| v0.3 | ASK-SSE | 4 | 0 | 4 | 0 |
-| v0.3 | BENCH | 3 | 0 | 3 | 0 |
-| v0.3 | MCP-INJ | 3 | 0 | 3 | 0 |
-| v0.3 | MCP-TOOL | 8 | 0 | 8 | 0 |
-| v0.3 | PRESET | 2 | 0 | 2 | 0 |
-| v0.3 | WATCH | 6 | 0 | 6 | 0 |
+| v0.3 | ASK-PRV | 5 | 5 | 0 | 0 |
+| v0.3 | ASK-SEC | 3 | 3 | 0 | 0 |
+| v0.3 | ASK-SSE | 4 | 4 | 0 | 0 |
+| v0.3 | ASK-UI | 2 | 2 | 0 | 0 |
+| v0.3 | BENCH | 3 | 3 | 0 | 0 |
+| v0.3 | MCP-INJ | 3 | 3 | 0 | 0 |
+| v0.3 | MCP-TOOL | 9 | 9 | 0 | 0 |
+| v0.3 | PRESET | 2 | 2 | 0 | 0 |
+| v0.3 | WATCH | 6 | 6 | 0 | 0 |
 | v0.4 | CMP | 1 | 0 | 1 | 0 |
 | v0.4 | MAP | 1 | 0 | 1 | 0 |
 | v0.4 | PF | 1 | 0 | 1 | 0 |
@@ -438,29 +440,29 @@
 | DL-021 | v0.1 | I |  | 綠 | 1 | 限速 |
 | DL-022 | v0.1 | I |  | 綠 | 1 | 優先下載 |
 | DL-023 | v0.1 | I | #24,#32 | 綠 | 1 | 退避中取消（ADR-0004） |
-| DOC-001 | v0.1 | C | #26 | 綠 | 1 | check registry 完整性 |
-| DOC-002 | v0.1 | U | #26 | 綠 | 1 | 5070 Ti |
-| DOC-003 | v0.1 | U | #26 | 綠 | 1 | Mac M3 16 GB |
-| DOC-004 | v0.1 | U | #26 | 綠 | 1 | 無 GPU |
-| DOC-005 | v0.1 | U | #28 | 綠 | 1 | 驅動過舊 |
-| DOC-006 | v0.1 | U | #26 | 綠 | 2 | AMD／Intel |
-| DOC-007 | v0.1 | U | #26 | 綠 | 1 | 不需要 torch |
-| DOC-008 | v0.1 | U | #26 | 綠 | 1 | check 自身崩潰 |
-| DOC-009 | v0.1 | U |  | 綠 | 1 | check 逾時 |
+| DOC-001 | v0.1 | C | #26 | 綠 | 2 | check registry 完整性 |
+| DOC-002 | v0.1 | U | #26 | 綠 | 2 | 5070 Ti |
+| DOC-003 | v0.1 | U | #26 | 綠 | 2 | Mac M3 16 GB |
+| DOC-004 | v0.1 | U | #26 | 綠 | 2 | 無 GPU |
+| DOC-005 | v0.1 | U | #28 | 綠 | 2 | 驅動過舊 |
+| DOC-006 | v0.1 | U | #26 | 綠 | 4 | AMD／Intel |
+| DOC-007 | v0.1 | U | #26 | 綠 | 2 | 不需要 torch |
+| DOC-008 | v0.1 | U | #26 | 綠 | 2 | check 自身崩潰 |
+| DOC-009 | v0.1 | U |  | 綠 | 2 | check 逾時 |
 | DOC-010 | v0.1 | I | #8 | 綠 | 2 | port 被佔 |
-| DOC-011 | v0.1 | U | #17 | 綠 | 1 | disk.models 門檻 |
-| DOC-012 | v0.1 | U | #37 | 綠 | 1 | macOS TCC |
-| DOC-013 | v0.1 | U | #38 | 綠 | 1 | Windows 長路徑 |
-| DOC-014 | v0.1 | U |  | 綠 | 1 | 時鐘偏差 |
-| DOC-015 | v0.1 | U | #9 | 綠 | 1 | 電池 |
+| DOC-011 | v0.1 | U | #17 | 綠 | 2 | disk.models 門檻 |
+| DOC-012 | v0.1 | U | #37 | 綠 | 2 | macOS TCC |
+| DOC-013 | v0.1 | U | #38 | 綠 | 2 | Windows 長路徑 |
+| DOC-014 | v0.1 | U |  | 綠 | 2 | 時鐘偏差 |
+| DOC-015 | v0.1 | U | #9 | 綠 | 2 | 電池 |
 | DOC-016 | v0.1 | S | #27 | 綠 | 1 | auto_fix 白名單 |
 | DOC-017 | v0.1 | I |  | 綠 | 1 | fix 稽核 |
-| DOC-018 | v0.1 | U | #26 | 綠 | 1 | feature 對應 |
+| DOC-018 | v0.1 | U | #26 | 綠 | 2 | feature 對應 |
 | DOC-019 | v0.1 | I | #27 | 綠 | 1 | 結果快取與事件 |
 | DOC-020 | v0.1 | N | #26 | 未開始 | 0 | 五類真機 |
-| DIAG-001 | v0.1 | S | #34 | 綠 | 1 | 診斷包不含敏感資料 |
-| DIAG-002 | v0.1 | P | #34 | 綠 | 1 | 性質：redactor |
-| DIAG-003 | v0.1 | U | #34 | 綠 | 1 | Markdown 報告 |
+| DIAG-001 | v0.1 | S | #34 | 綠 | 2 | 診斷包不含敏感資料 |
+| DIAG-002 | v0.1 | P | #34 | 綠 | 2 | 性質：redactor |
+| DIAG-003 | v0.1 | U | #34 | 綠 | 2 | Markdown 報告 |
 | PF-001 | v0.1 |  |  | 綠 | 1 | `WORKER_OFFLINE` |
 | PF-002 | v0.1 |  |  | 綠 | 1 | `WORKER_VERSION_MISMATCH` |
 | PF-003 | v0.1 |  |  | 綠 | 1 | `GPU_NOT_FOUND` |
@@ -756,7 +758,7 @@
 | SRCH-RRF-006 | v0.2 | I | #64 | 綠 | 1 | 路關閉條件 |
 | SRCH-RRF-007 | v0.2 | I | #68 | 綠 | 1 | 權限是 pre-filter |
 | SRCH-RRF-008 | v0.2 | I | #64 | 未開始 | 0 | 策略切換 |
-| SRCH-RRF-009 | v0.2 | C | #63 | 綠 | 1 | REST 與 MCP 一致 |
+| SRCH-RRF-009 | v0.2 | C | #63 | 綠 | 2 | REST 與 MCP 一致 |
 | SRCH-PLAN-001 | v0.2 | U | #62 | 綠 | 1 | 去年 |
 | SRCH-PLAN-002 | v0.2 | U | #62 | 綠 | 1 | 民國年 |
 | SRCH-PLAN-003 | v0.2 | U | #62 | 綠 | 1 | 季節 |
@@ -799,93 +801,95 @@
 | XMP-004 | v0.2 | I | #50 | 綠 | 1 | 原檔不變 |
 | XMP-005 | v0.2 | I | #50 | 綠 | 1 | undo |
 | XMP-006 | v0.2 | S | #50 | 綠 | 2 | XML 注入 |
-| MCP-TOOL-001 | v0.2 |  |  | 綠 | 49 | `search_photos` |
-| MCP-TOOL-002 | v0.2 |  |  | 綠 | 47 | `get_photo` |
-| MCP-TOOL-003 | v0.2 |  |  | 綠 | 47 | `find_similar` |
-| MCP-TOOL-004 | v0.2 |  |  | 綠 | 47 | `find_duplicates` |
-| MCP-TOOL-005 | v0.2 |  |  | 綠 | 47 | `list_tags` |
-| MCP-TOOL-006 | v0.2 |  |  | 綠 | 47 | `list_categories` |
-| MCP-TOOL-007 | v0.2 |  |  | 綠 | 47 | `list_facets` |
-| MCP-TOOL-008 | v0.2 |  |  | 綠 | 47 | `list_folders` |
-| MCP-TOOL-009 | v0.3 |  |  | 未開始 | 0 | `describe_photo` |
-| MCP-TOOL-010 | v0.2 |  |  | 綠 | 47 | `update_labels` |
-| MCP-TOOL-011 | v0.3 |  |  | 未開始 | 0 | `create_collection` |
-| MCP-TOOL-012 | v0.3 |  |  | 未開始 | 0 | `add_to_collection` |
-| MCP-TOOL-013 | v0.3 |  |  | 未開始 | 0 | `remove_from_collection` |
-| MCP-TOOL-014 | v0.3 |  |  | 未開始 | 0 | `list_collections` |
-| MCP-TOOL-015 | v0.2 |  |  | 綠 | 47 | `run_labeling_job` |
-| MCP-TOOL-016 | v0.2 |  |  | 綠 | 47 | `get_job_status` |
-| MCP-TOOL-017 | v0.2 |  |  | 綠 | 47 | `cancel_job` |
-| MCP-TOOL-018 | v0.2 |  |  | 綠 | 47 | `propose_organize` |
-| MCP-TOOL-019 | v0.2 |  |  | 綠 | 47 | `get_organize_plan` |
-| MCP-TOOL-020 | v0.2 |  |  | 綠 | 47 | `apply_organize` |
-| MCP-TOOL-021 | v0.2 |  |  | 綠 | 47 | `undo_organize` |
-| MCP-TOOL-022 | v0.2 |  |  | 綠 | 47 | `list_people` |
-| MCP-TOOL-023 | v0.2 |  |  | 綠 | 47 | `get_person` |
-| MCP-TOOL-024 | v0.2 |  |  | 綠 | 47 | `find_photos_of_person` |
-| MCP-TOOL-025 | v0.3 |  |  | 未開始 | 0 | `count_photos` |
-| MCP-TOOL-026 | v0.3 |  |  | 未開始 | 0 | `verify_photos` |
-| MCP-TOOL-027 | v0.3 |  |  | 未開始 | 0 | `compare_photos` |
-| MCP-SCOPE-002 | v0.2 | I | #68 | 綠 | 1 | 預設 token |
-| MCP-SCOPE-003 | v0.2 | I | #68 | 綠 | 1 | 唯讀呼叫寫入 |
-| MCP-SCOPE-004 | v0.2 | I | #67 | 綠 | 1 | faces 雙重閘門 |
-| MCP-SCOPE-005 | v0.2 | I | #84 | 綠 | 1 | faces:read 無 faces:media |
-| MCP-SCOPE-006 | v0.2 | I | #69 | 綠 | 1 | organize:apply 未開 workspace 開關 |
-| MCP-SCOPE-007 | v0.2 | S | #68 | 綠 | 1 | 沒有的能力 |
-| MCP-SCOPE-008 | v0.2 | I | #68 | 綠 | 1 | 撤銷即時生效 |
-| MCP-SCOPE-009 | v0.2 | S | #60 | 綠 | 1 | launch token 不能用於 MCP |
-| MCP-FOLD-001 | v0.2 | I | #68 | 綠 | 1 | folder_scopes 限制 |
-| MCP-FOLD-002 | v0.2 | S | #68 | 綠 | 2 | selection_id 跨範圍 |
-| MCP-FOLD-003 | v0.2 | I | #69 | 綠 | 1 | propose target 限制 |
-| MCP-FOLD-004 | v0.2 | S | #68 | 綠 | 1 | 計數不洩漏 |
-| MCP-FOLD-005 | v0.2 | S | #68 | 綠 | 1 | 路徑不外洩 |
-| MCP-MEDIA-001 | v0.2 | I | #70 | 綠 | 1 | 預設不外送縮圖 |
-| MCP-MEDIA-002 | v0.2 | U | #70 | 綠 | 2 | 取最嚴格 |
-| MCP-MEDIA-003 | v0.2 | I | #84 | 綠 | 2 | 人臉縮圖三重政策 |
-| MCP-MEDIA-004 | v0.2 | I | #70 | 綠 | 1 | 回應大小上限 |
-| MCP-MEDIA-005 | v0.2 | S | #71 | 綠 | 1 | EXIF 自由文字預設不回 |
-| MCP-MEDIA-006 | v0.2 | I | #72 | 綠 | 1 | 稽核影像數 |
-| MCP-APPR-001 | v0.2 | I | #69 | 綠 | 2 | apply 只建立核准請求 |
-| MCP-APPR-002 | v0.2 | S | #69 | 綠 | 1 | 不可自我核准 |
-| MCP-APPR-003 | v0.2 | D | #69 | 綠 | 1 | 桌面 deep link |
-| MCP-APPR-004 | v0.2 | I | #69 | 綠 | 1 | plan_hash 綁定 |
-| MCP-APPR-005 | v0.2 | I | #69 | 綠 | 1 | 過期 |
-| MCP-APPR-006 | v0.2 | E | #69 | 綠 | 2 | 核准頁資訊 |
-| MCP-APPR-007 | v0.2 | U | #69 | 綠 | 2 | auto_approve 範圍 |
-| MCP-APPR-008 | v0.2 | I | #69 | 綠 | 1 | 核准後重試回 applying |
-| MCP-RATE-001 | v0.2 | I | #72 | 綠 | 2 | 一般讀取 |
-| MCP-RATE-002 | v0.2 | I | #72 | 未開始 | 0 | describe GPU 預算（v0.3，隨 describe_photo；ADR-0009） |
-| MCP-RATE-003 | v0.2 | I | #72 | 綠 | 2 | run_labeling_job 限制 |
-| MCP-RATE-004 | v0.2 | I | #72 | 綠 | 2 | propose 限制 |
-| MCP-RATE-005 | v0.2 | I | #84 | 綠 | 2 | faces 列舉防護 |
-| MCP-AUD-001 | v0.2 | I | #72 | 綠 | 1 | 每次呼叫都記錄 |
-| MCP-AUD-002 | v0.2 | U | #72 | 綠 | 1 | 參數遮蔽 |
-| MCP-AUD-003 | v0.2 | S | #72 | 綠 | 1 | append-only |
-| MCP-AUD-004 | v0.2 | I | #72 | 綠 | 2 | 副作用同步 audit_log |
-| MCP-INJ-001 | v0.2 |  |  | 綠 | 4 | 照片內文字（招牌） |
-| MCP-INJ-002 | v0.2 |  |  | 綠 | 2 | 截圖中的白板 |
-| MCP-INJ-003 | v0.2 |  |  | 綠 | 2 | 照片內文字 |
-| MCP-INJ-004 | v0.2 |  |  | 綠 | 2 | 照片內 Markdown |
-| MCP-INJ-005 | v0.2 |  |  | 綠 | 2 | 照片內文字（角色扮演） |
-| MCP-INJ-006 | v0.2 |  |  | 綠 | 2 | QR code 指向惡意 URL |
-| MCP-INJ-007 | v0.2 |  |  | 綠 | 2 | EXIF `ImageDescription` |
-| MCP-INJ-008 | v0.2 |  |  | 綠 | 2 | EXIF `UserComment`（UTF-16） |
-| MCP-INJ-009 | v0.2 |  |  | 綠 | 2 | Windows `XPComment` |
-| MCP-INJ-010 | v0.2 |  |  | 綠 | 1 | XMP `dc:description` |
-| MCP-INJ-011 | v0.2 |  |  | 綠 | 1 | IPTC Caption |
-| MCP-INJ-012 | v0.2 |  |  | 綠 | 2 | 檔名 |
-| MCP-INJ-013 | v0.2 |  |  | 綠 | 2 | 資料夾名 |
-| MCP-INJ-014 | v0.2 |  |  | 綠 | 2 | 檔名 path 字元 |
-| MCP-INJ-015 | v0.2 |  |  | 綠 | 1 | 人名（使用者命名） |
-| MCP-INJ-016 | v0.2 |  |  | 綠 | 1 | 人名含 Markdown 連結 |
-| MCP-INJ-017 | v0.3 |  |  | 未開始 | 0 | 相簿名稱 |
-| MCP-INJ-018 | v0.2 |  |  | 綠 | 3 | caption 偽造 tool 結果 |
-| MCP-INJ-019 | v0.2 |  |  | 綠 | 1 | OCR（`include:["ocr"]`） |
-| MCP-INJ-020 | v0.2 |  |  | 綠 | 1 | 照片內文字誘導外送到其他 MCP server |
-| MCP-INJ-021 | v0.2 |  |  | 綠 | 2 | 照片內文字誘導 update_labels |
-| MCP-INJ-022 | v0.3 |  |  | 未開始 | 0 | 照片內文字誘導呼叫 describe 耗 GPU |
-| MCP-INJ-023 | v0.2 |  |  | 綠 | 1 | path_template 注入 |
-| MCP-INJ-024 | v0.3 |  |  | 未開始 | 0 | Ask 確認卡偽造 |
+| MCP-TOOL-001 | v0.2 |  |  | 綠 | 114 | `search_photos` |
+| MCP-TOOL-002 | v0.2 |  |  | 綠 | 110 | `get_photo` |
+| MCP-TOOL-003 | v0.2 |  |  | 綠 | 110 | `find_similar` |
+| MCP-TOOL-004 | v0.2 |  |  | 綠 | 110 | `find_duplicates` |
+| MCP-TOOL-005 | v0.2 |  |  | 綠 | 110 | `list_tags` |
+| MCP-TOOL-006 | v0.2 |  |  | 綠 | 110 | `list_categories` |
+| MCP-TOOL-007 | v0.2 |  |  | 綠 | 110 | `list_facets` |
+| MCP-TOOL-008 | v0.2 |  |  | 綠 | 110 | `list_folders` |
+| MCP-TOOL-009 | v0.3 |  |  | 綠 | 108 | `describe_photo` |
+| MCP-TOOL-010 | v0.2 |  |  | 綠 | 110 | `update_labels` |
+| MCP-TOOL-011 | v0.3 |  |  | 綠 | 108 | `create_collection` |
+| MCP-TOOL-012 | v0.3 |  |  | 綠 | 108 | `add_to_collection` |
+| MCP-TOOL-013 | v0.3 |  |  | 綠 | 108 | `remove_from_collection` |
+| MCP-TOOL-014 | v0.3 |  |  | 綠 | 108 | `list_collections` |
+| MCP-TOOL-015 | v0.2 |  |  | 綠 | 110 | `run_labeling_job` |
+| MCP-TOOL-028 | v0.3 |  |  | 綠 | 1 | 回歸：`run_labeling_job` 在有 sub_path 的來源 |
+| MCP-TOOL-016 | v0.2 |  |  | 綠 | 110 | `get_job_status` |
+| MCP-TOOL-017 | v0.2 |  |  | 綠 | 110 | `cancel_job` |
+| MCP-TOOL-018 | v0.2 |  |  | 綠 | 110 | `propose_organize` |
+| MCP-TOOL-019 | v0.2 |  |  | 綠 | 110 | `get_organize_plan` |
+| MCP-TOOL-020 | v0.2 |  |  | 綠 | 110 | `apply_organize` |
+| MCP-TOOL-021 | v0.2 |  |  | 綠 | 110 | `undo_organize` |
+| MCP-TOOL-022 | v0.2 |  |  | 綠 | 112 | `list_people` |
+| MCP-TOOL-023 | v0.2 |  |  | 綠 | 112 | `get_person` |
+| MCP-TOOL-024 | v0.2 |  |  | 綠 | 112 | `find_photos_of_person` |
+| MCP-TOOL-025 | v0.3 |  |  | 綠 | 108 | `count_photos` |
+| MCP-TOOL-026 | v0.3 |  |  | 綠 | 108 | `verify_photos` |
+| MCP-TOOL-027 | v0.3 |  |  | 綠 | 108 | `compare_photos` |
+| MCP-SCOPE-002 | v0.2 | I | #68 | 綠 | 2 | 預設 token |
+| MCP-SCOPE-003 | v0.2 | I | #68 | 綠 | 2 | 唯讀呼叫寫入 |
+| MCP-SCOPE-004 | v0.2 | I | #67 | 綠 | 2 | faces 雙重閘門 |
+| MCP-SCOPE-005 | v0.2 | I | #84 | 綠 | 4 | faces:read 無 faces:media |
+| MCP-SCOPE-006 | v0.2 | I | #69 | 綠 | 2 | organize:apply 未開 workspace 開關 |
+| MCP-SCOPE-007 | v0.2 | S | #68 | 綠 | 2 | 沒有的能力 |
+| MCP-SCOPE-008 | v0.2 | I | #68 | 綠 | 2 | 撤銷即時生效 |
+| MCP-SCOPE-009 | v0.2 | S | #60 | 綠 | 2 | launch token 不能用於 MCP |
+| MCP-FOLD-001 | v0.2 | I | #68 | 綠 | 2 | folder_scopes 限制 |
+| MCP-FOLD-002 | v0.2 | S | #68 | 綠 | 4 | selection_id 跨範圍 |
+| MCP-FOLD-003 | v0.2 | I | #69 | 綠 | 2 | propose target 限制 |
+| MCP-FOLD-004 | v0.2 | S | #68 | 綠 | 2 | 計數不洩漏 |
+| MCP-FOLD-005 | v0.2 | S | #68 | 綠 | 2 | 路徑不外洩 |
+| MCP-FOLD-006 | v0.2 | S | #68 | 綠 | 2 | 回歸：有 sub_path 的來源 |
+| MCP-MEDIA-001 | v0.2 | I | #70 | 綠 | 2 | 預設不外送縮圖 |
+| MCP-MEDIA-002 | v0.2 | U | #70 | 綠 | 4 | 取最嚴格 |
+| MCP-MEDIA-003 | v0.2 | I | #84 | 綠 | 4 | 人臉縮圖三重政策 |
+| MCP-MEDIA-004 | v0.2 | I | #70 | 綠 | 2 | 回應大小上限 |
+| MCP-MEDIA-005 | v0.2 | S | #71 | 綠 | 2 | EXIF 自由文字預設不回 |
+| MCP-MEDIA-006 | v0.2 | I | #72 | 綠 | 2 | 稽核影像數 |
+| MCP-APPR-001 | v0.2 | I | #69 | 綠 | 4 | apply 只建立核准請求 |
+| MCP-APPR-002 | v0.2 | S | #69 | 綠 | 2 | 不可自我核准 |
+| MCP-APPR-003 | v0.2 | D | #69 | 綠 | 2 | 桌面 deep link |
+| MCP-APPR-004 | v0.2 | I | #69 | 綠 | 2 | plan_hash 綁定 |
+| MCP-APPR-005 | v0.2 | I | #69 | 綠 | 2 | 過期 |
+| MCP-APPR-006 | v0.2 | E | #69 | 綠 | 3 | 核准頁資訊 |
+| MCP-APPR-007 | v0.2 | U | #69 | 綠 | 4 | auto_approve 範圍 |
+| MCP-APPR-008 | v0.2 | I | #69 | 綠 | 2 | 核准後重試回 applying |
+| MCP-RATE-001 | v0.2 | I | #72 | 綠 | 4 | 一般讀取 |
+| MCP-RATE-002 | v0.2 | I | #72 | 綠 | 2 | describe GPU 預算（v0.3，隨 describe_photo；ADR-0009） |
+| MCP-RATE-003 | v0.2 | I | #72 | 綠 | 4 | run_labeling_job 限制 |
+| MCP-RATE-004 | v0.2 | I | #72 | 綠 | 4 | propose 限制 |
+| MCP-RATE-005 | v0.2 | I | #84 | 綠 | 4 | faces 列舉防護 |
+| MCP-AUD-001 | v0.2 | I | #72 | 綠 | 2 | 每次呼叫都記錄 |
+| MCP-AUD-002 | v0.2 | U | #72 | 綠 | 2 | 參數遮蔽 |
+| MCP-AUD-003 | v0.2 | S | #72 | 綠 | 2 | append-only |
+| MCP-AUD-004 | v0.2 | I | #72 | 綠 | 3 | 副作用同步 audit_log |
+| MCP-INJ-001 | v0.2 |  |  | 綠 | 8 | 照片內文字（招牌） |
+| MCP-INJ-002 | v0.2 |  |  | 綠 | 4 | 截圖中的白板 |
+| MCP-INJ-003 | v0.2 |  |  | 綠 | 4 | 照片內文字 |
+| MCP-INJ-004 | v0.2 |  |  | 綠 | 4 | 照片內 Markdown |
+| MCP-INJ-005 | v0.2 |  |  | 綠 | 4 | 照片內文字（角色扮演） |
+| MCP-INJ-006 | v0.2 |  |  | 綠 | 4 | QR code 指向惡意 URL |
+| MCP-INJ-007 | v0.2 |  |  | 綠 | 4 | EXIF `ImageDescription` |
+| MCP-INJ-008 | v0.2 |  |  | 綠 | 4 | EXIF `UserComment`（UTF-16） |
+| MCP-INJ-009 | v0.2 |  |  | 綠 | 4 | Windows `XPComment` |
+| MCP-INJ-010 | v0.2 |  |  | 綠 | 2 | XMP `dc:description` |
+| MCP-INJ-011 | v0.2 |  |  | 綠 | 2 | IPTC Caption |
+| MCP-INJ-012 | v0.2 |  |  | 綠 | 4 | 檔名 |
+| MCP-INJ-013 | v0.2 |  |  | 綠 | 4 | 資料夾名 |
+| MCP-INJ-014 | v0.2 |  |  | 綠 | 4 | 檔名 path 字元 |
+| MCP-INJ-015 | v0.2 |  |  | 綠 | 4 | 人名（使用者命名） |
+| MCP-INJ-016 | v0.2 |  |  | 綠 | 2 | 人名含 Markdown 連結 |
+| MCP-INJ-017 | v0.3 |  |  | 綠 | 2 | 相簿名稱 |
+| MCP-INJ-018 | v0.2 |  |  | 綠 | 6 | caption 偽造 tool 結果 |
+| MCP-INJ-019 | v0.2 |  |  | 綠 | 2 | OCR（`include:["ocr"]`） |
+| MCP-INJ-020 | v0.2 |  |  | 綠 | 2 | 照片內文字誘導外送到其他 MCP server |
+| MCP-INJ-021 | v0.2 |  |  | 綠 | 4 | 照片內文字誘導 update_labels |
+| MCP-INJ-022 | v0.3 |  |  | 綠 | 2 | 照片內文字誘導呼叫 describe 耗 GPU |
+| MCP-INJ-023 | v0.2 |  |  | 綠 | 2 | path_template 注入 |
+| MCP-INJ-024 | v0.3 |  |  | 綠 | 2 | Ask 確認卡偽造 |
 | MCP-TRN-001 | v0.2 | I | #60 | 綠 | 2 | stdio 找 port |
 | MCP-TRN-002 | v0.2 | S | #60 | 綠 | 1 | stdio 是薄 client |
 | MCP-TRN-003 | v0.2 | C | #60 | 綠 | 2 | 協定版本 |
@@ -897,88 +901,91 @@
 | MCP-PAT-002 | v0.2 | E | #61 | 綠 | 1 | 精靈只寫已知路徑 |
 | MCP-PAT-003 | v0.2 | U | #60 | 綠 | 1 | 設定寫絕對路徑 |
 | MCP-PAT-004 | v0.2 | E | #70 | 綠 | 1 | media 勾選說明 |
-| FACE-GATE-001 | v0.2 | I | #74 | 未開始 | 0 | 預設關閉 |
-| FACE-GATE-002 | v0.2 | I | #74 | 未開始 | 0 | opt-in 同意紀錄 |
-| FACE-GATE-003 | v0.2 | I | #74 | 未開始 | 0 | 限定 Source |
-| FACE-GATE-004 | v0.2 | E | #74 | 未開始 | 0 | 可略過 |
-| FACE-GATE-005 | v0.2 | C | #75 | 未開始 | 0 | 預設安裝包不含非可散布權重 |
-| FACE-DET-001 | v0.2 | U | #75 | 未開始 | 0 | 品質分級 |
-| FACE-DET-002 | v0.2 | U | #75 | 未開始 | 0 | 大合照截斷 |
-| FACE-DET-003 | v0.2 | U | #75 | 未開始 | 0 | 跳過條件 |
-| FACE-DET-004 | v0.2 | I | #75 | 未開始 | 0 | 只解碼一次 |
-| FACE-ASN-001 | v0.2 | U | #76 | 未開始 | 0 | 自動指派 |
-| FACE-ASN-002 | v0.2 | U | #76 | 未開始 | 0 | margin 不足 → 建議 |
-| FACE-ASN-003 | v0.2 | U | #76 | 未開始 | 0 | 低品質不自動 |
-| FACE-ASN-004 | v0.2 | U | #76 | 未開始 | 0 | age_variation／confusable |
-| FACE-ASN-005 | v0.2 | U | #76 | 未開始 | 0 | 未達建議門檻 |
-| FACE-ASN-006 | v0.2 | U | #77 | 未開始 | 0 | cannot-link |
-| FACE-CLU-001 | v0.2 | I | #76 | 未開始 | 0 | HDBSCAN 群組 |
-| FACE-CLU-002 | v0.2 | I | #76 | 未開始 | 0 | 人工決策凍結 |
-| FACE-CLU-003 | v0.2 | U | #76 | 未開始 | 0 | ID 穩定 |
-| FACE-CLU-004 | v0.2 | U | #76 | 未開始 | 0 | 小群組摺疊 |
-| FACE-CLU-005 | v0.2 | I | #76 | 未開始 | 0 | 大池退路 |
-| FACE-MGT-001 | v0.2 | I | #77 | 未開始 | 0 | 合併可 undo |
-| FACE-MGT-002 | v0.2 | I | #77 | 未開始 | 0 | 拆分 |
-| FACE-MGT-003 | v0.2 | U | #77 | 未開始 | 0 | 合併建議不自動 |
-| FACE-MGT-004 | v0.2 | I | #77 | 未開始 | 0 | 忽略兩種模式 |
-| FACE-MGT-005 | v0.2 | U | #80 | 未開始 | 0 | 命名清理 |
-| FACE-FIND-001 | v0.2 | I | #78 | 未開始 | 0 | 點臉找人 |
-| FACE-FIND-002 | v0.2 | I | #78 | 未開始 | 0 | 拖照片找人不落地 |
-| FACE-FIND-003 | v0.2 | U | #78 | 未開始 | 0 | 只吃 confirmed 擴充 |
-| FACE-FIND-004 | v0.2 | I | #78 | 未開始 | 0 | 不跨 workspace |
-| FACE-TPL-001 | v0.2 | I | #80 | 未開始 | 0 | `{person}` fan-out |
-| FACE-REV-001 | v0.2 | E | #81 | 未開始 | 0 | Review Y/N |
-| FACE-PRG-001 | v0.2 | I | #82 | 未開始 | 0 | 一鍵刪除 |
-| FACE-PRG-002 | v0.2 | I | #82 | 未開始 | 0 | Worker 端與金鑰 |
-| FACE-PRG-003 | v0.2 | I | #82 | 未開始 | 0 | Worker 離線時 purge |
-| FACE-PRG-004 | v0.2 | E | #82 | 未開始 | 0 | 停用預設勾選刪除 |
-| FACE-PRV-001 | v0.2 | I | #82 | 未開始 | 0 | 備份與匯出排除 |
-| FACE-PRV-002 | v0.2 | S | #82 | 未開始 | 0 | log 不記向量 |
-| FACE-PRV-003 | v0.2 | S | #82 | 未開始 | 0 | DB role 隔離 |
-| FACE-PRV-004 | v0.2 | C | #75 | 未開始 | 0 | 不做屬性推論 |
-| FACE-SPACE-001 | v0.2 | I | #83 | 未開始 | 0 | 換模型藍綠 |
-| FACE-SPACE-002 | v0.2 | I | #82 | 未開始 | 0 | 消失資產清理 |
+| FACE-GATE-001 | v0.2 | I | #74 | 綠 | 2 | 預設關閉 |
+| FACE-GATE-002 | v0.2 | I | #74 | 綠 | 2 | opt-in 同意紀錄 |
+| FACE-GATE-003 | v0.2 | I | #74 | 綠 | 1 | 限定 Source |
+| FACE-GATE-004 | v0.2 | E | #74 | 綠 | 1 | 可略過 |
+| FACE-GATE-005 | v0.2 | C | #75 | 綠 | 2 | 預設安裝包不含非可散布權重 |
+| FACE-DET-001 | v0.2 | U | #75 | 綠 | 11 | 品質分級 |
+| FACE-DET-002 | v0.2 | U | #75 | 綠 | 2 | 大合照截斷 |
+| FACE-DET-003 | v0.2 | U | #75 | 綠 | 1 | 跳過條件 |
+| FACE-DET-004 | v0.2 | I | #75 | 綠 | 1 | 只解碼一次 |
+| FACE-ASN-001 | v0.2 | U | #76 | 綠 | 3 | 自動指派 |
+| FACE-ASN-002 | v0.2 | U | #76 | 綠 | 1 | margin 不足 → 建議 |
+| FACE-ASN-003 | v0.2 | U | #76 | 綠 | 1 | 低品質不自動 |
+| FACE-ASN-004 | v0.2 | U | #76 | 綠 | 1 | age_variation／confusable |
+| FACE-ASN-005 | v0.2 | U | #76 | 綠 | 1 | 未達建議門檻 |
+| FACE-ASN-006 | v0.2 | U | #77 | 綠 | 2 | cannot-link |
+| FACE-CLU-001 | v0.2 | I | #76 | 綠 | 2 | HDBSCAN 群組 |
+| FACE-CLU-002 | v0.2 | I | #76 | 綠 | 1 | 人工決策凍結 |
+| FACE-CLU-003 | v0.2 | U | #76 | 綠 | 1 | ID 穩定 |
+| FACE-CLU-004 | v0.2 | U | #76 | 綠 | 2 | 小群組摺疊 |
+| FACE-CLU-005 | v0.2 | I | #76 | 綠 | 2 | 大池退路 |
+| FACE-MGT-001 | v0.2 | I | #77 | 綠 | 1 | 合併可 undo |
+| FACE-MGT-002 | v0.2 | I | #77 | 綠 | 1 | 拆分 |
+| FACE-MGT-003 | v0.2 | U | #77 | 綠 | 1 | 合併建議不自動 |
+| FACE-MGT-004 | v0.2 | I | #77 | 綠 | 1 | 忽略兩種模式 |
+| FACE-MGT-005 | v0.2 | U | #80 | 綠 | 1 | 命名清理 |
+| FACE-FIND-001 | v0.2 | I | #78 | 綠 | 4 | 點臉找人 |
+| FACE-FIND-002 | v0.2 | I | #78 | 綠 | 2 | 拖照片找人不落地 |
+| FACE-FIND-003 | v0.2 | U | #78 | 綠 | 1 | 只吃 confirmed 擴充 |
+| FACE-FIND-004 | v0.2 | I | #78 | 綠 | 1 | 不跨 workspace |
+| FACE-TPL-001 | v0.2 | I | #80 | 綠 | 1 | `{person}` fan-out |
+| FACE-REV-001 | v0.2 | E | #81 | 綠 | 1 | Review Y/N |
+| FACE-PRG-001 | v0.2 | I | #82 | 綠 | 1 | 一鍵刪除 |
+| FACE-PRG-002 | v0.2 | I | #82 | 綠 | 1 | Worker 端與金鑰 |
+| FACE-PRG-003 | v0.2 | I | #82 | 綠 | 1 | Worker 離線時 purge |
+| FACE-PRG-004 | v0.2 | E | #82 | 綠 | 1 | 停用預設勾選刪除 |
+| FACE-PRV-001 | v0.2 | I | #82 | 綠 | 1 | 備份與匯出排除 |
+| FACE-PRV-002 | v0.2 | S | #82 | 綠 | 1 | log 不記向量 |
+| FACE-PRV-003 | v0.2 | S | #82 | 綠 | 2 | DB role 隔離 |
+| FACE-PRV-004 | v0.2 | C | #75 | 綠 | 1 | 不做屬性推論 |
+| FACE-SPACE-001 | v0.2 | I | #83 | 綠 | 1 | 換模型藍綠 |
+| FACE-SPACE-002 | v0.2 | I | #82 | 綠 | 1 | 消失資產清理 |
 | FACE-N-001 | v0.2 | N | #76 | 未開始 | 0 | 真模型品質 |
-| ASK-GRD-001 | v0.3 | U | #103 | 未開始 | 0 | 引用必須來自本輪工具結果 |
-| ASK-GRD-002 | v0.3 | U | #100 | 未開始 | 0 | 數字只能來自 count_photos |
-| ASK-GRD-003 | v0.3 | U | #100 | 未開始 | 0 | 統計題一定呼叫 count_photos |
-| ASK-GRD-004 | v0.3 | U | #103 | 未開始 | 0 | 找不到就拒答 |
-| ASK-GRD-005 | v0.3 | U | #103 | 未開始 | 0 | 不補完 metadata |
-| ASK-GRD-006 | v0.3 | U | #103 | 未開始 | 0 | Markdown 白名單 |
-| ASK-ACT-001 | v0.3 | I | #104 | 未開始 | 0 | 動作只產生計畫 |
-| ASK-ACT-002 | v0.3 | U | #104 | 未開始 | 0 | 確認卡內容來自結構化資料 |
-| ASK-SSE-001 | v0.3 | C | #102 | 未開始 | 0 | 事件序列（檢索型） |
-| ASK-SSE-002 | v0.3 | C | #102 | 未開始 | 0 | 每步 eta 與 elapsed |
-| ASK-SSE-003 | v0.3 | I | #102 | 未開始 | 0 | 取消 ≤ 1 s |
-| ASK-SSE-004 | v0.3 | E | #102 | 未開始 | 0 | 可編輯 chips 重跑 |
-| ASK-LOOP-001 | v0.3 | U | #101 | 未開始 | 0 | 步數上限 |
-| ASK-LOOP-002 | v0.3 | U | #101 | 未開始 | 0 | 時間與 GPU 上限 |
-| ASK-LOOP-003 | v0.3 | I | #101 | 未開始 | 0 | S7 未通過自動關閉 |
-| ASK-LOOP-004 | v0.3 | U | #101 | 未開始 | 0 | 8 GB 強制快速路徑 |
-| ASK-PRV-001 | v0.3 | E | #105 | 未開始 | 0 | 雲端模式警示 |
-| ASK-PRV-002 | v0.3 | I | #105 | 未開始 | 0 | 預設不送影像 |
-| ASK-PRV-003 | v0.3 | I | #105 | 未開始 | 0 | 人名代稱 |
-| ASK-PRV-004 | v0.3 | I | #105 | 未開始 | 0 | egress log |
-| ASK-PRV-005 | v0.3 | E | #107 | 未開始 | 0 | CPU 機器 CTA |
-| ASK-SEC-001 | v0.3 | I | #104 | 未開始 | 0 | 共用 ToolRegistry 權限 |
-| ASK-SEC-002 | v0.3 | U | #104 | 未開始 | 0 | 不可信文字隔離 |
-| ASK-SEC-003 | v0.3 | N | #104 | 未開始 | 0 | injection 評估 |
-| ASK-EVAL-001 | v0.3 | C | #106 | 未開始 | 0 | 小集（PR） |
+| ASK-GRD-001 | v0.3 | U | #103 | 綠 | 3 | 引用必須來自本輪工具結果 |
+| ASK-GRD-002 | v0.3 | U | #100 | 綠 | 5 | 數字只能來自 count_photos |
+| ASK-GRD-003 | v0.3 | U | #100 | 綠 | 3 | 統計題一定呼叫 count_photos |
+| ASK-GRD-004 | v0.3 | U | #103 | 綠 | 4 | 找不到就拒答 |
+| ASK-GRD-005 | v0.3 | U | #103 | 綠 | 1 | 不補完 metadata |
+| ASK-GRD-006 | v0.3 | U | #103 | 綠 | 2 | Markdown 白名單 |
+| ASK-ACT-001 | v0.3 | I | #104 | 綠 | 2 | 動作只產生計畫 |
+| ASK-ACT-002 | v0.3 | U | #104 | 綠 | 2 | 確認卡內容來自結構化資料 |
+| ASK-SSE-001 | v0.3 | C | #102 | 綠 | 3 | 事件序列（檢索型） |
+| ASK-SSE-002 | v0.3 | C | #102 | 綠 | 3 | 每步 eta 與 elapsed |
+| ASK-SSE-003 | v0.3 | I | #102 | 綠 | 3 | 取消 ≤ 1 s |
+| ASK-SSE-004 | v0.3 | E | #102 | 綠 | 4 | 可編輯 chips 重跑 |
+| ASK-LOOP-001 | v0.3 | U | #101 | 綠 | 3 | 步數上限 |
+| ASK-LOOP-002 | v0.3 | U | #101 | 綠 | 1 | 時間與 GPU 上限 |
+| ASK-LOOP-003 | v0.3 | I | #101 | 綠 | 3 | S7 未通過自動關閉 |
+| ASK-LOOP-004 | v0.3 | U | #101 | 綠 | 3 | 8 GB 強制快速路徑 |
+| ASK-PRV-001 | v0.3 | E | #105 | 綠 | 3 | 雲端模式警示 |
+| ASK-PRV-002 | v0.3 | I | #105 | 綠 | 2 | 預設不送影像 |
+| ASK-PRV-003 | v0.3 | I | #105 | 綠 | 2 | 人名代稱 |
+| ASK-PRV-004 | v0.3 | I | #105 | 綠 | 4 | egress log |
+| ASK-PRV-005 | v0.3 | E | #107 | 綠 | 3 | CPU 機器 CTA |
+| ASK-SEC-001 | v0.3 | I | #104 | 綠 | 2 | 共用 ToolRegistry 權限 |
+| ASK-SEC-002 | v0.3 | U | #104 | 綠 | 1 | 不可信文字隔離 |
+| ASK-SEC-003 | v0.3 | N | #104 | 綠 | 2 | injection 評估 |
+| ASK-EVAL-001 | v0.3 | C | #106 | 綠 | 2 | 小集（PR） |
 | ASK-EVAL-002 | v0.3 | N | #103,#106 | 未開始 | 0 | 全集（nightly） |
 | ASK-PERF-001 | v0.3 | N | #100 | 未開始 | 0 | 延遲 |
-| ASK-MEM-001 | v0.3 | U | #100 | 未開始 | 0 | 追問 delta |
-| ASK-MEM-002 | v0.3 | I | #105 | 未開始 | 0 | 保存與刪除 |
-| WATCH-001 | v0.3 | I | #57 | 未開始 | 0 | 新照片自動標註 |
-| WATCH-002 | v0.3 | I | #57 | 未開始 | 0 | 去抖動 |
-| WATCH-003 | v0.3 | I | #57 | 未開始 | 0 | move 永遠需要核准 |
-| WATCH-004 | v0.3 | I | #57 | 未開始 | 0 | 事件遺失補償 |
-| WATCH-005 | v0.3 | F | #57 | 未開始 | 0 | 大量事件 |
-| WATCH-006 | v0.3 | I | #57 | 未開始 | 0 | 網路磁碟無原生事件 |
-| BENCH-001 | v0.3 | I | #35 | 未開始 | 0 | 兩模型比較 |
-| BENCH-002 | v0.3 | U | #35 | 未開始 | 0 | golden set 下限 |
-| BENCH-003 | v0.3 | U | #35 | 未開始 | 0 | 自動門檻建議 |
-| PRESET-001 | v0.3 | U | #58 | 未開始 | 0 | 匯出匯入 |
-| PRESET-002 | v0.3 | S | #58 | 未開始 | 0 | 匯入驗證 |
+| ASK-MEM-001 | v0.3 | U | #100 | 綠 | 1 | 追問 delta |
+| ASK-MEM-002 | v0.3 | I | #105 | 綠 | 2 | 保存與刪除 |
+| ASK-UI-001 | v0.3 | I | #100 | 綠 | 4 | 建議問題 chips 依資料產生 |
+| ASK-UI-002 | v0.3 | E | #102 | 綠 | 1 | 快捷鍵與面板互斥 |
+| ASK-LLM-001 | v0.3 | C | #101,#105 | 綠 | 5 | OpenAI 相容 client |
+| WATCH-001 | v0.3 | I | #57 | 綠 | 1 | 新照片自動標註 |
+| WATCH-002 | v0.3 | I | #57 | 綠 | 3 | 去抖動 |
+| WATCH-003 | v0.3 | I | #57 | 綠 | 1 | move 永遠需要核准 |
+| WATCH-004 | v0.3 | I | #57 | 綠 | 1 | 事件遺失補償 |
+| WATCH-005 | v0.3 | F | #57 | 綠 | 2 | 大量事件 |
+| WATCH-006 | v0.3 | I | #57 | 綠 | 13 | 網路磁碟無原生事件 |
+| BENCH-001 | v0.3 | I | #35 | 綠 | 3 | 兩模型比較 |
+| BENCH-002 | v0.3 | U | #35 | 綠 | 2 | golden set 下限 |
+| BENCH-003 | v0.3 | U | #35 | 綠 | 2 | 自動門檻建議 |
+| PRESET-001 | v0.3 | U | #58 | 綠 | 3 | 匯出匯入 |
+| PRESET-002 | v0.3 | S | #58 | 綠 | 23 | 匯入驗證 |
 | RT-VLLM-001 | v0.4 | C | #23 | 未開始 | 0 | vLLM pack 通過 INF-CONF 一致性套件 |
 | RT-MLX-001 | v0.4 | C | #23 | 未開始 | 0 | MLX pack 通過一致性套件 |
 | RT-TORCH-001 | v0.4 | C | #23 | 未開始 | 0 | torch pack（JoyCaption、Florence-2） |

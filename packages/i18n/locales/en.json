@@ -333,6 +333,12 @@
     "organize": "Organize in the app",
     "people": "Open People",
     "drop_again": "Drop the photo again",
+    "label_golden": "Label more photos",
+    "choose_file": "Choose another file",
+    "check_updates": "Check for updates",
+    "import_renamed": "Import under a new name",
+    "assistant": "Open the Ask-your-photos settings",
+    "retry_later": "Try again later",
     "retype": "Type it again"
   },
   "nav": {
@@ -346,7 +352,8 @@
     "settings": "Settings",
     "local": "100% on this computer",
     "duplicates": "Duplicates",
-    "people": "People"
+    "people": "People",
+    "ask": "Ask AI"
   },
   "viewer": {
     "title": "Photos",
@@ -684,5 +691,59 @@
     "typeNameFirst": "Type the library name first",
     "disableAndDelete": "Turn off and delete",
     "disableOnly": "Turn off only"
+  },
+  "ask": {
+    "open": "✦ Ask AI",
+    "title": "Ask your photos",
+    "close": "Close",
+    "input": "Ask something",
+    "placeholder": "e.g. beach photos from last summer",
+    "send": "Send",
+    "stop": "Stop",
+    "suggestions": "Suggested questions",
+    "mode": {
+      "local": "Local",
+      "cloud": "Cloud"
+    },
+    "cloudWarning": "Cloud mode: your question and the photos' text descriptions go to the external service you set up; photo images are never sent.",
+    "cpuAdvice": "This computer has no usable GPU. Asking your photos needs an external service (an OpenAI-compatible endpoint), or the slower local mode.",
+    "cpuSettings": "Set up an external service",
+    "cpuSlow": "Use the slower local mode",
+    "you": "You",
+    "ai": "AI",
+    "eta": "about {s} s",
+    "elapsed": "{s} s",
+    "removeChip": "Remove condition: {label}",
+    "rerun": "Run again with these conditions",
+    "chipDate": "Date {from}–{to}",
+    "chipTag": "Tag {tag}",
+    "chipText": "Text “{text}”",
+    "found": "Found {n} photos",
+    "cited": "Cited photos",
+    "openPhoto": "Open photo",
+    "plan": {
+      "title": "Organize plan",
+      "pending": "Awaiting approval",
+      "summary": "{action} {count} photos → {target}",
+      "open": "View the full plan",
+      "note": "Nothing runs until you approve, and it can be undone."
+    },
+    "cancelled": "Stopped",
+    "failed": "This did not finish; please try again",
+    "photo": {
+      "title": "Ask about this photo",
+      "input": "Ask about this photo"
+    },
+    "settings": {
+      "title": "Ask your photos",
+      "provider": "Model that answers",
+      "local": "Local (runs on this computer)",
+      "external": "External OpenAI-compatible service",
+      "endpoint": "Service URL",
+      "retention": "Keep conversations for (days, 0 = never)",
+      "save": "Save",
+      "saved": "Saved",
+      "cloudNote": "With an external service, questions and photo text descriptions are sent; images are not, and names are replaced by placeholders."
+    }
   }
 }

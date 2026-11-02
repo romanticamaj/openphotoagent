@@ -1,6 +1,6 @@
 import { Link, Outlet, createRootRoute, createRoute, createRouter, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Suspense, lazy, useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { ActivityButton, ActivityDrawer, RecoveryCard } from "./features/activity/ActivityHost";
 import { useTranslation } from "react-i18next";
 import { SearchBar } from "./features/search/SearchBar";
@@ -25,6 +25,8 @@ const PAGES = [
   () => import("./features/mcp/IntegrationsPage"),
   () => import("./features/mcp/ApprovalPage"),
   () => import("./features/people/PeoplePage"),
+  () => import("./features/ask/AskPanel"),
+  () => import("./features/ask/AssistantSettingsPage"),
 ];
 export function prefetchPages(delayMs = 3000) {
   if (typeof window === "undefined") return;
@@ -45,12 +47,45 @@ const PeoplePage = lazy(() => import("./features/people/PeoplePage").then((m) =>
 const FaceReview = lazy(() => import("./features/people/PeoplePage").then((m) => ({ default: m.FaceReview })));
 const FaceSettingsPage = lazy(() => import("./features/people/PeoplePage").then((m) => ({ default: m.FaceSettingsPage })));
 const FaceOptInCard = lazy(() => import("./features/people/PeoplePage").then((m) => ({ default: m.FaceOptInCard })));
+const AskPanel = lazy(() => import("./features/ask/AskPanel").then((m) => ({ default: m.AskPanel })));
+const AssistantSettingsPage = lazy(() => import("./features/ask/AssistantSettingsPage").then((m) => ({ default: m.AssistantSettingsPage })));
 const ModelsPage = lazy(() => import("./features/models/ModelsPage").then((m) => ({ default: m.ModelsPage })));
 const ModelCard = lazy(() => import("./features/models/ModelsPage").then((m) => ({ default: m.ModelCard })));
 
 function Shell() {
   const { t } = useTranslation();
   const [activity, setActivity] = useState(false);
+  const [asking, setAskingRaw] = useState(false);
+  const askOpener = useRef<HTMLElement | null>(null);
+  const askButton = useRef<HTMLButtonElement>(null);
+  // 問 AI and the Activity Center share the right-hand slot: opening one closes the other (ADR-0013)
+  const setAsking = (v: boolean) => {
+    if (v) {
+      askOpener.current = document.activeElement as HTMLElement | null;
+      setActivity(false);
+    } else {
+      // focus goes back to whatever opened the panel, or to the 問 AI button when that is gone (a closed drawer)
+      window.setTimeout(() => (askOpener.current?.isConnected && askOpener.current !== document.body ? askOpener.current : askButton.current)?.focus(), 0);
+    }
+    setAskingRaw(v);
+  };
+  const setActivityOpen = (v: boolean) => {
+    if (v) setAskingRaw(false);
+    setActivity(v);
+  };
+  // ⌘I / Ctrl+I toggles 問 AI; ⌘J stays with the Activity Center (06 §6.1, ACT-005; ADR-0013)
+  const askingRef = useRef(asking);
+  askingRef.current = asking;
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && e.key.toLowerCase() === "i") {
+        e.preventDefault();
+        setAsking(!askingRef.current);
+      }
+    };
+    window.addEventListener("keydown", on);
+    return () => window.removeEventListener("keydown", on);
+  }, []);
   // single-user desktop/all-in-one: no organisation, workspace or worker management in the UI (08 §8, DESK-032)
   const caps = useQuery({ queryKey: ["capabilities"], queryFn: api.capabilities, staleTime: Infinity });
   useEffect(() => prefetchPages(), []);
@@ -76,7 +111,10 @@ function Shell() {
         <strong>{t("app.title")}</strong>
         <SearchBar />
         <span className="text-xs text-[var(--text-muted)]">🔒 {t("nav.local")}</span>
-        <ActivityButton onToggle={() => setActivity(!activity)} />
+        <button ref={askButton} type="button" aria-expanded={asking} onClick={() => setAsking(!asking)} className="rounded-[var(--radius-sm)] px-2 py-1 hover:bg-[var(--surface-2)]">
+          {t("ask.open")}
+        </button>
+        <ActivityButton onToggle={() => setActivityOpen(!activity)} />
       </header>
       <nav className="sidenav" aria-label={t("nav.label")}>
         {nav.map(([to, key]) => (
@@ -86,7 +124,7 @@ function Shell() {
         ))}
       </nav>
       <main className="page" id="main">
-        <RecoveryCard onReview={() => setActivity(true)} />
+        <RecoveryCard onReview={() => setActivityOpen(true)} />
         <Suspense fallback={null}>
           <ApprovalInbox />
           <FaceOptInCard />
@@ -95,7 +133,12 @@ function Shell() {
           <Outlet />
         </Suspense>
       </main>
-      <ActivityDrawer open={activity} setOpen={setActivity} />
+      {asking ? (
+        <Suspense fallback={null}>
+          <AskPanel open={asking} onClose={() => setAsking(false)} />
+        </Suspense>
+      ) : null}
+      <ActivityDrawer open={activity} setOpen={setActivityOpen} />
     </div>
   );
 }
@@ -143,6 +186,7 @@ const settingsRoute = createRoute({ getParentRoute: () => root, path: "/settings
 const integrationsRoute = createRoute({ getParentRoute: () => root, path: "/settings/integrations", component: IntegrationsPage });
 const peopleRoute = createRoute({ getParentRoute: () => root, path: "/people", component: PeoplePage });
 const faceReviewRoute = createRoute({ getParentRoute: () => root, path: "/people/review", component: FaceReview });
+const assistantRoute = createRoute({ getParentRoute: () => root, path: "/settings/assistant", component: AssistantSettingsPage });
 const faceSettingsRoute = createRoute({ getParentRoute: () => root, path: "/settings/faces", component: FaceSettingsPage });
 const approvalRoute = createRoute({ getParentRoute: () => root, path: "/approvals/$approvalId", component: ApprovalPage });
 const welcome = createRoute({ getParentRoute: () => root, path: "/welcome", component: Welcome });
@@ -165,7 +209,7 @@ const organize = createRoute({
   ),
 });
 
-export const router = createRouter({ routeTree: root.addChildren([photos, welcome, organize, plan, reviewRoute, search, duplicatesRoute, modelsRoute, modelRoute, doctorRoute, settingsRoute, integrationsRoute, approvalRoute, peopleRoute, faceReviewRoute, faceSettingsRoute]) });
+export const router = createRouter({ routeTree: root.addChildren([photos, welcome, organize, plan, reviewRoute, search, duplicatesRoute, modelsRoute, modelRoute, doctorRoute, settingsRoute, integrationsRoute, approvalRoute, peopleRoute, faceReviewRoute, faceSettingsRoute, assistantRoute]) });
 
 declare module "@tanstack/react-router" {
   interface Register {

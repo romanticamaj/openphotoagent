@@ -158,34 +158,41 @@ def create_job(body: JobIn, req: Request) -> dict[str, Any]:
             422, detail={"code": "MOVE_REQUIRES_ADVANCED", "fixes": [{"id": "open_advanced", "type": "open_settings"}]}
         )
     with st.engine.begin() as c:
-        s = c.execute(select(source).where(source.c.id == body.source_id)).first()
-        if s is None:
-            raise HTTPException(404, detail={"code": "NOT_FOUND"})
-        from .preflight import enforce
-
-        enforce(c, st, "job.start", body.model_dump())  # server-side enforcement (PF-073)
-        jid = uuid7(st.clock)
-        c.execute(
-            insert(job).values(
-                id=jid,
-                workspace_id=DEFAULT_WS,
-                kind=body.kind,
-                status=JobStatus.queued.value,
-                mode=body.mode,
-                params=body.model_dump(),
-            )
-        )
-        from .operations import ensure_operation
-
-        ensure_operation(c, st.clock, jid, "job.label", {"kind": "job", "id": jid})  # visible in Activity (OP-001)
-        # never index the output folder when it lives inside the source (SCAN-024)
-        inside = body.target.root_alias == s.root_alias and body.target.sub_path.strip("/")
-        from .routes_viewer import scan_task
-
-        c.execute(
-            insert(worker_task).values(**scan_task(st, s, jid, [body.target.sub_path.strip("/")] if inside else []))
-        )
+        jid = start_job(st, c, body)
     return get_job(jid, req)
+
+
+def start_job(st: AppState, c: Any, body: JobIn, extra: dict[str, Any] | None = None) -> str:
+    """Create a job and its scan task in the caller's transaction (the UI, and watch-folder automations)."""
+    s = c.execute(select(source).where(source.c.id == body.source_id)).first()
+    if s is None:
+        raise HTTPException(404, detail={"code": "NOT_FOUND"})
+    from .preflight import enforce
+
+    enforce(c, st, "job.start", body.model_dump())  # server-side enforcement (PF-073)
+    jid = uuid7(st.clock)
+    c.execute(
+        insert(job).values(
+            id=jid,
+            workspace_id=DEFAULT_WS,
+            kind=body.kind,
+            status=JobStatus.queued.value,
+            mode=body.mode,
+            params={**body.model_dump(), **(extra or {})},
+        )
+    )
+    from .operations import ensure_operation
+
+    ensure_operation(c, st.clock, jid, "job.label", {"kind": "job", "id": jid})  # visible in Activity (OP-001)
+    # never index the output folder when it lives inside the source (SCAN-024)
+    inside = body.target.root_alias == s.root_alias and body.target.sub_path.strip("/")
+    from .routes_viewer import scan_task
+
+    t = scan_task(st, s, jid, [body.target.sub_path.strip("/")] if inside else [])
+    if extra and extra.get("watch"):
+        t["payload"]["watch"] = extra["watch"]
+    c.execute(insert(worker_task).values(**t))
+    return jid
 
 
 @router.get("/jobs/{job_id}")
@@ -443,7 +450,12 @@ def _preview_items(c: Any, j: Any, thresholds: dict[str, float] | None, template
     pol = Policy(**{k: v for k, v in (thresholds or {}).items() if k in ("accept", "review")})
     labels = organize.labels_for(c, j.id, pol)
     rows = [r for r in organize._source_assets(c, j.params["source_id"]) if r.asset_id in labels]
-    planned = plan(organize.plan_items(c, j, rows, labels), j.params["preset"], "", template=template)
+    planned = plan(
+        organize.plan_items(c, j, rows, labels),
+        j.params["preset"],
+        "",
+        template=template or organize.preset_template(c, j.params["preset"]),
+    )
     by = {a.asset_id: a for a in planned}
     return [
         {

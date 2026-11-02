@@ -6,12 +6,13 @@ change through the journaled executor (invariant 3).
 
 from __future__ import annotations
 
+import logging
 import os
 import threading
 import time
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from opagent_core.clock import SystemClock
 from opagent_fs.executor import Action, Executor
@@ -30,6 +31,10 @@ class _Waiting(Exception):
 
 class _Abandoned(Exception):
     """The worker is stopping: the download is dropped like a crash and resumed by the next worker (DL-014)."""
+
+
+WATCH_SYNC_S = 15.0
+_log = logging.getLogger("opagent.worker")
 
 
 class WorkerAgent:
@@ -54,6 +59,7 @@ class WorkerAgent:
         self.home = Path(home)
         self.home.mkdir(parents=True, exist_ok=True)
         self.backend = backend
+        self.bench_backends: dict[str, Any] = {}  # benchmark candidates by name (03 §6); loaded on demand
         self.face_backend = face_backend  # detection + embedding run only here, on the decoded image (07 §2.2)
         self._faces: dict[str, tuple[str, list[dict[str, Any]]]] = {}
         self._active_child: Any = None  # the running download child (ADR-0007)
@@ -451,18 +457,39 @@ class WorkerAgent:
             self.stop_downloads()
 
     def _run_forever(self, stop: Any) -> None:
-        while not stop.is_set():
-            try:
-                busy = self.run_once(wait_s=0.5, background_downloads=True)
-                if self.backend is not None:
-                    busy = bool(self.process_items_once()) or busy
-                self.tick_waiting()
-                if self.outbox_size():
-                    self.flush_outbox()
-                if not busy:
-                    stop.wait(0.2)
-            except Exception:
-                stop.wait(1.0)
+        from .watcher import WatchManager
+
+        watch = WatchManager(self)  # watch folders (05 §5): synced with the API every WATCH_SYNC_S
+        synced_at: float | None = None
+        try:
+            while not stop.is_set():
+                now = self.clock.monotonic()
+                if synced_at is None or now - synced_at >= WATCH_SYNC_S:
+                    synced_at = now
+                    try:
+                        watch.sync()
+                    except Exception:  # the API may be restarting; try again next round
+                        _log.warning("watch sync failed", exc_info=True)
+                try:
+                    watch.step()
+                except Exception:
+                    _log.warning("watch step failed", exc_info=True)
+                self._loop_once(stop)
+        finally:
+            watch.stop()
+
+    def _loop_once(self, stop: Any) -> None:
+        try:
+            busy = self.run_once(wait_s=0.5, background_downloads=True)
+            if self.backend is not None:
+                busy = bool(self.process_items_once()) or busy
+            self.tick_waiting()
+            if self.outbox_size():
+                self.flush_outbox()
+            if not busy:
+                stop.wait(0.2)
+        except Exception:
+            stop.wait(1.0)
 
     # ---- task handlers -------------------------------------------------
     def _do_scan(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
@@ -692,6 +719,101 @@ class WorkerAgent:
 
             res = asyncio.run(_wait(res))
         return {"vec": [float(x) for x in list(res[0])]}
+
+    def _do_benchmark(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """03 §6: run each candidate over the golden set; predictions and timings only (scores are computed by the
+        API). Images are decoded once and shared by all candidates. Candidates that are not available on this
+        worker report an error instead of a score."""
+        import asyncio
+
+        from opagent_inference.types import BatchRequest, LoadOptions
+
+        images = []
+        failed: list[str] = []
+        for it in p["items"]:
+            img, _err = self._prepare({**it, "id": it["asset_id"], "attempt": 1})
+            if img is None:
+                failed.append(it["asset_id"])
+            else:
+                images.append(img)
+        out = []
+        for name in p["candidates"]:
+            backend = self.bench_backends.get(name)
+            if backend is None:
+                out.append({"name": name, "error": "MODEL_NOT_INSTALLED"})
+                continue
+
+            async def go(b: Any = backend) -> Any:
+                await b.load(LoadOptions())
+                t0 = time.perf_counter()
+                res = await b.run_batch(
+                    BatchRequest(task_type="classify", items=images, variables={"categories": p["classes"]})
+                )
+                return res, time.perf_counter() - t0
+
+            res, took = asyncio.run(go()) if images else ([], 0.0)
+            per = took * 1000 / max(1, len(images))
+            out.append(
+                {
+                    "name": name,
+                    "preds": {o.item_id: [o.category, float(o.confidence or 0.0)] for o in res if o.category},
+                    "latency_ms": [per] * len(res),
+                    "items_per_s": len(res) / took if took > 0 else float(len(res) or 1),
+                    "vram_mb": backend.describe().est_vram_mb,
+                }
+            )
+        return {"candidates": out, "failed": failed}
+
+    def _do_vlm_ask(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """describe / verify / compare for the assistant and MCP (10 §8.3): the VLM looks at the photos here, on
+        this machine; only the text answer goes back (07 §6.2 F3, ASK-PRV-002)."""
+        import asyncio
+        import io
+        import time
+
+        from opagent_inference.types import BatchRequest, ImageInput, LoadOptions
+
+        from .imaging import open_image, oriented
+
+        if self.backend is None:
+            return {"error": "MODEL_UNAVAILABLE"}
+        t0 = time.perf_counter()
+        imgs = []
+        for it in p.get("items") or []:
+            sp = self.sb.resolve(it["root_alias"], it["rel"])
+            with open_image(sp.real) as im:
+                pic = oriented(im).convert("RGB")
+            pic.thumbnail((1024, 1024))
+            buf = io.BytesIO()
+            pic.save(buf, "JPEG", quality=90)
+            imgs.append(ImageInput(item_id=it["asset_id"], content_hash=it["asset_id"], data=buf.getvalue()))
+        backend = self.backend
+        mode = p.get("mode")
+        task: Literal["classify", "caption"] = "classify" if mode == "verify" else "caption"
+        variables = {"categories": ["yes", "no", "unsure"], "question": p.get("text") or ""}
+
+        async def go() -> Any:
+            await backend.load(LoadOptions())
+            return await backend.run_batch(BatchRequest(task_type=task, items=imgs, variables=variables))
+
+        outs = asyncio.run(go()) if imgs else []
+        ms = int((time.perf_counter() - t0) * 1000)
+        model = backend.describe().model_fingerprint
+        if mode == "verify":
+            return {
+                "results": [
+                    {
+                        "asset_id": i.item_id,
+                        "verdict": o.category if o.category in ("yes", "no") else "unsure",
+                        "score": float(o.confidence or 0.0),
+                        "reason": (o.caption or "")[:30],
+                    }
+                    for i, o in zip(imgs, outs, strict=True)
+                ],
+                "model": model,
+                "latency_ms": ms,
+            }
+        return {"answer": "\n".join(o.caption or "" for o in outs), "model": model, "latency_ms": ms}
 
     def _do_face_embed_query(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         """「拖照片找人」: the uploaded picture is fetched once from the API's memory and its face vectors are only in

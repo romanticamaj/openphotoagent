@@ -10,6 +10,7 @@ dependencies = [
     "opagent-doctor",
     "opagent-search",
     "opagent-mcp-tools",
+    "opagent-assistant",
     "fastapi",
     "jsonschema>=4.23",
     "keyring>=25",

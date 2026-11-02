@@ -2,7 +2,7 @@
 name = "opagent-worker"
 version = "0.0.1"
 requires-python = ">=3.12"
-dependencies = ["opagent-core", "opagent-fs-sandbox", "opagent-inference-sdk", "opagent-inference-adapters", "cryptography", "zstandard", "opagent-schemas", "opagent-registry", "opagent-doctor", "httpx", "pillow", "blake3", "pillow-heif", "numpy", "tzfpy"]
+dependencies = ["opagent-core", "opagent-fs-sandbox", "opagent-inference-sdk", "opagent-inference-adapters", "cryptography", "zstandard", "opagent-schemas", "opagent-registry", "opagent-doctor", "httpx", "pillow", "blake3", "pillow-heif", "numpy", "tzfpy", "watchdog>=6"]
 
 [build-system]
 requires = ["hatchling"]

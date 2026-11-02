@@ -88,7 +88,7 @@
 
 ```
 照片 ▸ 時間軸（預設）· 地圖 · 人物 · 資料夾 · 相簿 · 回憶 · 收藏 · 待整理
-問 AI（⌘K / ⌘J）
+問 AI（⌘K / ⌘I）
 任務 · 覆核 · 模型 · Workers · 設定 …（既有 04 頁面）
 ```
 
@@ -239,7 +239,7 @@ ThumbHash(內嵌) ─► 網格縮圖 256/512 (已快取) ─► 預覽 1024/204
 | `F` | 收藏（♥）切換 | `1`–`5` / `0` | 評分 / 清除評分 |
 | `P` / `X` / `U` | 挑選旗標 Pick / Reject / 清除（Lightroom 式） | `E` | 編輯標籤/類別（焦點進入面板的 tag 輸入框） |
 | `Delete` / `⌫` | **標記為「待刪除」**（只加旗標，不刪檔；可在「待整理」頁批次以 output plan 移到 `.opagent-trash`） | `S` | 找相似 |
-| `C` | 加入比較（最多 4 張）| `A` / `⌘J` | 對這張問 AI |
+| `C` | 加入比較（最多 4 張）| `A` / `⌘I` | 對這張問 AI |
 | `+` `-` `0` `1` | 縮放 | `T` | filmstrip 開/關 |
 | `?` | 快捷鍵說明 | `⌘C` | 複製圖片（桌面）/ 連結 |
 
@@ -735,7 +735,7 @@ flowchart LR
 | 入口 | 行為 |
 |------|------|
 | **全域 ⌘K** | 既有 command palette（04）擴充：輸入框同時是「搜尋 / 指令 / 問 AI」。輸入後第一個選項是「✦ 問 AI：…」（`⌘Enter`），其次是直接搜尋結果與指令。 |
-| **⌘J / 頂列「✦ 問 AI」** | 開右側 Ask 面板（寬 420px，可拖曳；手機全螢幕 sheet），與左側/中間的結果網格**聯動**：回答中的結果集即時顯示在主網格（主網格頂部出現「✦ AI 結果：128 張 · 返回時間軸」） |
+| **⌘I / 頂列「✦ 問 AI」**（ADR-0013；⌘J 屬於活動中心） | 開右側 Ask 面板（與活動中心共用右側位置：開一個就關另一個；關閉後焦點回到開啟它的元素）（寬 420px，可拖曳；手機全螢幕 sheet），與左側/中間的結果網格**聯動**：回答中的結果集即時顯示在主網格（主網格頂部出現「✦ AI 結果：128 張 · 返回時間軸」） |
 | **Lightbox 中** | 資訊面板底部「問這張」輸入框 + 建議 chips（「這是哪裡？」「這是什麼？」「照片裡的文字？」「找類似的」）；`A` 鍵聚焦 |
 | **選取後** | 批次列「✦ 問 AI」→ 面板以「關於這 37 張…」作為 context（selection） |
 | **比較模式** | 「✦ 問 AI 哪張最好」 |
@@ -942,7 +942,7 @@ flowchart LR
 | 03 §2.4 runtime | vLLM：啟用 tool parser（`--enable-auto-tool-choice --tool-call-parser …`【參數未驗證】）；`--limit-mm-per-prompt image` 互動用途需 ≥ 4（批次維持 1，或以 per-request 限制）；llama.cpp：`--jinja` 並保留 1 個 interactive slot | Ask 比較模式、tool calling |
 | 03 §3 任務 | 新增 `verify` 任務（條件 → yes/no/unsure + score + ≤ 30 字理由，structured output）；`describe` 支援多圖（≤ 4）；caption 輸出 `contains_image_text`（05 已提）| Ask |
 | 03 §6 Benchmark | 加入 Ask 評估集（§11）與「tool calling 可靠度」指標（JSON 合法率、工具選擇正確率），用於推薦 Assistant 模型 | 選模 |
-| **04 §2.1** 導覽 | 「照片」群組成為預設首頁（時間軸/地圖/人物/資料夾/相簿/回憶/收藏/待整理）；新增全域 Ask 面板（⌘J） | Viewer 成為主體驗 |
+| **04 §2.1** 導覽 | 「照片」群組成為預設首頁（時間軸/地圖/人物/資料夾/相簿/回憶/收藏/待整理）；新增全域 Ask 面板（⌘I） | Viewer 成為主體驗 |
 | 04 §3.6 Gallery | 重構為共用 `<PhotoGrid>` + `@opa/viewer` Lightbox；搜尋列與 Ask 共用 filter chips 元件；Lightbox 規格以本文 §3 取代 | 一致性 |
 | 04 §4.5 動效 | 併入本文 §6.6 | — |
 | 04 §5.2 技術棧 | 新增 MapLibre GL JS、pmtiles、OpenSeadragon（lazy）、thumbhash；`packages/viewer` | 選型 |
