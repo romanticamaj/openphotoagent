@@ -1,0 +1,40 @@
+{
+  "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": false
+  },
+  "description": "取消 MCP 發起的標註工作。",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "job_id": {
+        "maxLength": 64,
+        "type": "string"
+      }
+    },
+    "required": [
+      "job_id"
+    ],
+    "type": "object"
+  },
+  "name": "cancel_job",
+  "outputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "job_id": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "status"
+    ],
+    "type": "object"
+  },
+  "title": "取消工作"
+}

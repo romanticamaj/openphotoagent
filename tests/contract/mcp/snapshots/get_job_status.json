@@ -1,0 +1,78 @@
+{
+  "annotations": {
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": true
+  },
+  "description": "工作的狀態、計數、預估剩餘時間（eta.state/p50）與等待原因。",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "job_id": {
+        "maxLength": 64,
+        "type": "string"
+      }
+    },
+    "required": [
+      "job_id"
+    ],
+    "type": "object"
+  },
+  "name": "get_job_status",
+  "outputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "counters": {
+        "type": "object"
+      },
+      "elapsed_ms": {
+        "type": [
+          "integer",
+          "null"
+        ]
+      },
+      "eta": {
+        "properties": {
+          "p50_s": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "state": {
+            "enum": [
+              "none",
+              "rough",
+              "precise",
+              "stalled"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "job_id": {
+        "type": "string"
+      },
+      "kind": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "waiting_reason": {
+        "type": [
+          "string",
+          "null"
+        ]
+      }
+    },
+    "required": [
+      "job_id",
+      "status",
+      "eta"
+    ],
+    "type": "object"
+  },
+  "title": "工作進度"
+}

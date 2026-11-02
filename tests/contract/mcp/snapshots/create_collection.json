@@ -1,0 +1,58 @@
+{
+  "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false,
+    "readOnlyHint": false
+  },
+  "description": "建立相簿（只是資料庫集合，不動檔案）。",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "description": {
+        "maxLength": 500,
+        "type": "string"
+      },
+      "name": {
+        "maxLength": 100,
+        "minLength": 1,
+        "type": "string"
+      },
+      "photo_ids": {
+        "items": {
+          "maxLength": 64,
+          "type": "string"
+        },
+        "maxItems": 500,
+        "minItems": 1,
+        "type": "array"
+      },
+      "selection_id": {
+        "maxLength": 2048,
+        "type": "string"
+      }
+    },
+    "required": [
+      "name"
+    ],
+    "type": "object"
+  },
+  "name": "create_collection",
+  "outputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "collection_id": {
+        "type": "string"
+      },
+      "count": {
+        "type": "integer"
+      },
+      "uri": {
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "title": "建立相簿"
+}

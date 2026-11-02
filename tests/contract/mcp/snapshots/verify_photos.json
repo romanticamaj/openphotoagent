@@ -1,0 +1,47 @@
+{
+  "annotations": {
+    "idempotentHint": false,
+    "openWorldHint": false,
+    "readOnlyHint": true
+  },
+  "description": "請本機 VLM 逐張判斷照片是否符合條件（yes/no/unsure + 分數 + 簡短理由）。",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "condition": {
+        "maxLength": 300,
+        "minLength": 1,
+        "type": "string"
+      },
+      "photo_ids": {
+        "items": {
+          "maxLength": 64,
+          "type": "string"
+        },
+        "maxItems": 24,
+        "minItems": 1,
+        "type": "array"
+      }
+    },
+    "required": [
+      "photo_ids",
+      "condition"
+    ],
+    "type": "object"
+  },
+  "name": "verify_photos",
+  "outputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "results": {
+        "items": {
+          "type": "object"
+        },
+        "type": "array"
+      }
+    },
+    "type": "object"
+  },
+  "title": "逐張檢查照片"
+}

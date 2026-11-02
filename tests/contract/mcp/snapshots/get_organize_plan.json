@@ -1,0 +1,76 @@
+{
+  "annotations": {
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": true
+  },
+  "description": "計畫狀態、摘要與動作明細（分頁；可只看衝突）。",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "conflicts_only": {
+        "default": false,
+        "type": "boolean"
+      },
+      "cursor": {
+        "maxLength": 2048,
+        "type": "string"
+      },
+      "limit": {
+        "default": 50,
+        "maximum": 200,
+        "minimum": 1,
+        "type": "integer"
+      },
+      "plan_id": {
+        "maxLength": 64,
+        "type": "string"
+      }
+    },
+    "required": [
+      "plan_id"
+    ],
+    "type": "object"
+  },
+  "name": "get_organize_plan",
+  "outputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "actions": {
+        "items": {
+          "type": "object"
+        },
+        "type": "array"
+      },
+      "approval": {
+        "type": [
+          "object",
+          "null"
+        ]
+      },
+      "next_cursor": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "plan_id": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      },
+      "summary": {
+        "type": "object"
+      }
+    },
+    "required": [
+      "plan_id",
+      "status",
+      "actions"
+    ],
+    "type": "object"
+  },
+  "title": "讀取整理計畫"
+}

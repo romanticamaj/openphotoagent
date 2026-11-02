@@ -1,0 +1,73 @@
+{
+  "annotations": {
+    "destructiveHint": true,
+    "idempotentHint": false,
+    "openWorldHint": false,
+    "readOnlyHint": false
+  },
+  "description": "請使用者在 app 內核准撤銷已套用的計畫；與 apply_organize 一樣只建立核准請求。",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "confirmation_note": {
+        "maxLength": 500,
+        "type": "string"
+      },
+      "plan_id": {
+        "maxLength": 64,
+        "type": "string"
+      }
+    },
+    "required": [
+      "plan_id"
+    ],
+    "type": "object"
+  },
+  "name": "undo_organize",
+  "outputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "approval_id": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "approval_url": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "expires_at": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "job_id": {
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "status": {
+        "enum": [
+          "input_required",
+          "approval_pending",
+          "applying",
+          "applied",
+          "rejected",
+          "expired",
+          "stale"
+        ]
+      }
+    },
+    "required": [
+      "status"
+    ],
+    "type": "object"
+  },
+  "title": "請求撤銷整理"
+}

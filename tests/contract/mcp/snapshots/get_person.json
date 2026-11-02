@@ -1,0 +1,43 @@
+{
+  "annotations": {
+    "idempotentHint": true,
+    "openWorldHint": false,
+    "readOnlyHint": true
+  },
+  "description": "人物的名稱、照片數與時間範圍；封面縮圖只在 faces:media 且政策允許時提供。",
+  "inputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "person_id": {
+        "maxLength": 64,
+        "type": "string"
+      }
+    },
+    "required": [
+      "person_id"
+    ],
+    "type": "object"
+  },
+  "name": "get_person",
+  "outputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "media_withheld_reason": {
+        "description": "scope_missing / policy / privacy_results_only",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "person": {
+        "type": "object"
+      }
+    },
+    "required": [
+      "person"
+    ],
+    "type": "object"
+  },
+  "title": "人物詳情"
+}

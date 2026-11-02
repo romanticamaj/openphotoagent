@@ -1,0 +1,110 @@
+{
+  "annotations": {
+    "destructiveHint": false,
+    "idempotentHint": false,
+    "openWorldHint": false,
+    "readOnlyHint": false
+  },
+  "description": "對資料夾、selection_id 或照片 id 執行標註（只產生標註結果，一律 dry-run，不含任何檔案動作）。回傳預估時間；之後用 get_job_status 追蹤。",
+  "inputSchema": {
+    "$defs": {
+      "FolderRef": {
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "description": "相對路徑，例 2024/Japan；禁止 .. 與絕對路徑",
+            "maxLength": 500,
+            "type": "string"
+          },
+          "source": {
+            "description": "list_folders 回傳的 source alias",
+            "maxLength": 100,
+            "type": "string"
+          }
+        },
+        "required": [
+          "source"
+        ],
+        "type": "object"
+      }
+    },
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "only_unlabeled": {
+        "default": true,
+        "type": "boolean"
+      },
+      "priority": {
+        "default": "normal",
+        "enum": [
+          "normal",
+          "low"
+        ]
+      },
+      "scope": {
+        "additionalProperties": false,
+        "maxProperties": 1,
+        "minProperties": 1,
+        "properties": {
+          "folders": {
+            "items": {
+              "$ref": "#/$defs/FolderRef"
+            },
+            "maxItems": 20,
+            "type": "array"
+          },
+          "photo_ids": {
+            "items": {
+              "maxLength": 64,
+              "type": "string"
+            },
+            "maxItems": 1000,
+            "minItems": 1,
+            "type": "array"
+          },
+          "selection_id": {
+            "maxLength": 2048,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "required": [
+      "scope"
+    ],
+    "type": "object"
+  },
+  "name": "run_labeling_job",
+  "outputSchema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "properties": {
+      "cached_items": {
+        "type": "integer"
+      },
+      "estimate": {
+        "type": "object"
+      },
+      "estimated_items": {
+        "type": "integer"
+      },
+      "job_id": {
+        "type": "string"
+      },
+      "mode": {
+        "const": "dry_run"
+      },
+      "status": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "job_id",
+      "status",
+      "mode"
+    ],
+    "type": "object"
+  },
+  "title": "執行標註"
+}
