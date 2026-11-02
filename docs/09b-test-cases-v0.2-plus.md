@@ -423,11 +423,70 @@
 
 > #99 影片播放與封面：11 標「部分」（02 掃描與推論沒有定義影片處理），v0.4 不實作，留待規格補齊（見 11 §1.6 備註）。
 
-## 8. v0.5 以後（骨架；開工前細化）
+## 8. v0.5 — 自架 control plane（細化於 2026-11-02；02 §1.3–§1.4、§5.2–§5.3、§6.3；05 §3.2；08 §9.2）
+
+> 替身：control plane 與 Worker 以兩個進程（或兩個 compose service）執行。OIDC 使用 `opagent_testing` 的假 OIDC provider（authorization code + PKCE、JWKS、可輪替金鑰）。WSS 與 long-poll 都在本機實測。真正跨兩台機器的部署（NAS + GPU 桌機）屬於手動驗證。
+
+### 8.1 Worker 配對與通道（#12）
+
+| ID | 標題 | 前置／輸入 | 預期 | 層 | # |
+|----|------|-----------|------|----|---|
+| MU-WORKER-001 | 遠端 Worker 只往外連 | 配對後執行一個 Job | Worker 只發出 outbound 連線（WSS／HTTPS）；Worker 進程沒有任何 listening socket | I/S | #12 |
+| MU-WORKER-002 | 一次性配對碼 | 產生 code → enroll；再用同一個 code；過期的 code；連續猜錯 | 第一次成功，回 worker_id 與綁公鑰的 refresh token；重用、過期一律拒絕；猜錯超過限速後鎖定 | I/S | #12 |
+| MU-WORKER-003 | ed25519 簽章換 access token | Worker 以私鑰簽 `ts|nonce` | 取得 15 分鐘 JWT（aud=worker）；簽章錯、時間偏移 > 5 分鐘、nonce 重放都拒絕 | U/I | #12 |
+| MU-WORKER-004 | WSS 與 long-poll 降級 | WSS 被擋 | 改用 `GET /poll?wait=30`，工作照常完成；WSS 恢復後切回 | I | #12 |
+| MU-WORKER-005 | 協定版本 | Worker 的 protocol_version 比 CP 落後兩個主版本 | `welcome` 回 `upgrade_required`，Worker 不領工作並顯示原因 | C | #12 |
+| MU-WORKER-006 | 桌面 app 當 headless Worker | `opagent worker enroll --server … --code …` 後以無 UI 模式執行 | 只連 CP，不開本機 UI 或 API port；照片根目錄只能在本機 CLI 設定（不變量 2） | I | #12 |
+
+### 8.2 多使用者、RBAC 與登入（#12）
+
+| ID | 標題 | 前置／輸入 | 預期 | 層 | # |
+|----|------|-----------|------|----|---|
+| MU-RBAC-001 | ws_viewer 不可寫 | 對每個寫入 REST 端點與每個寫入 MCP tool 以 ws_viewer 呼叫 | 全部 403（端點清單由路由表自動列舉，新端點沒有標 permission 時測試失敗） | I/S | #12 |
+| MU-RBAC-002 | 角色矩陣 | 6 個角色 × 代表性動作（建立 Job、核准套用、管理 Worker、管理成員、覆核） | 結果與 02 §1.3 表格一致 | C | #12 |
+| MU-RBAC-003 | 套用需要 output:apply | ws_editor 建立計畫並嘗試核准 | 403；ws_admin 可核准 | I | #12 |
+| MU-AUTH-001 | 密碼登入 | argon2id 雜湊；錯誤密碼；限速 | HttpOnly、Secure、SameSite=Lax 的 session cookie 與 CSRF token；連續錯誤後限速 | I/S | #12 |
+| MU-AUTH-002 | OIDC 登入 | 假 OIDC provider；authorization code + PKCE | 首次登入建立使用者（依 email 對應邀請）；state 或 nonce 錯誤時拒絕；簽章金鑰輪替後仍可驗證 | I/S | #12 |
+| MU-AUTH-003 | 單人模式升級 | 既有單人資料庫開啟多人模式 | 原 owner 成為 org_owner；資料保留；開啟後一律需要登入 | I | #12 |
+
+### 8.3 四級隱私政策（#113；02 §1.4）
+
+| ID | 標題 | 前置／輸入 | 預期 | 層 | # |
+|----|------|-----------|------|----|---|
+| MU-PRIV-001 | full | workspace 為 full | 上傳 metadata、EXIF、縮圖、embedding、結果 | I | #113 |
+| MU-PRIV-002 | thumbs | thumbs，GPS 剝除開啟 | 縮圖長邊 ≤ 512 px；EXIF 不含 GPS | I/S | #113 |
+| MU-PRIV-003 | edge-thumbs | edge-thumbs | CP 收不到任何縮圖 bytes；瀏覽器經 Worker relay 取得縮圖 | I/S | #113 |
+| MU-PRIV-004 | results-only | results-only，路徑 hash 開啟 | CP 只有路徑 hash 與結果；沒有縮圖、embedding、GPS、檔名明文；搜尋退化為結果與 facet | I/S | #113 |
+| MU-PRIV-005 | Worker 端強制 | CP 被竄改，要求 Worker 上傳 results-only 不允許的資料 | Worker 拒絕並記錄；政策由 Worker 依 `welcome` 執行，不靠 CP 自律 | S | #113 |
+
+### 8.4 安全測試（#12）
+
+| ID | 標題 | 前置／輸入 | 預期 | 層 | # |
+|----|------|-----------|------|----|---|
+| MU-SEC-001 | Worker 冒充 | 用另一個 Worker 的 worker_id 搭配自己的金鑰；偽造 JWT；竄改 heartbeat 的 worker_id | 一律 401／403；不能領取或回報不屬於自己的工作 | S | #12 |
+| MU-SEC-002 | token 重放 | 重放已用過的 nonce；過期 JWT；撤銷後的 refresh token | 全部拒絕；撤銷 Worker 後正在進行的連線在下一個訊息被關閉 | S | #12 |
+| MU-SEC-003 | 跨 workspace 隔離 | 兩個 workspace（A、B）；A 的使用者、token、Worker 嘗試存取 B 的資產、計畫、搜尋、MCP | 全部 404（不洩漏存在與否）；搜尋 total 不含 B | S | #12 |
+| MU-SEC-004 | Worker RPC 白名單 | CP 下發未知的 RPC 類型 | Worker 拒絕；沒有任何「執行任意指令」的訊息 | S | #12 |
+
+### 8.5 部署（#12）
+
+| ID | 標題 | 前置／輸入 | 預期 | 層 | # |
+|----|------|-----------|------|----|---|
+| MU-DEPLOY-001 | compose 雙機 E2E | `deploy/compose/controlplane.yml` 與 `worker.yml`（不同網路命名空間） | 配對 → 掃描 → 標註 → 計畫 → 核准 → 套用 → undo 全部成功；Worker 容器沒有對外開 port | E/N | #12 |
+| MU-DEPLOY-002 | 桌面 app 當 client | 桌面 app 設定連線到遠端 CP | 以使用者登入；顯示 CP 上的 workspace；本機不啟動 api／worker | M | #12 |
+
+### 8.6 MCP over HTTP（#73；依 C-21 決定）
+
+| ID | 標題 | 前置／輸入 | 預期 | 層 | # |
+|----|------|-----------|------|----|---|
+| MU-OAUTH-001 | grant 撤銷即時 | 撤銷 grant | 進行中的 MCP 下一個呼叫即失敗 | I | #73 |
+| MU-OAUTH-002 | Protected Resource Metadata | `GET /.well-known/oauth-protected-resource` | 依 RFC 9728 指向授權伺服器；401 帶 `WWW-Authenticate` 的 resource_metadata | C | #73 |
+| MU-OAUTH-003 | scope 與 audience | access token 的 aud 不是本 CP，或 scope 含 `organize:apply` | 拒絕；`organize:apply` 永遠不發給 MCP token（不變量 5） | S | #73 |
+
+> 8.6 的授權伺服器做法依 08 C-21 定案（內建 AS 或委託外部 IdP）；定案前只實作與 C-21 無關的部分（PAT over HTTP，以及 MU-OAUTH-002 的 metadata 骨架）。
+
+## 9. v1.0（骨架；開工前細化）
 
 | ID | 標題 | 預期 | 層 | # | 版 |
 |----|------|------|----|---|----|
-| MU-RBAC-001 | ws_viewer 不可寫 | 對每個寫入 REST 端點與每個寫入 MCP tool 以 ws_viewer 呼叫 → 全部 403 | I/S | #12 | v0.5 |
-| MU-WORKER-001 | 遠端 Worker 只 outbound | 配對與任務只靠 outbound WSS；Worker 不開任何 listening port | I/S | #12 | v0.5 |
-| MU-OAUTH-001 | grant 撤銷即時 | 撤銷後進行中的 MCP 下一個呼叫即失敗 | I | #73 | v0.5 |
 | SEC-AUDIT-001 | v1.0 安全審查 | 路徑沙箱 fuzz 1 億例、MCP 紅隊擴充至 100 條、人臉刪除驗證，由外部審查 | S/M | — | v1.0 |

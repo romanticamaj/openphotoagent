@@ -10,7 +10,7 @@
 | v0.2 | 180 | 175 | 0 | 0 | 5 | 0 |
 | v0.3 | 55 | 53 | 0 | 0 | 2 | 0 |
 | v0.4 | 31 | 28 | 0 | 0 | 3 | 0 |
-| v0.5 | 6 | 0 | 0 | 0 | 6 | 0 |
+| v0.5 | 29 | 0 | 0 | 0 | 29 | 0 |
 | v1.0 | 1 | 0 | 0 | 0 | 1 | 0 |
 
 ## 依模組
@@ -127,9 +127,13 @@
 | v0.4 | SRCH-R2 | 4 | 4 | 0 | 0 |
 | v0.4 | WINML | 1 | 0 | 1 | 0 |
 | v0.5 | MCP-TRN | 1 | 0 | 1 | 0 |
-| v0.5 | MU-OAUTH | 1 | 0 | 1 | 0 |
-| v0.5 | MU-RBAC | 1 | 0 | 1 | 0 |
-| v0.5 | MU-WORKER | 1 | 0 | 1 | 0 |
+| v0.5 | MU-AUTH | 3 | 0 | 3 | 0 |
+| v0.5 | MU-DEPLOY | 2 | 0 | 2 | 0 |
+| v0.5 | MU-OAUTH | 3 | 0 | 3 | 0 |
+| v0.5 | MU-PRIV | 5 | 0 | 5 | 0 |
+| v0.5 | MU-RBAC | 3 | 0 | 3 | 0 |
+| v0.5 | MU-SEC | 4 | 0 | 4 | 0 |
+| v0.5 | MU-WORKER | 6 | 0 | 6 | 0 |
 | v0.5 | PF | 2 | 0 | 2 | 0 |
 | v1.0 | SEC-AUDIT | 1 | 0 | 1 | 0 |
 
@@ -1022,9 +1026,32 @@
 | MAP-003 | v0.4 | U | #96 | 綠 | 2 | 聚類計算 |
 | CMP-001 | v0.4 | E | #97 | 綠 | 1 | 比較模式 |
 | CMP-002 | v0.4 | A | #97 | 綠 | 1 | 比較模式鍵盤 |
+| MU-WORKER-001 | v0.5 | I | #12 | 未開始 | 0 | 遠端 Worker 只往外連 |
+| MU-WORKER-002 | v0.5 | I | #12 | 未開始 | 0 | 一次性配對碼 |
+| MU-WORKER-003 | v0.5 | U | #12 | 未開始 | 0 | ed25519 簽章換 access token |
+| MU-WORKER-004 | v0.5 | I | #12 | 未開始 | 0 | WSS 與 long-poll 降級 |
+| MU-WORKER-005 | v0.5 | C | #12 | 未開始 | 0 | 協定版本 |
+| MU-WORKER-006 | v0.5 | I | #12 | 未開始 | 0 | 桌面 app 當 headless Worker |
 | MU-RBAC-001 | v0.5 | I | #12 | 未開始 | 0 | ws_viewer 不可寫 |
-| MU-WORKER-001 | v0.5 | I | #12 | 未開始 | 0 | 遠端 Worker 只 outbound |
+| MU-RBAC-002 | v0.5 | C | #12 | 未開始 | 0 | 角色矩陣 |
+| MU-RBAC-003 | v0.5 | I | #12 | 未開始 | 0 | 套用需要 output:apply |
+| MU-AUTH-001 | v0.5 | I | #12 | 未開始 | 0 | 密碼登入 |
+| MU-AUTH-002 | v0.5 | I | #12 | 未開始 | 0 | OIDC 登入 |
+| MU-AUTH-003 | v0.5 | I | #12 | 未開始 | 0 | 單人模式升級 |
+| MU-PRIV-001 | v0.5 | I | #113 | 未開始 | 0 | full |
+| MU-PRIV-002 | v0.5 | I | #113 | 未開始 | 0 | thumbs |
+| MU-PRIV-003 | v0.5 | I | #113 | 未開始 | 0 | edge-thumbs |
+| MU-PRIV-004 | v0.5 | I | #113 | 未開始 | 0 | results-only |
+| MU-PRIV-005 | v0.5 | S | #113 | 未開始 | 0 | Worker 端強制 |
+| MU-SEC-001 | v0.5 | S | #12 | 未開始 | 0 | Worker 冒充 |
+| MU-SEC-002 | v0.5 | S | #12 | 未開始 | 0 | token 重放 |
+| MU-SEC-003 | v0.5 | S | #12 | 未開始 | 0 | 跨 workspace 隔離 |
+| MU-SEC-004 | v0.5 | S | #12 | 未開始 | 0 | Worker RPC 白名單 |
+| MU-DEPLOY-001 | v0.5 | E | #12 | 未開始 | 0 | compose 雙機 E2E |
+| MU-DEPLOY-002 | v0.5 | M | #12 | 未開始 | 0 | 桌面 app 當 client |
 | MU-OAUTH-001 | v0.5 | I | #73 | 未開始 | 0 | grant 撤銷即時 |
+| MU-OAUTH-002 | v0.5 | C | #73 | 未開始 | 0 | Protected Resource Metadata |
+| MU-OAUTH-003 | v0.5 | S | #73 | 未開始 | 0 | scope 與 audience |
 | SEC-AUDIT-001 | v1.0 | S |  | 未開始 | 0 | v1.0 安全審查 |
 
 ## 不在目錄中的 ID（請補到 09a／09b）
