@@ -240,6 +240,11 @@ def cmd_worker(a: argparse.Namespace) -> None:
         backend=backend,
         worker_id=a.worker_id,
     )
+    if a.token_stdin:  # desktop: pause heavy labelling on battery (06 §5, DESK-023)
+        from opagent_worker.policy import ResourcePolicy
+        from opagent_worker.power import system_power
+
+        agent.policy = ResourcePolicy(power=system_power())
     stop = threading.Event()
     signal.signal(signal.SIGTERM, lambda *_: stop.set())
     while not stop.is_set():

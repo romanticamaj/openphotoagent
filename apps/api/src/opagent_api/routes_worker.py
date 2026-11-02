@@ -265,15 +265,45 @@ class JournalIn(BaseModel):
 class LeasesIn(BaseModel):
     worker_id: str
     boot_id: str | None = None
+    paused_reason: str | None = None  # the worker's resource policy (battery, GPU busy, not idle; 06 §5)
     max_items: int = 16
     loaded_models: list[str] = []
     lanes: list[str] | None = None
+
+
+POLICY_REASONS = ("PAUSED_ON_BATTERY", "PAUSED_GPU_CONTENDED", "PAUSED_NOT_IDLE")
+
+
+def _policy_wait(c: Any, st: AppState, reason: str | None) -> None:
+    """Running label jobs wait with the worker's reason; when it clears they run again (06 §5, DESK-023)."""
+    from opagent_db.schema import job_item, operation
+
+    if reason:
+        busy = select(job_item.c.job_id).where(job_item.c.status == "pending").distinct()
+        for (oid,) in c.execute(
+            select(operation.c.id).where(
+                operation.c.type == "job.label", operation.c.status == "running", operation.c.id.in_(busy)
+            )
+        ).all():
+            set_op_status(c, st.clock, oid, "waiting", reason)
+    else:
+        for (oid,) in c.execute(
+            select(operation.c.id).where(
+                operation.c.type == "job.label",
+                operation.c.status == "waiting",
+                operation.c.waiting_reason.in_(POLICY_REASONS),
+            )
+        ).all():
+            set_op_status(c, st.clock, oid, "running")
 
 
 @router.post("/leases")
 def leases(body: LeasesIn, req: Request) -> Any:
     st = _st(req)
     with st.engine.begin() as c:
+        _policy_wait(c, st, body.paused_reason if body.paused_reason in POLICY_REASONS else None)
+        if body.paused_reason in POLICY_REASONS:
+            return Response(status_code=204)
         items = q.lease(c, st.clock, body.worker_id, body.max_items, body.loaded_models, body.lanes, body.boot_id)
     if not items:
         return Response(status_code=204)

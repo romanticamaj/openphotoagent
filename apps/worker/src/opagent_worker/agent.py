@@ -48,6 +48,7 @@ class WorkerAgent:
         self.home = Path(home)
         self.home.mkdir(parents=True, exist_ok=True)
         self.backend = backend
+        self.policy: Any = None  # ResourcePolicy: heavy labelling waits on battery / busy GPU (06 §5)
         self.hw_profile = hw_profile
         self.doctor_env: dict[str, Any] = {}  # raw-fact overrides for the doctor (tests / FakeWorkerLink)
         self.models_root = Path(models_root) if models_root else self.home / "models"
@@ -184,6 +185,7 @@ class WorkerAgent:
                 "boot_id": self.boot_id,
                 "max_items": self.batch_size,
                 "loaded_models": [t for t in getattr(self, "loaded_tasks", [])],
+                "paused_reason": self.policy.paused_reason() if self.policy is not None else None,
             },
         )
         if r.status_code == 204:
