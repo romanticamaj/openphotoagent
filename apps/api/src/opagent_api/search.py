@@ -186,14 +186,52 @@ def _apply_plan(st: AppState, body: SearchIn, q: str) -> tuple[dict[str, Any], S
 
     tz = ZoneInfo("Asia/Taipei")
     p = plan(q, today=st.clock.now().astimezone(tz).date(), tz=tz, gazetteer=Gazetteer.default())
+    if p["planner"]["confidence"] < LLM_PLAN_BELOW:
+        llm = _llm_plan(st, q)
+        if llm is not None:
+            p = llm
     f = body.filters.model_copy()
     pf = p["filters"]
     if "taken_at" in pf and not (f.taken_from or f.taken_to):
         f.taken_from, f.taken_to = pf["taken_at"]["from"], pf["taken_at"]["to"]
     if pf.get("tags_any"):
         f.tags_any = sorted(set(f.tags_any or []) | set(pf["tags_any"]))
-    p["unapplied"] = [k for k in UNINDEXED if k in pf]
-    return p, body.model_copy(update={"filters": f, "q": p["text"]})
+    flat = {**p["planner"], "filters": pf, "text": p["text"], "unapplied": [k for k in UNINDEXED if k in pf]}
+    return flat, body.model_copy(update={"filters": f, "q": p["text"]})
+
+
+LLM_PLAN_BELOW = 0.6  # rule confidence under which the worker's LLM is asked (05 §2.3)
+LLM_PLAN_TIMEOUT_S = 1.5
+
+
+def _llm_plan(st: AppState, q: str) -> dict[str, Any] | None:
+    """``query.plan`` RPC on the interactive lane: structured output from the loaded VLM/LLM; ``None`` when no
+    worker answers within 1.5 s or it cannot plan (SRCH-PLAN-011) — the rules result is used then."""
+    import uuid
+
+    with st.engine.begin() as c:
+        w = _worker_online(c, st)
+        if w is None:
+            return None
+        tid = "rpc-" + uuid.uuid4().hex[:12]
+        c.execute(
+            worker_task.insert().values(id=tid, kind="query_plan", lane="interactive", worker_id=w.id, payload={"q": q})
+        )
+    deadline = time.monotonic() + LLM_PLAN_TIMEOUT_S  # noqa: TID251 - waits on a real worker over the wire
+    while time.monotonic() < deadline:  # noqa: TID251
+        with st.engine.begin() as c:
+            row = c.execute(select(worker_task.c.status, worker_task.c.result).where(worker_task.c.id == tid)).first()
+        if row is not None and row.status in ("done", "failed"):
+            res = row.result or {}
+            if row.status == "done" and isinstance(res.get("filters"), dict) and isinstance(res.get("text"), str):
+                return {
+                    "text": res["text"],
+                    "filters": res["filters"],
+                    "planner": {"source": "llm", **res.get("planner", {})},
+                }
+            return None
+        time.sleep(0.02)  # noqa: TID251
+    return None
 
 
 def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
