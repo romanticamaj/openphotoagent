@@ -390,3 +390,25 @@ def test_rrf_003_filter_only_query_sorts_by_date_without_ranking(s):
     assert len(ids) == 4 and taken == sorted(taken, reverse=True)  # taken_at desc
     assert all(h["matched_by"] == ["filter"] for h in r["items"])  # no RRF, no vector route
     assert "image_vector" not in r.get("degraded", [])
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-RRF-004")
+def test_rrf_004_duplicate_group_folds_into_its_representative(s):
+    ids = [s.add(i, caption="beach sunset", tags=["scene.beach"]) for i in range(6)]
+    s.index()
+    s.sql(
+        "insert into duplicate_member(group_id, asset_id, is_representative) values"
+        " ('g', :a, true), ('g', :b, false), ('g', :c, false)",
+        a=ids[0],
+        b=ids[1],
+        c=ids[2],
+    )
+    folded = s.search(q="beach")
+    got = [h["asset_id"] for h in folded["items"]]
+    assert ids[0] in got and ids[1] not in got and ids[2] not in got
+    rep = next(h for h in folded["items"] if h["asset_id"] == ids[0])
+    assert rep["duplicates"] == 2  # shown as "+2"
+    assert folded["total"] == 4
+    full = s.search(q="beach", collapse_duplicates=False)
+    assert {h["asset_id"] for h in full["items"]} >= set(ids[:3]) and full["total"] == 6
