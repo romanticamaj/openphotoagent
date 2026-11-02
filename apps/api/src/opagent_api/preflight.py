@@ -373,6 +373,13 @@ class Pre:
             return False
         return True
 
+    def immich_sync(self) -> None:
+        from .immich import preflight_check
+
+        code = preflight_check(self.st, self.c)
+        if code:
+            self.add(code, {}, "immich")
+
     def benchmark_run(self) -> None:
         """03 §6.1: a golden set needs enough labelled photos per class before scores mean anything (BENCH-002)."""
         from .routes_bench import golden_check
@@ -627,6 +634,7 @@ class Pre:
                 "runtime.install": self.runtime_install,
                 "search": self.search,
                 "benchmark.run": self.benchmark_run,
+                "immich.sync": self.immich_sync,
             }.get(self.action)
             if handler:
                 handler()

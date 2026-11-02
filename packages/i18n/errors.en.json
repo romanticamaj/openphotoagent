@@ -245,6 +245,18 @@
     "severity": "B",
     "title": "You need to accept the terms of {model} on the Hugging Face website first"
   },
+  "IMMICH_AUTH_FAILED": {
+    "cta": "Enter the API key again",
+    "message": "Immich refused the API key",
+    "severity": "B",
+    "title": "Immich refused the API key"
+  },
+  "IMMICH_UNREACHABLE": {
+    "cta": "Check the Immich URL",
+    "message": "The Immich server cannot be reached",
+    "severity": "B",
+    "title": "The Immich server cannot be reached"
+  },
   "INVALID_ARGUMENT": {
     "cta": "Fix the arguments and retry",
     "message": "The arguments do not match the tool's schema: {detail}",

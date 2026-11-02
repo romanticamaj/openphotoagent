@@ -720,6 +720,24 @@ class WorkerAgent:
             res = asyncio.run(_wait(res))
         return {"vec": [float(x) for x in list(res[0])]}
 
+    def _do_hash_sha1(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """Immich matches assets by SHA-1 (02 §8.2); only the worker reads the photos (invariant 1)."""
+        import base64
+        import hashlib
+
+        out: dict[str, str] = {}
+        for it in p["items"]:
+            try:
+                sp = self.sb.resolve(it["root_alias"], it["rel"])
+                h = hashlib.sha1()  # noqa: S324 - Immich's checksum format, not a security use
+                with open(sp.real, "rb") as fh:
+                    for chunk in iter(lambda: fh.read(1 << 20), b""):
+                        h.update(chunk)
+                out[it["asset_id"]] = base64.b64encode(h.digest()).decode()
+            except OSError:
+                continue
+        return {"sha1": out}
+
     def _do_scan_models(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         from .model_import import default_ollama_dir, scan_folder, scan_ollama
 

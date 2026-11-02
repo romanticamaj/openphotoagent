@@ -13,6 +13,7 @@ from . import (
     approvals,
     ask,
     faces,
+    immich,
     mcp_server,
     routes_bench,
     routes_doctor,
@@ -92,6 +93,7 @@ def create_app(
     app.include_router(routes_watch.router, prefix="/api/v1")
     app.include_router(routes_bench.router, prefix="/api/v1")
     app.include_router(routes_presets.router, prefix="/api/v1")
+    app.include_router(immich.router, prefix="/api/v1")
     app.include_router(routes_watch.worker_router, prefix="/worker-api/v1")
     app.include_router(faces.worker_router, prefix="/worker-api/v1")
     app.include_router(routes_system.router, prefix="/api/v1")

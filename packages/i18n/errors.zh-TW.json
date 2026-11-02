@@ -245,6 +245,18 @@
     "severity": "B",
     "title": "需要先在 Hugging Face 網站上同意 {model} 的使用條款"
   },
+  "IMMICH_AUTH_FAILED": {
+    "cta": "重新輸入 API key",
+    "message": "Immich 拒絕了 API key",
+    "severity": "B",
+    "title": "Immich 拒絕了 API key"
+  },
+  "IMMICH_UNREACHABLE": {
+    "cta": "檢查 Immich 網址",
+    "message": "連不到 Immich 伺服器",
+    "severity": "B",
+    "title": "連不到 Immich 伺服器"
+  },
   "INVALID_ARGUMENT": {
     "cta": "修正參數後重試",
     "message": "參數不符合工具的格式：{detail}",

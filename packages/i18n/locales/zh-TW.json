@@ -340,6 +340,7 @@
     "assistant": "開啟 AI 問照片設定",
     "retry_later": "稍後再試",
     "confirm_remote_code": "檢視並確認程式碼",
+    "immich": "開啟 Immich 設定",
     "retype": "重新輸入"
   },
   "nav": {

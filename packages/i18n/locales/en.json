@@ -340,6 +340,7 @@
     "assistant": "Open the Ask-your-photos settings",
     "retry_later": "Try again later",
     "confirm_remote_code": "Review and confirm the code",
+    "immich": "Open the Immich settings",
     "retype": "Type it again"
   },
   "nav": {

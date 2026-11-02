@@ -916,6 +916,8 @@ Fix 共有欄位：`fix_id`、`type`、`label`、`primary`、`requires_permissio
 | 105 | `ASSISTANT_ENDPOINT_INSECURE` | B | 外部服務必須使用 https（本機 127.0.0.1 除外）：{url} | 改用 https 網址 | Use an https URL |
 | 106 | `GPU_BUDGET_EXCEEDED` | B | 這個 AI 助手今天的 GPU 預算（600 秒）已用完，{retry_after_s} 秒後重置 | 明天再試 | Try again tomorrow |
 | 107 | `MODEL_REMOTE_CODE_UNCONFIRMED` | B | 這個模型會在你的電腦上執行它自帶的程式碼（{files}），需要你先檢視並確認 | 檢視並確認程式碼 | Review and confirm the code |
+| 108 | `IMMICH_UNREACHABLE` | B | 連不到 Immich 伺服器 | 檢查 Immich 網址 | Check the Immich URL |
+| 109 | `IMMICH_AUTH_FAILED` | B | Immich 拒絕了 API key | 重新輸入 API key | Enter the API key again |
 | 100 | `CONFIRM_TEXT_MISMATCH` | B | 確認文字不正確（應為「{expected}」） | 重新輸入 | Type it again |
 
 > （回寫 W-1，09 §9）#63–#68 由 09 的 PF-063～PF-066 與 OUT-EXE-016 提出；08 §10 的 `PACK_MISSING`、`DRIVER_TOO_OLD` 分別對應本表的 `RUNTIME_PACK_MISSING`、`GPU_DRIVER_TOO_OLD`。

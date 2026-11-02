@@ -714,6 +714,18 @@ MODEL_REMOTE_CODE_UNCONFIRMED:
     type: open_settings
   severity: blocker
   transient: false
+IMMICH_UNREACHABLE:
+  fixes:
+  - target: immich
+    type: open_settings
+  severity: blocker
+  transient: true
+IMMICH_AUTH_FAILED:
+  fixes:
+  - target: immich
+    type: open_settings
+  severity: blocker
+  transient: false
 QUERY_EXPIRED:
   fixes:
   - target: drop_again
