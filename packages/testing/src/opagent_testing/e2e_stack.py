@@ -239,6 +239,12 @@ class Stack:
             eng.dispose()
             return {"inserted": n}
 
+        @ctl.post("/face-library")
+        def face_library(body: dict[str, Any] | None = None) -> dict[str, Any]:
+            """Faces on, 2 people × 8 photos through the worker ingestion route (FakeFaceBackend), grouped; the first
+            group named 小明 and a few low-margin faces left as suggestions for review."""
+            return self.face_library(**(body or {}))
+
         @ctl.get("/client-config")
         def client_config(client: str) -> dict[str, Any]:
             """Where the connect wizard will write (a sandboxed home with an existing config, MCP-PAT-002)."""
@@ -307,6 +313,52 @@ class Stack:
                 time.sleep(0.2 * (attempt + 1))  # noqa: TID251 - test harness only
         eng.dispose()
         self.app.state.opa.ensure_workspace()
+
+    def face_library(self, named: bool = True, enable: bool = True) -> dict[str, Any]:
+        from opagent_db.schema import engine_for
+        from opagent_inference.fake_faces import FakeFaceBackend
+        from sqlalchemy import text
+
+        client = httpx.Client(base_url=f"http://127.0.0.1:{self.port}", timeout=30, headers={"X-OPA-UI": "1"})
+        if enable:
+            client.post("/api/v1/faces/enable", json={"consent": True, "consent_text_version": "faces-v1"})
+        eng = engine_for(self.dsn)
+        fb = FakeFaceBackend()
+        src = client.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": ""}).json()["id"]
+        n = 0
+        for p in (1, 2):
+            for i in range(8):
+                n += 1
+                aid, rel = f"fa{n:04d}", f"people/{p}/IMG_{i}_p{p}.jpg"
+                with eng.begin() as c:
+                    c.execute(text("insert into asset(id, workspace_id, content_hash, size_bytes) "
+                                   "values (:a,'default',:h,1) on conflict do nothing"), {"a": aid, "h": "fh" + aid})
+                    c.execute(text("insert into asset_location(id, asset_id, source_id, rel_path, missing) "
+                                   "values (:a,:a,:s,:r,false) on conflict do nothing"), {"a": aid, "s": src, "r": rel})
+                faces = [{k: v for k, v in f.items() if k != "person_hint"} for f in fb.detect(rel)]
+                client.post("/worker-api/v1/faces", json={"worker_id": "local", "asset_id": aid,
+                                                         "fingerprint": fb.fingerprint, "faces": faces})
+        client.post("/api/v1/faces/cluster")
+        people = client.get("/api/v1/people").json()["people"]
+        out: dict[str, Any] = {"people": [p["id"] for p in people]}
+        if named and people:
+            client.post(f"/api/v1/people/{people[0]['id']}/name", json={"name": "小明"})
+            # three faces of person 1 come back as low-margin suggestions for 「這是不是小明？」
+            with eng.begin() as c:
+                fids = [r[0] for r in c.execute(text("select id from face where person_id=:p order by id limit 3"),
+                                                {"p": people[0]["id"]})]
+            for i, fid in enumerate(fids):
+                with eng.begin() as c:
+                    c.execute(text("update face_assignment set superseded_at=now() where face_id=:f and "
+                                   "superseded_at is null"), {"f": fid})
+                    c.execute(text("insert into face_assignment(id, face_id, person_id, kind, confidence, method, "
+                                   "actor) values (:i,:f,:p,'suggested',:s,'online_knn','system')"),
+                              {"i": f"sg{i}", "f": fid, "p": people[0]["id"], "s": 0.5 + i / 100})
+                    c.execute(text("update face set state='suggested', person_id=null where id=:f"), {"f": fid})
+            out["suggestions"] = fids
+        eng.dispose()
+        client.close()
+        return out
 
     def _client_configs(self) -> None:
         """AI client config files live in a sandboxed home; Claude Desktop already has another server configured."""
