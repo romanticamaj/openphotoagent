@@ -201,7 +201,8 @@ class Stack:
                         "INSERT INTO asset(id, workspace_id, content_hash, size_bytes, taken_at, local_at, width, "
                         "height, thumbhash, exif) SELECT 'bulk'||g, 'default', 'bulkhash'||g, 1, "
                         "timestamptz '2022-01-01Z' + g * interval '1 hour', timestamp '2022-01-01' + g * interval "
-                        "'1 hour', CASE WHEN g % 3 = 0 THEN 3000 ELSE 4000 END, CASE WHEN g % 3 = 0 THEN 4000 ELSE 3000 END, "
+                        "'1 hour', CASE WHEN g % 3 = 0 THEN 3000 ELSE 4000 END, "
+                        "CASE WHEN g % 3 = 0 THEN 4000 ELSE 3000 END, "
                         ":th, '{}' FROM generate_series(1, :n) g"
                     ),
                     {"n": n, "th": th},
