@@ -16,6 +16,8 @@ export function ModelsPage() {
   const { t } = useTranslation();
   const wid = useWorker();
   const models = useQuery({ queryKey: ["models", wid], queryFn: () => api.models(wid!), enabled: Boolean(wid) });
+  // face models stay out of sight until the person turns faces on (07 §6.2 F1)
+  const faces = useQuery({ queryKey: ["face-settings"], queryFn: api.faceSettings, staleTime: 30_000 });
   return (
     <section className="mx-auto max-w-4xl space-y-4 p-8">
       <h1 className="text-xl font-semibold">{t("models.title")}</h1>
@@ -28,7 +30,7 @@ export function ModelsPage() {
           </tr>
         </thead>
         <tbody>
-          {(models.data?.items ?? []).map((m) => {
+          {(models.data?.items ?? []).filter((m) => faces.data?.enabled || !m.kind.startsWith("face_")).map((m) => {
             const best = m.variants.find((v) => v.id === m.best_variant);
             return (
               <tr key={m.id} className="border-t border-[var(--border)]">

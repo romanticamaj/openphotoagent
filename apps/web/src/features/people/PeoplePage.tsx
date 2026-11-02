@@ -22,7 +22,7 @@ export function FaceOptInCard() {
   return (
     <aside data-testid="faces-optin-card" className="mb-3 flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3 text-sm">
       <span>{t("faces.card")}</span>
-      <span className="flex gap-2">
+      <span className="flex items-center gap-2">
         <Link to="/settings/faces" className="underline">{t("faces.learnMore")}</Link>
         <Button variant="ghost" onClick={() => later.mutate()}>{t("faces.later")}</Button>
       </span>
