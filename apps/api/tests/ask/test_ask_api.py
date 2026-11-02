@@ -136,12 +136,12 @@ def test_sse_003_cancel_within_a_second(m):
     t = threading.Thread(target=run)
     t.start()
     while not st.ask_turns:
-        time.sleep(0.01)
+        time.sleep(0.01)  # noqa: TID251 - waiting on a real server thread
     turn = next(iter(st.ask_turns))
-    t0 = time.monotonic()
+    t0 = time.monotonic()  # noqa: TID251 - SSE-003 measures real cancel latency
     assert m.client.post(f"/api/v1/ask/turns/{turn}/cancel", headers=m.ui).status_code == 200
     t.join(5)
-    assert time.monotonic() - t0 < 1.0
+    assert time.monotonic() - t0 < 1.0  # noqa: TID251
     assert out["ev"][-1][0] == "turn.completed" and out["ev"][-1][1]["status"] == "cancelled"
     assert m.sql("select status from message where turn_id=:t and role='assistant'", t=turn).scalar() == "cancelled"
 
@@ -149,8 +149,11 @@ def test_sse_003_cancel_within_a_second(m):
 @pytest.mark.integration
 @pytest.mark.tc("ASK-PRV-001", "ASK-PRV-002", "ASK-PRV-003", "ASK-PRV-004")
 def test_cloud_mode_privacy(m):
-    r = m.client.patch("/api/v1/assistant-settings", json={"provider": "openai_compat",
-                                                            "endpoint_url": "https://llm.example/v1"}, headers=m.ui)
+    r = m.client.patch(
+        "/api/v1/assistant-settings",
+        json={"provider": "openai_compat", "endpoint_url": "https://llm.example/v1"},
+        headers=m.ui,
+    )
     assert r.status_code == 200 and r.json()["media_policy"] == "none"
     llm = FakeLLM([Reply(text="好")])
     llm.cloud = True

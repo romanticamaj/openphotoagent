@@ -28,8 +28,12 @@ class FakeLLM:
 
     name = "fake-llm"
 
-    def __init__(self, script: list[Reply | Callable[[list[dict[str, Any]]], Reply]] | None = None,
-                 tool_calling_ok: bool = True, endless_tool: str | None = None) -> None:
+    def __init__(
+        self,
+        script: list[Reply | Callable[[list[dict[str, Any]]], Reply]] | None = None,
+        tool_calling_ok: bool = True,
+        endless_tool: str | None = None,
+    ) -> None:
         self.script = list(script or [])
         self.tool_calling_ok = tool_calling_ok
         self.endless_tool = endless_tool

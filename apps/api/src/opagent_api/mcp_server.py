@@ -276,7 +276,7 @@ def _call(
         try:
             out = getattr(handlers, name)(ctx, args)
         except HTTPException as e:  # a domain refusal from the shared REST code becomes a tool error, never a 500
-            d = e.detail if isinstance(e.detail, dict) else {}
+            d: dict[str, Any] = e.detail if isinstance(e.detail, dict) else {}
             raise ToolError(str(d.get("code") or f"HTTP_{e.status_code}"), str(d.get("code") or e.detail)) from None
     except ToolError as err:
         _log(st, tok, msg, req, **base, status="error", error_code=err.code, latency_ms=ms())

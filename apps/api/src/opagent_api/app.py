@@ -11,6 +11,7 @@ from opagent_db.schema import engine_for
 
 from . import (
     approvals,
+    ask,
     faces,
     mcp_server,
     routes_doctor,
@@ -84,6 +85,7 @@ def create_app(
     app.include_router(approvals.router, prefix="/api/v1")
     app.include_router(mcp_server.router)
     app.include_router(faces.router, prefix="/api/v1")
+    app.include_router(ask.router, prefix="/api/v1")
     app.include_router(faces.worker_router, prefix="/worker-api/v1")
     app.include_router(routes_system.router, prefix="/api/v1")
     app.include_router(routes_duplicates.router, prefix="/api/v1")

@@ -11,7 +11,7 @@ import threading
 import time
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from opagent_core.clock import SystemClock
 from opagent_fs.executor import Action, Executor
@@ -692,6 +692,57 @@ class WorkerAgent:
 
             res = asyncio.run(_wait(res))
         return {"vec": [float(x) for x in list(res[0])]}
+
+    def _do_vlm_ask(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """describe / verify / compare for the assistant and MCP (10 §8.3): the VLM looks at the photos here, on
+        this machine; only the text answer goes back (07 §6.2 F3, ASK-PRV-002)."""
+        import asyncio
+        import io
+        import time
+
+        from opagent_inference.types import BatchRequest, ImageInput, LoadOptions
+
+        from .imaging import open_image, oriented
+
+        if self.backend is None:
+            return {"error": "MODEL_UNAVAILABLE"}
+        t0 = time.perf_counter()
+        imgs = []
+        for it in p.get("items") or []:
+            sp = self.sb.resolve(it["root_alias"], it["rel"])
+            with open_image(sp.real) as im:
+                pic = oriented(im).convert("RGB")
+            pic.thumbnail((1024, 1024))
+            buf = io.BytesIO()
+            pic.save(buf, "JPEG", quality=90)
+            imgs.append(ImageInput(item_id=it["asset_id"], content_hash=it["asset_id"], data=buf.getvalue()))
+        backend = self.backend
+        mode = p.get("mode")
+        task: Literal["classify", "caption"] = "classify" if mode == "verify" else "caption"
+        variables = {"categories": ["yes", "no", "unsure"], "question": p.get("text") or ""}
+
+        async def go() -> Any:
+            await backend.load(LoadOptions())
+            return await backend.run_batch(BatchRequest(task_type=task, items=imgs, variables=variables))
+
+        outs = asyncio.run(go()) if imgs else []
+        ms = int((time.perf_counter() - t0) * 1000)
+        model = backend.describe().model_fingerprint
+        if mode == "verify":
+            return {
+                "results": [
+                    {
+                        "asset_id": i.item_id,
+                        "verdict": o.category if o.category in ("yes", "no") else "unsure",
+                        "score": float(o.confidence or 0.0),
+                        "reason": (o.caption or "")[:30],
+                    }
+                    for i, o in zip(imgs, outs, strict=True)
+                ],
+                "model": model,
+                "latency_ms": ms,
+            }
+        return {"answer": "\n".join(o.caption or "" for o in outs), "model": model, "latency_ms": ms}
 
     def _do_face_embed_query(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         """「拖照片找人」: the uploaded picture is fetched once from the API's memory and its face vectors are only in

@@ -589,6 +589,9 @@ mcp_call_log = Table(  # every MCP request; append-only (MCP-AUD-003)
     Column("plan_id", Text),
     Column("job_id", Text),
     Column("latency_ms", Integer),
+    Column("actor_kind", Text, nullable=False, server_default="mcp"),  # mcp | builtin-assistant (10 §10.3)
+    Column("conversation_id", Text),
+    Column("turn_id", Text),
 )
 approval = Table(  # an agent's request to apply/undo a plan; decided only in the app (05 §3.6)
     "approval",
@@ -620,6 +623,80 @@ _APPEND_ONLY = DDL(  # type: ignore[no-untyped-call]
     "FOR EACH ROW EXECUTE FUNCTION opagent_append_only();"
 )
 sa_event.listen(mcp_call_log, "after_create", _APPEND_ONLY)
+
+
+# ---- 「AI 問照片」 (10 §10.3; v0.3) ----
+conversation = Table(
+    "conversation",
+    metadata,
+    Column("id", Text, primary_key=True),
+    Column("workspace_id", Text, nullable=False),
+    Column("title", Text),
+    Column("state", JSONB, nullable=False, server_default="{}"),  # working set: filters, selection, photos
+    Column("mode", Text, nullable=False, server_default="local"),
+    _ts("created_at", server_default=func.now()),
+    _ts("updated_at", server_default=func.now()),
+    _ts("expires_at"),
+)
+message = Table(
+    "message",
+    metadata,
+    Column("id", Text, primary_key=True),
+    Column("conversation_id", Text, ForeignKey("conversation.id", ondelete="CASCADE"), nullable=False),
+    Column("turn_id", Text, nullable=False),
+    Column("role", Text, nullable=False),  # user | assistant
+    Column("content", Text, nullable=False, server_default=""),
+    Column("intent", Text),
+    Column("status", Text, nullable=False, server_default="completed"),
+    Column("timings", JSONB),
+    Column("feedback", Text),
+    _ts("created_at", server_default=func.now()),
+)
+message_step = Table(
+    "message_step",
+    metadata,
+    Column("id", Text, primary_key=True),
+    Column("message_id", Text, ForeignKey("message.id", ondelete="CASCADE"), nullable=False),
+    Column("seq", Integer, nullable=False),
+    Column("kind", Text, nullable=False),
+    Column("tool", Text),
+    Column("status", Text, nullable=False),
+    Column("elapsed_ms", Integer),
+)
+message_citation = Table(
+    "message_citation",
+    metadata,
+    Column("message_id", Text, ForeignKey("message.id", ondelete="CASCADE"), primary_key=True),
+    Column("kind", Text, primary_key=True),
+    Column("ref_id", Text, primary_key=True),
+    Column("ordinal", Integer, nullable=False),
+)
+assistant_egress_log = Table(  # what left the machine in cloud mode (10 §8.9; ASK-PRV-004)
+    "assistant_egress_log",
+    metadata,
+    Column("id", BigInteger, primary_key=True, autoincrement=True),
+    _ts("at", server_default=func.now()),
+    Column("turn_id", Text),
+    Column("endpoint", Text, nullable=False),
+    Column("bytes_out", Integer, nullable=False),
+    Column("images", Integer, nullable=False, server_default="0"),
+)
+collection = Table(  # albums are database sets, never files (05 §3.3.5)
+    "collection",
+    metadata,
+    Column("id", Text, primary_key=True),
+    Column("workspace_id", Text, nullable=False),
+    Column("name", Text, nullable=False),
+    Column("description", Text),
+    _ts("created_at", server_default=func.now()),
+)
+collection_member = Table(
+    "collection_member",
+    metadata,
+    Column("collection_id", Text, ForeignKey("collection.id", ondelete="CASCADE"), primary_key=True),
+    Column("asset_id", Text, ForeignKey("asset.id", ondelete="CASCADE"), primary_key=True),
+    _ts("added_at", server_default=func.now()),
+)
 
 
 def engine_for(dsn: str) -> Engine:

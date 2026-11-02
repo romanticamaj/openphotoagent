@@ -44,11 +44,21 @@ TOOL_IDS = {
     "verify_photos": "MCP-TOOL-026",
     "compare_photos": "MCP-TOOL-027",
 }
-ALL = ["photos:read", "photos:media", "labels:write", "jobs:run", "organize:propose", "faces:read", "faces:media"]
+ALL = [
+    "photos:read",
+    "photos:media",
+    "photos:describe",
+    "labels:write",
+    "collections:write",
+    "jobs:run",
+    "organize:propose",
+    "faces:read",
+    "faces:media",
+]
 
 
 @pytest.mark.contract
-@pytest.mark.tc(*(TOOL_IDS[t] for t in V02))  # v0.3 tools are snapshotted too, but their behaviour lands in v0.3
+@pytest.mark.tc(*(TOOL_IDS[t] for t in V02))
 @pytest.mark.parametrize("tool", sorted(BY_NAME))
 def test_definition_matches_snapshot(tool):
     want = (SNAP / f"{tool}.json").read_text(encoding="utf-8")

@@ -22,8 +22,16 @@ STAT = re.compile(r"幾張|多少張|多少|幾個|how many|count|數量|統計"
 MD_IMAGE = re.compile(r"!\[[^\]]*\]\([^)]*\)")
 MD_LINK = re.compile(r"(?<!\[)\[([^\]\[]+)\]\((?:https?:|//|www\.)[^)]*\)")
 BARE_URL = re.compile(r"https?://\S+")
-FIELD_LABEL = {"taken_at": "日期", "tags_any": "標籤", "tags_all": "標籤", "place": "地點", "categories": "分類",
-               "persons_all": "人物", "persons_any": "人物", "camera": "相機"}
+FIELD_LABEL = {
+    "taken_at": "日期",
+    "tags_any": "標籤",
+    "tags_all": "標籤",
+    "place": "地點",
+    "categories": "分類",
+    "persons_all": "人物",
+    "persons_any": "人物",
+    "camera": "相機",
+}
 
 
 @dataclass
@@ -94,8 +102,10 @@ def photo_block(p: dict[str, Any]) -> str:
     parts = [f'<photo id="{html.escape(str(p["id"]))}">', f"tags: {', '.join(p.get('tags') or [])}"]
     cap = p.get("caption") or {}
     if cap.get("text") and not cap.get("injection_suspect"):
-        parts.append(f'<photo_text origin="{cap.get("origin", "vlm_caption")}" untrusted>'
-                     f"{html.escape(cap['text'], quote=False)}</photo_text>")
+        parts.append(
+            f'<photo_text origin="{cap.get("origin", "vlm_caption")}" untrusted>'
+            f"{html.escape(cap['text'], quote=False)}</photo_text>"
+        )
     elif cap.get("text"):
         parts.append('<photo_text untrusted withheld="injection_suspect"/>')
     parts.append("</photo>")
