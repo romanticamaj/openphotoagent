@@ -6,6 +6,9 @@ import { useTranslation } from "react-i18next";
 import { SearchBar } from "./features/search/SearchBar";
 import { PhotosPage } from "./features/viewer/PhotosPage";
 import { api } from "./lib/api";
+import { useServerEvent } from "./lib/events";
+import { notificationFor, type OpStatusEvent } from "./lib/notify";
+import { platform } from "./lib/platform";
 
 // only the photos route ships in the first load (PERF-003); every other page is its own chunk
 const OrganizeWizard = lazy(() => import("./features/organize/OrganizeWizard").then((m) => ({ default: m.OrganizeWizard })));
@@ -23,6 +26,10 @@ function Shell() {
   const [activity, setActivity] = useState(false);
   // single-user desktop/all-in-one: no organisation, workspace or worker management in the UI (08 §8, DESK-032)
   const caps = useQuery({ queryKey: ["capabilities"], queryFn: api.capabilities, staleTime: Infinity });
+  useServerEvent("operation.status", (d) => {
+    const n = platform().notify && notificationFor(d as OpStatusEvent);
+    if (n) platform().notify!(t(n.key), n.route);
+  });
   const nav: Array<[string, string]> = [
     ["/", "nav.photos"],
     ["/organize", "nav.organize"],

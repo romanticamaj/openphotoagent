@@ -456,5 +456,11 @@
     "folders": "Photo folders",
     "readOnly": "read-only",
     "writable": "writable"
+  },
+  "notify": {
+    "labelDone": "The organize preview is ready to review",
+    "applyDone": "Organizing finished",
+    "modelReady": "The model finished downloading",
+    "failed": "A task failed — click to see why"
   }
 }

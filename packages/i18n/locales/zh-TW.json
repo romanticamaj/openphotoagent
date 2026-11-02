@@ -456,5 +456,11 @@
     "folders": "照片資料夾",
     "readOnly": "唯讀",
     "writable": "可寫入"
+  },
+  "notify": {
+    "labelDone": "整理預覽已完成，可以檢查計畫了",
+    "applyDone": "整理完成",
+    "modelReady": "模型已下載完成",
+    "failed": "有一項工作失敗，點這裡查看原因"
   }
 }

@@ -2,6 +2,14 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "The bundled UI may only ask the shell for the backend address and to add a root after a user gesture.",
-  "windows": ["main"],
-  "permissions": ["core:default", "updater:default", "deep-link:default"]
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "updater:default",
+    "deep-link:default",
+    "opener:default",
+    "notification:default"
+  ]
 }

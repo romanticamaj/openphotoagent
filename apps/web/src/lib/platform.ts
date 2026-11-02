@@ -11,6 +11,8 @@ export type Platform = {
   thumbsDir?: string;
   /** desktop: Tauri `convertFileSrc` — a URL the WebView can load through the asset protocol */
   assetUrl?: (absPath: string) => string;
+  /** desktop: an OS notification; clicking it brings the window forward at `route` (08 §6, DESK-022) */
+  notify?: (title: string, route: string) => void;
 };
 
 declare global {

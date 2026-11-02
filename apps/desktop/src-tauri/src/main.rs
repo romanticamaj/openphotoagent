@@ -245,6 +245,11 @@ fn platform_script(thumbs: &Path) -> String {
   kind: "desktop",
   thumbsDir: {dir},
   assetUrl: (p) => window.__TAURI_INTERNALS__.convertFileSrc(p, "asset"),
+  notify: (title, route) => {{
+    if (document.hasFocus()) return; // the window is in front: the Activity Center already shows it
+    window.__OPA_LAST_NOTIFY_ROUTE__ = route;
+    window.__TAURI_INTERNALS__.invoke("plugin:notification|notify", {{ options: {{ title: "OpenPhotoAgent", body: title }} }});
+  }},
   backend: async () => {{
     for (;;) {{
       const b = await window.__TAURI_INTERNALS__.invoke("backend_info");
@@ -254,6 +259,68 @@ fn platform_script(thumbs: &Path) -> String {
   }},
 }};"#
     )
+}
+
+/// POST to the sidecar with the launch token (tray actions).
+fn api_post(shell: &Shell, path: &str) -> Result<String, String> {
+    let b = shell
+        .backend
+        .lock()
+        .unwrap()
+        .clone()
+        .ok_or("api not ready")?;
+    let mut resp = ureq::post(&format!("{}{}", b.base_url, path))
+        .header("Authorization", &format!("Bearer {}", b.token))
+        .send_empty()
+        .map_err(|e| e.to_string())?;
+    resp.body_mut().read_to_string().map_err(|e| e.to_string())
+}
+
+/// System tray (08 §6): pause / resume all heavy work (DESK-020), open in the browser via a one-time handoff code.
+fn build_tray(app: &tauri::App, shell: Arc<Shell>) -> tauri::Result<()> {
+    use tauri::menu::{Menu, MenuItem};
+    use tauri::tray::TrayIconBuilder;
+    let pause = MenuItem::with_id(app, "pause", "暫停全部 / Pause all", true, None::<&str>)?;
+    let resume = MenuItem::with_id(app, "resume", "繼續全部 / Resume all", true, None::<&str>)?;
+    let browser = MenuItem::with_id(
+        app,
+        "browser",
+        "在瀏覽器開啟 / Open in browser",
+        true,
+        None::<&str>,
+    )?;
+    let quit = MenuItem::with_id(app, "quit", "結束 / Quit", true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&pause, &resume, &browser, &quit])?;
+    let mut tray = TrayIconBuilder::new().menu(&menu).tooltip("OpenPhotoAgent");
+    if let Some(icon) = app.default_window_icon() {
+        tray = tray.icon(icon.clone());
+    }
+    tray.on_menu_event(move |app, ev| match ev.id().as_ref() {
+        "pause" => {
+            let _ = api_post(&shell, "/api/v1/operations/pause-all");
+        }
+        "resume" => {
+            let _ = api_post(&shell, "/api/v1/operations/resume-all");
+        }
+        "browser" => {
+            if let Ok(body) = api_post(&shell, "/api/v1/auth/handoff") {
+                let code = serde_json::from_str::<serde_json::Value>(&body)
+                    .ok()
+                    .and_then(|v| v["code"].as_str().map(String::from));
+                if let (Some(code), Some(b)) = (code, shell.backend.lock().unwrap().clone()) {
+                    use tauri_plugin_opener::OpenerExt;
+                    let _ = app.opener().open_url(
+                        format!("{}/auth/handoff?code={code}", b.base_url),
+                        None::<&str>,
+                    );
+                }
+            }
+        }
+        "quit" => app.exit(0), // goes through RunEvent::ExitRequested → ordered shutdown
+        _ => {}
+    })
+    .build(app)?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -285,7 +352,9 @@ fn main() {
                 let _ = w.set_focus(); // DESK-007: bring the existing window forward
             }
         }))
-        .plugin(tauri_plugin_deep_link::init());
+        .plugin(tauri_plugin_deep_link::init())
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_notification::init());
     if !updates_off {
         builder = builder.plugin(tauri_plugin_updater::Builder::new().build()); // UPD-005: not even registered
     }
@@ -304,6 +373,7 @@ fn main() {
                 _lock: lock,
             });
             app.manage(shell.clone());
+            build_tray(app, shell.clone())?;
             // thumbnails are read straight from the cache; the scope is exactly that directory (+ roots later)
             let thumbs = home.join("worker").join("thumbs");
             let _ = std::fs::create_dir_all(&thumbs);

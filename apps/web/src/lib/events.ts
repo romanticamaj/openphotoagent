@@ -102,3 +102,17 @@ export function useServerEvents(kinds: string[], cb: () => void, debounceMs = 30
     };
   }, [key, debounceMs]);
 }
+
+/** Calls `cb` with each event's data for one `kind` (no debounce). */
+export function useServerEvent(kind: string, cb: (data: unknown) => void) {
+  const ref = useRef(cb);
+  ref.current = cb;
+  useEffect(() => {
+    const f = (d: unknown) => ref.current(d);
+    ensure(kind);
+    listeners.get(kind)?.add(f);
+    return () => {
+      listeners.get(kind)?.delete(f);
+    };
+  }, [kind]);
+}
