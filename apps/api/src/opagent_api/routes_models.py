@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Request
 from opagent_core.hw import Gpu, HwSummary
@@ -576,3 +576,110 @@ def confirm_remote_code(key: str, body: RemoteCodeIn, req: Request) -> dict[str,
             .on_conflict_do_update(index_elements=["model_key"], set_={"files": want, "confirmed_at": now})
         )
     return {"model": key, "files": files, "confirmed_at": now.isoformat()}
+
+
+# ---------------------------------------------------------------- import models already on disk (MDL-IMP-001/002)
+class ImportScanIn(BaseModel):
+    source: Literal["ollama", "folder"]
+    path: str | None = None
+
+
+class ImportIn(BaseModel):
+    scan_id: str
+    candidate: str
+
+
+def _match(reg: Any, sha: str) -> str | None:
+    """A pinned registry variant whose weights file has this sha256."""
+    for mid, m in reg.models.items():
+        for vid, pin in (m.pins or {}).items():
+            v = m.spec.variant(vid)
+            for f in v.files:
+                if f.role == "weights" and (pin.get("files") or {}).get(f.path) is not None:
+                    if pin["files"][f.path].sha256 == sha:
+                        return f"{mid}@{vid}"
+    return None
+
+
+@router.post("/models/import/scan", status_code=202)
+def import_scan(body: ImportScanIn, req: Request) -> dict[str, Any]:
+    """The worker looks for models already on this computer; a folder path only ever comes from the app's own
+    folder picker (UI only, never MCP)."""
+    from .approvals import ui_only
+
+    ui_only(req)
+    if body.source == "folder" and not body.path:
+        raise HTTPException(422, detail={"code": "VALIDATION", "field": "path"})
+    st = _st(req)
+    tid = uuid7(st.clock)
+    with st.engine.begin() as c:
+        w = c.execute(select(worker.c.id).order_by(worker.c.last_heartbeat_at.desc().nulls_last()).limit(1)).scalar()
+        c.execute(
+            insert(worker_task).values(
+                id=tid, kind="scan_models", worker_id=w, lane="interactive", payload=body.model_dump()
+            )
+        )
+    return {"scan_id": tid}
+
+
+@router.get("/models/import/scan/{scan_id}")
+def import_scan_result(scan_id: str, req: Request) -> dict[str, Any]:
+    st = _st(req)
+    with st.engine.begin() as c:
+        t = c.execute(
+            select(worker_task).where(worker_task.c.id == scan_id, worker_task.c.kind == "scan_models")
+        ).first()
+    if t is None:
+        raise HTTPException(404, detail={"code": "NOT_FOUND"})
+    if t.status != "done":
+        return {"id": scan_id, "status": t.status, "candidates": [], "rejected": []}
+    reg = st.registry()
+    res = dict(t.result or {})
+    cands = [{**c, "match": _match(reg, c["weights"]["sha256"])} for c in res.get("candidates") or []]
+    return {"id": scan_id, "status": "done", "candidates": cands, "rejected": res.get("rejected") or []}
+
+
+@router.post("/models/import")
+def import_model(body: ImportIn, req: Request) -> dict[str, Any]:
+    """Register a found model as installed on that worker: no download, no copy (``managed`` = false, so removing it
+    in the app never deletes the user's files)."""
+    from .approvals import ui_only
+
+    ui_only(req)
+    st = _st(req)
+    res = import_scan_result(body.scan_id, req)
+    cand = next((c for c in res["candidates"] if c["id"] == body.candidate), None)
+    if cand is None:
+        raise HTTPException(404, detail={"code": "NOT_FOUND"})
+    if not cand["match"]:
+        raise HTTPException(422, detail={"code": "IMPORT_UNKNOWN_MODEL", "sha256": cand["weights"]["sha256"]})
+    files = [{"role": "weights", **cand["weights"]}]
+    if cand.get("mmproj"):
+        files.append({"role": "mmproj", **cand["mmproj"]})
+    with st.engine.begin() as c:
+        wid = c.execute(select(worker_task.c.worker_id).where(worker_task.c.id == body.scan_id)).scalar()
+        size = sum(int(f["size"]) for f in files)
+        existing = c.execute(
+            select(installation.c.id).where(installation.c.worker_id == wid, installation.c.key == cand["match"])
+        ).first()
+        vals = {"status": "installed", "size_bytes": size, "files": files, "managed": False}
+        if existing:
+            from sqlalchemy import update
+
+            c.execute(update(installation).where(installation.c.id == existing.id).values(**vals))
+        else:
+            c.execute(
+                insert(installation).values(id=uuid7(st.clock), worker_id=wid, kind="model", key=cand["match"], **vals)
+            )
+        emit(c, "model.installed", {"variant": cand["match"], "worker_id": wid, "imported": True})
+    return {"key": cand["match"], "status": "installed", "downloaded_bytes": 0, "managed": False}
+
+
+@router.get("/workers/{worker_id}/installations")
+def list_installations(worker_id: str, req: Request) -> list[dict[str, Any]]:
+    with _st(req).engine.begin() as c:
+        rows = c.execute(select(installation).where(installation.c.worker_id == worker_id)).all()
+    return [
+        {"id": r.id, "kind": r.kind, "key": r.key, "status": r.status, "managed": r.managed, "files": r.files or []}
+        for r in rows
+    ]

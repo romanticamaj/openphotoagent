@@ -720,6 +720,13 @@ class WorkerAgent:
             res = asyncio.run(_wait(res))
         return {"vec": [float(x) for x in list(res[0])]}
 
+    def _do_scan_models(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        from .model_import import default_ollama_dir, scan_folder, scan_ollama
+
+        if p.get("source") == "ollama":
+            return scan_ollama(Path(getattr(self, "ollama_dir", None) or default_ollama_dir()))
+        return scan_folder(Path(str(p["path"])))
+
     def _do_benchmark(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         """03 §6: run each candidate over the golden set; predictions and timings only (scores are computed by the
         API). Images are decoded once and shared by all candidates. Candidates that are not available on this
