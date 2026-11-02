@@ -705,6 +705,7 @@
 | SRCH-TOK-006 | canonical tag key | 「貓」「cat」「ねこ」 | 都映射 `animal.cat` 並命中權重 A | U | #44 |
 | SRCH-TOK-007 | tokenizer golden | `fixtures/golden/tokenize.json` 100 句 | 輸出相同；`search_profile.fts.tokenizer` 記錄版本 | C | — |
 | SRCH-TOK-008 | tsquery 注入 | 查詢含 `& \| ! ( ) : * '` 與 `\` | 一律跳脫；不產生 SQL／tsquery 語法錯誤；Hypothesis 任意字串不拋例外 | P/S | — |
+| SRCH-TOK-009 | 回歸：控制字元 | 查詢含 NUL、BEL 等控制字元 | 移除控制字元後照常搜尋，不回 500（MCP-TOOL 產生輸入時發現） | I | #62 |
 | SRCH-FAC-001 | 關鍵字 + tag + 日期 | 2,000 張 fixture DB；`q=海邊`、`tags_all=[scene.beach]`、`taken_at 2025` | 結果與 SQL 參考查詢相同；facet 計數正確 | I | DoD 5.4 |
 | SRCH-FAC-002 | 日期來源 | 含 `date_source=mtime` 的照片 | facet 計入並可用 `date_source` 篩選 | I | #40 |
 | SRCH-FAC-003 | facet 同 pre-filter | 限定某資料夾範圍 | facet 計數只含範圍內；範圍外不可推知 | I/S | — |

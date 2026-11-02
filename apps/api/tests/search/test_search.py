@@ -521,3 +521,15 @@ def test_plan_011_llm_planner_times_out_to_rules(s):
     with s.eng.begin() as c:
         kinds = [k for (k,) in c.execute(text("select kind from worker_task where kind = 'query_plan'"))]
     assert kinds == ["query_plan"]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-TOK-009")
+def test_srch_tok_009_nul_and_control_characters_do_not_crash(s):
+    """回歸：查詢含 NUL 時 PostgreSQL 拒絕寫入 JSON，整個搜尋回 500（MCP-TOOL 產生輸入時發現）。"""
+    aid = s.add(1, caption="海邊的貓")
+    s.index()
+    for q in ("\x00", "海邊\x00的貓", "\x07貓"):
+        r = s.client.post("/api/v1/search", json={"q": q, "plan": True})
+        assert r.status_code == 200, (q, r.text)
+    assert aid in [x["asset_id"] for x in s.search(q="海邊\x00的貓", semantic=False)["items"]]
