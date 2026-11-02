@@ -152,8 +152,15 @@ def test_find_003_only_confirmed_join_the_reference_set():
 @pytest.mark.tc("FACE-CLU-005")
 def test_clu_005_chinese_whispers_on_a_knn_graph():
     # two cliques joined by one weak edge, plus a singleton
-    edges = {("a", "b"): 0.9, ("b", "c"): 0.9, ("a", "c"): 0.9, ("x", "y"): 0.9, ("y", "z"): 0.9, ("x", "z"): 0.9,
-             ("c", "x"): 0.46}
+    edges = {
+        ("a", "b"): 0.9,
+        ("b", "c"): 0.9,
+        ("a", "c"): 0.9,
+        ("x", "y"): 0.9,
+        ("y", "z"): 0.9,
+        ("x", "z"): 0.9,
+        ("c", "x"): 0.46,
+    }
     groups = F.chinese_whispers(["a", "b", "c", "x", "y", "z", "lonely"], edges, seed=7)
     assert sorted(sorted(g) for g in groups) == [["a", "b", "c"], ["lonely"], ["x", "y", "z"]]
     assert F.chinese_whispers(["a"], {}, seed=1) == [{"a"}]

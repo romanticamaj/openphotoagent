@@ -8,7 +8,7 @@ everything else is a suggestion for a person to confirm, or stays in the unassig
 from __future__ import annotations
 
 import math
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -72,7 +72,7 @@ def margin_for(person: str, *, age_variation: Iterable[str] = (), t: dict[str, f
 
 
 def decide_assignment(
-    scores: dict[str, Sequence[float]],
+    scores: Mapping[str, Sequence[float]],
     *,
     neighbours_of_p1: int,
     tier: int,
@@ -143,7 +143,7 @@ def _cos(a: Sequence[float], b: Sequence[float]) -> float:
 
 
 def merge_suggestions(
-    protos: dict[str, list[Sequence[float]]], tau: float = THRESHOLDS["merge"]
+    protos: Mapping[str, Sequence[Sequence[float]]], tau: float = THRESHOLDS["merge"]
 ) -> list[tuple[str, str, float]]:
     """Person pairs whose prototypes come within ``tau`` — listed for a person, never merged (FACE-MGT-003)."""
     ids = sorted(protos)
@@ -184,7 +184,10 @@ def reference_faces(assignments: Iterable[tuple[str, str]]) -> list[str]:
 
 
 def chinese_whispers(
-    nodes: Sequence[str], edges: dict[tuple[str, str], float], seed: int = 0, iterations: int = 20,
+    nodes: Sequence[str],
+    edges: dict[tuple[str, str], float],
+    seed: int = 0,
+    iterations: int = 20,
     min_weight: float = THRESHOLDS["suggest"],
 ) -> list[set[str]]:
     """Graph clustering for pools too large for HDBSCAN (07 §2.3, > 50k faces): each node repeatedly takes the
@@ -199,7 +202,7 @@ def chinese_whispers(
             nbrs[b][a] = max(w, nbrs[b].get(a, 0.0))
     label = {n: n for n in nodes}
     order = sorted(nodes)
-    rnd = random.Random(seed)
+    rnd = random.Random(seed)  # noqa: S311 - deterministic ordering, not security
     for _ in range(iterations):
         rnd.shuffle(order)
         changed = False

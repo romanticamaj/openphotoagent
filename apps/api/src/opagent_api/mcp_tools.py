@@ -1155,9 +1155,7 @@ def get_person(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
     if r is None:
         raise ToolError("NOT_FOUND", "找不到這個人物")
     # face crops: faces:media and mcp_face_media_policy (default none) — the strictest wins (07 §5.4)
-    px, reason = effective_size(
-        256, has_scope="faces:media" in ctx.tok.scopes, policy=ctx.settings.face_media_policy
-    )
+    px, reason = effective_size(256, has_scope="faces:media" in ctx.tok.scopes, policy=ctx.settings.face_media_policy)
     return {"person": _person_view(r), "media_withheld_reason": reason if not px else None}
 
 
@@ -1169,8 +1167,9 @@ def find_photos_of_person(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
         raise ToolError("NOT_FOUND", "找不到這個人物")
     key = "persons_any" if args.get("mode") == "any" else "persons_all"
     filters = {**(args.get("filters") or {}), key: ids}
-    out = search_photos(ctx, {"filters": filters, "limit": int(args.get("limit") or 20), "return_selection": True,
-                              "parse_query": False})
+    out = search_photos(
+        ctx, {"filters": filters, "limit": int(args.get("limit") or 20), "return_selection": True, "parse_query": False}
+    )
     return {"results": out["results"], "selection_id": out["selection_id"], "total": out["total_estimate"]}
 
 

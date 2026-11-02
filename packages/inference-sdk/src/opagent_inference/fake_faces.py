@@ -39,7 +39,7 @@ def _unit(v: list[float]) -> list[float]:
 
 
 def _gauss(seed: str) -> list[float]:
-    r = random.Random(int(hashlib.sha256(seed.encode()).hexdigest()[:16], 16))
+    r = random.Random(int(hashlib.sha256(seed.encode()).hexdigest()[:16], 16))  # noqa: S311 - test double
     return [r.gauss(0, 1) for _ in range(DIM)]
 
 
@@ -79,8 +79,18 @@ class FakeFaceBackend:
             out.append(
                 {
                     "bbox": [x + 0.01 * i, y, w, h],
-                    "landmarks": [x + w * 0.3, y + h * 0.4, x + w * 0.7, y + h * 0.4, x + w * 0.5, y + h * 0.6,
-                                  x + w * 0.35, y + h * 0.8, x + w * 0.65, y + h * 0.8],
+                    "landmarks": [
+                        x + w * 0.3,
+                        y + h * 0.4,
+                        x + w * 0.7,
+                        y + h * 0.4,
+                        x + w * 0.5,
+                        y + h * 0.6,
+                        x + w * 0.35,
+                        y + h * 0.8,
+                        x + w * 0.65,
+                        y + h * 0.8,
+                    ],
                     "det_score": s.det_score,
                     "quality": {"min_side_px": s.min_side, "yaw": s.yaw, "blur": s.laplacian, "fiqa": s.fiqa},
                     "quality_tier": tier,

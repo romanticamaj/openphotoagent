@@ -25,11 +25,18 @@ class Faces(M):
 
     def photo(self, rel, persons=None, plan=None, **kw):
         aid = self.add(rel, **kw)
-        faces = self.fb.detect(rel) if plan is None else FakeFaceBackend(plan={rel.rsplit("/", 1)[-1]: plan}).detect(rel)
+        faces = (
+            self.fb.detect(rel) if plan is None else FakeFaceBackend(plan={rel.rsplit("/", 1)[-1]: plan}).detect(rel)
+        )
         r = self.client.post(
             "/worker-api/v1/faces",
-            json={"worker_id": "w1", "asset_id": aid, "fingerprint": self.fb.fingerprint, "truncated": False,
-                  "faces": [{k: v for k, v in f.items() if k != "person_hint"} for f in faces]},
+            json={
+                "worker_id": "w1",
+                "asset_id": aid,
+                "fingerprint": self.fb.fingerprint,
+                "truncated": False,
+                "faces": [{k: v for k, v in f.items() if k != "person_hint"} for f in faces],
+            },
             headers=self.ui,
         )
         assert r.status_code == 200, r.text
@@ -66,18 +73,23 @@ def _library(f, people=(1, 2, 3), per=8):
 def test_gate_001_off_by_default(f):
     s = f.get("/faces/settings")
     assert s["enabled"] is False and s["show_people"] is False
-    r = f.client.post("/worker-api/v1/faces", json={"worker_id": "w1", "asset_id": f.add("a.jpg"),
-                      "fingerprint": "x", "truncated": False, "faces": []}, headers=f.ui)
+    r = f.client.post(
+        "/worker-api/v1/faces",
+        json={"worker_id": "w1", "asset_id": f.add("a.jpg"), "fingerprint": "x", "truncated": False, "faces": []},
+        headers=f.ui,
+    )
     assert r.status_code == 409 and r.json()["code"] == "FACES_DISABLED"
     assert f.sql("select count(*) from face").scalar() == 0
-    assert f.sql("select count(*) from pg_tables where schemaname='bio' and tablename like 'face_embedding_w%'").scalar() == 0
+    assert (
+        f.sql("select count(*) from pg_tables where schemaname='bio' and tablename like 'face_embedding_w%'").scalar()
+        == 0
+    )
 
 
 @pytest.mark.integration
 @pytest.mark.tc("FACE-GATE-002", "FACE-GATE-003")
 def test_gate_002_003_consent_recorded_and_limited_to_sources(f):
-    r = f.client.post("/api/v1/faces/enable", json={"consent": False, "consent_text_version": "faces-v1"},
-                      headers=f.ui)
+    r = f.client.post("/api/v1/faces/enable", json={"consent": False, "consent_text_version": "faces-v1"}, headers=f.ui)
     assert r.status_code == 422 and r.json()["code"] == "FACE_CONSENT_REQUIRED"
     f.enable(sources=[f.src])
     c = f.sql("select action, consent_text_version, source_ids from face_consent").one()
@@ -85,8 +97,11 @@ def test_gate_002_003_consent_recorded_and_limited_to_sources(f):
     assert f.get("/faces/settings")["show_people"] is True
     f.photo("a/IMG_p1.jpg")
     other = f.add("b/IMG_p2.jpg", source=f.inbox)
-    r = f.client.post("/worker-api/v1/faces", json={"worker_id": "w1", "asset_id": other, "fingerprint": "x",
-                      "truncated": False, "faces": []}, headers=f.ui)
+    r = f.client.post(
+        "/worker-api/v1/faces",
+        json={"worker_id": "w1", "asset_id": other, "fingerprint": "x", "truncated": False, "faces": []},
+        headers=f.ui,
+    )
     assert r.status_code == 409 and r.json()["code"] == "FACES_NOT_FOR_SOURCE"
     assert f.client.get("/worker-api/v1/faces/plan", params={"asset_id": other}, headers=f.ui).json() == {"run": False}
 
@@ -102,8 +117,13 @@ def test_cold_start_clusters_then_online_assignment(f):
     assert len(groups) == 6 and all(g["status"] == "unnamed" and g["face_count"] == 12 for g in groups)
     truth = {}
     for g in groups:
-        rels = {r for (r,) in f.sql("select l.rel_path from face x join asset_location l on l.asset_id=x.asset_id "
-                                     "where x.person_id=:p", p=g["id"])}
+        rels = {
+            r
+            for (r,) in f.sql(
+                "select l.rel_path from face x join asset_location l on l.asset_id=x.asset_id where x.person_id=:p",
+                p=g["id"],
+            )
+        }
         persons = {re.search(r"_p(\d+)", r).group(1) for r in rels}
         assert len(persons) == 1  # pure groups: ARI 1.0 on the double
         truth[persons.pop()] = g["id"]
@@ -127,14 +147,23 @@ def test_clu_002_human_decisions_frozen(f):
         f.post(f"/faces/{fid}/confirm", {"person_id": p1})
     for fid in ids[1][5:7]:
         f.post(f"/faces/{fid}/reject", {"person_id": p1})
-    before = f.sql("select id, face_id, person_id, kind, superseded_at from face_assignment where person_id=:p "
-                   "and kind in ('confirmed','rejected') order by id", p=p1).all()
+    before = f.sql(
+        "select id, face_id, person_id, kind, superseded_at from face_assignment where person_id=:p "
+        "and kind in ('confirmed','rejected') order by id",
+        p=p1,
+    ).all()
     named = f.sql("select display_name, status, is_frozen from person where id=:p", p=p1).one()
     for i in range(2):
         f.photo(f"2025/x/IMG_{i}_p9.jpg")  # two strangers: a group under 3 faces folds
     f.post("/faces/cluster")
-    assert f.sql("select id, face_id, person_id, kind, superseded_at from face_assignment where person_id=:p "
-                 "and kind in ('confirmed','rejected') order by id", p=p1).all() == before
+    assert (
+        f.sql(
+            "select id, face_id, person_id, kind, superseded_at from face_assignment where person_id=:p "
+            "and kind in ('confirmed','rejected') order by id",
+            p=p1,
+        ).all()
+        == before
+    )
     assert f.sql("select display_name, status, is_frozen from person where id=:p", p=p1).one() == named
     assert named.is_frozen is True
     people = f.get("/people")
@@ -199,8 +228,11 @@ def test_mgt_004_ignore_two_ways(f):
     assert f.get("/people")["people"] == [] and keep == 6  # kept embeddings stop the group from coming back
     with f.eng.begin() as c:
         c.execute(sqlalchemy.text("SET LOCAL ROLE opagent_bio"))
-        n = c.execute(sqlalchemy.text(
-            "select count(*) from bio.face_embedding e join face x on x.id=e.face_id where x.person_id=:b"), {"b": b}
+        n = c.execute(
+            sqlalchemy.text(
+                "select count(*) from bio.face_embedding e join face x on x.id=e.face_id where x.person_id=:b"
+            ),
+            {"b": b},
         ).scalar()
     assert n == 0
 
@@ -255,12 +287,21 @@ def test_tpl_001_person_fanout(f):
     f.post("/faces/cluster")
     names = {}
     for p in f.get("/people")["people"]:
-        rel = f.sql("select l.rel_path from face x join asset_location l on l.asset_id=x.asset_id where "
-                    "x.person_id=:p and l.rel_path not like '%%p1_p2%%' order by l.rel_path limit 1", p=p["id"]).scalar()
+        rel = f.sql(
+            "select l.rel_path from face x join asset_location l on l.asset_id=x.asset_id where "
+            "x.person_id=:p and l.rel_path not like '%%p1_p2%%' order by l.rel_path limit 1",
+            p=p["id"],
+        ).scalar()
         names[p["id"]] = "媽媽" if "_p1" in rel else "爸爸"
         f.post(f"/people/{p['id']}/name", {"name": names[p["id"]]})
-    out = f.post("/faces/plan-by-person", {"target": {"root_alias": "sorted", "sub_path": ""},
-                                           "path_template": "{person}/{stem}{ext}", "fallback": "未知人物"})
+    out = f.post(
+        "/faces/plan-by-person",
+        {
+            "target": {"root_alias": "sorted", "sub_path": ""},
+            "path_template": "{person}/{stem}{ext}",
+            "fallback": "未知人物",
+        },
+    )
     acts = f.sql("select dst_rel from output_action where plan_id=:p", p=out["plan_id"]).scalars().all()
     assert "媽媽/IMG_p1_p2.jpg" in acts and "爸爸/IMG_p1_p2.jpg" in acts and "未知人物/landscape.jpg" in acts
 
@@ -337,8 +378,11 @@ def test_space_002_faces_of_vanished_photos_deleted_after_30_days(f):
     f.enable()
     aid, _ = f.photo("gone/IMG_p1.jpg")
     keep, _ = f.photo("here/IMG_p1.jpg")
-    f.sql("update asset_location set missing=true, last_seen_at=:t where asset_id=:a",
-          a=aid, t=datetime(2026, 9, 1, tzinfo=UTC))
+    f.sql(
+        "update asset_location set missing=true, last_seen_at=:t where asset_id=:a",
+        a=aid,
+        t=datetime(2026, 9, 1, tzinfo=UTC),
+    )
     out = f.post("/faces/maintenance")
     assert out["deleted_faces"] == 1
     assert f.sql("select count(*) from face where asset_id=:a", a=aid).scalar() == 0
@@ -361,21 +405,32 @@ def test_space_001_model_switch_keeps_human_decisions(f):
     for fid in [x for v in ids.values() for x in v]:
         aid = f.sql("select asset_id from face where id=:i", i=fid).scalar()
         rel = f.sql("select rel_path from asset_location where asset_id=:a", a=aid).scalar()
-        f.client.post("/worker-api/v1/faces/reembed", json={"migration_id": mig["id"], "face_id": fid,
-                      "vec": fb2.sample(int(re.search(r"_p(\d+)", rel).group(1)), "v2" + fid)}, headers=f.ui)
+        f.client.post(
+            "/worker-api/v1/faces/reembed",
+            json={
+                "migration_id": mig["id"],
+                "face_id": fid,
+                "vec": fb2.sample(int(re.search(r"_p(\d+)", rel).group(1)), "v2" + fid),
+            },
+            headers=f.ui,
+        )
     f.post(f"/faces/space-migrations/{mig['id']}/complete")
     s = f.get("/faces/settings")
     assert s["space_id"] != old
     assert f.sql("select display_name from person where id=:p", p=p1).scalar() == "小明"
-    assert f.sql("select kind from face_assignment where face_id=:i and superseded_at is null",
-                 i=ids[1][1]).scalar() == "confirmed"
+    assert (
+        f.sql("select kind from face_assignment where face_id=:i and superseded_at is null", i=ids[1][1]).scalar()
+        == "confirmed"
+    )
     f.client.app.state.opa.clock.advance(8 * 86400)
     f.post("/faces/maintenance")
     from opagent_api.faces import bio_session
 
     with bio_session(f.client.app.state.opa) as c:
-        assert c.execute(sqlalchemy.text("select count(*) from bio.face_embedding where space_id=:s"),
-                         {"s": old}).scalar() == 0
+        assert (
+            c.execute(sqlalchemy.text("select count(*) from bio.face_embedding where space_id=:s"), {"s": old}).scalar()
+            == 0
+        )
 
 
 @pytest.mark.integration

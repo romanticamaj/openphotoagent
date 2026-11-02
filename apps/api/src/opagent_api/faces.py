@@ -33,8 +33,8 @@ from opagent_db.schema import (
     person_link,
     search_doc,
     source,
-    workspace,
     worker_task,
+    workspace,
 )
 from pydantic import BaseModel, Field
 from sqlalchemy import and_, delete, func, insert, select, text, update
@@ -76,7 +76,7 @@ ALTER TABLE bio.face_embedding OWNER TO {BIO_ROLE};
 ALTER TABLE bio.person_prototype OWNER TO {BIO_ROLE};
 REVOKE ALL ON SCHEMA bio FROM PUBLIC;
 REVOKE ALL ON SCHEMA bio FROM {API_ROLE};
-"""
+"""  # noqa: S608 - module constants only, no input
 
 
 def install_roles(engine: Any) -> None:
@@ -133,9 +133,9 @@ def get_settings(req: Request) -> dict[str, Any]:
     with _st(req).engine.begin() as c:
         s = fsettings(c)
         pending = c.execute(
-            select(func.count()).select_from(worker_task).where(
-                worker_task.c.kind == "face_purge", worker_task.c.status.in_(("pending", "leased"))
-            )
+            select(func.count())
+            .select_from(worker_task)
+            .where(worker_task.c.kind == "face_purge", worker_task.c.status.in_(("pending", "leased")))
         ).scalar_one()
     with _st(req).engine.begin() as c:
         name = c.execute(select(workspace.c.name).where(workspace.c.id == DEFAULT_WS)).scalar()
@@ -173,8 +173,16 @@ def disable(body: DisableIn, req: Request) -> dict[str, Any]:
         return {"purged": purge(PurgeIn(confirm=body.confirm or ""), req)}
     with st.engine.begin() as c:
         _put(c, DEFAULT_WS, {**fsettings(c), "enabled": False})
-        c.execute(insert(face_consent).values(id=uuid7(st.clock), workspace_id=DEFAULT_WS, user_id="local",
-                                              action="disable", consent_text_version="-", at=st.clock.now()))
+        c.execute(
+            insert(face_consent).values(
+                id=uuid7(st.clock),
+                workspace_id=DEFAULT_WS,
+                user_id="local",
+                action="disable",
+                consent_text_version="-",
+                at=st.clock.now(),
+            )
+        )
     return {"purged": None}
 
 
@@ -337,7 +345,9 @@ def ingest(body: FacesIn, req: Request) -> dict[str, Any]:
 
 def _current(c: Any, face_ids: list[str]) -> dict[str, Any]:
     rows = c.execute(
-        select(face_assignment).where(face_assignment.c.face_id.in_(face_ids), face_assignment.c.superseded_at.is_(None))
+        select(face_assignment).where(
+            face_assignment.c.face_id.in_(face_ids), face_assignment.c.superseded_at.is_(None)
+        )
     ).all()
     return {r.face_id: r for r in rows if r.kind != "rejected"}
 
@@ -357,13 +367,23 @@ def _write(c: Any, st: AppState, fid: str, pid: str | None, kind: str, method: s
     if pid is not None:
         c.execute(
             insert(face_assignment).values(
-                id=uuid7(st.clock), face_id=fid, person_id=pid, kind=kind, method=method, actor=actor,
-                created_at=now, replaces=cur, **kw
+                id=uuid7(st.clock),
+                face_id=fid,
+                person_id=pid,
+                kind=kind,
+                method=method,
+                actor=actor,
+                created_at=now,
+                replaces=cur,
+                **kw,
             )
         )
     state = {"auto": "auto", "suggested": "suggested", "confirmed": "confirmed"}.get(kind, "unassigned")
-    c.execute(update(face).where(face.c.id == fid).values(person_id=pid if state in ("auto", "confirmed") else None,
-                                                          state=state, confidence=kw.get("confidence")))
+    c.execute(
+        update(face)
+        .where(face.c.id == fid)
+        .values(person_id=pid if state in ("auto", "confirmed") else None, state=state, confidence=kw.get("confidence"))
+    )
 
 
 def assign_online(st: AppState, ws: str, space: int, fid: str, vec: list[float], tier: int) -> F.Decision:
@@ -381,23 +401,29 @@ def assign_online(st: AppState, ws: str, space: int, fid: str, vec: list[float],
         live = {
             r.id: r
             for r in c.execute(
-                select(person).where(person.c.id.in_(set(owners.values()) or {"-"}), person.c.merged_into.is_(None),
-                                     person.c.status != "ignored")
+                select(person).where(
+                    person.c.id.in_(set(owners.values()) or {"-"}),
+                    person.c.merged_into.is_(None),
+                    person.c.status != "ignored",
+                )
             ).all()
         }
         rejected = {
             r[0]
             for r in c.execute(
-                select(face_assignment.c.person_id).where(face_assignment.c.face_id == fid,
-                                                         face_assignment.c.kind == "rejected")
+                select(face_assignment.c.person_id).where(
+                    face_assignment.c.face_id == fid, face_assignment.c.kind == "rejected"
+                )
             ).all()
         }
         scores: dict[str, list[float]] = {}
         for n in near:
             p = owners.get(n.face_id)
-            if p in live:
+            if p is not None and p in live:
                 scores.setdefault(p, []).append(float(n.s))
-        links = c.execute(select(person_link.c.person_a, person_link.c.person_b).where(person_link.c.kind == "confusable"))
+        links = c.execute(
+            select(person_link.c.person_a, person_link.c.person_b).where(person_link.c.kind == "confusable")
+        )
         d = F.decide_assignment(
             scores,
             neighbours_of_p1=0,
@@ -413,11 +439,25 @@ def assign_online(st: AppState, ws: str, space: int, fid: str, vec: list[float],
                 tier=tier,
                 rejected=rejected,
                 age_variation={p for p, r in live.items() if r.age_variation},
-                confusable={frozenset(x) for x in c.execute(select(person_link.c.person_a, person_link.c.person_b)
-                                                           .where(person_link.c.kind == "confusable")).all()},
+                confusable={
+                    frozenset(x)
+                    for x in c.execute(
+                        select(person_link.c.person_a, person_link.c.person_b).where(person_link.c.kind == "confusable")
+                    ).all()
+                },
             )
-            _write(c, st, fid, d.person, d.kind, "online_knn", "system", confidence=d.score, margin=d.margin,
-                   space_id=space)
+            _write(
+                c,
+                st,
+                fid,
+                d.person,
+                d.kind,
+                "online_knn",
+                "system",
+                confidence=d.score,
+                margin=d.margin,
+                space_id=space,
+            )
     return d
 
 
@@ -439,21 +479,29 @@ def run_cluster(st: AppState, ws: str) -> dict[str, Any]:
         pool = [
             r.id
             for r in c.execute(
-                select(face.c.id).where(face.c.workspace_id == ws, face.c.quality_tier >= 2,
-                                        face.c.state.in_(("unassigned",)))
+                select(face.c.id).where(
+                    face.c.workspace_id == ws, face.c.quality_tier >= 2, face.c.state.in_(("unassigned",))
+                )
             ).all()
         ]
         # faces of ignored persons that kept their embedding pull a stranger back into that person, not a group
         ignored_faces = {
-            r[0] for r in c.execute(
+            r[0]
+            for r in c.execute(
                 select(face.c.id).join(person, person.c.id == face.c.person_id).where(person.c.status == "ignored")
             ).all()
         }
-        soft = {
+        soft: dict[str, set[str]] = {
             r.id: set()
-            for r in c.execute(select(person).where(person.c.workspace_id == ws, person.c.is_frozen.is_(False),
-                                                    person.c.origin == "cluster", person.c.merged_into.is_(None),
-                                                    person.c.status != "ignored")).all()
+            for r in c.execute(
+                select(person).where(
+                    person.c.workspace_id == ws,
+                    person.c.is_frozen.is_(False),
+                    person.c.origin == "cluster",
+                    person.c.merged_into.is_(None),
+                    person.c.status != "ignored",
+                )
+            ).all()
         }
         for fid, pid in c.execute(select(face.c.id, face.c.person_id).where(face.c.person_id.in_(soft or {"-"}))):
             soft[pid].add(fid)
@@ -489,27 +537,50 @@ def run_cluster(st: AppState, ws: str) -> dict[str, Any]:
         groups = [by[k] for k in sorted(by)]
     # cannot-link: a face rejected for a person never joins that person's group again
     with st.engine.begin() as c:
-        rejected = {(r[0], r[1]) for r in c.execute(select(face_assignment.c.face_id, face_assignment.c.person_id)
-                                                     .where(face_assignment.c.kind == "rejected")).all()}
+        rejected = {
+            (r[0], r[1])
+            for r in c.execute(
+                select(face_assignment.c.face_id, face_assignment.c.person_id).where(
+                    face_assignment.c.kind == "rejected"
+                )
+            ).all()
+        }
         new_ids = F.stable_ids(soft, groups, new_id=lambda: uuid7(st.clock))
         for pid in set(soft) - set(new_ids):  # soft groups that dissolved
             c.execute(update(face).where(face.c.person_id == pid).values(person_id=None, state="unassigned"))
             c.execute(delete(person).where(person.c.id == pid))
         for pid, g in zip(new_ids, groups, strict=True):
             if pid not in soft:
-                c.execute(insert(person).values(id=pid, workspace_id=ws, origin="cluster", status="unnamed",
-                                                created_by="system", created_at=st.clock.now()))
+                c.execute(
+                    insert(person).values(
+                        id=pid,
+                        workspace_id=ws,
+                        origin="cluster",
+                        status="unnamed",
+                        created_by="system",
+                        created_at=st.clock.now(),
+                    )
+                )
             for fid in g:
                 if (fid, pid) in rejected:
                     continue
                 cur = c.execute(select(face.c.person_id).where(face.c.id == fid)).scalar()
                 if cur != pid:
                     _write(c, st, fid, pid, "auto", "cluster", "system", space_id=space)
-        c.execute(insert(face_cluster_run).values(id=run_id, workspace_id=ws, space_id=space, algo=algo,
-                                                  params={"min_cluster_size": F.MIN_GROUP, "min_samples": 2,
-                                                          "large_pool": LARGE_POOL},
-                                                  input_faces=len(ids), clusters=len(groups), noise=noise,
-                                                  started_at=st.clock.now(), finished_at=st.clock.now()))
+        c.execute(
+            insert(face_cluster_run).values(
+                id=run_id,
+                workspace_id=ws,
+                space_id=space,
+                algo=algo,
+                params={"min_cluster_size": F.MIN_GROUP, "min_samples": 2, "large_pool": LARGE_POOL},
+                input_faces=len(ids),
+                clusters=len(groups),
+                noise=noise,
+                started_at=st.clock.now(),
+                finished_at=st.clock.now(),
+            )
+        )
         for (aid,) in c.execute(select(face.c.asset_id).where(face.c.workspace_id == ws).distinct()).all():
             c.execute(insert(index_outbox).values(asset_id=aid))
     _merge_suggestions(st, ws, space)
@@ -519,8 +590,9 @@ def run_cluster(st: AppState, ws: str) -> dict[str, Any]:
 def _merge_suggestions(st: AppState, ws: str, space: int) -> None:
     with st.engine.begin() as c:
         members: dict[str, list[str]] = {}
-        for fid, pid in c.execute(select(face.c.id, face.c.person_id).where(face.c.workspace_id == ws,
-                                                                            face.c.person_id.is_not(None))):
+        for fid, pid in c.execute(
+            select(face.c.id, face.c.person_id).where(face.c.workspace_id == ws, face.c.person_id.is_not(None))
+        ):
             members.setdefault(pid, []).append(fid)
     vecs = _vectors(st, ws, space, [f for fs in members.values() for f in fs])
     protos = {}
@@ -532,25 +604,42 @@ def _merge_suggestions(st: AppState, ws: str, space: int) -> None:
 
     with st.engine.begin() as c:
         for a, b, sc in F.merge_suggestions(protos):
-            c.execute(pg_insert(person_link).values(workspace_id=ws, person_a=a, person_b=b,
-                                                    kind="merge_suggestion", score=sc)
-                      .on_conflict_do_update(index_elements=["workspace_id", "person_a", "person_b", "kind"],
-                                             set_={"score": sc}))
+            c.execute(
+                pg_insert(person_link)
+                .values(workspace_id=ws, person_a=a, person_b=b, kind="merge_suggestion", score=sc)
+                .on_conflict_do_update(
+                    index_elements=["workspace_id", "person_a", "person_b", "kind"], set_={"score": sc}
+                )
+            )
 
 
 # ---------------------------------------------------------------- people
 def _people(c: Any, ws: str) -> list[dict[str, Any]]:
     rows = c.execute(
-        select(person.c.id, person.c.display_name, person.c.status, person.c.is_frozen, person.c.age_variation,
-               func.count(face.c.id).label("faces"), func.count(func.distinct(face.c.asset_id)).label("assets"))
+        select(
+            person.c.id,
+            person.c.display_name,
+            person.c.status,
+            person.c.is_frozen,
+            person.c.age_variation,
+            func.count(face.c.id).label("faces"),
+            func.count(func.distinct(face.c.asset_id)).label("assets"),
+        )
         .join(face, face.c.person_id == person.c.id)
         .where(person.c.workspace_id == ws, person.c.merged_into.is_(None), person.c.status != "ignored")
         .group_by(person.c.id)
         .order_by(func.count(face.c.id).desc(), person.c.id)
     ).all()
     return [
-        {"id": r.id, "name": r.display_name, "status": r.status, "frozen": r.is_frozen,
-         "age_variation": r.age_variation, "face_count": int(r.faces), "asset_count": int(r.assets)}
+        {
+            "id": r.id,
+            "name": r.display_name,
+            "status": r.status,
+            "frozen": r.is_frozen,
+            "age_variation": r.age_variation,
+            "face_count": int(r.faces),
+            "asset_count": int(r.assets),
+        }
         for r in rows
     ]
 
@@ -559,8 +648,9 @@ def _people(c: Any, ws: str) -> list[dict[str, Any]]:
 def people(req: Request) -> dict[str, Any]:
     with _st(req).engine.begin() as c:
         rows = _people(c, DEFAULT_WS)
-        sug = c.execute(select(person_link).where(person_link.c.kind == "merge_suggestion",
-                                                  person_link.c.status == "open")).all()
+        sug = c.execute(
+            select(person_link).where(person_link.c.kind == "merge_suggestion", person_link.c.status == "open")
+        ).all()
     shown, others = F.fold_small({r["id"]: r["face_count"] for r in rows})
     return {
         "people": [r for r in rows if r["id"] in shown],
@@ -575,8 +665,11 @@ def person_detail(pid: str, req: Request) -> dict[str, Any]:
         p = next((r for r in _people(c, DEFAULT_WS) if r["id"] == pid), None)
         if p is None:
             raise HTTPException(404, detail={"code": "NOT_FOUND"})
-        fs = c.execute(select(face.c.id, face.c.asset_id, face.c.state, face.c.quality_tier)
-                       .where(face.c.person_id == pid).order_by(face.c.id)).all()
+        fs = c.execute(
+            select(face.c.id, face.c.asset_id, face.c.state, face.c.quality_tier)
+            .where(face.c.person_id == pid)
+            .order_by(face.c.id)
+        ).all()
     return {**p, "faces": [{"id": f.id, "asset_id": f.asset_id, "state": f.state, "tier": f.quality_tier} for f in fs]}
 
 
@@ -586,8 +679,11 @@ def _freeze(c: Any, st: AppState, pid: str) -> None:
 
 def _reindex(c: Any, pid_or_faces: Any) -> None:
     q = select(face.c.asset_id).distinct()
-    q = q.where(face.c.person_id == pid_or_faces) if isinstance(pid_or_faces, str) else q.where(
-        face.c.id.in_(list(pid_or_faces) or ["-"]))
+    q = (
+        q.where(face.c.person_id == pid_or_faces)
+        if isinstance(pid_or_faces, str)
+        else q.where(face.c.id.in_(list(pid_or_faces) or ["-"]))
+    )
     for (aid,) in c.execute(q).all():
         c.execute(insert(index_outbox).values(asset_id=aid))
 
@@ -600,8 +696,13 @@ class NameIn(BaseModel):
 def name_person(pid: str, body: NameIn, req: Request) -> dict[str, Any]:
     st = _st(req)
     with st.engine.begin() as c:
-        clash = c.execute(select(person.c.id).where(func.lower(person.c.display_name) == body.name.lower(),
-                                                   person.c.id != pid, person.c.merged_into.is_(None))).scalar()
+        clash = c.execute(
+            select(person.c.id).where(
+                func.lower(person.c.display_name) == body.name.lower(),
+                person.c.id != pid,
+                person.c.merged_into.is_(None),
+            )
+        ).scalar()
         if clash:
             raise HTTPException(409, detail={"code": "PERSON_NAME_TAKEN", "person_id": clash})
         c.execute(update(person).where(person.c.id == pid).values(display_name=body.name.strip(), status="named"))
@@ -632,9 +733,17 @@ def reject(fid: str, body: PersonIn, req: Request) -> dict[str, Any]:
         cur = _current(c, [fid]).get(fid)  # auto, confirmed or a pending suggestion for this person
         if cur is not None and cur.person_id == body.person_id:
             _write(c, st, fid, None, "unassigned", "review", "user:local")
-        c.execute(insert(face_assignment).values(id=uuid7(st.clock), face_id=fid, person_id=body.person_id,
-                                                 kind="rejected", method="review", actor="user:local",
-                                                 created_at=st.clock.now()))
+        c.execute(
+            insert(face_assignment).values(
+                id=uuid7(st.clock),
+                face_id=fid,
+                person_id=body.person_id,
+                kind="rejected",
+                method="review",
+                actor="user:local",
+                created_at=st.clock.now(),
+            )
+        )
         _freeze(c, st, body.person_id)
         _reindex(c, [fid])
     return {"ok": True}
@@ -651,12 +760,26 @@ def merge(pid: str, body: MergeIn, req: Request) -> dict[str, Any]:
     with st.engine.begin() as c:
         fs = c.execute(select(face.c.id, face.c.state).where(face.c.person_id == pid)).all()
         for f in fs:
-            _write(c, st, f.id, body.into, "confirmed" if f.state == "confirmed" else "auto", "merge", "user:local",
-                   undo_of=token)
+            _write(
+                c,
+                st,
+                f.id,
+                body.into,
+                "confirmed" if f.state == "confirmed" else "auto",
+                "merge",
+                "user:local",
+                undo_of=token,
+            )
         c.execute(update(person).where(person.c.id == pid).values(merged_into=body.into))
         _freeze(c, st, body.into)
-        c.execute(insert(audit_log).values(actor="user:local", action="person.merge", target=pid,
-                                           details={"into": body.into, "token": token, "faces": len(fs)}))
+        c.execute(
+            insert(audit_log).values(
+                actor="user:local",
+                action="person.merge",
+                target=pid,
+                details={"into": body.into, "token": token, "faces": len(fs)},
+            )
+        )
         _reindex(c, body.into)
     return {"undo_token": token, "moved": len(fs)}
 
@@ -668,8 +791,11 @@ def undo_merge(token: str, req: Request) -> dict[str, Any]:
         rows = c.execute(select(face_assignment).where(face_assignment.c.undo_of == token)).all()
         if not rows:
             raise HTTPException(404, detail={"code": "NOT_FOUND"})
-        a = c.execute(select(audit_log.c.target).where(audit_log.c.action == "person.merge",
-                                                       audit_log.c.details["token"].astext == token)).scalar()
+        a = c.execute(
+            select(audit_log.c.target).where(
+                audit_log.c.action == "person.merge", audit_log.c.details["token"].astext == token
+            )
+        ).scalar()
         for r in rows:
             prev = (
                 c.execute(select(face_assignment).where(face_assignment.c.id == r.replaces)).first()
@@ -680,9 +806,15 @@ def undo_merge(token: str, req: Request) -> dict[str, Any]:
             if prev is not None:
                 c.execute(update(face_assignment).where(face_assignment.c.id == prev.id).values(superseded_at=None))
                 state = prev.kind if prev.kind in ("auto", "confirmed", "suggested") else "unassigned"
-                c.execute(update(face).where(face.c.id == r.face_id).values(
-                    person_id=prev.person_id if state in ("auto", "confirmed") else None, state=state,
-                    confidence=prev.confidence))
+                c.execute(
+                    update(face)
+                    .where(face.c.id == r.face_id)
+                    .values(
+                        person_id=prev.person_id if state in ("auto", "confirmed") else None,
+                        state=state,
+                        confidence=prev.confidence,
+                    )
+                )
         c.execute(update(person).where(person.c.id == a).values(merged_into=None))
         _reindex(c, [r.face_id for r in rows])
     return {"restored": len(rows)}
@@ -697,8 +829,17 @@ def split(pid: str, body: SplitIn, req: Request) -> dict[str, Any]:
     st = _st(req)
     new = uuid7(st.clock)
     with st.engine.begin() as c:
-        c.execute(insert(person).values(id=new, workspace_id=DEFAULT_WS, origin="split", status="unnamed",
-                                        is_frozen=True, created_by="user:local", created_at=st.clock.now()))
+        c.execute(
+            insert(person).values(
+                id=new,
+                workspace_id=DEFAULT_WS,
+                origin="split",
+                status="unnamed",
+                is_frozen=True,
+                created_by="user:local",
+                created_at=st.clock.now(),
+            )
+        )
         for fid in body.face_ids:
             _write(c, st, fid, new, "confirmed", "split", "user:local")
         _freeze(c, st, pid)
@@ -741,15 +882,28 @@ def review_queue(req: Request) -> list[dict[str, Any]]:
     """「這是不是 X？」: suggestions, least certain first (07 §2.7)."""
     with _st(req).engine.begin() as c:
         rows = c.execute(
-            select(face_assignment.c.face_id, face_assignment.c.person_id, face_assignment.c.confidence,
-                   person.c.display_name, face.c.asset_id)
+            select(
+                face_assignment.c.face_id,
+                face_assignment.c.person_id,
+                face_assignment.c.confidence,
+                person.c.display_name,
+                face.c.asset_id,
+            )
             .join(person, person.c.id == face_assignment.c.person_id)
             .join(face, face.c.id == face_assignment.c.face_id)
             .where(face_assignment.c.kind == "suggested", face_assignment.c.superseded_at.is_(None))
             .order_by(face_assignment.c.confidence.asc().nulls_first(), face_assignment.c.face_id)
         ).all()
-    return [{"face_id": r.face_id, "person_id": r.person_id, "person": r.display_name, "score": r.confidence,
-             "asset_id": r.asset_id} for r in rows]
+    return [
+        {
+            "face_id": r.face_id,
+            "person_id": r.person_id,
+            "person": r.display_name,
+            "score": r.confidence,
+            "asset_id": r.asset_id,
+        }
+        for r in rows
+    ]
 
 
 # ---------------------------------------------------------------- find this person (07 §2.5)
@@ -771,12 +925,20 @@ def find(body: FindIn, req: Request) -> dict[str, Any]:
             return {"sure": [], "maybe": []}
         refs: list[str] = list(body.face_ids or [])
         if body.person_id:
-            pairs = c.execute(select(face_assignment.c.face_id, face_assignment.c.kind).where(
-                face_assignment.c.person_id == body.person_id, face_assignment.c.superseded_at.is_(None))).all()
+            pairs = c.execute(
+                select(face_assignment.c.face_id, face_assignment.c.kind).where(
+                    face_assignment.c.person_id == body.person_id, face_assignment.c.superseded_at.is_(None)
+                )
+            ).all()
             refs += F.reference_faces([(a, k) for a, k in pairs]) or [
-                r[0] for r in c.execute(select(face.c.id).where(face.c.person_id == body.person_id)).all()]
-        refs = [r for (r,) in c.execute(select(face.c.id).where(face.c.id.in_(refs or ["-"]),
-                                                                face.c.workspace_id == ws)).all()]
+                r[0] for r in c.execute(select(face.c.id).where(face.c.person_id == body.person_id)).all()
+            ]
+        refs = [
+            r
+            for (r,) in c.execute(
+                select(face.c.id).where(face.c.id.in_(refs or ["-"]), face.c.workspace_id == ws)
+            ).all()
+        ]
     qvecs = list(_vectors(st, ws, space, refs).values()) if refs else []
     if body.query:
         h = st.face_queries.get(body.query)
@@ -790,8 +952,11 @@ def find(body: FindIn, req: Request) -> dict[str, Any]:
             if n.face_id not in best or n.s > best[n.face_id][1]:
                 best[n.face_id] = ("", float(n.s))
     with st.engine.begin() as c:
-        owner = dict(c.execute(select(face.c.id, face.c.asset_id).where(face.c.id.in_(list(best) or ["-"]),
-                                                                        face.c.workspace_id == ws)).all())
+        owner = dict(
+            c.execute(
+                select(face.c.id, face.c.asset_id).where(face.c.id.in_(list(best) or ["-"]), face.c.workspace_id == ws)
+            ).all()
+        )
     tiers = F.find_tiers({f: (owner[f], s) for f, (_x, s) in best.items() if f in owner})
     return {k: [{"asset_id": a, "score": round(s, 4)} for a, s in v] for k, v in tiers.items()}
 
@@ -807,12 +972,17 @@ def embed_query_via_worker(st: AppState, data: bytes) -> list[dict[str, Any]]:
     try:
         with st.engine.begin() as c:
             w = c.execute(text("SELECT id FROM worker ORDER BY last_heartbeat_at DESC NULLS LAST LIMIT 1")).scalar()
-            c.execute(insert(worker_task).values(id=tid, kind="face_embed_query", lane="interactive", worker_id=w,
-                                                 payload={"blob": token}))
+            c.execute(
+                insert(worker_task).values(
+                    id=tid, kind="face_embed_query", lane="interactive", worker_id=w, payload={"blob": token}
+                )
+            )
         deadline = time.monotonic() + 10  # noqa: TID251 - waits on a real worker over the wire
         while time.monotonic() < deadline:  # noqa: TID251
             with st.engine.begin() as c:
-                row = c.execute(select(worker_task.c.status, worker_task.c.result).where(worker_task.c.id == tid)).first()
+                row = c.execute(
+                    select(worker_task.c.status, worker_task.c.result).where(worker_task.c.id == tid)
+                ).first()
             if row is not None and row.status in ("done", "failed"):
                 return list((row.result or {}).get("faces") or [])
             time.sleep(0.05)  # noqa: TID251
@@ -839,8 +1009,10 @@ async def query_image(req: Request) -> dict[str, Any]:
     handle = "fq_" + secrets.token_urlsafe(12)
     usable = [f for f in faces if f.get("vec")]
     st.face_queries[handle] = {"faces": usable, "expires": st.clock.now() + timedelta(seconds=QUERY_TTL_S)}
-    return {"handle": handle, "faces": [{"index": i, "bbox": f["bbox"], "quality_tier": f["quality_tier"]}
-                                        for i, f in enumerate(usable)]}
+    return {
+        "handle": handle,
+        "faces": [{"index": i, "bbox": f["bbox"], "quality_tier": f["quality_tier"]} for i, f in enumerate(usable)],
+    }
 
 
 # ---------------------------------------------------------------- {person} output (FACE-TPL-001)
@@ -860,8 +1032,16 @@ def plan_by_person(body: ByPersonIn, req: Request) -> dict[str, Any]:
     st = _st(req)
     with st.engine.begin() as c:
         rows = c.execute(
-            select(asset_location.c.asset_id, asset_location.c.rel_path, asset_location.c.mtime, source.c.root_alias,
-                   source.c.worker_id, asset.c.content_hash, asset.c.taken_at, asset.c.date_source)
+            select(
+                asset_location.c.asset_id,
+                asset_location.c.rel_path,
+                asset_location.c.mtime,
+                source.c.root_alias,
+                source.c.worker_id,
+                asset.c.content_hash,
+                asset.c.taken_at,
+                asset.c.date_source,
+            )
             .join(source, source.c.id == asset_location.c.source_id)
             .join(asset, asset.c.id == asset_location.c.asset_id)
             .where(asset_location.c.missing.is_(False))
@@ -872,7 +1052,8 @@ def plan_by_person(body: ByPersonIn, req: Request) -> dict[str, Any]:
             first.setdefault(r.asset_id, r)
         names: dict[str, list[str]] = {}
         for aid, nm in c.execute(
-            select(face.c.asset_id, person.c.display_name).join(person, person.c.id == face.c.person_id)
+            select(face.c.asset_id, person.c.display_name)
+            .join(person, person.c.id == face.c.person_id)
             .where(person.c.display_name.is_not(None), person.c.status == "named", person.c.merged_into.is_(None))
             .distinct()
         ).all():
@@ -881,24 +1062,64 @@ def plan_by_person(body: ByPersonIn, req: Request) -> dict[str, Any]:
         for aid, r in first.items():
             for nm in sorted(names.get(aid) or [body.fallback]):
                 tpl = body.path_template.replace("{person}", F.folder_name(nm))
-                acts += [(r, a) for a in plan([PlanItem(asset_id=aid, src_rel=r.rel_path, content_hash=r.content_hash,
-                                                         taken_at=r.taken_at, taken_at_source=r.date_source,
-                                                         mtime=r.mtime)], "by-date",
-                                               body.target.get("sub_path", "").strip("/"), template=tpl)]
+                acts += [
+                    (r, a)
+                    for a in plan(
+                        [
+                            PlanItem(
+                                asset_id=aid,
+                                src_rel=r.rel_path,
+                                content_hash=r.content_hash,
+                                taken_at=r.taken_at,
+                                taken_at_source=r.date_source,
+                                mtime=r.mtime,
+                            )
+                        ],
+                        "by-date",
+                        body.target.get("sub_path", "").strip("/"),
+                        template=tpl,
+                    )
+                ]
         planned = assign_collisions([a for _, a in acts])
         src = {a.asset_id: r for r, a in acts}
         jid, pid = uuid7(st.clock), uuid7(st.clock)
-        c.execute(insert(job).values(id=jid, workspace_id=DEFAULT_WS, kind="organize", status="awaiting_approval",
-                                     mode="dry_run", plan_id=pid,
-                                     params={"preset": "person", "target": body.target,
-                                             "worker_id": next(iter(first.values())).worker_id if first else None}))
+        c.execute(
+            insert(job).values(
+                id=jid,
+                workspace_id=DEFAULT_WS,
+                kind="organize",
+                status="awaiting_approval",
+                mode="dry_run",
+                plan_id=pid,
+                params={
+                    "preset": "person",
+                    "target": body.target,
+                    "worker_id": next(iter(first.values())).worker_id if first else None,
+                },
+            )
+        )
         c.execute(insert(output_plan).values(id=pid, job_id=jid, status="draft", summary=summarize(planned)))
         if planned:
-            c.execute(insert(output_action), [
-                {"id": uuid7(st.clock), "plan_id": pid, "seq": i, "asset_id": a.asset_id, "action": "copy",
-                 "src_alias": src[a.asset_id].root_alias, "src_rel": a.src_rel, "dst_alias": body.target["root_alias"],
-                 "dst_rel": a.dst_rel, "src_hash": a.src_hash, "date_source": a.date_source, "conflict": a.conflict}
-                for i, a in enumerate(planned)])
+            c.execute(
+                insert(output_action),
+                [
+                    {
+                        "id": uuid7(st.clock),
+                        "plan_id": pid,
+                        "seq": i,
+                        "asset_id": a.asset_id,
+                        "action": "copy",
+                        "src_alias": src[a.asset_id].root_alias,
+                        "src_rel": a.src_rel,
+                        "dst_alias": body.target["root_alias"],
+                        "dst_rel": a.dst_rel,
+                        "src_hash": a.src_hash,
+                        "date_source": a.date_source,
+                        "conflict": a.conflict,
+                    }
+                    for i, a in enumerate(planned)
+                ],
+            )
     return {"plan_id": pid, "job_id": jid, "actions": len(planned)}
 
 
@@ -923,36 +1144,64 @@ def purge(body: PurgeIn, req: Request) -> dict[str, Any]:
 def purge_workspace(st: AppState, ws: str) -> dict[str, Any]:
     p = _part(ws)
     with bio_session(st) as c:
-        emb = c.execute(text(f"SELECT count(*) FROM bio.face_embedding WHERE workspace_id = :w"), {"w": ws}).scalar()
-        protos = c.execute(text("SELECT count(*) FROM bio.person_prototype WHERE workspace_id = :w"), {"w": ws}).scalar()
+        emb = c.execute(text("SELECT count(*) FROM bio.face_embedding WHERE workspace_id = :w"), {"w": ws}).scalar()
+        protos = c.execute(
+            text("SELECT count(*) FROM bio.person_prototype WHERE workspace_id = :w"), {"w": ws}
+        ).scalar()
         c.execute(text(f"DROP TABLE IF EXISTS bio.face_embedding_{p}"))
         c.execute(text(f"DROP TABLE IF EXISTS bio.person_prototype_{p}"))
         n_faces = c.execute(select(func.count()).select_from(face).where(face.c.workspace_id == ws)).scalar_one()
         n_persons = c.execute(select(func.count()).select_from(person).where(person.c.workspace_id == ws)).scalar_one()
         assets = [r[0] for r in c.execute(select(face.c.asset_id).where(face.c.workspace_id == ws).distinct()).all()]
-        c.execute(delete(face_assignment).where(face_assignment.c.face_id.in_(
-            select(face.c.id).where(face.c.workspace_id == ws))))
+        c.execute(
+            delete(face_assignment).where(
+                face_assignment.c.face_id.in_(select(face.c.id).where(face.c.workspace_id == ws))
+            )
+        )
         c.execute(delete(face).where(face.c.workspace_id == ws))
         c.execute(delete(person_link).where(person_link.c.workspace_id == ws))
         c.execute(update(person).where(person.c.workspace_id == ws).values(merged_into=None))
         c.execute(delete(person).where(person.c.workspace_id == ws))
         c.execute(delete(face_cluster_run).where(face_cluster_run.c.workspace_id == ws))
-        c.execute(update(search_doc).where(search_doc.c.workspace_id == ws).values(
-            person_ids=None, person_ids_suggested=None, face_count=None))
+        c.execute(
+            update(search_doc)
+            .where(search_doc.c.workspace_id == ws)
+            .values(person_ids=None, person_ids_suggested=None, face_count=None)
+        )
         for aid in assets:
             c.execute(insert(index_outbox).values(asset_id=aid))
         cur = c.execute(select(workspace.c.settings).where(workspace.c.id == ws)).scalar() or {}
-        c.execute(update(workspace).where(workspace.c.id == ws).values(
-            settings={**cur, "faces": {"enabled": False, "prompt_dismissed": True}}))
-        c.execute(insert(face_consent).values(id=uuid7(st.clock), workspace_id=ws, user_id="local", action="purge",
-                                              consent_text_version="-", at=st.clock.now()))
-        report = {"faces": int(n_faces), "embeddings": int(emb or 0), "prototypes": int(protos or 0),
-                  "persons": int(n_persons), "locations": ["database:bio", "database:face", "worker:faces"]}
-        c.execute(insert(audit_log).values(actor="user:local", action="faces.purge", target=ws, outcome="ok",
-                                           details=report))
+        c.execute(
+            update(workspace)
+            .where(workspace.c.id == ws)
+            .values(settings={**cur, "faces": {"enabled": False, "prompt_dismissed": True}})
+        )
+        c.execute(
+            insert(face_consent).values(
+                id=uuid7(st.clock),
+                workspace_id=ws,
+                user_id="local",
+                action="purge",
+                consent_text_version="-",
+                at=st.clock.now(),
+            )
+        )
+        report = {
+            "faces": int(n_faces),
+            "embeddings": int(emb or 0),
+            "prototypes": int(protos or 0),
+            "persons": int(n_persons),
+            "locations": ["database:bio", "database:face", "worker:faces"],
+        }
+        c.execute(
+            insert(audit_log).values(actor="user:local", action="faces.purge", target=ws, outcome="ok", details=report)
+        )
         for (wid,) in c.execute(text("SELECT id FROM worker")).all():  # pending until the worker is back (PRG-003)
-            c.execute(insert(worker_task).values(id=uuid7(st.clock), kind="face_purge", worker_id=wid, lane="control",
-                                                 payload={"workspace_id": ws}))
+            c.execute(
+                insert(worker_task).values(
+                    id=uuid7(st.clock), kind="face_purge", worker_id=wid, lane="control", payload={"workspace_id": ws}
+                )
+            )
     return {**report, "worker_pending": True}
 
 
@@ -963,12 +1212,20 @@ def maintenance(req: Request) -> dict[str, Any]:
     now = st.clock.now()
     with st.engine.begin() as c:
         alive = select(asset_location.c.asset_id).where(
-            (asset_location.c.missing.is_(False)) | (asset_location.c.last_seen_at > now - VANISHED_AFTER))
+            (asset_location.c.missing.is_(False)) | (asset_location.c.last_seen_at > now - VANISHED_AFTER)
+        )
         gone = [r[0] for r in c.execute(select(face.c.id).where(face.c.asset_id.notin_(alive))).all()]
         c.execute(delete(face).where(face.c.id.in_(gone or ["-"])))
-        old = [r[0] for r in c.execute(select(embedding_space.c.id).where(
-            embedding_space.c.modality == "face", embedding_space.c.status == "retired",
-            embedding_space.c.created_at < now - SPACE_RETAIN)).all()]
+        old = [
+            r[0]
+            for r in c.execute(
+                select(embedding_space.c.id).where(
+                    embedding_space.c.modality == "face",
+                    embedding_space.c.status == "retired",
+                    embedding_space.c.created_at < now - SPACE_RETAIN,
+                )
+            ).all()
+        ]
     with bio_session(st) as c:
         c.execute(text("DELETE FROM bio.face_embedding WHERE face_id = ANY(:f)"), {"f": gone or ["-"]})
         c.execute(text("DELETE FROM bio.face_embedding WHERE space_id = ANY(:s)"), {"s": old or [-1]})
@@ -998,9 +1255,13 @@ class ReembedIn(BaseModel):
 @worker_router.post("/faces/reembed")
 def reembed(body: ReembedIn, req: Request) -> dict[str, Any]:
     with bio_session(_st(req)) as c:
-        c.execute(text("INSERT INTO bio.face_embedding(workspace_id, face_id, space_id, vec) VALUES (:w,:f,:s,:v) "
-                       "ON CONFLICT DO NOTHING"), {"w": DEFAULT_WS, "f": body.face_id, "s": int(body.migration_id),
-                                                   "v": str(body.vec)})
+        c.execute(
+            text(
+                "INSERT INTO bio.face_embedding(workspace_id, face_id, space_id, vec) VALUES (:w,:f,:s,:v) "
+                "ON CONFLICT DO NOTHING"
+            ),
+            {"w": DEFAULT_WS, "f": body.face_id, "s": int(body.migration_id), "v": str(body.vec)},
+        )
     return {"ok": True}
 
 
@@ -1015,8 +1276,11 @@ def complete_migration(mid: str, req: Request) -> dict[str, Any]:
         old = s.get("space_id")
         c.execute(update(embedding_space).where(embedding_space.c.id == new).values(status="active"))
         if old:
-            c.execute(update(embedding_space).where(embedding_space.c.id == old).values(
-                status="retired", created_at=st.clock.now()))
+            c.execute(
+                update(embedding_space)
+                .where(embedding_space.c.id == old)
+                .values(status="retired", created_at=st.clock.now())
+            )
         c.execute(update(face).where(face.c.workspace_id == DEFAULT_WS).values(space_id=new))
         _put(c, DEFAULT_WS, {**s, "space_id": new})
     return {"space_id": new, "retired": old}
@@ -1028,13 +1292,22 @@ def person_fields(c: Any, asset_id: str) -> dict[str, Any]:
         return {"person_ids": None, "person_ids_suggested": None, "face_count": None}
     rows = c.execute(
         select(face.c.person_id, face.c.state, face.c.quality_tier, face_assignment.c.person_id.label("sug"))
-        .outerjoin(face_assignment, and_(face_assignment.c.face_id == face.c.id,
-                                         face_assignment.c.superseded_at.is_(None),
-                                         face_assignment.c.kind == "suggested"))
+        .outerjoin(
+            face_assignment,
+            and_(
+                face_assignment.c.face_id == face.c.id,
+                face_assignment.c.superseded_at.is_(None),
+                face_assignment.c.kind == "suggested",
+            ),
+        )
         .where(face.c.asset_id == asset_id)
     ).all()
-    live = {r[0] for r in c.execute(select(person.c.id).where(person.c.status != "ignored",
-                                                             person.c.merged_into.is_(None))).all()}
+    live = {
+        r[0]
+        for r in c.execute(
+            select(person.c.id).where(person.c.status != "ignored", person.c.merged_into.is_(None))
+        ).all()
+    }
     return {
         "person_ids": sorted({r.person_id for r in rows if r.state in ("auto", "confirmed") and r.person_id in live}),
         "person_ids_suggested": sorted({r.sug for r in rows if r.sug and r.sug in live}),

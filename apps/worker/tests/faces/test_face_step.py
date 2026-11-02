@@ -24,8 +24,9 @@ class W:
         self.fb = FakeFaceBackend()
         for i, name in enumerate(["IMG_p1.jpg", "IMG_p1_p2.jpg", "IMG_p2.jpg"]):
             shutil.copy(FX / f"IMG_000{i + 1}.jpg", Path(tree.roots[0]["path"]) / name)
-        self.w = WorkerAgent(self.client, roots=tree.roots, home=tmp / "w", backend=FakeBackend(),
-                             worker_id="w1", face_backend=self.fb)
+        self.w = WorkerAgent(
+            self.client, roots=tree.roots, home=tmp / "w", backend=FakeBackend(), worker_id="w1", face_backend=self.fb
+        )
         self.w.register()
         self.src = self.client.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": ""}).json()["id"]
         self.client.post(f"/api/v1/sources/{self.src}/scan")
