@@ -50,6 +50,8 @@ def create_app(
     backups_dir: Any = None,
     pg_bin: Any = None,
     home: Any = None,
+    multi_user: bool = False,
+    jwt_secret: str | None = None,
 ) -> FastAPI:
     from opagent_core.version import VERSION
 
@@ -68,7 +70,11 @@ def create_app(
         user_models_dir=Path(user_models_dir) if user_models_dir else None,
         thumbs_dir=Path(thumbs_dir) if thumbs_dir else None,
         home=Path(home) if home else None,
+        multi_user=multi_user,
+        jwt_secret=jwt_secret,
     )
+    if multi_user and (not jwt_secret or len(jwt_secret) < 32):
+        raise ValueError("multi-user mode needs a jwt_secret of at least 32 characters")
     # API connections run as opagent_api; only the face repository reaches the bio schema (ADR-0011)
     faces.install_roles(st.engine)
     st.engine.dispose()
@@ -86,6 +92,12 @@ def create_app(
         return {"app": "openphotoagent", "version": app.version, "data_fp": data_fp}
 
     app.add_middleware(security.DesktopGuard, state=st)
+    from . import multiuser
+
+    if multi_user:
+        app.add_middleware(multiuser.ControlPlaneGuard, state=st)
+        app.include_router(multiuser.router, prefix="/api/v1")
+        app.include_router(multiuser.worker_router, prefix="/worker-api/v1")
     app.include_router(routes_public.router, prefix="/api/v1")
     app.include_router(routes_mcp.router, prefix="/api/v1")
     app.include_router(approvals.router, prefix="/api/v1")

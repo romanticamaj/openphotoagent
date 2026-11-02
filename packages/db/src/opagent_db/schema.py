@@ -794,6 +794,59 @@ integration_journal = Table(
 )
 
 
+# v0.5 self-hosted control plane (02 §1.3, §5.2, §6.3): people, roles, sessions, and paired remote workers.
+app_user = Table(
+    "app_user",
+    metadata,
+    Column("id", Text, primary_key=True),
+    Column("email", Text, nullable=False, unique=True),
+    Column("password_hash", Text),  # argon2id; NULL for OIDC-only people
+    Column("oidc_sub", Text, unique=True),
+    Column("disabled", Boolean, nullable=False, server_default="false"),
+    _ts("created_at", server_default=func.now()),
+)
+membership = Table(
+    "membership",
+    metadata,
+    Column("user_id", Text, ForeignKey("app_user.id", ondelete="CASCADE"), primary_key=True),
+    Column("workspace_id", Text, primary_key=True),
+    Column("role", Text, nullable=False),  # org_owner | org_admin | ws_admin | ws_editor | ws_reviewer | ws_viewer
+)
+user_session = Table(
+    "user_session",
+    metadata,
+    Column("id_hash", Text, primary_key=True),  # SHA-256 of the cookie value
+    Column("user_id", Text, ForeignKey("app_user.id", ondelete="CASCADE"), nullable=False),
+    Column("csrf", Text, nullable=False),
+    _ts("expires_at", nullable=False),
+)
+enrollment_code = Table(
+    "enrollment_code",
+    metadata,
+    Column("code_hash", Text, primary_key=True),
+    Column("name", Text, nullable=False),
+    Column("created_by", Text),
+    _ts("expires_at", nullable=False),
+    _ts("used_at"),
+)
+worker_credential = Table(
+    "worker_credential",
+    metadata,
+    Column("worker_id", Text, primary_key=True),
+    Column("public_key", Text, nullable=False),  # ed25519, raw, base64
+    Column("refresh_hash", Text, nullable=False),
+    _ts("created_at", server_default=func.now()),
+    _ts("revoked_at"),
+)
+worker_nonce = Table(
+    "worker_nonce",
+    metadata,
+    Column("worker_id", Text, primary_key=True),
+    Column("nonce", Text, primary_key=True),
+    _ts("at", nullable=False),
+)
+
+
 def engine_for(dsn: str) -> Engine:
     url = dsn.replace("postgresql://", "postgresql+psycopg://", 1)
     return create_engine(url, pool_pre_ping=True, future=True)
