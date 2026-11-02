@@ -91,6 +91,14 @@ class Gazetteer:
     def fixture(cls) -> Gazetteer:
         return cls.load(DATA / "fixture.tsv")
 
+    @classmethod
+    def default(cls) -> Gazetteer:
+        """The installed GeoNames extract (``OPAGENT_GEONAMES`` or the app's data pack); countries only without it."""
+        import os
+
+        path = os.environ.get("OPAGENT_GEONAMES")
+        return cls.load(Path(path)) if path and Path(path).is_file() else cls([])
+
     def lookup(self, text: str) -> list[Place]:
         """Places with this exact name (any language), most populous first."""
         return list(self._by_name.get(_norm(text), []))

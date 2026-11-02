@@ -40,6 +40,7 @@ class Scope(BaseModel):
 
 class Filters(BaseModel):
     tags_all: list[str] | None = None
+    tags_any: list[str] | None = None
     category: str | None = None
     taken_from: str | None = None
     taken_to: str | None = None
@@ -54,6 +55,7 @@ class SearchIn(BaseModel):
     limit: int = Field(default=50, ge=1, le=500)
     cursor: str | None = None
     facets: list[str] = []
+    plan: bool = False  # run the rule-based planner on q (05 §2.3): NL dates / tags → filters, rest stays text
 
 
 # ---- cursors ----
@@ -135,6 +137,8 @@ def _where(f: Filters, snapshot: str | None) -> tuple[list[Any], dict[str, Any]]
     w: list[Any] = [search_doc.c.workspace_id == "default"]
     if f.tags_all:
         w.append(search_doc.c.tags.contains(f.tags_all))
+    if f.tags_any:
+        w.append(search_doc.c.tags.overlap(f.tags_any))
     if f.category:
         w.append(search_doc.c.category == f.category)
     if f.taken_from:
@@ -170,6 +174,27 @@ def _ft_cond(tsq: str, en: str, tag: str) -> Any:
     return text(f"({cond})").bindparams(*params)
 
 
+UNINDEXED = ("place", "camera_make", "persons_all")  # planner filters the search index cannot apply yet
+
+
+def _apply_plan(st: AppState, body: SearchIn, q: str) -> tuple[dict[str, Any], SearchIn]:
+    from zoneinfo import ZoneInfo
+
+    from opagent_geo.gazetteer import Gazetteer
+    from opagent_search.planner import plan
+
+    tz = ZoneInfo("Asia/Taipei")
+    p = plan(q, today=st.clock.now().astimezone(tz).date(), tz=tz, gazetteer=Gazetteer.default())
+    f = body.filters.model_copy()
+    pf = p["filters"]
+    if "taken_at" in pf and not (f.taken_from or f.taken_to):
+        f.taken_from, f.taken_to = pf["taken_at"]["from"], pf["taken_at"]["to"]
+    if pf.get("tags_any"):
+        f.tags_any = sorted(set(f.tags_any or []) | set(pf["tags_any"]))
+    p["unapplied"] = [k for k in UNINDEXED if k in pf]
+    return p, body.model_copy(update={"filters": f, "q": p["text"]})
+
+
 def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
     from opagent_search.tokenize import to_tsquery
 
@@ -180,6 +205,10 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
         raise HTTPException(400, detail={"code": "CURSOR_INVALID"})
     degraded: list[str] = []
     q = (body.q or "").strip()
+    planned: dict[str, Any] | None = None
+    if body.plan and q:
+        planned, body = _apply_plan(st, body, q)
+        q = (body.q or "").strip()
     with st.engine.begin() as c:
         snapshot = cur["s"] if cur else str(c.execute(select(func.now())).scalar_one().isoformat())
         where, _ = _where(body.filters, snapshot)
@@ -299,6 +328,8 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
     }
     if degraded:
         out["notice"] = "degraded_search"
+    if planned is not None:
+        out["planner"] = planned  # shown as removable filter chips (05 §2.3)
     return out
 
 
