@@ -44,6 +44,10 @@ export type Approval = {
   note: string | null;
   counts: Record<string, number>;
 };
+export type FaceSettings = { enabled: boolean; prompt_dismissed: boolean; workspace_name: string; worker_purge_pending: boolean; space_id: number | null };
+export type PersonRow = { id: string; name: string | null; status: string; face_count: number; asset_count: number };
+export type FaceSuggestion = { face_id: string; person_id: string; person: string | null; score: number | null; asset_id: string };
+export type PurgeReport = { faces: number; embeddings: number; prototypes: number; persons: number; worker_pending: boolean };
 export type TimelineAsset = { id: string; ch?: string | null; w: number | null; h: number | null; thumbhash: string | null; taken_at: string | null; flags: string[] };
 export type Label = {
   result_id: string;
@@ -207,6 +211,15 @@ export type DuplicateGroup = {
 export type Capabilities = { deployment: string; single_user: boolean; features: Record<string, boolean> };
 
 export const api = {
+  faceSettings: () => req<FaceSettings>("GET", "/faces/settings"),
+  enableFaces: (sources: string[] | null = null) => req<FaceSettings>("POST", "/faces/enable", { consent: true, consent_text_version: "faces-v1", sources }),
+  dismissFacePrompt: () => req<FaceSettings>("POST", "/faces/prompt/dismiss"),
+  disableFaces: (del: boolean, confirm: string) => req<{ purged: PurgeReport | null }>("POST", "/faces/disable", { delete: del, confirm }),
+  people: () => req<{ people: PersonRow[]; others: number }>("GET", "/people"),
+  namePerson: (id: string, name: string) => req<unknown>("POST", `/people/${encodeURIComponent(id)}/name`, { name }),
+  faceReview: () => req<FaceSuggestion[]>("GET", "/faces/review"),
+  confirmFace: (faceId: string, personId: string) => req<unknown>("POST", `/faces/${encodeURIComponent(faceId)}/confirm`, { person_id: personId }),
+  rejectFace: (faceId: string, personId: string) => req<unknown>("POST", `/faces/${encodeURIComponent(faceId)}/reject`, { person_id: personId }),
   mcpTokens: () => req<McpToken[]>("GET", "/mcp/tokens"),
   revokeMcpToken: (id: string) => req<{ revoked: boolean }>("DELETE", `/mcp/tokens/${encodeURIComponent(id)}`),
   mcpSettings: () => req<McpSettings>("GET", "/mcp/settings"),

@@ -23,7 +23,7 @@ import secrets
 import time
 from typing import Any
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 from opagent_db.schema import audit_log, mcp_call_log, mcp_token, rate_bucket, workspace
 from opagent_mcp.ratelimit import Bucket, kind_for
@@ -273,7 +273,11 @@ def _call(
         return {"jsonrpc": "2.0", "id": rid, "result": _error_result(err)}
     ctx = handlers.Ctx(st=st, tok=tok, settings=settings, proto=proto, client=_client_info(msg, req)[0] or tok.client)
     try:
-        out = getattr(handlers, name)(ctx, args)
+        try:
+            out = getattr(handlers, name)(ctx, args)
+        except HTTPException as e:  # a domain refusal from the shared REST code becomes a tool error, never a 500
+            d = e.detail if isinstance(e.detail, dict) else {}
+            raise ToolError(str(d.get("code") or f"HTTP_{e.status_code}"), str(d.get("code") or e.detail)) from None
     except ToolError as err:
         _log(st, tok, msg, req, **base, status="error", error_code=err.code, latency_ms=ms())
         return {"jsonrpc": "2.0", "id": rid, "result": _error_result(err)}

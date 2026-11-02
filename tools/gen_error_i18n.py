@@ -16,6 +16,13 @@ SPEC = ROOT / "docs" / "06-models-environment-operations.md"
 OUT = ROOT / "packages" / "i18n"
 
 EN = {
+    "FACE_SCOPE_REQUIRED": 'Person filters need face recognition to be on',
+    "FACES_DISABLED": 'Face recognition is off',
+    "FACES_NOT_FOR_SOURCE": 'Face recognition is not on for this source',
+    "FACE_CONSENT_REQUIRED": 'Agreeing to how face data is handled is required first',
+    "PERSON_NAME_TAKEN": 'Another person already has this name',
+    "QUERY_EXPIRED": 'The dropped photo was removed from memory after 10 minutes, for privacy',
+    "CONFIRM_TEXT_MISMATCH": 'The confirmation text does not match (expected “{expected}”)',
     "NOT_FOUND": "This item was not found (it may not exist, or it is outside this token's folders)",
     "INVALID_ARGUMENT": "The arguments do not match the tool's schema: {detail}",
     "RATE_LIMITED": "Too many calls; retry in {retry_after_s} s",

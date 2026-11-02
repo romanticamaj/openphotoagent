@@ -17,6 +17,12 @@
     "severity": "W",
     "title": "環境檢查「{check}」本身失敗"
   },
+  "CONFIRM_TEXT_MISMATCH": {
+    "cta": "重新輸入",
+    "message": "確認文字不正確（應為「{expected}」）",
+    "severity": "B",
+    "title": "確認文字不正確（應為「{expected}」）"
+  },
   "CURSOR_INVALID": {
     "cta": "重新搜尋",
     "message": "分頁游標無效或已過期",
@@ -118,6 +124,30 @@
     "message": "連不到外部模型服務 {url}",
     "severity": "B／T",
     "title": "連不到外部模型服務 {url}"
+  },
+  "FACES_DISABLED": {
+    "cta": "開啟人臉辨識",
+    "message": "人臉辨識沒有開啟",
+    "severity": "B",
+    "title": "人臉辨識沒有開啟"
+  },
+  "FACES_NOT_FOR_SOURCE": {
+    "cta": "調整人臉辨識的來源",
+    "message": "這個來源沒有開啟人臉辨識",
+    "severity": "W",
+    "title": "這個來源沒有開啟人臉辨識"
+  },
+  "FACE_CONSENT_REQUIRED": {
+    "cta": "閱讀並同意",
+    "message": "開啟人臉辨識前需要同意人臉資料的處理方式",
+    "severity": "B",
+    "title": "開啟人臉辨識前需要同意人臉資料的處理方式"
+  },
+  "FACE_SCOPE_REQUIRED": {
+    "cta": "開啟人臉辨識",
+    "message": "人物條件需要先開啟人臉辨識",
+    "severity": "B",
+    "title": "人物條件需要先開啟人臉辨識"
   },
   "FFMPEG_MISSING": {
     "cta": "下載 ffmpeg（保持略過）",
@@ -401,6 +431,12 @@
     "severity": "B",
     "title": "需要 {permission} 權限"
   },
+  "PERSON_NAME_TAKEN": {
+    "cta": "合併兩個人物",
+    "message": "已有同名的人物",
+    "severity": "W",
+    "title": "已有同名的人物"
+  },
   "PLAN_NOT_APPLIED": {
     "cta": "查看計畫狀態",
     "message": "計畫尚未套用，沒有可復原的變更",
@@ -418,6 +454,12 @@
     "message": "計畫建立後有 {n} 個檔案被變更",
     "severity": "B",
     "title": "計畫建立後有 {n} 個檔案被變更"
+  },
+  "QUERY_EXPIRED": {
+    "cta": "重新拖入照片",
+    "message": "拖入的照片已超過 10 分鐘，為了隱私已從記憶體移除",
+    "severity": "W",
+    "title": "拖入的照片已超過 10 分鐘"
   },
   "RAM_INSUFFICIENT": {
     "cta": "改用較小模型",

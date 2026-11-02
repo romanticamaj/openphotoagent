@@ -303,6 +303,7 @@ def _search_body(ctx: Ctx, c: Any, args: dict[str, Any]) -> dict[str, Any]:
             "taken_to": taken.get("to"),
             "scope": folders or ([{"source_id": "-", "path": ""}] if f.get("folders") else None),
             "within": within_scopes(ctx, c),
+            **{k: f[k] for k in ("persons_all", "persons_any", "persons_none") if f.get(k)},
         },
         "collapse_duplicates": (f.get("duplicates") or "collapse") == "collapse",
         "facets": ["tags", "year"],
@@ -1123,17 +1124,53 @@ def undo_organize(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
     return _request(ctx, args, "undo")
 
 
-# ---------------------------------------------------------------- faces (data arrives with v0.2-C)
+# ---------------------------------------------------------------- faces (07 §5.2)
+def _named(c: Any) -> dict[str, Any]:
+    """Named persons only: unnamed groups and ignored or merged persons are never exposed (MCP-TOOL-022)."""
+    from opagent_db.schema import face, person
+
+    rows = c.execute(
+        select(person.c.id, person.c.display_name, func.count(func.distinct(face.c.asset_id)).label("n"))
+        .join(face, face.c.person_id == person.c.id)
+        .where(person.c.status == "named", person.c.display_name.is_not(None), person.c.merged_into.is_(None))
+        .group_by(person.c.id)
+        .order_by(func.count(func.distinct(face.c.asset_id)).desc(), person.c.id)
+    ).all()
+    return {r.id: r for r in rows}
+
+
+def _person_view(r: Any) -> dict[str, Any]:
+    return {"id": r.id, "name": untrusted(r.display_name, "user"), "photo_count": int(r.n)}
+
+
 def list_people(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
-    return {"people": []}
+    with ctx.st.engine.begin() as c:
+        named = list(_named(c).values())
+    return {"people": [_person_view(r) for r in named[: int(args.get("limit") or 50)]]}
 
 
 def get_person(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
-    raise ToolError("NOT_FOUND", "找不到這個人物")
+    with ctx.st.engine.begin() as c:
+        r = _named(c).get(args["person_id"])
+    if r is None:
+        raise ToolError("NOT_FOUND", "找不到這個人物")
+    # face crops: faces:media and mcp_face_media_policy (default none) — the strictest wins (07 §5.4)
+    px, reason = effective_size(256, has_scope="faces:media" in ctx.tok.scopes, policy=ctx.settings.face_media_policy)
+    return {"person": _person_view(r), "media_withheld_reason": reason if not px else None}
 
 
 def find_photos_of_person(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
-    raise ToolError("NOT_FOUND", "找不到這個人物")
+    with ctx.st.engine.begin() as c:
+        named = _named(c)
+    ids = list(args["person_ids"])
+    if any(i not in named for i in ids):
+        raise ToolError("NOT_FOUND", "找不到這個人物")
+    key = "persons_any" if args.get("mode") == "any" else "persons_all"
+    filters = {**(args.get("filters") or {}), key: ids}
+    out = search_photos(
+        ctx, {"filters": filters, "limit": int(args.get("limit") or 20), "return_selection": True, "parse_query": False}
+    )
+    return {"results": out["results"], "selection_id": out["selection_id"], "total": out["total_estimate"]}
 
 
 # ---------------------------------------------------------------- result shaping

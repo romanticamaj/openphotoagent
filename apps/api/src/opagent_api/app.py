@@ -11,6 +11,7 @@ from opagent_db.schema import engine_for
 
 from . import (
     approvals,
+    faces,
     mcp_server,
     routes_doctor,
     routes_duplicates,
@@ -61,6 +62,10 @@ def create_app(
         thumbs_dir=Path(thumbs_dir) if thumbs_dir else None,
         home=Path(home) if home else None,
     )
+    # API connections run as opagent_api; only the face repository reaches the bio schema (ADR-0011)
+    faces.install_roles(st.engine)
+    st.engine.dispose()
+    faces.api_role_hook(st.engine)
     st.ensure_workspace()
     app.state.opa = st
     install_problem_handlers(app)
@@ -78,6 +83,8 @@ def create_app(
     app.include_router(routes_mcp.router, prefix="/api/v1")
     app.include_router(approvals.router, prefix="/api/v1")
     app.include_router(mcp_server.router)
+    app.include_router(faces.router, prefix="/api/v1")
+    app.include_router(faces.worker_router, prefix="/worker-api/v1")
     app.include_router(routes_system.router, prefix="/api/v1")
     app.include_router(routes_duplicates.router, prefix="/api/v1")
     app.include_router(routes_ops.router, prefix="/api/v1")

@@ -17,6 +17,8 @@ dependencies = [
     "uvicorn",
     "argon2-cffi>=25.1.0",
     "python-multipart>=0.0.33",
+    "scikit-learn>=1.9.1",
+    "numpy>=2.5.4",
 ]
 
 [build-system]

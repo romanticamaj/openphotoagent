@@ -317,7 +317,23 @@
     "view_download": "View the download",
     "view_job": "View the job",
     "vulkan": "Use Vulkan",
-    "wsl___install": "Install WSL"
+    "wsl___install": "Install WSL",
+    "mcp/folder_scope": "Folder scope help",
+    "mcp/tools": "Tool reference",
+    "mcp/limits": "Usage limits",
+    "search/filters": "Adjust filters",
+    "search_again": "Search again",
+    "organize/path_template": "Path template help",
+    "new_plan": "Make a new plan",
+    "plan": "Open the plan",
+    "activity": "Open Activity",
+    "mcp": "Open Connect AI assistants",
+    "faces": "Open face settings",
+    "request_again": "Ask the assistant again",
+    "organize": "Organize in the app",
+    "people": "Open People",
+    "drop_again": "Drop the photo again",
+    "retype": "Type it again"
   },
   "nav": {
     "label": "Main navigation",
@@ -329,7 +345,8 @@
     "doctor": "System",
     "settings": "Settings",
     "local": "100% on this computer",
-    "duplicates": "Duplicates"
+    "duplicates": "Duplicates",
+    "people": "People"
   },
   "viewer": {
     "title": "Photos",
@@ -541,7 +558,8 @@
     "engine": "Local engine",
     "folders": "Photo folders",
     "readOnly": "read-only",
-    "writable": "writable"
+    "writable": "writable",
+    "faces": "Face recognition settings"
   },
   "notify": {
     "labelDone": "The organize preview is ready to review",
@@ -634,5 +652,37 @@
     "follow": "See progress",
     "card": "{client} asks to organize {n} photos",
     "open": "Review and decide"
+  },
+  "faces": {
+    "card": "Find photos by face? Face recognition is off by default and runs only on this computer.",
+    "learnMore": "Learn more",
+    "later": "Later",
+    "people": "People",
+    "review": "Confirm faces",
+    "unnamed": "Unnamed",
+    "count": "{n} photos",
+    "others": "Other faces: {n}",
+    "transparency": "Face data stays on this computer; delete it all in Settings any time.",
+    "reviewDone": "No faces to confirm right now",
+    "isThis": "Is this {name}?",
+    "score": "Similarity",
+    "keys": "Press Y to confirm, N for not this person, S to skip",
+    "yes": "Yes",
+    "no": "No",
+    "skip": "Skip",
+    "settings": "Face recognition",
+    "explain": "When on, faces in your photos are detected and grouped on this computer so you can find photos by person. No age, gender or emotion inference; nothing is uploaded.",
+    "enable": "Turn on face recognition",
+    "disable": "Turn off face recognition",
+    "purged": "Deleted the data of {faces} faces and {persons} people",
+    "consent": "Face features are biometric data. They are computed and stored only on this computer and can be deleted in one step; only turn this on for photos you may process.",
+    "agree": "I understand and agree to face processing on this computer",
+    "needConsent": "Tick the agreement first",
+    "agreeAndEnable": "Agree and turn on",
+    "alsoDelete": "Also delete all face data (recommended)",
+    "typeName": "Type the library name “{name}” to confirm",
+    "typeNameFirst": "Type the library name first",
+    "disableAndDelete": "Turn off and delete",
+    "disableOnly": "Turn off only"
   }
 }

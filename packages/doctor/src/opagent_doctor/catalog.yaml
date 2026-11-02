@@ -636,3 +636,45 @@ APPROVAL_NOT_PENDING:
     type: open_settings
   severity: blocker
   transient: false
+FACE_SCOPE_REQUIRED:
+  fixes:
+  - target: faces
+    type: open_settings
+  severity: blocker
+  transient: false
+FACES_DISABLED:
+  fixes:
+  - target: faces
+    type: open_settings
+  severity: blocker
+  transient: false
+FACES_NOT_FOR_SOURCE:
+  fixes:
+  - target: faces
+    type: open_settings
+  severity: warning
+  transient: false
+FACE_CONSENT_REQUIRED:
+  fixes:
+  - target: faces
+    type: open_settings
+  severity: blocker
+  transient: false
+PERSON_NAME_TAKEN:
+  fixes:
+  - target: people
+    type: open_settings
+  severity: warning
+  transient: false
+QUERY_EXPIRED:
+  fixes:
+  - target: drop_again
+    type: retry
+  severity: warning
+  transient: false
+CONFIRM_TEXT_MISMATCH:
+  fixes:
+  - target: retype
+    type: retry
+  severity: blocker
+  transient: false

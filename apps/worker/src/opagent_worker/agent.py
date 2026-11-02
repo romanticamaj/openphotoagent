@@ -40,6 +40,7 @@ class WorkerAgent:
         home: Path,
         backend: Any = None,
         embedder: Any = None,
+        face_backend: Any = None,
         worker_id: str | None = None,
         hw_profile: str | None = None,
         models_root: Path | None = None,
@@ -53,6 +54,8 @@ class WorkerAgent:
         self.home = Path(home)
         self.home.mkdir(parents=True, exist_ok=True)
         self.backend = backend
+        self.face_backend = face_backend  # detection + embedding run only here, on the decoded image (07 §2.2)
+        self._faces: dict[str, tuple[str, list[dict[str, Any]]]] = {}
         self._active_child: Any = None  # the running download child (ADR-0007)
         self._dl_abandon = threading.Event()
         self.download_reserve_floor: int | None = None  # None = 06 §2.5 default (max(2 GB, 2 %)); test harness only
@@ -211,7 +214,30 @@ class WorkerAgent:
 
         crash_point("worker_after_infer")  # chaos: die after inference, before reporting (Q-022)
         self._send_results(reports)
+        self._send_faces(reports)
         return len(items)
+
+    def _send_faces(self, reports: list[dict[str, Any]]) -> None:
+        from opagent_core.faces import should_run
+
+        if self.face_backend is None:
+            return
+        for rep in reports:
+            got = self._faces.pop(rep.get("job_item_id", ""), None)
+            if got is None or rep.get("status") != "ok":
+                continue
+            if not should_run(category=(rep.get("output") or {}).get("category")):  # e.g. screenshots
+                continue
+            aid, faces = got
+            self.client.post(
+                "/worker-api/v1/faces",
+                json={
+                    "worker_id": self.worker_id,
+                    "asset_id": aid,
+                    "fingerprint": self.face_backend.fingerprint,
+                    "faces": [{k: v for k, v in f.items() if k != "person_hint"} for f in faces],
+                },
+            )
 
     # ---- offline tolerance: results go to a local outbox when the CP is unreachable (02 §4.3, Q-013) ----
     def _outbox(self) -> Any:
@@ -276,6 +302,8 @@ class WorkerAgent:
 
                 self._facts[it["id"]] = exif_facts(im, it["rel"])
                 pic = oriented(im).convert("RGB")
+                if it.get("faces") and self.face_backend is not None:  # same decode as the VLM (FACE-DET-004)
+                    self._faces[it["id"]] = (it["asset_id"], self.face_backend.detect(it["rel"], pic))
                 pic.thumbnail((side, side))
                 import io
 
@@ -664,6 +692,45 @@ class WorkerAgent:
 
             res = asyncio.run(_wait(res))
         return {"vec": [float(x) for x in list(res[0])]}
+
+    def _do_face_embed_query(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """「拖照片找人」: the uploaded picture is fetched once from the API's memory and its face vectors are only in
+        this answer — nothing on disk, nothing in a log (FACE-FIND-002)."""
+        import io
+
+        from PIL import Image
+
+        from .imaging import oriented
+
+        if self.face_backend is None:
+            return {"error": "MODEL_UNAVAILABLE"}
+        r = self.client.get(f"/worker-api/v1/blobs/{p['blob']}")
+        if r.status_code != 200:
+            return {"error": "BLOB_GONE"}
+        try:
+            with Image.open(io.BytesIO(r.content)) as im:
+                pic = oriented(im).convert("RGB")
+        except Exception:
+            return {"error": "DECODE_FAILED"}
+        faces = self.face_backend.detect(p.get("name") or "query", pic)
+        return {"faces": [{k: v for k, v in f.items() if k != "person_hint"} for f in faces]}
+
+    def _do_face_purge(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """Worker side of the one-click purge (07 §6.3): face thumbnails and any vault go, the workspace key is
+        destroyed so sealed backups cannot be opened again (FACE-PRG-002). The report holds counts only."""
+        import shutil
+
+        from . import facevault
+
+        d = self.home / "faces"
+        n = sum(1 for f in d.rglob("*") if f.is_file()) if d.exists() else 0
+        if d.exists():
+            shutil.rmtree(d)
+        try:
+            destroyed = facevault.destroy_key(p["workspace_id"]) or facevault._get(p["workspace_id"]) is None
+        except Exception:  # no keyring at all: nothing was ever sealed with it
+            destroyed = True
+        return {"thumbnails": n, "key_destroyed": bool(destroyed), "vault_removed": True}
 
     def _do_embed_image(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         """``embed.image`` RPC (05 §2.2): an uploaded query picture, fetched once from the API's memory, embedded

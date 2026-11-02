@@ -105,7 +105,11 @@ def _parse_yaml(path: Path) -> tuple[Any, yaml.Node | None]:
 
 def _validate_model(path: Path, data: Any, node: yaml.Node | None) -> tuple[ModelSpec | None, list[RegistryIssue]]:
     try:
-        return ModelSpec.model_validate(data), []
+        spec = ModelSpec.model_validate(data)
+        if spec.kind.startswith("face_") and any(v.runtime == "openai-compatible" for v in spec.variants):
+            # faces are computed only on the user's own machine (07 §6.2 F3)
+            return spec, [RegistryIssue(str(path), 1, "FACE_REMOTE_RUNTIME: face models must run locally", spec.id)]
+        return spec, []
     except ValidationError as e:
         mid = data.get("id") if isinstance(data, dict) else None
         return None, [
@@ -218,7 +222,7 @@ def load_registry(root: Path | None = None, user_dirs: list[Path] | None = None)
             if spec is None:
                 errors.extend(issues)
                 continue
-            issues = _user_issues(spec, path)
+            issues = issues + _user_issues(spec, path)
             lm = LoadedModel(
                 spec=spec, source="user", status="invalid" if issues else "valid", errors=issues, file=str(path)
             )

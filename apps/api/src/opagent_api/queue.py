@@ -67,6 +67,15 @@ def create_label_items(
     return {"total": len(rows), "cached": sum(r["status"] == "cached" for r in rows)}
 
 
+def _faces_on(conn: Any, asset_id: str) -> bool:
+    from opagent_db.schema import asset_location
+
+    from .faces import enabled_for
+
+    sid = conn.execute(select(asset_location.c.source_id).where(asset_location.c.asset_id == asset_id)).scalar()
+    return enabled_for(conn, sid)
+
+
 def lease(
     conn: Any,
     clock: Any,
@@ -120,6 +129,7 @@ def lease(
                 "attempt": r.attempts,
                 "task_config": j.get("task_config"),
                 "content_hash": None,
+                "faces": _faces_on(conn, r.asset_id),  # the face step rides on the same decode (07 §2.2)
             }
         )
     return sorted(out, key=lambda x: (x["lane"] != "interactive", x["id"]))

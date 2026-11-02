@@ -51,6 +51,9 @@ class Filters(BaseModel):
     scope: list[Scope] | None = None
     # an MCP token's folders (05 §3.2): ANDed with everything else, so a caller can only narrow it (MCP-FOLD-001)
     within: list[Scope] | None = None
+    persons_all: list[str] | None = None  # 07 §3.3: only with faces on (403 FACE_SCOPE_REQUIRED otherwise)
+    persons_any: list[str] | None = None
+    persons_none: list[str] | None = None
 
 
 class SearchIn(BaseModel):
@@ -132,7 +135,7 @@ def query_vector(st: AppState, text_q: str, space: Any) -> list[float] | None:
 def active_space(c: Any) -> Any:
     return c.execute(
         select(embedding_space)
-        .where(embedding_space.c.status == "active")
+        .where(embedding_space.c.status == "active", embedding_space.c.modality == "image")
         .order_by(embedding_space.c.id.desc())
         .limit(1)
     ).first()
@@ -162,6 +165,12 @@ def _where(f: Filters, snapshot: str | None) -> tuple[list[Any], dict[str, Any]]
             f"src:{s.source_id}:/" + s.path.strip("/") if s.path.strip("/") else f"src:{s.source_id}:/" for s in f.scope
         ]
         w.append(search_doc.c.scope_keys.overlap(keys))
+    if f.persons_all:
+        w.append(search_doc.c.person_ids.contains(f.persons_all))
+    if f.persons_any:
+        w.append(search_doc.c.person_ids.overlap(f.persons_any))
+    if f.persons_none:
+        w.append(or_(search_doc.c.person_ids.is_(None), ~search_doc.c.person_ids.overlap(f.persons_none)))
     if f.within is not None:
         keys = [
             f"src:{s.source_id}:/" + s.path.strip("/") if s.path.strip("/") else f"src:{s.source_id}:/"
@@ -257,6 +266,13 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
 
     # control characters carry no meaning in a query, and PostgreSQL cannot store NUL in text/JSON (SRCH-TOK-009)
     body = body.model_copy(update={"q": _CONTROL.sub("", body.q)}) if body.q else body
+    f0 = body.filters
+    if f0.persons_all or f0.persons_any or f0.persons_none:
+        from .faces import fsettings
+
+        with st.engine.begin() as c:
+            if not fsettings(c).get("enabled"):  # refuse rather than silently answer "nobody" (07 §3.3)
+                raise HTTPException(403, detail={"code": "FACE_SCOPE_REQUIRED"})
     cur = _unsign(body.cursor) if body.cursor else None
     if cur and cur.get("h") != _qhash(body):
         raise HTTPException(400, detail={"code": "CURSOR_INVALID"})

@@ -119,6 +119,12 @@ def _tag_key(tok: Any, t: str) -> str:
     return normalize(t).strip()
 
 
+def _person_fields(c: Any, asset_id: str) -> dict[str, Any]:
+    from .faces import person_fields
+
+    return person_fields(c, asset_id)
+
+
 def index_asset(c: Any, asset_id: str) -> None:
     """Rebuild one search_doc row: latest model result + human label, facets, scope keys, weighted tsvector."""
     from opagent_db.schema import asset, asset_location
@@ -165,6 +171,7 @@ def index_asset(c: Any, asset_id: str) -> None:
         "taken_year": taken.year if taken else None,
         "date_source": a.date_source,
         "scope_keys": _scope_keys(c, asset_id),
+        **_person_fields(c, asset_id),
         "review_state": review_state,
         "confidence": conf,
         "body": " ".join(doc["A"] + doc["B"] + doc["C"] + doc["D"]),

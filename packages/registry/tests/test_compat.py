@@ -24,6 +24,8 @@ def matrix(reg):
     for p in PROFILES:
         hw = load_profile(p)
         for m in sorted(reg.models):
+            if reg.models[m].spec.kind.startswith("face_"):  # MDL-002 is the 8 VLM/embedding variants; faces: 07
+                continue
             for v in reg.models[m].spec.variants:
                 c = compat(reg.models[m], v.id, hw, reg.runtimes, gpu_classes=reg.gpu_classes)
                 out[f"{p}|{m}@{v.id}"] = {
