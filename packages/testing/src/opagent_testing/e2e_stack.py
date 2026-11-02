@@ -264,10 +264,19 @@ class Stack:
         from opagent_db.schema import engine_for, metadata
         from sqlalchemy import text
 
+        from sqlalchemy.exc import OperationalError
+
         eng = engine_for(self.dsn)
-        with eng.begin() as c:
-            names = ", ".join(f'"{t.name}"' for t in metadata.sorted_tables)
-            c.execute(text(f"TRUNCATE {names} RESTART IDENTITY CASCADE"))
+        names = ", ".join(f'"{t.name}"' for t in metadata.sorted_tables)
+        for attempt in range(5):  # a request left over from the previous test may hold a lock: PG picks one victim
+            try:
+                with eng.begin() as c:
+                    c.execute(text(f"TRUNCATE {names} RESTART IDENTITY CASCADE"))
+                break
+            except OperationalError as e:
+                if "deadlock" not in str(e) or attempt == 4:
+                    raise
+                time.sleep(0.2 * (attempt + 1))  # noqa: TID251 - test harness only
         eng.dispose()
         self.app.state.opa.ensure_workspace()
 
