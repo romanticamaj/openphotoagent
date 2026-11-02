@@ -36,3 +36,14 @@ def validate_auto_approve(cfg: dict[str, Any]) -> dict[str, Any]:
         "max_actions": max(0, min(int(cfg.get("max_actions") or MAX_ACTIONS), MAX_ACTIONS)),
         "targets": [str(t) for t in cfg.get("targets") or []],
     }
+
+
+def eligible(cfg: dict[str, Any], actions: list[str], *, overwrites: int = 0, target: str | None = None) -> bool:
+    """Whether a plan with these action kinds may skip the person (MCP-APPR-007): every action is in the
+    configured non-destructive set, nothing overwrites, the plan fits ``max_actions`` and, when targets are
+    configured, the plan writes into one of them."""
+    if not actions or overwrites or len(actions) > cfg["max_actions"]:
+        return False
+    if any(a in NEVER or a not in cfg["actions"] for a in actions):
+        return False
+    return not cfg["targets"] or target in cfg["targets"]

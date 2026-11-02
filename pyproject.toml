@@ -9,7 +9,7 @@ dependencies = []
 package = false
 
 [tool.uv.workspace]
-members = ["packages/core", "packages/fs-sandbox", "packages/inference-sdk", "packages/inference-adapters", "packages/testing", "packages/schemas", "packages/db", "packages/registry", "packages/doctor", "packages/search", "packages/geo", "apps/api", "apps/worker", "apps/cli", "tools/pytest_tc"]
+members = ["packages/core", "packages/fs-sandbox", "packages/inference-sdk", "packages/inference-adapters", "packages/testing", "packages/schemas", "packages/db", "packages/registry", "packages/doctor", "packages/search", "packages/geo", "packages/mcp-tools", "apps/api", "apps/worker", "apps/cli", "tools/pytest_tc"]
 
 [tool.uv.sources]
 opagent-core = { workspace = true }
@@ -23,6 +23,7 @@ opagent-registry = { workspace = true }
 opagent-doctor = { workspace = true }
 opagent-search = { workspace = true }
 opagent-geo = { workspace = true }
+opagent-mcp-tools = { workspace = true }
 opagent-api = { workspace = true }
 opagent-worker = { workspace = true }
 opagent-cli = { workspace = true }
@@ -30,10 +31,10 @@ pytest-opagent-tc = { workspace = true }
 
 [dependency-groups]
 dev = [
-  "opagent-core", "opagent-fs-sandbox", "opagent-inference-sdk", "opagent-inference-adapters", "opagent-testing", "opagent-registry", "opagent-doctor", "opagent-search", "opagent-geo",
+  "opagent-core", "opagent-fs-sandbox", "opagent-inference-sdk", "opagent-inference-adapters", "opagent-testing", "opagent-registry", "opagent-doctor", "opagent-search", "opagent-geo", "opagent-mcp-tools",
   "opagent-schemas", "opagent-db", "opagent-api", "opagent-worker", "opagent-cli", "pytest-opagent-tc",
   "pytest>=8", "pytest-cov", "pytest-randomly", "pytest-socket", "pytest-asyncio", "hypothesis",
-  "ruff", "mypy", "import-linter", "httpx", "mutmut", "diff-cover", "onnx",
+  "ruff", "mypy", "import-linter", "httpx", "mutmut", "diff-cover", "onnx", "hypothesis-jsonschema",
 ]
 
 [tool.pytest.ini_options]
