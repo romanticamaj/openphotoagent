@@ -82,14 +82,14 @@ def export(body: ExportIn, req: Request) -> dict[str, Any]:
         t: dict[str, Any] = {
             "data": {"image": f"/data/local-files/?d={loc.root_alias}/{loc.rel_path}", "opagent_id": aid}
         }
-        r: Any = latest.get(aid)
-        if r is not None and r.category:
+        pred: Any = latest.get(aid)
+        if pred is not None and pred.category:
             t["predictions"] = [
                 {
-                    "model_version": r.model_fingerprint,
-                    "score": float(r.confidence or 0.0),
+                    "model_version": pred.model_fingerprint,
+                    "score": float(pred.confidence or 0.0),
                     "result": [
-                        {"from_name": FROM, "to_name": "image", "type": "choices", "value": {"choices": [r.category]}}
+                        {"from_name": FROM, "to_name": "image", "type": "choices", "value": {"choices": [pred.category]}}
                     ],
                 }
             ]
