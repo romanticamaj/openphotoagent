@@ -297,6 +297,8 @@ def plan(
         if people:
             filters["persons_all"] = people
         text = t.rest()
+        if not filters and not text:  # only stop words: searching for nothing would list every photo
+            text = unicodedata.normalize("NFKC", q or "").strip()
         confidence = 0.0 if not filters else round(min(1.0, 0.5 + 0.15 * len(filters) - 0.05 * len(text.split())), 2)
         return {
             "text": text,
