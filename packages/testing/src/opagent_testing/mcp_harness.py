@@ -62,7 +62,8 @@ class M:
     ) -> str:
         n = next(_ids)
         aid = f"a{n:05d}"
-        taken = taken or datetime(2025, 1, 1, tzinfo=UTC) + timedelta(days=n)
+        self._added = getattr(self, "_added", 0) + 1  # per library: dates must not depend on test order
+        taken = taken or datetime(2025, 1, 1, tzinfo=UTC) + timedelta(days=self._added)
         self.sql(
             "insert into asset(id, workspace_id, content_hash, size_bytes, taken_at, date_source, width, height, exif)"
             " values (:a,'default',:h,:s,:t,'exif_offset',4000,3000,CAST(:e AS jsonb))",
