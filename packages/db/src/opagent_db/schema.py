@@ -758,6 +758,42 @@ preset_table = Table(
 )
 
 
+# invariant 10: the user's confirmation to run a model's own code, bound to the exact files (path → sha256)
+remote_code_consent = Table(
+    "remote_code_consent",
+    metadata,
+    Column("model_key", Text, primary_key=True),
+    Column("files", JSONB, nullable=False),
+    Column("confirmed_by", Text, nullable=False),
+    _ts("confirmed_at", nullable=False),
+)
+
+
+# 02 §8: write-back to other apps (Immich). Same plan → approve → journal → apply/undo discipline as file actions.
+integration_plan = Table(
+    "integration_plan",
+    metadata,
+    Column("id", Text, primary_key=True),
+    Column("workspace_id", Text, nullable=False),
+    Column("kind", Text, nullable=False),  # immich
+    Column("status", Text, nullable=False),  # hashing | draft | applied | undone | failed
+    Column("spec", JSONB, nullable=False),
+    Column("body", JSONB),  # actions, skipped, summary
+    _ts("created_at", server_default=func.now()),
+)
+integration_journal = Table(
+    "integration_journal",
+    metadata,
+    Column("id", BigInteger, primary_key=True, autoincrement=True),
+    Column("plan_id", Text, ForeignKey("integration_plan.id", ondelete="CASCADE"), nullable=False),
+    Column("seq", Integer, nullable=False),
+    Column("op", Text, nullable=False),
+    Column("params", JSONB, nullable=False),
+    Column("state", Text, nullable=False),  # intent | done | undone
+    _ts("at", nullable=False),
+)
+
+
 def engine_for(dsn: str) -> Engine:
     url = dsn.replace("postgresql://", "postgresql+psycopg://", 1)
     return create_engine(url, pool_pre_ping=True, future=True)

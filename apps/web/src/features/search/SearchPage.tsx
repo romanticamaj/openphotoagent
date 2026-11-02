@@ -5,6 +5,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../../components/Button";
+import { COMPARE_MAX, CompareView } from "./CompareView";
 import { api, mediaUrl, type SearchBody } from "../../lib/api";
 
 type Chip = { kind: "tag"; value: string } | { kind: "year"; value: string } | { kind: "range"; value: string; from: string; to: string };
@@ -16,6 +17,7 @@ export function SearchPage({ q }: { q: string }) {
   const [planned, setPlanned] = useState<{ text: string } | null>(null);
   const [sel, setSel] = useState<{ all: boolean; ids: Set<string>; anchor: number | null }>({ all: false, ids: new Set(), anchor: null });
   const [toast, setToast] = useState<string | null>(null);
+  const [comparing, setComparing] = useState<string[] | null>(null);
   useEffect(() => {
     setChips([]);
     setPlanned(null);
@@ -67,8 +69,14 @@ export function SearchPage({ q }: { q: string }) {
     }
     if (e.key === "Escape") setSel({ all: false, ids: new Set(), anchor: null });
   };
-  const clickHit = (i: number, id: string, shift: boolean) => {
-    if (shift && sel.anchor !== null) {
+  const clickHit = (i: number, id: string, shift: boolean, toggle = false) => {
+    if (toggle) {
+      // ⌘/Ctrl-click adds or removes one photo (10 §4.1)
+      const ids = new Set(sel.all ? [] : sel.ids);
+      if (ids.has(id)) ids.delete(id);
+      else ids.add(id);
+      setSel({ all: false, ids, anchor: i });
+    } else if (shift && sel.anchor !== null) {
       const [a, b] = [Math.min(sel.anchor, i), Math.max(sel.anchor, i)];
       const ids = new Set(sel.ids);
       for (const h of hits.slice(a, b + 1)) ids.add(h.asset_id);
@@ -118,7 +126,23 @@ export function SearchPage({ q }: { q: string }) {
           onPick={(v) => setChips([...chips.filter((c) => c.kind !== "year"), { kind: "year", value: v }])}
         />
       </div>
-      {count > 0 && <BatchBar count={count} makeSelection={handle} onDone={(n) => setToast(t("batch.updated", { n: n.toLocaleString(i18n.language) }))} />}
+      {count > 0 && (
+        <BatchBar
+          count={count}
+          makeSelection={handle}
+          onDone={(n) => setToast(t("batch.updated", { n: n.toLocaleString(i18n.language) }))}
+          onCompare={sel.all ? undefined : () => setComparing([...sel.ids])}
+        />
+      )}
+      {comparing ? (
+        <CompareView
+          ids={comparing}
+          onClose={() => {
+            setComparing(null);
+            window.setTimeout(() => document.querySelector<HTMLElement>("[data-compare-button]")?.focus(), 0);
+          }}
+        />
+      ) : null}
       {res.isSuccess && hits.length === 0 && <p>{t("search.none")}</p>}
       <div ref={gridRef} tabIndex={-1} onKeyDown={onKey} role="listbox" aria-label={t("search.results")} aria-multiselectable="true" className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-0.5 outline-none">
         {hits.map((h, i) => {
@@ -133,7 +157,7 @@ export function SearchPage({ q }: { q: string }) {
               data-asset={h.asset_id}
               className="tile relative aspect-square"
               style={{ position: "relative" }}
-              onClick={(e) => clickHit(i, h.asset_id, e.shiftKey)}
+              onClick={(e) => clickHit(i, h.asset_id, e.shiftKey, e.ctrlKey || e.metaKey)}
             >
               <img src={mediaUrl(h.asset_id, "t256", h.ch)} alt={h.caption ?? ""} loading="lazy" onError={(e) => (e.currentTarget.style.visibility = "hidden")} />
               <span data-matched={h.matched_by.join(" ")} className="absolute bottom-1 left-1 flex gap-1 text-[10px]">
@@ -180,7 +204,17 @@ function Facet({ label, values, onPick }: { label: string; values?: Record<strin
   );
 }
 
-function BatchBar({ count, makeSelection, onDone }: { count: number; makeSelection: () => Promise<{ id: string; count: number }>; onDone: (n: number) => void }) {
+function BatchBar({
+  count,
+  makeSelection,
+  onDone,
+  onCompare,
+}: {
+  count: number;
+  makeSelection: () => Promise<{ id: string; count: number }>;
+  onDone: (n: number) => void;
+  onCompare?: () => void;
+}) {
   const { t, i18n } = useTranslation();
   const nav = useNavigate();
   const [tag, setTag] = useState("");
@@ -198,6 +232,20 @@ function BatchBar({ count, makeSelection, onDone }: { count: number; makeSelecti
   return (
     <div data-testid="batch-bar" className="flex flex-wrap items-end gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3">
       <strong className="tnum">{t("batch.selected", { n: count.toLocaleString(i18n.language) })}</strong>
+      <Button
+        variant="ghost"
+        data-compare-button=""
+        disabledReason={
+          !onCompare || count < 2
+            ? { code: "COMPARE_TOO_FEW", message: t("compare.tooFew") }
+            : count > COMPARE_MAX
+              ? { code: "COMPARE_TOO_MANY", message: t("compare.tooMany", { n: COMPARE_MAX }) }
+              : null
+        }
+        onClick={() => onCompare?.()}
+      >
+        {t("compare.open")}
+      </Button>
       <label className="flex flex-col text-xs">
         {t("batch.tag")}
         <input aria-label={t("batch.tag")} value={tag} onChange={(e) => setTag(e.target.value)} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-sm" />

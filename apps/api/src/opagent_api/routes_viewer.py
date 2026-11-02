@@ -161,3 +161,18 @@ def get_preset(key: str, lang: str = "en") -> dict[str, Any]:
             for c in p.categories
         ],
     }
+
+
+@router.get("/map/points")
+def map_points(req: Request) -> dict[str, Any]:
+    """Photos with a GPS position (10 §2.5): ``{id, lat, lon}``; the rest are counted as "no location"."""
+    with _st(req).engine.connect() as c:
+        rows = c.execute(
+            text(
+                "SELECT id, (exif->'gps'->>'lat')::float AS lat, (exif->'gps'->>'lon')::float AS lon FROM asset "
+                "WHERE workspace_id = :ws ORDER BY id"
+            ),
+            {"ws": DEFAULT_WS},
+        ).all()
+    pts = [{"id": r.id, "lat": r.lat, "lon": r.lon} for r in rows if r.lat is not None and r.lon is not None]
+    return {"points": pts, "without_location": len(rows) - len(pts)}

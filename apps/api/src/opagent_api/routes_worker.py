@@ -449,6 +449,7 @@ def complete(task_id: str, body: CompleteIn, req: Request) -> dict[str, str]:
             .values(status="done" if body.ok else "failed", result=body.result)
         )
         from .routes_bench import on_benchmark_complete
+        from .routes_caption import on_captions_embedded
         from .routes_models import on_download_complete, on_remove_complete
 
         handler = {
@@ -459,6 +460,7 @@ def complete(task_id: str, body: CompleteIn, req: Request) -> dict[str, str]:
             "download": on_download_complete,
             "remove": on_remove_complete,
             "benchmark": on_benchmark_complete,
+            "embed_captions": on_captions_embedded,
         }.get(t.kind)
         if t.kind in TASK_OP_TYPES:
             waiting = body.result.get("status") == "waiting"

@@ -15,7 +15,7 @@ from datetime import datetime
 from typing import Any
 
 RRF_K = 60
-BASE_WEIGHTS = {"image_vector": 1.0, "fulltext": 1.0, "tag": 1.2}
+BASE_WEIGHTS = {"image_vector": 1.0, "fulltext": 1.0, "tag": 1.2, "caption_vector": 0.8}  # R2: 05 §2
 PHRASE_FULLTEXT = 1.5
 
 

@@ -1,0 +1,11 @@
+schema_version: 1
+id: torch-cpu
+provides: { runtime: torch, accel: cpu }
+builtin: false
+advanced: true
+size_est: 300000000
+platforms:
+  - { os: windows, arch: x86_64 }
+  - { os: linux, arch: x86_64 }
+  - { os: macos, arch: arm64 }
+license: { spdx: BSD-3-Clause, notice_file: LICENSE-torch }

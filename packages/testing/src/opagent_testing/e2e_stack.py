@@ -239,6 +239,10 @@ class Stack:
             eng.dispose()
             return {"inserted": n}
 
+        @ctl.post("/gps-library")
+        def gps_library() -> dict[str, int]:
+            return self.gps_library()
+
         @ctl.post("/face-library")
         def face_library(body: dict[str, Any] | None = None) -> dict[str, Any]:
             """Faces on, 2 people × 8 photos through the worker ingestion route (FakeFaceBackend), grouped; the first
@@ -313,6 +317,38 @@ class Stack:
                 time.sleep(0.2 * (attempt + 1))  # noqa: TID251 - test harness only
         eng.dispose()
         self.app.state.opa.ensure_workspace()
+
+    def gps_library(self) -> dict[str, int]:
+        """20 photos with GPS in four places (Tokyo, Taipei, Paris, New York) plus 2 without (MAP-001/002)."""
+        import io
+
+        from PIL import Image
+
+        places = [(35.68, 139.76), (25.03, 121.56), (48.86, 2.35), (40.71, -74.0)]
+        d = self.photos / "geo"
+        d.mkdir(parents=True, exist_ok=True)
+
+        def dms(v: float) -> tuple[float, float, float]:
+            v = abs(v)
+            deg = int(v)
+            mins = int((v - deg) * 60)
+            return (float(deg), float(mins), round(((v - deg) * 60 - mins) * 60, 2))
+
+        for i in range(22):
+            im = Image.new("RGB", (64, 48), ((i * 40) % 255, 120, 200))
+            ex = Image.Exif()
+            if i < 20:
+                lat, lon = places[i % 4]
+                lat, lon = lat + i * 0.001, lon + i * 0.001
+                ex[0x8825] = {1: "N" if lat >= 0 else "S", 2: dms(lat), 3: "E" if lon >= 0 else "W", 4: dms(lon)}
+            buf = io.BytesIO()
+            im.save(buf, "JPEG", exif=ex)
+            (d / f"geo_{i:02d}.jpg").write_bytes(buf.getvalue())
+        client = httpx.Client(base_url=f"http://127.0.0.1:{self.port}", timeout=30)
+        src = client.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": "geo"}).json()["id"]
+        client.post(f"/api/v1/sources/{src}/scan").raise_for_status()
+        self._wait(client, lambda: self._scan_done(src), 60)
+        return {"with_gps": 20, "without": 2}
 
     def face_library(self, named: bool = True, enable: bool = True) -> dict[str, Any]:
         from opagent_db.schema import engine_for
@@ -456,6 +492,11 @@ class Stack:
         )
         # stand-in models are a few MB: do not make the suite depend on the host's spare gigabytes (06 §2.5 reserve)
         self.worker.download_reserve_floor = 0
+        if models == "ready":  # caption text models for R2 (ADR-0014); semantic fakes, cross-lingual keywords
+            self.worker.text_embedders = {
+                "qwen3-embedding-0.6b": FakeBackend(vectors="semantic"),
+                "multilingual-e5-small": FakeBackend(vectors="semantic", seed=7),
+            }
         self.worker.register()
         self._thread = threading.Thread(target=self.worker.run_forever, args=(self._stop,), daemon=True)
         self._thread.start()
@@ -536,6 +577,7 @@ class Stack:
         )
         # stand-in models are a few MB: do not make the suite depend on the host's spare gigabytes (06 §2.5 reserve)
         self.worker.download_reserve_floor = 0
+        self.worker.text_embedders = old.text_embedders
         self.worker.register()
         self._thread = threading.Thread(target=self.worker.run_forever, args=(self._stop,), daemon=True)
         self._thread.start()

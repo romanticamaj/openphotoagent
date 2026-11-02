@@ -352,16 +352,81 @@
 
 ---
 
-## 7. v0.4 以後（骨架；開工前細化）
+## 7. v0.4 — 生態與效能（細化於 2026-11-02；08 §3～§4、§9.2；02 §8；05 R2）
+
+> 替身：packs 用本機假 release 伺服器加測試金鑰（PACK-*）。vLLM、MLX 以 `fake_llama_server --flavor vllm|mlx` 模擬各自的 OpenAI 相容差異。torch sidecar 用 `--fake-pipeline`，不安裝 torch。Immich、Label Studio 用 `opagent_testing` 的假伺服器。真 runtime 與真模型的同一套測試在 nightly GPU runner 或使用者電腦上執行（標 N）。
+
+### 7.1 Runtime packs（#23）
+
+| ID | 標題 | 前置／輸入 | 預期 | 層 | # |
+|----|------|-----------|------|----|---|
+| RT-PACK-012 | 新 pack 的平台過濾 | `mlx`（macos-arm64）、`vllm-cu128`（linux-x64）、`torch-cu128`／`torch-mps`／`torch-cpu` 列入 registry；hw profile：m3-16、linux-rtx3090、rtx5070ti-win11 | 推薦清單只含該平台可用的 pack；在 Windows 安裝 `vllm-cu128` 回 `RUNTIME_UNSUPPORTED_PLATFORM`，並附 Docker／WSL2 說明 CTA | I | #23 |
+| RT-PACK-013 | 大 pack 分段 | `vllm-cu128` 分成 3 段（每段 ≤ 2 GiB，測試用小檔模擬） | 逐段續傳；組合後先驗 sha256 再驗逐檔 manifest；任一段損毀時整包拒絕（`PACK_CHECKSUM_MISMATCH`），不會留下半套 | I | #23 |
+| RT-PACK-014 | pack 建置可重現 | `tools/build_pack.py` 打包測試目錄兩次 | 兩次輸出 byte 相同；manifest 含逐檔 sha256；拒絕絕對路徑、`..`、symlink；`packs.yml` workflow matrix 含 vllm／mlx／torch | U/C | #23 |
+| RT-VLLM-001 | vLLM adapter 一致性 | 假 runtime `--flavor vllm`（結構化輸出用 `guided_json`） | INF-CONF-001～013 全綠；非 Linux 回 `RUNTIME_UNSUPPORTED_PLATFORM` | C/N | #23 |
+| RT-MLX-001 | MLX adapter 一致性 | 假 runtime `--flavor mlx`（沒有 logprobs） | INF-CONF 全綠；信心來源標 `self_report`（不是 logprob）；非 macOS arm64 回 unsupported | C/N | #23 |
+| RT-TORCH-001 | torch sidecar 一致性 | `opagent_torch_server --fake-pipeline`（JoyCaption、Florence-2 介面） | INF-CONF 全綠；OpenAI 相容 `/v1/chat/completions`；影像只走記憶體 | C/N | #23 |
+| RT-TORCH-002 | Blackwell 自檢 | GPU compute capability 12.0，pack 的 torch arch list 沒有 `sm_120` | `PACK_INCOMPATIBLE`（reason `cuda_arch`），修復 CTA 是改裝 `torch-cu128`；有 `sm_120` 時通過 | U | #23 |
+| RT-TORCH-003 | trust_remote_code 必須確認 | Florence-2 的 registry 標 `trust_remote_code: true` | 未確認就載入時拒絕（`MODEL_REMOTE_CODE_UNCONFIRMED`），並列出將執行的檔案；確認後記錄使用者、時間和檔案 hash；檔案 hash 變了要重新確認（不變量 10） | I/S | #23 |
+
+### 7.2 匯入既有模型（#20）
+
+| ID | 標題 | 前置／輸入 | 預期 | 層 | # |
+|----|------|-----------|------|----|---|
+| MDL-IMP-001 | 匯入 Ollama 模型 | 假的 Ollama models 目錄（manifest + blob），含 qwen3-vl GGUF 與 projector | 偵測後一鍵登記；以 blob 的 sha256 對照 registry；下載 bytes = 0；projector 自動配對 mmproj | I | #20 |
+| MDL-IMP-002 | 匯入資料夾、LM Studio、HF cache | 資料夾內有 `.gguf`、`.safetensors`、`.onnx`、`pytorch_model.bin` | 前三種登記；`.bin`（pickle）拒絕並說明原因（不變量 10）；不複製檔案，只記錄路徑與 hash | I/S | #20 |
+
+### 7.3 Immich 回寫（#108；02 §8.2）
+
+| ID | 標題 | 前置／輸入 | 預期 | 層 | # |
+|----|------|-----------|------|----|---|
+| IMM-001 | `immich_tags` 動作 | 計畫含 3 張照片的 `immich_tags`；假 Immich 有相同 checksum 的資產 | 核准後才寫入；建立缺少的 tag 並指派；journal 記錄每次 API 寫入；undo 只移除我們加上的 tag（原本就有的保留） | I | #108 |
+| IMM-002 | 以 SHA-1 對照資產 | 2 張在 Immich、1 張不在 | 不在的那張列為 skipped（附原因），不算失敗；計畫預覽顯示「2 張可同步」 | I | #108 |
+| IMM-003 | 相簿與描述 | `immich_album`、`immich_description` | 加入相簿（不存在就建立）；描述預設只填空白的，`overwrite` 開啟才覆寫 | I | #108 |
+| IMM-004 | 連線設定與 preflight | API key；伺服器關閉；key 錯誤 | key 存 OS keyring，API 永不回傳；preflight 分別回 `IMMICH_UNREACHABLE`、`IMMICH_AUTH_FAILED`，各附修復 CTA | I/S | #108 |
+| IMM-005 | 重複套用 | 同一計畫套用兩次 | 第二次的 API 寫入次數為 0 | I | #108 |
+
+### 7.4 Label Studio（#109；02 §8.3）
+
+| ID | 標題 | 前置／輸入 | 預期 | 層 | # |
+|----|------|-----------|------|----|---|
+| LS-001 | 匯出 tasks | 10 張已標註照片 | tasks JSON：`data.image` 是 local-files URL（`/data/local-files/?d=<alias>/<rel>`，不含主機絕對路徑）；predictions 帶 `model_version` 與 `score` | C | #109 |
+| LS-002 | 標註設定 | taxonomy 含 `<` `&` `"` 的類別名 | 產生的 labeling config XML 已正確跳脫，能被 XML parser 解析；類別值用 key | U/S | #109 |
+| LS-003 | 匯回標註 | Label Studio export JSON（含未知類別、已刪除的照片） | 已知類別成為人工標註（review），不重新推論；未知類別與找不到的照片列在報告中 | I | #109 |
+
+### 7.5 caption 多語文字向量 R2（#110；05 §2）
+
+| ID | 標題 | 前置／輸入 | 預期 | 層 | # |
+|----|------|-----------|------|----|---|
+| SRCH-R2-001 | caption 向量進入檢索 | 標註完成的照片；假的多語 text embedder | caption 向量存在 `caption:<model>` space；搜尋時 R2 路以權重 0.8 加入 RRF；結果的 `matched_by` 含 `caption_vector` | I | #110 |
+| SRCH-R2-002 | 跨語言 | 英文 caption「a cat on the beach」，以中文「海邊的貓」查詢 | R2 路命中，即使全文與 tag 都沒有命中 | I | #110 |
+| SRCH-R2-003 | 藍綠 reindex | 換 text embedding 模型 | 新 space 在背景建立（Operation，帶 ETA）；完成前搜尋仍用舊 space；切換是原子的；切換後舊 space 才刪除 | I | #110 |
+| SRCH-R2-004 | reindex UI | 模型頁 | 顯示進度、預估時間與「切換」按鈕；完成前按鈕帶原因 disabled（不變量 8） | E | #110 |
+
+### 7.6 發佈管道與評估（#111、#112）
+
+| ID | 標題 | 前置／輸入 | 預期 | 層 | # |
+|----|------|-----------|------|----|---|
+| DIST-001 | 套件管理器 manifest | release metadata（version、各平台 URL、sha256） | `tools/gen_dist_manifests.py` 產生 winget（多檔 manifest 1.6）、Homebrew cask、Flathub manifest；輸出可重現；必填欄位齊全；版本與 sha256 一致 | U/C | #111 |
+| DIST-002 | 發佈管道評估 | — | `docs/research/distribution.md`：三個管道的要求、簽章、審核時程與建議（人工審閱） | M | #111 |
+| WINML-001 | Windows ML 評估 | — | `docs/research/windows-ml.md`：DirectML 與 Windows ML 的 EP 選擇、安裝包大小、最低 Windows 版本、遷移建議；需要 Windows 實機的項目標 pending-hardware | M | #112 |
+
+### 7.7 地圖與比較模式（#96、#97）
+
+| ID | 標題 | 前置／輸入 | 預期 | 層 | # |
+|----|------|-----------|------|----|---|
+| MAP-001 | 離線地圖 | 網路關閉；20 張有 GPS 的照片 | 內建國界（Natural Earth 110m，公有領域）加照片聚類，不請求任何外部圖磚 | E | #96 |
+| MAP-002 | 聚類與篩選 | 點一個聚類 | 網格篩選為該範圍的照片；無 GPS 的照片計入「沒有位置」 | E | #96 |
+| MAP-003 | 聚類計算 | 1 萬個點、不同縮放 | 純函式網格聚類：每個點恰好屬於一群，總數守恆；同輸入結果相同 | U | #96 |
+| CMP-001 | 比較模式 | 選 2～4 張 → 比較 | 並排顯示；縮放與平移同步；第 5 張不能加入，並說明原因 | E | #97 |
+| CMP-002 | 比較模式鍵盤 | `1`～`4` 切換主圖、`Esc` 離開 | 可用，焦點管理正確 | A | #97 |
+
+> #99 影片播放與封面：11 標「部分」（02 掃描與推論沒有定義影片處理），v0.4 不實作，留待規格補齊（見 11 §1.6 備註）。
+
+## 8. v0.5 以後（骨架；開工前細化）
 
 | ID | 標題 | 預期 | 層 | # | 版 |
 |----|------|------|----|---|----|
-| RT-VLLM-001 | vLLM pack 通過 INF-CONF 一致性套件 | 全部 INF-CONF 綠燈；Linux only，其他 OS 回 `RUNTIME_UNSUPPORTED_PLATFORM` | C/N | #23 | v0.4 |
-| RT-MLX-001 | MLX pack 通過一致性套件 | 同上；macOS only | C/N | #23 | v0.4 |
-| RT-TORCH-001 | torch pack（JoyCaption、Florence-2） | 同上；Blackwell 需 cu128 自檢 | C/N | #23 | v0.4 |
-| MDL-IMP-001 | 匯入 Ollama 模型 | 偵測本機 Ollama 的 Qwen3-VL GGUF → 一鍵登記，不重新下載（下載 bytes = 0） | I | #20 | v0.2 |
-| MAP-001 | 離線地圖 | 離線時仍顯示照片聚類與國界（PMTiles） | E | #96 | v0.4 |
-| CMP-001 | 比較模式 | 2–4 張同步縮放平移 | E | #97 | v0.4 |
 | MU-RBAC-001 | ws_viewer 不可寫 | 對每個寫入 REST 端點與每個寫入 MCP tool 以 ws_viewer 呼叫 → 全部 403 | I/S | #12 | v0.5 |
 | MU-WORKER-001 | 遠端 Worker 只 outbound | 配對與任務只靠 outbound WSS；Worker 不開任何 listening port | I/S | #12 | v0.5 |
 | MU-OAUTH-001 | grant 撤銷即時 | 撤銷後進行中的 MCP 下一個呼叫即失敗 | I | #73 | v0.5 |

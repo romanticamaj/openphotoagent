@@ -130,7 +130,7 @@ def candidate_packs(
     variant: Variant, runtimes: dict[str, RuntimePack], installed: set[str] | frozenset[str] = frozenset()
 ) -> list[RuntimePack]:
     """Packs that could run ``variant``; advanced packs (ROCm, ORT-CUDA) only once the user installed them."""
-    rt_name = {"llama.cpp": "llama.cpp", "onnx": "onnx"}.get(variant.runtime, variant.runtime)
+    rt_name = {"llama.cpp": "llama.cpp", "onnx": "onnx", "transformers": "torch"}.get(variant.runtime, variant.runtime)
     globs = variant.requires.runtime_pack or ["*"]
     out = [
         p

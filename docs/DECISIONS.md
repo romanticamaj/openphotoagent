@@ -351,3 +351,23 @@
 - Lightbox 的 `I`（資訊面板）不帶修飾鍵，與 ⌘I 不衝突。
 
 **影響的測試 ID**：ACT-005 不變；新增 ASK-UI-002（09b §5）。**同步修改的規格**：10 §3.5、§9.1、§12 的對照表、00 §3、04 的導覽與 v0.3 表。
+
+## ADR-0014：caption 文字向量（R2）預設用 Qwen3-Embedding-0.6B，低階機器用 multilingual-e5-small
+
+- 日期：2026-11-02｜狀態：已採納（真機數字待 nightly）｜審議：1 個獨立 sub-agent，比較表見 `docs/research/text-embedding-choice.md`
+
+**背景**：05 的 R2 路需要多語文字向量，路線圖列出 bge-m3 與 Qwen3-Embedding 兩個候選；查詢以繁中與英文為主，caption 由 VLM 產生。
+
+**決定**：
+- 預設 **Qwen3-Embedding-0.6B**，存 1024 維。若 nightly 顯示 recall 損失可忽略，可改為 MRL 768 維。
+- CPU only 與 Mac 8 GB 用 **multilingual-e5-small**（int8 ONNX）。它使用自己的 `caption:<model>` space 與 `query:`／`passage:` 前綴；這兩種機器也可以關閉 R2。
+- 前綴與指令文字算在 config hash 裡（不變量 7）。
+
+**理由**：
+- 授權與專案相同（Apache-2.0）。
+- MMTEB 多語平均比 bge-m3 高約 4.8 點，檢索高約 10 點。
+- GGUF 可直接在已內建的 llama.cpp 執行，不需新 runtime。
+- bge-m3 是次選：沒有前綴、有官方 ONNX；但分數較低，官方 ONNX 只有 2.27 GB fp32。
+- SigLIP2 文字塔是為圖文配對訓練，64 token 上限太緊，而且與 R1 重疊，不採用。
+
+**影響**：SRCH-R2-001～004 以假的多語 embedder 驗證流程；真模型的召回、延遲與量化漂移列入 nightly（研究文件第 1～7 項）；模型 registry 新增兩筆 `text_embed` 條目（sha 由 `registry-pin.yml` 釘選）。

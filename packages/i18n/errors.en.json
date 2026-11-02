@@ -245,6 +245,18 @@
     "severity": "B",
     "title": "You need to accept the terms of {model} on the Hugging Face website first"
   },
+  "IMMICH_AUTH_FAILED": {
+    "cta": "Enter the API key again",
+    "message": "Immich refused the API key",
+    "severity": "B",
+    "title": "Immich refused the API key"
+  },
+  "IMMICH_UNREACHABLE": {
+    "cta": "Check the Immich URL",
+    "message": "The Immich server cannot be reached",
+    "severity": "B",
+    "title": "The Immich server cannot be reached"
+  },
   "INVALID_ARGUMENT": {
     "cta": "Fix the arguments and retry",
     "message": "The arguments do not match the tool's schema: {detail}",
@@ -364,6 +376,12 @@
     "message": "Out of GPU memory; retried automatically with a smaller batch",
     "severity": "W／T",
     "title": "Out of GPU memory"
+  },
+  "MODEL_REMOTE_CODE_UNCONFIRMED": {
+    "cta": "Review and confirm the code",
+    "message": "This model runs its own code on your computer ({files}); review and confirm it first",
+    "severity": "B",
+    "title": "This model runs its own code on your computer ({files})"
   },
   "NET_PORT_IN_USE": {
     "cta": "Switch to a free port",

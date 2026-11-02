@@ -373,6 +373,13 @@ class Pre:
             return False
         return True
 
+    def immich_sync(self) -> None:
+        from .immich import preflight_check
+
+        code = preflight_check(self.st, self.c)
+        if code:
+            self.add(code, {}, "immich")
+
     def benchmark_run(self) -> None:
         """03 §6.1: a golden set needs enough labelled photos per class before scores mean anything (BENCH-002)."""
         from .routes_bench import golden_check
@@ -483,6 +490,11 @@ class Pre:
         m = self.reg.models.get(mid)
         if m is None:
             return
+        from .routes_models import remote_code_confirmed, remote_files
+
+        rc = remote_files(self.reg, key)
+        if rc is not None and not remote_code_confirmed(self.c, key, rc):  # invariant 10
+            self.add("MODEL_REMOTE_CODE_UNCONFIRMED", {"model": key, "files": [f["path"] for f in rc]}, "model")
         inst = self._installs("model").get(key)
         if inst is not None and inst.status == "files_missing":
             self.add("MODEL_FILES_MISSING", {"model": key}, "model")
@@ -622,6 +634,7 @@ class Pre:
                 "runtime.install": self.runtime_install,
                 "search": self.search,
                 "benchmark.run": self.benchmark_run,
+                "immich.sync": self.immich_sync,
             }.get(self.action)
             if handler:
                 handler()

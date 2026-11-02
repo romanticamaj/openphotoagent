@@ -210,3 +210,23 @@ def recommend(reg: Registry, hw: HwSummary, pin_states: dict[str, str] | None = 
     r.download_bytes, r.download_estimated = total, estimated
     r.download_minutes = round(total / DEFAULT_BANDWIDTH_BPS / 60, 1)
     return r
+
+
+DOCS_DOCKER = "https://github.com/romanticamaj/openphotoagent/blob/main/docs/runtime-packs.md#vllm-docker"
+
+
+def advanced_packs(reg: Registry, hw: HwSummary, include_blocked: bool = False) -> list[dict[str, Any]]:
+    """Packs a user may add on purpose (vLLM, MLX, torch, ROCm, ORT-CUDA) — only those that can run on this machine,
+    or with ``include_blocked`` also the others, each with why not and where to read about the alternative."""
+    out: list[dict[str, Any]] = []
+    for pid in sorted(reg.runtimes):
+        p = reg.runtimes[pid]
+        if not p.advanced:
+            continue
+        why = pack_failure(p, hw, reg.gpu_classes)
+        if why is None:
+            out.append({"pack": pid, "runtime": p.provides.get("runtime"), "size": p.size_est})
+        elif include_blocked:
+            fixes = [{"type": "open_docs", "url": DOCS_DOCKER}] if why == "RUNTIME_UNSUPPORTED_PLATFORM" else []
+            out.append({"pack": pid, "runtime": p.provides.get("runtime"), "reason": why, "fixes": fixes})
+    return out

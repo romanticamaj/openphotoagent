@@ -35,6 +35,12 @@ class ModelUnavailable(Exception):
     """Model not loaded / not installed."""
 
 
+class UnsupportedPlatform(ModelUnavailable):
+    """A runtime that cannot run on this OS/arch (e.g. vLLM on Windows): refused before anything starts."""
+
+    code = "RUNTIME_UNSUPPORTED_PLATFORM"
+
+
 @dataclass(frozen=True)
 class PreferredInput:
     max_side: int

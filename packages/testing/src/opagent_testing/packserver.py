@@ -80,6 +80,13 @@ def manifest_of(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
     ]
 
 
+def _resolve(p: dict[str, Any], base: str) -> dict[str, Any]:
+    out = {**p, "url": p["url"].replace("{base}", base)}
+    if "parts" in p:
+        out["parts"] = [{**x, "url": x["url"].replace("{base}", base)} for x in p["parts"]]
+    return out
+
+
 class PackServer:
     def __init__(self, root: Path, key: TestKey) -> None:
         self.root = root
@@ -95,12 +102,24 @@ class PackServer:
         entries: list[dict[str, Any]],
         pack_api: int = 1,
         numerics_epoch: int = 3,
+        parts: int | None = None,
         **over: Any,
     ) -> dict[str, Any]:
         blob = build_tar(entries)
         name = f"{pid}-{version}.tar.zst"
         (self.root / name).write_bytes(blob)
         man = manifest_of(entries)
+        if parts:  # large packs are split on the release (GitHub's 2 GiB asset limit, 08 §4.3)
+            step = -(-len(blob) // parts)
+            plist = []
+            for i in range(parts):
+                chunk = blob[i * step : (i + 1) * step]
+                pname = f"{name}.part{i + 1:02d}"
+                (self.root / pname).write_bytes(chunk)
+                plist.append(
+                    {"url": f"{{base}}/{pname}", "size": len(chunk), "sha256": hashlib.sha256(chunk).hexdigest()}
+                )
+            over = {"parts": plist, **over}
         p = {
             "id": pid,
             "version": version,
@@ -119,9 +138,7 @@ class PackServer:
         return p
 
     def publish(self, tamper: bool = False) -> None:
-        idx = json.dumps(
-            {"schema_version": 1, "packs": [{**p, "url": p["url"].replace("{base}", self.url)} for p in self.packs]}
-        ).encode()
+        idx = json.dumps({"schema_version": 1, "packs": [_resolve(p, self.url) for p in self.packs]}).encode()
         sig = self.key.sign(idx)
         if tamper:
             idx = idx[:-2] + (b"X" if idx[-2:-1] != b"X" else b"Y") + idx[-1:]

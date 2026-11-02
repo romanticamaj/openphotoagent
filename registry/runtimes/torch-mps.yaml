@@ -1,0 +1,9 @@
+schema_version: 1
+id: torch-mps
+provides: { runtime: torch, accel: metal }
+builtin: false
+advanced: true
+size_est: 500000000
+platforms:
+  - { os: macos, arch: arm64 }
+license: { spdx: BSD-3-Clause, notice_file: LICENSE-torch }

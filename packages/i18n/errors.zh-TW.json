@@ -245,6 +245,18 @@
     "severity": "B",
     "title": "需要先在 Hugging Face 網站上同意 {model} 的使用條款"
   },
+  "IMMICH_AUTH_FAILED": {
+    "cta": "重新輸入 API key",
+    "message": "Immich 拒絕了 API key",
+    "severity": "B",
+    "title": "Immich 拒絕了 API key"
+  },
+  "IMMICH_UNREACHABLE": {
+    "cta": "檢查 Immich 網址",
+    "message": "連不到 Immich 伺服器",
+    "severity": "B",
+    "title": "連不到 Immich 伺服器"
+  },
   "INVALID_ARGUMENT": {
     "cta": "修正參數後重試",
     "message": "參數不符合工具的格式：{detail}",
@@ -364,6 +376,12 @@
     "message": "顯示記憶體不足，已自動降低批次重試",
     "severity": "W／T",
     "title": "顯示記憶體不足"
+  },
+  "MODEL_REMOTE_CODE_UNCONFIRMED": {
+    "cta": "檢視並確認程式碼",
+    "message": "這個模型會在你的電腦上執行它自帶的程式碼（{files}），需要你先檢視並確認",
+    "severity": "B",
+    "title": "這個模型會在你的電腦上執行它自帶的程式碼（{files}）"
   },
   "NET_PORT_IN_USE": {
     "cta": "自動改用其他連接埠",

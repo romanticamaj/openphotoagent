@@ -116,6 +116,16 @@ class H(BaseHTTPRequestHandler):
         if self.path != "/v1/chat/completions":
             self._json(404, {})
             return
+        flavor = STATE["args"].get("flavor") or "llamacpp"
+        rf = (body.get("response_format") or {}).get("type")
+        if flavor == "vllm" and rf == "json_schema":  # emulate: this flavour wants guided_json
+            self._json(400, {"error": {"code": 400, "message": "use guided_json"}})
+            return
+        if flavor == "mlx" and rf == "json_schema":  # emulate: JSON mode only
+            self._json(400, {"error": {"code": 400, "message": "json_schema not supported"}})
+            return
+        if flavor == "vllm" and body.get("guided_json"):
+            body = {**body, "response_format": {"json_schema": {"schema": body["guided_json"]}}}
         with LOCK:
             STATE["requests"] += 1
             f = STATE["faults"]
@@ -168,6 +178,8 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--fake-state")
     ap.add_argument("--fake-load-s", type=float, default=0.3)
     ap.add_argument("--crash-first-n", type=int, default=0)
+    ap.add_argument("--flavor", choices=["llamacpp", "vllm", "mlx"], default="llamacpp")
+    ap.add_argument("--port-flag-alias", dest="port_alias")
     args, _unknown = ap.parse_known_args(argv)
     STATE["args"] = vars(args)
     STATE["ready_at"] = time.monotonic() + args.fake_load_s

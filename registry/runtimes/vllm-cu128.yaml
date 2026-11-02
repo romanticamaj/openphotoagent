@@ -1,0 +1,15 @@
+# Linux advanced pack (08 §4.2, v0.4): vLLM + torch cu128, split into parts on the release (GitHub's 2 GiB asset limit).
+schema_version: 1
+id: vllm-cu128
+provides: { runtime: vllm, accel: cuda }
+builtin: false
+advanced: true
+size_est: 4000000000
+platforms:
+  - { os: linux, arch: x86_64 }
+requires:
+  nvidia_driver_min: "570.00"
+  compute_capability_min: "7.0"
+  cuda_architectures: ["70", "75", "80", "86", "89", "90", "100", "120"]
+license: { spdx: Apache-2.0, notice_file: LICENSE-vllm }
+notes: "Windows and macOS: use Docker or WSL2 (08 §3.1)."

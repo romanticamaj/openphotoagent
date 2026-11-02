@@ -708,6 +708,24 @@ GPU_BUDGET_EXCEEDED:
     type: retry
   severity: blocker
   transient: true
+MODEL_REMOTE_CODE_UNCONFIRMED:
+  fixes:
+  - target: confirm_remote_code
+    type: open_settings
+  severity: blocker
+  transient: false
+IMMICH_UNREACHABLE:
+  fixes:
+  - target: immich
+    type: open_settings
+  severity: blocker
+  transient: true
+IMMICH_AUTH_FAILED:
+  fixes:
+  - target: immich
+    type: open_settings
+  severity: blocker
+  transient: false
 QUERY_EXPIRED:
   fixes:
   - target: drop_again

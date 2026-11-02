@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Request
 from opagent_core.hw import Gpu, HwSummary
@@ -506,3 +506,180 @@ def job_vlm_key(c: Any, st: AppState, worker_id: str) -> str | None:
             return str(k)
     vlm = recommend(reg, ctx["hw"]).vlm
     return str(vlm) if vlm else None
+
+
+# ---------------------------------------------------------------- remote code (invariant 10, RT-TORCH-003)
+def remote_files(reg: Any, key: str) -> list[dict[str, str]] | None:
+    """The files a ``trust_remote_code`` variant would execute, with their pinned hashes; None when not needed."""
+    mid, _, vid = key.partition("@")
+    m = reg.models.get(mid)
+    if m is None:
+        return None
+    try:
+        v = m.spec.variant(vid)
+    except KeyError:
+        return None
+    if not v.trust_remote_code:
+        return None
+    locked = (m.pins.get(vid) or {}).get("files") or {}
+    out = []
+    for f in v.files:
+        if f.role == "remote_code":
+            pin = locked.get(f.path)
+            out.append({"path": f.path, "sha256": (pin.sha256 if pin is not None else f.sha256) or ""})
+    return sorted(out, key=lambda x: x["path"])
+
+
+def remote_code_confirmed(c: Any, key: str, files: list[dict[str, str]]) -> bool:
+    from opagent_db.schema import remote_code_consent
+
+    row = c.execute(select(remote_code_consent.c.files).where(remote_code_consent.c.model_key == key)).scalar()
+    want = {f["path"]: f["sha256"] for f in files}
+    return bool(row) and row == want and all(want.values())
+
+
+class RemoteCodeIn(BaseModel):
+    files: dict[str, str]
+
+
+@router.get("/models/{key}/remote-code")
+def get_remote_code(key: str, req: Request) -> dict[str, Any]:
+    st = _st(req)
+    files = remote_files(st.registry(), key)
+    if files is None:
+        raise HTTPException(404, detail={"code": "NOT_FOUND"})
+    with st.engine.begin() as c:
+        return {"files": files, "confirmed": remote_code_confirmed(c, key, files)}
+
+
+@router.post("/models/{key}/remote-code/confirm")
+def confirm_remote_code(key: str, body: RemoteCodeIn, req: Request) -> dict[str, Any]:
+    """The person read the list and agrees to run exactly these files (hashes); anything else is a 409."""
+    from opagent_db.schema import remote_code_consent
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+    from .approvals import ui_only
+
+    ui_only(req)
+    st = _st(req)
+    files = remote_files(st.registry(), key)
+    if files is None:
+        raise HTTPException(404, detail={"code": "NOT_FOUND"})
+    want = {f["path"]: f["sha256"] for f in files}
+    if body.files != want or not all(want.values()):
+        raise HTTPException(409, detail={"code": "REMOTE_CODE_CHANGED", "files": files})
+    now = st.clock.now()
+    with st.engine.begin() as c:
+        c.execute(
+            pg_insert(remote_code_consent)
+            .values(model_key=key, files=want, confirmed_by="local-user", confirmed_at=now)
+            .on_conflict_do_update(index_elements=["model_key"], set_={"files": want, "confirmed_at": now})
+        )
+    return {"model": key, "files": files, "confirmed_at": now.isoformat()}
+
+
+# ---------------------------------------------------------------- import models already on disk (MDL-IMP-001/002)
+class ImportScanIn(BaseModel):
+    source: Literal["ollama", "folder"]
+    path: str | None = None
+
+
+class ImportIn(BaseModel):
+    scan_id: str
+    candidate: str
+
+
+def _match(reg: Any, sha: str) -> str | None:
+    """A pinned registry variant whose weights file has this sha256."""
+    for mid, m in reg.models.items():
+        for vid, pin in (m.pins or {}).items():
+            v = m.spec.variant(vid)
+            for f in v.files:
+                locked = (pin.get("files") or {}).get(f.path)
+                if f.role == "weights" and locked is not None and locked.sha256 == sha:
+                    return f"{mid}@{vid}"
+    return None
+
+
+@router.post("/models/import/scan", status_code=202)
+def import_scan(body: ImportScanIn, req: Request) -> dict[str, Any]:
+    """The worker looks for models already on this computer; a folder path only ever comes from the app's own
+    folder picker (UI only, never MCP)."""
+    from .approvals import ui_only
+
+    ui_only(req)
+    if body.source == "folder" and not body.path:
+        raise HTTPException(422, detail={"code": "VALIDATION", "field": "path"})
+    st = _st(req)
+    tid = uuid7(st.clock)
+    with st.engine.begin() as c:
+        w = c.execute(select(worker.c.id).order_by(worker.c.last_heartbeat_at.desc().nulls_last()).limit(1)).scalar()
+        c.execute(
+            insert(worker_task).values(
+                id=tid, kind="scan_models", worker_id=w, lane="interactive", payload=body.model_dump()
+            )
+        )
+    return {"scan_id": tid}
+
+
+@router.get("/models/import/scan/{scan_id}")
+def import_scan_result(scan_id: str, req: Request) -> dict[str, Any]:
+    st = _st(req)
+    with st.engine.begin() as c:
+        t = c.execute(
+            select(worker_task).where(worker_task.c.id == scan_id, worker_task.c.kind == "scan_models")
+        ).first()
+    if t is None:
+        raise HTTPException(404, detail={"code": "NOT_FOUND"})
+    if t.status != "done":
+        return {"id": scan_id, "status": t.status, "candidates": [], "rejected": []}
+    reg = st.registry()
+    res = dict(t.result or {})
+    cands = [{**c, "match": _match(reg, c["weights"]["sha256"])} for c in res.get("candidates") or []]
+    return {"id": scan_id, "status": "done", "candidates": cands, "rejected": res.get("rejected") or []}
+
+
+@router.post("/models/import")
+def import_model(body: ImportIn, req: Request) -> dict[str, Any]:
+    """Register a found model as installed on that worker: no download, no copy (``managed`` = false, so removing it
+    in the app never deletes the user's files)."""
+    from .approvals import ui_only
+
+    ui_only(req)
+    st = _st(req)
+    res = import_scan_result(body.scan_id, req)
+    cand = next((c for c in res["candidates"] if c["id"] == body.candidate), None)
+    if cand is None:
+        raise HTTPException(404, detail={"code": "NOT_FOUND"})
+    if not cand["match"]:
+        raise HTTPException(422, detail={"code": "IMPORT_UNKNOWN_MODEL", "sha256": cand["weights"]["sha256"]})
+    files = [{"role": "weights", **cand["weights"]}]
+    if cand.get("mmproj"):
+        files.append({"role": "mmproj", **cand["mmproj"]})
+    with st.engine.begin() as c:
+        wid = c.execute(select(worker_task.c.worker_id).where(worker_task.c.id == body.scan_id)).scalar()
+        size = sum(int(f["size"]) for f in files)
+        existing = c.execute(
+            select(installation.c.id).where(installation.c.worker_id == wid, installation.c.key == cand["match"])
+        ).first()
+        vals = {"status": "installed", "size_bytes": size, "files": files, "managed": False}
+        if existing:
+            from sqlalchemy import update
+
+            c.execute(update(installation).where(installation.c.id == existing.id).values(**vals))
+        else:
+            c.execute(
+                insert(installation).values(id=uuid7(st.clock), worker_id=wid, kind="model", key=cand["match"], **vals)
+            )
+        emit(c, "model.installed", {"variant": cand["match"], "worker_id": wid, "imported": True})
+    return {"key": cand["match"], "status": "installed", "downloaded_bytes": 0, "managed": False}
+
+
+@router.get("/workers/{worker_id}/installations")
+def list_installations(worker_id: str, req: Request) -> list[dict[str, Any]]:
+    with _st(req).engine.begin() as c:
+        rows = c.execute(select(installation).where(installation.c.worker_id == worker_id)).all()
+    return [
+        {"id": r.id, "kind": r.kind, "key": r.key, "status": r.status, "managed": r.managed, "files": r.files or []}
+        for r in rows
+    ]

@@ -1,0 +1,22 @@
+# Test fixture: a transformers model with remote code (Florence-2-like) — RT-TORCH-003. Not a real model.
+schema_version: 1
+id: fixture-remote-code
+display_name: "Fixture remote-code captioner"
+family: florence-2
+kind: vlm
+capabilities: [caption]
+languages: [en]
+license: { spdx: MIT, weights: MIT, commercial_use: true, redistributable: true, requires_acceptance: false, url: "https://example.invalid/fixture" }
+source: { hf_repo: fixture/remote-code, revision: main }
+structured_output: none
+variants:
+  - id: fp16
+    runtime: transformers
+    revision: main
+    trust_remote_code: true
+    files:
+      - { repo: fixture/remote-code, path: "model.safetensors", role: weights }
+      - { repo: fixture/remote-code, path: "modeling_florence2.py", role: remote_code }
+      - { repo: fixture/remote-code, path: "processing_florence2.py", role: remote_code }
+    vram_gb: { weights: 0.5, runtime_overhead: 0.5 }
+    requires: { runtime_pack: ["torch-*"], os: [windows, linux, macos], accel_any: [cuda, metal, cpu] }
