@@ -89,6 +89,9 @@ from opagent_adapters.testing import managed_harness  # noqa: E402
 
 HARNESSES["vllm-fakeruntime"] = managed_harness(Harness, "vllm")
 HARNESSES["mlx-fakeruntime"] = managed_harness(Harness, "mlx")
+from opagent_adapters.testing import torch_harness  # noqa: E402
+
+HARNESSES["torch-fakepipeline"] = torch_harness(Harness)  # RT-TORCH-001
 
 FACTORIES: dict[str, Callable[[], InferenceBackend]] = {
     name: (lambda h=h: h.make_fn(h)) for name, h in HARNESSES.items()

@@ -70,3 +70,21 @@ class MlxServerAdapter(_Managed):
     def args(self) -> list[str]:
         a = [*self.command, "--model", self.model_file, "--host", "127.0.0.1", "--port", str(self.port)]
         return a + self.extra_args
+
+
+class TorchServerAdapter(_Managed):
+    """The torch sidecar (``opagent_adapters.torch_server``) for JoyCaption / Florence-2. Remote code is passed only
+    when the caller confirmed it (the worker checks the stored confirmation against the files' hashes)."""
+
+    adapter_key = "torch"
+    platforms = ("linux", "win32", "darwin-arm64")
+
+    def __init__(self, command: list[str], model: str, *, trust_remote_code: bool = False, **kw: Any) -> None:
+        super().__init__(command, model, **kw)
+        self.trust_remote_code = trust_remote_code
+
+    def args(self) -> list[str]:
+        a = [*self.command, "--model", self.model_file, "--host", "127.0.0.1", "--port", str(self.port)]
+        if self.trust_remote_code:
+            a.append("--trust-remote-code")
+        return a + self.extra_args

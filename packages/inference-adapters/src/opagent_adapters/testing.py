@@ -68,6 +68,24 @@ def managed_harness(harness_cls: Any, flavor: str) -> Any:
     )
 
 
+TORCH_SIDECAR = [sys.executable, "-m", "opagent_adapters.torch_server", "--fake-pipeline"]
+
+
+def torch_harness(harness_cls: Any) -> Any:
+    from .managed import TorchServerAdapter
+
+    return harness_cls(
+        "torch-fakepipeline",
+        lambda h: TorchServerAdapter(
+            TORCH_SIDECAR, "florence-2-base", parallel=4, categories=["other"], platform="linux"
+        ),
+        lambda b, code: _fault(b, {code: 1}),
+        lambda b, s: _fault(b, {"latency_s": s}),
+        _cancelled,
+        embedding_dim=None,
+    )
+
+
 def openai_sibling(h: Any) -> Any:
     """The same running FakeRuntime seen through the generic OpenAI-compatible adapter (INF-CONF-010)."""
     live = next((b for b in h.made if isinstance(b, LlamaCppServerAdapter)), None)
