@@ -68,12 +68,12 @@ def export(body: ExportIn, req: Request) -> dict[str, Any]:
         ):
             locs.setdefault(r.asset_id, r)
         latest: dict[str, Any] = {}
-        for r in c.execute(
+        for res in c.execute(
             select(result.c.asset_id, result.c.category, result.c.confidence, result.c.model_fingerprint)
             .where(result.c.asset_id.in_(list(locs) or ["-"]))
             .order_by(result.c.asset_id, result.c.created_at.desc())
         ):
-            latest.setdefault(r.asset_id, r)
+            latest.setdefault(res.asset_id, res)
     tasks = []
     for aid in body.asset_ids:
         loc = locs.get(aid)
@@ -82,7 +82,7 @@ def export(body: ExportIn, req: Request) -> dict[str, Any]:
         t: dict[str, Any] = {
             "data": {"image": f"/data/local-files/?d={loc.root_alias}/{loc.rel_path}", "opagent_id": aid}
         }
-        r = latest.get(aid)
+        r: Any = latest.get(aid)
         if r is not None and r.category:
             t["predictions"] = [
                 {
