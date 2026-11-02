@@ -6,6 +6,7 @@ change through the journaled executor (invariant 3).
 
 from __future__ import annotations
 
+import logging
 import os
 import threading
 import time
@@ -30,6 +31,10 @@ class _Waiting(Exception):
 
 class _Abandoned(Exception):
     """The worker is stopping: the download is dropped like a crash and resumed by the next worker (DL-014)."""
+
+
+WATCH_SYNC_S = 15.0
+_log = logging.getLogger("opagent.worker")
 
 
 class WorkerAgent:
@@ -451,18 +456,39 @@ class WorkerAgent:
             self.stop_downloads()
 
     def _run_forever(self, stop: Any) -> None:
-        while not stop.is_set():
-            try:
-                busy = self.run_once(wait_s=0.5, background_downloads=True)
-                if self.backend is not None:
-                    busy = bool(self.process_items_once()) or busy
-                self.tick_waiting()
-                if self.outbox_size():
-                    self.flush_outbox()
-                if not busy:
-                    stop.wait(0.2)
-            except Exception:
-                stop.wait(1.0)
+        from .watcher import WatchManager
+
+        watch = WatchManager(self)  # watch folders (05 §5): synced with the API every WATCH_SYNC_S
+        synced_at: float | None = None
+        try:
+            while not stop.is_set():
+                now = self.clock.monotonic()
+                if synced_at is None or now - synced_at >= WATCH_SYNC_S:
+                    synced_at = now
+                    try:
+                        watch.sync()
+                    except Exception:  # the API may be restarting; try again next round
+                        _log.warning("watch sync failed", exc_info=True)
+                try:
+                    watch.step()
+                except Exception:
+                    _log.warning("watch step failed", exc_info=True)
+                self._loop_once(stop)
+        finally:
+            watch.stop()
+
+    def _loop_once(self, stop: Any) -> None:
+        try:
+            busy = self.run_once(wait_s=0.5, background_downloads=True)
+            if self.backend is not None:
+                busy = bool(self.process_items_once()) or busy
+            self.tick_waiting()
+            if self.outbox_size():
+                self.flush_outbox()
+            if not busy:
+                stop.wait(0.2)
+        except Exception:
+            stop.wait(1.0)
 
     # ---- task handlers -------------------------------------------------
     def _do_scan(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:

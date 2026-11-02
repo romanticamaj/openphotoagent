@@ -24,6 +24,7 @@ from . import (
     routes_selection,
     routes_system,
     routes_viewer,
+    routes_watch,
     routes_worker,
     search,
 )
@@ -86,6 +87,8 @@ def create_app(
     app.include_router(mcp_server.router)
     app.include_router(faces.router, prefix="/api/v1")
     app.include_router(ask.router, prefix="/api/v1")
+    app.include_router(routes_watch.router, prefix="/api/v1")
+    app.include_router(routes_watch.worker_router, prefix="/worker-api/v1")
     app.include_router(faces.worker_router, prefix="/worker-api/v1")
     app.include_router(routes_system.router, prefix="/api/v1")
     app.include_router(routes_duplicates.router, prefix="/api/v1")

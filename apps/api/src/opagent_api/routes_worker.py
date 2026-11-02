@@ -489,6 +489,10 @@ def _on_scan(st: AppState, c: Any, t: Any, result: dict[str, Any]) -> None:
     organize.upsert_entries(st, c, t.payload["source_id"], result.get("entries") or [])
     _index_source(c, t.payload["source_id"])
     organize.finish_scan(st, c, t)
+    if t.payload.get("watch") and t.job_id is None:
+        from .routes_watch import after_watch_scan
+
+        after_watch_scan(st, c, t)
 
 
 def _index_source(c: Any, src_id: str) -> None:

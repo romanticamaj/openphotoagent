@@ -699,6 +699,25 @@ collection_member = Table(
 )
 
 
+# 05 §5: automations. v0.3 has one kind — a watch folder per source (debounce, polling, an optional organize rule
+# that only ever produces a plan unless the policy allows non-destructive auto-apply; move always needs a person).
+automation = Table(
+    "automation",
+    metadata,
+    Column("id", Text, primary_key=True),
+    Column("workspace_id", Text, nullable=False),
+    Column("source_id", Text, ForeignKey("source.id", ondelete="CASCADE"), unique=True),
+    Column("name", Text, nullable=False),
+    Column("enabled", Boolean, nullable=False, server_default="false"),
+    Column("trigger", JSONB, nullable=False),  # {kind: watch, debounce_s, stable_s, poll_interval_s}
+    Column("steps", JSONB, nullable=False, server_default="[]"),  # [{run_pipeline}, {organize: JobIn}]
+    Column("approval_policy", Text, nullable=False, server_default="always_manual"),
+    Column("state", JSONB, nullable=False, server_default="{}"),  # what the worker reported: mode, fstype
+    _ts("created_at", server_default=func.now()),
+    _ts("updated_at", server_default=func.now()),
+)
+
+
 def engine_for(dsn: str) -> Engine:
     url = dsn.replace("postgresql://", "postgresql+psycopg://", 1)
     return create_engine(url, pool_pre_ping=True, future=True)
