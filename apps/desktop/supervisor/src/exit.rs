@@ -19,8 +19,14 @@ pub const EXIT_DB_TOO_NEW: i32 = 4;
 pub const EXIT_LAN_PASSWORD_REQUIRED: i32 = 5;
 
 /// `code` is `None` when the process was killed by a signal.
-pub fn classify(_code: Option<i32>, _requested_stop: bool) -> ExitClass {
-    ExitClass::Crashed
+pub fn classify(code: Option<i32>, requested_stop: bool) -> ExitClass {
+    match (code, requested_stop) {
+        (_, true) => ExitClass::Stopped,
+        (Some(EXIT_ALREADY_RUNNING), _) => ExitClass::AlreadyRunning,
+        (Some(EXIT_DB_TOO_NEW), _) => ExitClass::DatabaseTooNew,
+        (Some(EXIT_LAN_PASSWORD_REQUIRED), _) => ExitClass::LanPasswordRequired,
+        _ => ExitClass::Crashed,
+    }
 }
 
 impl ExitClass {

@@ -4,7 +4,9 @@ use std::process::Command;
 
 fn main() {
     let mut cmd = Command::new("sleep");
-    cmd.arg("600").stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
+    cmd.arg("600")
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null());
     let s = opagent_supervisor::children::spawn_supervised(cmd).expect("spawn");
     println!("{}", s.pid());
     loop {

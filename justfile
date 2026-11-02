@@ -16,6 +16,7 @@ setup:
 test:
     OPAGENT_TC_RESULTS=.tc/py-fast.json uv run pytest -q -m "{{py_fast}}"
     pnpm -r --if-present test
+    uv run python tools/cargo_tc.py
 
 # integration (real PostgreSQL) + chaos subset
 test-int:
@@ -38,6 +39,7 @@ lint:
     uv run python tools/gen_problem_stories.py --check
     pnpm -r --if-present lint
     pnpm -r --if-present typecheck
+    cd apps/desktop/supervisor && cargo fmt --check && cargo clippy -q --all-targets -- -D warnings
 
 # regenerate docs/generated/coverage-status.md
 tc-status:

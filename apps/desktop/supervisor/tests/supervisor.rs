@@ -33,7 +33,11 @@ fn desk_003_failures_spread_beyond_the_window_keep_restarting() {
     let mut t = RestartTracker::new(Policy::SIDECAR);
     for i in 0..20 {
         t.healthy(); // ran fine for a while each time
-        assert_eq!(t.failed(s(i * 120)), Decision::RestartAfter(s(1)), "failure {i}");
+        assert_eq!(
+            t.failed(s(i * 120)),
+            Decision::RestartAfter(s(1)),
+            "failure {i}"
+        );
     }
 }
 
@@ -97,7 +101,11 @@ impl Fetch for Counter {
 fn upd_005_disable_env_means_no_update_request_at_all() {
     let env = |k: &str| (k == "OPAGENT_DISABLE_UPDATER").then(|| "1".to_string());
     assert!(updater::disabled(&env, false));
-    let mut u = Updater::new(Counter(0, Some("0.2.0".into())), Channel::Stable, updater::disabled(&env, false));
+    let mut u = Updater::new(
+        Counter(0, Some("0.2.0".into())),
+        Channel::Stable,
+        updater::disabled(&env, false),
+    );
     for h in 0..100 {
         assert_eq!(u.tick(s(h * 3600)), None);
     }

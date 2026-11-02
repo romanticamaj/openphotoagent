@@ -29,7 +29,9 @@ pub fn endpoint(channel: Channel) -> &'static str {
 
 /// `env` looks up an environment variable (injected so tests never touch the process environment).
 pub fn disabled(env: &dyn Fn(&str) -> Option<String>, setting_disabled: bool) -> bool {
-    let by_env = env(DISABLE_ENV).map(|v| !matches!(v.trim(), "" | "0" | "false" | "no")).unwrap_or(false);
+    let by_env = env(DISABLE_ENV)
+        .map(|v| !matches!(v.trim(), "" | "0" | "false" | "no"))
+        .unwrap_or(false);
     by_env || setting_disabled
 }
 
@@ -41,8 +43,12 @@ pub enum Install {
     AnnounceOnly,
 }
 
-pub fn install_decision(_running_jobs: usize, _user_requested: bool) -> Install {
-    Install::Now
+pub fn install_decision(running_jobs: usize, user_requested: bool) -> Install {
+    if user_requested && running_jobs == 0 {
+        Install::Now
+    } else {
+        Install::AnnounceOnly
+    }
 }
 
 /// Something that asks an update endpoint (the Tauri plugin in the app, a counter in tests).
@@ -59,11 +65,19 @@ pub struct Updater<F: Fetch> {
 
 impl<F: Fetch> Updater<F> {
     pub fn new(fetch: F, channel: Channel, disabled: bool) -> Self {
-        Self { fetch, channel, disabled, last_check: None }
+        Self {
+            fetch,
+            channel,
+            disabled,
+            last_check: None,
+        }
     }
 
     /// Called on start-up and on a timer tick; `now` is a monotonic offset. Returns an available version.
     pub fn tick(&mut self, now: Duration) -> Option<String> {
+        if self.disabled {
+            return None;
+        }
         if let Some(t) = self.last_check {
             if now.saturating_sub(t) < CHECK_EVERY {
                 return None;

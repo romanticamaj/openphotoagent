@@ -2,6 +2,7 @@
 //! * Linux: `prctl(PR_SET_PDEATHSIG, SIGKILL)` in the child before exec;
 //! * macOS: the child keeps our stdin pipe and exits on EOF (the Python sidecars watch it);
 //! * Windows: every child joins one Job Object with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`.
+//!
 //! The shell keeps the write end of each child's stdin open for as long as it lives.
 
 use std::io::{self, Write};
@@ -31,7 +32,7 @@ impl Supervised {
 
 pub fn spawn_supervised(mut cmd: Command) -> io::Result<Supervised> {
     cmd.stdin(Stdio::piped());
-    #[cfg(any())]
+    #[cfg(target_os = "linux")]
     {
         use std::os::unix::process::CommandExt;
         let parent = unsafe { libc::getpid() };
@@ -62,8 +63,9 @@ mod job {
     use std::sync::OnceLock;
     use windows_sys::Win32::Foundation::HANDLE;
     use windows_sys::Win32::System::JobObjects::{
-        AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation, SetInformationJobObject,
-        JOBOBJECT_EXTENDED_LIMIT_INFORMATION, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
+        AssignProcessToJobObject, CreateJobObjectW, JobObjectExtendedLimitInformation,
+        SetInformationJobObject, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
+        JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE,
     };
 
     struct Job(HANDLE);
