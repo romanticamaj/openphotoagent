@@ -120,6 +120,8 @@
 
 ### 3.2 MCP-SCOPE：授權矩陣（每 tool × 每 scope）
 
+> （ADR-0009）拒絕的線上語意：tool 不出現在 `tools/list`，呼叫回 JSON-RPC `-32601`，`mcp_call_log` 記 `status=denied` 與原因（`insufficient_scope`／`not_available`／`setting_disabled`）。token 已有 scope、只是 workspace 開關沒開時，回 tool error 說明要在 app 開啟。v0.2 斷言純授權函式的全部 324 個子案例、19 個 v0.2 tools 的端到端 list／call，以及 8 個 v0.3 tools 不可見；v0.3 升版後同一組測試自動涵蓋這 8 個 tools。
+
 `MCP-SCOPE-001`（C，v0.2）：以下矩陣全參數化（27 tools × 10 單一 scope token = 270 子案例，加上「全部 scope」與「無 scope」各 27）。✓ = 允許；`·` = 回 tool error `insufficient_scope`（HTTP 層 403），且 `mcp_call_log.status=denied`。**`tools/list` 只列出 token 允許的 tool**（07 §5.1 對 faces tools 的要求；本文提議全部 tool 一致套用，**回寫 05 §3.2.3**）。
 
 | tool ＼ scope | photos:read | photos:media | photos:describe | labels:write | collections:write | jobs:run | organize:propose | organize:apply | faces:read | faces:media |
@@ -136,7 +138,7 @@
 | ID | 標題 | 前置／輸入 | 預期 | 層 | # |
 |----|------|-----------|------|----|---|
 | MCP-SCOPE-002 | 預設 token | 精靈建立的本機 PAT | scopes 恰為 `[photos:read]`；不含 `photos:media`、`faces:*`（D-1） | I | #68 |
-| MCP-SCOPE-003 | 唯讀呼叫寫入 | 只有 `photos:read` 呼叫 `update_labels` | `insufficient_scope`（403） | I | #68 |
+| MCP-SCOPE-003 | 唯讀呼叫寫入 | 只有 `photos:read` 呼叫 `update_labels` | `-32601`；`mcp_call_log` 記 `denied/insufficient_scope`（ADR-0009）；沒有寫入任何 review | I | #68 |
 | MCP-SCOPE-004 | faces 雙重閘門 | 有 `faces:read` 但 `mcp.faces_enabled=false` | faces tools 不出現；`PhotoSummary.people` 欄位**不存在**（不是空陣列）；`persons_*` filter 回 403 | I | #67 |
 | MCP-SCOPE-005 | faces:read 無 faces:media | 呼叫 `get_person` | 無任何人臉影像；`person://{id}/cover` resource 拒絕 | I | #84 |
 | MCP-SCOPE-006 | organize:apply 未開 workspace 開關 | `mcp.allow_apply_requests=false` | `apply_organize` 拒絕並說明需在 UI 開啟 | I | #69 |
@@ -178,7 +180,7 @@
 | ID | 標題 | 前置／輸入 | 預期 | 層 | # |
 |----|------|-----------|------|----|---|
 | MCP-RATE-001 | 一般讀取 | 1 分鐘內 151 次（burst 30 + 120） | 第 151 次 429，tool error 附 `retry_after_s` | I | #72 |
-| MCP-RATE-002 | describe GPU 預算 | GPU 秒數累計 600 s／天 | 之後拒絕至隔日 | I | #72 |
+| MCP-RATE-002 | describe GPU 預算（v0.3，隨 describe_photo；ADR-0009） | GPU 秒數累計 600 s／天 | 之後拒絕至隔日 | I | #72 |
 | MCP-RATE-003 | run_labeling_job 限制 | 第 3 個同時進行的 MCP job；50,001 items | 拒絕；說明需在 UI 建立 | I | #72 |
 | MCP-RATE-004 | propose 限制 | 1 小時第 11 次；單計畫 10,001 動作 | 拒絕 | I | #72 |
 | MCP-RATE-005 | faces 列舉防護 | `find_photos_of_person` 61 次／分鐘 | 429 | I | #84 |
