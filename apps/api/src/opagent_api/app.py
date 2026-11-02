@@ -32,8 +32,11 @@ def create_app(
     registry_dir: Any = None,
     user_models_dir: Any = None,
     thumbs_dir: Any = None,
+    data_fp: str | None = None,
 ) -> FastAPI:
-    app = FastAPI(title="OpenPhotoAgent API", version="0.1.0-dev")
+    from opagent_core.version import VERSION
+
+    app = FastAPI(title="OpenPhotoAgent API", version=VERSION)
     from pathlib import Path
 
     st = AppState(
@@ -50,6 +53,12 @@ def create_app(
     from . import security
 
     app.include_router(security.router)
+
+    @app.get("/healthz")
+    def healthz() -> dict[str, Any]:
+        """Identity for port-conflict checks (08 §1.3): which app, which data folder — no secrets."""
+        return {"app": "openphotoagent", "version": app.version, "data_fp": data_fp}
+
     app.add_middleware(security.DesktopGuard, state=st)
     app.include_router(routes_public.router, prefix="/api/v1")
     app.include_router(routes_ops.router, prefix="/api/v1")

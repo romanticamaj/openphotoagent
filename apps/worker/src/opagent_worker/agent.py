@@ -124,6 +124,7 @@ class WorkerAgent:
                 "worker_id": self.worker_id,
                 "name": self.name,
                 "boot_id": self.boot_id,
+                "app_version": _version(),
                 "models": models,
                 "hw": self.hw_summary(),
                 **self.doctor_report(),
@@ -731,3 +732,9 @@ def _taxonomy(tc: dict[str, Any]) -> Any:
     if not classes:
         classes = [ClassDef(k, k) for k in tc.get("categories") or []]
     return Taxonomy(classes=classes, rules=list(tc.get("rules") or []))
+
+
+def _version() -> str:
+    from opagent_core.version import VERSION
+
+    return VERSION

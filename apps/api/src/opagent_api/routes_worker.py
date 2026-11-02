@@ -59,6 +59,7 @@ class RegisterIn(BaseModel):
     packs_status: dict[str, Any] = {}
     disk_free: dict[str, int] | None = None
     boot_id: str | None = None  # one per worker process: a new value means the previous process is gone
+    app_version: str | None = None  # the product version the worker was built as (desktop bundles must match)
 
 
 class LeaseIn(BaseModel):
@@ -89,6 +90,7 @@ def register(body: RegisterIn, req: Request) -> dict[str, str]:
         "disk_free": body.disk_free or {},
         "doctor_results": body.doctor_results,
         "boot_id": body.boot_id,
+        "app_version": body.app_version,
     }
     with st.engine.begin() as c:
         prev = c.execute(select(worker.c.capabilities).where(worker.c.id == body.worker_id)).scalar() or {}

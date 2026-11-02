@@ -28,14 +28,85 @@ def _parse_roots(spec: str) -> list[dict[str, str]]:
 
 
 def cmd_api(a: argparse.Namespace) -> None:
+    """API process. Desktop mode (``--token-stdin``): the shell writes the launch token on stdin — never argv or the
+    environment (DESK-012); binds 127.0.0.1 only (DESK-014); resolves port conflicts and records the actual port in
+    ``<home>/run/api.json`` (0600) for the tray, the browser handoff and ``opagent mcp`` (DESK-010)."""
     import uvicorn
     from opagent_api.app import create_app
     from opagent_db.schema import create_all
 
+    token = sys.stdin.readline().strip() if a.token_stdin else None
+    home = Path(a.home) if a.home else _home()
+    from .logs import setup_logging
+
+    setup_logging(home / "logs", "api", token=token)
+    fp = data_fingerprint(home)
+    port = a.port
+    if not _port_free(port):
+        other = _probe(port)
+        if other and other.get("app") == "openphotoagent" and other.get("data_fp") == fp:
+            print(f"OpenPhotoAgent already runs on port {port} for this data folder", file=sys.stderr)
+            raise SystemExit(3)  # the shell focuses that instance instead
+        port = _free_port()
     create_all(a.dsn)
     # same machine: the API serves the Worker's derived thumbnail cache directly (10 §3.4)
-    app = create_app(dsn=a.dsn, static_dir=a.web_dist, thumbs_dir=_home() / "worker" / "thumbs")
-    uvicorn.run(app, host="127.0.0.1", port=a.port, log_level="warning")
+    app = create_app(
+        dsn=a.dsn, static_dir=a.web_dist, thumbs_dir=home / "worker" / "thumbs", launch_token=token, data_fp=fp
+    )
+    write_run_file(home, {"port": port, "pid": os.getpid(), "version": __version__, "data_fp": fp})
+    uvicorn.run(app, host="127.0.0.1", port=port, log_level="warning")
+
+
+from opagent_core.version import VERSION as __version__  # noqa: E402
+
+
+def data_fingerprint(home: Path) -> str:
+    import hashlib
+
+    return hashlib.sha256(str(Path(home).resolve()).encode()).hexdigest()[:16]
+
+
+def _port_free(port: int) -> bool:
+    import socket
+
+    with socket.socket() as s:
+        try:
+            s.bind(("127.0.0.1", port))
+        except OSError:
+            return False
+    return True
+
+
+def _free_port() -> int:
+    import socket
+
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        return int(s.getsockname()[1])
+
+
+def _probe(port: int) -> dict[str, str] | None:
+    import httpx
+
+    try:
+        r = httpx.get(f"http://127.0.0.1:{port}/healthz", timeout=1.0)
+        return dict(r.json()) if r.status_code == 200 else None
+    except (httpx.HTTPError, ValueError):
+        return None
+
+
+def write_run_file(home: Path, info: dict[str, object]) -> None:
+    """Atomic, owner-only (0600) — it names the port of a token-protected API."""
+    import json
+
+    run = Path(home) / "run"
+    run.mkdir(parents=True, exist_ok=True)
+    tmp = run / "api.json.tmp"
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w") as f:
+        json.dump(info, f)
+    os.chmod(tmp, 0o600)
+    os.replace(tmp, run / "api.json")
 
 
 def cmd_worker(a: argparse.Namespace) -> None:
@@ -76,7 +147,7 @@ def cmd_dev(a: argparse.Namespace) -> None:
         [sys.executable, "-m", "opagent_cli", "worker", "--api", f"http://127.0.0.1:{a.port}", "--roots", a.roots]
     )
     try:
-        cmd_api(argparse.Namespace(dsn=dsn, port=a.port, web_dist=a.web_dist))
+        cmd_api(argparse.Namespace(dsn=dsn, port=a.port, web_dist=a.web_dist, token_stdin=False, home=None))
     finally:
         worker.terminate()
         worker.wait(10)
@@ -90,6 +161,8 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--dsn", required=True)
     p.add_argument("--port", type=int, default=47800)
     p.add_argument("--web-dist")
+    p.add_argument("--token-stdin", action="store_true", help="desktop: read the launch token from stdin")
+    p.add_argument("--home", help="data directory (the shell passes it; default OPAGENT_HOME or ~/.opagent)")
     p.set_defaults(fn=cmd_api)
     p = sub.add_parser("worker")
     p.add_argument("--api", required=True)
