@@ -18,6 +18,7 @@ from typing import Any
 
 CITE = re.compile(r"\[\[photo:([A-Za-z0-9_-]+)\]\]")
 NUMBER = re.compile(r"(?<![\w.])\d{1,3}(?:,\d{3})+(?![\d,])|(?<![\w.,])\d+(?![\d,])")
+PHOTO_COUNT = re.compile(r"(?<![\w.,])(\d{1,3}(?:,\d{3})+|\d+)(\s*張)")
 STAT = re.compile(r"幾張|多少張|多少|幾個|how many|count|數量|統計", re.IGNORECASE)
 MD_IMAGE = re.compile(r"!\[[^\]]*\]\([^)]*\)")
 MD_LINK = re.compile(r"(?<!\[)\[([^\]\[]+)\]\((?:https?:|//|www\.)[^)]*\)")
@@ -58,10 +59,18 @@ def ground(
     total: int | None,
     statistic: bool = False,
     relax: list[tuple[str, int]] | None = None,
+    allowed_numbers: set[str] | frozenset[str] = frozenset(),
 ) -> Grounded:
+    """``allowed_numbers``: numbers the user wrote (years, "前 3 張") are theirs, not claims to check."""
     out = Grounded(text)
     if total == 0:  # nothing found: a refusal with the counts of broader searches (10 §8.6)
-        hints = "；".join(f"不限{FIELD_LABEL.get(f, f)}有 {_fmt(n)} 張" for f, n in (relax or []) if n > 0)
+
+        def hint(f: str, n: int) -> str:
+            if f.startswith("text:"):
+                return f"不限「{f[5:]}」有 {_fmt(n)} 張"
+            return f"不限{FIELD_LABEL.get(f, f)}有 {_fmt(n)} 張"
+
+        hints = "；".join(hint(f, n) for f, n in (relax or []) if n > 0)
         out.text = "找不到符合條件的照片。" + (f"放寬條件的話：{hints}。" if hints else "")
         out.refused = True
         return out
@@ -74,7 +83,7 @@ def ground(
 
     t = CITE.sub(cite, text)
     if statistic:
-        allowed = {_fmt(c) for c in counts} | {str(c) for c in counts}
+        allowed = {_fmt(c) for c in counts} | {str(c) for c in counts} | set(allowed_numbers)
 
         def num(m: re.Match[str]) -> str:
             if m.group(0) in allowed:
@@ -83,8 +92,30 @@ def ground(
             return _fmt(counts[0]) if len(counts) == 1 else ""
 
         t = NUMBER.sub(num, t)
+    elif total is not None:  # a retrieval answer may say how many photos: only the search total
+        known = {_fmt(total), str(total), *allowed_numbers}
+
+        def photos(m: re.Match[str]) -> str:
+            if m.group(1) in known:
+                return m.group(0)
+            out.number_fixes += 1
+            return f"{_fmt(total)}{m.group(2)}"
+
+        t = PHOTO_COUNT.sub(photos, t)
     out.text = t
     return out
+
+
+_EXPLAINED = re.compile(r"「([^」]+)」→")
+_FILLER = re.compile(r"[的上裡里在和與跟中有之及、，。？?！!\s]|照片|相片|圖片|photos?|pictures?", re.IGNORECASE)
+
+
+def unmatched_words(text: str, explain: list[str]) -> str:
+    """What is left of the query once the words the planner turned into filters (and fillers) are removed."""
+    rest = text
+    for w in sorted(_EXPLAINED.findall(" ".join(explain)), key=len, reverse=True):
+        rest = rest.replace(w, " ")
+    return _FILLER.sub("", rest)
 
 
 def location_answer(place: str | None) -> str:

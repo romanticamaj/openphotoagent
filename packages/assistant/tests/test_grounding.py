@@ -121,3 +121,34 @@ def test_act_002_confirmation_card_from_the_plan_not_from_the_text():
         "target": "sorted/京都",
         "needs_approval": True,
     }
+
+
+@pytest.mark.unit
+@pytest.mark.tc("ASK-GRD-002")
+def test_grd_002_question_numbers_survive_and_several_counts():
+    out = G.ground(
+        "2023 年拍了 50 張，2024 年拍了 3 張。",
+        seen=set(),
+        counts=[2, 3],
+        total=None,
+        statistic=True,
+        allowed_numbers={"2023", "2024"},
+    )
+    assert "2023" in out.text and "2024" in out.text and "50" not in out.text and out.number_fixes == 1
+
+
+@pytest.mark.unit
+@pytest.mark.tc("ASK-GRD-002")
+def test_grd_002_photo_counts_in_retrieval_answers_come_from_the_search_total():
+    out = G.ground("我找到 99 張花，7 月拍的。", seen=set(), counts=[], total=2)
+    assert "99" not in out.text and "2 張" in out.text and "7 月" in out.text and out.number_fixes == 1
+    assert G.ground("找到 2 張。", seen=set(), counts=[], total=2).number_fixes == 0
+
+
+@pytest.mark.unit
+@pytest.mark.tc("ASK-GRD-004")
+def test_grd_004_words_no_filter_covers():
+    explain = ["「海邊」→ 標籤 scene.beach"]
+    assert G.unmatched_words("海邊的長頸鹿", explain) == "長頸鹿"
+    assert G.unmatched_words("城市裡的汽車", ["「城市」→ 標籤 scene.city", "「汽車」→ 標籤 object.car"]) == ""
+    assert G.unmatched_words("室內的貓的照片", ["「室內」→ 標籤 scene.indoor", "「貓」→ 標籤 animal.cat"]) == ""

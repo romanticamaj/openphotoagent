@@ -47,6 +47,9 @@ NEVER_OFFERED = {"apply_organize", "undo_organize"}  # 10 §8.3: the assistant c
 ACTION = re.compile(r"整理|移到|移動到|複製到|搬到|加到|標上|copy|move", re.IGNORECASE)
 COMPLEX = re.compile(r"比較|每月|每年|誰|趨勢|哪一年|which year|compare", re.IGNORECASE)
 SINGLE = re.compile(r"這張|this photo")
+WHERE = re.compile(r"哪裡|在哪|where", re.IGNORECASE)
+WHEN = re.compile(r"什麼時候|何時|哪一天|幾月|when", re.IGNORECASE)
+CAMERA = re.compile(r"相機|哪台|camera", re.IGNORECASE)
 LABELS = {
     "search_photos": "搜尋照片",
     "count_photos": "計數照片",
@@ -54,6 +57,7 @@ LABELS = {
     "list_facets": "統計",
     "list_tags": "列出標籤",
     "describe_photo": "看照片",
+    "get_photo": "讀取照片資訊",
     "verify_photos": "檢查照片",
 }
 ETA_MS = {
@@ -232,6 +236,36 @@ def _tool(st: AppState, ctx: Any, turn: str, conv: str | None, name: str, args: 
     return out
 
 
+def _count_label(args: dict[str, Any]) -> str:
+    f = args.get("filters") or {}
+    parts = []
+    span = f.get("taken_at") or {}
+    if span.get("from"):
+        parts.append(f"{span['from'][:4]} 年")
+    from .mcp_tools import tag_display
+
+    parts += [tag_display(t) for t in (f.get("tags_all") or f.get("tags_any") or [])]
+    if args.get("query"):
+        parts.append(str(args["query"])[:20])
+    return "·".join(parts) or "全部"
+
+
+def _metadata_answer(q: str, info: dict[str, Any]) -> str | None:
+    photo = info.get("photo") or {}
+    if WHERE.search(q):
+        return G.location_answer(photo.get("place"))
+    if WHEN.search(q):
+        t = photo.get("taken_at")
+        if not t:
+            return "這張照片沒有拍攝時間資訊。"
+        d = date.fromisoformat(str(t)[:10])
+        return f"這張照片拍攝於 {d.year} 年 {d.month} 月 {d.day} 日（依 EXIF）。"
+    if CAMERA.search(q):
+        cam = info.get("camera")
+        return f"這張照片是用 {cam} 拍的（依 EXIF）。" if cam else "這張照片沒有相機資訊。"
+    return None
+
+
 def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str, Any]]]:
     from opagent_search.planner import plan
 
@@ -347,7 +381,12 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
 
     seen: set[str] = set()
     counts: list[int] = []
+    count_labels: list[str] = []
+    hits_text: list[str] = []
+    vector_hits: list[str] = []
+    verified_yes: list[str] = []
     total: int | None = None
+    final: str | None = None  # the loop's last reply, when the model already answered
     relax: list[tuple[str, int]] = []
     tool_msgs: list[dict[str, Any]] = []
     status = "completed"
@@ -367,6 +406,12 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
             return
         if name in ("search_photos", "find_photos_of_person"):
             ids = [r["id"] for r in out.get("results") or []]
+            for r in out.get("results") or []:
+                how = set(r.get("matched_by") or [])
+                if "fulltext" in how:
+                    hits_text.append(r["id"])
+                if how & {"image_vector", "caption_vector"}:
+                    vector_hits.append(r["id"])
             seen.update(ids)
             total = int(out.get("total_estimate", out.get("total", len(ids))))
             yield (
@@ -390,8 +435,15 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
                 }
             )
             summary = f"找到 {total} 張"
+        elif name == "verify_photos":
+            verified_yes.extend(r["id"] for r in out.get("results") or [] if r.get("verdict") in ("yes", "unsure"))
+            if out.get("status") == "queued":  # the VLM is busy: keep the candidates, unverified
+                verified_yes.extend(vector_hits[:12])
+            tool_msgs.append({"role": "tool", "name": name, "content": json.dumps(out, ensure_ascii=False)[:4000]})
+            summary = "完成"
         elif name == "count_photos":
             counts.append(int(out["count"]))
+            count_labels.append(_count_label(args))
             tool_msgs.append({"role": "tool", "name": name, "content": json.dumps(out)})
             summary = f"{out['count']:,} 張"
         else:
@@ -403,6 +455,7 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
 
     text_q = p["text"] or body.message
     card: dict[str, Any] | None = None
+    template = False  # an answer built from data alone: the model is not asked
     if intent == "count":
         yield from run("count_photos", {"filters": filters, **({"query": text_q} if not filters else {})})
     elif intent == "action":
@@ -435,6 +488,7 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
         while not cancelled():
             r = llm.next(msgs + tool_msgs)
             if r.tool is None:
+                final = r.text or ""
                 break
             why = budget.allow_tool(now=time.perf_counter())
             if why:
@@ -444,12 +498,38 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
             budget.record_tool(gpu_s=0.0)
     else:
         if intent == "single":
-            yield from run("search_photos", {"query": text_q, "limit": 1})
+            pid = str(body.context["photo_ids"][0])
+            info: dict[str, Any] = {}
+            sid, d, t0 = started("tool", LABELS["get_photo"], "get_photo")
+            yield "step.started", d
+            got = _tool(st, ctx, turn, conv, "get_photo", {"id": pid, "include": ["exif"]})
+            if "error" in got:
+                yield "step.completed", completed(sid, t0, "error", str(got["error"]), "get_photo")
+            else:
+                info = got
+                seen.add(pid)
+                yield "photos", {"role": "context", "selection_id": None, "total": 1, "items": [{"id": pid}]}
+                yield "step.completed", completed(sid, t0, "ok", "完成", "get_photo")
+            meta = _metadata_answer(body.message, info) if info else None
+            if meta is not None:  # 10 §8.4: what metadata answers, the VLM is not asked (and nothing is guessed)
+                final = meta + f" [[photo:{pid}]]"
+                template = True
+            elif info:
+                yield from run("describe_photo", {"id": pid, "question": body.message[:500]})
         else:
             args = {"query": text_q, "filters": filters, "limit": 50, "return_selection": True}
             if body.context.get("photo_ids"):
                 args = {"query": text_q, "limit": 50}
             yield from run("search_photos", args)
+            rest_words = G.unmatched_words(p["text"] or "", p["planner"]["explain"]) if p["filters"] else ""
+            if total and rest_words and not hits_text:
+                # words the planner could not turn into filters matched no text: the hits satisfy only part of the
+                # question (10 §8.4). Look at the top 12 when vectors found candidates; otherwise nothing matches.
+                if vector_hits:
+                    yield from run("verify_photos", {"photo_ids": vector_hits[:12], "condition": rest_words})
+                if not verified_yes:
+                    relax.append(("text:" + rest_words, total))
+                    total = 0
             if total == 0:
                 for f in list(filters):
                     rest = {k: v for k, v in filters.items() if k != f}
@@ -477,12 +557,25 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
                         turn_id=turn, endpoint=s.get("endpoint_url") or "", bytes_out=len(payload.encode()), images=0
                     )
                 )
-        r = llm.next(msgs)
-        raw = r.text or ""
+        if template:
+            raw = final or ""
+        else:
+            raw = final if final is not None else (llm.next(msgs).text or "")
         for n, a in alias.items():  # back to real names, only here on this machine
             raw = raw.replace(a, n)
-        grounded = G.ground(raw, seen=seen, counts=counts, total=total, statistic=intent == "count", relax=relax)
+        grounded = G.ground(
+            raw,
+            seen=seen,
+            counts=counts,
+            total=total,
+            statistic=intent == "count" or bool(counts),
+            relax=relax,
+            allowed_numbers=set(re.findall(r"\d+", body.message)),
+        )
         answer = G.safe_markdown(grounded.text)
+        if len(counts) > 1 and (grounded.number_fixes or not answer.strip()):
+            facts = "；".join(f"{lab} {n:,} 張" for lab, n in zip(count_labels, counts, strict=True))
+            answer = (answer.rstrip() + f"（依工具計數：{facts}）").strip()
         if not answer and counts:
             answer = f"共有 {counts[0]:,} 張。"
         for chunk in re.findall(r".{1,24}", answer, re.S):
