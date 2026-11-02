@@ -11,6 +11,7 @@ resolution-markers = [
 [manifest]
 members = [
     "opagent-api",
+    "opagent-assistant",
     "opagent-cli",
     "opagent-core",
     "opagent-db",
@@ -1723,6 +1724,21 @@ requires-dist = [
 ]
 
 [[package]]
+name = "opagent-assistant"
+version = "0.0.1"
+source = { editable = "packages/assistant" }
+dependencies = [
+    { name = "opagent-core" },
+    { name = "opagent-mcp-tools" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "opagent-core", editable = "packages/core" },
+    { name = "opagent-mcp-tools", editable = "packages/mcp-tools" },
+]
+
+[[package]]
 name = "opagent-cli"
 version = "0.0.1"
 source = { editable = "apps/cli" }
@@ -2013,6 +2029,7 @@ dev = [
     { name = "mypy" },
     { name = "onnx" },
     { name = "opagent-api" },
+    { name = "opagent-assistant" },
     { name = "opagent-cli" },
     { name = "opagent-core" },
     { name = "opagent-db" },
@@ -2049,6 +2066,7 @@ dev = [
     { name = "mypy" },
     { name = "onnx" },
     { name = "opagent-api", editable = "apps/api" },
+    { name = "opagent-assistant", editable = "packages/assistant" },
     { name = "opagent-cli", editable = "apps/cli" },
     { name = "opagent-core", editable = "packages/core" },
     { name = "opagent-db", editable = "packages/db" },
