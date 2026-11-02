@@ -20,7 +20,8 @@ export function fixLabel(problem: Problem, f: Fix, i: number, t: T, exists: (k: 
   }
   const cta = exists(`errors.${problem.code}.cta`) ? t(`errors.${problem.code}.cta`, problem.params ?? {}) : "";
   const items = cta ? cta.split(" · ") : [];
-  if (i < items.length && items[i].trim()) return items[i].trim();
+  // the column lists fixes in catalog order only when the counts match; otherwise a positional pick would mislabel
+  if (items.length === (problem.fixes ?? []).length && items[i]?.trim()) return items[i].trim();
   return t(`fix.${f.type}`);
 }
 
