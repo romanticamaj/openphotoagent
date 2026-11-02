@@ -352,6 +352,7 @@ flowchart LR
 - 優先序：使用者正在等的（preflight fix 觸發的、Onboarding 中的）> 手動下載 > 背景預取（例如 registry 推薦的後備 variant）。可以在 Activity Center 拖曳排序，或用「優先下載」把項目移到最前面，目前正在下載的項目會被暫停（保留斷點）。
 - 一個 Operation 內的多個檔案依「小檔先下」（tokenizer、config 先完成，讓 resolve 錯誤儘早浮現），大檔則分段並行。
 - 下載不會占用 GPU slot，因此永遠可以和 Job 並行（M5）。
+- （回寫 ADR-0007）Worker 的常駐迴圈把每個下載放在**子進程**執行（各 OS 一律 `spawn`）：進度與暫停／取消經兩條單向 pipe 傳遞；Worker 消失時子進程讀到 EOF，保留 `.part` 後結束（續傳見 DL-014）；取消送出 1 s 後仍未結束就 `terminate()`，維持 ≤ 2 s（DL-005）。續傳狀態每 8 MB、停止時與分段完成時寫入。目的：下載不與標註、掃描爭用同一個 GIL（DL-019）。
 
 ### 2.5 磁碟預檢與執行中監控
 

@@ -25,6 +25,7 @@ from opagent_core.clock import Clock, SystemClock
 from opagent_fs.crash import crash_point
 
 CHUNK = 1024 * 1024
+META_EVERY = 8 * CHUNK  # resume-state writes (ADR-0007: keeps the download's CPU cost low)
 BACKOFF_S = (2, 8, 30, 120, 300)  # 06 §2.9, ±20 % jitter
 MAX_TRIES = 5
 SWITCH_AFTER = 3  # consecutive transient failures on one source → next source (06 §2.6)
@@ -439,6 +440,7 @@ class Downloader:
                     etag = r.headers.get("ETag")
                     if etag and not meta.get("etag"):
                         meta["etag"] = etag
+                    unsaved = 0
                     async for chunk in r.aiter_bytes(CHUNK):
                         off = seg["start"] + seg["written"]
                         os.pwrite(fd, chunk, off)
@@ -446,11 +448,17 @@ class Downloader:
                             seg["written"] += len(chunk)
                             meta["written"] += len(chunk)
                             prog["done_bytes"] += len(chunk)
-                            self._save_meta(meta_p, meta)
+                            unsaved += len(chunk)
+                            # resume state at most every 8 MB: a lagging offset only re-fetches bytes (sha checked)
+                            if unsaved >= META_EVERY or seg["written"] >= seg["end"] - seg["start"] + 1:
+                                self._save_meta(meta_p, meta)
+                                unsaved = 0
                         self._emit(prog)
                         crash_point("download_chunk")  # chaos: kill -9 mid-file (DL-014)
                         consecutive = 0
                         if token.requested:
+                            async with lock:
+                                self._save_meta(meta_p, meta)  # exact offset for the resume (DL-003)
                             raise _Stop()
                         await self._throttle(len(chunk))
                         self._check_disk(len(chunk), prog)

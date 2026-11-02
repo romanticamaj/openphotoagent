@@ -147,15 +147,19 @@ class WorkerAgent:
         r.raise_for_status()
         task = r.json()
         if background_downloads and task["kind"] == "download":
-            self._dl_thread = threading.Thread(target=self._run_task, args=(task,), daemon=True)
+            # the thread only supervises: the bytes move in a child process (ADR-0007, DL-019)
+            self._dl_thread = threading.Thread(target=self._run_task, args=(task, True), daemon=True)
             self._dl_thread.start()
             return True
         self._run_task(task)
         return True
 
-    def _run_task(self, task: dict[str, Any]) -> None:
+    def _run_task(self, task: dict[str, Any], in_child: bool = False) -> None:
         try:
-            result = getattr(self, f"_do_{task['kind']}")(task["payload"], task["id"])
+            if in_child:
+                result = self._download_in_child(task["payload"], task["id"])
+            else:
+                result = getattr(self, f"_do_{task['kind']}")(task["payload"], task["id"])
             ok = True
         except _Waiting as w:  # e.g. SOURCE_OFFLINE: keep the task, retry automatically (SCAN-020)
             self.client.post(f"/worker-api/v1/tasks/{task['id']}/progress", json={"waiting_reason": w.reason})
@@ -482,13 +486,8 @@ class WorkerAgent:
         res = self.executor.undo(p["plan_id"])
         return {"results": [r.__dict__ for r in res]}
 
-    def _do_download(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
-        """model.download (06 §2): progress is streamed to the Operation; the CP records the installation."""
-        import asyncio
-
-        from .downloads import CancelToken, DlFile, Downloader, DownloadError
-
-        token = CancelToken()
+    def _progress_poster(self, task_id: str, on_control: Any) -> Any:
+        """Stream download progress to the Operation (≤ 4/s) and hand pause/cancel requests back (06 §2)."""
         last = [0.0]
 
         def progress(ev: dict[str, Any]) -> None:
@@ -510,11 +509,19 @@ class WorkerAgent:
                 body["waiting_reason"] = waiting
             r = self.client.post(f"/worker-api/v1/tasks/{task_id}/progress", json=body)
             ctl = r.json().get("control") if r.status_code == 200 else None
-            if ctl == "pause":
-                token.pause()
-            elif ctl == "cancel":
-                token.cancel()
+            if ctl in ("pause", "cancel"):
+                on_control(ctl)
 
+        return progress
+
+    def _do_download(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """model.download (06 §2), in-process (one-shot runs and tests with an injected clock)."""
+        import asyncio
+
+        from .downloads import CancelToken, DlFile, Downloader, DownloadError
+
+        token = CancelToken()
+        progress = self._progress_poster(task_id, lambda c: token.pause() if c == "pause" else token.cancel())
         d = Downloader(self.models_root, sources=self.download_sources, on_progress=progress, clock=self.clock)
         files = [DlFile(f["repo"], f["revision"], f["path"], int(f["size"]), f["sha256"]) for f in p["files"]]
         try:
@@ -528,6 +535,25 @@ class WorkerAgent:
             "installed": res.installed,
             "waiting_reason": res.waiting_reason,
         }
+
+    def _download_in_child(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """model.download in the long-running loop: the same Downloader in a child process (ADR-0007)."""
+        from .dlchild import ChildDownload
+
+        child = ChildDownload(self.models_root, self.download_sources, p["op_id"], list(p["files"]))
+        progress = self._progress_poster(task_id, child.send)
+        try:
+            while True:
+                ev = child.next_event()
+                if ev is None:
+                    continue
+                kind, data = ev
+                if kind == "progress":
+                    progress(data)
+                elif kind == "result":
+                    return dict(data)
+        finally:
+            child.close()
 
     def _post_embeddings(self, images: list[Any]) -> None:
         """Upload image vectors computed by the cascade (searchable right away, 05 §1.1)."""
