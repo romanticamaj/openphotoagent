@@ -105,6 +105,7 @@
 | MCP-TOOL-013 | `remove_from_collection` | `destructiveHint=true` | v0.3 |
 | MCP-TOOL-014 | `list_collections` | readOnly | v0.3 |
 | MCP-TOOL-015 | `run_labeling_job` | 一律 `mode=dry_run`、不含輸出動作；`priority ≤ normal` | v0.2 |
+| MCP-TOOL-028 | 回歸：`run_labeling_job` 在有 sub_path 的來源 | 讀取 `inbox/p1.jpg`（曾讀成 `inbox/inbox/p1.jpg` 而全部 DECODE_FAILED） | v0.3 |
 | MCP-TOOL-016 | `get_job_status` | 含 `eta.state/p50`、`waiting_reason` | v0.2 |
 | MCP-TOOL-017 | `cancel_job` | 只能取消 MCP 自己發起的或有 jobs:run 的 job | v0.2 |
 | MCP-TOOL-018 | `propose_organize` | `action` enum 含 `trash`（v0.2）；`path_template ≤ 200`；回傳 `plan_id`、`approval_required`、前 20 筆範例 | v0.2 |
@@ -155,6 +156,7 @@
 | MCP-FOLD-003 | propose target 限制 | target 不在 `list_folders` writable 清單 | 拒絕 | I/S | #69 |
 | MCP-FOLD-004 | 計數不洩漏 | 範圍外有符合的照片 | `total` 與 facet 不含範圍外 | S | #68 |
 | MCP-FOLD-005 | 路徑不外洩 | 所有 tool 回應 | 不含絕對路徑；只有 alias + 相對路徑 | S | #68 |
+| MCP-FOLD-006 | 回歸：有 sub_path 的來源 | 來源為 `photos/inbox`；token 只限 `inbox/inbox` 或 `inbox/a` | `asset_location.rel_path` 相對於 root：`inbox/inbox` 看不到任何照片，`inbox/a` 只看到 `inbox/a/…`（曾誤把路徑當成相對於 sub_path） | S | #68 |
 | MCP-MEDIA-001 | 預設不外送縮圖 | 桌面、預設 PAT | 所有回應無 image content；附 `media_withheld_reason=scope_missing` | I | #70 |
 | MCP-MEDIA-002 | 取最嚴格 | `photos:media` + `mcp_media_policy=thumb_256` + egress `full` | 影像最長邊 ≤ 256；policy `none` 時即使有 scope 也不給 | U/I | #70 |
 | MCP-MEDIA-003 | 人臉縮圖三重政策 | `faces:media` + `mcp_face_media_policy=none`（預設） | 無人臉影像，`media_withheld_reason=policy` | I | #84 |

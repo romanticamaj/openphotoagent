@@ -213,3 +213,34 @@ def test_media_006_images_are_counted_in_the_log(m):
     n = len([c for c in r["content"] if c["type"] == "image"])
     row = m.calls()[-1]
     assert n == 3 and row.media_count == 3 and row.media_bytes > 0
+
+
+@pytest.mark.integration
+@pytest.mark.security
+@pytest.mark.tc("MCP-FOLD-006")
+def test_fold_006_regression_sources_with_a_sub_path(embedded_pg, tmp_path):
+    """回歸: asset_location.rel_path is relative to the *root*; a source over ``inbox`` must not be treated as if its
+    paths were relative to ``inbox`` (a token for ``inbox/inbox`` saw the whole source; one for ``inbox/a`` saw
+    nothing)."""
+    x = M(embedded_pg.dsn, tmp_path)
+    r = x.client.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": "inbox"}, headers=x.ui)
+    sub = r.json()["id"]
+    a = x.add("inbox/a/cat.jpg", caption="貓 a", tags=("animal.cat",), source=sub)
+    b = x.add("inbox/b/cat.jpg", caption="貓 b", tags=("animal.cat",), source=sub)
+    x.index()
+    try:
+        trick = x.token(["photos:read"], folders=[{"source": "photos", "path": "inbox/inbox"}])
+        assert x.ok(trick, "search_photos", {"query": "貓", "parse_query": False})["results"] == []
+        assert x.call(trick, "get_photo", {"id": a})["result"]["structuredContent"]["code"] == "NOT_FOUND"
+        narrow = x.token(["photos:read"], folders=[{"source": "photos", "path": "inbox/a"}])
+        got = x.ok(narrow, "search_photos", {"query": "貓", "parse_query": False})
+        assert [r["id"] for r in got["results"]] == [a]
+        loc = x.ok(narrow, "get_photo", {"id": a, "thumbnail_size": 0})["locations"]
+        assert [(v["source"], v["path"]["text"]) for v in loc] == [("photos", "inbox/a/cat.jpg")]
+        wide = x.token(["photos:read"], folders=[{"source": "photos", "path": ""}])
+        assert {r["id"] for r in x.ok(wide, "search_photos", {"query": "貓", "parse_query": False})["results"]} == {
+            a,
+            b,
+        }
+    finally:
+        x.eng.dispose()

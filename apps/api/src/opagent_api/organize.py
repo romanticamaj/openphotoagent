@@ -525,73 +525,78 @@ def start_label_job(
 ) -> dict[str, Any]:
     """A labelling-only job over given photos (05 §3.3 run_labeling_job): results and reviews, never a plan or a
     file action — it ends ``completed`` once every item is labelled (dry-run by construction)."""
-    import posixpath
+    with st.engine.begin() as c:
+        return start_label_job_in(st, c, asset_ids, only_unlabeled=only_unlabeled, priority=priority, origin=origin)
+
+
+def start_label_job_in(
+    st: Any, c: Any, asset_ids: list[str], *, only_unlabeled: bool, priority: str, origin: dict[str, Any]
+) -> dict[str, Any]:
 
     from opagent_db.schema import result
 
     from .operations import ensure_operation
 
-    with st.engine.begin() as c:
-        tc = task_config_for("by-content-12", None, c)
-        assert tc is not None
-        rows = c.execute(
-            select(
-                asset_location.c.asset_id,
-                asset_location.c.rel_path,
-                source.c.root_alias,
-                source.c.sub_path,
-                source.c.worker_id,
-            )
-            .join(source, source.c.id == asset_location.c.source_id)
-            .where(asset_location.c.asset_id.in_(asset_ids or ["-"]), asset_location.c.missing.is_(False))
-            .order_by(asset_location.c.asset_id, asset_location.c.rel_path)
-        ).all()
-        first: dict[str, Any] = {}
-        for r in rows:
-            first.setdefault(r.asset_id, r)
-        if only_unlabeled:
-            done = {a for (a,) in c.execute(select(result.c.asset_id).where(result.c.asset_id.in_(list(first))))}
-            first = {a: r for a, r in first.items() if a not in done}
-        picked = [first[a] for a in asset_ids if a in first]
-        wid = picked[0].worker_id if picked else None
-        fp = worker_fingerprint(c, wid, tc["task_type"])
-        jid = uuid7(st.clock)
-        c.execute(
-            insert(job).values(
-                id=jid,
-                workspace_id="default",
-                kind="label",
-                status=JobStatus.queued.value,
-                mode="dry_run",
-                params={
-                    **origin,
-                    "preset": "by-content-12",
-                    "priority": priority,
-                    "worker_id": wid,
-                    "task_config": tc,
-                    "fingerprint": fp,
-                },
-            )
+    tc = task_config_for("by-content-12", None, c)
+    assert tc is not None
+    rows = c.execute(
+        select(
+            asset_location.c.asset_id,
+            asset_location.c.rel_path,
+            source.c.root_alias,
+            source.c.sub_path,
+            source.c.worker_id,
         )
-        ensure_operation(c, st.clock, jid, "job.label", {"kind": "job", "id": jid})
-        set_job_status(c, jid, JobStatus.running, clock=st.clock)
-        n = q.create_label_items(
-            c,
-            st.clock,
-            jid,
-            [
-                (
-                    r.asset_id,
-                    r.root_alias,
-                    posixpath.join(r.sub_path.strip("/"), r.rel_path) if r.sub_path.strip("/") else r.rel_path,
-                )
-                for r in picked
-            ],
-            tc,
-            fp,
+        .join(source, source.c.id == asset_location.c.source_id)
+        .where(asset_location.c.asset_id.in_(asset_ids or ["-"]), asset_location.c.missing.is_(False))
+        .order_by(asset_location.c.asset_id, asset_location.c.rel_path)
+    ).all()
+    first: dict[str, Any] = {}
+    for r in rows:
+        first.setdefault(r.asset_id, r)
+    if only_unlabeled:
+        done = {a for (a,) in c.execute(select(result.c.asset_id).where(result.c.asset_id.in_(list(first))))}
+        first = {a: r for a, r in first.items() if a not in done}
+    picked = [first[a] for a in asset_ids if a in first]
+    wid = picked[0].worker_id if picked else None
+    fp = worker_fingerprint(c, wid, tc["task_type"])
+    jid = uuid7(st.clock)
+    c.execute(
+        insert(job).values(
+            id=jid,
+            workspace_id="default",
+            kind="label",
+            status=JobStatus.queued.value,
+            mode="dry_run",
+            params={
+                **origin,
+                "preset": "by-content-12",
+                "priority": priority,
+                "worker_id": wid,
+                "task_config": tc,
+                "fingerprint": fp,
+            },
         )
-        maybe_finish(st, c, jid)
-        status = c.execute(select(job.c.status).where(job.c.id == jid)).scalar_one()
+    )
+    ensure_operation(c, st.clock, jid, "job.label", {"kind": "job", "id": jid})
+    set_job_status(c, jid, JobStatus.running, clock=st.clock)
+    n = q.create_label_items(
+        c,
+        st.clock,
+        jid,
+        [
+            (
+                r.asset_id,
+                r.root_alias,
+                r.rel_path,  # already relative to the root (MCP-TOOL-028)
+            )
+            for r in picked
+        ],
+        tc,
+        fp,
+    )
+    maybe_finish(st, c, jid)
+    status = c.execute(select(job.c.status).where(job.c.id == jid)).scalar_one()
     return {
         "job_id": jid,
         "status": status,

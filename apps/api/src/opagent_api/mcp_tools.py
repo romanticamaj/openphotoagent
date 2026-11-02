@@ -81,7 +81,9 @@ def path_ref(alias: str, rel: str) -> dict[str, Any]:
 
 
 def _full(s: Any, rel: str) -> str:
-    return posixpath.join(s.sub_path.strip("/"), rel) if s.sub_path.strip("/") else rel
+    """A location's path under its root alias. ``asset_location.rel_path`` is already relative to the root — not to
+    the source's sub-path — so it is used as is (MCP-FOLD-006, MCP-TOOL-028)."""
+    return rel
 
 
 def _inside(path: str, prefix: str) -> bool:
@@ -107,11 +109,9 @@ def within_scopes(ctx: Ctx, c: Any) -> list[dict[str, str]] | None:
             if f["source"] != s.root_alias:
                 continue
             p = f.get("path", "").strip("/")
-            if _inside(p, sub) and p != sub and sub:
-                out.append({"source_id": s.id, "path": p[len(sub) + 1 :]})
-            elif not sub:
+            if _inside(p, sub):  # the folder is (inside) this source: scope keys are root-relative paths
                 out.append({"source_id": s.id, "path": p})
-            elif _inside(sub, p):
+            elif _inside(sub, p):  # the folder contains the whole source
                 out.append({"source_id": s.id, "path": ""})
     return out or [{"source_id": "-", "path": ""}]
 
@@ -284,10 +284,10 @@ def _search_body(ctx: Ctx, c: Any, args: dict[str, Any]) -> dict[str, Any]:
                 if ".." in p.split("/") or p.startswith("/"):
                     raise ToolError("PATH_INVALID", "path 只能是根目錄內的相對路徑")
                 sub = s.sub_path.strip("/")
-                if not sub:
+                if _inside(p, sub):  # root-relative, like the scope keys (MCP-FOLD-006)
                     folders.append({"source_id": s.id, "path": p})
-                elif _inside(p, sub):
-                    folders.append({"source_id": s.id, "path": p[len(sub) + 1 :] if p != sub else ""})
+                elif _inside(sub, p):
+                    folders.append({"source_id": s.id, "path": ""})
     cats = f.get("categories") or []
     taken = f.get("taken_at") or {}
     query = " ".join(x for x in (args.get("query"), args.get("semantic_text_en")) if x) or None
