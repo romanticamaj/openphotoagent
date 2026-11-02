@@ -211,8 +211,19 @@ def drain_index(c: Any, limit: int = 10_000) -> int:
     return len(rows)
 
 
+def workspace_policy(c: Any) -> Policy:
+    """Thresholds the user applied (e.g. from a benchmark, BENCH-003). Only decisions change; no re-inference."""
+    from opagent_db.schema import workspace
+
+    cur = c.execute(select(workspace.c.settings).where(workspace.c.id == "default")).scalar() or {}
+    th = (cur.get("thresholds") or {}).get("default") or {}
+    base = Policy()
+    accept = float(th.get("accept", base.accept))
+    return Policy(accept=accept, review=min(base.review, accept))
+
+
 def labels_for(c: Any, job_id: str, policy: Policy | None = None) -> dict[str, dict[str, Any]]:
-    pol = policy or Policy()
+    pol = policy or workspace_policy(c)
     rows = c.execute(
         select(job_item.c.asset_id, result.c.category, result.c.confidence, result.c.raw)
         .join(result, result.c.id == job_item.c.result_id)

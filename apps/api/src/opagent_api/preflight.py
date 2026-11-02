@@ -366,6 +366,16 @@ class Pre:
             return False
         return True
 
+    def benchmark_run(self) -> None:
+        """03 §6.1: a golden set needs enough labelled photos per class before scores mean anything (BENCH-002)."""
+        from .routes_bench import golden_check
+
+        g, missing = golden_check(self.c, str(self.p.get("golden_set_id") or ""))
+        if g is None:
+            self.add("NOT_FOUND", {}, "golden")
+        elif missing is not None:
+            self.add("BENCH_GOLDEN_TOO_SMALL", missing, "golden")
+
     def scan(self) -> None:
         s = self._source()
         alias = s.root_alias if s is not None else self.p.get("root_alias")
@@ -604,6 +614,7 @@ class Pre:
                 "output.undo": self.output_undo,
                 "runtime.install": self.runtime_install,
                 "search": self.search,
+                "benchmark.run": self.benchmark_run,
             }.get(self.action)
             if handler:
                 handler()

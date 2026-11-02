@@ -36,6 +36,7 @@ TASK_OP_TYPES = {
     "undo": "output.undo",
     "download": "model.download",
     "remove": "model.remove",
+    "benchmark": "benchmark.run",
 }
 LEASE_S = 120
 
@@ -447,6 +448,7 @@ def complete(task_id: str, body: CompleteIn, req: Request) -> dict[str, str]:
             .where(worker_task.c.id == task_id)
             .values(status="done" if body.ok else "failed", result=body.result)
         )
+        from .routes_bench import on_benchmark_complete
         from .routes_models import on_download_complete, on_remove_complete
 
         handler = {
@@ -456,6 +458,7 @@ def complete(task_id: str, body: CompleteIn, req: Request) -> dict[str, str]:
             "estimate": _on_estimate,
             "download": on_download_complete,
             "remove": on_remove_complete,
+            "benchmark": on_benchmark_complete,
         }.get(t.kind)
         if t.kind in TASK_OP_TYPES:
             waiting = body.result.get("status") == "waiting"

@@ -11,6 +11,12 @@
     "severity": "B",
     "title": "這個請求已經處理過（{status}）"
   },
+  "BENCH_GOLDEN_TOO_SMALL": {
+    "cta": "繼續標註",
+    "message": "標準答案集標註不足：需要至少 {min} 張、每類至少 {per_class} 張（目前 {n} 張）",
+    "severity": "B",
+    "title": "標準答案集標註不足"
+  },
   "CHECK_CRASHED": {
     "cta": "重新檢查（複製診斷報告）",
     "message": "環境檢查「{check}」本身失敗",

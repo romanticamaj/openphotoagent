@@ -21,6 +21,7 @@ EN = {
     "FACES_NOT_FOR_SOURCE": "Face recognition is not on for this source",
     "FACE_CONSENT_REQUIRED": "Agreeing to how face data is handled is required first",
     "PERSON_NAME_TAKEN": "Another person already has this name",
+    "BENCH_GOLDEN_TOO_SMALL": "The golden set needs at least {min} labelled photos and {per_class} per class ({n} so far)",
     "QUERY_EXPIRED": "The dropped photo was removed from memory after 10 minutes, for privacy",
     "CONFIRM_TEXT_MISMATCH": "The confirmation text does not match (expected “{expected}”)",
     "NOT_FOUND": "This item was not found (it may not exist, or it is outside this token's folders)",

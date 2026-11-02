@@ -908,6 +908,7 @@ Fix 共有欄位：`fix_id`、`type`、`label`、`primary`、`requires_permissio
 | 97 | `FACE_CONSENT_REQUIRED` | B | 開啟人臉辨識前需要同意人臉資料的處理方式 | 閱讀並同意 | Read and agree |
 | 98 | `PERSON_NAME_TAKEN` | W | 已有同名的人物 | 合併兩個人物 | Merge the two people |
 | 99 | `QUERY_EXPIRED` | W | 拖入的照片已超過 10 分鐘，為了隱私已從記憶體移除 | 重新拖入照片 | Drop the photo again |
+| 100 | `BENCH_GOLDEN_TOO_SMALL` | B | 標準答案集標註不足：需要至少 {min} 張、每類至少 {per_class} 張（目前 {n} 張） | 繼續標註 | Label more photos |
 | 100 | `CONFIRM_TEXT_MISMATCH` | B | 確認文字不正確（應為「{expected}」） | 重新輸入 | Type it again |
 
 > （回寫 W-1，09 §9）#63–#68 由 09 的 PF-063～PF-066 與 OUT-EXE-016 提出；08 §10 的 `PACK_MISSING`、`DRIVER_TOO_OLD` 分別對應本表的 `RUNTIME_PACK_MISSING`、`GPU_DRIVER_TOO_OLD`。

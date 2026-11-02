@@ -59,6 +59,7 @@ class WorkerAgent:
         self.home = Path(home)
         self.home.mkdir(parents=True, exist_ok=True)
         self.backend = backend
+        self.bench_backends: dict[str, Any] = {}  # benchmark candidates by name (03 §6); loaded on demand
         self.face_backend = face_backend  # detection + embedding run only here, on the decoded image (07 §2.2)
         self._faces: dict[str, tuple[str, list[dict[str, Any]]]] = {}
         self._active_child: Any = None  # the running download child (ADR-0007)
@@ -718,6 +719,50 @@ class WorkerAgent:
 
             res = asyncio.run(_wait(res))
         return {"vec": [float(x) for x in list(res[0])]}
+
+    def _do_benchmark(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """03 §6: run each candidate over the golden set; predictions and timings only (scores are computed by the
+        API). Images are decoded once and shared by all candidates. Candidates that are not available on this
+        worker report an error instead of a score."""
+        import asyncio
+
+        from opagent_inference.types import BatchRequest, LoadOptions
+
+        images = []
+        failed: list[str] = []
+        for it in p["items"]:
+            img, _err = self._prepare({**it, "id": it["asset_id"], "attempt": 1})
+            if img is None:
+                failed.append(it["asset_id"])
+            else:
+                images.append(img)
+        out = []
+        for name in p["candidates"]:
+            backend = self.bench_backends.get(name)
+            if backend is None:
+                out.append({"name": name, "error": "MODEL_NOT_INSTALLED"})
+                continue
+
+            async def go(b: Any = backend) -> Any:
+                await b.load(LoadOptions())
+                t0 = time.perf_counter()
+                res = await b.run_batch(
+                    BatchRequest(task_type="classify", items=images, variables={"categories": p["classes"]})
+                )
+                return res, time.perf_counter() - t0
+
+            res, took = asyncio.run(go()) if images else ([], 0.0)
+            per = took * 1000 / max(1, len(images))
+            out.append(
+                {
+                    "name": name,
+                    "preds": {o.item_id: [o.category, float(o.confidence or 0.0)] for o in res if o.category},
+                    "latency_ms": [per] * len(res),
+                    "items_per_s": len(res) / took if took > 0 else float(len(res) or 1),
+                    "vram_mb": backend.describe().est_vram_mb,
+                }
+            )
+        return {"candidates": out, "failed": failed}
 
     def _do_vlm_ask(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         """describe / verify / compare for the assistant and MCP (10 §8.3): the VLM looks at the photos here, on

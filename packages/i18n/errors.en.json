@@ -11,6 +11,12 @@
     "severity": "B",
     "title": "This request has already been decided ({status})"
   },
+  "BENCH_GOLDEN_TOO_SMALL": {
+    "cta": "Label more photos",
+    "message": "The golden set needs at least {min} labelled photos and {per_class} per class ({n} so far)",
+    "severity": "B",
+    "title": "The golden set needs at least {min} labelled photos and {per_class} per class ({n} so far)"
+  },
   "CHECK_CRASHED": {
     "cta": "Re-run (copy diagnostics)",
     "message": "The environment check “{check}” itself failed",

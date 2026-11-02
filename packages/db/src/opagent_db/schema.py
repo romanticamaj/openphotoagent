@@ -718,6 +718,32 @@ automation = Table(
 )
 
 
+# 03 §6: mini benchmark. A golden set is the user's own labelled sample; a benchmark compares candidates on it.
+golden_set = Table(
+    "golden_set",
+    metadata,
+    Column("id", Text, primary_key=True),
+    Column("workspace_id", Text, nullable=False),
+    Column("name", Text, nullable=False),
+    Column("classes", JSONB, nullable=False),  # category keys
+    Column("items", JSONB, nullable=False),  # {asset_id: class key}
+    _ts("created_at", server_default=func.now()),
+)
+benchmark = Table(
+    "benchmark",
+    metadata,
+    Column("id", Text, primary_key=True),
+    Column("workspace_id", Text, nullable=False),
+    Column("golden_set_id", Text, ForeignKey("golden_set.id", ondelete="CASCADE"), nullable=False),
+    Column("status", Text, nullable=False, server_default="queued"),
+    Column("candidates", JSONB, nullable=False),
+    Column("constraints", JSONB, nullable=False, server_default="{}"),
+    Column("raw", JSONB),  # per-candidate predictions and timings from the worker (no images)
+    _ts("created_at", server_default=func.now()),
+    _ts("finished_at"),
+)
+
+
 def engine_for(dsn: str) -> Engine:
     url = dsn.replace("postgresql://", "postgresql+psycopg://", 1)
     return create_engine(url, pool_pre_ping=True, future=True)

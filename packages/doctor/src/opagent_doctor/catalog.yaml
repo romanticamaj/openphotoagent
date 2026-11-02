@@ -666,6 +666,12 @@ PERSON_NAME_TAKEN:
     type: open_settings
   severity: warning
   transient: false
+BENCH_GOLDEN_TOO_SMALL:
+  fixes:
+  - target: label_golden
+    type: open_settings
+  severity: blocker
+  transient: false
 QUERY_EXPIRED:
   fixes:
   - target: drop_again
