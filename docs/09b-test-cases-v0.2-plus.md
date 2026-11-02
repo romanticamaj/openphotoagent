@@ -278,7 +278,7 @@
 | FACE-TPL-001 | `{person}` fan-out | 照片有兩人、fanout=true | 複製到兩個人的資料夾；無人時用 fallback | I | #80 |
 | FACE-REV-001 | Review Y/N | 「這是不是 X？」 | `Y`／`N`／`1–9`／`S` 鍵盤連續處理；批次模式依分數由低到高 | E | #81 |
 | FACE-PRG-001 | 一鍵刪除 | 輸入 workspace 名稱確認 → purge | 單一交易：`bio.face_embedding_w*`、`bio.person_prototype_w*` partition 不存在；face／assignment／person／link／cluster_run 清空；`search_doc.person_*` 清空並排重建；`faces/` 縮圖目錄為空；刪除報告（筆數、位置），報告不含生物特徵 | I | #82 |
-| FACE-PRG-002 | Worker 端與金鑰 | edge vault 模式（v0.5 場景先以單機 vault 測） | Worker 刪除 vault 並銷毀 DEK（keyring 項目不存在）；舊 `bio.sealed` 備份無法解開 | I/S | #82 |
+| FACE-PRG-002 | Worker 端與金鑰 | 單機 DEK／sealed 模式（ADR-0012；edge vault 在 v0.5） | Worker 刪除 vault 並銷毀 DEK（keyring 項目不存在）；舊 `bio.sealed` 備份無法解開 | I/S | #82 |
 | FACE-PRG-003 | Worker 離線時 purge | Worker 離線 | 指令進待辦；UI「Worker 端待刪除」；重連後第一件事執行 | I | #82 |
 | FACE-PRG-004 | 停用預設勾選刪除 | 停用人臉 | UI 預設勾「同時刪除」 | E | #82 |
 | FACE-PRV-001 | 備份與匯出排除 | 每日備份；workspace 匯出 | `pg_dump --exclude-schema=bio`；匯出不含 embedding 與人臉縮圖（可選只含名字 + 臉框） | I | #82 |

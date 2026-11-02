@@ -282,3 +282,53 @@
 - MCP-INJ-012／013 依原文斷言：檔名只出現在 `origin=filename` 的物件內。
 - MCP-FOLD-001／003／005、MCP-TOOL-008 改用 `PathRef` 的形狀斷言。
 - 同時新增 06 §4.7 #74～#93 的 MCP 錯誤碼（所有 MCP 錯誤都帶目錄中的錯誤碼）。路徑格式錯誤用 `PATH_INVALID`，只有違反 inputSchema 才回 `INVALID_ARGUMENT`。人物條件的權限不足用 `MCP_INSUFFICIENT_SCOPE`。
+
+## ADR-0011：`bio` schema 的角色隔離（FACE-PRV-003）
+
+- 日期：2026-11-02｜狀態：已採納｜審議：1 個獨立 sub-agent（07 §6.3、09b FACE-PRV-003、embedded PG 的 trust 認證）
+
+**背景**：
+- 07 §6.3(b) 要求 `bio` schema 只授權給 `opagent_bio`。
+- 桌面版的內嵌叢集以 `initdb -U opagent -A trust` 建立，API 以 superuser 連線；superuser 不受 GRANT 限制。
+
+**選項**：
+- A：API 連線一律 `SET ROLE opagent_api`，臉部 repository 在交易內 `SET LOCAL ROLE opagent_bio`。
+- B：拆出獨立的 LOGIN role 與兩個連線池。
+- C：只記錄限制，不實作。
+
+**決定**：採 A。
+- `opagent_api`／`opagent_bio` 都是 NOLOGIN，彼此不是成員關係。
+- API engine 的 connect hook 執行 `SET ROLE opagent_api`。
+- 只有 `opagent_api.faces.bio_session` 會切換角色；`bio` schema 與分區由 `opagent_bio` 擁有。
+- migration、pg-prepare 與備份仍以 owner 身分執行。
+
+**理由**：
+- trust 認證下，任何本機程序都能用任何角色登入，B 不會多提供安全性，卻要多一套連線與憑證。
+- A 達成 07 的實際目的：一般查詢或除錯 SQL 意外碰到 `bio` 時，會直接失敗。
+- 誠實的限制：這是防意外，不是對抗本機程式碼執行的安全邊界；邊界是作業系統帳號與全磁碟加密。
+
+**影響的測試 ID**：FACE-PRV-003（API 連線的 `current_user`、`bio` 權限被拒、只有 faces.py 切換角色）。
+
+## ADR-0012：單機的工作區臉部金鑰與 purge（FACE-PRG-002／003）
+
+- 日期：2026-11-02｜狀態：已採納｜審議：同上 sub-agent
+
+**背景**：
+- 09b 把 FACE-PRG-002 寫成「edge vault 模式（v0.5 場景先以單機 vault 測）」。
+- v0.2 桌面版的 embedding 存在 CP 的 `bio`，Worker vault 是 v0.5 edge 模式的元件。
+
+**選項**：
+- A：現在實作窄版：工作區金鑰（DEK）放 OS keyring，封裝可選的 `bio.sealed` 備份，加上 Worker `face_purge` 任務。
+- B：兩個 ID 都延到 v0.5。
+
+**決定**：採 A（窄版）。
+- `opagent_worker.facevault`：AES-256-GCM，AAD 含格式版本與工作區 id。
+- `face_purge` 任務刪除臉部縮圖並銷毀金鑰；它在佇列中排第一，Worker 重新連線時最先執行。
+- UI 顯示「Worker 端待刪除」（`worker_purge_pending`）。
+- edge 向量 vault、`face.knn`、`face.cluster` 留在 v0.5。
+
+**理由**：
+- 沒有可銷毀的金鑰，purge 就無法讓舊的封裝備份失效（07 §6.2 F6 的核心承諾）。
+- 依「只有 Worker 碰檔案」，這些副作用屬於 Worker。
+
+**影響的測試 ID**：FACE-PRG-002 的前置條件改為「單機 DEK／sealed 模式」；FACE-PRG-003。
