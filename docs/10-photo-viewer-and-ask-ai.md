@@ -160,6 +160,11 @@ Timeline (scroll container, 單一捲軸)
 | 聯動 | 地圖右/下方是「此區域照片」網格（同 `<PhotoGrid>`，source = bbox），平移地圖即時更新；在網格 hover → 地圖點高亮 |
 | 隱私 | `results-only` 或 GPS 被剝除時地圖入口顯示「此 workspace 未保存 GPS」；`place_level=country` 時只做國家級聚類 |
 
+> **（v0.4 實作補充，2026-11-02）**
+> - **v0.4 只實作無圖磚模式**：國界取自 world-atlas 的 Natural Earth **1:110m**（公有領域，約 100 KB，隨地圖頁的 lazy chunk 一起載入）。PMTiles 底圖與區域下載留到之後的版本。
+> - **聚類在前端完成**：以純函式網格聚類（`cluster.ts`，MAP-003）處理 `GET /map/points` 的資料。10 萬點以上時改用上表的伺服器端 geohash 聚類，記為 v0.4.x 待辦。
+> - **聚類 marker 是 DOM 按鈕**，帶 `aria-label`「N 張照片」，點擊後顯示該範圍的照片（MAP-002）。
+
 ### 2.6 資料夾
 
 - 樹狀（source alias → 相對路徑）+ 右側網格；顯示「已分類/待處理」計數；**輸出資料夾（自動歸檔的結果）** 也在樹中，用類別色點標示 → 讓 killer 功能①「自動分類到資料夾」的結果能被直接「看見」。
