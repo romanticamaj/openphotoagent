@@ -225,3 +225,16 @@ def test_desk_015_lan_mode_needs_a_password_then_binds_all_interfaces(embedded_p
     _wait_run(home, p)
     assert _listening(port) == ["00000000"]
     assert httpx.get(f"http://127.0.0.1:{port}/api/v1/capabilities").status_code == 401
+
+
+@pytest.mark.integration
+@pytest.mark.tc("DESK-006")
+def test_desk_006_api_exits_when_the_shell_pipe_closes(embedded_pg, tmp_path, stop):
+    """macOS has no PDEATHSIG: the sidecar watches the shell's stdin pipe and leaves on EOF (08 §1.1)."""
+    home = tmp_path / "eof"
+    p = _launch(embedded_pg.dsn, home, _free_port())
+    stop(p)
+    _wait_run(home, p)
+    p.stdin.close()  # what the OS does when the shell is killed
+    p.wait(timeout=5)
+    assert p.returncode is not None
