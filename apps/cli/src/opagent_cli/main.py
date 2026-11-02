@@ -73,10 +73,28 @@ def cmd_api(a: argparse.Namespace) -> None:
     )
     # the socket is bound and listening before run/api.json names it (DESK-035): no check-then-bind race
     write_run_file(home, {"port": port, "pid": os.getpid(), "version": __version__, "data_fp": fp})
+    if a.token_stdin:
+        watch_parent_pipe()  # from here on, the shell disappearing stops us (start-up exits report their own codes)
     uvicorn.Server(uvicorn.Config(app, log_level="warning")).run(sockets=[sock])
 
 
 from opagent_core.version import VERSION as __version__  # noqa: E402
+
+
+def watch_parent_pipe() -> None:
+    """Orphan protection where the OS has none (macOS, 08 §1.1): the shell keeps our stdin open for its whole
+    life; EOF means it is gone, so stop — SIGTERM first for a graceful uvicorn shutdown, then hard exit."""
+
+    def wait() -> None:
+        try:
+            while sys.stdin.buffer.read(4096):
+                pass
+        except (OSError, ValueError):
+            pass
+        os.kill(os.getpid(), signal.SIGTERM)
+        threading.Timer(3.0, lambda: os._exit(0)).start()
+
+    threading.Thread(target=wait, name="parent-pipe", daemon=True).start()
 
 
 def prepare_database(dsn: str, home: Path) -> None:
