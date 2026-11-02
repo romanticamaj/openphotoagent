@@ -446,6 +446,7 @@
 | MDL-010 | 搬移中當機 | copy 中 kill -9 | 重啟後從檔案清單續跑，或回滾；不出現兩邊都不可用 | X | #19 |
 | MDL-011 | 授權同意 | 預設組合（Apache-2.0）／非商用權重 | 前者不需勾選；後者 `LICENSE_CONSENT_REQUIRED`，同意後寫 `license_acceptance(license_hash)`；授權文字改變（hash 不同）需重新同意 | I | #21 |
 | MDL-012 | `list_models()` 相容欄位 | 呼叫 | 含 compat 物件與舊欄位 `fits_now` | C | #14 |
+| MDL-013 | 回歸：徽章載入中 | 首次設定的方案卡，模型資料尚未回來 | 不顯示「? 未檢查」徽章，改顯示載入中；資料回來後才顯示與其他三處相同的徽章（MDL-005 偶發失敗） | U | #14 |
 
 ### 7.2 DL：Download Manager（`hf:<scenario>` 錄製伺服器）
 
