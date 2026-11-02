@@ -1,6 +1,6 @@
 import { Link, Outlet, createRootRoute, createRoute, createRouter, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { Suspense, lazy, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { ActivityButton, ActivityDrawer, RecoveryCard } from "./features/activity/ActivityHost";
 import { useTranslation } from "react-i18next";
 import { SearchBar } from "./features/search/SearchBar";
@@ -10,7 +10,22 @@ import { useServerEvent } from "./lib/events";
 import { notificationFor, type OpStatusEvent } from "./lib/notify";
 import { platform } from "./lib/platform";
 
-// only the photos route ships in the first load (PERF-003); every other page is its own chunk
+// only the photos route ships in the first load (PERF-003); every other page is its own chunk, fetched once the
+// first screen has settled so that moving between pages stays instant
+const PAGES = [
+  () => import("./features/organize/OrganizeWizard"),
+  () => import("./features/onboarding/Welcome"),
+  () => import("./features/system/DoctorPage"),
+  () => import("./features/system/SettingsPage"),
+  () => import("./features/organize/PlanPage"),
+  () => import("./features/review/ReviewPage"),
+  () => import("./features/search/SearchPage"),
+  () => import("./features/models/ModelsPage"),
+];
+export function prefetchPages(delayMs = 3000) {
+  if (typeof window === "undefined") return;
+  window.setTimeout(() => PAGES.forEach((load) => void load().catch(() => undefined)), delayMs);
+}
 const OrganizeWizard = lazy(() => import("./features/organize/OrganizeWizard").then((m) => ({ default: m.OrganizeWizard })));
 const Welcome = lazy(() => import("./features/onboarding/Welcome").then((m) => ({ default: m.Welcome })));
 const DoctorPage = lazy(() => import("./features/system/DoctorPage").then((m) => ({ default: m.DoctorPage })));
@@ -26,6 +41,7 @@ function Shell() {
   const [activity, setActivity] = useState(false);
   // single-user desktop/all-in-one: no organisation, workspace or worker management in the UI (08 §8, DESK-032)
   const caps = useQuery({ queryKey: ["capabilities"], queryFn: api.capabilities, staleTime: Infinity });
+  useEffect(() => prefetchPages(), []);
   useServerEvent("operation.status", (d) => {
     const n = platform().notify && notificationFor(d as OpStatusEvent);
     if (n) platform().notify!(t(n.key), n.route);

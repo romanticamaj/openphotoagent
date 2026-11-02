@@ -232,7 +232,12 @@
     "GPU_ARCH_UNSUPPORTED": {
       "download": "Download the CUDA 13 pack",
       "choose_alternative": "Continue with Vulkan for now"
-    }
+    },
+    "open_settings": "Open settings",
+    "auto_fix": "Fix automatically",
+    "download": "Download",
+    "choose_alternative": "Use an alternative",
+    "copy_command": "Copy command"
   },
   "nav": {
     "label": "Main navigation",

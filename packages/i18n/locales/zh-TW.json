@@ -232,7 +232,12 @@
     "GPU_ARCH_UNSUPPORTED": {
       "download": "下載 CUDA 13 套件",
       "choose_alternative": "先用 Vulkan 繼續"
-    }
+    },
+    "open_settings": "開啟設定",
+    "auto_fix": "自動修復",
+    "download": "下載",
+    "choose_alternative": "改用替代方案",
+    "copy_command": "複製指令"
   },
   "nav": {
     "label": "主要導覽",
