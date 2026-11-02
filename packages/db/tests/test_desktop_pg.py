@@ -177,3 +177,39 @@ def test_pg_009_full_disk_is_reported_and_data_kept(tmp_path):
         p.start()
     assert e.value.code == "DISK_INSUFFICIENT_DB" and e.value.params["free"] == 12_345
     assert (p.data / "PG_VERSION").exists() and (p.data / "base").exists()  # never delete the data dir
+
+
+@pytest.mark.integration
+@pytest.mark.tc("PG-012")
+def test_pg_012_shell_runs_postgres_directly_from_prepared_argv(base):
+    """08 §1.1: the Rust shell owns the postgres PID (no pg_ctl); the profile still comes from EmbeddedPg."""
+    import json
+    import sys
+    import time
+
+    home = base / "shell"
+    r = subprocess.run(
+        [sys.executable, "-I", "-m", "opagent_cli", "pg-prepare", "--home", str(home), "--ram-gb", "8"],
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=True,
+    )
+    info = json.loads(r.stdout)
+    exe = [i for i, a in enumerate(info["argv"]) if Path(a).name == "postgres"]
+    assert exe and info["argv"][exe[-1] + 1] == "-D"  # the server binary itself, not a wrapper
+    assert "pg_ctl" not in " ".join(info["argv"])
+    proc = subprocess.Popen(info["argv"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        t0 = time.monotonic()  # noqa: TID251 - waiting on a real server process
+        while True:
+            try:
+                assert q(info["admin_dsn"], "SHOW listen_addresses") == ""
+                assert q(info["admin_dsn"], "SHOW shared_buffers") == "128MB"
+                break
+            except psycopg.OperationalError:
+                assert time.monotonic() - t0 < 30, "postgres never became ready"  # noqa: TID251
+                time.sleep(0.2)  # noqa: TID251
+    finally:
+        proc.terminate()  # SIGTERM = smart shutdown of the postmaster we own
+        proc.wait(30)
