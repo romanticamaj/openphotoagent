@@ -672,6 +672,30 @@ BENCH_GOLDEN_TOO_SMALL:
     type: open_settings
   severity: blocker
   transient: false
+PRESET_INVALID:
+  fixes:
+  - target: choose_file
+    type: retry
+  severity: blocker
+  transient: false
+PRESET_TOO_NEW:
+  fixes:
+  - target: check_updates
+    type: open_settings
+  severity: blocker
+  transient: false
+PRESET_TOO_LARGE:
+  fixes:
+  - target: choose_file
+    type: retry
+  severity: blocker
+  transient: false
+PRESET_KEY_TAKEN:
+  fixes:
+  - target: import_renamed
+    type: retry
+  severity: warning
+  transient: false
 QUERY_EXPIRED:
   fixes:
   - target: drop_again

@@ -744,6 +744,19 @@ benchmark = Table(
 )
 
 
+# 04 §2.2: organize presets the user imported (built-ins stay files in presets/builtin). ``doc`` is the validated
+# schema_version-2 document, unknown fields included, so exporting it again loses nothing.
+preset_table = Table(
+    "preset",
+    metadata,
+    Column("key", Text, primary_key=True),
+    Column("workspace_id", Text, nullable=False),
+    Column("doc", JSONB, nullable=False),
+    Column("migrated_from", Integer),
+    _ts("created_at", server_default=func.now()),
+)
+
+
 def engine_for(dsn: str) -> Engine:
     url = dsn.replace("postgresql://", "postgresql+psycopg://", 1)
     return create_engine(url, pool_pre_ping=True, future=True)

@@ -334,6 +334,9 @@
     "people": "開啟人物頁",
     "drop_again": "重新拖入照片",
     "label_golden": "繼續標註標準答案集",
+    "choose_file": "選擇其他檔案",
+    "check_updates": "檢查更新",
+    "import_renamed": "以新名稱匯入",
     "retype": "重新輸入"
   },
   "nav": {

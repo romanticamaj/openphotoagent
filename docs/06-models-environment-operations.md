@@ -909,6 +909,10 @@ Fix 共有欄位：`fix_id`、`type`、`label`、`primary`、`requires_permissio
 | 98 | `PERSON_NAME_TAKEN` | W | 已有同名的人物 | 合併兩個人物 | Merge the two people |
 | 99 | `QUERY_EXPIRED` | W | 拖入的照片已超過 10 分鐘，為了隱私已從記憶體移除 | 重新拖入照片 | Drop the photo again |
 | 100 | `BENCH_GOLDEN_TOO_SMALL` | B | 標準答案集標註不足：需要至少 {min} 張、每類至少 {per_class} 張（目前 {n} 張） | 繼續標註 | Label more photos |
+| 101 | `PRESET_INVALID` | B | 這個整理方式檔案不正確或不安全（{reason}，位置 {pointer}），沒有匯入 | 選擇其他檔案 | Choose another file |
+| 102 | `PRESET_TOO_NEW` | B | 這個檔案來自較新的版本（格式 {found}，此版支援到 {supported}） | 檢查更新 | Check for updates |
+| 103 | `PRESET_TOO_LARGE` | B | 檔案太大（上限 {max} bytes） | 選擇其他檔案 | Choose another file |
+| 104 | `PRESET_KEY_TAKEN` | W | 已有名為「{key}」的整理方式 | 以新名稱匯入 | Import under a new name |
 | 100 | `CONFIRM_TEXT_MISMATCH` | B | 確認文字不正確（應為「{expected}」） | 重新輸入 | Type it again |
 
 > （回寫 W-1，09 §9）#63–#68 由 09 的 PF-063～PF-066 與 OUT-EXE-016 提出；08 §10 的 `PACK_MISSING`、`DRIVER_TOO_OLD` 分別對應本表的 `RUNTIME_PACK_MISSING`、`GPU_DRIVER_TOO_OLD`。

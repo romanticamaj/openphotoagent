@@ -461,6 +461,30 @@
     "severity": "B",
     "title": "計畫建立後有 {n} 個檔案被變更"
   },
+  "PRESET_INVALID": {
+    "cta": "選擇其他檔案",
+    "message": "這個整理方式檔案不正確或不安全（{reason}，位置 {pointer}），沒有匯入",
+    "severity": "B",
+    "title": "這個整理方式檔案不正確或不安全（{reason}"
+  },
+  "PRESET_KEY_TAKEN": {
+    "cta": "以新名稱匯入",
+    "message": "已有名為「{key}」的整理方式",
+    "severity": "W",
+    "title": "已有名為「{key}」的整理方式"
+  },
+  "PRESET_TOO_LARGE": {
+    "cta": "選擇其他檔案",
+    "message": "檔案太大（上限 {max} bytes）",
+    "severity": "B",
+    "title": "檔案太大（上限 {max} bytes）"
+  },
+  "PRESET_TOO_NEW": {
+    "cta": "檢查更新",
+    "message": "這個檔案來自較新的版本（格式 {found}，此版支援到 {supported}）",
+    "severity": "B",
+    "title": "這個檔案來自較新的版本（格式 {found}"
+  },
   "QUERY_EXPIRED": {
     "cta": "重新拖入照片",
     "message": "拖入的照片已超過 10 分鐘，為了隱私已從記憶體移除",

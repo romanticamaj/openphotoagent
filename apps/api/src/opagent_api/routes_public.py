@@ -450,7 +450,12 @@ def _preview_items(c: Any, j: Any, thresholds: dict[str, float] | None, template
     pol = Policy(**{k: v for k, v in (thresholds or {}).items() if k in ("accept", "review")})
     labels = organize.labels_for(c, j.id, pol)
     rows = [r for r in organize._source_assets(c, j.params["source_id"]) if r.asset_id in labels]
-    planned = plan(organize.plan_items(c, j, rows, labels), j.params["preset"], "", template=template)
+    planned = plan(
+        organize.plan_items(c, j, rows, labels),
+        j.params["preset"],
+        "",
+        template=template or organize.preset_template(c, j.params["preset"]),
+    )
     by = {a.asset_id: a for a in planned}
     return [
         {

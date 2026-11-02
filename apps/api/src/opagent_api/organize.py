@@ -45,10 +45,19 @@ def _builtin(key: str) -> Any:
     return load_preset((PRESETS_DIR / f"{key}.yaml").read_text(encoding="utf-8"))
 
 
-def preset(key: str, categories: list[dict[str, Any]] | None = None) -> Any:
-    """Built-in preset, or ``custom``: the by-content pipeline and output rules with the user's categories plus the
-    automatic 「其他」 (03 §3.3)."""
+def preset(key: str, categories: list[dict[str, Any]] | None = None, c: Any = None) -> Any:
+    """Built-in preset, an imported one (needs ``c``), or ``custom``: the by-content pipeline and output rules with
+    the user's categories plus the automatic 「其他」 (03 §3.3)."""
     if key != "custom":
+        if c is not None and not (PRESETS_DIR / f"{key}.yaml").is_file():
+            import yaml
+
+            from .routes_presets import user_doc
+
+            doc = user_doc(c, key)
+            if doc is None:
+                raise KeyError(key)
+            return load_preset(yaml.safe_dump(doc["preset"], allow_unicode=True))  # validated at import
         return _builtin(key)
     from dataclasses import replace
 
@@ -71,7 +80,7 @@ def preset(key: str, categories: list[dict[str, Any]] | None = None) -> Any:
 def task_config_for(
     preset_key: str, categories: list[dict[str, Any]] | None = None, c: Any = None
 ) -> dict[str, Any] | None:
-    p = preset(preset_key, categories)
+    p = preset(preset_key, categories, c)
     if not p.task_configs:
         return None
     tc = dict(p.task_configs[0])
@@ -397,7 +406,7 @@ def rebuild_draft_plan(st: Any, c: Any, job_id: str) -> str | None:
 
 
 def plan_items(c: Any, j: Any, rows: list[Any], labels: dict[str, dict[str, Any]] | None = None) -> list[PlanItem]:
-    names = {cat["key"]: cat["zh-TW"] for cat in preset(j.params["preset"], j.params.get("categories")).categories}
+    names = {cat["key"]: cat["zh-TW"] for cat in preset(j.params["preset"], j.params.get("categories"), c).categories}
     items = []
     for r in rows:
         lab = (labels or {}).get(r.asset_id)
@@ -417,14 +426,29 @@ def plan_items(c: Any, j: Any, rows: list[Any], labels: dict[str, dict[str, Any]
     return items
 
 
+def preset_template(c: Any, key: str) -> str | None:
+    """An imported preset's own path template (its first output rule); built-ins use the planner's table."""
+    from opagent_core.planner import PRESET_TEMPLATES
+
+    if key in PRESET_TEMPLATES or key == "custom":
+        return None
+    rules = sorted(preset(key, None, c).output_rules, key=lambda r: r.priority)
+    return rules[0].path_template if rules else None
+
+
 def build_plan(st: Any, c: Any, j: Any, rows: list[Any]) -> None:
     params = j.params
     target = params["target"]
     if j.status == "running":
         set_job_status(c, j.id, JobStatus.planning, clock=st.clock)
-    labels = labels_for(c, j.id) if task_config_for(params["preset"], params.get("categories")) else None
+    labels = labels_for(c, j.id) if task_config_for(params["preset"], params.get("categories"), c) else None
     planned = assign_collisions(
-        plan(plan_items(c, j, rows, labels), params["preset"], target.get("sub_path", "").strip("/")),
+        plan(
+            plan_items(c, j, rows, labels),
+            params["preset"],
+            target.get("sub_path", "").strip("/"),
+            template=preset_template(c, params["preset"]),
+        ),
         case_insensitive=True,
     )
     pid = uuid7(st.clock)

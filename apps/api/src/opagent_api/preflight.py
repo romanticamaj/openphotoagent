@@ -141,11 +141,18 @@ class Pre:
         self.gates.append({"id": "worker", "status": "ok"})
         return True
 
+    def _uses_model(self) -> bool:
+        """A preset with a task config runs a model; one without (by date, or an imported date-only preset) does not."""
+        from .organize import task_config_for
+
+        try:
+            return task_config_for(str(self.p.get("preset", "by-date")), self.p.get("categories"), self.c) is not None
+        except (KeyError, FileNotFoundError):
+            return True
+
     def doctor_gate(self) -> None:
         # job.start findings come from model/GPU features; a job that uses no model (by date) is unaffected (PF-084)
-        no_models = (
-            self.action == "job.start" and not self.p.get("models") and self.p.get("preset", "by-date") == "by-date"
-        )
+        no_models = self.action == "job.start" and not self.p.get("models") and not self._uses_model()
         for d in self.caps.get("doctor") or []:
             if self.action not in (d.get("affects") or []) or no_models:
                 continue
@@ -307,7 +314,7 @@ class Pre:
         models = p.get("models")
         if models:
             self.model_gates(models)
-        elif p.get("preset", "by-date") != "by-date":
+        elif self._uses_model():
             from .routes_models import compat_for, job_vlm_key
 
             key = job_vlm_key(self.c, self.st, self.w.id)

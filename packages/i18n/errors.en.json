@@ -461,6 +461,30 @@
     "severity": "B",
     "title": "{n} files changed after the plan was created"
   },
+  "PRESET_INVALID": {
+    "cta": "Choose another file",
+    "message": "This organize preset file is invalid or unsafe ({reason} at {pointer}); nothing was imported",
+    "severity": "B",
+    "title": "This organize preset file is invalid or unsafe ({reason} at {pointer})"
+  },
+  "PRESET_KEY_TAKEN": {
+    "cta": "Import under a new name",
+    "message": "An organize preset named “{key}” already exists",
+    "severity": "W",
+    "title": "An organize preset named “{key}” already exists"
+  },
+  "PRESET_TOO_LARGE": {
+    "cta": "Choose another file",
+    "message": "The file is too large (limit {max} bytes)",
+    "severity": "B",
+    "title": "The file is too large (limit {max} bytes)"
+  },
+  "PRESET_TOO_NEW": {
+    "cta": "Check for updates",
+    "message": "This file comes from a newer version (format {found}; this version supports up to {supported})",
+    "severity": "B",
+    "title": "This file comes from a newer version (format {found}"
+  },
   "QUERY_EXPIRED": {
     "cta": "Drop the photo again",
     "message": "The dropped photo was removed from memory after 10 minutes, for privacy",

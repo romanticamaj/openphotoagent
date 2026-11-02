@@ -34,7 +34,7 @@ class PresetError(ValueError):
         self.params = params
 
 
-class _NoAliasLoader(yaml.SafeLoader):
+class _NoAliasLoader(yaml.SafeLoader):  # type: ignore[misc]  # PyYAML ships no stubs here
     def compose_node(self, parent: Any, index: Any) -> Any:
         if self.check_event(yaml.AliasEvent):
             raise PresetError("PRESET_INVALID", reason="yaml_alias")
@@ -43,7 +43,7 @@ class _NoAliasLoader(yaml.SafeLoader):
         if anchor is not None:
             raise PresetError("PRESET_INVALID", reason="yaml_anchor")
         tag = getattr(event, "tag", None)
-        if tag and not tag.startswith("tag:yaml.org,2002:") or (tag and "python" in tag):
+        if (tag and not tag.startswith("tag:yaml.org,2002:")) or (tag and "python" in tag):
             raise PresetError("PRESET_INVALID", reason="yaml_tag")
         return super().compose_node(parent, index)
 
@@ -85,7 +85,11 @@ def _validate(p: dict[str, Any]) -> None:
         except RuleError as e:
             raise PresetError(e.code, pointer=at + "/when") from None
     for i, c in enumerate(p.get("categories") or []):
-        if not isinstance(c, dict) or not isinstance(c.get("key"), str) or not re.fullmatch(r"[a-z0-9_.-]{1,64}", c["key"]):
+        if (
+            not isinstance(c, dict)
+            or not isinstance(c.get("key"), str)
+            or not re.fullmatch(r"[a-z0-9_.-]{1,64}", c["key"])
+        ):
             raise PresetError("PRESET_INVALID", reason="category", pointer=f"/preset/categories/{i}")
 
 
@@ -120,4 +124,4 @@ def export_text(doc: dict[str, Any], app_version: str) -> str:
         "app_version": app_version,
         **{k: v for k, v in doc.items() if k not in ("schema_version", "kind", "app_version", "migrated_from")},
     }
-    return yaml.safe_dump(body, allow_unicode=True, sort_keys=False)
+    return str(yaml.safe_dump(body, allow_unicode=True, sort_keys=False))
