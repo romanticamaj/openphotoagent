@@ -61,6 +61,13 @@ def cmd_api(a: argparse.Namespace) -> None:
         assert sock is not None
     port = int(sock.getsockname()[1])
     if a.token_stdin:
+        from .layout import LayoutTooNew, ensure_layout
+
+        try:
+            ensure_layout(home)  # the data folder first, after a backup of what it touches (MIG-002)
+        except LayoutTooNew as e:
+            print(f"{e.code}: {e}", file=sys.stderr, flush=True)
+            raise SystemExit(6) from None  # the shell shows the problem card with its fixes
         prepare_database(a.dsn, home)
     else:
         create_all(a.dsn)  # dev / tests: schema straight from the models

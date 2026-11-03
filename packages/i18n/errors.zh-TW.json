@@ -41,6 +41,12 @@
     "severity": "B",
     "title": "分頁游標無效或已過期"
   },
+  "DATA_LAYOUT_TOO_NEW": {
+    "cta": "用備份還原 · 安裝新版",
+    "message": "資料夾由較新版本的 app 建立（layout {found}），此版本無法使用；資料未被更動",
+    "severity": "B",
+    "title": "資料夾由較新版本的 app 建立（layout {found}）"
+  },
   "DB_SCHEMA_TOO_NEW": {
     "cta": "用備份還原 · 安裝新版",
     "message": "資料庫由較新版本的 app 建立（{found}），此版本無法降級使用；資料未被更動",

@@ -205,6 +205,10 @@ fn supervise(app: tauri::AppHandle, shell: Arc<Shell>, dsn: String) {
                     let _ = app.emit("shell://fatal", "LAN_PASSWORD_REQUIRED");
                     return;
                 }
+                ExitClass::LayoutTooNew => {
+                    let _ = app.emit("shell://fatal", "DATA_LAYOUT_TOO_NEW"); // restore a backup / install newer (MIG-002)
+                    return;
+                }
                 ExitClass::AlreadyRunning | ExitClass::Stopped => return,
                 ExitClass::Crashed => {
                     let tracker = &mut trackers.iter_mut().find(|(n, _)| *n == name).unwrap().1;

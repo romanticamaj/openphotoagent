@@ -41,6 +41,12 @@
     "severity": "B",
     "title": "The page cursor is invalid or expired"
   },
+  "DATA_LAYOUT_TOO_NEW": {
+    "cta": "Restore from a backup · Install the newer version",
+    "message": "This data folder was created by a newer version of the app (layout {found}); this version cannot use it and nothing was changed",
+    "severity": "B",
+    "title": "This data folder was created by a newer version of the app (layout {found})"
+  },
   "DB_SCHEMA_TOO_NEW": {
     "cta": "Restore from a backup · Install the newer version",
     "message": "The database was created by a newer version of the app ({found}); this version cannot downgrade it and nothing was changed",

@@ -918,6 +918,7 @@ Fix 共有欄位：`fix_id`、`type`、`label`、`primary`、`requires_permissio
 | 107 | `MODEL_REMOTE_CODE_UNCONFIRMED` | B | 這個模型會在你的電腦上執行它自帶的程式碼（{files}），需要你先檢視並確認 | 檢視並確認程式碼 | Review and confirm the code |
 | 108 | `IMMICH_UNREACHABLE` | B | 連不到 Immich 伺服器 | 檢查 Immich 網址 | Check the Immich URL |
 | 109 | `IMMICH_AUTH_FAILED` | B | Immich 拒絕了 API key | 重新輸入 API key | Enter the API key again |
+| 110 | `DATA_LAYOUT_TOO_NEW` | B | 資料夾由較新版本的 app 建立（layout {found}），此版本無法使用；資料未被更動 | 用備份還原 · 安裝新版 | Restore from a backup · Install the newer version |
 | 100 | `CONFIRM_TEXT_MISMATCH` | B | 確認文字不正確（應為「{expected}」） | 重新輸入 | Type it again |
 
 > （回寫 W-1，09 §9）#63–#68 由 09 的 PF-063～PF-066 與 OUT-EXE-016 提出；08 §10 的 `PACK_MISSING`、`DRIVER_TOO_OLD` 分別對應本表的 `RUNTIME_PACK_MISSING`、`GPU_DRIVER_TOO_OLD`。
