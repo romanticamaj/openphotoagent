@@ -6,11 +6,11 @@
 
 | 版本 | 總數 | 綠 | 部分 | 紅 | 未開始 | 廢止 |
 |---|---|---|---|---|---|---|
-| v0.1 | 616 | 588 | 0 | 2 | 26 | 0 |
+| v0.1 | 618 | 590 | 0 | 2 | 26 | 0 |
 | v0.2 | 180 | 175 | 0 | 0 | 5 | 0 |
 | v0.3 | 55 | 53 | 0 | 0 | 2 | 0 |
 | v0.4 | 31 | 28 | 0 | 0 | 3 | 0 |
-| v0.5 | 34 | 0 | 0 | 0 | 34 | 0 |
+| v0.5 | 34 | 31 | 0 | 0 | 3 | 0 |
 | v1.0 | 1 | 0 | 0 | 0 | 1 | 0 |
 
 ## 依模組
@@ -54,8 +54,8 @@
 | v0.1 | OUT-JRN | 5 | 5 | 0 | 0 |
 | v0.1 | OUT-UNDO | 9 | 9 | 0 | 0 |
 | v0.1 | PACK | 11 | 11 | 0 | 0 |
-| v0.1 | PERF | 7 | 4 | 2 | 1 |
-| v0.1 | PF | 76 | 76 | 0 | 0 |
+| v0.1 | PERF | 8 | 5 | 2 | 1 |
+| v0.1 | PF | 77 | 77 | 0 | 0 |
 | v0.1 | PG | 14 | 11 | 3 | 0 |
 | v0.1 | Q | 28 | 28 | 0 | 0 |
 | v0.1 | REV | 5 | 5 | 0 | 0 |
@@ -127,13 +127,13 @@
 | v0.4 | SRCH-R2 | 4 | 4 | 0 | 0 |
 | v0.4 | WINML | 1 | 0 | 1 | 0 |
 | v0.5 | MCP-TRN | 1 | 0 | 1 | 0 |
-| v0.5 | MU-AUTH | 3 | 0 | 3 | 0 |
-| v0.5 | MU-DEPLOY | 2 | 0 | 2 | 0 |
-| v0.5 | MU-OAUTH | 8 | 0 | 8 | 0 |
-| v0.5 | MU-PRIV | 5 | 0 | 5 | 0 |
-| v0.5 | MU-RBAC | 3 | 0 | 3 | 0 |
-| v0.5 | MU-SEC | 4 | 0 | 4 | 0 |
-| v0.5 | MU-WORKER | 6 | 0 | 6 | 0 |
+| v0.5 | MU-AUTH | 3 | 3 | 0 | 0 |
+| v0.5 | MU-DEPLOY | 2 | 2 | 0 | 0 |
+| v0.5 | MU-OAUTH | 8 | 8 | 0 | 0 |
+| v0.5 | MU-PRIV | 5 | 5 | 0 | 0 |
+| v0.5 | MU-RBAC | 3 | 3 | 0 | 0 |
+| v0.5 | MU-SEC | 4 | 4 | 0 | 0 |
+| v0.5 | MU-WORKER | 6 | 6 | 0 | 0 |
 | v0.5 | PF | 2 | 0 | 2 | 0 |
 | v1.0 | SEC-AUDIT | 1 | 0 | 1 | 0 |
 
@@ -554,6 +554,7 @@
 | PF-082 | v0.1 | C | #27 | 綠 | 1 | problem+json 全域 |
 | PF-083 | v0.1 | I | #28 | 綠 | 2 | 永遠有退路 |
 | PF-084 | v0.1 | I | #27,#28 | 綠 | 1 | 不需模型的工作不受 GPU 檢查阻擋（回歸） |
+| PF-085 | v0.1 | C | #27 | 綠 | 1 | problem+json 細節欄位與保留欄位同名（回歸） |
 | OP-001 | v0.1 | C | #33 | 綠 | 5 | 所有長操作都是 Operation |
 | OP-002 | v0.1 | U | #30 | 綠 | 1 | 階段權重 |
 | OP-003 | v0.1 | U | #30 | 綠 | 1 | 快取命中不讓進度跳 |
@@ -674,6 +675,7 @@
 | PERF-005 | v0.1 | N |  | 未開始 | 0 | 推論吞吐基準 |
 | PERF-006 | v0.1 | F |  | 綠 | 1 | 搜尋延遲 |
 | PERF-007 | v0.1 | D | #3 | 未開始 | 0 | 暖啟動 |
+| PERF-008 | v0.1 | I |  | 綠 | 2 | 釋放後的 app 不會留在記憶體（回歸） |
 | A11Y-001 | v0.1 | A | #11 | 綠 | 4 | axe 全路由 |
 | A11Y-002 | v0.1 | A | #90 | 綠 | 1 | 網格語意 |
 | A11Y-003 | v0.1 | A | #90 | 綠 | 1 | Lightbox |
@@ -1014,9 +1016,9 @@
 | LS-001 | v0.4 | C | #109 | 綠 | 1 | 匯出 tasks |
 | LS-002 | v0.4 | U | #109 | 綠 | 1 | 標註設定 |
 | LS-003 | v0.4 | I | #109 | 綠 | 1 | 匯回標註 |
-| SRCH-R2-001 | v0.4 | I | #110 | 綠 | 2 | caption 向量進入檢索 |
-| SRCH-R2-002 | v0.4 | I | #110 | 綠 | 2 | 跨語言 |
-| SRCH-R2-003 | v0.4 | I | #110 | 綠 | 2 | 藍綠 reindex |
+| SRCH-R2-001 | v0.4 | I | #110 | 綠 | 1 | caption 向量進入檢索 |
+| SRCH-R2-002 | v0.4 | I | #110 | 綠 | 1 | 跨語言 |
+| SRCH-R2-003 | v0.4 | I | #110 | 綠 | 1 | 藍綠 reindex |
 | SRCH-R2-004 | v0.4 | E | #110 | 綠 | 1 | reindex UI |
 | DIST-001 | v0.4 | U | #111 | 綠 | 1 | 套件管理器 manifest |
 | DIST-002 | v0.4 | M | #111 | 未開始 | 0 | 發佈管道評估 |
@@ -1026,37 +1028,37 @@
 | MAP-003 | v0.4 | U | #96 | 綠 | 2 | 聚類計算 |
 | CMP-001 | v0.4 | E | #97 | 綠 | 1 | 比較模式 |
 | CMP-002 | v0.4 | A | #97 | 綠 | 1 | 比較模式鍵盤 |
-| MU-WORKER-001 | v0.5 | I | #12 | 未開始 | 0 | 遠端 Worker 只往外連 |
-| MU-WORKER-002 | v0.5 | I | #12 | 未開始 | 0 | 一次性配對碼 |
-| MU-WORKER-003 | v0.5 | U | #12 | 未開始 | 0 | ed25519 簽章換 access token |
-| MU-WORKER-004 | v0.5 | I | #12 | 未開始 | 0 | WSS 與 long-poll 降級 |
-| MU-WORKER-005 | v0.5 | C | #12 | 未開始 | 0 | 協定版本 |
-| MU-WORKER-006 | v0.5 | I | #12 | 未開始 | 0 | 桌面 app 當 headless Worker |
-| MU-RBAC-001 | v0.5 | I | #12 | 未開始 | 0 | ws_viewer 不可寫 |
-| MU-RBAC-002 | v0.5 | C | #12 | 未開始 | 0 | 角色矩陣 |
-| MU-RBAC-003 | v0.5 | I | #12 | 未開始 | 0 | 套用需要 output:apply |
-| MU-AUTH-001 | v0.5 | I | #12 | 未開始 | 0 | 密碼登入 |
-| MU-AUTH-002 | v0.5 | I | #12 | 未開始 | 0 | OIDC 登入 |
-| MU-AUTH-003 | v0.5 | I | #12 | 未開始 | 0 | 單人模式升級 |
-| MU-PRIV-001 | v0.5 | I | #113 | 未開始 | 0 | full |
-| MU-PRIV-002 | v0.5 | I | #113 | 未開始 | 0 | thumbs |
-| MU-PRIV-003 | v0.5 | I | #113 | 未開始 | 0 | edge-thumbs |
-| MU-PRIV-004 | v0.5 | I | #113 | 未開始 | 0 | results-only |
-| MU-PRIV-005 | v0.5 | S | #113 | 未開始 | 0 | Worker 端強制 |
-| MU-SEC-001 | v0.5 | S | #12 | 未開始 | 0 | Worker 冒充 |
-| MU-SEC-002 | v0.5 | S | #12 | 未開始 | 0 | token 重放 |
-| MU-SEC-003 | v0.5 | S | #12 | 未開始 | 0 | 跨 workspace 隔離 |
-| MU-SEC-004 | v0.5 | S | #12 | 未開始 | 0 | Worker RPC 白名單 |
-| MU-DEPLOY-001 | v0.5 | E | #12 | 未開始 | 0 | compose 雙機 E2E |
-| MU-DEPLOY-002 | v0.5 | M | #12 | 未開始 | 0 | 桌面 app 當 client |
-| MU-OAUTH-001 | v0.5 | I | #73 | 未開始 | 0 | grant 撤銷即時 |
-| MU-OAUTH-002 | v0.5 | C | #73 | 未開始 | 0 | Protected Resource Metadata |
-| MU-OAUTH-003 | v0.5 | S | #73 | 未開始 | 0 | scope 與 audience |
-| MU-OAUTH-004 | v0.5 | S | #73 | 未開始 | 0 | PKCE 與 redirect 嚴格 |
-| MU-OAUTH-005 | v0.5 | S | #73 | 未開始 | 0 | refresh 輪替與重用偵測 |
-| MU-OAUTH-006 | v0.5 | S | #73 | 未開始 | 0 | CIMD 的 SSRF 防護 |
-| MU-OAUTH-007 | v0.5 | I | #73 | 未開始 | 0 | 端到端探索 |
-| MU-OAUTH-008 | v0.5 | U | #73 | 未開始 | 0 | 有效 scope 永不含 organize:apply |
+| MU-WORKER-001 | v0.5 | I | #12 | 綠 | 1 | 遠端 Worker 只往外連 |
+| MU-WORKER-002 | v0.5 | I | #12 | 綠 | 1 | 一次性配對碼 |
+| MU-WORKER-003 | v0.5 | U | #12 | 綠 | 1 | ed25519 簽章換 access token |
+| MU-WORKER-004 | v0.5 | I | #12 | 綠 | 1 | WSS 與 long-poll 降級 |
+| MU-WORKER-005 | v0.5 | C | #12 | 綠 | 1 | 協定版本 |
+| MU-WORKER-006 | v0.5 | I | #12 | 綠 | 1 | 桌面 app 當 headless Worker |
+| MU-RBAC-001 | v0.5 | I | #12 | 綠 | 1 | ws_viewer 不可寫 |
+| MU-RBAC-002 | v0.5 | C | #12 | 綠 | 6 | 角色矩陣 |
+| MU-RBAC-003 | v0.5 | I | #12 | 綠 | 1 | 套用需要 output:apply |
+| MU-AUTH-001 | v0.5 | I | #12 | 綠 | 4 | 密碼登入 |
+| MU-AUTH-002 | v0.5 | I | #12 | 綠 | 1 | OIDC 登入 |
+| MU-AUTH-003 | v0.5 | I | #12 | 綠 | 1 | 單人模式升級 |
+| MU-PRIV-001 | v0.5 | I | #113 | 綠 | 1 | full |
+| MU-PRIV-002 | v0.5 | I | #113 | 綠 | 1 | thumbs |
+| MU-PRIV-003 | v0.5 | I | #113 | 綠 | 1 | edge-thumbs |
+| MU-PRIV-004 | v0.5 | I | #113 | 綠 | 1 | results-only |
+| MU-PRIV-005 | v0.5 | S | #113 | 綠 | 1 | Worker 端強制 |
+| MU-SEC-001 | v0.5 | S | #12 | 綠 | 1 | Worker 冒充 |
+| MU-SEC-002 | v0.5 | S | #12 | 綠 | 1 | token 重放 |
+| MU-SEC-003 | v0.5 | S | #12 | 綠 | 1 | 跨 workspace 隔離 |
+| MU-SEC-004 | v0.5 | S | #12 | 綠 | 1 | Worker RPC 白名單 |
+| MU-DEPLOY-001 | v0.5 | E | #12 | 綠 | 1 | compose 雙機 E2E |
+| MU-DEPLOY-002 | v0.5 | M | #12 | 綠 | 3 | 桌面 app 當 client |
+| MU-OAUTH-001 | v0.5 | I | #73 | 綠 | 1 | grant 撤銷即時 |
+| MU-OAUTH-002 | v0.5 | C | #73 | 綠 | 1 | Protected Resource Metadata |
+| MU-OAUTH-003 | v0.5 | S | #73 | 綠 | 1 | scope 與 audience |
+| MU-OAUTH-004 | v0.5 | S | #73 | 綠 | 1 | PKCE 與 redirect 嚴格 |
+| MU-OAUTH-005 | v0.5 | S | #73 | 綠 | 1 | refresh 輪替與重用偵測 |
+| MU-OAUTH-006 | v0.5 | S | #73 | 綠 | 1 | CIMD 的 SSRF 防護 |
+| MU-OAUTH-007 | v0.5 | I | #73 | 綠 | 1 | 端到端探索 |
+| MU-OAUTH-008 | v0.5 | U | #73 | 綠 | 1 | 有效 scope 永不含 organize:apply |
 | SEC-AUDIT-001 | v1.0 | S |  | 未開始 | 0 | v1.0 安全審查 |
 
 ## 不在目錄中的 ID（請補到 09a／09b）
