@@ -173,6 +173,9 @@
 | 111 | winget、Homebrew、Flathub 發佈設定 | 08 §9.2；09b §7.6 | 評估加產生器 | v0.4 | manifest 由 release metadata 產生，可重現；實際上架需要使用者帳號（BLOCKERS） |
 | 112 | Windows ML 取代 DirectML 的評估 | 08 §3.1；09b §7.6 | 評估 | v0.4 | 評估文件；需要 Windows 實機的項目標 pending-hardware |
 | 113 | 四級隱私政策（full、thumbs、edge-thumbs、results-only），由遠端 Worker 強制執行 | 02 §1.4；09b §8.3 | 完整 | v0.5 | 每一級上傳內容符合 02 §1.4；CP 被竄改時 Worker 仍拒絕上傳 |
+| 114 | 介面凍結與相容性快照（REST、Worker 協定、MCP manifest、pack_api、registry、preset） | VERSIONING §4；09b §9.1 | 完整 | v1.0 | `contracts/` 快照與比對器；破壞性變更讓 CI 失敗，相容的增加需要明確更新快照 |
+| 115 | 從 v0.x 各版升級（資料庫、桌面資料夾） | VERSIONING §4；09b §9.4 | 完整 | v1.0 | 各里程碑的 schema 升級到 head 後與 models 一致、資料保留；layout 遷移前先備份 |
+| 116 | stable 與 beta 更新通道 | 08 §5；09b §9.5 | 完整 | v1.0 | stable 只提供正式版；beta 切回 stable 不降級；簽章錯誤時拒絕 |
 
 ### 1.8 統計
 

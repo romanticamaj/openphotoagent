@@ -491,8 +491,52 @@
 
 > 8.6 依 **ADR-0015**（C-21 定案）：v0.5 內建精簡 AS（Authlib），外部 IdP 之後以進階模式提供。
 
-## 9. v1.0（骨架；開工前細化）
+## 9. v1.0 — 穩定版（細化於 2026-11-03；VERSIONING §4；08 §9.2 v1.0 列；09 §5）
 
-| ID | 標題 | 預期 | 層 | # | 版 |
-|----|------|------|----|---|----|
-| SEC-AUDIT-001 | v1.0 安全審查 | 路徑沙箱 fuzz 1 億例、MCP 紅隊擴充至 100 條、人臉刪除驗證，由外部審查 | S/M | — | v1.0 |
+> 原則：v1.0 對 VERSIONING §4 列出的每個介面都做出相容性承諾。每個介面都有一份 **快照**（`contracts/`），CI 會比對目前的程式碼和快照：只允許「加」（新的 endpoint、選填欄位、新的 tool），任何移除、改名、改型別、把選填改成必填，都會讓 CI 失敗。真的需要破壞時，就要升 `/api/v2`、主版本，或 tool manifest 的 major，並在 CHANGELOG 附上遷移說明。
+
+### 9.1 介面凍結與快照（VERSIONING §4）
+
+| ID | 標題 | 前置／輸入 | 預期 | 層 | # |
+|----|------|-----------|------|----|---|
+| FRZ-001 | REST `/api/v1` 快照 | 產生 OpenAPI，與 `contracts/openapi-v1.json` 比對 | 完全相同即通過；只有新增 path、method、選填欄位、回應欄位時，要求以 `just contracts-update` 更新快照；移除 path、改型別、新增必填參數都會失敗，並列出差異 | C | #— |
+| FRZ-002 | Worker 協定快照 | `protocol_version`、`welcome` 欄位、`/worker-api/v1` endpoint 與 request schema | 同 FRZ-001 的規則；`protocol_version` 的 major 沒有升而 schema 出現破壞性變更時失敗；CP 仍服務 N 與 N-1 | C | #12 |
+| FRZ-003 | MCP tool manifest 快照 | 全部 tool 的名稱、scope、`available_from`、inputSchema，加上 manifest `version` | 新增 tool 或選填參數可以；移除或改名 tool、新增必填參數、改 scope 都失敗；manifest `version` 為 1.0.0 | C | #73 |
+| FRZ-004 | Runtime pack 介面 | `pack_api` 整數、`packs.lock.json` 與 pack index 的 schema | 快照比對；同一個 minor 內 `pack_api` 不變 | C | #— |
+| FRZ-005 | Model registry `schema_version` | 以 v0.1 格式的 registry YAML（fixtures）載入 | 自動遷移到目前的 schema、內容不變；JSON schema 快照比對 | C | #— |
+| FRZ-006 | Preset schema | v0.3 匯出的 preset（schema_version 1 與 2，fixtures） | v1.0 可以匯入，而且結果與當時相同；JSON schema 快照比對 | C | #— |
+| FRZ-007 | 相容性比對器 | 合成的 schema 差異（property test） | 新增屬性、新增選填參數、新增 enum 值（回應端）判為「相容」；移除、改型別、新增必填、收窄 enum（請求端）判為「破壞」；判斷結果不受欄位順序影響 | U | #— |
+
+### 9.2 安全審查（08 §9.2）
+
+| ID | 標題 | 前置／輸入 | 預期 | 層 | # |
+|----|------|-----------|------|----|---|
+| SEC-FUZZ-001 | 路徑沙箱 1,000,000 例 fuzz | SafePath 的 hypothesis 與隨機生成器，固定 seed，nightly 跑 1,000,000 例（PR 跑 10,000 例） | 0 逃逸：沒有任何結果落在 root 外，或解析到 symlink 目標、保留名、`..` | S/N | #— |
+| SEC-REDTEAM-001 | MCP 紅隊集擴充 | 確定性的紅隊集擴充到 ≥ 100 條：注入出現在 caption、EXIF、檔名、相簿名、人物名、OCR 文字；偽造的 tool 結果；越權 scope；跨資料夾 handle | 未經核准的寫入 = 0；越權存取 = 0；每條都有分類標籤與預期 | S | #71 |
+| SEC-FACE-001 | 人臉資料刪除可驗證 | 啟用人臉 → 掃描 → 命名 → 「刪除所有人臉資料」 | `bio` schema 的向量、群組、人物連結全部為 0；Worker 的 crop 與 vault 不存在；金鑰已銷毀；刪除之後的備份不含 `bio`；產生的刪除報告（計數、時間、雜湊）可以重新驗證 | S | #— |
+| SEC-SBOM-001 | SBOM 與漏洞掃描 | 為 Python（uv.lock）、npm（pnpm-lock）、Rust（Cargo.lock）產生 CycloneDX SBOM，並執行漏洞掃描 | SBOM 涵蓋 lockfile 裡的每個套件；High 或 Critical 漏洞為 0，或已在 `security/vex.json` 寫明不受影響的理由；CI release-gate 會執行 | S/N | #— |
+| SEC-AUDIT-001 | 外部安全審查 | 路徑沙箱、MCP、人臉刪除、control plane 認證 | 由外部審查者完成並記錄 | M | #— |
+
+### 9.3 i18n 與 a11y
+
+| ID | 標題 | 前置／輸入 | 預期 | 層 | # |
+|----|------|-----------|------|----|---|
+| I18N-010 | 兩種語言完整 | en 與 zh-TW 的所有 locale 檔 | 兩邊的 key 集合相同；沒有空字串；zh-TW 沒有和 en 一模一樣的句子（白名單除外，例如品牌名）；插值變數兩邊相同 | C | #— |
+| I18N-011 | 錯誤碼目錄雙語 | 06 §4.7 的所有錯誤碼 | 每個錯誤碼在兩種語言都有 title、message、修復按鈕文字 | C | #— |
+| A11Y-010 | 每個頁面通過 axe | 所有 route（含 v0.5 的登入頁），淺色與深色 | serious 與 critical 違規為 0 | E | #— |
+| A11Y-011 | 鍵盤可走完主要流程 | 只用鍵盤：加入資料夾 → 整理 → 核准 → undo；搜尋 → Lightbox；問 AI | 每一步都能到達，焦點順序合理且可見；沒有鍵盤陷阱 | E | #— |
+
+### 9.4 升級與遷移
+
+| ID | 標題 | 前置／輸入 | 預期 | 層 | # |
+|----|------|-----------|------|----|---|
+| MIG-001 | 從 v0.x 各版升級 | 以每個里程碑（v0.1～v0.5）的 schema 建立資料庫並放入樣本資料 → `migrate()` | 升級到 head 後，schema 與目前的 models 完全一致（Alembic compare 為空）；樣本資料都還在；升級前有備份 | I | #— |
+| MIG-002 | 桌面資料夾 `layout_version` | layout 1 的資料夾 | 先備份，再遷移到目前的 layout；重複執行不會出錯；layout 比 app 新時拒絕並給出修復 CTA | I | #— |
+| MIG-003 | 破壞性變更都有遷移說明 | CHANGELOG 中每一條 `BREAKING`／`⚠` | 每一條都附有 `Migration:` 段落；工具檢查 | C | #— |
+
+### 9.5 Stable 通道
+
+| ID | 標題 | 前置／輸入 | 預期 | 層 | # |
+|----|------|-----------|------|----|---|
+| UPD-010 | stable 與 beta 通道 | updater manifest 含 1.0.0、1.1.0-beta.1 | stable 只提供正式版；beta 兩者都會提供；從 beta 切回 stable 時不會降級，而是等到下一個 stable；manifest 簽章錯誤時拒絕 | U | #— |
+| REL-010 | v1.0 發版清單 | `docs/checklists/release-v1.0.md` | 列出所有手動驗證項目，並連到 BLOCKERS 中的對應項目 | M | #— |
