@@ -52,6 +52,8 @@ def create_app(
     home: Any = None,
     multi_user: bool = False,
     jwt_secret: str | None = None,
+    owner: tuple[str, str] | None = None,
+    insecure_cookies: bool = False,
 ) -> FastAPI:
     from opagent_core.version import VERSION
 
@@ -72,6 +74,7 @@ def create_app(
         home=Path(home) if home else None,
         multi_user=multi_user,
         jwt_secret=jwt_secret,
+        insecure_cookies=insecure_cookies,
     )
     if multi_user and (not jwt_secret or len(jwt_secret) < 32):
         raise ValueError("multi-user mode needs a jwt_secret of at least 32 characters")
@@ -80,7 +83,12 @@ def create_app(
     st.engine.dispose()
     faces.api_role_hook(st.engine)
     st.ensure_workspace()
+    if multi_user:
+        from .multiuser import bootstrap_owner
+
+        bootstrap_owner(st, owner)  # an upgraded single-user database: its owner becomes org_owner (MU-AUTH-003)
     app.state.opa = st
+    st.fastapi_app = app
     install_problem_handlers(app)
     from . import security
 

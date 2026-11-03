@@ -68,6 +68,7 @@ class Token:
         self.scopes = frozenset(row.scopes or [])
         self.folders: list[dict[str, str]] = list(row.folder_scopes or [])
         self.media_policy: str | None = row.media_policy
+        self.owner: str | None = getattr(row, "owner_user_id", None)
 
     @property
     def scope_key(self) -> str:
@@ -143,10 +144,29 @@ async def rpc(req: Request) -> Any:
         return JSONResponse(_rpc_error(None, -32700, "parse error"))
     if not isinstance(msg, dict) or msg.get("jsonrpc") != "2.0" or not isinstance(msg.get("method"), str):
         return JSONResponse(_rpc_error(None, -32600, "invalid request"))
+    denied = await run_in_threadpool(_role_denied, st, tok, msg)
+    if denied is not None:
+        return JSONResponse(status_code=403, content=denied)
     out = await run_in_threadpool(handle, st, tok, msg, req)
     if out is None:  # a notification
         return JSONResponse(status_code=202, content=None)
     return JSONResponse(out)
+
+
+def _role_denied(st: AppState, tok: Token, msg: dict[str, Any]) -> dict[str, Any] | None:
+    """Control plane: the effective scope is token ∩ the owner's current role (MU-RBAC-001)."""
+    if not st.multi_user or msg.get("method") != "tools/call":
+        return None
+    from .multiuser import user_permissions
+    from .permissions import SCOPE_PERMISSION
+
+    tool = BY_NAME.get(str((msg.get("params") or {}).get("name") or ""))
+    if tool is None:
+        return None
+    perms = user_permissions(st, tok.owner) if tok.owner else frozenset()
+    if SCOPE_PERMISSION.get(tool.scope) in perms:
+        return None
+    return _rpc_error(msg.get("id"), -32003, "forbidden by role", {"code": "FORBIDDEN_ROLE"})
 
 
 def handle(st: AppState, tok: Token, msg: dict[str, Any], req: Request) -> dict[str, Any] | None:

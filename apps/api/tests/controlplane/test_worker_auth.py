@@ -3,15 +3,12 @@ never leaves the worker, short-lived JWTs bound to the worker, and the attacks t
 
 import base64
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 
 import jwt
 import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from fastapi.testclient import TestClient
-from opagent_api.app import create_app
-from opagent_api.multiuser import create_user
-from opagent_testing.clock import FakeClock
 
 
 def b64(b: bytes) -> str:
@@ -30,16 +27,9 @@ class Key:
 
 
 @pytest.fixture
-def cp(embedded_pg):
-    clock = FakeClock(datetime(2026, 11, 2, 12, 0, tzinfo=UTC))
-    app = create_app(dsn=embedded_pg.dsn, clock=clock, multi_user=True, jwt_secret="test-secret-" + "x" * 32)
-    c = TestClient(app)
-    create_user(app.state.opa, "admin@example.invalid", "correct horse battery", role="org_owner")
-    r = c.post("/api/v1/auth/login", json={"email": "admin@example.invalid", "password": "correct horse battery"})
-    assert r.status_code == 200, r.text
-    c.headers["X-CSRF-Token"] = r.json()["csrf"]
-    c.headers["X-OPA-UI"] = "1"
-    c.clock = clock
+def cp(cp_app, login_as):
+    c = login_as("admin@example.invalid")
+    c.clock = cp_app.clock
     return c
 
 
@@ -132,7 +122,10 @@ def test_sec_001_worker_impersonation(cp):
     wf = TestClient(cp.app, headers={"Authorization": f"Bearer {forged}"})
     assert wf.post("/worker-api/v1/heartbeat", json={"worker_id": b["worker_id"]}).status_code == 401
     none_alg = jwt.encode({"sub": b["worker_id"], "aud": "worker", "exp": 9999999999}, None, algorithm="none")
-    assert TestClient(cp.app, headers={"Authorization": f"Bearer {none_alg}"}).post(
-        "/worker-api/v1/heartbeat", json={"worker_id": b["worker_id"]}
-    ).status_code == 401
+    assert (
+        TestClient(cp.app, headers={"Authorization": f"Bearer {none_alg}"})
+        .post("/worker-api/v1/heartbeat", json={"worker_id": b["worker_id"]})
+        .status_code
+        == 401
+    )
     assert TestClient(cp.app).post("/worker-api/v1/heartbeat", json={"worker_id": a["worker_id"]}).status_code == 401

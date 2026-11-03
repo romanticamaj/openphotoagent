@@ -51,7 +51,6 @@ ACCESS_TTL = timedelta(minutes=15)
 MAX_SKEW = timedelta(minutes=5)
 GUESS_LIMIT, GUESS_WINDOW = 5, timedelta(minutes=10)
 ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O, 1/I
-ADMIN_ROLES = {"org_owner", "org_admin"}
 OPEN_PATHS = {"/api/v1/auth/login", "/api/v1/auth/oidc/start", "/api/v1/auth/oidc/callback"}
 OPEN_WORKER_PATHS = {"/worker-api/v1/enroll", "/worker-api/v1/token"}
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
@@ -67,8 +66,13 @@ def _sha(s: str) -> str:
 
 
 def create_user(st: AppState, email: str, password: str | None, role: str = "ws_viewer", ws: str = DEFAULT_WS) -> str:
+    from .permissions import ORG_ROLES, ORG_WIDE, ROLES
     from .security import hash_password
 
+    if role not in ROLES:
+        raise ValueError(f"unknown role {role}")
+    if role in ORG_ROLES:
+        ws = ORG_WIDE
     uid = str(uuid.uuid4())
     with st.engine.begin() as c:
         c.execute(
@@ -89,7 +93,7 @@ def open_session(st: AppState, uid: str) -> JSONResponse:
             )
         )
     r = JSONResponse({"ok": True, "csrf": csrf})
-    r.set_cookie(COOKIE, sid, httponly=True, samesite="strict", path="/", secure=st.public_url.startswith("https://"))
+    r.set_cookie(COOKIE, sid, httponly=True, samesite="lax", path="/", secure=not st.insecure_cookies)
     return r
 
 
@@ -126,13 +130,99 @@ def _aware(ts: Any) -> Any:
     return ts if ts is None or ts.tzinfo else ts.replace(tzinfo=UTC)
 
 
-def require_role(req: Request, allowed: set[str], ws: str = DEFAULT_WS) -> dict[str, Any]:
+def require_role(req: Request, perm: str, ws: str = DEFAULT_WS) -> dict[str, Any]:
+    """Defence in depth inside a handler; the guard already checked the route's permission."""
+    from .permissions import permissions
+
     u = getattr(req.state, "opa_user", None)
     if u is None:
         raise HTTPException(401, detail={"code": "AUTH_REQUIRED"})
-    if u["roles"].get(ws) not in allowed and not (set(u["roles"].values()) & {"org_owner"}):
+    if perm not in permissions(u["roles"], ws):
         raise HTTPException(403, detail={"code": "FORBIDDEN_ROLE"})
     return u  # type: ignore[no-any-return]
+
+
+def user_permissions(st: AppState, user_id: str, ws: str = DEFAULT_WS) -> frozenset[str]:
+    from .permissions import permissions
+
+    with st.engine.begin() as c:
+        u = c.execute(select(app_user.c.disabled).where(app_user.c.id == user_id)).first()
+        if u is None or u.disabled:
+            return frozenset()
+        roles = {r.workspace_id: r.role for r in c.execute(select(membership).where(membership.c.user_id == user_id))}
+    return permissions(roles, ws)
+
+
+def bootstrap_owner(st: AppState, owner: tuple[str, str] | None) -> None:
+    """First multi-user start: the single-user database's owner becomes ``org_owner``; data stays where it is."""
+    with st.engine.begin() as c:
+        if c.execute(select(app_user.c.id).limit(1)).first() is not None:
+            return
+    if owner is None:
+        raise ValueError("multi-user mode needs an owner account on first start (OPAGENT_OWNER_EMAIL / _PASSWORD)")
+    create_user(st, owner[0], owner[1], role="org_owner")
+
+
+@router.post("/auth/logout")
+def logout(req: Request) -> JSONResponse:
+    st = _st(req)
+    sid = _cookie(req.headers.get("cookie", ""))
+    if sid:
+        with st.engine.begin() as c:
+            c.execute(delete(user_session).where(user_session.c.id_hash == _sha(sid)))
+    r = JSONResponse({"ok": True})
+    r.delete_cookie(COOKIE, path="/")
+    return r
+
+
+@router.get("/auth/me")
+def me(req: Request) -> dict[str, Any]:
+    u = getattr(req.state, "opa_user", None)
+    if u is None:
+        raise HTTPException(401, detail={"code": "AUTH_REQUIRED"})
+    return {"id": u["id"], "email": u["email"], "roles": u["roles"]}
+
+
+class MemberIn(BaseModel):
+    email: str = Field(min_length=3, max_length=320, pattern=r"^[^@\s]+@[^@\s]+$")
+    role: str
+    password: str | None = Field(default=None, min_length=8, max_length=200)  # else: OIDC sign-in by e-mail
+
+
+@router.post("/members", status_code=201)
+def add_member(body: MemberIn, req: Request) -> dict[str, Any]:
+    from .permissions import ROLES
+
+    st = _st(req)
+    require_role(req, "member:manage")
+    if body.role not in ROLES or (body.role == "org_owner" and "org:delete" not in _perms(req)):
+        raise HTTPException(422, detail={"code": "VALIDATION", "field": "role"})
+    with st.engine.begin() as c:
+        if c.execute(select(app_user.c.id).where(app_user.c.email == body.email.strip().lower())).first():
+            raise HTTPException(409, detail={"code": "MEMBER_EXISTS"})
+    uid = create_user(st, body.email, body.password, role=body.role)
+    return {"id": uid, "email": body.email.strip().lower(), "role": body.role}
+
+
+@router.delete("/members/{user_id}")
+def remove_member(user_id: str, req: Request) -> dict[str, Any]:
+    st = _st(req)
+    u = require_role(req, "member:manage")
+    if user_id == u["id"]:
+        raise HTTPException(409, detail={"code": "CANNOT_REMOVE_SELF"})
+    with st.engine.begin() as c:
+        n = c.execute(update(app_user).where(app_user.c.id == user_id).values(disabled=True)).rowcount
+        c.execute(delete(user_session).where(user_session.c.user_id == user_id))
+    if not n:
+        raise HTTPException(404, detail={"code": "NOT_FOUND"})
+    return {"removed": user_id}
+
+
+def _perms(req: Request) -> frozenset[str]:
+    from .permissions import permissions
+
+    u = getattr(req.state, "opa_user", None)
+    return permissions(u["roles"], DEFAULT_WS) if u else frozenset()
 
 
 # ---------------------------------------------------------------- worker pairing
@@ -150,7 +240,7 @@ class CodeIn(BaseModel):
 @router.post("/workers/enrollment-codes", status_code=201)
 def new_code(body: CodeIn, req: Request) -> dict[str, Any]:
     st = _st(req)
-    u = require_role(req, ADMIN_ROLES)
+    u = require_role(req, "worker:manage")
     code = _new_code()
     with st.engine.begin() as c:
         c.execute(
@@ -164,7 +254,7 @@ def new_code(body: CodeIn, req: Request) -> dict[str, Any]:
 @router.delete("/workers/{worker_id}")
 def revoke(worker_id: str, req: Request) -> dict[str, Any]:
     st = _st(req)
-    require_role(req, ADMIN_ROLES)
+    require_role(req, "worker:manage")
     with st.engine.begin() as c:
         n = c.execute(
             update(worker_credential)
@@ -309,6 +399,7 @@ def verify_worker_jwt(st: AppState, tok: str) -> str | None:
 class ControlPlaneGuard:
     def __init__(self, app: ASGIApp, state: AppState) -> None:
         self.app, self.state = app, state
+        self.routes: Any = None
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http" or not self.state.multi_user:
@@ -338,8 +429,25 @@ class ControlPlaneGuard:
                 headers.get("x-csrf-token", "").encode(), user["csrf"].encode()
             ):
                 return await problem(403, "CSRF_CHECK_FAILED")(scope, receive, send)
+            denied = self._rbac(method, path, user)
+            if denied:
+                return await problem(403, denied)(scope, receive, send)
             scope.setdefault("state", {})["opa_user"] = user
         return await self.app(scope, receive, send)
+
+    def _rbac(self, method: str, path: str, user: dict[str, Any]) -> str | None:
+        from .permissions import RouteTable, permissions, required
+
+        if self.routes is None:
+            app = self.state.fastapi_app
+            self.routes = RouteTable(app.openapi()["paths"]) if app is not None else RouteTable([])
+        tpl = self.routes.template(path)
+        if tpl is None:
+            return None  # no such route: let the router answer 404
+        need = required(method, tpl)
+        if need is None:
+            return "PERMISSION_UNMAPPED"  # fail closed for a route nobody classified
+        return None if need in permissions(user["roles"], DEFAULT_WS) else "FORBIDDEN_ROLE"
 
 
 def _cookie(raw: str) -> str | None:

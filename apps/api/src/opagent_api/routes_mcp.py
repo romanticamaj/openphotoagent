@@ -69,6 +69,15 @@ def create_token(body: TokenIn, req: Request) -> dict[str, Any]:
         raise HTTPException(422, detail={"code": "SCOPE_NEVER_ISSUED", "scopes": sorted(scopes & NEVER_ISSUED)})
     if "photos:read" not in scopes:
         scopes.add("photos:read")
+    owner = None
+    if st.multi_user:  # the control plane: a member can only hand out what their role allows (MU-RBAC-001)
+        from .multiuser import _perms
+        from .permissions import capped_scopes
+
+        u = req.state.opa_user
+        if set(capped_scopes(scopes, _perms(req))) != scopes:
+            raise HTTPException(403, detail={"code": "FORBIDDEN_ROLE"})
+        owner = u["id"]
     for f in body.folders:
         p = f.path.strip("/")
         if p.startswith("/") or ".." in p.split("/") or "\\" in f.path or ":" in f.path:
@@ -90,6 +99,7 @@ def create_token(body: TokenIn, req: Request) -> dict[str, Any]:
                 scopes=[s for s in ALL_SCOPES if s in scopes],
                 folder_scopes=[{"source": f.source, "path": f.path.strip("/")} for f in body.folders],
                 media_policy=body.media_policy,
+                owner_user_id=owner,
                 created_at=st.clock.now(),
             )
         )
@@ -119,10 +129,16 @@ def list_tokens(req: Request) -> list[dict[str, Any]]:
 def revoke_token(token_id: str, req: Request) -> dict[str, Any]:
     ui_only(req)
     st = _st(req)
+    mine = []
+    if st.multi_user:
+        from .multiuser import _perms
+
+        if "mcp:manage" not in _perms(req):
+            mine = [mcp_token.c.owner_user_id == req.state.opa_user["id"]]  # others' tokens look absent
     with st.engine.begin() as c:
         n = c.execute(
             update(mcp_token)
-            .where(mcp_token.c.id == token_id, mcp_token.c.revoked_at.is_(None))
+            .where(mcp_token.c.id == token_id, mcp_token.c.revoked_at.is_(None), *mine)
             .values(revoked_at=st.clock.now())
         ).rowcount
     if not n:

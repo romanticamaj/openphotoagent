@@ -39,6 +39,8 @@ class AppState:
     public_url: str = "http://127.0.0.1:47800"  # web/Docker approval links (05 §3.6)
     multi_user: bool = False  # the self-hosted control plane (v0.5, multiuser.py)
     jwt_secret: str | None = None  # signs worker access JWTs; from OPAGENT_JWT_SECRET
+    insecure_cookies: bool = False  # dev only: plain-http control plane (never in the Docker image)
+    fastapi_app: Any = None  # for the control-plane guard's route table
     enroll_guesses: dict[str, list[Any]] = field(default_factory=dict)  # wrong enrollment codes per client
     handle_key: bytes = field(default_factory=lambda: __import__("secrets").token_bytes(32))  # MCP cursors
 

@@ -564,6 +564,7 @@ mcp_token = Table(  # local PATs for `opagent mcp`; only the SHA-256 of the valu
     Column("scopes", ARRAY(Text), nullable=False),
     Column("folder_scopes", JSONB, nullable=False, server_default="[]"),
     Column("media_policy", Text),
+    Column("owner_user_id", Text),  # control plane: whose role caps the scopes (MU-RBAC-001); NULL on desktop
     _ts("created_at", server_default=func.now()),
     _ts("last_used_at"),
     _ts("revoked_at"),
