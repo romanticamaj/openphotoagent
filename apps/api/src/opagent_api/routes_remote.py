@@ -150,25 +150,38 @@ async def connect(ws: WebSocket) -> None:
     if w["status"] != "ok":
         await ws.close(code=4426)
         return
-    announced = False
-    while True:
-        if await run_in_threadpool(_revoked, st, wid):
-            await ws.close(code=4401)
-            return
-        has = await run_in_threadpool(_pending, st, wid)
-        if has and not announced:
-            await ws.send_json({"type": "work.available"})
-        announced = has
+    inbox: asyncio.Queue[dict[str, Any] | None] = asyncio.Queue()
+
+    async def reader() -> None:
         try:
-            msg = await asyncio.wait_for(ws.receive_json(), timeout=WS_TICK_S)
-        except TimeoutError:
-            continue
+            while True:
+                inbox.put_nowait(await ws.receive_json())
         except Exception:
-            return
-        if msg.get("type") == "ping":
-            await ws.send_json({"type": "pong"})
-        elif msg.get("type") == "ack":
-            announced = False  # it leased; tell it again if more is waiting
+            inbox.put_nowait(None)
+
+    rt = asyncio.create_task(reader())
+    announced = False
+    try:
+        while True:
+            if await run_in_threadpool(_revoked, st, wid):
+                await ws.close(code=4401)
+                return
+            has = await run_in_threadpool(_pending, st, wid)
+            if has and not announced:
+                await ws.send_json({"type": "work.available"})
+            announced = has
+            try:
+                msg = await asyncio.wait_for(inbox.get(), timeout=WS_TICK_S)
+            except TimeoutError:
+                continue
+            if msg is None:
+                return
+            if msg.get("type") == "ping":
+                await ws.send_json({"type": "pong"})
+            elif msg.get("type") == "ack":
+                announced = False  # it leased; tell it again if more is waiting
+    finally:
+        rt.cancel()
 
 
 HASH = re.compile(r"^[0-9a-f]{16,128}$")

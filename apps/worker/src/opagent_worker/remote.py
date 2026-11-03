@@ -288,6 +288,7 @@ class Channel:
         self.welcome: dict[str, Any] | None = None
         self._ws: Any = None
         self._next_ws_try = 0.0
+        self.leases = {"ws": 0, "poll": 0}  # how work arrived (observability, MU-WORKER-004)
 
     def _connect(self, url: str, headers: dict[str, str]) -> Any:
         from websockets.sync.client import connect
@@ -345,6 +346,7 @@ class Channel:
         if r.status_code == 426:
             raise UpgradeRequired()
         r.raise_for_status()
+        self.leases[self.mode] += 1
         self.ack()
         return r.json()  # type: ignore[no-any-return]
 
