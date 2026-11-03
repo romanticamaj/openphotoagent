@@ -21,8 +21,9 @@ PATTERNS = {
 
 
 def build(
-    version: str, folder: Path, base_url: str, notes: str, pub_date: str, channel: str = "stable"
+    version: str, folder: Path, base_url: str, notes: str, pub_date: str, channel: str | None = None
 ) -> dict[str, object]:
+    # no channel given: the version decides (a pre-release is beta); asked for stable, a pre-release is refused
     if channel == "stable" and "-" in version.lstrip("v"):
         # the stable channel only ever carries releases (UPD-010); a beta goes to beta.json
         raise SystemExit(f"{version} is a pre-release and cannot be published to the stable channel")
@@ -49,7 +50,7 @@ def main() -> int:
     ap.add_argument("--notes", default="")
     ap.add_argument("--pub-date", required=True)
     ap.add_argument("--out", required=True)
-    ap.add_argument("--channel", choices=["stable", "beta"], default="stable")
+    ap.add_argument("--channel", choices=["stable", "beta"])
     a = ap.parse_args()
     try:
         manifest = build(a.version, Path(a.dir), a.base_url, a.notes, a.pub_date, channel=a.channel)
