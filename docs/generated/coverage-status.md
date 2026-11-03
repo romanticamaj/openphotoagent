@@ -11,7 +11,7 @@
 | v0.3 | 55 | 53 | 0 | 0 | 2 | 0 |
 | v0.4 | 31 | 28 | 0 | 0 | 3 | 0 |
 | v0.5 | 34 | 34 | 0 | 0 | 0 | 0 |
-| v1.0 | 21 | 0 | 0 | 0 | 21 | 0 |
+| v1.0 | 21 | 20 | 0 | 0 | 1 | 0 |
 
 ## 依模組
 
@@ -135,17 +135,17 @@
 | v0.5 | MU-SEC | 4 | 4 | 0 | 0 |
 | v0.5 | MU-WORKER | 6 | 6 | 0 | 0 |
 | v0.5 | PF | 2 | 2 | 0 | 0 |
-| v1.0 | A11Y | 2 | 0 | 2 | 0 |
-| v1.0 | FRZ | 7 | 0 | 7 | 0 |
-| v1.0 | I18N | 2 | 0 | 2 | 0 |
-| v1.0 | MIG | 3 | 0 | 3 | 0 |
-| v1.0 | REL | 1 | 0 | 1 | 0 |
+| v1.0 | A11Y | 2 | 2 | 0 | 0 |
+| v1.0 | FRZ | 7 | 7 | 0 | 0 |
+| v1.0 | I18N | 2 | 2 | 0 | 0 |
+| v1.0 | MIG | 3 | 3 | 0 | 0 |
+| v1.0 | REL | 1 | 1 | 0 | 0 |
 | v1.0 | SEC-AUDIT | 1 | 0 | 1 | 0 |
-| v1.0 | SEC-FACE | 1 | 0 | 1 | 0 |
-| v1.0 | SEC-FUZZ | 1 | 0 | 1 | 0 |
-| v1.0 | SEC-REDTEAM | 1 | 0 | 1 | 0 |
-| v1.0 | SEC-SBOM | 1 | 0 | 1 | 0 |
-| v1.0 | UPD | 1 | 0 | 1 | 0 |
+| v1.0 | SEC-FACE | 1 | 1 | 0 | 0 |
+| v1.0 | SEC-FUZZ | 1 | 1 | 0 | 0 |
+| v1.0 | SEC-REDTEAM | 1 | 1 | 0 | 0 |
+| v1.0 | SEC-SBOM | 1 | 1 | 0 | 0 |
+| v1.0 | UPD | 1 | 1 | 0 | 0 |
 
 ## 明細
 
@@ -265,14 +265,14 @@
 | OUT-EXE-009 | v0.1 | U | #48 | 綠 | 1 | 計畫內互撞 |
 | OUT-EXE-010 | v0.1 | I | #48 | 未開始 | 0 | 大小寫不敏感目標 |
 | OUT-EXE-011 | v0.1 | I | #48 | 綠 | 1 | move 走垃圾桶 |
-| OUT-EXE-012 | v0.1 | I | #48 | 綠 | 2 | move 未二次確認 |
+| OUT-EXE-012 | v0.1 | I | #48 | 綠 | 1 | move 未二次確認 |
 | OUT-EXE-013 | v0.1 | I | #48 | 綠 | 1 | 跨磁碟 move |
 | OUT-EXE-014 | v0.1 | X | #47 | 綠 | 1 | 磁碟滿 |
 | OUT-EXE-015 | v0.1 | X | #53 | 綠 | 1 | 輸出目標離線 |
 | OUT-EXE-016 | v0.1 | I |  | 綠 | 2 | 檔案被鎖（Windows） |
-| OUT-EXE-017 | v0.1 | I | #47 | 綠 | 5 | 取消 |
+| OUT-EXE-017 | v0.1 | I | #47 | 綠 | 4 | 取消 |
 | OUT-EXE-018 | v0.1 | I | #47 | 綠 | 1 | 暫停／續跑 |
-| OUT-EXE-019 | v0.1 | I | #48 | 綠 | 2 | 大量 move 確認字串 |
+| OUT-EXE-019 | v0.1 | I | #48 | 綠 | 1 | 大量 move 確認字串 |
 | OUT-EXE-020 | v0.1 | I | #50 | 綠 | 2 | sidecar JSON |
 | OUT-EXE-021 | v0.1 | U | #50 | 綠 | 1 | CSV 匯出 |
 | OUT-EXE-022 | v0.1 | U |  | 綠 | 1 | 計畫摘要句 |
@@ -281,7 +281,7 @@
 | OUT-JRN-002 | v0.1 | U | #47 | 綠 | 1 | append-only |
 | OUT-JRN-003 | v0.1 | U | #47 | 綠 | 4 | pre/post state 完整 |
 | OUT-JRN-004 | v0.1 | X | #47 | 綠 | 1 | WAL 在 kill -9 後完整 |
-| OUT-JRN-005 | v0.1 | I | #47 | 綠 | 2 | CP 鏡像冪等 |
+| OUT-JRN-005 | v0.1 | I | #47 | 綠 | 1 | CP 鏡像冪等 |
 | OUT-CRASH-001 | v0.1 | X | #47 | 綠 | 1 | journal intent 寫入前 |
 | OUT-CRASH-002 | v0.1 | X | #47 | 綠 | 2 | intent 已 fsync、tmp 尚未建立 |
 | OUT-CRASH-003 | v0.1 | X | #47 | 綠 | 1 | tmp 寫到一半 |
@@ -307,9 +307,9 @@
 | SCAN-002 | v0.1 | U |  | 綠 | 1 | 永遠排除的檔案 |
 | SCAN-003 | v0.1 | U | #51 | 綠 | 1 | BLAKE3 golden |
 | SCAN-004 | v0.1 | I | #51 | 綠 | 1 | 增量：未變更不重讀 |
-| SCAN-005 | v0.1 | I | #51 | 綠 | 3 | 變更檔重新 hash |
-| SCAN-006 | v0.1 | I | #51 | 綠 | 2 | **搬移資料夾 0 重新推論** |
-| SCAN-007 | v0.1 | I | #51 | 綠 | 2 | 完全重複 |
+| SCAN-005 | v0.1 | I | #51 | 綠 | 2 | 變更檔重新 hash |
+| SCAN-006 | v0.1 | I | #51 | 綠 | 1 | **搬移資料夾 0 重新推論** |
+| SCAN-007 | v0.1 | I | #51 | 綠 | 1 | 完全重複 |
 | SCAN-008 | v0.1 | I | #52 | 綠 | 1 | HEIC |
 | SCAN-009 | v0.1 | I | #52 | 綠 | 1 | RAW 內嵌預覽 |
 | SCAN-010 | v0.1 | I | #52 | 綠 | 1 | 損毀檔 |
@@ -326,39 +326,39 @@
 | SCAN-021 | v0.1 | U | #87 | 綠 | 1 | ThumbHash 與感知 hash |
 | SCAN-022 | v0.1 | U | #99 | 綠 | 1 | 影片 v0.1 略過 |
 | SCAN-023 | v0.1 | I |  | 綠 | 1 | Unicode 與長檔名 |
-| SCAN-024 | v0.1 | I | #47 | 綠 | 2 | 輸出資料夾不被掃描 |
+| SCAN-024 | v0.1 | I | #47 | 綠 | 1 | 輸出資料夾不被掃描 |
 | SCAN-025 | v0.1 | I | #30 | 綠 | 1 | 掃描進度型態 |
-| Q-001 | v0.1 | I | #3 | 綠 | 2 | SKIP LOCKED 不重複派工 |
-| Q-002 | v0.1 | I | #3 | 綠 | 2 | lease 過期回收 |
-| Q-003 | v0.1 | I | #3 | 綠 | 2 | 心跳續租 |
-| Q-004 | v0.1 | I | #3 | 綠 | 2 | 冪等回報 |
-| Q-005 | v0.1 | I | #3 | 綠 | 2 | 過期後遲到的結果 |
-| Q-006 | v0.1 | I | #3 | 綠 | 2 | transient 重試與退避 |
-| Q-007 | v0.1 | I | #3 | 綠 | 2 | OOM 批次減半 |
-| Q-008 | v0.1 | I | #3 | 綠 | 2 | permanent 不重試 |
-| Q-009 | v0.1 | I | #47 | 綠 | 2 | 暫停（graceful） |
-| Q-010 | v0.1 | I | #47 | 綠 | 2 | 暫停（immediate） |
-| Q-011 | v0.1 | X | #3 | 綠 | 2 | 重啟後續跑 |
-| Q-012 | v0.1 | I | #47 | 綠 | 2 | 取消 |
-| Q-013 | v0.1 | X | #3 | 綠 | 2 | Worker 斷線 |
-| Q-014 | v0.1 | I | #51 | 綠 | 2 | 快取命中不派工 |
-| Q-015 | v0.1 | I | #46 | 綠 | 2 | **只調門檻不重算** |
-| Q-016 | v0.1 | I | #51 | 綠 | 2 | 換模型 variant → 重算 |
-| Q-017 | v0.1 | I |  | 綠 | 2 | model affinity |
-| Q-018 | v0.1 | I | #46 | 綠 | 2 | interactive lane |
+| Q-001 | v0.1 | I | #3 | 綠 | 1 | SKIP LOCKED 不重複派工 |
+| Q-002 | v0.1 | I | #3 | 綠 | 1 | lease 過期回收 |
+| Q-003 | v0.1 | I | #3 | 綠 | 1 | 心跳續租 |
+| Q-004 | v0.1 | I | #3 | 綠 | 1 | 冪等回報 |
+| Q-005 | v0.1 | I | #3 | 綠 | 1 | 過期後遲到的結果 |
+| Q-006 | v0.1 | I | #3 | 綠 | 1 | transient 重試與退避 |
+| Q-007 | v0.1 | I | #3 | 綠 | 1 | OOM 批次減半 |
+| Q-008 | v0.1 | I | #3 | 綠 | 1 | permanent 不重試 |
+| Q-009 | v0.1 | I | #47 | 綠 | 1 | 暫停（graceful） |
+| Q-010 | v0.1 | I | #47 | 綠 | 1 | 暫停（immediate） |
+| Q-011 | v0.1 | X | #3 | 綠 | 1 | 重啟後續跑 |
+| Q-012 | v0.1 | I | #47 | 綠 | 1 | 取消 |
+| Q-013 | v0.1 | X | #3 | 綠 | 1 | Worker 斷線 |
+| Q-014 | v0.1 | I | #51 | 綠 | 1 | 快取命中不派工 |
+| Q-015 | v0.1 | I | #46 | 綠 | 1 | **只調門檻不重算** |
+| Q-016 | v0.1 | I | #51 | 綠 | 1 | 換模型 variant → 重算 |
+| Q-017 | v0.1 | I |  | 綠 | 1 | model affinity |
+| Q-018 | v0.1 | I | #46 | 綠 | 1 | interactive lane |
 | Q-019 | v0.1 | U |  | 綠 | 1 | 背壓 |
-| Q-020 | v0.1 | I | #32 | 綠 | 2 | 同來源衝突 |
+| Q-020 | v0.1 | I | #32 | 綠 | 1 | 同來源衝突 |
 | Q-021 | v0.1 | P | #30 | 綠 | 1 | counters 不變量 |
-| Q-022 | v0.1 | X | #3 | 綠 | 2 | kill -9 worker 不產生重複結果 |
+| Q-022 | v0.1 | X | #3 | 綠 | 1 | kill -9 worker 不產生重複結果 |
 | Q-023 | v0.1 | U | #46 | 綠 | 1 | 10 張預覽分層抽樣 |
-| Q-024 | v0.1 | I | #46 | 綠 | 2 | 預覽只改門檻 / 樣板 |
+| Q-024 | v0.1 | I | #46 | 綠 | 1 | 預覽只改門檻 / 樣板 |
 | Q-025 | v0.1 | I | #46 | 綠 | 1 | 預覽改類別描述 |
 | Q-026 | v0.1 | I | #9 | 綠 | 1 | 電池暫停 |
 | Q-027 | v0.1 | I | #9 | 綠 | 1 | GPU 被占用 / 全螢幕 |
 | Q-028 | v0.1 | I | #32 | 綠 | 1 | 只在閒置時處理 |
 | INF-REG-001 | v0.1 | C | #15 | 綠 | 3 | 內建 YAML 與 lock 全部通過 schema |
 | INF-REG-002 | v0.1 | U | #24 | 綠 | 2 | 缺 sha256 拒絕 |
-| INF-REG-003 | v0.1 | I | #24 | 綠 | 2 | 使用者自訂 YAML |
+| INF-REG-003 | v0.1 | I | #24 | 綠 | 1 | 使用者自訂 YAML |
 | INF-REG-004 | v0.1 | U | #24 | 綠 | 1 | 自訂 YAML 壞掉 |
 | INF-REG-005 | v0.1 | U | #25 | 綠 | 1 | 每任務預設 |
 | INF-REG-006 | v0.1 | C | #21 | 綠 | 1 | 預設組合授權 |
@@ -392,12 +392,12 @@
 | INF-CAS-002 | v0.1 | I | #45 | 綠 | 1 | 高信心不送 VLM |
 | INF-CAS-003 | v0.1 | I | #45 | 綠 | 1 | 低信心送 VLM |
 | INF-CAS-004 | v0.1 | I | #49 | 綠 | 1 | VLM 仍低 → 待確認或其他 |
-| INF-CAS-005 | v0.1 | I | #45,#89 | 綠 | 3 | 每筆記錄決策層與 fingerprint |
+| INF-CAS-005 | v0.1 | I | #45,#89 | 綠 | 2 | 每筆記錄決策層與 fingerprint |
 | INF-CAS-006 | v0.1 | I | #28 | 綠 | 1 | 無 VLM（快速模式） |
 | INF-CAS-007 | v0.1 | I | #28 | 綠 | 1 | 序列模式呼叫順序 |
 | INF-CAS-008 | v0.1 | U | #42 | 綠 | 1 | prototype 權重 α |
 | INF-CAS-009 | v0.1 | U | #42 | 綠 | 1 | 反例降權 |
-| INF-CAS-010 | v0.1 | I | #42,#46 | 綠 | 3 | 全庫預估命中數 |
+| INF-CAS-010 | v0.1 | I | #42,#46 | 綠 | 2 | 全庫預估命中數 |
 | INF-CAL-001 | v0.1 | U | #45 | 綠 | 1 | 溫度擬合 |
 | INF-CAL-002 | v0.1 | U | #45 | 綠 | 1 | Platt 序列化 |
 | INF-CAL-003 | v0.1 | N | #45 | 未開始 | 0 | 真模型校準 |
@@ -405,7 +405,7 @@
 | INF-VRAM-002 | v0.1 | U | #14 | 綠 | 1 | 並載判定 |
 | INF-VRAM-003 | v0.1 | U |  | 綠 | 1 | LRU 卸載與引用計數 |
 | INF-VRAM-004 | v0.1 | U |  | 綠 | 1 | 閒置卸載 |
-| INF-VRAM-005 | v0.1 | I | #15 | 綠 | 2 | 實測回寫 |
+| INF-VRAM-005 | v0.1 | I | #15 | 綠 | 1 | 實測回寫 |
 | INF-VRAM-006 | v0.1 | U | #13 | 綠 | 1 | Mac 統一記憶體 |
 | INF-VRAM-007 | v0.1 | U | #26 | 綠 | 1 | DXGI／Vulkan provider |
 | INF-VRAM-008 | v0.1 | U | #14 | 綠 | 1 | 外部佔用不改等級 |
@@ -430,15 +430,15 @@
 | MDL-004 | v0.1 | U | #14 | 綠 | 1 | compat 快取失效 |
 | MDL-005 | v0.1 | E | #14 | 綠 | 1 | 四處一致 |
 | MDL-006 | v0.1 | C | #15 | 綠 | 1 | 模型卡資訊 |
-| MDL-007 | v0.1 | I | #19 | 綠 | 2 | 刪除 |
+| MDL-007 | v0.1 | I | #19 | 綠 | 1 | 刪除 |
 | MDL-008 | v0.1 | I | #19 | 綠 | 1 | 搬移目錄 |
 | MDL-009 | v0.1 | I | #19 | 綠 | 1 | 搬移取消回滾 |
 | MDL-010 | v0.1 | X | #19 | 綠 | 1 | 搬移中當機 |
-| MDL-011 | v0.1 | I | #21 | 綠 | 2 | 授權同意 |
+| MDL-011 | v0.1 | I | #21 | 綠 | 1 | 授權同意 |
 | MDL-012 | v0.1 | C | #14 | 綠 | 1 | `list_models()` 相容欄位 |
 | MDL-013 | v0.1 | U | #14 | 綠 | 1 | 回歸：徽章載入中 |
 | DL-001 | v0.1 | I | #17 | 綠 | 1 | resolve 精確總量 |
-| DL-002 | v0.1 | I | #17 | 綠 | 5 | 完整下載 |
+| DL-002 | v0.1 | I | #17 | 綠 | 3 | 完整下載 |
 | DL-003 | v0.1 | I | #16 | 綠 | 1 | 暫停與續傳 |
 | DL-004 | v0.1 | X | #16 | 綠 | 1 | 斷網續傳 |
 | DL-005 | v0.1 | I | #16 | 綠 | 2 | 真取消 ≤ 2 s |
@@ -450,16 +450,16 @@
 | DL-011 | v0.1 | X | #17 | 綠 | 1 | 執行中磁碟被吃掉 |
 | DL-012 | v0.1 | U | #17 | 綠 | 1 | 佇列預檢 |
 | DL-013 | v0.1 | I |  | 綠 | 2 | 分段並行 |
-| DL-014 | v0.1 | X | #33 | 綠 | 3 | 重啟自動續傳 |
+| DL-014 | v0.1 | X | #33 | 綠 | 2 | 重啟自動續傳 |
 | DL-015 | v0.1 | I | #17 | 綠 | 1 | 鏡像切換 |
 | DL-016 | v0.1 | I | #17 | 綠 | 1 | 只有鏡像 metadata |
 | DL-017 | v0.1 | X | #17 | 綠 | 1 | finalize 原子性 |
 | DL-018 | v0.1 | I |  | 綠 | 1 | Windows 無 symlink 權限 |
 | DL-019 | v0.1 | F | #18 | 紅 | 1 | 下載不打斷 Job |
-| DL-020 | v0.1 | I |  | 綠 | 2 | onboarding 下載順序 |
+| DL-020 | v0.1 | I |  | 綠 | 1 | onboarding 下載順序 |
 | DL-021 | v0.1 | I |  | 綠 | 1 | 限速 |
 | DL-022 | v0.1 | I |  | 綠 | 1 | 優先下載 |
-| DL-023 | v0.1 | I | #24,#32 | 綠 | 2 | 退避中取消（ADR-0004） |
+| DL-023 | v0.1 | I | #24,#32 | 綠 | 1 | 退避中取消（ADR-0004） |
 | DOC-001 | v0.1 | C | #26 | 綠 | 1 | check registry 完整性 |
 | DOC-002 | v0.1 | U | #26 | 綠 | 1 | 5070 Ti |
 | DOC-003 | v0.1 | U | #26 | 綠 | 1 | Mac M3 16 GB |
@@ -469,120 +469,120 @@
 | DOC-007 | v0.1 | U | #26 | 綠 | 1 | 不需要 torch |
 | DOC-008 | v0.1 | U | #26 | 綠 | 1 | check 自身崩潰 |
 | DOC-009 | v0.1 | U |  | 綠 | 1 | check 逾時 |
-| DOC-010 | v0.1 | I | #8 | 綠 | 4 | port 被佔 |
+| DOC-010 | v0.1 | I | #8 | 綠 | 2 | port 被佔 |
 | DOC-011 | v0.1 | U | #17 | 綠 | 1 | disk.models 門檻 |
 | DOC-012 | v0.1 | U | #37 | 綠 | 1 | macOS TCC |
 | DOC-013 | v0.1 | U | #38 | 綠 | 1 | Windows 長路徑 |
 | DOC-014 | v0.1 | U |  | 綠 | 1 | 時鐘偏差 |
 | DOC-015 | v0.1 | U | #9 | 綠 | 1 | 電池 |
 | DOC-016 | v0.1 | S | #27 | 綠 | 1 | auto_fix 白名單 |
-| DOC-017 | v0.1 | I |  | 綠 | 2 | fix 稽核 |
+| DOC-017 | v0.1 | I |  | 綠 | 1 | fix 稽核 |
 | DOC-018 | v0.1 | U | #26 | 綠 | 1 | feature 對應 |
-| DOC-019 | v0.1 | I | #27 | 綠 | 2 | 結果快取與事件 |
+| DOC-019 | v0.1 | I | #27 | 綠 | 1 | 結果快取與事件 |
 | DOC-020 | v0.1 | N | #26 | 未開始 | 0 | 五類真機 |
 | DIAG-001 | v0.1 | S | #34 | 綠 | 1 | 診斷包不含敏感資料 |
 | DIAG-002 | v0.1 | P | #34 | 綠 | 1 | 性質：redactor |
 | DIAG-003 | v0.1 | U | #34 | 綠 | 1 | Markdown 報告 |
-| PF-001 | v0.1 |  |  | 綠 | 2 | `WORKER_OFFLINE` |
-| PF-002 | v0.1 |  |  | 綠 | 2 | `WORKER_VERSION_MISMATCH` |
-| PF-003 | v0.1 |  |  | 綠 | 2 | `GPU_NOT_FOUND` |
-| PF-004 | v0.1 |  |  | 綠 | 2 | `GPU_DRIVER_TOO_OLD` |
-| PF-005 | v0.1 |  |  | 綠 | 2 | `GPU_ARCH_UNSUPPORTED` |
-| PF-006 | v0.1 |  |  | 綠 | 2 | `GPU_BUSY_EXTERNAL` |
-| PF-007 | v0.1 |  |  | 綠 | 2 | `GPU_DOCKER_NO_PASSTHROUGH` |
-| PF-008 | v0.1 |  |  | 綠 | 2 | `VRAM_INSUFFICIENT` |
-| PF-009 | v0.1 |  |  | 綠 | 2 | `VRAM_SEQUENTIAL` |
-| PF-010 | v0.1 |  |  | 綠 | 2 | `RAM_INSUFFICIENT` |
-| PF-011 | v0.1 |  |  | 綠 | 2 | `PERF_CPU_ONLY_SLOW` |
-| PF-012 | v0.1 |  |  | 綠 | 2 | `RUNTIME_PACK_MISSING` |
-| PF-013 | v0.1 |  |  | 綠 | 2 | `RUNTIME_PACK_BROKEN` |
-| PF-014 | v0.1 |  |  | 綠 | 2 | `RUNTIME_UNSUPPORTED_PLATFORM` |
-| PF-015 | v0.1 |  |  | 綠 | 2 | `RUNTIME_CRASHED` |
-| PF-016 | v0.1 |  |  | 綠 | 2 | `RUNTIME_TIMEOUT` |
-| PF-017 | v0.1 |  |  | 綠 | 2 | `ORT_EP_UNAVAILABLE` |
+| PF-001 | v0.1 |  |  | 綠 | 1 | `WORKER_OFFLINE` |
+| PF-002 | v0.1 |  |  | 綠 | 1 | `WORKER_VERSION_MISMATCH` |
+| PF-003 | v0.1 |  |  | 綠 | 1 | `GPU_NOT_FOUND` |
+| PF-004 | v0.1 |  |  | 綠 | 1 | `GPU_DRIVER_TOO_OLD` |
+| PF-005 | v0.1 |  |  | 綠 | 1 | `GPU_ARCH_UNSUPPORTED` |
+| PF-006 | v0.1 |  |  | 綠 | 1 | `GPU_BUSY_EXTERNAL` |
+| PF-007 | v0.1 |  |  | 綠 | 1 | `GPU_DOCKER_NO_PASSTHROUGH` |
+| PF-008 | v0.1 |  |  | 綠 | 1 | `VRAM_INSUFFICIENT` |
+| PF-009 | v0.1 |  |  | 綠 | 1 | `VRAM_SEQUENTIAL` |
+| PF-010 | v0.1 |  |  | 綠 | 1 | `RAM_INSUFFICIENT` |
+| PF-011 | v0.1 |  |  | 綠 | 1 | `PERF_CPU_ONLY_SLOW` |
+| PF-012 | v0.1 |  |  | 綠 | 1 | `RUNTIME_PACK_MISSING` |
+| PF-013 | v0.1 |  |  | 綠 | 1 | `RUNTIME_PACK_BROKEN` |
+| PF-014 | v0.1 |  |  | 綠 | 1 | `RUNTIME_UNSUPPORTED_PLATFORM` |
+| PF-015 | v0.1 |  |  | 綠 | 1 | `RUNTIME_CRASHED` |
+| PF-016 | v0.1 |  |  | 綠 | 1 | `RUNTIME_TIMEOUT` |
+| PF-017 | v0.1 |  |  | 綠 | 1 | `ORT_EP_UNAVAILABLE` |
 | PF-018 | v0.4 |  |  | 未開始 | 0 | `WSL_GPU_UNAVAILABLE` |
-| PF-019 | v0.1 |  |  | 綠 | 2 | `OLLAMA_NOT_RUNNING` |
-| PF-020 | v0.1 |  |  | 綠 | 2 | `EXTERNAL_ENDPOINT_UNREACHABLE` |
-| PF-021 | v0.1 |  |  | 綠 | 2 | `DECODE_HEIC_MISSING` |
-| PF-022 | v0.1 |  |  | 綠 | 2 | `DECODE_RAW_MISSING` |
-| PF-023 | v0.1 |  |  | 綠 | 2 | `DECODE_FAILED` |
-| PF-024 | v0.1 |  |  | 綠 | 2 | `FFMPEG_MISSING` |
-| PF-025 | v0.1 |  |  | 綠 | 2 | `DISK_INSUFFICIENT_MODELS` |
-| PF-026 | v0.1 |  |  | 綠 | 2 | `DISK_INSUFFICIENT_THUMBS` |
-| PF-027 | v0.1 |  |  | 綠 | 2 | `DISK_LOW_THUMBS` |
-| PF-028 | v0.1 |  |  | 綠 | 2 | `FS_PERMISSION_DENIED` |
-| PF-029 | v0.1 |  |  | 綠 | 2 | `FS_ROOT_NOT_ALLOWED` |
-| PF-030 | v0.1 |  |  | 綠 | 2 | `FS_ROOT_UNAVAILABLE` |
-| PF-031 | v0.1 |  |  | 綠 | 2 | `FS_NOT_WRITABLE` |
-| PF-032 | v0.1 |  |  | 綠 | 2 | `NET_UNREACHABLE` |
-| PF-033 | v0.1 |  |  | 綠 | 2 | `NET_TLS_INTERCEPTED` |
-| PF-034 | v0.1 |  |  | 綠 | 2 | `HF_AUTH_REQUIRED` |
-| PF-035 | v0.1 |  |  | 綠 | 2 | `HF_GATED_ACCESS_PENDING` |
-| PF-036 | v0.1 |  |  | 綠 | 2 | `LICENSE_CONSENT_REQUIRED` |
-| PF-037 | v0.1 |  |  | 綠 | 2 | `MODEL_NOT_INSTALLED` |
-| PF-038 | v0.1 |  |  | 綠 | 2 | `MODEL_DOWNLOADING` |
-| PF-039 | v0.1 |  |  | 綠 | 2 | `MODEL_FILES_MISSING` |
-| PF-040 | v0.1 |  |  | 綠 | 2 | `MODEL_CORRUPT` |
-| PF-041 | v0.1 |  |  | 綠 | 2 | `MODEL_LOAD_FAILED` |
-| PF-042 | v0.1 |  |  | 綠 | 2 | `MODEL_OOM` |
-| PF-043 | v0.1 |  |  | 綠 | 2 | `MODEL_CAPABILITY_MISMATCH` |
-| PF-044 | v0.1 |  |  | 綠 | 2 | `MODEL_IN_USE` |
-| PF-045 | v0.1 |  |  | 綠 | 2 | `DL_CHECKSUM_MISMATCH` |
-| PF-046 | v0.1 |  |  | 綠 | 2 | `DL_RATE_LIMITED` |
-| PF-047 | v0.1 |  |  | 綠 | 2 | `DL_NOT_FOUND` |
-| PF-048 | v0.1 |  |  | 綠 | 2 | `DL_UNVERIFIED_SOURCE` |
-| PF-049 | v0.1 |  |  | 綠 | 2 | `NET_PORT_IN_USE` |
-| PF-050 | v0.1 |  |  | 綠 | 2 | `TIME_SKEW` |
-| PF-051 | v0.1 |  |  | 綠 | 2 | `JOB_NOTHING_TO_DO` |
-| PF-052 | v0.1 |  |  | 綠 | 2 | `JOB_CONFLICT_RUNNING` |
-| PF-053 | v0.1 |  |  | 綠 | 2 | `SEARCH_INDEX_INCOMPLETE` |
-| PF-054 | v0.1 |  |  | 綠 | 2 | `SEARCH_MODEL_MISMATCH` |
-| PF-055 | v0.1 |  |  | 綠 | 2 | `PLAN_STALE` |
-| PF-056 | v0.1 |  |  | 綠 | 2 | `OUTPUT_TARGET_INSIDE_SOURCE` |
-| PF-057 | v0.1 |  |  | 綠 | 2 | `UNDO_TARGET_MODIFIED` |
-| PF-058 | v0.5 |  |  | 綠 | 2 | `EGRESS_POLICY_BLOCKS` |
-| PF-059 | v0.5 |  |  | 綠 | 2 | `PERMISSION_DENIED_ROLE` |
+| PF-019 | v0.1 |  |  | 綠 | 1 | `OLLAMA_NOT_RUNNING` |
+| PF-020 | v0.1 |  |  | 綠 | 1 | `EXTERNAL_ENDPOINT_UNREACHABLE` |
+| PF-021 | v0.1 |  |  | 綠 | 1 | `DECODE_HEIC_MISSING` |
+| PF-022 | v0.1 |  |  | 綠 | 1 | `DECODE_RAW_MISSING` |
+| PF-023 | v0.1 |  |  | 綠 | 1 | `DECODE_FAILED` |
+| PF-024 | v0.1 |  |  | 綠 | 1 | `FFMPEG_MISSING` |
+| PF-025 | v0.1 |  |  | 綠 | 1 | `DISK_INSUFFICIENT_MODELS` |
+| PF-026 | v0.1 |  |  | 綠 | 1 | `DISK_INSUFFICIENT_THUMBS` |
+| PF-027 | v0.1 |  |  | 綠 | 1 | `DISK_LOW_THUMBS` |
+| PF-028 | v0.1 |  |  | 綠 | 1 | `FS_PERMISSION_DENIED` |
+| PF-029 | v0.1 |  |  | 綠 | 1 | `FS_ROOT_NOT_ALLOWED` |
+| PF-030 | v0.1 |  |  | 綠 | 1 | `FS_ROOT_UNAVAILABLE` |
+| PF-031 | v0.1 |  |  | 綠 | 1 | `FS_NOT_WRITABLE` |
+| PF-032 | v0.1 |  |  | 綠 | 1 | `NET_UNREACHABLE` |
+| PF-033 | v0.1 |  |  | 綠 | 1 | `NET_TLS_INTERCEPTED` |
+| PF-034 | v0.1 |  |  | 綠 | 1 | `HF_AUTH_REQUIRED` |
+| PF-035 | v0.1 |  |  | 綠 | 1 | `HF_GATED_ACCESS_PENDING` |
+| PF-036 | v0.1 |  |  | 綠 | 1 | `LICENSE_CONSENT_REQUIRED` |
+| PF-037 | v0.1 |  |  | 綠 | 1 | `MODEL_NOT_INSTALLED` |
+| PF-038 | v0.1 |  |  | 綠 | 1 | `MODEL_DOWNLOADING` |
+| PF-039 | v0.1 |  |  | 綠 | 1 | `MODEL_FILES_MISSING` |
+| PF-040 | v0.1 |  |  | 綠 | 1 | `MODEL_CORRUPT` |
+| PF-041 | v0.1 |  |  | 綠 | 1 | `MODEL_LOAD_FAILED` |
+| PF-042 | v0.1 |  |  | 綠 | 1 | `MODEL_OOM` |
+| PF-043 | v0.1 |  |  | 綠 | 1 | `MODEL_CAPABILITY_MISMATCH` |
+| PF-044 | v0.1 |  |  | 綠 | 1 | `MODEL_IN_USE` |
+| PF-045 | v0.1 |  |  | 綠 | 1 | `DL_CHECKSUM_MISMATCH` |
+| PF-046 | v0.1 |  |  | 綠 | 1 | `DL_RATE_LIMITED` |
+| PF-047 | v0.1 |  |  | 綠 | 1 | `DL_NOT_FOUND` |
+| PF-048 | v0.1 |  |  | 綠 | 1 | `DL_UNVERIFIED_SOURCE` |
+| PF-049 | v0.1 |  |  | 綠 | 1 | `NET_PORT_IN_USE` |
+| PF-050 | v0.1 |  |  | 綠 | 1 | `TIME_SKEW` |
+| PF-051 | v0.1 |  |  | 綠 | 1 | `JOB_NOTHING_TO_DO` |
+| PF-052 | v0.1 |  |  | 綠 | 1 | `JOB_CONFLICT_RUNNING` |
+| PF-053 | v0.1 |  |  | 綠 | 1 | `SEARCH_INDEX_INCOMPLETE` |
+| PF-054 | v0.1 |  |  | 綠 | 1 | `SEARCH_MODEL_MISMATCH` |
+| PF-055 | v0.1 |  |  | 綠 | 1 | `PLAN_STALE` |
+| PF-056 | v0.1 |  |  | 綠 | 1 | `OUTPUT_TARGET_INSIDE_SOURCE` |
+| PF-057 | v0.1 |  |  | 綠 | 1 | `UNDO_TARGET_MODIFIED` |
+| PF-058 | v0.5 |  |  | 綠 | 1 | `EGRESS_POLICY_BLOCKS` |
+| PF-059 | v0.5 |  |  | 綠 | 1 | `PERMISSION_DENIED_ROLE` |
 | PF-060 | v0.2 |  |  | 未開始 | 0 | `MCP_DISABLED` |
 | PF-061 | v0.2 |  |  | 未開始 | 0 | `MCP_TOKEN_INVALID` |
-| PF-062 | v0.1 |  |  | 綠 | 2 | `CHECK_CRASHED` |
-| PF-063 | v0.1 |  |  | 綠 | 2 | `PACK_SIGNATURE_INVALID`（08 §10；**需回寫 06 §4.7**） |
-| PF-064 | v0.1 |  |  | 綠 | 2 | `PACK_INCOMPATIBLE`（08 §10；**需回寫 06 §4.7**） |
-| PF-065 | v0.1 |  |  | 綠 | 2 | `FS_FILE_LOCKED`（本文提議） |
-| PF-066 | v0.1 |  |  | 綠 | 6 | `DL_REMOTE_CHANGED`／`DL_MIRROR_FAILED`／`VRAM_OFFLOAD`（06 內文出 |
+| PF-062 | v0.1 |  |  | 綠 | 1 | `CHECK_CRASHED` |
+| PF-063 | v0.1 |  |  | 綠 | 1 | `PACK_SIGNATURE_INVALID`（08 §10；**需回寫 06 §4.7**） |
+| PF-064 | v0.1 |  |  | 綠 | 1 | `PACK_INCOMPATIBLE`（08 §10；**需回寫 06 §4.7**） |
+| PF-065 | v0.1 |  |  | 綠 | 1 | `FS_FILE_LOCKED`（本文提議） |
+| PF-066 | v0.1 |  |  | 綠 | 3 | `DL_REMOTE_CHANGED`／`DL_MIRROR_FAILED`／`VRAM_OFFLOAD`（06 內文出 |
 | PF-070 | v0.1 | U | #27 | 綠 | 1 | blocker 根因優先 |
 | PF-071 | v0.1 | C | #27 | 綠 | 1 | fix schema 全域守則 |
 | PF-072 | v0.1 | U | #27 | 綠 | 1 | 合併下載 fix |
-| PF-073 | v0.1 | I | #27 | 綠 | 2 | 伺服器端強制 |
+| PF-073 | v0.1 | I | #27 | 綠 | 1 | 伺服器端強制 |
 | PF-074 | v0.1 | U |  | 綠 | 1 | preflight fingerprint |
-| PF-075 | v0.1 | F |  | 綠 | 2 | 效能 |
-| PF-076 | v0.1 | I |  | 綠 | 2 | Worker RPC gate 逾時 |
+| PF-075 | v0.1 | F |  | 綠 | 1 | 效能 |
+| PF-076 | v0.1 | I |  | 綠 | 1 | Worker RPC gate 逾時 |
 | PF-077 | v0.1 | E | #27 | 綠 | 1 | 自動解鎖 |
 | PF-078 | v0.1 | C | #11,#27 | 綠 | 1 | i18n 完整 |
 | PF-079 | v0.1 | C | #27 | 綠 | 7 | `opa/no-bare-disabled` |
 | PF-080 | v0.1 | A | #27 | 綠 | 1 | 停用狀態可近用 |
 | PF-081 | v0.1 | U | #27 | 綠 | 1 | InferenceError 映射 |
 | PF-082 | v0.1 | C | #27 | 綠 | 1 | problem+json 全域 |
-| PF-083 | v0.1 | I | #28 | 綠 | 4 | 永遠有退路 |
-| PF-084 | v0.1 | I | #27,#28 | 綠 | 2 | 不需模型的工作不受 GPU 檢查阻擋（回歸） |
+| PF-083 | v0.1 | I | #28 | 綠 | 2 | 永遠有退路 |
+| PF-084 | v0.1 | I | #27,#28 | 綠 | 1 | 不需模型的工作不受 GPU 檢查阻擋（回歸） |
 | PF-085 | v0.1 | C | #27 | 綠 | 1 | problem+json 細節欄位與保留欄位同名（回歸） |
 | OP-001 | v0.1 | C | #33 | 綠 | 5 | 所有長操作都是 Operation |
 | OP-002 | v0.1 | U | #30 | 綠 | 1 | 階段權重 |
 | OP-003 | v0.1 | U | #30 | 綠 | 1 | 快取命中不讓進度跳 |
 | OP-004 | v0.1 | U | #30 | 綠 | 1 | 子操作 |
-| OP-005 | v0.1 | I | #33 | 綠 | 2 | 持久化節流 |
+| OP-005 | v0.1 | I | #33 | 綠 | 1 | 持久化節流 |
 | OP-006 | v0.1 | E | #33 | 綠 | 1 | 重啟恢復 |
-| OP-007 | v0.1 | I | #33 | 綠 | 2 | 保留期限 |
-| OP-008 | v0.1 | I | #33 | 綠 | 2 | SSE 重連補發 |
+| OP-007 | v0.1 | I | #33 | 綠 | 1 | 保留期限 |
+| OP-008 | v0.1 | I | #33 | 綠 | 1 | SSE 重連補發 |
 | OP-009 | v0.1 | U | #33 | 綠 | 1 | 舊事件丟棄 |
-| OP-010 | v0.1 | I |  | 綠 | 2 | 推送節流 |
-| OP-011 | v0.1 | I | #27 | 綠 | 2 | 控制前先 preflight |
+| OP-010 | v0.1 | I |  | 綠 | 1 | 推送節流 |
+| OP-011 | v0.1 | I | #27 | 綠 | 1 | 控制前先 preflight |
 | OP-012 | v0.1 | E | #47 | 綠 | 1 | 取消模式 |
 | OP-013 | v0.1 | U | #31 | 綠 | 1 | 經過時間扣除暫停 |
 | OP-014 | v0.1 | U | #31 | 綠 | 1 | 前端時鐘校正 |
-| OP-015 | v0.1 | I | #30 | 綠 | 2 | 完成回寫觀測 |
-| OP-016 | v0.1 | I |  | 綠 | 2 | 同 lane 重新排序 |
+| OP-015 | v0.1 | I | #30 | 綠 | 1 | 完成回寫觀測 |
+| OP-016 | v0.1 | I |  | 綠 | 1 | 同 lane 重新排序 |
 | OP-017 | v0.1 | C | #32 | 綠 | 1 | 等待原因目錄 |
-| OP-018 | v0.1 | I | #32,#47 | 綠 | 4 | 等待中暫停／取消（ADR-0004，回歸） |
+| OP-018 | v0.1 | I | #32,#47 | 綠 | 2 | 等待中暫停／取消（ADR-0004，回歸） |
 | ETA-001 | v0.1 | U | #17 | 綠 | 1 | bytes EWMA（不等間隔） |
 | ETA-002 | v0.1 | U | #17 | 綠 | 1 | fast/slow 混合 |
 | ETA-003 | v0.1 | U | #30 | 綠 | 1 | 估算中 |
@@ -600,7 +600,7 @@
 | ETA-015 | v0.1 | U | #30 | 綠 | 1 | cascade 混合工作量 |
 | ETA-016 | v0.1 | P | #30 | 綠 | 2 | 區間涵蓋率模擬 |
 | ETA-017 | v0.1 | U | #32 | 綠 | 1 | 佇列等待 |
-| ETA-018 | v0.1 | I | #29 | 綠 | 2 | 開始前預估 |
+| ETA-018 | v0.1 | I | #29 | 綠 | 1 | 開始前預估 |
 | ETA-019 | v0.1 | N | #30 | 未開始 | 0 | 參考機涵蓋率實測 |
 | ACT-001 | v0.1 | U | #33 | 綠 | 1 | 頂列指示器五種狀態 |
 | ACT-002 | v0.1 | U | #33 | 綠 | 1 | 分組 |
@@ -609,41 +609,41 @@
 | ACT-005 | v0.1 | A | #90 | 綠 | 1 | 鍵盤 |
 | ACT-006 | v0.1 | V | #30 | 綠 | 2 | OperationProgress 四變體 |
 | ACT-007 | v0.1 | U | #31 | 綠 | 1 | 經過時間本地累加 |
-| ORG-001 | v0.1 | I | #40 | 綠 | 2 | 依日期免模型 |
-| ORG-002 | v0.1 | I | #41 | 綠 | 2 | 依內容 12 類不漏照片 |
+| ORG-001 | v0.1 | I | #40 | 綠 | 1 | 依日期免模型 |
+| ORG-002 | v0.1 | I | #41 | 綠 | 1 | 依內容 12 類不漏照片 |
 | ORG-003 | v0.1 | I |  | 綠 | 3 | 預設輸出位置 |
-| ORG-004 | v0.1 | U | #48 | 綠 | 3 | 預設複製 |
+| ORG-004 | v0.1 | U | #48 | 綠 | 2 | 預設複製 |
 | ORG-005 | v0.1 | N |  | 綠 | 1 | 預設設定全庫原檔不變 |
-| ORG-006 | v0.1 | I | #50 | 綠 | 3 | sidecar golden |
-| ORG-007 | v0.1 | I | #46 | 綠 | 2 | 預估分布與總時間 |
-| ORG-008 | v0.1 | I | #46 | 綠 | 2 | 試跑一張串流 |
-| ORG-009 | v0.1 | I | #43 | 綠 | 2 | caption 寫入搜尋 |
-| ORG-010 | v0.1 | I | #56 | 綠 | 2 | 就地修正回饋 |
-| REV-001 | v0.1 | I | #49 | 綠 | 2 | 低信心建立 review |
+| ORG-006 | v0.1 | I | #50 | 綠 | 2 | sidecar golden |
+| ORG-007 | v0.1 | I | #46 | 綠 | 1 | 預估分布與總時間 |
+| ORG-008 | v0.1 | I | #46 | 綠 | 1 | 試跑一張串流 |
+| ORG-009 | v0.1 | I | #43 | 綠 | 1 | caption 寫入搜尋 |
+| ORG-010 | v0.1 | I | #56 | 綠 | 1 | 就地修正回饋 |
+| REV-001 | v0.1 | I | #49 | 綠 | 1 | 低信心建立 review |
 | REV-002 | v0.1 | E | #49 | 綠 | 1 | 一次一張與數字鍵 |
-| REV-003 | v0.1 | I | #49 | 綠 | 2 | 逃生門 |
-| REV-004 | v0.1 | I | #49 | 綠 | 2 | 不覆核也能輸出 |
+| REV-003 | v0.1 | I | #49 | 綠 | 1 | 逃生門 |
+| REV-004 | v0.1 | I | #49 | 綠 | 1 | 不覆核也能輸出 |
 | REV-005 | v0.1 | E | #49 | 綠 | 1 | 執行中即可覆核 |
 | SRCH-TOK-001 | v0.1 | U |  | 綠 | 1 | 正規化 |
-| SRCH-TOK-002 | v0.1 | I |  | 綠 | 2 | 簡繁互通 |
+| SRCH-TOK-002 | v0.1 | I |  | 綠 | 1 | 簡繁互通 |
 | SRCH-TOK-003 | v0.1 | U |  | 綠 | 1 | 自訂詞 |
-| SRCH-TOK-004 | v0.1 | U |  | 綠 | 3 | CJK bigram 保底 |
-| SRCH-TOK-005 | v0.1 | I |  | 綠 | 2 | 英文詞幹 |
+| SRCH-TOK-004 | v0.1 | U |  | 綠 | 2 | CJK bigram 保底 |
+| SRCH-TOK-005 | v0.1 | I |  | 綠 | 1 | 英文詞幹 |
 | SRCH-TOK-006 | v0.1 | U | #44 | 綠 | 4 | canonical tag key |
 | SRCH-TOK-007 | v0.1 | C |  | 綠 | 1 | tokenizer golden |
 | SRCH-TOK-008 | v0.1 | P |  | 綠 | 1 | tsquery 注入 |
-| SRCH-TOK-009 | v0.1 | I | #62 | 綠 | 2 | 回歸：控制字元 |
-| SRCH-FAC-001 | v0.1 | I |  | 綠 | 2 | 關鍵字 + tag + 日期 |
-| SRCH-FAC-002 | v0.1 | I | #40 | 綠 | 2 | 日期來源 |
+| SRCH-TOK-009 | v0.1 | I | #62 | 綠 | 1 | 回歸：控制字元 |
+| SRCH-FAC-001 | v0.1 | I |  | 綠 | 1 | 關鍵字 + tag + 日期 |
+| SRCH-FAC-002 | v0.1 | I | #40 | 綠 | 1 | 日期來源 |
 | SRCH-FAC-003 | v0.1 | I |  | 綠 | 1 | facet 同 pre-filter |
 | SRCH-FAC-004 | v0.1 | I |  | 綠 | 1 | 分頁游標 |
-| SRCH-FAC-005 | v0.1 | I | #64,#91 | 綠 | 2 | 結果集合＝全部符合（ADR-0005，回歸） |
-| SRCH-SEM-001 | v0.1 | I | #64 | 綠 | 2 | 以文搜圖 |
-| SRCH-SEM-002 | v0.1 | I | #64 | 綠 | 2 | Worker 離線降級 |
-| SRCH-SEM-003 | v0.1 | I |  | 綠 | 4 | 索引進度 |
-| SRCH-SEM-004 | v0.1 | I | #64 | 綠 | 2 | 過濾 + HNSW |
-| SRCH-SEM-005 | v0.1 | I |  | 綠 | 2 | 語意 + facet |
-| SRCH-SEM-006 | v0.1 | I | #56 | 綠 | 2 | review 修正後重索引 |
+| SRCH-FAC-005 | v0.1 | I | #64,#91 | 綠 | 1 | 結果集合＝全部符合（ADR-0005，回歸） |
+| SRCH-SEM-001 | v0.1 | I | #64 | 綠 | 1 | 以文搜圖 |
+| SRCH-SEM-002 | v0.1 | I | #64 | 綠 | 1 | Worker 離線降級 |
+| SRCH-SEM-003 | v0.1 | I |  | 綠 | 2 | 索引進度 |
+| SRCH-SEM-004 | v0.1 | I | #64 | 綠 | 1 | 過濾 + HNSW |
+| SRCH-SEM-005 | v0.1 | I |  | 綠 | 1 | 語意 + facet |
+| SRCH-SEM-006 | v0.1 | I | #56 | 綠 | 1 | review 修正後重索引 |
 | E2E-A-001 | v0.1 | E | #13,#8 | 綠 | 1 | 快樂路徑 |
 | E2E-A-002 | v0.1 | E | #28 | 綠 | 1 | 驅動過舊不卡住 |
 | E2E-A-003 | v0.1 | E | #28 | 綠 | 1 | 無 GPU |
@@ -712,38 +712,38 @@
 | DESK-008 | v0.1 | D | #7 | 綠 | 1 | 資料目錄鎖 |
 | DESK-009 | v0.1 | U | #4 | 綠 | 1 | 殘留 postmaster.pid |
 | DESK-010 | v0.1 | I | #8 | 綠 | 1 | port 衝突 |
-| DESK-011 | v0.1 | I | #8 | 綠 | 3 | launch token |
+| DESK-011 | v0.1 | I | #8 | 綠 | 2 | launch token |
 | DESK-012 | v0.1 | S | #8 | 綠 | 1 | token 不外洩 |
-| DESK-013 | v0.1 | S | #8 | 綠 | 2 | Host／Origin |
+| DESK-013 | v0.1 | S | #8 | 綠 | 1 | Host／Origin |
 | DESK-014 | v0.1 | S | #8 | 綠 | 1 | 只綁 loopback |
-| DESK-015 | v0.1 | I | #8 | 綠 | 8 | 區網存取強制登入 |
-| DESK-016 | v0.1 | I | #8 | 綠 | 2 | handoff code |
-| DESK-017 | v0.1 | S | #37 | 綠 | 2 | REST 無法新增 root |
+| DESK-015 | v0.1 | I | #8 | 綠 | 5 | 區網存取強制登入 |
+| DESK-016 | v0.1 | I | #8 | 綠 | 1 | handoff code |
+| DESK-017 | v0.1 | S | #37 | 綠 | 1 | REST 無法新增 root |
 | DESK-018 | v0.1 | D | #37 | 未開始 | 0 | 拖放加入來源 |
 | DESK-019 | v0.1 | D | #93 | 未開始 | 0 | asset protocol scope |
-| DESK-020 | v0.1 | D |  | 綠 | 2 | 系統匣控制 |
+| DESK-020 | v0.1 | D |  | 綠 | 1 | 系統匣控制 |
 | DESK-021 | v0.1 | D |  | 未開始 | 0 | 關窗行為 |
 | DESK-022 | v0.1 | D | #7 | 綠 | 1 | OS 通知與 deep link |
-| DESK-023 | v0.1 | D | #9 | 綠 | 4 | 電池 |
+| DESK-023 | v0.1 | D | #9 | 綠 | 3 | 電池 |
 | DESK-024 | v0.1 | D |  | 未開始 | 0 | 防止睡眠 |
 | DESK-025 | v0.1 | D |  | 綠 | 1 | 各 OS 路徑 |
 | DESK-026 | v0.1 | I | #34 | 綠 | 1 | log 格式 |
 | DESK-027 | v0.1 | S |  | 綠 | 1 | Python 隔離 |
-| DESK-028 | v0.1 | U |  | 綠 | 2 | 版本一致 |
-| DESK-029 | v0.1 | M | #10 | 綠 | 2 | 解除安裝保留資料 |
-| DESK-030 | v0.1 | C | #1 | 綠 | 1 | 安裝包大小 |
+| DESK-028 | v0.1 | U |  | 綠 | 1 | 版本一致 |
+| DESK-029 | v0.1 | M | #10 | 綠 | 1 | 解除安裝保留資料 |
+| DESK-030 | v0.1 | C | #1 | 綠 | 2 | 安裝包大小 |
 | DESK-031 | v0.1 | M | #1 | 未開始 | 0 | 一般使用者安裝 |
 | DESK-032 | v0.1 | E | #8 | 綠 | 1 | capabilities 驅動 UI |
 | DESK-033 | v0.1 | D | #54 | 未開始 | 0 | Photos Library 選擇提示 |
 | DESK-034 | v0.1 | D |  | 未開始 | 0 | 桌面煙霧總表 |
 | DESK-035 | v0.1 | I | #8 | 綠 | 1 | `run/api.json` 出現時 port 已在 listen（回歸） |
-| DESK-036 | v0.1 | U | #8,#93 | 綠 | 6 | 桌面傳輸與媒體解析（10 §5.4） |
+| DESK-036 | v0.1 | U | #8,#93 | 綠 | 5 | 桌面傳輸與媒體解析（10 §5.4） |
 | PG-001 | v0.1 | I | #4 | 綠 | 2 | initdb |
 | PG-002 | v0.1 | I | #4 | 綠 | 1 | pgvector 煙霧 |
 | PG-003 | v0.1 | U | #4 | 綠 | 2 | desktop profile |
 | PG-004 | v0.1 | I | #4 | 綠 | 2 | migration 前備份 |
 | PG-005 | v0.1 | I | #4 | 綠 | 1 | 每日備份保留 |
-| PG-006 | v0.1 | I | #4 | 綠 | 3 | 還原 |
+| PG-006 | v0.1 | I | #4 | 綠 | 2 | 還原 |
 | PG-007 | v0.1 | I |  | 未開始 | 0 | 從上一版升級 |
 | PG-008 | v0.1 | I | #5 | 綠 | 2 | 拒絕降級 |
 | PG-009 | v0.1 | X | #4 | 綠 | 1 | 磁碟滿 |
@@ -768,19 +768,19 @@
 | UPD-003 | v0.1 | D | #5 | 綠 | 1 | 任務執行中不自動更新 |
 | UPD-004 | v0.1 | I | #5 | 綠 | 1 | 通道切換降級保護 |
 | UPD-005 | v0.1 | U | #5 | 綠 | 2 | 關閉更新 |
-| UPD-006 | v0.1 | C | #5 | 綠 | 3 | manifest 產生 |
+| UPD-006 | v0.1 | C | #5 | 綠 | 6 | manifest 產生 |
 | DOCK-001 | v0.1 | E | #2 | 未開始 | 0 | Docker all-in-one |
 | DOCK-002 | v0.1 | C | #2 | 未開始 | 0 | 同一份 web build |
 | DOCK-003 | v0.1 | I |  | 未開始 | 0 | 來源唯讀掛載 |
 | SRCH-RRF-001 | v0.2 | U | #62 | 綠 | 2 | RRF 公式 |
 | SRCH-RRF-002 | v0.2 | U | #62 | 綠 | 1 | 引號片語加權 |
-| SRCH-RRF-003 | v0.2 | I | #63 | 綠 | 2 | 純 filter 不做 RRF |
-| SRCH-RRF-004 | v0.2 | I | #66 | 綠 | 2 | 重複折疊 |
-| SRCH-RRF-005 | v0.2 | I | #62 | 綠 | 2 | matched_by |
-| SRCH-RRF-006 | v0.2 | I | #64 | 綠 | 2 | 路關閉條件 |
-| SRCH-RRF-007 | v0.2 | I | #68 | 綠 | 2 | 權限是 pre-filter |
+| SRCH-RRF-003 | v0.2 | I | #63 | 綠 | 1 | 純 filter 不做 RRF |
+| SRCH-RRF-004 | v0.2 | I | #66 | 綠 | 1 | 重複折疊 |
+| SRCH-RRF-005 | v0.2 | I | #62 | 綠 | 1 | matched_by |
+| SRCH-RRF-006 | v0.2 | I | #64 | 綠 | 1 | 路關閉條件 |
+| SRCH-RRF-007 | v0.2 | I | #68 | 綠 | 1 | 權限是 pre-filter |
 | SRCH-RRF-008 | v0.2 | I | #64 | 未開始 | 0 | 策略切換 |
-| SRCH-RRF-009 | v0.2 | C | #63 | 綠 | 2 | REST 與 MCP 一致 |
+| SRCH-RRF-009 | v0.2 | C | #63 | 綠 | 1 | REST 與 MCP 一致 |
 | SRCH-PLAN-001 | v0.2 | U | #62 | 綠 | 1 | 去年 |
 | SRCH-PLAN-002 | v0.2 | U | #62 | 綠 | 1 | 民國年 |
 | SRCH-PLAN-003 | v0.2 | U | #62 | 綠 | 1 | 季節 |
@@ -791,7 +791,7 @@
 | SRCH-PLAN-008 | v0.2 | U | #63 | 綠 | 3 | 相機 |
 | SRCH-PLAN-009 | v0.2 | U | #62 | 綠 | 1 | 剩餘詞 |
 | SRCH-PLAN-010 | v0.2 | U | #79 | 綠 | 1 | 人名（需 faces:read） |
-| SRCH-PLAN-011 | v0.2 | I | #62 | 綠 | 2 | LLM planner 逾時 |
+| SRCH-PLAN-011 | v0.2 | I | #62 | 綠 | 1 | LLM planner 逾時 |
 | SRCH-PLAN-012 | v0.2 | P | #62 | 綠 | 1 | 性質：planner 不拋例外 |
 | SRCH-PLAN-013 | v0.2 | U | #62 | 綠 | 1 | 過年沒有年份（ADR-0008） |
 | SRCH-PLAN-014 | v0.2 | U | #62 | 綠 | 3 | 同義詞 |
@@ -801,11 +801,11 @@
 | SRCH-PLAN-018 | v0.2 | E | #62 | 綠 | 1 | planner chips（05 §2.3 UI） |
 | SRCH-PLAN-019 | v0.2 | U | #62 | 綠 | 4 | 回歸：只有停用詞 |
 | CORE-LUNAR-001 | v0.2 | U | #62 | 綠 | 1 | 初一對照表 |
-| SRCH-IMG-001 | v0.2 | I | #65 | 綠 | 2 | find_similar |
-| SRCH-IMG-002 | v0.2 | I | #65 | 綠 | 2 | UI 上傳以圖搜圖 |
+| SRCH-IMG-001 | v0.2 | I | #65 | 綠 | 1 | find_similar |
+| SRCH-IMG-002 | v0.2 | I | #65 | 綠 | 1 | UI 上傳以圖搜圖 |
 | SRCH-IMG-003 | v0.2 | U | #64 | 綠 | 1 | 文 + 圖組合 |
-| SRCH-DUP-001 | v0.2 | I | #66 | 綠 | 2 | 完全重複 |
-| SRCH-DUP-002 | v0.2 | I | #66 | 綠 | 2 | 近似重複 |
+| SRCH-DUP-001 | v0.2 | I | #66 | 綠 | 1 | 完全重複 |
+| SRCH-DUP-002 | v0.2 | I | #66 | 綠 | 1 | 近似重複 |
 | SRCH-DUP-003 | v0.2 | U | #66 | 綠 | 1 | 代表張 |
 | SRCH-DUP-004 | v0.2 | I | #66 | 綠 | 2 | union-find 重新聚類 |
 | TRASH-001 | v0.2 | I | #59 | 綠 | 1 | trash 動作 |
@@ -816,7 +816,7 @@
 | TRASH-006 | v0.2 | I | #59 | 綠 | 2 | 保留期與清空 |
 | TRASH-007 | v0.2 | U | #69 | 綠 | 4 | trash 永不自動核准 |
 | TRASH-008 | v0.2 | X | #59 | 綠 | 4 | 當機注入 |
-| TRASH-009 | v0.1 | I | #10 | 綠 | 4 | `/trash/summary` |
+| TRASH-009 | v0.1 | I | #10 | 綠 | 2 | `/trash/summary` |
 | XMP-001 | v0.2 | I | #50 | 綠 | 2 | 寫入 sidecar |
 | XMP-002 | v0.2 | C | #50 | 未開始 | 0 | 相容性 |
 | XMP-003 | v0.2 | I | #50 | 綠 | 2 | 合併既有 XMP |
@@ -838,56 +838,56 @@
 | MCP-TOOL-013 | v0.3 |  |  | 綠 | 54 | `remove_from_collection` |
 | MCP-TOOL-014 | v0.3 |  |  | 綠 | 54 | `list_collections` |
 | MCP-TOOL-015 | v0.2 |  |  | 綠 | 55 | `run_labeling_job` |
-| MCP-TOOL-028 | v0.3 |  |  | 綠 | 2 | 回歸：`run_labeling_job` 在有 sub_path 的來源 |
+| MCP-TOOL-028 | v0.3 |  |  | 綠 | 1 | 回歸：`run_labeling_job` 在有 sub_path 的來源 |
 | MCP-TOOL-016 | v0.2 |  |  | 綠 | 55 | `get_job_status` |
 | MCP-TOOL-017 | v0.2 |  |  | 綠 | 55 | `cancel_job` |
 | MCP-TOOL-018 | v0.2 |  |  | 綠 | 55 | `propose_organize` |
 | MCP-TOOL-019 | v0.2 |  |  | 綠 | 55 | `get_organize_plan` |
 | MCP-TOOL-020 | v0.2 |  |  | 綠 | 55 | `apply_organize` |
 | MCP-TOOL-021 | v0.2 |  |  | 綠 | 55 | `undo_organize` |
-| MCP-TOOL-022 | v0.2 |  |  | 綠 | 57 | `list_people` |
-| MCP-TOOL-023 | v0.2 |  |  | 綠 | 57 | `get_person` |
-| MCP-TOOL-024 | v0.2 |  |  | 綠 | 57 | `find_photos_of_person` |
+| MCP-TOOL-022 | v0.2 |  |  | 綠 | 56 | `list_people` |
+| MCP-TOOL-023 | v0.2 |  |  | 綠 | 56 | `get_person` |
+| MCP-TOOL-024 | v0.2 |  |  | 綠 | 56 | `find_photos_of_person` |
 | MCP-TOOL-025 | v0.3 |  |  | 綠 | 54 | `count_photos` |
 | MCP-TOOL-026 | v0.3 |  |  | 綠 | 54 | `verify_photos` |
 | MCP-TOOL-027 | v0.3 |  |  | 綠 | 54 | `compare_photos` |
-| MCP-SCOPE-002 | v0.2 | I | #68 | 綠 | 2 | 預設 token |
-| MCP-SCOPE-003 | v0.2 | I | #68 | 綠 | 2 | 唯讀呼叫寫入 |
-| MCP-SCOPE-004 | v0.2 | I | #67 | 綠 | 2 | faces 雙重閘門 |
-| MCP-SCOPE-005 | v0.2 | I | #84 | 綠 | 4 | faces:read 無 faces:media |
-| MCP-SCOPE-006 | v0.2 | I | #69 | 綠 | 2 | organize:apply 未開 workspace 開關 |
+| MCP-SCOPE-002 | v0.2 | I | #68 | 綠 | 1 | 預設 token |
+| MCP-SCOPE-003 | v0.2 | I | #68 | 綠 | 1 | 唯讀呼叫寫入 |
+| MCP-SCOPE-004 | v0.2 | I | #67 | 綠 | 1 | faces 雙重閘門 |
+| MCP-SCOPE-005 | v0.2 | I | #84 | 綠 | 2 | faces:read 無 faces:media |
+| MCP-SCOPE-006 | v0.2 | I | #69 | 綠 | 1 | organize:apply 未開 workspace 開關 |
 | MCP-SCOPE-007 | v0.2 | S | #68 | 綠 | 1 | 沒有的能力 |
-| MCP-SCOPE-008 | v0.2 | I | #68 | 綠 | 2 | 撤銷即時生效 |
+| MCP-SCOPE-008 | v0.2 | I | #68 | 綠 | 1 | 撤銷即時生效 |
 | MCP-SCOPE-009 | v0.2 | S | #60 | 綠 | 1 | launch token 不能用於 MCP |
-| MCP-FOLD-001 | v0.2 | I | #68 | 綠 | 2 | folder_scopes 限制 |
+| MCP-FOLD-001 | v0.2 | I | #68 | 綠 | 1 | folder_scopes 限制 |
 | MCP-FOLD-002 | v0.2 | S | #68 | 綠 | 2 | selection_id 跨範圍 |
-| MCP-FOLD-003 | v0.2 | I | #69 | 綠 | 2 | propose target 限制 |
-| MCP-FOLD-004 | v0.2 | S | #68 | 綠 | 2 | 計數不洩漏 |
+| MCP-FOLD-003 | v0.2 | I | #69 | 綠 | 1 | propose target 限制 |
+| MCP-FOLD-004 | v0.2 | S | #68 | 綠 | 1 | 計數不洩漏 |
 | MCP-FOLD-005 | v0.2 | S | #68 | 綠 | 1 | 路徑不外洩 |
-| MCP-FOLD-006 | v0.2 | S | #68 | 綠 | 2 | 回歸：有 sub_path 的來源 |
-| MCP-MEDIA-001 | v0.2 | I | #70 | 綠 | 2 | 預設不外送縮圖 |
-| MCP-MEDIA-002 | v0.2 | U | #70 | 綠 | 3 | 取最嚴格 |
-| MCP-MEDIA-003 | v0.2 | I | #84 | 綠 | 3 | 人臉縮圖三重政策 |
-| MCP-MEDIA-004 | v0.2 | I | #70 | 綠 | 2 | 回應大小上限 |
+| MCP-FOLD-006 | v0.2 | S | #68 | 綠 | 1 | 回歸：有 sub_path 的來源 |
+| MCP-MEDIA-001 | v0.2 | I | #70 | 綠 | 1 | 預設不外送縮圖 |
+| MCP-MEDIA-002 | v0.2 | U | #70 | 綠 | 2 | 取最嚴格 |
+| MCP-MEDIA-003 | v0.2 | I | #84 | 綠 | 2 | 人臉縮圖三重政策 |
+| MCP-MEDIA-004 | v0.2 | I | #70 | 綠 | 1 | 回應大小上限 |
 | MCP-MEDIA-005 | v0.2 | S | #71 | 綠 | 1 | EXIF 自由文字預設不回 |
-| MCP-MEDIA-006 | v0.2 | I | #72 | 綠 | 2 | 稽核影像數 |
-| MCP-APPR-001 | v0.2 | I | #69 | 綠 | 4 | apply 只建立核准請求 |
+| MCP-MEDIA-006 | v0.2 | I | #72 | 綠 | 1 | 稽核影像數 |
+| MCP-APPR-001 | v0.2 | I | #69 | 綠 | 2 | apply 只建立核准請求 |
 | MCP-APPR-002 | v0.2 | S | #69 | 綠 | 1 | 不可自我核准 |
-| MCP-APPR-003 | v0.2 | D | #69 | 綠 | 2 | 桌面 deep link |
-| MCP-APPR-004 | v0.2 | I | #69 | 綠 | 2 | plan_hash 綁定 |
-| MCP-APPR-005 | v0.2 | I | #69 | 綠 | 2 | 過期 |
-| MCP-APPR-006 | v0.2 | E | #69 | 綠 | 3 | 核准頁資訊 |
-| MCP-APPR-007 | v0.2 | U | #69 | 綠 | 3 | auto_approve 範圍 |
-| MCP-APPR-008 | v0.2 | I | #69 | 綠 | 2 | 核准後重試回 applying |
-| MCP-RATE-001 | v0.2 | I | #72 | 綠 | 3 | 一般讀取 |
-| MCP-RATE-002 | v0.2 | I | #72 | 綠 | 2 | describe GPU 預算（v0.3，隨 describe_photo；ADR-0009） |
-| MCP-RATE-003 | v0.2 | I | #72 | 綠 | 4 | run_labeling_job 限制 |
-| MCP-RATE-004 | v0.2 | I | #72 | 綠 | 3 | propose 限制 |
-| MCP-RATE-005 | v0.2 | I | #84 | 綠 | 3 | faces 列舉防護 |
-| MCP-AUD-001 | v0.2 | I | #72 | 綠 | 2 | 每次呼叫都記錄 |
+| MCP-APPR-003 | v0.2 | D | #69 | 綠 | 1 | 桌面 deep link |
+| MCP-APPR-004 | v0.2 | I | #69 | 綠 | 1 | plan_hash 綁定 |
+| MCP-APPR-005 | v0.2 | I | #69 | 綠 | 1 | 過期 |
+| MCP-APPR-006 | v0.2 | E | #69 | 綠 | 2 | 核准頁資訊 |
+| MCP-APPR-007 | v0.2 | U | #69 | 綠 | 2 | auto_approve 範圍 |
+| MCP-APPR-008 | v0.2 | I | #69 | 綠 | 1 | 核准後重試回 applying |
+| MCP-RATE-001 | v0.2 | I | #72 | 綠 | 2 | 一般讀取 |
+| MCP-RATE-002 | v0.2 | I | #72 | 綠 | 1 | describe GPU 預算（v0.3，隨 describe_photo；ADR-0009） |
+| MCP-RATE-003 | v0.2 | I | #72 | 綠 | 2 | run_labeling_job 限制 |
+| MCP-RATE-004 | v0.2 | I | #72 | 綠 | 2 | propose 限制 |
+| MCP-RATE-005 | v0.2 | I | #84 | 綠 | 2 | faces 列舉防護 |
+| MCP-AUD-001 | v0.2 | I | #72 | 綠 | 1 | 每次呼叫都記錄 |
 | MCP-AUD-002 | v0.2 | U | #72 | 綠 | 1 | 參數遮蔽 |
 | MCP-AUD-003 | v0.2 | S | #72 | 綠 | 1 | append-only |
-| MCP-AUD-004 | v0.2 | I | #72 | 綠 | 3 | 副作用同步 audit_log |
+| MCP-AUD-004 | v0.2 | I | #72 | 綠 | 2 | 副作用同步 audit_log |
 | MCP-INJ-001 | v0.2 |  |  | 綠 | 4 | 照片內文字（招牌） |
 | MCP-INJ-002 | v0.2 |  |  | 綠 | 2 | 截圖中的白板 |
 | MCP-INJ-003 | v0.2 |  |  | 綠 | 2 | 照片內文字 |
@@ -902,112 +902,112 @@
 | MCP-INJ-012 | v0.2 |  |  | 綠 | 2 | 檔名 |
 | MCP-INJ-013 | v0.2 |  |  | 綠 | 2 | 資料夾名 |
 | MCP-INJ-014 | v0.2 |  |  | 綠 | 2 | 檔名 path 字元 |
-| MCP-INJ-015 | v0.2 |  |  | 綠 | 3 | 人名（使用者命名） |
+| MCP-INJ-015 | v0.2 |  |  | 綠 | 2 | 人名（使用者命名） |
 | MCP-INJ-016 | v0.2 |  |  | 綠 | 1 | 人名含 Markdown 連結 |
-| MCP-INJ-017 | v0.3 |  |  | 綠 | 2 | 相簿名稱 |
+| MCP-INJ-017 | v0.3 |  |  | 綠 | 1 | 相簿名稱 |
 | MCP-INJ-018 | v0.2 |  |  | 綠 | 3 | caption 偽造 tool 結果 |
 | MCP-INJ-019 | v0.2 |  |  | 綠 | 1 | OCR（`include:["ocr"]`） |
 | MCP-INJ-020 | v0.2 |  |  | 綠 | 1 | 照片內文字誘導外送到其他 MCP server |
 | MCP-INJ-021 | v0.2 |  |  | 綠 | 2 | 照片內文字誘導 update_labels |
-| MCP-INJ-022 | v0.3 |  |  | 綠 | 2 | 照片內文字誘導呼叫 describe 耗 GPU |
+| MCP-INJ-022 | v0.3 |  |  | 綠 | 1 | 照片內文字誘導呼叫 describe 耗 GPU |
 | MCP-INJ-023 | v0.2 |  |  | 綠 | 1 | path_template 注入 |
-| MCP-INJ-024 | v0.3 |  |  | 綠 | 2 | Ask 確認卡偽造 |
+| MCP-INJ-024 | v0.3 |  |  | 綠 | 1 | Ask 確認卡偽造 |
 | MCP-TRN-001 | v0.2 | I | #60 | 綠 | 2 | stdio 找 port |
 | MCP-TRN-002 | v0.2 | S | #60 | 綠 | 1 | stdio 是薄 client |
 | MCP-TRN-003 | v0.2 | C | #60 | 綠 | 2 | 協定版本 |
 | MCP-TRN-004 | v0.2 | C | #60 | 綠 | 1 | 決定性排序 |
 | MCP-TRN-005 | v0.2 | C | #72 | 綠 | 1 | 錯誤帶錯誤碼不帶 fix_id |
 | MCP-TRN-006 | v0.1 | C | #60 | 未開始 | 0 | `--experimental` 唯讀 stdio |
-| MCP-TRN-007 | v0.5 | I | #73 | 綠 | 2 | HTTP `/mcp` + OAuth |
+| MCP-TRN-007 | v0.5 | I | #73 | 綠 | 1 | HTTP `/mcp` + OAuth |
 | MCP-PAT-001 | v0.2 | I | #60 | 綠 | 1 | keyring 儲存 |
 | MCP-PAT-002 | v0.2 | E | #61 | 綠 | 1 | 精靈只寫已知路徑 |
 | MCP-PAT-003 | v0.2 | U | #60 | 綠 | 1 | 設定寫絕對路徑 |
 | MCP-PAT-004 | v0.2 | E | #70 | 綠 | 1 | media 勾選說明 |
-| FACE-GATE-001 | v0.2 | I | #74 | 綠 | 3 | 預設關閉 |
-| FACE-GATE-002 | v0.2 | I | #74 | 綠 | 3 | opt-in 同意紀錄 |
-| FACE-GATE-003 | v0.2 | I | #74 | 綠 | 2 | 限定 Source |
+| FACE-GATE-001 | v0.2 | I | #74 | 綠 | 2 | 預設關閉 |
+| FACE-GATE-002 | v0.2 | I | #74 | 綠 | 2 | opt-in 同意紀錄 |
+| FACE-GATE-003 | v0.2 | I | #74 | 綠 | 1 | 限定 Source |
 | FACE-GATE-004 | v0.2 | E | #74 | 綠 | 1 | 可略過 |
 | FACE-GATE-005 | v0.2 | C | #75 | 綠 | 2 | 預設安裝包不含非可散布權重 |
-| FACE-DET-001 | v0.2 | U | #75 | 綠 | 12 | 品質分級 |
-| FACE-DET-002 | v0.2 | U | #75 | 綠 | 3 | 大合照截斷 |
+| FACE-DET-001 | v0.2 | U | #75 | 綠 | 11 | 品質分級 |
+| FACE-DET-002 | v0.2 | U | #75 | 綠 | 2 | 大合照截斷 |
 | FACE-DET-003 | v0.2 | U | #75 | 綠 | 1 | 跳過條件 |
 | FACE-DET-004 | v0.2 | I | #75 | 綠 | 1 | 只解碼一次 |
-| FACE-ASN-001 | v0.2 | U | #76 | 綠 | 4 | 自動指派 |
+| FACE-ASN-001 | v0.2 | U | #76 | 綠 | 3 | 自動指派 |
 | FACE-ASN-002 | v0.2 | U | #76 | 綠 | 1 | margin 不足 → 建議 |
 | FACE-ASN-003 | v0.2 | U | #76 | 綠 | 1 | 低品質不自動 |
 | FACE-ASN-004 | v0.2 | U | #76 | 綠 | 1 | age_variation／confusable |
 | FACE-ASN-005 | v0.2 | U | #76 | 綠 | 1 | 未達建議門檻 |
-| FACE-ASN-006 | v0.2 | U | #77 | 綠 | 3 | cannot-link |
-| FACE-CLU-001 | v0.2 | I | #76 | 綠 | 3 | HDBSCAN 群組 |
-| FACE-CLU-002 | v0.2 | I | #76 | 綠 | 2 | 人工決策凍結 |
+| FACE-ASN-006 | v0.2 | U | #77 | 綠 | 2 | cannot-link |
+| FACE-CLU-001 | v0.2 | I | #76 | 綠 | 2 | HDBSCAN 群組 |
+| FACE-CLU-002 | v0.2 | I | #76 | 綠 | 1 | 人工決策凍結 |
 | FACE-CLU-003 | v0.2 | U | #76 | 綠 | 1 | ID 穩定 |
-| FACE-CLU-004 | v0.2 | U | #76 | 綠 | 3 | 小群組摺疊 |
-| FACE-CLU-005 | v0.2 | I | #76 | 綠 | 3 | 大池退路 |
-| FACE-MGT-001 | v0.2 | I | #77 | 綠 | 2 | 合併可 undo |
-| FACE-MGT-002 | v0.2 | I | #77 | 綠 | 2 | 拆分 |
+| FACE-CLU-004 | v0.2 | U | #76 | 綠 | 2 | 小群組摺疊 |
+| FACE-CLU-005 | v0.2 | I | #76 | 綠 | 2 | 大池退路 |
+| FACE-MGT-001 | v0.2 | I | #77 | 綠 | 1 | 合併可 undo |
+| FACE-MGT-002 | v0.2 | I | #77 | 綠 | 1 | 拆分 |
 | FACE-MGT-003 | v0.2 | U | #77 | 綠 | 1 | 合併建議不自動 |
-| FACE-MGT-004 | v0.2 | I | #77 | 綠 | 2 | 忽略兩種模式 |
+| FACE-MGT-004 | v0.2 | I | #77 | 綠 | 1 | 忽略兩種模式 |
 | FACE-MGT-005 | v0.2 | U | #80 | 綠 | 1 | 命名清理 |
-| FACE-FIND-001 | v0.2 | I | #78 | 綠 | 5 | 點臉找人 |
-| FACE-FIND-002 | v0.2 | I | #78 | 綠 | 3 | 拖照片找人不落地 |
+| FACE-FIND-001 | v0.2 | I | #78 | 綠 | 3 | 點臉找人 |
+| FACE-FIND-002 | v0.2 | I | #78 | 綠 | 2 | 拖照片找人不落地 |
 | FACE-FIND-003 | v0.2 | U | #78 | 綠 | 1 | 只吃 confirmed 擴充 |
-| FACE-FIND-004 | v0.2 | I | #78 | 綠 | 2 | 不跨 workspace |
-| FACE-TPL-001 | v0.2 | I | #80 | 綠 | 2 | `{person}` fan-out |
+| FACE-FIND-004 | v0.2 | I | #78 | 綠 | 1 | 不跨 workspace |
+| FACE-TPL-001 | v0.2 | I | #80 | 綠 | 1 | `{person}` fan-out |
 | FACE-REV-001 | v0.2 | E | #81 | 綠 | 1 | Review Y/N |
-| FACE-PRG-001 | v0.2 | I | #82 | 綠 | 2 | 一鍵刪除 |
+| FACE-PRG-001 | v0.2 | I | #82 | 綠 | 1 | 一鍵刪除 |
 | FACE-PRG-002 | v0.2 | I | #82 | 綠 | 1 | Worker 端與金鑰 |
 | FACE-PRG-003 | v0.2 | I | #82 | 綠 | 1 | Worker 離線時 purge |
 | FACE-PRG-004 | v0.2 | E | #82 | 綠 | 1 | 停用預設勾選刪除 |
-| FACE-PRV-001 | v0.2 | I | #82 | 綠 | 2 | 備份與匯出排除 |
+| FACE-PRV-001 | v0.2 | I | #82 | 綠 | 1 | 備份與匯出排除 |
 | FACE-PRV-002 | v0.2 | S | #82 | 綠 | 1 | log 不記向量 |
 | FACE-PRV-003 | v0.2 | S | #82 | 綠 | 2 | DB role 隔離 |
 | FACE-PRV-004 | v0.2 | C | #75 | 綠 | 1 | 不做屬性推論 |
-| FACE-SPACE-001 | v0.2 | I | #83 | 綠 | 2 | 換模型藍綠 |
-| FACE-SPACE-002 | v0.2 | I | #82 | 綠 | 2 | 消失資產清理 |
+| FACE-SPACE-001 | v0.2 | I | #83 | 綠 | 1 | 換模型藍綠 |
+| FACE-SPACE-002 | v0.2 | I | #82 | 綠 | 1 | 消失資產清理 |
 | FACE-N-001 | v0.2 | N | #76 | 未開始 | 0 | 真模型品質 |
-| ASK-GRD-001 | v0.3 | U | #103 | 綠 | 3 | 引用必須來自本輪工具結果 |
-| ASK-GRD-002 | v0.3 | U | #100 | 綠 | 5 | 數字只能來自 count_photos |
-| ASK-GRD-003 | v0.3 | U | #100 | 綠 | 3 | 統計題一定呼叫 count_photos |
-| ASK-GRD-004 | v0.3 | U | #103 | 綠 | 4 | 找不到就拒答 |
+| ASK-GRD-001 | v0.3 | U | #103 | 綠 | 2 | 引用必須來自本輪工具結果 |
+| ASK-GRD-002 | v0.3 | U | #100 | 綠 | 4 | 數字只能來自 count_photos |
+| ASK-GRD-003 | v0.3 | U | #100 | 綠 | 2 | 統計題一定呼叫 count_photos |
+| ASK-GRD-004 | v0.3 | U | #103 | 綠 | 3 | 找不到就拒答 |
 | ASK-GRD-005 | v0.3 | U | #103 | 綠 | 1 | 不補完 metadata |
 | ASK-GRD-006 | v0.3 | U | #103 | 綠 | 2 | Markdown 白名單 |
-| ASK-ACT-001 | v0.3 | I | #104 | 綠 | 2 | 動作只產生計畫 |
+| ASK-ACT-001 | v0.3 | I | #104 | 綠 | 1 | 動作只產生計畫 |
 | ASK-ACT-002 | v0.3 | U | #104 | 綠 | 2 | 確認卡內容來自結構化資料 |
-| ASK-SSE-001 | v0.3 | C | #102 | 綠 | 3 | 事件序列（檢索型） |
-| ASK-SSE-002 | v0.3 | C | #102 | 綠 | 3 | 每步 eta 與 elapsed |
-| ASK-SSE-003 | v0.3 | I | #102 | 綠 | 3 | 取消 ≤ 1 s |
-| ASK-SSE-004 | v0.3 | E | #102 | 綠 | 4 | 可編輯 chips 重跑 |
-| ASK-LOOP-001 | v0.3 | U | #101 | 綠 | 3 | 步數上限 |
+| ASK-SSE-001 | v0.3 | C | #102 | 綠 | 2 | 事件序列（檢索型） |
+| ASK-SSE-002 | v0.3 | C | #102 | 綠 | 2 | 每步 eta 與 elapsed |
+| ASK-SSE-003 | v0.3 | I | #102 | 綠 | 2 | 取消 ≤ 1 s |
+| ASK-SSE-004 | v0.3 | E | #102 | 綠 | 3 | 可編輯 chips 重跑 |
+| ASK-LOOP-001 | v0.3 | U | #101 | 綠 | 2 | 步數上限 |
 | ASK-LOOP-002 | v0.3 | U | #101 | 綠 | 1 | 時間與 GPU 上限 |
-| ASK-LOOP-003 | v0.3 | I | #101 | 綠 | 3 | S7 未通過自動關閉 |
-| ASK-LOOP-004 | v0.3 | U | #101 | 綠 | 3 | 8 GB 強制快速路徑 |
-| ASK-PRV-001 | v0.3 | E | #105 | 綠 | 3 | 雲端模式警示 |
-| ASK-PRV-002 | v0.3 | I | #105 | 綠 | 2 | 預設不送影像 |
-| ASK-PRV-003 | v0.3 | I | #105 | 綠 | 2 | 人名代稱 |
-| ASK-PRV-004 | v0.3 | I | #105 | 綠 | 4 | egress log |
-| ASK-PRV-005 | v0.3 | E | #107 | 綠 | 3 | CPU 機器 CTA |
-| ASK-SEC-001 | v0.3 | I | #104 | 綠 | 2 | 共用 ToolRegistry 權限 |
+| ASK-LOOP-003 | v0.3 | I | #101 | 綠 | 2 | S7 未通過自動關閉 |
+| ASK-LOOP-004 | v0.3 | U | #101 | 綠 | 2 | 8 GB 強制快速路徑 |
+| ASK-PRV-001 | v0.3 | E | #105 | 綠 | 2 | 雲端模式警示 |
+| ASK-PRV-002 | v0.3 | I | #105 | 綠 | 1 | 預設不送影像 |
+| ASK-PRV-003 | v0.3 | I | #105 | 綠 | 1 | 人名代稱 |
+| ASK-PRV-004 | v0.3 | I | #105 | 綠 | 2 | egress log |
+| ASK-PRV-005 | v0.3 | E | #107 | 綠 | 2 | CPU 機器 CTA |
+| ASK-SEC-001 | v0.3 | I | #104 | 綠 | 1 | 共用 ToolRegistry 權限 |
 | ASK-SEC-002 | v0.3 | U | #104 | 綠 | 1 | 不可信文字隔離 |
-| ASK-SEC-003 | v0.3 | N | #104 | 綠 | 2 | injection 評估 |
-| ASK-EVAL-001 | v0.3 | C | #106 | 綠 | 2 | 小集（PR） |
+| ASK-SEC-003 | v0.3 | N | #104 | 綠 | 1 | injection 評估 |
+| ASK-EVAL-001 | v0.3 | C | #106 | 綠 | 1 | 小集（PR） |
 | ASK-EVAL-002 | v0.3 | N | #103,#106 | 未開始 | 0 | 全集（nightly） |
 | ASK-PERF-001 | v0.3 | N | #100 | 未開始 | 0 | 延遲 |
 | ASK-MEM-001 | v0.3 | U | #100 | 綠 | 1 | 追問 delta |
-| ASK-MEM-002 | v0.3 | I | #105 | 綠 | 2 | 保存與刪除 |
-| ASK-UI-001 | v0.3 | I | #100 | 綠 | 4 | 建議問題 chips 依資料產生 |
+| ASK-MEM-002 | v0.3 | I | #105 | 綠 | 1 | 保存與刪除 |
+| ASK-UI-001 | v0.3 | I | #100 | 綠 | 3 | 建議問題 chips 依資料產生 |
 | ASK-UI-002 | v0.3 | E | #102 | 綠 | 1 | 快捷鍵與面板互斥 |
-| ASK-LLM-001 | v0.3 | C | #101,#105 | 綠 | 5 | OpenAI 相容 client |
+| ASK-LLM-001 | v0.3 | C | #101,#105 | 綠 | 4 | OpenAI 相容 client |
 | WATCH-001 | v0.3 | I | #57 | 綠 | 1 | 新照片自動標註 |
 | WATCH-002 | v0.3 | I | #57 | 綠 | 3 | 去抖動 |
 | WATCH-003 | v0.3 | I | #57 | 綠 | 1 | move 永遠需要核准 |
 | WATCH-004 | v0.3 | I | #57 | 綠 | 1 | 事件遺失補償 |
 | WATCH-005 | v0.3 | F | #57 | 綠 | 2 | 大量事件 |
 | WATCH-006 | v0.3 | I | #57 | 綠 | 13 | 網路磁碟無原生事件 |
-| BENCH-001 | v0.3 | I | #35 | 綠 | 4 | 兩模型比較 |
-| BENCH-002 | v0.3 | U | #35 | 綠 | 3 | golden set 下限 |
-| BENCH-003 | v0.3 | U | #35 | 綠 | 3 | 自動門檻建議 |
-| PRESET-001 | v0.3 | U | #58 | 綠 | 4 | 匯出匯入 |
-| PRESET-002 | v0.3 | S | #58 | 綠 | 24 | 匯入驗證 |
+| BENCH-001 | v0.3 | I | #35 | 綠 | 3 | 兩模型比較 |
+| BENCH-002 | v0.3 | U | #35 | 綠 | 2 | golden set 下限 |
+| BENCH-003 | v0.3 | U | #35 | 綠 | 2 | 自動門檻建議 |
+| PRESET-001 | v0.3 | U | #58 | 綠 | 3 | 匯出匯入 |
+| PRESET-002 | v0.3 | S | #58 | 綠 | 23 | 匯入驗證 |
 | RT-PACK-012 | v0.4 | I | #23 | 綠 | 5 | 新 pack 的平台過濾 |
 | RT-PACK-013 | v0.4 | I | #23 | 綠 | 2 | 大 pack 分段 |
 | RT-PACK-014 | v0.4 | U | #23 | 綠 | 2 | pack 建置可重現 |
@@ -1015,20 +1015,20 @@
 | RT-MLX-001 | v0.4 | C | #23 | 綠 | 5 | MLX adapter 一致性 |
 | RT-TORCH-001 | v0.4 | C | #23 | 綠 | 1 | torch sidecar 一致性 |
 | RT-TORCH-002 | v0.4 | U | #23 | 綠 | 7 | Blackwell 自檢 |
-| RT-TORCH-003 | v0.4 | I | #23 | 綠 | 2 | trust_remote_code 必須確認 |
-| MDL-IMP-001 | v0.4 | I | #20 | 綠 | 2 | 匯入 Ollama 模型 |
-| MDL-IMP-002 | v0.4 | I | #20 | 綠 | 2 | 匯入資料夾、LM Studio、HF cache |
-| IMM-001 | v0.4 | I | #108 | 綠 | 2 | `immich_tags` 動作 |
-| IMM-002 | v0.4 | I | #108 | 綠 | 2 | 以 SHA-1 對照資產 |
-| IMM-003 | v0.4 | I | #108 | 綠 | 2 | 相簿與描述 |
-| IMM-004 | v0.4 | I | #108 | 綠 | 2 | 連線設定與 preflight |
-| IMM-005 | v0.4 | I | #108 | 綠 | 2 | 重複套用 |
+| RT-TORCH-003 | v0.4 | I | #23 | 綠 | 1 | trust_remote_code 必須確認 |
+| MDL-IMP-001 | v0.4 | I | #20 | 綠 | 1 | 匯入 Ollama 模型 |
+| MDL-IMP-002 | v0.4 | I | #20 | 綠 | 1 | 匯入資料夾、LM Studio、HF cache |
+| IMM-001 | v0.4 | I | #108 | 綠 | 1 | `immich_tags` 動作 |
+| IMM-002 | v0.4 | I | #108 | 綠 | 1 | 以 SHA-1 對照資產 |
+| IMM-003 | v0.4 | I | #108 | 綠 | 1 | 相簿與描述 |
+| IMM-004 | v0.4 | I | #108 | 綠 | 1 | 連線設定與 preflight |
+| IMM-005 | v0.4 | I | #108 | 綠 | 1 | 重複套用 |
 | LS-001 | v0.4 | C | #109 | 綠 | 1 | 匯出 tasks |
 | LS-002 | v0.4 | U | #109 | 綠 | 1 | 標註設定 |
-| LS-003 | v0.4 | I | #109 | 綠 | 2 | 匯回標註 |
-| SRCH-R2-001 | v0.4 | I | #110 | 綠 | 2 | caption 向量進入檢索 |
-| SRCH-R2-002 | v0.4 | I | #110 | 綠 | 2 | 跨語言 |
-| SRCH-R2-003 | v0.4 | I | #110 | 綠 | 2 | 藍綠 reindex |
+| LS-003 | v0.4 | I | #109 | 綠 | 1 | 匯回標註 |
+| SRCH-R2-001 | v0.4 | I | #110 | 綠 | 1 | caption 向量進入檢索 |
+| SRCH-R2-002 | v0.4 | I | #110 | 綠 | 1 | 跨語言 |
+| SRCH-R2-003 | v0.4 | I | #110 | 綠 | 1 | 藍綠 reindex |
 | SRCH-R2-004 | v0.4 | E | #110 | 綠 | 1 | reindex UI |
 | DIST-001 | v0.4 | U | #111 | 綠 | 1 | 套件管理器 manifest |
 | DIST-002 | v0.4 | M | #111 | 未開始 | 0 | 發佈管道評估 |
@@ -1038,58 +1038,58 @@
 | MAP-003 | v0.4 | U | #96 | 綠 | 2 | 聚類計算 |
 | CMP-001 | v0.4 | E | #97 | 綠 | 1 | 比較模式 |
 | CMP-002 | v0.4 | A | #97 | 綠 | 1 | 比較模式鍵盤 |
-| MU-WORKER-001 | v0.5 | I | #12 | 綠 | 2 | 遠端 Worker 只往外連 |
-| MU-WORKER-002 | v0.5 | I | #12 | 綠 | 2 | 一次性配對碼 |
-| MU-WORKER-003 | v0.5 | U | #12 | 綠 | 2 | ed25519 簽章換 access token |
-| MU-WORKER-004 | v0.5 | I | #12 | 綠 | 2 | WSS 與 long-poll 降級 |
-| MU-WORKER-005 | v0.5 | C | #12 | 綠 | 2 | 協定版本 |
-| MU-WORKER-006 | v0.5 | I | #12 | 綠 | 2 | 桌面 app 當 headless Worker |
-| MU-RBAC-001 | v0.5 | I | #12 | 綠 | 2 | ws_viewer 不可寫 |
-| MU-RBAC-002 | v0.5 | C | #12 | 綠 | 12 | 角色矩陣 |
-| MU-RBAC-003 | v0.5 | I | #12 | 綠 | 2 | 套用需要 output:apply |
-| MU-AUTH-001 | v0.5 | I | #12 | 綠 | 5 | 密碼登入 |
-| MU-AUTH-002 | v0.5 | I | #12 | 綠 | 2 | OIDC 登入 |
-| MU-AUTH-003 | v0.5 | I | #12 | 綠 | 2 | 單人模式升級 |
-| MU-PRIV-001 | v0.5 | I | #113 | 綠 | 2 | full |
-| MU-PRIV-002 | v0.5 | I | #113 | 綠 | 2 | thumbs |
-| MU-PRIV-003 | v0.5 | I | #113 | 綠 | 2 | edge-thumbs |
-| MU-PRIV-004 | v0.5 | I | #113 | 綠 | 2 | results-only |
-| MU-PRIV-005 | v0.5 | S | #113 | 綠 | 2 | Worker 端強制 |
-| MU-SEC-001 | v0.5 | S | #12 | 綠 | 2 | Worker 冒充 |
-| MU-SEC-002 | v0.5 | S | #12 | 綠 | 2 | token 重放 |
-| MU-SEC-003 | v0.5 | S | #12 | 綠 | 2 | 跨 workspace 隔離 |
+| MU-WORKER-001 | v0.5 | I | #12 | 綠 | 1 | 遠端 Worker 只往外連 |
+| MU-WORKER-002 | v0.5 | I | #12 | 綠 | 1 | 一次性配對碼 |
+| MU-WORKER-003 | v0.5 | U | #12 | 綠 | 1 | ed25519 簽章換 access token |
+| MU-WORKER-004 | v0.5 | I | #12 | 綠 | 1 | WSS 與 long-poll 降級 |
+| MU-WORKER-005 | v0.5 | C | #12 | 綠 | 1 | 協定版本 |
+| MU-WORKER-006 | v0.5 | I | #12 | 綠 | 1 | 桌面 app 當 headless Worker |
+| MU-RBAC-001 | v0.5 | I | #12 | 綠 | 1 | ws_viewer 不可寫 |
+| MU-RBAC-002 | v0.5 | C | #12 | 綠 | 6 | 角色矩陣 |
+| MU-RBAC-003 | v0.5 | I | #12 | 綠 | 1 | 套用需要 output:apply |
+| MU-AUTH-001 | v0.5 | I | #12 | 綠 | 4 | 密碼登入 |
+| MU-AUTH-002 | v0.5 | I | #12 | 綠 | 1 | OIDC 登入 |
+| MU-AUTH-003 | v0.5 | I | #12 | 綠 | 1 | 單人模式升級 |
+| MU-PRIV-001 | v0.5 | I | #113 | 綠 | 1 | full |
+| MU-PRIV-002 | v0.5 | I | #113 | 綠 | 1 | thumbs |
+| MU-PRIV-003 | v0.5 | I | #113 | 綠 | 1 | edge-thumbs |
+| MU-PRIV-004 | v0.5 | I | #113 | 綠 | 1 | results-only |
+| MU-PRIV-005 | v0.5 | S | #113 | 綠 | 1 | Worker 端強制 |
+| MU-SEC-001 | v0.5 | S | #12 | 綠 | 1 | Worker 冒充 |
+| MU-SEC-002 | v0.5 | S | #12 | 綠 | 1 | token 重放 |
+| MU-SEC-003 | v0.5 | S | #12 | 綠 | 1 | 跨 workspace 隔離 |
 | MU-SEC-004 | v0.5 | S | #12 | 綠 | 1 | Worker RPC 白名單 |
-| MU-DEPLOY-001 | v0.5 | E | #12 | 綠 | 2 | compose 雙機 E2E |
+| MU-DEPLOY-001 | v0.5 | E | #12 | 綠 | 1 | compose 雙機 E2E |
 | MU-DEPLOY-002 | v0.5 | M | #12 | 綠 | 3 | 桌面 app 當 client |
-| MU-OAUTH-001 | v0.5 | I | #73 | 綠 | 2 | grant 撤銷即時 |
-| MU-OAUTH-002 | v0.5 | C | #73 | 綠 | 2 | Protected Resource Metadata |
-| MU-OAUTH-003 | v0.5 | S | #73 | 綠 | 2 | scope 與 audience |
-| MU-OAUTH-004 | v0.5 | S | #73 | 綠 | 2 | PKCE 與 redirect 嚴格 |
-| MU-OAUTH-005 | v0.5 | S | #73 | 綠 | 2 | refresh 輪替與重用偵測 |
-| MU-OAUTH-006 | v0.5 | S | #73 | 綠 | 2 | CIMD 的 SSRF 防護 |
-| MU-OAUTH-007 | v0.5 | I | #73 | 綠 | 2 | 端到端探索 |
+| MU-OAUTH-001 | v0.5 | I | #73 | 綠 | 1 | grant 撤銷即時 |
+| MU-OAUTH-002 | v0.5 | C | #73 | 綠 | 1 | Protected Resource Metadata |
+| MU-OAUTH-003 | v0.5 | S | #73 | 綠 | 1 | scope 與 audience |
+| MU-OAUTH-004 | v0.5 | S | #73 | 綠 | 1 | PKCE 與 redirect 嚴格 |
+| MU-OAUTH-005 | v0.5 | S | #73 | 綠 | 1 | refresh 輪替與重用偵測 |
+| MU-OAUTH-006 | v0.5 | S | #73 | 綠 | 1 | CIMD 的 SSRF 防護 |
+| MU-OAUTH-007 | v0.5 | I | #73 | 綠 | 1 | 端到端探索 |
 | MU-OAUTH-008 | v0.5 | U | #73 | 綠 | 1 | 有效 scope 永不含 organize:apply |
-| FRZ-001 | v1.0 | C |  | 未開始 | 0 | REST `/api/v1` 快照 |
-| FRZ-002 | v1.0 | C | #12 | 未開始 | 0 | Worker 協定快照 |
-| FRZ-003 | v1.0 | C | #73 | 未開始 | 0 | MCP tool manifest 快照 |
-| FRZ-004 | v1.0 | C |  | 未開始 | 0 | Runtime pack 介面 |
-| FRZ-005 | v1.0 | C |  | 未開始 | 0 | Model registry `schema_version` |
-| FRZ-006 | v1.0 | C |  | 未開始 | 0 | Preset schema |
-| FRZ-007 | v1.0 | U |  | 未開始 | 0 | 相容性比對器 |
-| SEC-FUZZ-001 | v1.0 | S |  | 未開始 | 0 | 路徑沙箱 1,000,000 例 fuzz |
-| SEC-REDTEAM-001 | v1.0 | S | #71 | 未開始 | 0 | MCP 紅隊集擴充 |
-| SEC-FACE-001 | v1.0 | S |  | 未開始 | 0 | 人臉資料刪除可驗證 |
-| SEC-SBOM-001 | v1.0 | S |  | 未開始 | 0 | SBOM 與漏洞掃描 |
+| FRZ-001 | v1.0 | C |  | 綠 | 1 | REST `/api/v1` 快照 |
+| FRZ-002 | v1.0 | C | #12 | 綠 | 1 | Worker 協定快照 |
+| FRZ-003 | v1.0 | C | #73 | 綠 | 1 | MCP tool manifest 快照 |
+| FRZ-004 | v1.0 | C |  | 綠 | 1 | Runtime pack 介面 |
+| FRZ-005 | v1.0 | C |  | 綠 | 1 | Model registry `schema_version` |
+| FRZ-006 | v1.0 | C |  | 綠 | 1 | Preset schema |
+| FRZ-007 | v1.0 | U |  | 綠 | 3 | 相容性比對器 |
+| SEC-FUZZ-001 | v1.0 | S |  | 綠 | 1 | 路徑沙箱 1,000,000 例 fuzz |
+| SEC-REDTEAM-001 | v1.0 | S | #71 | 綠 | 1 | MCP 紅隊集擴充 |
+| SEC-FACE-001 | v1.0 | S |  | 綠 | 1 | 人臉資料刪除可驗證 |
+| SEC-SBOM-001 | v1.0 | S |  | 綠 | 3 | SBOM 與漏洞掃描 |
 | SEC-AUDIT-001 | v1.0 | M |  | 未開始 | 0 | 外部安全審查 |
-| I18N-010 | v1.0 | C |  | 未開始 | 0 | 兩種語言完整 |
-| I18N-011 | v1.0 | C |  | 未開始 | 0 | 錯誤碼目錄雙語 |
-| A11Y-010 | v1.0 | E |  | 未開始 | 0 | 每個頁面通過 axe |
-| A11Y-011 | v1.0 | E |  | 未開始 | 0 | 鍵盤可走完主要流程 |
-| MIG-001 | v1.0 | I |  | 未開始 | 0 | 從 v0.x 各版升級 |
-| MIG-002 | v1.0 | I |  | 未開始 | 0 | 桌面資料夾 `layout_version` |
-| MIG-003 | v1.0 | C |  | 未開始 | 0 | 破壞性變更都有遷移說明 |
-| UPD-010 | v1.0 | U |  | 未開始 | 0 | stable 與 beta 通道 |
-| REL-010 | v1.0 | M |  | 未開始 | 0 | v1.0 發版清單 |
+| I18N-010 | v1.0 | C |  | 綠 | 24 | 兩種語言完整 |
+| I18N-011 | v1.0 | C |  | 綠 | 2 | 錯誤碼目錄雙語 |
+| A11Y-010 | v1.0 | E |  | 綠 | 5 | 每個頁面通過 axe |
+| A11Y-011 | v1.0 | E |  | 綠 | 3 | 鍵盤可走完主要流程 |
+| MIG-001 | v1.0 | I |  | 綠 | 8 | 從 v0.x 各版升級 |
+| MIG-002 | v1.0 | I |  | 綠 | 3 | 桌面資料夾 `layout_version` |
+| MIG-003 | v1.0 | C |  | 綠 | 2 | 破壞性變更都有遷移說明 |
+| UPD-010 | v1.0 | U |  | 綠 | 5 | stable 與 beta 通道 |
+| REL-010 | v1.0 | M |  | 綠 | 1 | v1.0 發版清單 |
 
 ## 不在目錄中的 ID（請補到 09a／09b）
 
