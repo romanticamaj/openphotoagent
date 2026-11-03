@@ -93,6 +93,8 @@ def flow(ui, enroll_and_start, photos, sorted_dir):
     plan = wait_for(lambda: ui.get(f"/api/v1/jobs/{jid}").json().get("plan_id"), what="plan")
     assert ui.post(f"/api/v1/output-plans/{plan}/approve", json={}).status_code in (200, 202)
     wait_for(lambda: len([p for p in sorted_dir.rglob("*") if p.is_file()]) == 3, what="apply")
+    # the files land before the worker reports the task complete: undo is for an applied plan
+    wait_for(lambda: ui.get(f"/api/v1/output-plans/{plan}").json()["status"] == "applied", what="plan applied")
     assert digest(photos) == before  # copy is the default: originals unchanged, mtime included (invariant 4)
     assert ui.post(f"/api/v1/output-plans/{plan}/undo").status_code in (200, 202)
     wait_for(lambda: not [p for p in sorted_dir.rglob("*") if p.is_file()], what="undo")
@@ -189,7 +191,9 @@ def test_deploy_001_two_processes(embedded_pg, tmp_path):
             p.terminate()
         for p in procs:
             try:
-                p.communicate(timeout=20)
+                _, err = p.communicate(timeout=20)
+                if err:
+                    print(f"--- stderr of {p.args[3:5]}\n{err[-4000:]}")  # shown when the test fails
             except subprocess.TimeoutExpired:
                 p.kill()
 
