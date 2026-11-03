@@ -24,6 +24,27 @@ import zstandard
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
+PACK_API = 1  # the runtime-pack interface this app speaks (VERSIONING §4; frozen in contracts/pack-api.json)
+# One entry of the signed pack index, as this worker reads it (FRZ-004). Unknown fields are ignored.
+INDEX_ENTRY_SCHEMA = {
+    "type": "object",
+    "required": ["id", "version", "pack_api", "url", "size", "unpacked_size", "files_manifest"],
+    "properties": {
+        "id": {"type": "string"},
+        "version": {"type": "string"},
+        "pack_api": {"type": "integer"},
+        "url": {"type": "string"},
+        "size": {"type": "integer"},
+        "unpacked_size": {"type": "integer"},
+        "files_manifest": {"type": "object"},
+        "parts": {"type": "array", "items": {"type": "object"}},
+        "numerics_epoch": {"type": "integer"},
+    },
+}
+LOCK_ENTRY_SCHEMA = {  # packs.lock.json: pack id → which pack_api values (and optionally which version) to accept
+    "type": "object",
+    "properties": {"pack_api": {"type": "array", "items": {"type": "integer"}}, "version": {"type": "string"}},
+}
 MAX_INFLATION = 1.10  # unpacked size may exceed the declared size by at most 10 % (zip-bomb guard)
 
 
@@ -135,7 +156,7 @@ class PackInstaller:
         if not cands:
             raise PackError("DL_NOT_FOUND", pack=pid)
         e = cands[-1]
-        allowed = (self.lock.get(pid) or {}).get("pack_api") or [1]
+        allowed = (self.lock.get(pid) or {}).get("pack_api") or [PACK_API]
         if e.get("pack_api") not in allowed:
             raise PackError("PACK_INCOMPATIBLE", pack=pid, v=e["version"], range=allowed)
         return dict(e)

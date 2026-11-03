@@ -434,3 +434,27 @@
 
 **影響的測試 ID**：MU-SEC-003（以兩個資料庫的情境驗證 404 與 total）。
 **同步修改的規格**：02 §1.3「資料隔離」。
+
+---
+
+## ADR-0017：Worker 協定版本採 `"MAJOR.MINOR"` 字串，CP 服務 N 與 N-1 主版本
+
+- 日期：2026-11-03｜狀態：已採納｜影響：VERSIONING §4、02 §5.3、09b §9.1（FRZ-002）
+
+**問題**：v1.0 凍結 Worker 協定時，兩份規格的寫法互相衝突：
+- VERSIONING §4：`protocol_version` 是整數，CP 接受「目前與前一個 minor 版本」的 Worker。
+- 02 §5.3：版本採 semver，CP 同時支援 N 與 N-1 主版本。v0.5 的實作與 MU-WORKER-005 依照的是這一份。
+
+**審議**（一個 sub-agent）：
+- 協定在凍結後真正的破壞性變更，一年大約 0～1 次。
+- 整數方案每次變更都要升號，也包括新增欄位這類相容的變更。這會讓「前一個 minor」的範圍跟著產品版本走，即使 wire 格式根本沒變，NAS 上更新較慢的 Worker 也可能被拒絕。
+- 字串方案只看協定本身：minor 只能新增，major 才能破壞。快照測試（FRZ-002）可以直接用相容性比對器檢查這條規則。
+- 遷移成本：字串方案為 0，因為程式碼、測試與 02 §5.3 已經一致。改用整數反而要在凍結前，對 v0.5 的 Worker 做一次破壞性變更。
+
+**決定**：採用 `"MAJOR.MINOR"` 字串，與產品版本無關，在 `hello`／`welcome` 協商。
+- minor 只能新增：選填欄位、新訊息、新的 task 種類；不移除也不收緊任何東西。
+- 任何破壞性變更都要升 major。
+- CP 服務主版本 N 與 N-1；更舊的 Worker 收到 `upgrade_required`（lease 與 poll 回 426），更新的收到 `server_too_old`。
+- VERSIONING §4 改寫為上述規則；02 §5.3 維持不變。
+
+**影響的測試 ID**：FRZ-002（快照比對 `x-protocol-version`、`/worker-api/v1` 的 schema 與 RPC 種類）、MU-WORKER-005（不變）。

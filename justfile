@@ -42,9 +42,18 @@ lint:
     uv run lint-imports
     uv run python tools/gen_error_i18n.py --check
     uv run python tools/gen_problem_stories.py --check
+    uv run python tools/contracts.py
     pnpm -r --if-present lint
     pnpm -r --if-present typecheck
     cd apps/desktop/supervisor && cargo fmt --check && cargo clippy -q --all-targets -- -D warnings
+
+# v1.0 interface contracts (VERSIONING §4): check that the code still matches contracts/*.json
+contracts:
+    uv run python tools/contracts.py
+
+# rewrite contracts/*.json — only for additive changes (or a new major with a CHANGELOG migration note)
+contracts-update:
+    uv run python tools/contracts.py --update
 
 # regenerate docs/generated/coverage-status.md
 tc-status:
