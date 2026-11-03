@@ -93,7 +93,8 @@ def build_tree(base):
 
 def gen(r):
     n = r.randint(1, 7)
-    segs = [r.choice(SEGMENTS + ["out", "dirlink", "rel-out", "secret.jpg"]) for _ in range(n)]
+    pool = [*SEGMENTS, "out", "dirlink", "rel-out", "secret.jpg"]
+    segs = [r.choice(pool) for _ in range(n)]
     path = ""
     for s in segs:
         path += s + r.choice(SEPS)
