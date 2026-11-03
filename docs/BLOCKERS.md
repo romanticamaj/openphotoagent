@@ -25,3 +25,27 @@
 | B-18 | 帳號 | 套件管理器上架：winget-pkgs PR、Homebrew tap／cask、Flathub 新 app 審核（manifest 已可由 `tools/gen_dist_manifests.py` 產生，評估見 `docs/research/distribution.md`） | 使用者能用套件管理器安裝 | 建立 tap repo、簽章到位後送 winget、確認 Linux sandbox 權限後送 Flathub | v0.4 |
 | B-19 | 手動驗證 | v0.5 control plane 的實機部署：(1) NAS（Synology／Unraid）上以 `deploy/compose/controlplane.yml` 搭配 HTTPS reverse proxy，GPU 桌機以 `opagent worker enroll` 配對（真的兩台機器、跨網段）；(2) 真的 IdP（Authentik／Keycloak／Google Workspace）OIDC 登入；(3) 真的 MCP client 以 OAuth 2.1＋CIMD 連 `/mcp`（Claude 的遠端 connector 等），確認同意頁與撤銷；(4) 桌面 app 的 `connection.json` 遠端模式在 Windows／macOS 實際開啟（MU-DEPLOY-002 的 M 部分）；(5) compose 雙機 E2E 在 nightly CI 的第一次執行（本環境沒有 Docker daemon） | v0.5 的實機相容性 | 流程已在雲端以兩個獨立進程（`opagent controlplane`＋`opagent worker run --headless`）、假 OIDC provider、假 CIMD 主機與 cargo test 驗證；步驟見 `docs/deploy/controlplane.md` | v0.5 |
 | B-20 | 外部審查＋發版 | v1.0：(1) 外部安全審查（SEC-AUDIT-001）：路徑沙箱、MCP 與 OAuth、人臉刪除、control plane 認證，由有經驗的審查者完成並記錄；審查材料見 `docs/security/review-v1.0.md`。(2) 合併 release-please 的 Release PR，發佈 `v1.0.0`（雲端 session 不能 push tag） | v1.0 穩定版的承諾 | 雲端已完成的自動化部分：1,000,000 例沙箱 fuzz、110 條 MCP 紅隊、可驗證的人臉刪除、SBOM 與漏洞掃描、介面快照；手動項目見 `docs/checklists/release-v1.0.md` | v1.0 |
+
+## 附錄：還沒有綠燈的測試 ID 與對應項目
+
+> 依 `docs/generated/coverage-status.md`（2026-11-03，feat/v1.0）。這裡列出每一條沒有綠燈的 ID，說明為什麼沒有在雲端執行，以及由哪一項 B-x 負責。其餘 ID 全部是綠燈。
+
+| 測試 ID | 版本 | 為什麼沒有在雲端執行 | 對應 |
+|---|---|---|---|
+| OUT-EXE-010 | v0.1 | 需要不分大小寫的檔案系統（APFS／NTFS）；已標記 `os_macos`／`os_windows`，由 CI 的 OS 矩陣執行 | B-12 |
+| INF-REG-013 | v0.1 | release gate：發版前所有模型都要釘選雜湊 | B-9、B-10 |
+| INF-CAL-003、PERF-005、ASK-EVAL-002、ASK-PERF-001 | v0.1／v0.3 | 需要真模型與參考機（nightly-gpu） | B-1、B-11 |
+| DOC-020、ETA-019 | v0.1 | 需要五類真機或三台參考機 | B-1、B-13 |
+| PERF-001 | v0.1 | 雲端量到 p95 16.8 ms、0% 掉幀；門檻 16.7 ms 以參考規格的 runner 為準 | B-13 |
+| PERF-007、DESK-001／005／007／018／019／021／024／031／033／034 | v0.1 | 桌面 D／M 類，需要真的 WebView 與 OS（tauri-driver 或 VM） | B-13 |
+| PG-007 | v0.1 | 需要已發佈版本的 `fixtures/db/v0.0.x.dump`，目前還沒有任何正式發版；各里程碑 schema 的升級已由 MIG-001 涵蓋 | B-9 |
+| PG-011 | v0.1 | Windows 管理員帳號 | B-13 |
+| PG-014、DOCK-001～003 | v0.1 | 需要 Docker daemon（雲端沒有）；`docker.yml` | B-12 |
+| UPD-001、UPD-002 | v0.1 | 真的 updater 套件與 VM（規則已由 UPD-003～006、UPD-010 的 cargo test 涵蓋） | B-5、B-13 |
+| MCP-TRN-006 | v0.1（選用） | 11 §5.5 的選用例外，v0.1 沒有開啟；v0.2 已提供完整的 stdio server（MCP-TRN-001～005） | 不需處理 |
+| SRCH-RRF-008 | v0.2 | 需要 pgvector 0.8 的 `iterative_scan`；雲端只有 0.6，CI 使用 PG 17 + pgvector 0.8 | B-12 |
+| XMP-002 | v0.2 | 需要 digiKam、Lightroom Classic 的範例檔與手動匯入 | B-11 |
+| FACE-N-001 | v0.2 | 需要真人臉模型與授權允許的資料集 | B-2、B-7 |
+| DIST-002、WINML-001 | v0.4 | M 類（人工審閱）：`docs/research/distribution.md`、`docs/research/windows-ml.md` 已寫好，等待審閱 | B-18 |
+| SEC-AUDIT-001 | v1.0 | 外部安全審查 | B-20 |
+| DL-019 | v0.1 | nightly；見下方說明 | B-12 |

@@ -3,6 +3,29 @@
 > 依 CLAUDE.md §5.8：規格衝突、做不到的門檻、設計取捨由獨立的審議 sub-agent 論證後決定；每一筆以 ADR 格式記錄（背景、選項、決定、理由、影響的測試 ID），並同步修改相關規格。結論不得用來修改測試去配合實作，也不得弱化 §4 不變量。
 > 需要使用者本人決定的事項在 [`BLOCKERS.md`](BLOCKERS.md)。
 
+## 審議索引
+
+實作期間（M0 → v1.0）共開了 15 次審議、18 個 sub-agent，全部都有對應的 ADR。規劃階段撰寫規格 00–11 用的 sub-agent，以及提高 mutation score 的實作 sub-agent，不屬於審議，因此不列入。
+
+| ADR | 審議題目 | sub-agent 數 | 里程碑 |
+|---|---|---|---|
+| ADR-0001 | 門檻（accept／review）與 cascade 的分工 | 1 | 1B（切片 6） |
+| ADR-0002 | registry 的雜湊釘選 | 1 | 1C（切片 7） |
+| ADR-0003 | Storybook 或自製元件展示頁 | 1 | 1C（切片 10） |
+| ADR-0004 | 等待中的 Operation 能否暫停與取消 | 1 | 1C（切片 10） |
+| ADR-0005 | 搜尋結果集合的上限 | 1 | 1C（切片 10） |
+| ADR-0006 | PERF-003 的字型預算 | 1 | 1D（切片 12） |
+| ADR-0007 | DL-019：下載與 Job 搶資源 | 1 | 1D |
+| ADR-0008 | Q-T5「過年」的日期範圍 | 1 | 2A |
+| ADR-0009 | v0.3 tool 與 MCP-SCOPE-001 的衝突 | 1 | 2B |
+| ADR-0010 | 路徑字串與 UntrustedText | 1 | 2B |
+| ADR-0011、ADR-0012 | bio 角色隔離與金鑰範圍（同一次審議，兩個決定） | 1 | 2C |
+| ADR-0013 | ⌘J 快捷鍵衝突 | 1 | 3 |
+| ADR-0014 | caption 文字向量模型選型 | 1 | 4 |
+| ADR-0015 | C-21：內建 AS 或外部 IdP（使用者定案） | 2 | 5 |
+| ADR-0016 | workspace 隔離：row filter 或每個 workspace 一個資料庫 | 2 | 5 |
+| ADR-0017 | Worker 協定版本格式 | 1 | 6 |
+
 
 ## ADR-0001：任務門檻（accept／review）與分類 cascade 的關係
 
