@@ -607,6 +607,7 @@
 | PF-082 | problem+json 全域 | schemathesis 對全部 `/api/v1` 端點產生錯誤輸入 | 所有 4xx／5xx 都是 RFC 9457 + `code` 欄位；無 HTML 錯誤頁 | C | #27 |
 | PF-083 | 永遠有退路 | 對 PF-004、005、012、013、017 的狀態各自選 `choose_alternative` | 套用後 preflight `ready=true`，且 FakeBackend 下 Job 可跑完 | I | #28、DoD 5.2 |
 | PF-084 | 不需模型的工作不受 GPU 檢查阻擋（回歸） | `hw:nvidia-drv535`：依日期 vs 依內容 | 依日期 0 blocker；依內容仍顯示 GPU_DRIVER_TOO_OLD 與修復 | I | #27、#28 |
+| PF-085 | problem+json 細節欄位與保留欄位同名（回歸） | `HTTPException` 的 detail 帶 `status`、`type` 或 `title`（例如 `PLAN_NOT_APPLIED` 帶計畫狀態） | 回應仍是 RFC 9457 的 4xx，`code` 正確，原本的值放在 `params`（UI 的訊息插值來源）；不會變成 500 | C | #27 |
 
 ---
 

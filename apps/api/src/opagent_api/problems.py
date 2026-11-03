@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 MEDIA = "application/problem+json"
+RESERVED = ("type", "title", "status")  # RFC 9457 members set by `problem` itself
 
 
 def problem(status: int, code: str, **extra: Any) -> JSONResponse:
@@ -22,7 +23,11 @@ def install_problem_handlers(app: FastAPI) -> None:
     async def _http(_: Request, exc: StarletteHTTPException) -> JSONResponse:
         d = exc.detail
         if isinstance(d, dict) and "code" in d:
-            return problem(exc.status_code, **d)
+            extra = {k: v for k, v in d.items() if k not in RESERVED}
+            clash = {k: v for k, v in d.items() if k in RESERVED and k != "code"}
+            if clash:  # e.g. PLAN_NOT_DRAFT's plan `status`: the message parameter, never an RFC 9457 member (PF-085)
+                extra["params"] = {**(extra.get("params") or {}), **clash}
+            return problem(exc.status_code, **extra)
         return problem(
             exc.status_code, "NOT_FOUND" if exc.status_code == 404 else f"HTTP_{exc.status_code}", detail=str(d)
         )

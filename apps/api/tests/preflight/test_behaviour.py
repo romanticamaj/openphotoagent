@@ -180,3 +180,25 @@ def test_pf_084_by_date_is_not_blocked_by_gpu_findings(env, tmp_path):
         },
     )
     assert "GPU_DRIVER_TOO_OLD" in [b["code"] for b in content.json()["blockers"]]
+
+
+@pytest.mark.contract
+@pytest.mark.tc("PF-085")
+def test_pf_085_detail_fields_named_like_problem_members():
+    """Regression: a detail carrying `status` (PLAN_NOT_APPLIED with the plan's status) crashed the handler (500)."""
+    from fastapi import FastAPI, HTTPException
+    from fastapi.testclient import TestClient
+    from opagent_api.problems import install_problem_handlers
+
+    app = FastAPI()
+    install_problem_handlers(app)
+
+    @app.get("/x")
+    def x():
+        raise HTTPException(409, detail={"code": "PLAN_NOT_APPLIED", "status": "applying", "title": "t", "type": "y"})
+
+    r = TestClient(app).get("/x")
+    assert r.status_code == 409 and r.headers["content-type"].startswith("application/problem+json")
+    body = r.json()
+    assert body["code"] == "PLAN_NOT_APPLIED" and body["status"] == 409
+    assert body["params"] == {"status": "applying", "title": "t", "type": "y"}  # what ProblemCard interpolates
