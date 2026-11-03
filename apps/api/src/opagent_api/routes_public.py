@@ -47,6 +47,7 @@ class JobIn(BaseModel):
     models: dict[str, Any] | None = None  # {embed, vlm, pack}; None = the worker's configured backend
     categories: list[dict[str, Any]] | None = None  # preset "custom": [{key, name, description, examples}]
     queue_after: bool = False
+    inference: dict[str, Any] | None = None  # {endpoint}: an external OpenAI-compatible server instead of the worker's
 
 
 class PreflightIn(BaseModel):
@@ -155,7 +156,8 @@ def preflight(body: PreflightIn, req: Request) -> dict[str, Any]:
 
     st = _st(req)
     with st.engine.begin() as c:
-        return run_preflight(c, st, body.action, body.params, body.fingerprint)
+        perms = getattr(req.state, "opa_perms", None) if st.multi_user else None
+        return run_preflight(c, st, body.action, body.params, body.fingerprint, perms=perms)
 
 
 @router.post("/jobs", status_code=201)

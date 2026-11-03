@@ -51,9 +51,29 @@ COMPAT_WARNINGS = {"VRAM_SEQUENTIAL", "VRAM_OFFLOAD", "PERF_CPU_ONLY_SLOW"}
 DOWNLOAD_ACTIVE = ("queued", "running", "waiting", "paused")
 
 
+ACTION_PERMISSION = {  # preflight actions → the permission string they need (02 §1.3, permissions.py)
+    "job.start": "job:create",
+    "scan": "job:create",
+    "job.retry_failed": "job:create",
+    "benchmark.run": "job:create",
+    "output.apply": "output:apply",
+    "output.undo": "output:apply",
+    "immich.sync": "output:apply",
+    "model.download": "model:manage",
+    "model.load": "model:manage",
+    "model.delete": "model:manage",
+    "model.move": "model:manage",
+    "runtime.install": "model:manage",
+    "search": "ws:read",
+}
+
+
 class Pre:
-    def __init__(self, c: Any, st: Any, action: str, params: dict[str, Any]) -> None:
+    def __init__(
+        self, c: Any, st: Any, action: str, params: dict[str, Any], perms: frozenset[str] | None = None
+    ) -> None:
         self.c, self.st, self.action, self.p = c, st, action, params
+        self.perms = perms  # control plane: the caller's permissions in this workspace (None = single user)
         self.blockers: list[dict[str, Any]] = []
         self.warnings: list[dict[str, Any]] = []
         self.gates: list[dict[str, Any]] = []
@@ -614,7 +634,32 @@ class Pre:
                 "runtime",
             )
 
+    def permission_gate(self) -> None:
+        """PF-059: say which permission is missing instead of a bare disabled button (invariant 8)."""
+        need = ACTION_PERMISSION.get(self.action)
+        if self.perms is not None and need and need not in self.perms:
+            self.add("PERMISSION_DENIED_ROLE", {"permission": need}, "permission")
+            self.blockers[-1]["requires_permission"] = need
+
+    def egress_gate(self) -> None:
+        """PF-058: images to an external endpoint only where the workspace policy lets images leave (02 §1.4)."""
+        from urllib.parse import urlsplit
+
+        ep = str((self.p.get("inference") or {}).get("endpoint") or "")
+        if not ep or not self.st.multi_user:
+            return
+        if (urlsplit(ep).hostname or "") in ("127.0.0.1", "localhost", "::1"):
+            return  # a model server on the worker's own machine
+        from .routes_remote import egress_policy
+
+        mode = egress_policy(self.st, self.c)["mode"]
+        if mode in ("edge-thumbs", "results-only"):
+            self.add("EGRESS_POLICY_BLOCKS", {"mode": mode, "endpoint": urlsplit(ep).hostname}, "privacy")
+
     def run(self) -> dict[str, Any]:
+        self.permission_gate()
+        if self.action == "job.start":
+            self.egress_gate()
         if self.action == "job.start" and self.p.get("kind") == "label" and self.p.get("rerun_of"):
             self._nothing_to_do()  # 100 % cache hits: pure control-plane work, no worker needed
             if self.warnings:
@@ -704,11 +749,16 @@ _CACHE: dict[str, dict[str, Any]] = {}
 
 
 def run_preflight(
-    c: Any, st: Any, action: str, params: dict[str, Any], fingerprint: str | None = None
+    c: Any,
+    st: Any,
+    action: str,
+    params: dict[str, Any],
+    fingerprint: str | None = None,
+    perms: frozenset[str] | None = None,
 ) -> dict[str, Any]:
-    pre = Pre(c, st, action, params)
+    pre = Pre(c, st, action, params, perms)
     key = hashlib.sha256(
-        json.dumps([action, params, pre.state_token()], sort_keys=True, default=str).encode()
+        json.dumps([action, params, pre.state_token(), sorted(perms or [])], sort_keys=True, default=str).encode()
     ).hexdigest()[:16]
     if fingerprint and fingerprint in _CACHE and _CACHE[fingerprint].get("_key") == key:
         hit = {k: v for k, v in _CACHE[fingerprint].items() if k != "_key"}

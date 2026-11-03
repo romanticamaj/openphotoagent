@@ -336,3 +336,27 @@ def test_oauth_008_never_organize_apply(scopes, role):
     tok = srv._tokens("authorization_code", client, g, " ".join([*scopes, "organize:apply"]))
     assert "organize:apply" not in tok["scope"].split()
     assert set(tok["scope"].split()) <= set(capped)
+
+
+@pytest.mark.integration
+@pytest.mark.security
+@pytest.mark.tc("MCP-TRN-007")
+def test_mcp_trn_007_http_transport_host_origin(cp_app, hosts, as_role):
+    t = tokens(cp_app, as_role("ws_editor"))
+    body = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {"name": "search_photos", "arguments": {"query": "x"}},
+    }
+    auth = {"Authorization": f"Bearer {t['access_token']}"}
+    c = TestClient(cp_app, base_url=ISS)
+    assert c.post("/mcp", json=body, headers=auth).status_code == 200  # a desktop MCP client sends no Origin
+    assert c.post("/mcp", json=body, headers={**auth, "Origin": ISS}).status_code == 200
+    r = c.post("/mcp", json=body, headers={**auth, "Origin": "https://evil.example"})
+    assert r.status_code == 403 and r.json()["error"] == "origin_not_allowed"  # a web page cannot drive it
+    rebound = TestClient(cp_app, base_url="https://attacker.example")  # DNS rebinding: right IP, foreign Host
+    assert rebound.post("/mcp", json=body, headers=auth).status_code == 403
+    # and the grant revoked in the app ends the HTTP session at the next call
+    user_grants = as_role("ws_viewer")  # another member cannot revoke it
+    assert user_grants.get("/api/v1/oauth/grants").json() == []

@@ -785,6 +785,17 @@ class OAuthToken:
         return "*"
 
 
+def _same_site(st: AppState, req: Request) -> bool:
+    """The request names this server: Host (or the reverse proxy's X-Forwarded-Host) is the public address, and a
+    browser's Origin, when present, is that same origin. Native MCP clients send no Origin."""
+    u = urlsplit(issuer(st))
+    host = (req.headers.get("x-forwarded-host") or req.headers.get("host") or "").split(",")[0].strip().lower()
+    if host != (u.netloc or "").lower():
+        return False
+    origin = req.headers.get("origin")
+    return origin is None or origin.rstrip("/").lower() == f"{u.scheme}://{u.netloc}".lower()
+
+
 @mcp_router.post("/mcp")
 async def mcp(req: Request) -> Any:
     """Streamable HTTP (JSON responses). 401 points at the Protected Resource Metadata (RFC 9728)."""
@@ -795,6 +806,8 @@ async def mcp(req: Request) -> Any:
     from .permissions import SCOPE_PERMISSION
 
     st = _st(req)
+    if not _same_site(st, req):  # MCP Streamable HTTP: validate Origin and Host (DNS rebinding, MCP-TRN-007)
+        return JSONResponse({"error": "origin_not_allowed"}, status_code=403)
     auth = req.headers.get("authorization", "")
     claims = await run_in_threadpool(verify_access, st, auth[7:]) if auth.startswith("Bearer ") else None
     if claims is None or claims["ws"] != st.ws_id:
