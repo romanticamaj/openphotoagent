@@ -341,7 +341,10 @@
     "retry_later": "Try again later",
     "confirm_remote_code": "Review and confirm the code",
     "immich": "Open the Immich settings",
-    "retype": "Type it again"
+    "retype": "Type it again",
+    "consequence_label": "If you choose this:",
+    "compose__f_compose_cuda_yml": "Copy the GPU compose command",
+    "worker_run": "Show the start command"
   },
   "nav": {
     "label": "Main navigation",
@@ -788,5 +791,30 @@
     "rateLimited": "Too many attempts. Wait a minute and try again.",
     "workspace": "Workspace",
     "signOut": "Sign out"
+  },
+  "fix_consequence": {
+    "capable_model": "Uses a different model that supports this task; results may differ from your usual model.",
+    "continue_anyway": "Keeps going, but noticeably slower than usual.",
+    "continue_unverified": "The file's integrity cannot be checked; continue only if you trust this source.",
+    "cpu": "Runs on the CPU: much slower, but independent of the GPU driver.",
+    "cpu_build": "Uses the CPU build of the runtime: slower until the pack is repaired.",
+    "cpu_combo": "Runs entirely on the CPU with smaller models: slower and slightly less accurate.",
+    "cpu_ep": "Uses the CPU instead: search vectors and face detection are slower.",
+    "force_rerun": "Runs inference again on photos that already have results; uses GPU time.",
+    "installed_q4": "Uses the smaller variant you already have: slightly lower accuracy.",
+    "keep_skipping": "Videos and RAW files that need ffmpeg stay skipped.",
+    "llamacpp": "Uses llama.cpp instead: broader hardware support, possibly slower.",
+    "llamacpp_vulkan": "Uses llama.cpp with Vulkan: works on this GPU, usually slower than the native runtime.",
+    "local_model": "Runs on this workspace's own worker; nothing is sent to the external service.",
+    "lower_resolution": "Analyses smaller copies of the photos: less detail in captions and tags.",
+    "other_variant": "Uses another variant of the model: speed and accuracy may differ.",
+    "q4_k_m": "Uses the Q4_K_M variant: fits in less VRAM, slightly lower accuracy.",
+    "queue_after": "Starts when the running job finishes.",
+    "reapply_thresholds": "Re-applies the new thresholds to existing results without running inference again.",
+    "skip_conflicts": "Files changed since organizing stay where they are; everything else is undone.",
+    "smaller_model": "Uses a smaller model: needs less memory, slightly lower accuracy.",
+    "smaller_variant": "Uses a smaller variant: less space and memory, slightly lower accuracy.",
+    "t256_only": "Keeps only the smallest thumbnails: less detail in the viewer until there is space.",
+    "vulkan": "Uses the Vulkan runtime: works with this driver, may be slower."
   }
 }

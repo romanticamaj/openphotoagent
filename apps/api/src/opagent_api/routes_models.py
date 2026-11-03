@@ -195,7 +195,7 @@ def install_blockers(m: LoadedModel, vid: str, ctx: dict[str, Any]) -> list[dict
                         "other_variant",
                         "choose_alternative",
                         payload={"variants": alts},
-                        consequence={"key": "fix.other_variant.consequence"},
+                        consequence={"key": "fix_consequence.other_variant"},
                     ),
                 ],
                 variant=f"{m.spec.id}@{vid}",

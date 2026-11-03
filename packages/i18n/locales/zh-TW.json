@@ -341,7 +341,10 @@
     "retry_later": "稍後再試",
     "confirm_remote_code": "檢視並確認程式碼",
     "immich": "開啟 Immich 設定",
-    "retype": "重新輸入"
+    "retype": "重新輸入",
+    "consequence_label": "選擇這個的話：",
+    "compose__f_compose_cuda_yml": "複製 GPU 的 compose 指令",
+    "worker_run": "顯示啟動指令"
   },
   "nav": {
     "label": "主要導覽",
@@ -788,5 +791,30 @@
     "rateLimited": "嘗試次數過多，請等一分鐘再試。",
     "workspace": "工作區",
     "signOut": "登出"
+  },
+  "fix_consequence": {
+    "capable_model": "改用支援這項工作的模型；結果可能和平常使用的模型不同。",
+    "continue_anyway": "繼續執行，但會比平常明顯慢。",
+    "continue_unverified": "無法驗證檔案完整性；只有在信任這個來源時才繼續。",
+    "cpu": "改用 CPU：慢很多，但不受 GPU 驅動程式版本影響。",
+    "cpu_build": "改用 CPU 版本的 runtime：修好之前會比較慢。",
+    "cpu_combo": "完全以 CPU 搭配較小的模型執行：較慢，準確度略低。",
+    "cpu_ep": "改用 CPU 執行：搜尋向量與人臉偵測會變慢。",
+    "force_rerun": "對已經有結果的照片重新推論，會花費 GPU 時間。",
+    "installed_q4": "改用已安裝的較小版本：準確度略低。",
+    "keep_skipping": "需要 ffmpeg 的影片與 RAW 檔會繼續被略過。",
+    "llamacpp": "改用 llama.cpp：支援的硬體較廣，速度可能較慢。",
+    "llamacpp_vulkan": "改用 llama.cpp（Vulkan）：這張 GPU 可以用，但通常比原生 runtime 慢。",
+    "local_model": "改在這個工作區自己的 Worker 上執行，不會送出任何資料。",
+    "lower_resolution": "以較小的照片副本分析：說明與標籤的細節較少。",
+    "other_variant": "改用這個模型的其他版本：速度與準確度可能不同。",
+    "q4_k_m": "改用 Q4_K_M 版本：佔用較少 VRAM，準確度略低。",
+    "queue_after": "等目前的工作完成後才開始。",
+    "reapply_thresholds": "以新的門檻重新套用現有結果，不重新推論。",
+    "skip_conflicts": "整理後被修改過的檔案留在原處，其餘照常復原。",
+    "smaller_model": "改用較小的模型：需要的記憶體較少，準確度略低。",
+    "smaller_variant": "改用較小的版本：佔用的空間與記憶體較少，準確度略低。",
+    "t256_only": "只保留最小的縮圖：空間足夠之前，檢視器顯示的細節較少。",
+    "vulkan": "改用 Vulkan runtime：這個驅動程式可以用，但可能較慢。"
   }
 }

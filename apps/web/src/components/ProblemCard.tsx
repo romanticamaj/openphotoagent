@@ -1,4 +1,5 @@
 // ProblemCard (06 §4.3): title, message and the fixes for one problem code — never just "retry".
+import { useId } from "react";
 import { useTranslation } from "react-i18next";
 
 export type Fix = { id?: string; type: string; target?: string | null; url?: string; pack?: string; primary?: boolean; [k: string]: unknown };
@@ -27,7 +28,13 @@ export function fixLabel(problem: Problem, f: Fix, i: number, t: T, exists: (k: 
 
 export function ProblemCard({ problem, onFix, tone = "warning" }: { problem: Problem; onFix?: (f: Fix) => void; tone?: "warning" | "danger" }) {
   const { t, i18n } = useTranslation();
+  const uid = useId().replace(/:/g, "");
   const params = problem.params ?? {};
+  // what each alternative costs, said before anyone chooses it (06 §4.3; I18N-011)
+  const costs = (problem.fixes ?? []).map((f, i) => {
+    const key = (f.consequence as { key?: string } | undefined)?.key;
+    return key && i18n.exists(key) ? { id: `cost-${uid}-${i}`, text: t(key) } : null;
+  });
   const title = t(`errors.${problem.code}.title`, { ...params, defaultValue: problem.code });
   return (
     <div role="group" aria-label={title} className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4" data-code={problem.code}>
@@ -43,16 +50,29 @@ export function ProblemCard({ problem, onFix, tone = "warning" }: { problem: Pro
           const label = fixLabel(problem, f, i, t, (k) => i18n.exists(k));
           const cls = `rounded-[var(--radius-md)] px-3 py-1.5 text-sm ${i === 0 ? "bg-[var(--accent)] text-[var(--accent-fg)]" : "border border-[var(--border)]"}`;
           return f.type === "open_url" && f.url ? (
-            <a key={i} href={f.url} target="_blank" rel="noreferrer" className={cls} onClick={() => onFix?.(f)}>
+            <a key={i} href={f.url} target="_blank" rel="noreferrer" className={cls} aria-describedby={costs[i]?.id} onClick={() => onFix?.(f)}>
               {label}
             </a>
           ) : (
-            <button key={i} type="button" className={cls} onClick={() => onFix?.(f)}>
+            <button key={i} type="button" className={cls} aria-describedby={costs[i]?.id} onClick={() => onFix?.(f)}>
               {label}
             </button>
           );
         })}
       </div>
+      {costs.some(Boolean) ? (
+        <ul className="space-y-0.5 text-xs text-[var(--text-muted)]">
+          {costs.map((c, i) =>
+            c ? (
+              <li key={i}>
+                <span className="font-medium">{fixLabel(problem, (problem.fixes ?? [])[i], i, t, (k) => i18n.exists(k))}</span>
+                {" — "}
+                <span id={c.id}>{c.text}</span>
+              </li>
+            ) : null,
+          )}
+        </ul>
+      ) : null}
     </div>
   );
 }
