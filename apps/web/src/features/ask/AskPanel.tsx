@@ -161,6 +161,19 @@ export function AskPanel({ open, onClose }: { open: boolean; onClose: () => void
   useEffect(() => {
     if (open) input.current?.focus();
   }, [open]);
+  // Esc closes the panel from anywhere inside it; the shell returns focus to whatever opened it (A11Y-011)
+  useEffect(() => {
+    if (!open) return;
+    const on = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      if (document.querySelector('[data-testid="lightbox"]')) return; // the lightbox owns Esc while it is open
+      e.preventDefault();
+      if (busy) stop();
+      onClose();
+    };
+    window.addEventListener("keydown", on);
+    return () => window.removeEventListener("keydown", on);
+  }, [open, busy, stop, onClose]);
   if (!open) return null;
   const s = settings.data;
   const cloud = s?.provider === "openai_compat";
