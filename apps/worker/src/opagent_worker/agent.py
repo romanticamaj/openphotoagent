@@ -35,6 +35,32 @@ class _Abandoned(Exception):
 
 WATCH_SYNC_S = 15.0
 _log = logging.getLogger("opagent.worker")
+# The only messages the control plane can send (02 §6.3, MU-SEC-004). There is no "run a command" kind; anything
+# else is refused and logged, never looked up dynamically.
+RPC_KINDS = frozenset(
+    {
+        "apply",
+        "benchmark",
+        "browse",
+        "download",
+        "embed_assets",
+        "embed_captions",
+        "embed_image",
+        "embed_text",
+        "estimate",
+        "face_embed_query",
+        "face_purge",
+        "fix",
+        "hash_sha1",
+        "probe_root",
+        "remove",
+        "scan",
+        "scan_models",
+        "try_one",
+        "undo",
+        "vlm_ask",
+    }
+)
 
 
 class WorkerAgent:
@@ -174,6 +200,12 @@ class WorkerAgent:
 
     def _run_task(self, task: dict[str, Any], in_child: bool = False) -> None:
         try:
+            if task.get("kind") not in RPC_KINDS:
+                _log.warning("UNKNOWN_RPC: refused task kind %r", str(task.get("kind"))[:64])
+                self.client.post(
+                    f"/worker-api/v1/tasks/{task['id']}/complete", json={"result": {"error": "UNKNOWN_RPC"}, "ok": False}
+                )
+                return
             if in_child:
                 result = self._download_in_child(task["payload"], task["id"])
             else:
