@@ -132,20 +132,19 @@ def _aware(ts: Any) -> Any:
 
 def require_role(req: Request, perm: str, ws: str = DEFAULT_WS) -> dict[str, Any]:
     """Defence in depth inside a handler; the guard already checked the route's permission."""
-    from .permissions import permissions
-
     u = getattr(req.state, "opa_user", None)
     if u is None:
         raise HTTPException(401, detail={"code": "AUTH_REQUIRED"})
-    if perm not in permissions(u["roles"], ws):
+    if perm not in _perms(req):
         raise HTTPException(403, detail={"code": "FORBIDDEN_ROLE"})
     return u  # type: ignore[no-any-return]
 
 
-def user_permissions(st: AppState, user_id: str, ws: str = DEFAULT_WS) -> frozenset[str]:
+def user_permissions(st: AppState, user_id: str, ws: str | None = None) -> frozenset[str]:
     from .permissions import permissions
 
-    with st.engine.begin() as c:
+    ws = ws or st.ws_id
+    with st.root.engine.begin() as c:
         u = c.execute(select(app_user.c.disabled).where(app_user.c.id == user_id)).first()
         if u is None or u.disabled:
             return frozenset()
@@ -187,6 +186,7 @@ class MemberIn(BaseModel):
     email: str = Field(min_length=3, max_length=320, pattern=r"^[^@\s]+@[^@\s]+$")
     role: str
     password: str | None = Field(default=None, min_length=8, max_length=200)  # else: OIDC sign-in by e-mail
+    workspace: str | None = None  # default: the request's workspace
 
 
 @router.post("/members", status_code=201)
@@ -200,7 +200,10 @@ def add_member(body: MemberIn, req: Request) -> dict[str, Any]:
     with st.engine.begin() as c:
         if c.execute(select(app_user.c.id).where(app_user.c.email == body.email.strip().lower())).first():
             raise HTTPException(409, detail={"code": "MEMBER_EXISTS"})
-    uid = create_user(st, body.email, body.password, role=body.role)
+    ws = body.workspace or _ws(req)
+    if st.workspace_db(ws) is None:
+        raise HTTPException(404, detail={"code": "WORKSPACE_NOT_FOUND"})
+    uid = create_user(st, body.email, body.password, role=body.role, ws=ws)
     return {"id": uid, "email": body.email.strip().lower(), "role": body.role}
 
 
@@ -219,10 +222,51 @@ def remove_member(user_id: str, req: Request) -> dict[str, Any]:
 
 
 def _perms(req: Request) -> frozenset[str]:
+    """The caller's permissions in the request's workspace (computed once by the guard)."""
+    return frozenset(getattr(req.state, "opa_perms", frozenset()))
+
+
+def _ws(req: Request) -> str:
+    return str(getattr(req.state, "opa_ws", DEFAULT_WS))
+
+
+class WorkspaceIn(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+
+
+@router.post("/workspaces", status_code=201)
+def new_workspace(body: WorkspaceIn, req: Request) -> dict[str, Any]:
+    """A workspace is its own database on the same server (ADR-0016); the creator's org role applies in it."""
+    from opagent_db.lifecycle import ensure_database
+    from opagent_db.schema import create_all
+    from opagent_db.schema import workspace as w
+
+    st = _st(req)
+    require_role(req, "workspace:manage")
+    wid = "ws-" + uuid.uuid4().hex[:12]
+    from .state import dbname, with_dbname
+
+    db = f"{dbname(st.dsn)}_{wid.replace('-', '_')}"[:63]
+    dsn = with_dbname(st.dsn, db)
+    ensure_database(dsn)
+    create_all(dsn)
+    with st.engine.begin() as c:
+        c.execute(insert(w).values(id=wid, name=body.name, settings={}, database=db))
+    st.ws_state(wid)  # build it now: the first request should not pay for it
+    return {"id": wid, "name": body.name}
+
+
+@router.get("/workspaces")
+def list_workspaces(req: Request) -> list[dict[str, Any]]:
+    from opagent_db.schema import workspace as w
+
+    st = _st(req)
+    u = req.state.opa_user
+    with st.engine.begin() as c:
+        rows = c.execute(select(w.c.id, w.c.name).order_by(w.c.created_at, w.c.id)).all()
     from .permissions import permissions
 
-    u = getattr(req.state, "opa_user", None)
-    return permissions(u["roles"], DEFAULT_WS) if u else frozenset()
+    return [{"id": r.id, "name": r.name} for r in rows if permissions(u["roles"], r.id)]
 
 
 # ---------------------------------------------------------------- worker pairing
@@ -245,7 +289,11 @@ def new_code(body: CodeIn, req: Request) -> dict[str, Any]:
     with st.engine.begin() as c:
         c.execute(
             insert(enrollment_code).values(
-                code_hash=_sha(code), name=body.name, created_by=u["id"], expires_at=st.clock.now() + CODE_TTL
+                code_hash=_sha(code),
+                name=body.name,
+                created_by=u["id"],
+                workspace_id=_ws(req),
+                expires_at=st.clock.now() + CODE_TTL,
             )
         )
     return {"code": code, "expires_in_s": int(CODE_TTL.total_seconds())}
@@ -261,9 +309,13 @@ def revoke(worker_id: str, req: Request) -> dict[str, Any]:
             .where(worker_credential.c.worker_id == worker_id, worker_credential.c.revoked_at.is_(None))
             .values(revoked_at=st.clock.now())
         ).rowcount
-        c.execute(update(worker).where(worker.c.id == worker_id).values(status="revoked"))
+        ws = c.execute(
+            select(worker_credential.c.workspace_id).where(worker_credential.c.worker_id == worker_id)
+        ).scalar()
     if not n:
         raise HTTPException(404, detail={"code": "NOT_FOUND"})
+    with st.ws_state(ws or DEFAULT_WS).engine.begin() as c:
+        c.execute(update(worker).where(worker.c.id == worker_id).values(status="revoked"))
     return {"revoked": worker_id}
 
 
@@ -308,8 +360,11 @@ def enroll(body: EnrollIn, req: Request) -> dict[str, Any]:
         wid = "w-" + uuid.uuid4().hex[:16]
         refresh = "opagent_wrt_" + secrets.token_urlsafe(32)
         c.execute(
-            insert(worker_credential).values(worker_id=wid, public_key=body.public_key, refresh_hash=_sha(refresh))
+            insert(worker_credential).values(
+                worker_id=wid, public_key=body.public_key, refresh_hash=_sha(refresh), workspace_id=row.workspace_id
+            )
         )
+    with st.ws_state(row.workspace_id).engine.begin() as c:  # the worker row lives with the work it serves
         c.execute(
             pg_insert(worker)
             .values(id=wid, name=body.name, roots=[], status="offline", capabilities={"deployment": "remote"})
@@ -364,7 +419,13 @@ def token(body: TokenIn, req: Request) -> dict[str, Any]:
         if fresh is None:
             raise _deny("NONCE_REPLAYED")
     iat = int(now.timestamp())
-    claims = {"sub": body.worker_id, "aud": "worker", "iat": iat, "exp": iat + int(ACCESS_TTL.total_seconds())}
+    claims = {
+        "sub": body.worker_id,
+        "aud": "worker",
+        "ws": cred.workspace_id,
+        "iat": iat,
+        "exp": iat + int(ACCESS_TTL.total_seconds()),
+    }
     claims["jti"] = secrets.token_hex(8)
     return {
         "access_token": jwt.encode(claims, st.jwt_secret or "", algorithm="HS256"),
@@ -372,7 +433,8 @@ def token(body: TokenIn, req: Request) -> dict[str, Any]:
     }
 
 
-def verify_worker_jwt(st: AppState, tok: str) -> str | None:
+def verify_worker_jwt(st: AppState, tok: str) -> tuple[str, str] | None:
+    """(worker_id, workspace) for a valid, unexpired, unrevoked access token."""
     try:
         claims = jwt.decode(
             tok,
@@ -387,10 +449,10 @@ def verify_worker_jwt(st: AppState, tok: str) -> str | None:
         return None
     sub = str(claims["sub"])
     with st.engine.begin() as c:
-        rev = c.execute(select(worker_credential.c.revoked_at).where(worker_credential.c.worker_id == sub)).first()
-    if rev is None or rev.revoked_at is not None:
+        cred = c.execute(select(worker_credential).where(worker_credential.c.worker_id == sub)).first()
+    if cred is None or cred.revoked_at is not None or claims.get("ws") != cred.workspace_id:
         return None
-    return sub
+    return sub, cred.workspace_id
 
 
 # ---------------------------------------------------------------- the guard
@@ -411,32 +473,56 @@ class ControlPlaneGuard:
             if path in OPEN_WORKER_PATHS:
                 return await self.app(scope, receive, send)
             auth = headers.get("authorization", "")
-            sub = verify_worker_jwt(st, auth[7:]) if auth.startswith("Bearer ") else None
-            if sub is None:
+            who = verify_worker_jwt(st, auth[7:]) if auth.startswith("Bearer ") else None
+            if who is None:
                 return await problem(401, "AUTH_REQUIRED")(scope, receive, send)
+            sub, ws = who
             body, receive = await _buffer(receive)
             claimed = _claimed_worker(body)
             if claimed is not None and claimed != sub:
                 return await problem(403, "WORKER_MISMATCH")(scope, receive, send)
             scope.setdefault("state", {})["opa_worker"] = sub
-            return await self.app(scope, receive, send)
+            return await self._to(ws, scope, receive, send)  # the token decides the workspace, never a header
+        if path.startswith("/mcp/"):
+            auth = headers.get("authorization", "")
+            pat_ws: str | None = await _run(_pat_workspace, st, auth[7:]) if auth.startswith("Bearer ") else None
+            return await self._to(pat_ws or DEFAULT_WS, scope, receive, send)
         if path.startswith("/api/v1") and path not in OPEN_PATHS:
             sid = _cookie(headers.get("cookie", ""))
-            user = session_user(st, sid) if sid else None
+            user = await _run(session_user, st, sid) if sid else None
             if user is None:
                 return await problem(401, "AUTH_REQUIRED")(scope, receive, send)
             if method not in SAFE_METHODS and not hmac.compare_digest(
                 headers.get("x-csrf-token", "").encode(), user["csrf"].encode()
             ):
                 return await problem(403, "CSRF_CHECK_FAILED")(scope, receive, send)
-            denied = self._rbac(method, path, user)
+            from .permissions import permissions
+
+            ws = headers.get("x-opa-workspace") or DEFAULT_WS
+            control = _is_control(method, path)
+            perms = permissions(user["roles"], ws)
+            if not control and (not perms or await _run(st.workspace_db, ws) is None):
+                # someone else's workspace answers exactly like one that does not exist
+                return await problem(404, "WORKSPACE_NOT_FOUND")(scope, receive, send)
+            denied = self._rbac(method, path, perms)
             if denied:
                 return await problem(403, denied)(scope, receive, send)
-            scope.setdefault("state", {})["opa_user"] = user
+            state = scope.setdefault("state", {})
+            state.update(opa_user=user, opa_perms=perms, opa_ws=ws)
+            if not control:
+                return await self._to(ws, scope, receive, send)
         return await self.app(scope, receive, send)
 
-    def _rbac(self, method: str, path: str, user: dict[str, Any]) -> str | None:
-        from .permissions import RouteTable, permissions, required
+    async def _to(self, ws: str, scope: Scope, receive: Receive, send: Send) -> None:
+        if ws == DEFAULT_WS:
+            return await self.app(scope, receive, send)
+        inner = await _run(self.state.ws_app, ws)
+        if inner is None:
+            return await problem(404, "WORKSPACE_NOT_FOUND")(scope, receive, send)
+        await inner(scope, receive, send)
+
+    def _rbac(self, method: str, path: str, perms: frozenset[str]) -> str | None:
+        from .permissions import RouteTable, required
 
         if self.routes is None:
             app = self.state.fastapi_app
@@ -447,7 +533,37 @@ class ControlPlaneGuard:
         need = required(method, tpl)
         if need is None:
             return "PERMISSION_UNMAPPED"  # fail closed for a route nobody classified
-        return None if need in permissions(user["roles"], DEFAULT_WS) else "FORBIDDEN_ROLE"
+        return None if need in perms else "FORBIDDEN_ROLE"
+
+
+CONTROL_PREFIXES = ("/api/v1/auth/", "/api/v1/members", "/api/v1/workspaces", "/api/v1/workers/enrollment-codes")
+
+
+def _is_control(method: str, path: str) -> bool:
+    """Served by the control plane itself (users, roles, pairing), not by a workspace app."""
+    if path.startswith(CONTROL_PREFIXES):
+        return True
+    parts = path.strip("/").split("/")
+    return method == "DELETE" and len(parts) == 4 and parts[:3] == ["api", "v1", "workers"]
+
+
+def _pat_workspace(st: AppState, pat: str) -> str | None:
+    from opagent_db.schema import mcp_token
+
+    from .mcp_server import hash_pat
+
+    h = hash_pat(pat)
+    for ws in st.all_ws():
+        with st.ws_state(ws).engine.begin() as c:
+            if c.execute(select(mcp_token.c.id).where(mcp_token.c.token_hash == h)).first() is not None:
+                return ws
+    return None
+
+
+async def _run(fn: Any, *args: Any) -> Any:
+    from starlette.concurrency import run_in_threadpool
+
+    return await run_in_threadpool(fn, *args)
 
 
 def _cookie(raw: str) -> str | None:

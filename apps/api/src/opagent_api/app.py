@@ -54,6 +54,8 @@ def create_app(
     jwt_secret: str | None = None,
     owner: tuple[str, str] | None = None,
     insecure_cookies: bool = False,
+    tenant_of: AppState | None = None,
+    ws_id: str = "default",
 ) -> FastAPI:
     from opagent_core.version import VERSION
 
@@ -76,6 +78,17 @@ def create_app(
         jwt_secret=jwt_secret,
         insecure_cookies=insecure_cookies,
     )
+    if tenant_of is not None:  # an inner workspace app behind the control plane's guard (ADR-0016)
+        st.multi_user, st.control, st.ws_id, st.jwt_secret = True, tenant_of, ws_id, tenant_of.jwt_secret
+        st.insecure_cookies = tenant_of.insecure_cookies
+    elif multi_user:
+        st.app_kwargs = {
+            "registry_dir": registry_dir,
+            "user_models_dir": user_models_dir,
+            "thumbs_dir": None,
+            "backups_dir": backups_dir,
+            "pg_bin": pg_bin,
+        }
     if multi_user and (not jwt_secret or len(jwt_secret) < 32):
         raise ValueError("multi-user mode needs a jwt_secret of at least 32 characters")
     # API connections run as opagent_api; only the face repository reaches the bio schema (ADR-0011)
@@ -83,7 +96,7 @@ def create_app(
     st.engine.dispose()
     faces.api_role_hook(st.engine)
     st.ensure_workspace()
-    if multi_user:
+    if multi_user and tenant_of is None:
         from .multiuser import bootstrap_owner
 
         bootstrap_owner(st, owner)  # an upgraded single-user database: its owner becomes org_owner (MU-AUTH-003)
@@ -102,7 +115,7 @@ def create_app(
     app.add_middleware(security.DesktopGuard, state=st)
     from . import multiuser
 
-    if multi_user:
+    if multi_user and tenant_of is None:
         app.add_middleware(multiuser.ControlPlaneGuard, state=st)
         app.include_router(multiuser.router, prefix="/api/v1")
         app.include_router(multiuser.worker_router, prefix="/worker-api/v1")

@@ -29,7 +29,20 @@ def cp_app(embedded_pg):
     )
     app.clock = clock
     yield app
-    app.state.opa.engine.dispose()
+    st = app.state.opa
+    names = []
+    for ws, inner in st.ws_apps.items():
+        inner.state.opa.engine.dispose()
+        names.append(st.workspace_db(ws))
+    st.engine.dispose()
+    import psycopg
+    from opagent_api.state import dbname, with_dbname
+
+    with psycopg.connect(with_dbname(embedded_pg.dsn, "postgres"), autocommit=True) as c:
+        for dsn in names:
+            c.execute(
+                psycopg.sql.SQL("DROP DATABASE IF EXISTS {} WITH (FORCE)").format(psycopg.sql.Identifier(dbname(dsn)))
+            )
 
 
 @pytest.fixture

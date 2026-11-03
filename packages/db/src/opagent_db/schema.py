@@ -40,6 +40,7 @@ workspace = Table(
     Column("id", Text, primary_key=True),
     Column("name", Text, nullable=False),
     Column("settings", JSONB, nullable=False, server_default="{}"),
+    Column("database", Text),  # control plane: the workspace's own database (ADR-0016); NULL = this database
     _ts("created_at", server_default=func.now()),
 )
 worker = Table(
@@ -827,6 +828,7 @@ enrollment_code = Table(
     Column("code_hash", Text, primary_key=True),
     Column("name", Text, nullable=False),
     Column("created_by", Text),
+    Column("workspace_id", Text, nullable=False, server_default="default"),  # the worker serves this workspace
     _ts("expires_at", nullable=False),
     _ts("used_at"),
 )
@@ -836,6 +838,7 @@ worker_credential = Table(
     Column("worker_id", Text, primary_key=True),
     Column("public_key", Text, nullable=False),  # ed25519, raw, base64
     Column("refresh_hash", Text, nullable=False),
+    Column("workspace_id", Text, nullable=False, server_default="default"),
     _ts("created_at", server_default=func.now()),
     _ts("revoked_at"),
 )
