@@ -20,8 +20,24 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: tc-gate, path: .tc/ }
+  supply-chain:  # SEC-SBOM-001: SBOM + vulnerability gate (High/Critical without a VEX reason block the release)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: cargo install cargo-audit --locked
+      - run: cd apps/desktop/src-tauri && cargo generate-lockfile
+      - run: uv run python tools/sbom.py > sbom.cdx.json
+      - run: uv run python tools/vuln_scan.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: sbom, path: sbom.cdx.json }
   gate:
-    needs: gate-cases
+    needs: [gate-cases, supply-chain]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
