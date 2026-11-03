@@ -55,6 +55,7 @@ def create_app(
     owner: tuple[str, str] | None = None,
     insecure_cookies: bool = False,
     tenant_of: AppState | None = None,
+    public_url: str | None = None,
     ws_id: str = "default",
 ) -> FastAPI:
     from opagent_core.version import VERSION
@@ -78,6 +79,8 @@ def create_app(
         jwt_secret=jwt_secret,
         insecure_cookies=insecure_cookies,
     )
+    if public_url:
+        st.public_url = public_url.rstrip("/")
     if tenant_of is not None:  # an inner workspace app behind the control plane's guard (ADR-0016)
         st.multi_user, st.control, st.ws_id, st.jwt_secret = True, tenant_of, ws_id, tenant_of.jwt_secret
         st.insecure_cookies = tenant_of.insecure_cookies
@@ -119,6 +122,13 @@ def create_app(
         app.add_middleware(multiuser.ControlPlaneGuard, state=st)
         app.include_router(multiuser.router, prefix="/api/v1")
         app.include_router(multiuser.worker_router, prefix="/worker-api/v1")
+        from . import oauth
+
+        app.include_router(oauth.router)
+    if multi_user or tenant_of is not None:
+        from . import oauth
+
+        app.include_router(oauth.mcp_router)
     app.include_router(routes_public.router, prefix="/api/v1")
     app.include_router(routes_mcp.router, prefix="/api/v1")
     app.include_router(approvals.router, prefix="/api/v1")

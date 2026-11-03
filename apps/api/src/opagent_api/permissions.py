@@ -140,6 +140,7 @@ ROUTES: dict[tuple[str, str], str] = {
     ("DELETE", "/api/v1/workers/{worker_id}/installations/{inst_id}"): WM,
     ("POST", "/api/v1/workers/{worker_id}/installs"): WM,
     ("POST", "/api/v1/workspaces"): WSM,
+    ("DELETE", "/api/v1/oauth/grants/{grant_id}"): R,  # own grants; others' need mcp:manage
     ("PUT", "/api/v1/workspace/egress-policy"): SRC,
 }
 SAFE = {"GET", "HEAD", "OPTIONS"}

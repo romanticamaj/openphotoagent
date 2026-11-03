@@ -59,7 +59,11 @@ class AppState:
     control: Any = None  # inner workspace apps: the control plane's state (users, roles, credentials)
     ws_apps: dict[str, Any] = field(default_factory=dict)  # control plane: workspace id → inner FastAPI app
     app_kwargs: dict[str, Any] = field(default_factory=dict)  # how to build an inner workspace app
-    fastapi_app: Any = None  # for the control-plane guard's route table
+    fastapi_app: Any = None
+    oauth_server: Any = None  # the built-in OAuth 2.1 AS (oauth.py), control plane only
+    oauth_resolver: Any = None  # tests: a fake DNS resolver for client-metadata fetches (MU-OAUTH-006)
+    oauth_transport: Any = None  # tests: an httpx transport standing in for client-metadata hosts
+    oauth_rejections: list[str] = field(default_factory=list)  # why client metadata was refused (diagnostics)
     enroll_guesses: dict[str, list[Any]] = field(default_factory=dict)  # wrong enrollment codes per client
     handle_key: bytes = field(default_factory=lambda: __import__("secrets").token_bytes(32))  # MCP cursors
 

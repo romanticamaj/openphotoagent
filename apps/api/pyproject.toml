@@ -5,6 +5,7 @@ requires-python = ">=3.12"
 dependencies = [
     "opagent-core",
     "pyjwt>=2.8",
+    "authlib>=1.6",
     "cryptography",
     "opagent-schemas",
     "opagent-db",

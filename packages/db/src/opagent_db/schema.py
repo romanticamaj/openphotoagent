@@ -850,6 +850,48 @@ worker_nonce = Table(
     _ts("at", nullable=False),
 )
 
+# v0.5 MCP over HTTP: the built-in OAuth 2.1 authorization server (ADR-0015). Control database only.
+oauth_client = Table(  # Client ID Metadata Documents fetched from the client_id URL (SSRF-hardened)
+    "oauth_client",
+    metadata,
+    Column("client_id", Text, primary_key=True),
+    Column("metadata", JSONB, nullable=False),
+    _ts("fetched_at", nullable=False),
+)
+oauth_grant = Table(  # a person's consent for one client in one workspace; revoking it ends every token at once
+    "oauth_grant",
+    metadata,
+    Column("id", Text, primary_key=True),
+    Column("user_id", Text, ForeignKey("app_user.id", ondelete="CASCADE"), nullable=False),
+    Column("client_id", Text, nullable=False),
+    Column("workspace_id", Text, nullable=False),
+    Column("scopes", ARRAY(Text), nullable=False),
+    Column("resource", Text, nullable=False),
+    _ts("created_at", nullable=False),
+    _ts("revoked_at"),
+    Column("revoked_reason", Text),
+)
+oauth_code = Table(
+    "oauth_code",
+    metadata,
+    Column("code_hash", Text, primary_key=True),
+    Column("grant_id", Text, ForeignKey("oauth_grant.id", ondelete="CASCADE"), nullable=False),
+    Column("redirect_uri", Text, nullable=False),
+    Column("code_challenge", Text, nullable=False),
+    Column("code_challenge_method", Text, nullable=False),
+    Column("nonce", Text),
+    _ts("expires_at", nullable=False),
+    _ts("used_at"),
+)
+oauth_refresh = Table(  # rotated on every use; presenting a used one revokes the whole grant (reuse detection)
+    "oauth_refresh",
+    metadata,
+    Column("token_hash", Text, primary_key=True),
+    Column("grant_id", Text, ForeignKey("oauth_grant.id", ondelete="CASCADE"), nullable=False),
+    _ts("created_at", nullable=False),
+    _ts("used_at"),
+)
+
 
 def engine_for(dsn: str) -> Engine:
     url = dsn.replace("postgresql://", "postgresql+psycopg://", 1)

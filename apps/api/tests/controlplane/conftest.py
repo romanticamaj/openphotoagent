@@ -25,7 +25,12 @@ def login(app, email, password=PW):
 def cp_app(embedded_pg):
     clock = FakeClock(datetime(2026, 11, 2, 12, 0, tzinfo=UTC))
     app = create_app(
-        dsn=embedded_pg.dsn, clock=clock, multi_user=True, jwt_secret=SECRET, owner=("admin@example.invalid", PW)
+        dsn=embedded_pg.dsn,
+        clock=clock,
+        multi_user=True,
+        jwt_secret=SECRET,
+        owner=("admin@example.invalid", PW),
+        public_url="https://testserver",
     )
     app.clock = clock
     yield app

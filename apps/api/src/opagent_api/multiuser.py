@@ -485,6 +485,12 @@ class ControlPlaneGuard:
                 return await problem(403, "WORKER_MISMATCH")(scope, receive, send)
             scope.setdefault("state", {})["opa_worker"] = sub
             return await self._to(ws, scope, receive, send)  # the token decides the workspace, never a header
+        if path == "/mcp":  # MCP over HTTP: the access token's grant decides the workspace (ADR-0015/0016)
+            from .oauth import verify_access
+
+            auth = headers.get("authorization", "")
+            claims = await _run(verify_access, st, auth[7:]) if auth.startswith("Bearer ") else None
+            return await self._to(str(claims["ws"]) if claims else DEFAULT_WS, scope, receive, send)
         if path.startswith("/mcp/"):
             auth = headers.get("authorization", "")
             pat_ws: str | None = await _run(_pat_workspace, st, auth[7:]) if auth.startswith("Bearer ") else None
@@ -551,7 +557,13 @@ class ControlPlaneGuard:
         return None if need in perms else "FORBIDDEN_ROLE"
 
 
-CONTROL_PREFIXES = ("/api/v1/auth/", "/api/v1/members", "/api/v1/workspaces", "/api/v1/workers/enrollment-codes")
+CONTROL_PREFIXES = (
+    "/api/v1/auth/",
+    "/api/v1/members",
+    "/api/v1/workspaces",
+    "/api/v1/workers/enrollment-codes",
+    "/api/v1/oauth/",
+)
 
 
 def _is_control(method: str, path: str) -> bool:
