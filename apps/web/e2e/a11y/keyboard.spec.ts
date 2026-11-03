@@ -65,7 +65,8 @@ test.describe("keyboard only", () => {
       await expect(pos).not.toHaveText(before ?? "");
       await page.keyboard.press("Escape");
       await expect(lb).toBeHidden();
-      await expect(first).toBeFocused(); // focus goes back where it came from
+      // focus returns to the photo you ended on, as in the timeline (10 §5.5)
+      await expect(page.getByTestId("search-result").nth(1)).toBeFocused();
     });
   });
 
