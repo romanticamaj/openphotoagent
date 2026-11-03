@@ -155,6 +155,34 @@
 | DECISIONS 記錄所有審議 | ✅ | 16 次審議、19 個 sub-agent → ADR-0001～0018（審議索引） |
 | BLOCKERS 彙整所有使用者事項 | ✅ | B-1～B-20 與附錄 |
 
+## 審議 sub-agent 對照（逐筆）
+
+依 session 紀錄裡每一次 Agent 呼叫的時間與標題。規劃階段的規格撰寫（A～K、voicebox）與 mutation 修補是實作工作，不是審議，因此不列入。
+
+| 時間（UTC） | sub-agent 標題 | ADR | ADR 內有：背景／選項／決定／理由／影響的測試 ID |
+|---|---|---|---|
+| 2026-11-01 18:33 | Deliberate threshold semantics | ADR-0001 | ✅ |
+| 2026-11-01 19:06 | Deliberate registry pinning | ADR-0002 | ✅ |
+| 2026-11-01 21:07 | Deliberate Storybook vs gallery | ADR-0003 | ✅ |
+| 2026-11-01 21:50 | Deliberate waiting-state cancel gap | ADR-0004 | ✅ |
+| 2026-11-01 22:33 | Deliberate search result-set cap | ADR-0005 | ✅ |
+| 2026-11-02 03:35 | Deliberate PERF-003 font budget | ADR-0006 | ✅ |
+| 2026-11-02 05:42 | Deliberate DL-019 download contention | ADR-0007 | ✅ |
+| 2026-11-02 08:32 | Deliberate Q-T5 Lunar New Year range | ADR-0008 | ✅ |
+| 2026-11-02 09:25 | Deliberate MCP v0.3-tool scope test conflict | ADR-0009 | ✅ |
+| 2026-11-02 10:19 | Deliberate path strings vs UntrustedText | ADR-0010 | ✅ |
+| 2026-11-02 11:54 | Deliberate bio role isolation and vault scope | ADR-0011、ADR-0012 | ✅ |
+| 2026-11-02 15:53 | Deliberate ⌘J shortcut conflict | ADR-0013 | ✅ |
+| 2026-11-02 16:44 | Compare caption text embedders | ADR-0014 | ✅ |
+| 2026-11-02 17:52 | C-21: argue built-in OAuth AS | ADR-0015 | ✅ |
+| 2026-11-02 17:53 | C-21: argue external IdP | ADR-0015 | ✅ |
+| 2026-11-02 19:30 | Deliberate: tenant isolation (row filter) | ADR-0016 | ✅ |
+| 2026-11-02 19:30 | Deliberate: tenant isolation (db per ws) | ADR-0016 | ✅ |
+| 2026-11-03 13:56 | Deliberate protocol_version format | ADR-0017 | ✅ |
+| 2026-11-03 16:1x | Deliberate VIEW-009 GC measurement | ADR-0018 | ✅ |
+
+共 19 個 sub-agent、16 次審議。全部 18 份 ADR 都有五個必填段落，由 `docs/DECISIONS.md` 的段落檢查確認：2026-11-03 已補齊 ADR-0014～0018 的段落標題。
+
 ## 最終 gate
 
 2026-11-03，在 `feat/v1.0` 的 commit `94968c0` 上依序執行一次；開始前與結束後工作樹都是乾淨的，HEAD 沒有變動：

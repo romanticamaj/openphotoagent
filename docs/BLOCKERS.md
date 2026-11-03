@@ -5,7 +5,7 @@
 
 | # | 類別 | 事項 | 影響 | 現況／建議下一步 | 里程碑 |
 |---|------|------|------|------------------|--------|
-| B-1 | 硬體 | 執行 pending-hardware 的 M0 實驗（S1a Win/Mac、S1c、S3、S3b、S4、S4b、S7、T1c、T2 參考機錄製） | cascade 信心方案、ONNX 一致性、tool-calling 是否開放完整迴圈、安裝包實測 | 步驟見 `docs/research/m0-results.md` §3 | M0-hardware |
+| B-1 | 硬體 | 執行 pending-hardware 的 M0 實驗（S1a Win/Mac、S1c、S3、S3b、S4、S4b、S7、V7、V9、T1c、T2 參考機錄製），以及需要真模型或參考機的測試：INF-CAL-003、PERF-005、DOC-020、ETA-019、ASK-EVAL-002、ASK-PERF-001（nightly-gpu 或使用者本機） | cascade 信心方案、ONNX 一致性、tool-calling 是否開放完整迴圈、安裝包實測、真模型的準確度與吞吐量 | 步驟見 `docs/research/m0-results.md` §3 | M0-hardware |
 | B-2 | 資料授權 | 人臉測試影像的授權來源（09 Q-T1）；M0-S5 的 TAR@FAR 需要授權允許的人臉資料集 | FACE-N-001 與真模型準確度驗證 | 確認前 FACE-* 只用 FakeFaceBackend | M0、v0.2-C |
 | B-3 | 金錢／帳號 | Apple Developer Program（每年 99 美元）、Developer ID 憑證與 notarize 用 API key（M0-S6） | macOS dmg 簽章與 notarize | 取得後設定 secrets，依 `spikes/m0/S6/README.md` 演練 | M0、v0.1-D |
 | B-4 | 帳號 | SignPath Foundation OSS 申請（Windows 簽章） | Windows SmartScreen | 未核准前以未簽章版本 + sha256 發佈（08 §9.3，不擋發佈） | v0.1-D |

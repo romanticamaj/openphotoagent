@@ -382,6 +382,12 @@
 
 **背景**：05 的 R2 路需要多語文字向量，路線圖列出 bge-m3 與 Qwen3-Embedding 兩個候選；查詢以繁中與英文為主，caption 由 VLM 產生。
 
+**選項**（比較表見研究文件）：
+- Qwen3-Embedding-0.6B
+- BAAI bge-m3
+- multilingual-e5-small
+- 沿用已內建的 SigLIP2 文字塔
+
 **決定**：
 - 預設 **Qwen3-Embedding-0.6B**，存 1024 維。若 nightly 顯示 recall 損失可忽略，可改為 MRL 768 維。
 - CPU only 與 Mac 8 GB 用 **multilingual-e5-small**（int8 ONNX）。它使用自己的 `caption:<model>` space 與 `query:`／`passage:` 前綴；這兩種機器也可以關閉 R2。
@@ -394,13 +400,19 @@
 - bge-m3 是次選：沒有前綴、有官方 ONNX；但分數較低，官方 ONNX 只有 2.27 GB fp32。
 - SigLIP2 文字塔是為圖文配對訓練，64 token 上限太緊，而且與 R1 重疊，不採用。
 
-**影響**：SRCH-R2-001～004 以假的多語 embedder 驗證流程；真模型的召回、延遲與量化漂移列入 nightly（研究文件第 1～7 項）；模型 registry 新增兩筆 `text_embed` 條目（sha 由 `registry-pin.yml` 釘選）。
+**影響的測試 ID**：SRCH-R2-001～004 以假的多語 embedder 驗證流程；真模型的召回、延遲與量化漂移列入 nightly（研究文件第 1～7 項）；模型 registry 新增兩筆 `text_embed` 條目（sha 由 `registry-pin.yml` 釘選）。
 
 ## ADR-0015：C-21 定案 — v0.5 內建精簡的 OAuth 2.1 授權伺服器，外部 IdP 之後再以進階模式提供
 
 - 日期：2026-11-02｜狀態：已採納（**使用者決定**，2026-11-02）｜審議：2 個獨立 sub-agent，分別論證「內建 AS」與「委託外部 IdP」
 
 **背景**：08 C-21 把 OAuth AS 延到 v0.5，並要求開工前重新評估是否改為委託外部 IdP（Authentik、Keycloak），CP 只當 RS。GOALS v0.5 規定：未定案時停下來回報。
+
+**選項**：
+- A. 內建精簡的 AS（CP 同時是 AS 與 RS）。
+- B. 委託外部 IdP（Authentik、Keycloak），CP 只當 RS。
+
+兩個 sub-agent 各自論證一個選項。
 
 **兩份審議的共識**：
 - 不論 AS 由誰提供，scope、資料夾範圍、media policy、workspace 這些授權政策都存在 CP 自己的 `oauth_grant`。有效權限 = RBAC ∩ grant。
@@ -411,6 +423,12 @@
 **分歧**：
 - **內建 AS**：沒有 IdP 的 NAS／homelab 使用者也能使用；PKCE、RFC 8707 `resource`、client 註冊都由我們掌握；可在 CI 中確定性地測試。代價是要維護一份安全關鍵的程式碼。
 - **外部 IdP**：自己的安全程式碼較少。但很多自架者沒有 IdP，而且 IdP 對 MCP client 註冊（DCR／CIMD）的支援未經驗證。
+
+**理由**：
+- 兩份審議的共識部分在兩個選項下都成立，所以選擇只取決於分歧點。
+- 沒有 IdP 的自架者也能使用，而且 CI 可以確定性地測試，所以選 A。
+- A 的代價是要維護安全關鍵的程式碼。緩解方式：使用成熟的函式庫（Authlib）、刻意縮小功能範圍，並保留日後改用 B 的介面。
+- C-21 是 GOALS 規定「未定案要停下來回報」的項目，最後由使用者選擇。
 
 **決定**（使用者選擇）：
 - v0.5 內建精簡 AS，以 **Authlib** 的 AuthorizationServer／ResourceProtector 實作，不自寫流程或加密。功能刻意縮小：
@@ -439,11 +457,19 @@
 
 - 日期：2026-11-02｜狀態：已採納｜影響：02 §1.3、09b §8.4（MU-SEC-003）
 
-**問題**：MU-SEC-003 要求 workspace A 的使用者、token、Worker 存取 B 的資產、計畫、搜尋、MCP 一律 404，搜尋 total 不含 B。02 §1.3 原本寫的是「業務表帶 workspace_id，TenantContext＋Repository 過濾，v2 再開 RLS」。現有程式碼以單一 workspace 寫成：約 557 個查詢點、79 處 `DEFAULT_WS`，還有多個以 id 直查、沒有 workspace 條件的端點。
+**背景**：MU-SEC-003 要求 workspace A 的使用者、token、Worker 存取 B 的資產、計畫、搜尋、MCP 一律 404，搜尋 total 不含 B。02 §1.3 原本寫的是「業務表帶 workspace_id，TenantContext＋Repository 過濾，v2 再開 RLS」。現有程式碼以單一 workspace 寫成：約 557 個查詢點、79 處 `DEFAULT_WS`，還有多個以 id 直查、沒有 workspace 條件的端點。
 
-**審議**（兩個 sub-agent，各自論證一方）：
+**選項與審議**（兩個 sub-agent，各自論證一方）：
 - **單一資料庫＋過濾＋RLS**：符合原規格；一套備份、migration 和連線池；多 workspace 的使用者與共用 Worker 較自然。代價是要替約 26 張子表補 `workspace_id`、composite FK，並逐一改寫 150～250 個查詢。只要漏一個過濾就是跨租戶洩漏（IDOR）。RLS 可以讓遺漏變成 fail closed，但 superuser 連線、背景工作與 outbox 都必須逐筆設定 context，同樣容易出錯。
 - **每個 workspace 一個資料庫**：隔離是結構性的，A 的 engine 根本連不到 B 的資料列，所以遺漏過濾也不會洩漏。現有的 `create_app(dsn)`、`migrate(dsn)`、`pg_dump`、`embedded_pg` 的 template clone 都已經以 DSN 為單位。代價有四：連線數（NAS 的 `max_connections`）、N 個資料庫的 migration、跨 workspace 的管理檢視要在應用層 fan-out、一個 Worker 服務多個 workspace 時需要 CP 端排程。
+
+**理由**：
+- MU-SEC-003 要求的是零跨租戶洩漏。單一資料庫方案要正確，前提是改寫 150～250 個查詢時一個都不能漏。每個 workspace 一個資料庫則是在結構上就做不到洩漏。
+- 現有程式碼本來就以 DSN 為單位（`create_app(dsn)`、`migrate`、`pg_dump`、`embedded_pg`），改動最少。
+- 它的四項代價都可以接受，或可以延後：
+  - 自架規模的 workspace 很少；連線池很小，而且延遲建立。
+  - migration 可以逐一執行。
+  - 跨 workspace 的檢視與排程留到之後。
 
 **決定**：
 - v0.5 採用**每個 workspace 一個資料庫**（同一個 Postgres server）。
@@ -465,11 +491,15 @@
 
 - 日期：2026-11-03｜狀態：已採納｜影響：VERSIONING §4、02 §5.3、09b §9.1（FRZ-002）
 
-**問題**：v1.0 凍結 Worker 協定時，兩份規格的寫法互相衝突：
+**背景**：v1.0 凍結 Worker 協定時，兩份規格的寫法互相衝突：
 - VERSIONING §4：`protocol_version` 是整數，CP 接受「目前與前一個 minor 版本」的 Worker。
 - 02 §5.3：版本採 semver，CP 同時支援 N 與 N-1 主版本。v0.5 的實作與 MU-WORKER-005 依照的是這一份。
 
-**審議**（一個 sub-agent）：
+**選項**：
+- A. 整數 `protocol_version`，接受目前與前一個 minor（VERSIONING §4 原文）。
+- B. `"MAJOR.MINOR"` 字串，服務 N 與 N-1 主版本（02 §5.3 與 v0.5 的實作）。
+
+**理由**（一個 sub-agent 審議）：
 - 協定在凍結後真正的破壞性變更，一年大約 0～1 次。
 - 整數方案每次變更都要升號，也包括新增欄位這類相容的變更。這會讓「前一個 minor」的範圍跟著產品版本走，即使 wire 格式根本沒變，NAS 上更新較慢的 Worker 也可能被拒絕。
 - 字串方案只看協定本身：minor 只能新增，major 才能破壞。快照測試（FRZ-002）可以直接用相容性比對器檢查這條規則。
@@ -505,6 +535,10 @@
 - C. 效能測試在自己的行程執行：不是弱化。它拿掉的是其他測試造成的干擾；產品的 API 本來就是獨立行程，產品本身的載入量與 GC 仍然算在量測裡。門檻、p95、10 萬張資料、暖身全部不變。
 - D. 找出讓 gen-2 變慢的原因並修正：查過，沒有洩漏，產品程式碼不需要修改。
 - E. 放寬門檻或改用 median：屬於弱化（§5.7 禁止），而且會掩蓋 tail latency 的退化。否決。
+
+**理由**：
+- C 是唯一不弱化測試，又能拿掉干擾來源的選項。
+- 它也和正式環境一致：API 本來就以獨立行程執行。
 
 **決定**：C。
 - `just test-int` 與 ci.yml 的整合 job 改用 `-m "(integration or chaos) and not perf and not nightly and not release_gate"`。
