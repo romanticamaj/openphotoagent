@@ -59,6 +59,7 @@ class AppState:
     control: Any = None  # inner workspace apps: the control plane's state (users, roles, credentials)
     ws_apps: dict[str, Any] = field(default_factory=dict)  # control plane: workspace id → inner FastAPI app
     app_kwargs: dict[str, Any] = field(default_factory=dict)  # how to build an inner workspace app
+    data_fp: str | None = None  # /healthz identity (08 §1.3)
     fastapi_app: Any = None
     oidc: dict[str, Any] | None = None  # {issuer, client_id, client_secret}: OIDC sign-in (oidc.py)
     oidc_transport: Any = None  # tests: the fake IdP

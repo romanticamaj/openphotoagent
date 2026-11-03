@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from opagent_core.clock import Clock, SystemClock
 from opagent_db.schema import engine_for
 
@@ -35,6 +35,23 @@ from . import (
 )
 from .problems import install_problem_handlers
 from .state import AppState
+
+
+# Endpoints are module-level functions that read the app from the request: FastAPI caches endpoint callables in a
+# module-level lru_cache, so a closure over ``app`` would keep every app (and its engine) alive for the process.
+def healthz(req: Request) -> dict[str, Any]:
+    """Identity for port-conflict checks (08 §1.3): which app, which data folder — no secrets."""
+    return {"app": "openphotoagent", "version": req.app.version, "data_fp": req.app.state.opa.data_fp}
+
+
+def metrics(req: Request) -> Any:
+    from fastapi.responses import PlainTextResponse
+    from opagent_db.schema import metric
+    from sqlalchemy import select
+
+    with req.app.state.opa.engine.begin() as c:
+        rows = c.execute(select(metric.c.name, metric.c.value)).all()
+    return PlainTextResponse("".join(f"{n} {v}\n" for n, v in rows))
 
 
 def create_app(
@@ -112,10 +129,8 @@ def create_app(
 
     app.include_router(security.router)
 
-    @app.get("/healthz")
-    def healthz() -> dict[str, Any]:
-        """Identity for port-conflict checks (08 §1.3): which app, which data folder — no secrets."""
-        return {"app": "openphotoagent", "version": app.version, "data_fp": data_fp}
+    st.data_fp = data_fp
+    app.add_api_route("/healthz", healthz, methods=["GET"])
 
     app.add_middleware(security.DesktopGuard, state=st)
     from . import multiuser
@@ -165,15 +180,7 @@ def create_app(
     app.include_router(routes_remote.worker_router, prefix="/worker-api/v1")
     app.include_router(routes_remote.router, prefix="/api/v1")
 
-    @app.get("/metrics", include_in_schema=False)
-    def metrics() -> Any:
-        from fastapi.responses import PlainTextResponse
-        from opagent_db.schema import metric
-        from sqlalchemy import select
-
-        with st.engine.begin() as c:
-            rows = c.execute(select(metric.c.name, metric.c.value)).all()
-        return PlainTextResponse("".join(f"{n} {v}\n" for n, v in rows))
+    app.add_api_route("/metrics", metrics, methods=["GET"], include_in_schema=False)
 
     if static_dir:
         from fastapi.staticfiles import StaticFiles
