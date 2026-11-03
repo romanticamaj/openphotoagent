@@ -145,6 +145,10 @@ def create_app(
     app.include_router(search.worker_router, prefix="/worker-api/v1")
     app.include_router(routes_models.worker_router, prefix="/worker-api/v1")
     app.include_router(routes_worker.router, prefix="/worker-api/v1")
+    from . import routes_remote
+
+    app.include_router(routes_remote.worker_router, prefix="/worker-api/v1")
+    app.include_router(routes_remote.router, prefix="/api/v1")
 
     @app.get("/metrics", include_in_schema=False)
     def metrics() -> Any:

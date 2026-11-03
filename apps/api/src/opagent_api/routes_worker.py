@@ -6,7 +6,7 @@ import time
 from datetime import timedelta
 from typing import Any
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, HTTPException, Request, Response
 from opagent_core.state_machine import JobStatus
 from opagent_db.schema import (
     event,
@@ -76,7 +76,7 @@ class CompleteIn(BaseModel):
 
 
 @router.post("/register")
-def register(body: RegisterIn, req: Request) -> dict[str, str]:
+def register(body: RegisterIn, req: Request) -> dict[str, Any]:
     roots = [{"alias": r["alias"], "mode": r.get("mode", "ro")} for r in body.roots]  # never absolute paths
     st = _st(req)
     caps = {
@@ -127,7 +127,10 @@ def register(body: RegisterIn, req: Request) -> dict[str, str]:
                 },
             )
         )
-    return {"worker_id": body.worker_id}
+    from .routes_remote import welcome
+
+    with st.engine.begin() as c:
+        return {"worker_id": body.worker_id, "welcome": welcome(st, c, body.protocol_version)}
 
 
 def _recover_downloads(c: Any, st: AppState, worker_id: str, boot: str | None = None) -> None:
@@ -249,6 +252,12 @@ def _lease_one(
 @router.post("/lease")
 def lease(body: LeaseIn, req: Request) -> Any:
     st = _st(req)
+    if st.multi_user:  # a worker too old for this control plane gets no work (MU-WORKER-005)
+        from .routes_remote import compatible
+
+        with st.engine.begin() as c:
+            if not compatible(st, c, body.worker_id):
+                raise HTTPException(426, detail={"code": "UPGRADE_REQUIRED"})
     deadline = st.clock.monotonic() + body.wait_s
     while True:
         task = _lease_one(st, body.worker_id, body.exclude_kinds, body.boot_id)

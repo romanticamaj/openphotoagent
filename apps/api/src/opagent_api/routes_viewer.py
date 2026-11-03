@@ -11,7 +11,7 @@ from datetime import date
 from typing import Any, Literal
 
 from fastapi import APIRouter, HTTPException, Query, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from opagent_core.ids import uuid7
 from opagent_db.schema import asset, source, worker_task
 from sqlalchemy import insert, select, text
@@ -125,6 +125,36 @@ def bucket(month: str, req: Request) -> dict[str, Any]:
     }
 
 
+def _edge_relay(st: AppState, asset_id: str, h: str, variant: str) -> Response | None:
+    """edge-thumbs (02 §1.4): the thumbnail stays on the worker; fetch it through the worker channel, never store it."""
+    if not st.multi_user:
+        return None
+    import base64
+
+    from opagent_db.schema import asset_location, source
+
+    from .routes_public import worker_rpc
+    from .routes_remote import egress_policy
+
+    with st.engine.begin() as c:
+        if egress_policy(st, c)["mode"] != "edge-thumbs":
+            return None
+        wid = c.execute(
+            select(source.c.worker_id)
+            .join(asset_location, asset_location.c.source_id == source.c.id)
+            .where(asset_location.c.asset_id == asset_id, asset_location.c.missing.is_(False))
+            .limit(1)
+        ).scalar()
+    if wid is None:
+        return None
+    res = worker_rpc(st, wid, "thumb_fetch", {"content_hash": h, "variant": variant}, timeout_s=10.0)
+    if not res or "thumbnail_b64" not in res:
+        return None
+    return Response(
+        base64.b64decode(res["thumbnail_b64"]), media_type="image/webp", headers={"Cache-Control": "no-store"}
+    )
+
+
 @router.get("/assets/{asset_id}/media")
 def media(asset_id: str, req: Request, variant: Literal["t256", "t512", "p1024"] = Query(...)) -> FileResponse:
     """Derived variants from the Worker's thumbnail cache, content-addressed and therefore immutable (10 §3.4)."""
@@ -137,6 +167,9 @@ def media(asset_id: str, req: Request, variant: Literal["t256", "t512", "p1024"]
         raise HTTPException(404, detail={"code": "THUMB_MISSING"})
     p = st.thumbs_dir / h[:2] / f"{h}.{variant}.webp"
     if not p.is_file():
+        relayed = _edge_relay(st, asset_id, h, variant)
+        if relayed is not None:
+            return relayed  # type: ignore[return-value]
         raise HTTPException(404, detail={"code": "THUMB_MISSING"})
     return FileResponse(p, media_type="image/webp", headers={"Cache-Control": IMMUTABLE, "ETag": f'"{h}.{variant}"'})
 

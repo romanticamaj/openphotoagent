@@ -464,8 +464,10 @@ class ControlPlaneGuard:
         self.routes: Any = None
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http" or not self.state.multi_user:
+        if not self.state.multi_user or scope["type"] not in ("http", "websocket"):
             return await self.app(scope, receive, send)
+        if scope["type"] == "websocket":
+            return await self._websocket(scope, receive, send)
         path, method = scope.get("path", ""), scope.get("method", "GET")
         headers = {k.decode().lower(): v.decode() for k, v in scope.get("headers", [])}
         st = self.state
@@ -512,6 +514,19 @@ class ControlPlaneGuard:
             if not control:
                 return await self._to(ws, scope, receive, send)
         return await self.app(scope, receive, send)
+
+    async def _websocket(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """Only the worker channel is a WebSocket; it authenticates like every other worker message."""
+        headers = {k.decode().lower(): v.decode() for k, v in scope.get("headers", [])}
+        auth = headers.get("authorization", "")
+        who = None
+        if scope.get("path", "").startswith("/worker-api/") and auth.startswith("Bearer "):
+            who = await _run(verify_worker_jwt, self.state, auth[7:])
+        if who is None:
+            await receive()  # websocket.connect
+            return await send({"type": "websocket.close", "code": 4401})
+        scope.setdefault("state", {})["opa_worker"] = who[0]
+        return await self._to(who[1], scope, receive, send)
 
     async def _to(self, ws: str, scope: Scope, receive: Receive, send: Send) -> None:
         if ws == DEFAULT_WS:

@@ -54,6 +54,7 @@ class AppState:
     multi_user: bool = False  # the self-hosted control plane (v0.5, multiuser.py)
     jwt_secret: str | None = None  # signs worker access JWTs; from OPAGENT_JWT_SECRET
     insecure_cookies: bool = False  # dev only: plain-http control plane (never in the Docker image)
+    protocol_version: str = "1.0"  # worker protocol this CP speaks (N and N-1 majors are served, 02 §5.3)
     ws_id: str = DEFAULT_WS  # control plane: which workspace this state serves (ADR-0016)
     control: Any = None  # inner workspace apps: the control plane's state (users, roles, credentials)
     ws_apps: dict[str, Any] = field(default_factory=dict)  # control plane: workspace id → inner FastAPI app

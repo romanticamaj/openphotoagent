@@ -18,6 +18,7 @@ dependencies = [
     "keyring>=25",
     "pillow",
     "uvicorn",
+    "websockets>=14",
     "argon2-cffi>=25.1.0",
     "python-multipart>=0.0.33",
     "scikit-learn>=1.9.1",
