@@ -47,6 +47,7 @@ class JobIn(BaseModel):
     models: dict[str, Any] | None = None  # {embed, vlm, pack}; None = the worker's configured backend
     categories: list[dict[str, Any]] | None = None  # preset "custom": [{key, name, description, examples}]
     queue_after: bool = False
+    inference: dict[str, Any] | None = None  # {endpoint}: an external OpenAI-compatible server instead of the worker's
 
 
 class PreflightIn(BaseModel):
@@ -56,7 +57,15 @@ class PreflightIn(BaseModel):
 
 
 @router.get("/capabilities")
-def capabilities() -> dict[str, Any]:
+def capabilities(req: Request) -> dict[str, Any]:
+    st = _st(req)
+    if st.multi_user:  # the self-hosted control plane: login, workspaces, members (v0.5); open before login
+        return {
+            "deployment": "controlplane",
+            "single_user": False,
+            "login": {"password": True, "oidc": bool(st.root.oidc)},
+            "features": {"organize.by_date": True},
+        }
     return {"deployment": "all-in-one", "single_user": True, "features": {"organize.by_date": True}}
 
 
@@ -147,7 +156,8 @@ def preflight(body: PreflightIn, req: Request) -> dict[str, Any]:
 
     st = _st(req)
     with st.engine.begin() as c:
-        return run_preflight(c, st, body.action, body.params, body.fingerprint)
+        perms = getattr(req.state, "opa_perms", None) if st.multi_user else None
+        return run_preflight(c, st, body.action, body.params, body.fingerprint, perms=perms)
 
 
 @router.post("/jobs", status_code=201)

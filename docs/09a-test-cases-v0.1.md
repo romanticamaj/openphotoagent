@@ -607,6 +607,7 @@
 | PF-082 | problem+json 全域 | schemathesis 對全部 `/api/v1` 端點產生錯誤輸入 | 所有 4xx／5xx 都是 RFC 9457 + `code` 欄位；無 HTML 錯誤頁 | C | #27 |
 | PF-083 | 永遠有退路 | 對 PF-004、005、012、013、017 的狀態各自選 `choose_alternative` | 套用後 preflight `ready=true`，且 FakeBackend 下 Job 可跑完 | I | #28、DoD 5.2 |
 | PF-084 | 不需模型的工作不受 GPU 檢查阻擋（回歸） | `hw:nvidia-drv535`：依日期 vs 依內容 | 依日期 0 blocker；依內容仍顯示 GPU_DRIVER_TOO_OLD 與修復 | I | #27、#28 |
+| PF-085 | problem+json 細節欄位與保留欄位同名（回歸） | `HTTPException` 的 detail 帶 `status`、`type` 或 `title`（例如 `PLAN_NOT_APPLIED` 帶計畫狀態） | 回應仍是 RFC 9457 的 4xx，`code` 正確，原本的值放在 `params`（UI 的訊息插值來源）；不會變成 500 | C | #27 |
 
 ---
 
@@ -789,6 +790,7 @@
 | PERF-005 | 推論吞吐基準 | 三台參考機、測試圖庫子集 1,000 張 | 記錄張/秒、VRAM、載入時間；回歸 > 10% 警示、> 20% 失敗；寫入 release notes | N | DoD 5.5 |
 | PERF-006 | 搜尋延遲 | 10 萬張，文字 + facet | p95 < 300 ms | F | DoD 5.4 |
 | PERF-007 | 暖啟動 | 桌面（Win／Linux tauri-driver） | < 5 s 可操作 | D/F | #3、DoD 5.1 |
+| PERF-008 | 釋放後的 app 不會留在記憶體（回歸） | 建立數個 `create_app`、放掉參考、`gc.collect()` | 不留下任何 FastAPI app 或 engine（端點不得是捕捉 app 的 closure，FastAPI 會把端點 callable 放在模組層級的快取裡）；這個洩漏曾讓長時間的測試行程 GC 變慢，VIEW-009 因此不穩 | I | DoD 5.4 |
 | A11Y-001 | axe 全路由 | onboarding、照片、Lightbox、整理精靈、計畫核准、待確認、模型、環境醫生、Activity Center、設定 × light/dark × zh-TW/en | axe 0 serious／critical | A | #11、DoD 5.4 |
 | A11Y-002 | 網格語意 | 照片網格 | `role=grid/row/gridcell`；roving tabindex；`aria-rowcount`／`aria-rowindex` | A | #90 |
 | A11Y-003 | Lightbox | 開啟／切換 | `role=dialog aria-modal`；切換時 `aria-live` 播報「第 12 張，共 312 張」 | A | #90 |

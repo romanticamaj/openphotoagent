@@ -172,6 +172,7 @@
 | 110 | caption 多語文字向量（R2）與藍綠 reindex | 05 §2；09b §7.5 | 完整 | v0.4 | 跨語言命中；換模型時搜尋不中斷 |
 | 111 | winget、Homebrew、Flathub 發佈設定 | 08 §9.2；09b §7.6 | 評估加產生器 | v0.4 | manifest 由 release metadata 產生，可重現；實際上架需要使用者帳號（BLOCKERS） |
 | 112 | Windows ML 取代 DirectML 的評估 | 08 §3.1；09b §7.6 | 評估 | v0.4 | 評估文件；需要 Windows 實機的項目標 pending-hardware |
+| 113 | 四級隱私政策（full、thumbs、edge-thumbs、results-only），由遠端 Worker 強制執行 | 02 §1.4；09b §8.3 | 完整 | v0.5 | 每一級上傳內容符合 02 §1.4；CP 被竄改時 Worker 仍拒絕上傳 |
 
 ### 1.8 統計
 

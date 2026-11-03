@@ -6,6 +6,7 @@ pub mod backoff;
 pub mod children;
 pub mod exit;
 pub mod lock;
+pub mod remote;
 pub mod tc;
 pub mod updater;
 

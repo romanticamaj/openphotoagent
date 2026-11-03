@@ -35,6 +35,33 @@ class _Abandoned(Exception):
 
 WATCH_SYNC_S = 15.0
 _log = logging.getLogger("opagent.worker")
+# The only messages the control plane can send (02 §6.3, MU-SEC-004). There is no "run a command" kind; anything
+# else is refused and logged, never looked up dynamically.
+RPC_KINDS = frozenset(
+    {
+        "apply",
+        "benchmark",
+        "browse",
+        "download",
+        "embed_assets",
+        "embed_captions",
+        "embed_image",
+        "embed_text",
+        "estimate",
+        "face_embed_query",
+        "face_purge",
+        "fix",
+        "hash_sha1",
+        "probe_root",
+        "remove",
+        "scan",
+        "scan_models",
+        "thumb_fetch",
+        "try_one",
+        "undo",
+        "vlm_ask",
+    }
+)
 
 
 class WorkerAgent:
@@ -88,6 +115,15 @@ class WorkerAgent:
         self._dl_thread: threading.Thread | None = None
         self.boot_id = uuid.uuid4().hex  # one per process (restart detection, OP-006)
         self.apply_throttle_s = 0.0  # test hook (E2E-B-008): pause between file actions
+        # remote worker (v0.5): the control plane is elsewhere; egress policy and channel apply (remote.py)
+        from .remote import PROTOCOL_VERSION
+
+        self.remote = hasattr(client, "egress")
+        self.egress: Any = getattr(client, "egress", None)
+        self.channel: Any = None
+        self.protocol_version = PROTOCOL_VERSION
+        self.welcome: dict[str, Any] | None = None
+        self.blocked_reason: str | None = None
 
     @property
     def cascade_fingerprint(self) -> str:
@@ -148,22 +184,60 @@ class WorkerAgent:
                 "hw": self.hw_summary(),
                 **self.doctor_report(),
                 "roots": [{"alias": r.alias, "mode": r.mode} for r in self.roots],
+                "protocol_version": self.protocol_version,
+                "deployment": "remote" if self.remote else "desktop",
             },
         )
         r.raise_for_status()
+        self.on_welcome(r.json().get("welcome"))
+
+    def on_welcome(self, w: dict[str, Any] | None) -> None:
+        """The CP's terms (02 §5.3): stop taking work when the protocol is too old; adopt the egress policy."""
+        if not w:
+            return
+        self.welcome = w
+        self.blocked_reason = None if w.get("status") == "ok" else str(w.get("status"))
+        if self.blocked_reason:
+            _log.error(
+                "control plane says %s (CP protocol %s, ours %s)",
+                w.get("status"),
+                w.get("protocol"),
+                self.protocol_version,
+            )
+        if self.egress is not None and w.get("egress_policy"):
+            self.egress.apply(w["egress_policy"])
 
     def run_once(self, wait_s: float = 0.0, background_downloads: bool = False) -> bool:
         """Lease and run one task. With ``background_downloads`` (the long-running loop) a download runs on its own
         thread — one at a time (06 §2.4) — so browsing, scans and labelling keep going meanwhile (04 §8.2 W6 ∥ W7)."""
+        if self.blocked_reason:  # e.g. upgrade_required: no work until this worker is updated (MU-WORKER-005)
+            return False
         busy = self._dl_thread is not None and self._dl_thread.is_alive()
         body: dict[str, Any] = {"worker_id": self.worker_id, "wait_s": wait_s, "boot_id": self.boot_id}
         if background_downloads and busy:
             body["exclude_kinds"] = ["download"]
-        r = self.client.post("/worker-api/v1/lease", json=body)
-        if r.status_code == 204:
-            return False
-        r.raise_for_status()
-        task = r.json()
+        if self.channel is not None:
+            from .remote import UpgradeRequired
+
+            try:
+                if not self.channel.wait_for_work(wait_s):
+                    return False
+                leased = self.channel.lease(wait_s, self.boot_id)
+            except UpgradeRequired:
+                self.blocked_reason = "upgrade_required"
+                return False
+            if leased is None:
+                return False
+            task = leased
+        else:
+            r = self.client.post("/worker-api/v1/lease", json=body)
+            if r.status_code == 204:
+                return False
+            if r.status_code == 426:
+                self.blocked_reason = "upgrade_required"
+                return False
+            r.raise_for_status()
+            task = r.json()
         if background_downloads and task["kind"] == "download":
             # the thread only supervises: the bytes move in a child process (ADR-0007, DL-019)
             self._dl_thread = threading.Thread(target=self._run_task, args=(task, True), daemon=True)
@@ -174,6 +248,24 @@ class WorkerAgent:
 
     def _run_task(self, task: dict[str, Any], in_child: bool = False) -> None:
         try:
+            if task.get("kind") not in RPC_KINDS:
+                _log.warning("UNKNOWN_RPC: refused task kind %r", str(task.get("kind"))[:64])
+                self.client.post(
+                    f"/worker-api/v1/tasks/{task['id']}/complete",
+                    json={"result": {"error": "UNKNOWN_RPC"}, "ok": False},
+                )
+                return
+            if self.egress is not None:
+                from .remote import EgressDenied
+
+                try:
+                    self.egress.task_allowed(task["kind"])
+                except EgressDenied:
+                    self.client.post(
+                        f"/worker-api/v1/tasks/{task['id']}/complete",
+                        json={"result": {"error": "EGRESS_POLICY_DENIED"}, "ok": False},
+                    )
+                    return
             if in_child:
                 result = self._download_in_child(task["payload"], task["id"])
             else:
@@ -186,7 +278,10 @@ class WorkerAgent:
             self.waiting[task["id"]] = (task, self.clock.monotonic())
             return
         except Exception as e:
-            result, ok = {"error": type(e).__name__, "detail": str(e)[:500]}, False
+            from .remote import EgressDenied
+
+            code = "EGRESS_POLICY_DENIED" if isinstance(e, EgressDenied) else type(e).__name__
+            result, ok = {"error": code, "detail": str(e)[:500]}, False
         self.waiting.pop(task["id"], None)
         self.client.post(f"/worker-api/v1/tasks/{task['id']}/complete", json={"result": result, "ok": ok})
 
@@ -301,7 +396,8 @@ class WorkerAgent:
         from .scanner import content_hash
 
         try:
-            sp = self.sb.resolve(it["root_alias"], it["rel"])
+            rel = self.egress.resolve(it["rel"]) if self.egress is not None else it["rel"]
+            sp = self.sb.resolve(it["root_alias"], rel)
             side = self.backend.describe().preferred_input.max_side if self.backend else 512
             with open_image(sp.real) as im:
                 im.load()
@@ -500,6 +596,8 @@ class WorkerAgent:
             raise _Waiting("SOURCE_OFFLINE") from None
         self.last_scan_skipped_before_cursor = res.skipped_before_cursor
         entries = [self._entry(e) for e in res.entries]
+        if self.remote:
+            self._upload_thumbs(entries)
         # pages with a resume cursor (SCAN-019)
         for pages, i in enumerate(range(0, len(entries), self.page_size), start=1):
             page = entries[i : i + self.page_size]
@@ -513,6 +611,35 @@ class WorkerAgent:
             "skipped": [{"rel": s.rel, "reason": s.reason} for s in res.skipped],
             "bytes_read": res.bytes_read,
         }
+
+    def _upload_thumbs(self, entries: list[dict[str, Any]]) -> None:
+        """A remote CP has no access to this disk: send the thumbnails the egress policy allows (02 §1.4)."""
+        from .remote import THUMB_LIMIT, VARIANTS
+
+        limit = THUMB_LIMIT[self.egress.mode]
+        for e in entries:
+            h = e["content_hash"]
+            for v in e.get("thumbs") or []:
+                if VARIANTS.get(v, 10**9) > limit:
+                    continue
+                f = self.home / "thumbs" / h[:2] / f"{h}.{v}.webp"
+                if f.is_file():
+                    self.client.put(
+                        f"/worker-api/v1/thumbs/{h}/{v}", content=f.read_bytes(), headers={"Content-Type": "image/webp"}
+                    )
+
+    def _do_thumb_fetch(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """edge-thumbs (02 §1.4): the browser's thumbnail is relayed through the CP, never stored there."""
+        import base64
+        import re
+
+        h, v = str(p["content_hash"]), str(p.get("variant", "t256"))
+        if not re.fullmatch(r"[0-9a-f]{16,128}", h) or v not in ("t256", "t512", "p1024"):
+            raise ValueError("bad thumbnail request")
+        f = self.home / "thumbs" / h[:2] / f"{h}.{v}.webp"
+        if not f.is_file():
+            return {"missing": True}
+        return {"thumbnail_b64": base64.b64encode(f.read_bytes()).decode(), "variant": v}
 
     @staticmethod
     def _entry(e: Any) -> dict[str, Any]:
@@ -536,12 +663,13 @@ class WorkerAgent:
             tz=self.tz,  # type: ignore[arg-type]
             cache=self.cache,
             exclude_subtrees=p.get("exclude_subtrees") or [],
-            after=p.get("cursor"),
+            after=self.egress.resolve(p["cursor"]) if self.egress is not None and p.get("cursor") else p.get("cursor"),
             thumbs_dir=self.home / "thumbs",
         )
 
     def _do_apply(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
-        actions = [Action(**a) for a in p["actions"]]
+        eg = self.egress  # results-only with hashed paths: the CP only knows the hashes
+        actions = [Action(**({**a, "src_rel": eg.resolve(a["src_rel"])} if eg else a)) for a in p["actions"]]
         done = [0]
 
         def control() -> str | None:
@@ -655,6 +783,8 @@ class WorkerAgent:
         """Upload image vectors computed by the cascade (searchable right away, 05 §1.1)."""
         if self._cascade is None or self.embedder is None:
             return
+        if self.egress is not None and self.egress.mode == "results-only":
+            return  # no vectors leave the machine (02 §1.4)
         items = [
             {"content_hash": i.content_hash, "vec": [float(x) for x in self._cascade.image_cache[i.content_hash]]}
             for i in images

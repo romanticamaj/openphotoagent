@@ -107,17 +107,39 @@ def new_handoff(req: Request) -> dict[str, Any]:
 
 class LoginIn(BaseModel):
     password: str
+    email: str | None = None  # the control plane (multi-user); desktop LAN mode has one password
 
 
 @router.post(LOGIN_PATH)
 def login(body: LoginIn, req: Request) -> JSONResponse:
     """LAN mode only (08 §1.3): password login → HttpOnly session cookie. 5 failures a minute per client → 429."""
     st = req.app.state.opa
+    if st.multi_user:
+        from .multiuser import password_login
+
+        return _limited(st, req, lambda: password_login(st, body.email or "", body.password))
     if st.lan_password_hash is None:
         raise HTTPException(404, detail={"code": "NOT_FOUND"})
+    return _limited(st, req, lambda: _lan_login(st, body.password))
+
+
+def _lan_login(st: Any, password: str) -> JSONResponse:
     from argon2 import PasswordHasher
     from argon2.exceptions import InvalidHashError, VerificationError
 
+    try:
+        PasswordHasher().verify(st.lan_password_hash, password)
+    except (VerificationError, InvalidHashError):
+        raise HTTPException(401, detail={"code": "LOGIN_FAILED"}) from None
+    sid = secrets.token_urlsafe(32)
+    st.sessions.add(sid)
+    r = JSONResponse({"ok": True})
+    r.set_cookie(COOKIE, sid, httponly=True, samesite="strict", path="/")
+    return r
+
+
+def _limited(st: Any, req: Request, attempt: Any) -> JSONResponse:
+    """5 failed logins a minute per client → 429, for the LAN password and control-plane accounts alike."""
     who = req.client.host if req.client else "?"
     now = st.clock.now()
     recent = [t for t in st.login_failures.get(who, []) if now - t < LOGIN_WINDOW]
@@ -125,16 +147,12 @@ def login(body: LoginIn, req: Request) -> JSONResponse:
     if len(recent) >= LOGIN_MAX_FAILURES:
         raise HTTPException(429, detail={"code": "LOGIN_RATE_LIMITED"})
     try:
-        PasswordHasher().verify(st.lan_password_hash, body.password)
-    except (VerificationError, InvalidHashError):
+        r = attempt()
+    except HTTPException:
         recent.append(now)
-        raise HTTPException(401, detail={"code": "LOGIN_FAILED"}) from None
+        raise
     st.login_failures.pop(who, None)
-    sid = secrets.token_urlsafe(32)
-    st.sessions.add(sid)
-    r = JSONResponse({"ok": True})
-    r.set_cookie(COOKIE, sid, httponly=True, samesite="strict", path="/")
-    return r
+    return r  # type: ignore[no-any-return]
 
 
 @router.get("/auth/handoff")

@@ -371,3 +371,66 @@
 - SigLIP2 文字塔是為圖文配對訓練，64 token 上限太緊，而且與 R1 重疊，不採用。
 
 **影響**：SRCH-R2-001～004 以假的多語 embedder 驗證流程；真模型的召回、延遲與量化漂移列入 nightly（研究文件第 1～7 項）；模型 registry 新增兩筆 `text_embed` 條目（sha 由 `registry-pin.yml` 釘選）。
+
+## ADR-0015：C-21 定案 — v0.5 內建精簡的 OAuth 2.1 授權伺服器，外部 IdP 之後再以進階模式提供
+
+- 日期：2026-11-02｜狀態：已採納（**使用者決定**，2026-11-02）｜審議：2 個獨立 sub-agent，分別論證「內建 AS」與「委託外部 IdP」
+
+**背景**：08 C-21 把 OAuth AS 延到 v0.5，並要求開工前重新評估是否改為委託外部 IdP（Authentik、Keycloak），CP 只當 RS。GOALS v0.5 規定：未定案時停下來回報。
+
+**兩份審議的共識**：
+- 不論 AS 由誰提供，scope、資料夾範圍、media policy、workspace 這些授權政策都存在 CP 自己的 `oauth_grant`。有效權限 = RBAC ∩ grant。
+- 撤銷 grant 時，下一個 MCP 呼叫就失敗（MU-OAUTH-001）。
+- `organize:apply` 永遠不出現在 MCP token 的有效 scope 中。
+- PAT 保留為退路。
+
+**分歧**：
+- **內建 AS**：沒有 IdP 的 NAS／homelab 使用者也能使用；PKCE、RFC 8707 `resource`、client 註冊都由我們掌握；可在 CI 中確定性地測試。代價是要維護一份安全關鍵的程式碼。
+- **外部 IdP**：自己的安全程式碼較少。但很多自架者沒有 IdP，而且 IdP 對 MCP client 註冊（DCR／CIMD）的支援未經驗證。
+
+**決定**（使用者選擇）：
+- v0.5 內建精簡 AS，以 **Authlib** 的 AuthorizationServer／ResourceProtector 實作，不自寫流程或加密。功能刻意縮小：
+  - 只支援 authorization code ＋ PKCE S256、public client；不支援 implicit、password、client_credentials。
+  - redirect_uri 完全比對，只接受 loopback 或 https。
+  - 回應帶 `iss`（RFC 9207）；access token 為綁定 audience 的 15 分鐘 JWT。
+  - refresh token 不透明、每次輪替；偵測到重用時撤銷整個 grant 家族。
+  - CIMD 抓取強化：只接受 https、DNS 解析後拒絕私有與 link-local 位址、限制大小與時間。
+  - 同意頁顯示 client_id 的網域，不只顯示 client 自報的名稱。
+- AS 建在可替換的 RS 介面之上，**外部 IdP 模式之後以進階選項加入**（v0.5.x／v1.x），仍保留 CP 端的 grant 表。
+- 人類登入維持本機帳號或 OIDC（02 ADR-006），與 MCP 的 AS 分開。
+- 05 §3.2 的 `organize:apply` 寫法與 CLAUDE.md §3 衝突。依 CLAUDE.md（優先序較高的定案）：OAuth 同意流程**永遠不會**授予此 scope，請求中帶有它時直接剔除。
+
+**影響的測試 ID**：MU-OAUTH-001～003 依此實作，並新增審議建議的 MU-OAUTH-004～008：
+- PKCE 與 redirect 嚴格比對、授權碼重用；
+- refresh 輪替與重用時撤銷；
+- CIMD 的 SSRF 防護；
+- 端到端探索（PRM → AS metadata → authorize → token → tools/call）；
+- 有效 scope 永不含 `organize:apply`（property test）。
+
+**同步修改的規格**：08 C-21、05 §3.2（`organize:apply` 註記）、09b §8.6。
+
+---
+
+## ADR-0016：v0.5 的 workspace 隔離採「每個 workspace 一個資料庫」
+
+- 日期：2026-11-02｜狀態：已採納｜影響：02 §1.3、09b §8.4（MU-SEC-003）
+
+**問題**：MU-SEC-003 要求 workspace A 的使用者、token、Worker 存取 B 的資產、計畫、搜尋、MCP 一律 404，搜尋 total 不含 B。02 §1.3 原本寫的是「業務表帶 workspace_id，TenantContext＋Repository 過濾，v2 再開 RLS」。現有程式碼以單一 workspace 寫成：約 557 個查詢點、79 處 `DEFAULT_WS`，還有多個以 id 直查、沒有 workspace 條件的端點。
+
+**審議**（兩個 sub-agent，各自論證一方）：
+- **單一資料庫＋過濾＋RLS**：符合原規格；一套備份、migration 和連線池；多 workspace 的使用者與共用 Worker 較自然。代價是要替約 26 張子表補 `workspace_id`、composite FK，並逐一改寫 150～250 個查詢。只要漏一個過濾就是跨租戶洩漏（IDOR）。RLS 可以讓遺漏變成 fail closed，但 superuser 連線、背景工作與 outbox 都必須逐筆設定 context，同樣容易出錯。
+- **每個 workspace 一個資料庫**：隔離是結構性的，A 的 engine 根本連不到 B 的資料列，所以遺漏過濾也不會洩漏。現有的 `create_app(dsn)`、`migrate(dsn)`、`pg_dump`、`embedded_pg` 的 template clone 都已經以 DSN 為單位。代價有四：連線數（NAS 的 `max_connections`）、N 個資料庫的 migration、跨 workspace 的管理檢視要在應用層 fan-out、一個 Worker 服務多個 workspace 時需要 CP 端排程。
+
+**決定**：
+- v0.5 採用**每個 workspace 一個資料庫**（同一個 Postgres server）。
+  - 主資料庫存放控制表（`app_user`、`membership`、`user_session`、`enrollment_code`、`worker_credential`、`worker_nonce`，以及 OAuth grant），同時也是 `default` workspace 的資料。
+  - 其他 workspace 各自有一個 `opagent_ws_<id>` 資料庫，含完整 schema。
+- 控制平面的 guard 就是 TenantContext：依 session 選擇的 workspace，或 token、Worker credential 綁定的 workspace，把請求分派給該 workspace 的內部 app。
+  - **認證只讀主資料庫**；workspace 資料庫裡的控制表一律不使用。
+  - 內部 app 的連線池很小，而且延遲建立。
+- 一個 Worker credential 只綁一個 workspace。同一台機器要服務多個 workspace 時，每個 workspace 各配對一次（v0.5 的限制）。跨 workspace 的 GPU 排程與 org 層總覽留到之後，以應用層 fan-out 處理。
+- 各表保留 `workspace_id` 欄位並照常寫入，日後要合併資料庫或啟用 RLS 時不必重新設計。
+- 不違反 CLAUDE.md §4 的任何不變量：SafePath、journal、Operation 都是 workspace 內的資料，恢復也在 workspace 內完成。
+
+**影響的測試 ID**：MU-SEC-003（以兩個資料庫的情境驗證 404 與 total）。
+**同步修改的規格**：02 §1.3「資料隔離」。

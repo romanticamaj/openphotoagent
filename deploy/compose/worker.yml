@@ -1,0 +1,24 @@
+# A remote worker (v0.5; 02 §5.2) on the machine that has the photos and the GPU. It only connects out (WSS,
+# long-poll fallback) and publishes no port.
+#   docker compose -f deploy/compose/worker.yml run --rm worker worker enroll --server https://photos.example.lan --code OPA-XXXX-XXXX --home /data
+#   docker compose -f deploy/compose/worker.yml run --rm worker worker roots add photos /photos --home /data
+#   docker compose -f deploy/compose/worker.yml up -d
+# Roots can only be added here, on this machine (02 §6.3 C-09): the control plane cannot add folders.
+services:
+  worker:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    image: ghcr.io/romanticamaj/openphotoagent:edge
+    entrypoint: ["/app/.venv/bin/opagent"]
+    command: ["worker", "run", "--headless", "--home", "/data", "--backend", "${OPAGENT_WORKER_BACKEND:-none}"]
+    environment:
+      OPAGENT_HOME: /data
+    volumes:
+      - worker-data:/data
+      - ${OPAGENT_PHOTOS:-./photos}:/photos
+      - ${OPAGENT_SORTED:-./sorted}:/sorted
+    restart: unless-stopped
+    # no `ports:` on purpose — the worker never accepts inbound connections (MU-WORKER-001)
+volumes:
+  worker-data:

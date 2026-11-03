@@ -90,6 +90,7 @@ flowchart LR
 
 - 權限以 **permission string** 定義（如 `job:create`, `output:apply`, `source:write`, `worker:manage`），角色 = permission 集合，存在程式碼常數中（v1 不做自訂角色）。
 - 資料隔離：所有業務表帶 `org_id`（以及多數帶 `workspace_id`）；API 層用 dependency 注入 `TenantContext`，Repository 層強制加過濾。v2 可開 Postgres **Row-Level Security**（`SET app.org_id`）做縱深防禦。
+- **（v0.5 更新，ADR-0016）** 自架多人 control plane 採**每個 workspace 一個資料庫**：主資料庫存控制表與 `default` workspace；其他 workspace 各有 `opagent_ws_<id>`。Guard 依 session／token／Worker credential 綁定的 workspace 分派請求，即為 TenantContext；`workspace_id` 欄位保留。一個 Worker credential 只綁一個 workspace。
 - Worker 屬於 Org，可被指派給一個或多個 Workspace（`worker_workspace` 關聯表），Source 綁定在某個 Worker 上（因為路徑只對該機器有意義）。
 - **（審查補充）單人模式（桌面與 all-in-one 的預設，08 D10 / C-04）**：首次啟動 seed `default` org、workspace 與 owner 使用者；API 仍走 `TenantContext`（程式碼路徑不變），UI 隱藏 Org、Workspace、成員、角色，沒有登入畫面。完整多人 RBAC 與 OIDC 在 **v0.5（自架多人 control plane）** 才開放；permission string 從 v0.1 就存在，因為 MCP scope 直接對應它（00 R7）。
 - **（審查補充）人臉與問照片的 permission**（07 §6.5、10 §10.1）：`face:read`、`face:write`、`face:admin`（opt-in、purge、MCP 人臉設定）；`assistant:use`、`assistant:admin`（10 的 `assistant_settings`）。單人模式下 owner 擁有全部 permission，但人臉功能仍須另外 opt-in（07 §0）。

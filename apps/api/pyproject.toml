@@ -4,6 +4,9 @@ version = "0.0.1"
 requires-python = ">=3.12"
 dependencies = [
     "opagent-core",
+    "pyjwt>=2.8",
+    "authlib>=1.6",
+    "cryptography",
     "opagent-schemas",
     "opagent-db",
     "opagent-registry",
@@ -16,6 +19,7 @@ dependencies = [
     "keyring>=25",
     "pillow",
     "uvicorn",
+    "websockets>=14",
     "argon2-cffi>=25.1.0",
     "python-multipart>=0.0.33",
     "scikit-learn>=1.9.1",

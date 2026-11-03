@@ -12,6 +12,20 @@ from sqlalchemy.engine import Engine
 DEFAULT_WS = "default"
 
 
+def with_dbname(dsn: str, name: str) -> str:
+    """The same server and credentials, another database (URL-form DSNs, as everywhere in the app)."""
+    from urllib.parse import urlsplit, urlunsplit
+
+    u = urlsplit(dsn)
+    return urlunsplit((u.scheme, u.netloc, "/" + name, u.query, u.fragment))
+
+
+def dbname(dsn: str) -> str:
+    from urllib.parse import urlsplit
+
+    return urlsplit(dsn).path.lstrip("/") or "opagent"
+
+
 @dataclass
 class AppState:
     engine: Engine
@@ -37,7 +51,73 @@ class AppState:
     thumbs_dir: Path | None = None
     home: Path | None = None  # data folder: the local MCP credential fallback lives here (MCP-PAT-001)
     public_url: str = "http://127.0.0.1:47800"  # web/Docker approval links (05 §3.6)
+    multi_user: bool = False  # the self-hosted control plane (v0.5, multiuser.py)
+    jwt_secret: str | None = None  # signs worker access JWTs; from OPAGENT_JWT_SECRET
+    insecure_cookies: bool = False  # dev only: plain-http control plane (never in the Docker image)
+    protocol_version: str = "1.0"  # worker protocol this CP speaks (N and N-1 majors are served, 02 §5.3)
+    ws_id: str = DEFAULT_WS  # control plane: which workspace this state serves (ADR-0016)
+    control: Any = None  # inner workspace apps: the control plane's state (users, roles, credentials)
+    ws_apps: dict[str, Any] = field(default_factory=dict)  # control plane: workspace id → inner FastAPI app
+    app_kwargs: dict[str, Any] = field(default_factory=dict)  # how to build an inner workspace app
+    data_fp: str | None = None  # /healthz identity (08 §1.3)
+    fastapi_app: Any = None
+    oidc: dict[str, Any] | None = None  # {issuer, client_id, client_secret}: OIDC sign-in (oidc.py)
+    oidc_transport: Any = None  # tests: the fake IdP
+    oidc_cache: dict[str, Any] = field(default_factory=dict)  # discovery document and JWKS
+    oidc_pending: dict[str, Any] = field(default_factory=dict)  # state → nonce, PKCE verifier, expiry
+    oauth_server: Any = None  # the built-in OAuth 2.1 AS (oauth.py), control plane only
+    oauth_resolver: Any = None  # tests: a fake DNS resolver for client-metadata fetches (MU-OAUTH-006)
+    oauth_transport: Any = None  # tests: an httpx transport standing in for client-metadata hosts
+    oauth_rejections: list[str] = field(default_factory=list)  # why client metadata was refused (diagnostics)
+    enroll_guesses: dict[str, list[Any]] = field(default_factory=dict)  # wrong enrollment codes per client
     handle_key: bytes = field(default_factory=lambda: __import__("secrets").token_bytes(32))  # MCP cursors
+
+    @property
+    def root(self) -> AppState:
+        """The control-plane state (auth, roles, worker credentials live only there)."""
+        return self.control if self.control is not None else self
+
+    def workspace_db(self, ws: str) -> str | None:
+        """The DSN of a workspace, or ``None`` when it does not exist (looked up in the control database)."""
+        if ws == DEFAULT_WS:
+            return self.root.dsn
+        from opagent_db.schema import workspace as w
+
+        with self.root.engine.begin() as c:
+            name = c.execute(select(w.c.database).where(w.c.id == ws, w.c.database.is_not(None))).scalar()
+        if not name:
+            return None
+        return with_dbname(self.root.dsn, name)
+
+    def ws_app(self, ws: str) -> Any:
+        """The FastAPI app answering for ``ws`` (built lazily); ``None`` for an unknown workspace."""
+        root = self.root
+        if ws == DEFAULT_WS:
+            return root.fastapi_app
+        if ws not in root.ws_apps:
+            dsn = root.workspace_db(ws)
+            if dsn is None:
+                return None
+            from .app import create_app
+
+            kw = dict(root.app_kwargs)
+            if root.thumbs_dir is not None:
+                kw["thumbs_dir"] = root.thumbs_dir / ws
+            root.ws_apps[ws] = create_app(dsn=dsn, clock=root.clock, tenant_of=root, ws_id=ws, **kw)
+        return root.ws_apps[ws]
+
+    def ws_state(self, ws: str) -> AppState:
+        app = self.ws_app(ws)
+        if app is None:
+            raise KeyError(ws)
+        return app.state.opa  # type: ignore[no-any-return]
+
+    def all_ws(self) -> list[str]:
+        from opagent_db.schema import workspace as w
+
+        with self.root.engine.begin() as c:
+            extra = c.execute(select(w.c.id).where(w.c.database.is_not(None)).order_by(w.c.id)).scalars().all()
+        return [DEFAULT_WS, *extra]
 
     def workspace_settings(self, c: Any) -> dict[str, Any]:
         return dict(c.execute(select(workspace.c.settings).where(workspace.c.id == DEFAULT_WS)).scalar() or {})

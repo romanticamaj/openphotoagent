@@ -9,6 +9,7 @@ use opagent_supervisor::backoff::{Decision, Policy, RestartTracker};
 use opagent_supervisor::children::{spawn_supervised, Supervised};
 use opagent_supervisor::exit::{classify, ExitClass};
 use opagent_supervisor::lock::{DataDirLock, LockError};
+use opagent_supervisor::remote;
 use opagent_supervisor::updater;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
@@ -378,6 +379,21 @@ fn main() {
             let thumbs = home.join("worker").join("thumbs");
             let _ = std::fs::create_dir_all(&thumbs);
             app.asset_protocol_scope().allow_directory(&thumbs, true)?;
+            // v0.5: client of a self-hosted control plane → no local services, the window opens the CP itself
+            let conn = std::fs::read_to_string(home.join("connection.json")).ok();
+            let mode = remote::mode(&|k: &str| std::env::var(k).ok(), conn.as_deref())
+                .unwrap_or(remote::Mode::Local);
+            let start = remote::plan(&mode);
+            if let Some(url) = start.window_url.clone() {
+                let guard = mode.clone();
+                WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url.parse().expect("checked origin")))
+                    .title("OpenPhotoAgent")
+                    .inner_size(1280.0, 820.0)
+                    .min_inner_size(960.0, 600.0)
+                    .on_navigation(move |u| remote::may_navigate(&guard, u.as_str()))
+                    .build()?;
+                return Ok(());
+            }
             WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
                 .title("OpenPhotoAgent")
                 .inner_size(1280.0, 820.0)

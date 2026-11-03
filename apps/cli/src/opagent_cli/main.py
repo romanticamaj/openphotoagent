@@ -81,6 +81,63 @@ def cmd_api(a: argparse.Namespace) -> None:
     uvicorn.Server(uvicorn.Config(app, log_level="warning")).run(sockets=[sock])
 
 
+def cmd_controlplane(a: argparse.Namespace) -> None:
+    """Self-hosted multi-user control plane (v0.5, 02 §1.1; deploy/compose/controlplane.yml).
+
+    Configured from the environment: OPAGENT_DSN, OPAGENT_JWT_SECRET (≥ 32 chars), OPAGENT_PUBLIC_URL (the https
+    address people and workers use), OPAGENT_OWNER_EMAIL / OPAGENT_OWNER_PASSWORD (first start only),
+    OPAGENT_OIDC_ISSUER / _CLIENT_ID / _CLIENT_SECRET (optional). The CP never touches photos or GPUs."""
+    import uvicorn
+    from opagent_api.app import create_app
+
+    env = os.environ
+    dsn = a.dsn or env.get("OPAGENT_DSN") or ""
+    secret = env.get("OPAGENT_JWT_SECRET") or ""
+    if not dsn or len(secret) < 32:
+        raise SystemExit("OPAGENT_DSN and OPAGENT_JWT_SECRET (at least 32 characters) are required")
+    home = Path(a.home) if a.home else _home()
+    home.mkdir(parents=True, exist_ok=True)
+    from opagent_db.lifecycle import ensure_database
+
+    ensure_database(dsn)
+    if a.schema == "create-all":  # dev and tests
+        from opagent_db.schema import create_all
+
+        create_all(dsn)
+    else:
+        from opagent_core.clock import SystemClock
+        from opagent_db.lifecycle import Backups, migrate
+
+        pg_bin = Path(env.get("OPAGENT_PG_BIN", "/usr/lib/postgresql/17/bin"))
+        migrate(dsn, Backups(home / "backups", pg_bin, SystemClock()))
+    owner = None
+    if env.get("OPAGENT_OWNER_EMAIL") and env.get("OPAGENT_OWNER_PASSWORD"):
+        owner = (env["OPAGENT_OWNER_EMAIL"], env["OPAGENT_OWNER_PASSWORD"])
+    oidc = None
+    if env.get("OPAGENT_OIDC_ISSUER"):
+        oidc = {
+            "issuer": env["OPAGENT_OIDC_ISSUER"],
+            "client_id": env.get("OPAGENT_OIDC_CLIENT_ID", ""),
+            "client_secret": env.get("OPAGENT_OIDC_CLIENT_SECRET", ""),
+        }
+    app = create_app(
+        dsn=dsn,
+        static_dir=a.web_dist or env.get("OPAGENT_WEB_DIST"),
+        thumbs_dir=home / "thumbs",
+        multi_user=True,
+        jwt_secret=secret,
+        owner=owner,
+        public_url=env.get("OPAGENT_PUBLIC_URL") or f"http://127.0.0.1:{a.port}",
+        oidc=oidc,
+    )
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind((a.host, a.port))
+    sock.listen(128)
+    write_run_file(home, {"port": int(sock.getsockname()[1]), "pid": os.getpid(), "version": __version__})
+    uvicorn.Server(uvicorn.Config(app, log_level="warning", proxy_headers=True)).run(sockets=[sock])
+
+
 from opagent_core.version import VERSION as __version__  # noqa: E402
 
 
@@ -219,8 +276,93 @@ def cmd_pg_prepare(a: argparse.Namespace) -> None:
     print(json.dumps({"argv": argv, "dsn": pg.dsn, "admin_dsn": pg.dsn_for("postgres"), "data": str(pg.data)}))
 
 
+def _remote_home(a: argparse.Namespace) -> Path:
+    return Path(a.home) if a.home else _home() / "remote-worker"
+
+
+def cmd_worker_enroll(a: argparse.Namespace) -> None:
+    """Pair this machine with a control plane (02 §5.2); the private key never leaves it."""
+    import json
+
+    from opagent_worker.remote import MODES, enroll
+
+    home = _remote_home(a)
+    cred = enroll(a.server, a.code, home, a.name)
+    if a.egress_floor:
+        if a.egress_floor not in MODES:
+            raise SystemExit(f"--egress-floor must be one of {', '.join(MODES)}")
+        (home / "egress-floor").write_text(a.egress_floor)
+    print(json.dumps({"worker_id": cred.worker_id, "server": cred.server}))
+
+
+def _roots_file(home: Path) -> Path:
+    return home / "roots.json"
+
+
+def _load_roots(home: Path) -> list[dict[str, str]]:
+    import json
+
+    f = _roots_file(home)
+    return list(json.loads(f.read_text())) if f.exists() else []
+
+
+def cmd_worker_roots(a: argparse.Namespace) -> None:
+    """Photo folders this worker may touch. Only this local command changes them (C-09, invariant 2)."""
+    import json
+    import re
+
+    home = _remote_home(a)
+    home.mkdir(parents=True, exist_ok=True)
+    roots = _load_roots(home)
+    if a.action == "add":
+        if not re.fullmatch(r"[a-z][a-z0-9_-]{0,31}", a.alias or ""):
+            raise SystemExit("alias: lower-case letters, digits, - and _")
+        path = Path(a.path).expanduser().resolve()
+        if not path.is_dir():
+            raise SystemExit(f"not a folder: {path}")
+        roots = [r for r in roots if r["alias"] != a.alias] + [{"alias": a.alias, "path": str(path), "mode": a.mode}]
+    elif a.action == "remove":
+        roots = [r for r in roots if r["alias"] != a.alias]
+    if a.action != "list":
+        _roots_file(home).write_text(json.dumps(roots, indent=2))
+    print(json.dumps(roots, indent=2))
+
+
+def cmd_worker_run(a: argparse.Namespace) -> None:
+    """Headless remote worker: outbound connections only, no UI, no listening port (MU-WORKER-001/006)."""
+    from opagent_worker.agent import WorkerAgent
+    from opagent_worker.remote import Channel, EgressFilter, RemoteClient
+
+    home = _remote_home(a)
+    floor_f = home / "egress-floor"
+    floor = floor_f.read_text().strip() if floor_f.exists() else None
+    client = RemoteClient(home, egress=EgressFilter(floor=floor, log_path=home / "egress-denied.log"))
+    backend = None
+    if a.backend == "fake":
+        from opagent_inference.fake import FakeBackend
+
+        backend = FakeBackend()
+    agent = WorkerAgent(
+        client, roots=_load_roots(home), home=home, backend=backend, worker_id=client.worker_id, name=client.cred.name
+    )
+    agent.channel = Channel(client)
+    stop = threading.Event()
+    signal.signal(signal.SIGTERM, lambda *_: stop.set())
+    agent.register()
+    if agent.blocked_reason:
+        print(f"control plane refused this worker: {agent.blocked_reason}", file=sys.stderr)
+    if a.once:
+        while agent.run_once(wait_s=0) or (backend is not None and agent.process_items_once()):
+            pass
+        return
+    agent.run_forever(stop)
+
+
 def cmd_worker(a: argparse.Namespace) -> None:
     import httpx
+
+    if not a.api or not a.roots:
+        raise SystemExit("opagent worker: --api and --roots are required (or use enroll / roots / run)")
     from opagent_worker.agent import WorkerAgent
 
     token = sys.stdin.readline().strip() if a.token_stdin else None
@@ -321,6 +463,14 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--home", help="data directory (the shell passes it; default OPAGENT_HOME or ~/.opagent)")
     p.add_argument("--lan", action="store_true", help="allow LAN access (binds 0.0.0.0; password login enforced)")
     p.set_defaults(fn=cmd_api)
+    p = sub.add_parser("controlplane", help="self-hosted multi-user control plane (Docker / NAS)")
+    p.add_argument("--dsn")
+    p.add_argument("--host", default="0.0.0.0")  # noqa: S104 - the CP is a network service (behind TLS)
+    p.add_argument("--port", type=int, default=47800)
+    p.add_argument("--web-dist")
+    p.add_argument("--home")
+    p.add_argument("--schema", choices=["migrate", "create-all"], default="migrate")
+    p.set_defaults(fn=cmd_controlplane)
     p = sub.add_parser("pg-prepare", help="desktop shell: prepare the embedded database, print its argv")
     p.add_argument("--home")
     p.add_argument("--ram-gb", type=float)
@@ -328,9 +478,30 @@ def main(argv: list[str] | None = None) -> None:
     p = sub.add_parser("lan-password", help="set the LAN-access password from stdin")
     p.add_argument("--home")
     p.set_defaults(fn=cmd_lan_password)
-    p = sub.add_parser("worker")
-    p.add_argument("--api", required=True)
-    p.add_argument("--roots", required=True, help="alias=path:mode,...")
+    p = sub.add_parser("worker", help="local worker (desktop) or, with a subcommand, a remote headless worker")
+    wsub = p.add_subparsers(dest="worker_cmd")
+    q = wsub.add_parser("enroll", help="pair with a control plane using a one-time code")
+    q.add_argument("--server", required=True)
+    q.add_argument("--code", required=True)
+    q.add_argument("--name", default=socket.gethostname()[:100])
+    q.add_argument("--egress-floor", help="never send more than this policy allows, whatever the CP says")
+    q.add_argument("--home")
+    q.set_defaults(fn=cmd_worker_enroll)
+    q = wsub.add_parser("roots", help="the photo folders this worker may use (only settable here)")
+    q.add_argument("action", choices=["add", "remove", "list"])
+    q.add_argument("alias", nargs="?")
+    q.add_argument("path", nargs="?")
+    q.add_argument("--mode", choices=["ro", "rw"], default="ro")
+    q.add_argument("--home")
+    q.set_defaults(fn=cmd_worker_roots)
+    q = wsub.add_parser("run", help="run as a headless remote worker")
+    q.add_argument("--headless", action="store_true", help="no UI, no API port (the default for remote workers)")
+    q.add_argument("--backend", default="none", choices=["fake", "none"])
+    q.add_argument("--once", action="store_true")
+    q.add_argument("--home")
+    q.set_defaults(fn=cmd_worker_run)
+    p.add_argument("--api")
+    p.add_argument("--roots", help="alias=path:mode,...")
     p.add_argument("--worker-id")
     p.add_argument("--backend", default="fake", choices=["fake", "none"])
     p.add_argument("--once", action="store_true", help="process what is queued, then exit")

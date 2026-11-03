@@ -1,0 +1,50 @@
+# Self-hosted multi-user control plane (v0.5; 02 §1.1, ADR-0015/0016) — e.g. on a NAS.
+#   cp deploy/compose/controlplane.env.example deploy/compose/controlplane.env   # then edit it
+#   docker compose -f deploy/compose/controlplane.yml up -d
+# The CP holds no photos and no GPU: workers on other machines pair with it (worker.yml / `opagent worker enroll`).
+# Put it behind your HTTPS reverse proxy; OPAGENT_PUBLIC_URL must be that https address (cookies are Secure).
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: opagent
+      POSTGRES_PASSWORD: ${OPAGENT_DB_PASSWORD:?set OPAGENT_DB_PASSWORD}
+      POSTGRES_DB: opagent
+    volumes:
+      - cp-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U opagent"]
+      interval: 5s
+      retries: 20
+    networks: [cp]
+    restart: unless-stopped
+  controlplane:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    image: ghcr.io/romanticamaj/openphotoagent:edge
+    entrypoint: ["/app/.venv/bin/opagent", "controlplane", "--port", "47800"]
+    env_file: [controlplane.env]
+    environment:
+      OPAGENT_DSN: postgresql://opagent:${OPAGENT_DB_PASSWORD}@db:5432/opagent
+      OPAGENT_HOME: /data
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${OPAGENT_CP_BIND:-127.0.0.1}:47800:47800"  # publish to your reverse proxy, not the internet
+    volumes:
+      - cp-data:/data
+    healthcheck:
+      test: ["CMD", "/app/.venv/bin/python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:47800/healthz', timeout=2).status == 200 else 1)"]
+      interval: 10s
+      start_period: 30s
+    networks: [cp, edge]
+    restart: unless-stopped
+volumes:
+  cp-db:
+  cp-data:
+networks:
+  cp:
+    internal: true  # the database is reachable from the control plane only
+  edge:
