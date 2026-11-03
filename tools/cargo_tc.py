@@ -16,13 +16,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 CRATE = ROOT / "apps" / "desktop" / "supervisor"
 LINE = re.compile(r"^test (\S+) \.\.\. (ok|FAILED|ignored)$")
-ID = re.compile(r"(?:^|_)([a-z]+)_(\d{3})(?=_|$)")
+ID = re.compile(r"(?:^|_)((?:mu_)?[a-z]+)_(\d{3})(?=_|$)")  # mu_deploy_002 → MU-DEPLOY-002
 OUTCOME = {"ok": "passed", "FAILED": "failed", "ignored": "skipped"}
 
 
 def ids_of(name: str) -> list[str]:
     leaf = name.rsplit("::", 1)[-1]
-    return [f"{p.upper()}-{n}" for p, n in ID.findall(leaf)]
+    return [f"{p.upper().replace('_', '-')}-{n}" for p, n in ID.findall(leaf)]
 
 
 def parse(output: str) -> dict[str, list[dict[str, str]]]:

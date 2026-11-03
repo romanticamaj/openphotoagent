@@ -776,5 +776,17 @@
     "progress": "Build progress",
     "switch": "Switch to the new index",
     "notReady": "The new index is still being built; search keeps using the current one until you switch"
+  },
+  "auth": {
+    "title": "Sign in to OpenPhotoAgent",
+    "email": "E-mail",
+    "password": "Password",
+    "submit": "Sign in",
+    "signingIn": "Signing in…",
+    "sso": "Sign in with your organisation's account",
+    "failed": "That e-mail and password do not match.",
+    "rateLimited": "Too many attempts. Wait a minute and try again.",
+    "workspace": "Workspace",
+    "signOut": "Sign out"
   }
 }

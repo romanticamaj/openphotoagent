@@ -8,7 +8,7 @@ import { PhotosPage } from "./features/viewer/PhotosPage";
 import { api } from "./lib/api";
 import { useServerEvent } from "./lib/events";
 import { notificationFor, type OpStatusEvent } from "./lib/notify";
-import { platform } from "./lib/platform";
+import { currentWorkspace, platform, setCsrf, setWorkspace } from "./lib/platform";
 
 // only the photos route ships in the first load (PERF-003); every other page is its own chunk, fetched once the
 // first screen has settled so that moving between pages stays instant
@@ -52,7 +52,46 @@ const AskPanel = lazy(() => import("./features/ask/AskPanel").then((m) => ({ def
 const AssistantSettingsPage = lazy(() => import("./features/ask/AssistantSettingsPage").then((m) => ({ default: m.AssistantSettingsPage })));
 const MapPage = lazy(() => import("./features/map/MapPage").then((m) => ({ default: m.MapPage })));
 const ModelsPage = lazy(() => import("./features/models/ModelsPage").then((m) => ({ default: m.ModelsPage })));
+const LoginPage = lazy(() => import("./features/auth/LoginPage").then((m) => ({ default: m.LoginPage })));
 const ModelCard = lazy(() => import("./features/models/ModelsPage").then((m) => ({ default: m.ModelCard })));
+
+/** Control plane only (v0.5): which workspace this window works in; others look like they do not exist. */
+function WorkspaceSwitcher() {
+  const { t } = useTranslation();
+  const list = useQuery({ queryKey: ["workspaces"], queryFn: api.workspaces, staleTime: 60_000 });
+  if (!list.data || list.data.length < 2) return null;
+  return (
+    <label className="text-xs">
+      <span className="sr-only">{t("auth.workspace")}</span>
+      <select
+        value={currentWorkspace() ?? "default"}
+        onChange={(e) => {
+          setWorkspace(e.target.value);
+          window.location.assign("/"); // every page, query and stream belongs to the chosen workspace
+        }}
+        className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface-1)] px-1"
+      >
+        {list.data.map((w) => (
+          <option key={w.id} value={w.id}>
+            {w.name}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function Root() {
+  // the sign-in page stands alone: nothing in the shell may call the API before there is a session
+  if (typeof window !== "undefined" && window.location.pathname === "/login") {
+    return (
+      <Suspense fallback={null}>
+        <LoginPage />
+      </Suspense>
+    );
+  }
+  return <Shell />;
+}
 
 function Shell() {
   const { t } = useTranslation();
@@ -90,6 +129,12 @@ function Shell() {
   }, []);
   // single-user desktop/all-in-one: no organisation, workspace or worker management in the UI (08 §8, DESK-032)
   const caps = useQuery({ queryKey: ["capabilities"], queryFn: api.capabilities, staleTime: Infinity });
+  const multi = caps.data ? !caps.data.single_user : false;
+  // control plane: after a reload the CSRF token comes back from the session (02 §6.3)
+  const me = useQuery({ queryKey: ["me"], queryFn: api.me, enabled: multi, staleTime: Infinity });
+  useEffect(() => {
+    if (me.data) setCsrf(me.data.csrf);
+  }, [me.data]);
   useEffect(() => prefetchPages(), []);
   useServerEvent("operation.status", (d) => {
     const n = platform().notify && notificationFor(d as OpStatusEvent);
@@ -113,7 +158,20 @@ function Shell() {
       <header className="topbar">
         <strong>{t("app.title")}</strong>
         <SearchBar />
-        <span className="text-xs text-[var(--text-muted)]">🔒 {t("nav.local")}</span>
+        {multi ? (
+          <>
+            <WorkspaceSwitcher />
+            <button
+              type="button"
+              onClick={() => void api.logout().finally(() => window.location.assign("/login"))}
+              className="rounded-[var(--radius-sm)] px-2 py-1 text-xs hover:bg-[var(--surface-2)]"
+            >
+              {t("auth.signOut")}
+            </button>
+          </>
+        ) : (
+          <span className="text-xs text-[var(--text-muted)]">🔒 {t("nav.local")}</span>
+        )}
         <button ref={askButton} type="button" aria-expanded={asking} onClick={() => setAsking(!asking)} className="rounded-[var(--radius-sm)] px-2 py-1 hover:bg-[var(--surface-2)]">
           {t("ask.open")}
         </button>
@@ -146,7 +204,7 @@ function Shell() {
   );
 }
 
-const root = createRootRoute({ component: Shell });
+const root = createRootRoute({ component: Root });
 const photos = createRoute({
   getParentRoute: () => root,
   path: "/",

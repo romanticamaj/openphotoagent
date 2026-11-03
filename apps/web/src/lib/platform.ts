@@ -25,10 +25,47 @@ export function platform(): Platform {
   return (typeof window !== "undefined" && window.__OPA_PLATFORM__) || { kind: "web" };
 }
 
+/** Control plane session (v0.5): the CSRF token from login and the workspace the person is working in. */
+const session: { csrf: string | null; workspace: string | null } = { csrf: null, workspace: null };
+const WS_KEY = "opa.workspace";
+
+export function setCsrf(token: string | null) {
+  session.csrf = token;
+}
+
+export function setWorkspace(id: string | null) {
+  session.workspace = id;
+  try {
+    if (id) window.localStorage.setItem(WS_KEY, id);
+    else window.localStorage.removeItem(WS_KEY);
+  } catch {
+    /* private mode: the choice just isn't remembered */
+  }
+}
+
+export function currentWorkspace(): string | null {
+  if (session.workspace === null) {
+    try {
+      session.workspace = window.localStorage.getItem(WS_KEY);
+    } catch {
+      session.workspace = null;
+    }
+  }
+  return session.workspace;
+}
+
+function sessionHeaders(): Record<string, string> {
+  const h: Record<string, string> = {};
+  if (session.csrf) h["X-CSRF-Token"] = session.csrf;
+  const ws = currentWorkspace();
+  if (ws) h["X-OPA-Workspace"] = ws;
+  return h;
+}
+
 /** Where REST/SSE go and which headers they carry: same-origin with no token on the web. */
 export async function endpoint(path: string): Promise<{ url: string; headers: Record<string, string> }> {
   const b = platform().backend;
-  if (!b) return { url: path, headers: {} };
+  if (!b) return { url: path, headers: sessionHeaders() };
   const { baseUrl, token } = await b();
   return { url: `${baseUrl}${path}`, headers: { Authorization: `Bearer ${token}` } };
 }

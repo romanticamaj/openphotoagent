@@ -51,7 +51,12 @@ ACCESS_TTL = timedelta(minutes=15)
 MAX_SKEW = timedelta(minutes=5)
 GUESS_LIMIT, GUESS_WINDOW = 5, timedelta(minutes=10)
 ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # no 0/O, 1/I
-OPEN_PATHS = {"/api/v1/auth/login", "/api/v1/auth/oidc/start", "/api/v1/auth/oidc/callback"}
+OPEN_PATHS = {
+    "/api/v1/auth/login",
+    "/api/v1/auth/oidc/start",
+    "/api/v1/auth/oidc/callback",
+    "/api/v1/capabilities",  # the login page needs to know which sign-in methods exist
+}
 OPEN_WORKER_PATHS = {"/worker-api/v1/enroll", "/worker-api/v1/token"}
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 COOKIE = "opagent_session"

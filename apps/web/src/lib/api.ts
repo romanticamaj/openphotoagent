@@ -14,7 +14,15 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
     headers: body === undefined ? { ...headers, "X-OPA-UI": "1" } : { ...headers, "X-OPA-UI": "1", "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
-  if (!r.ok) throw new ApiError(r.status, await r.json().catch(() => null));
+  if (!r.ok) {
+    const problem = await r.json().catch(() => null);
+    // control plane: the session ended → sign in again and come back (02 §6.3)
+    if (r.status === 401 && (problem as { code?: string } | null)?.code === "AUTH_REQUIRED" && platform().kind === "web") {
+      const here = window.location.pathname + window.location.search;
+      if (!window.location.pathname.startsWith("/login")) window.location.assign(`/login?next=${encodeURIComponent(here)}`);
+    }
+    throw new ApiError(r.status, problem);
+  }
   return (await r.json()) as T;
 }
 
@@ -208,7 +216,14 @@ export type DuplicateGroup = {
   reclaimable_bytes: number;
 };
 
-export type Capabilities = { deployment: string; single_user: boolean; features: Record<string, boolean> };
+export type Capabilities = {
+  deployment: string;
+  single_user: boolean;
+  login?: { password: boolean; oidc: boolean };
+  features: Record<string, boolean>;
+};
+export type Me = { id: string; email: string; roles: Record<string, string>; csrf: string };
+export type Workspace = { id: string; name: string };
 
 export type AssistantSettings = {
   provider: "local" | "openai_compat";
@@ -257,6 +272,10 @@ export const api = {
   decideApproval: (id: string, body: { decision: string; move_confirmed: boolean; confirm_text: string | null }) =>
     req<{ status: string; job_id?: string }>("POST", `/approvals/${encodeURIComponent(id)}/decision`, body),
   capabilities: () => req<Capabilities>("GET", "/capabilities"),
+  login: (email: string, password: string) => req<{ ok: boolean; csrf: string }>("POST", "/auth/login", { email, password }),
+  logout: () => req<{ ok: boolean }>("POST", "/auth/logout"),
+  me: () => req<Me>("GET", "/auth/me"),
+  workspaces: () => req<Workspace[]>("GET", "/workspaces"),
   roots: () => req<Root[]>("GET", "/roots"),
   browse: (root: string, path: string) =>
     req<{ dirs: string[] }>("GET", `/fs/browse?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`),

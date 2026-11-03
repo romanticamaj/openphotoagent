@@ -251,3 +251,23 @@ def get_egress(req: Request) -> dict[str, Any]:
     st = _st(req)
     with st.engine.begin() as c:
         return egress_policy(st, c)
+
+
+@router.get("/workers")
+def list_workers(req: Request) -> list[dict[str, Any]]:
+    """Workers serving this workspace (Settings → Workers): status and root aliases, never paths."""
+    st = _st(req)
+    with st.engine.begin() as c:
+        rows = c.execute(select(worker).order_by(worker.c.name, worker.c.id)).all()
+    return [
+        {
+            "id": r.id,
+            "name": r.name,
+            "status": r.status,
+            "roots": list(r.roots or []),
+            "deployment": (r.capabilities or {}).get("deployment"),
+            "protocol_version": (r.capabilities or {}).get("protocol_version"),
+            "last_heartbeat_at": r.last_heartbeat_at.isoformat() if r.last_heartbeat_at else None,
+        }
+        for r in rows
+    ]

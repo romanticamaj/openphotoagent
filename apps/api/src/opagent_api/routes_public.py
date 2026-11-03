@@ -56,7 +56,15 @@ class PreflightIn(BaseModel):
 
 
 @router.get("/capabilities")
-def capabilities() -> dict[str, Any]:
+def capabilities(req: Request) -> dict[str, Any]:
+    st = _st(req)
+    if st.multi_user:  # the self-hosted control plane: login, workspaces, members (v0.5); open before login
+        return {
+            "deployment": "controlplane",
+            "single_user": False,
+            "login": {"password": True, "oidc": bool(st.root.oidc)},
+            "features": {"organize.by_date": True},
+        }
     return {"deployment": "all-in-one", "single_user": True, "features": {"organize.by_date": True}}
 
 

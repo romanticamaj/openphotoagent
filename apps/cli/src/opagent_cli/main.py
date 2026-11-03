@@ -81,6 +81,63 @@ def cmd_api(a: argparse.Namespace) -> None:
     uvicorn.Server(uvicorn.Config(app, log_level="warning")).run(sockets=[sock])
 
 
+def cmd_controlplane(a: argparse.Namespace) -> None:
+    """Self-hosted multi-user control plane (v0.5, 02 §1.1; deploy/compose/controlplane.yml).
+
+    Configured from the environment: OPAGENT_DSN, OPAGENT_JWT_SECRET (≥ 32 chars), OPAGENT_PUBLIC_URL (the https
+    address people and workers use), OPAGENT_OWNER_EMAIL / OPAGENT_OWNER_PASSWORD (first start only),
+    OPAGENT_OIDC_ISSUER / _CLIENT_ID / _CLIENT_SECRET (optional). The CP never touches photos or GPUs."""
+    import uvicorn
+    from opagent_api.app import create_app
+
+    env = os.environ
+    dsn = a.dsn or env.get("OPAGENT_DSN") or ""
+    secret = env.get("OPAGENT_JWT_SECRET") or ""
+    if not dsn or len(secret) < 32:
+        raise SystemExit("OPAGENT_DSN and OPAGENT_JWT_SECRET (at least 32 characters) are required")
+    home = Path(a.home) if a.home else _home()
+    home.mkdir(parents=True, exist_ok=True)
+    from opagent_db.lifecycle import ensure_database
+
+    ensure_database(dsn)
+    if a.schema == "create-all":  # dev and tests
+        from opagent_db.schema import create_all
+
+        create_all(dsn)
+    else:
+        from opagent_core.clock import SystemClock
+        from opagent_db.lifecycle import Backups, migrate
+
+        pg_bin = Path(env.get("OPAGENT_PG_BIN", "/usr/lib/postgresql/17/bin"))
+        migrate(dsn, Backups(home / "backups", pg_bin, SystemClock()))
+    owner = None
+    if env.get("OPAGENT_OWNER_EMAIL") and env.get("OPAGENT_OWNER_PASSWORD"):
+        owner = (env["OPAGENT_OWNER_EMAIL"], env["OPAGENT_OWNER_PASSWORD"])
+    oidc = None
+    if env.get("OPAGENT_OIDC_ISSUER"):
+        oidc = {
+            "issuer": env["OPAGENT_OIDC_ISSUER"],
+            "client_id": env.get("OPAGENT_OIDC_CLIENT_ID", ""),
+            "client_secret": env.get("OPAGENT_OIDC_CLIENT_SECRET", ""),
+        }
+    app = create_app(
+        dsn=dsn,
+        static_dir=a.web_dist or env.get("OPAGENT_WEB_DIST"),
+        thumbs_dir=home / "thumbs",
+        multi_user=True,
+        jwt_secret=secret,
+        owner=owner,
+        public_url=env.get("OPAGENT_PUBLIC_URL") or f"http://127.0.0.1:{a.port}",
+        oidc=oidc,
+    )
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind((a.host, a.port))
+    sock.listen(128)
+    write_run_file(home, {"port": int(sock.getsockname()[1]), "pid": os.getpid(), "version": __version__})
+    uvicorn.Server(uvicorn.Config(app, log_level="warning", proxy_headers=True)).run(sockets=[sock])
+
+
 from opagent_core.version import VERSION as __version__  # noqa: E402
 
 
@@ -406,6 +463,14 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--home", help="data directory (the shell passes it; default OPAGENT_HOME or ~/.opagent)")
     p.add_argument("--lan", action="store_true", help="allow LAN access (binds 0.0.0.0; password login enforced)")
     p.set_defaults(fn=cmd_api)
+    p = sub.add_parser("controlplane", help="self-hosted multi-user control plane (Docker / NAS)")
+    p.add_argument("--dsn")
+    p.add_argument("--host", default="0.0.0.0")  # noqa: S104 - the CP is a network service (behind TLS)
+    p.add_argument("--port", type=int, default=47800)
+    p.add_argument("--web-dist")
+    p.add_argument("--home")
+    p.add_argument("--schema", choices=["migrate", "create-all"], default="migrate")
+    p.set_defaults(fn=cmd_controlplane)
     p = sub.add_parser("pg-prepare", help="desktop shell: prepare the embedded database, print its argv")
     p.add_argument("--home")
     p.add_argument("--ram-gb", type=float)
