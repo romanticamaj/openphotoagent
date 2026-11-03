@@ -72,6 +72,7 @@ ROUTES: dict[tuple[str, str], str] = {
     ("POST", "/api/v1/faces/plan-by-person"): FW,
     ("POST", "/api/v1/faces/prompt/dismiss"): FA,
     ("POST", "/api/v1/faces/purge"): FA,
+    ("POST", "/api/v1/faces/purge/verify"): FA,
     ("POST", "/api/v1/faces/query-image"): FR,
     ("POST", "/api/v1/faces/space-migrations"): FA,
     ("POST", "/api/v1/faces/space-migrations/{mid}/complete"): FA,

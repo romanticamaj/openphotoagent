@@ -2371,6 +2371,19 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "VerifyIn": {
+        "properties": {
+          "report_id": {
+            "title": "Report Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "report_id"
+        ],
+        "title": "VerifyIn",
+        "type": "object"
+      },
       "WatchIn": {
         "properties": {
           "approval_policy": {

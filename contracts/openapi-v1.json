@@ -2371,6 +2371,19 @@
         "title": "ValidationError",
         "type": "object"
       },
+      "VerifyIn": {
+        "properties": {
+          "report_id": {
+            "title": "Report Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "report_id"
+        ],
+        "title": "VerifyIn",
+        "type": "object"
+      },
       "WatchIn": {
         "properties": {
           "approval_policy": {
@@ -4203,6 +4216,47 @@
           }
         },
         "summary": "Purge"
+      }
+    },
+    "/api/v1/faces/purge/verify": {
+      "post": {
+        "description": "Re-check a deletion report (09b SEC-FACE-001): its hash, that no face datum from before it exists in the\ndatabase or the ``bio`` schema, and that every worker confirmed destroying its key and face crops.",
+        "operationId": "verify_purge_api_v1_faces_purge_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Verify Purge Api V1 Faces Purge Verify Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Verify Purge"
       }
     },
     "/api/v1/faces/query-image": {

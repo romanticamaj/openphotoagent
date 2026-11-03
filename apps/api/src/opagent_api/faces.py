@@ -1186,23 +1186,98 @@ def purge_workspace(st: AppState, ws: str) -> dict[str, Any]:
                 at=st.clock.now(),
             )
         )
-        report = {
+        report: dict[str, Any] = {
+            "id": uuid7(st.clock),
+            "workspace": ws,
+            "at": st.clock.now().isoformat(),
             "faces": int(n_faces),
             "embeddings": int(emb or 0),
             "prototypes": int(protos or 0),
             "persons": int(n_persons),
             "locations": ["database:bio", "database:face", "worker:faces"],
+            "worker_tasks": [],
         }
+        workers = [r[0] for r in c.execute(text("SELECT id FROM worker")).all()]
+        report["worker_tasks"] = [uuid7(st.clock) for _ in workers]
+        report["sha256"] = report_hash(report)  # SEC-FACE-001: the report itself is tamper-evident
         c.execute(
             insert(audit_log).values(actor="user:local", action="faces.purge", target=ws, outcome="ok", details=report)
         )
-        for (wid,) in c.execute(text("SELECT id FROM worker")).all():  # pending until the worker is back (PRG-003)
+        for wid, tid in zip(workers, report["worker_tasks"], strict=True):  # pending until the worker is back (PRG-003)
             c.execute(
                 insert(worker_task).values(
-                    id=uuid7(st.clock), kind="face_purge", worker_id=wid, lane="control", payload={"workspace_id": ws}
+                    id=tid, kind="face_purge", worker_id=wid, lane="control", payload={"workspace_id": ws}
                 )
             )
     return {**report, "worker_pending": True}
+
+
+def report_hash(report: dict[str, Any]) -> str:
+    import hashlib
+    import json
+
+    body = {k: v for k, v in report.items() if k != "sha256"}
+    return hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+class VerifyIn(BaseModel):
+    report_id: str
+
+
+@router.post("/faces/purge/verify")
+def verify_purge(body: VerifyIn, req: Request) -> dict[str, Any]:
+    """Re-check a deletion report (09b SEC-FACE-001): its hash, that no face datum from before it exists in the
+    database or the ``bio`` schema, and that every worker confirmed destroying its key and face crops."""
+    from datetime import datetime
+
+    st = _st(req)
+    with st.engine.begin() as c:
+        row = c.execute(
+            select(audit_log.c.details).where(
+                audit_log.c.action == "faces.purge", audit_log.c.details["id"].astext == body.report_id
+            )
+        ).first()
+        if row is None:
+            raise HTTPException(404, detail={"code": "NOT_FOUND"})
+        rep = dict(row.details)
+        at = datetime.fromisoformat(rep["at"])
+        ws = rep["workspace"]
+        left = c.execute(
+            select(func.count()).select_from(face).where(face.c.workspace_id == ws, face.c.created_at <= at)
+        ).scalar_one()
+        left += c.execute(
+            select(func.count()).select_from(person).where(person.c.workspace_id == ws, person.c.created_at <= at)
+        ).scalar_one()
+        tasks = c.execute(
+            select(worker_task.c.status, worker_task.c.result).where(
+                worker_task.c.id.in_(rep.get("worker_tasks") or ["-"])
+            )
+        ).all()
+    with bio_session(st) as c:
+        bio_left = (
+            c.execute(
+                text("SELECT count(*) FROM bio.face_embedding WHERE workspace_id = :w AND created_at <= :at"),
+                {"w": ws, "at": at},
+            ).scalar()
+            + c.execute(  # prototypes of people that no longer exist
+                text(
+                    "SELECT count(*) FROM bio.person_prototype pp WHERE pp.workspace_id = :w"
+                    " AND NOT EXISTS (SELECT 1 FROM person p WHERE p.id = pp.person_id)"
+                ),
+                {"w": ws},
+            ).scalar()
+        )
+    worker_ok = len(tasks) == len(rep.get("worker_tasks") or []) > 0 and all(
+        t.status == "done" and bool((t.result or {}).get("key_destroyed")) and (t.result or {}).get("vault_removed")
+        for t in tasks
+    )
+    checks = [
+        {"id": "report_hash", "ok": rep.get("sha256") == report_hash(rep)},
+        {"id": "database", "ok": left == 0, "remaining": int(left)},
+        {"id": "bio_schema", "ok": bio_left == 0, "remaining": int(bio_left or 0)},
+        {"id": "worker", "ok": worker_ok, "workers": len(tasks)},
+    ]
+    return {"report": rep, "verified": all(c["ok"] for c in checks), "checks": checks}
 
 
 @router.post("/faces/maintenance")
