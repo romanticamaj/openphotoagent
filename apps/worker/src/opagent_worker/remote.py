@@ -314,8 +314,8 @@ class Channel:
     def wait_for_work(self, wait_s: float) -> bool:
         """WSS: wait for ``work.available`` (True) or timeout. Poll mode returns True: the poll itself waits."""
         self._try_ws()
-        if self._ws is None:
-            return True
+        if self._ws is None or wait_s <= 0:
+            return True  # poll mode, or "just try once": lease directly
         try:
             msg = json.loads(self._ws.recv(timeout=wait_s))
         except TimeoutError:
