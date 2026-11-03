@@ -8,6 +8,7 @@ RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json apps/web/
 COPY packages/ packages/
+COPY tools/tc-reporters/ tools/tc-reporters/
 RUN pnpm install --frozen-lockfile --filter web...
 COPY apps/web/ apps/web/
 RUN pnpm --filter web build && find apps/web/dist -type f -print0 | sort -z | xargs -0 sha256sum > /web-dist.sha256

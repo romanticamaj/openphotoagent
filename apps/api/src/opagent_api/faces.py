@@ -76,7 +76,7 @@ ALTER TABLE bio.face_embedding OWNER TO {BIO_ROLE};
 ALTER TABLE bio.person_prototype OWNER TO {BIO_ROLE};
 REVOKE ALL ON SCHEMA bio FROM PUBLIC;
 REVOKE ALL ON SCHEMA bio FROM {API_ROLE};
-"""  # noqa: S608 - module constants only, no input
+"""  # noqa: S608  # nosec B608 - module constants only, no input
 
 
 def install_roles(engine: Any) -> None:

@@ -52,6 +52,9 @@ lint:
     pnpm -r --if-present lint
     pnpm -r --if-present typecheck
     cd apps/desktop/supervisor && cargo fmt --check && cargo clippy -q --all-targets -- -D warnings
+    # the Windows-only code (job objects) must compile too; CI's Windows runner is the first place it would fail
+    rustup target add x86_64-pc-windows-gnu >/dev/null 2>&1 || true
+    cd apps/desktop/supervisor && cargo check -q --target x86_64-pc-windows-gnu --all-targets
 
 # v1.0 interface contracts (VERSIONING §4): check that the code still matches contracts/*.json
 contracts:

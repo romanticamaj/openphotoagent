@@ -877,7 +877,7 @@ class WorkerAgent:
         for it in p["items"]:
             try:
                 sp = self.sb.resolve(it["root_alias"], it["rel"])
-                h = hashlib.sha1()  # noqa: S324 - Immich's checksum format, not a security use
+                h = hashlib.sha1(usedforsecurity=False)  # Immich's checksum format, not a security use
                 with open(sp.real, "rb") as fh:
                     for chunk in iter(lambda: fh.read(1 << 20), b""):
                         h.update(chunk)

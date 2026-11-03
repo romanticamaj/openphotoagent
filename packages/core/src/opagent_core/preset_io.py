@@ -95,7 +95,7 @@ def _parse(text: str) -> dict[str, Any]:
     if len(text.encode("utf-8")) > MAX_BYTES:
         raise PresetError("PRESET_TOO_LARGE", max=MAX_BYTES)
     try:
-        d = yaml.load(text, Loader=_NoAliasLoader)  # noqa: S506 - a SafeLoader subclass that also refuses aliases
+        d = yaml.load(text, Loader=_NoAliasLoader)  # noqa: S506  # nosec B506 - a SafeLoader subclass that also refuses aliases
     except PresetError:
         raise
     except yaml.YAMLError as e:

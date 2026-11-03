@@ -872,6 +872,7 @@
 | PG-012 | socket 與權限 | mac／linux | `listen_addresses=''`；socket 目錄 0700；Windows 為隨機 port + SCRAM 隨機密碼檔 0600 | S | #8 |
 | PG-013 | 測試 fixture 速度 | `embedded_pg` session 級 initdb + 每測試 template clone | clone < 200 ms；三平台 CI 可用（macOS runner 無 Docker） | I | DoD 5.5 |
 | PG-014 | Docker parity | Linux：testcontainers `pgvector/pgvector:pg17` | 同一組 migration 與 Q-* 整合測試全過 | I | #2 |
+| PG-015 | 用到真 PostgreSQL 的測試一律是 integration（回歸） | 只標 `security`／`property`、或沒有標記，但使用 `embedded_pg` 的測試 | 快速選擇式（`just test`、CI unit-py）收集不到；`-m integration` 收集得到（CI unit-py 沒有 PostgreSQL，曾有 63 個這類測試在那裡出錯） | C | #2 |
 
 ### 13.3 PACK：Runtime pack 驗證（08 §4.3）
 

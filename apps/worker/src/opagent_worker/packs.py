@@ -142,7 +142,7 @@ class PackInstaller:
     def _get(self, url: str) -> bytes:
         if self.fetch:
             return self.fetch(url)
-        with urllib.request.urlopen(url, timeout=60) as r:  # noqa: S310 - index URL comes from settings
+        with urllib.request.urlopen(url, timeout=60) as r:  # noqa: S310  # nosec B310 - index URL from local settings; packs are signature-checked
             return bytes(r.read())
 
     def _index(self, data: bytes | None = None, sig: str | None = None) -> dict[str, Any]:

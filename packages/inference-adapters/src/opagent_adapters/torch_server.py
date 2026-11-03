@@ -70,9 +70,11 @@ class TransformersPipeline:  # pragma: no cover - needs torch and weights (night
                 print(json.dumps({"error": "PACK_INCOMPATIBLE", "reason": "cuda_arch", "cc": cc}), file=sys.stderr)
                 sys.exit(EXIT_ARCH)
         self.device = "cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu"
-        self.processor = AutoProcessor.from_pretrained(model, trust_remote_code=trust_remote_code)
-        self.model = AutoModelForCausalLM.from_pretrained(
-            model, trust_remote_code=trust_remote_code, use_safetensors=True
+        self.processor = AutoProcessor.from_pretrained(  # nosec B615 - a local, hash-pinned install; never fetched here
+            model, trust_remote_code=trust_remote_code, local_files_only=True
+        )
+        self.model = AutoModelForCausalLM.from_pretrained(  # nosec B615 - local, hash-pinned install
+            model, trust_remote_code=trust_remote_code, use_safetensors=True, local_files_only=True
         ).to(self.device)
 
     def answer(self, image: bytes, categories: list[str], seed: str) -> str:

@@ -86,6 +86,17 @@ def sandbox_tree(tmp_path):  # type: ignore[no-untyped-def]
     return SandboxTree(tmp_path)
 
 
+PG_FIXTURES = frozenset({"embedded_pg", "embedded_pg_cluster"})
+
+
+@pytest.hookimpl(tryfirst=True)  # before `-m` deselection, so the added marker is what selection sees
+def pytest_itemcollected(item: pytest.Item) -> None:
+    """PG-015: anything that needs the real PostgreSQL is an integration test (09 §2.1), whatever else it is."""
+    names = set(getattr(item, "fixturenames", ()))
+    if names & PG_FIXTURES and not item.get_closest_marker("integration"):
+        item.add_marker(pytest.mark.integration)
+
+
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     """OS-specific cases (09a §2 `os` column) only run on their OS; the OS matrix in CI covers the rest."""
     import sys

@@ -48,7 +48,7 @@ def cmd_api(a: argparse.Namespace) -> None:
         if lan_hash is None:
             print("LAN_PASSWORD_REQUIRED: set one with `opagent lan-password` first", file=sys.stderr, flush=True)
             raise SystemExit(5)
-    bind_host = "0.0.0.0" if lan_hash else "127.0.0.1"  # noqa: S104 - LAN mode, login enforced
+    bind_host = "0.0.0.0" if lan_hash else "127.0.0.1"  # noqa: S104  # nosec B104 - LAN mode, login enforced
     if not a.token_stdin and getattr(a, "host", None):  # container all-in-one: compose publishes to 127.0.0.1 only
         bind_host = a.host
     sock = _bind_loopback(a.port, bind_host)
@@ -472,7 +472,7 @@ def main(argv: list[str] | None = None) -> None:
     p.set_defaults(fn=cmd_api)
     p = sub.add_parser("controlplane", help="self-hosted multi-user control plane (Docker / NAS)")
     p.add_argument("--dsn")
-    p.add_argument("--host", default="0.0.0.0")  # noqa: S104 - the CP is a network service (behind TLS)
+    p.add_argument("--host", default="0.0.0.0")  # noqa: S104  # nosec B104 - the CP is a network service (behind TLS)
     p.add_argument("--port", type=int, default=47800)
     p.add_argument("--web-dist")
     p.add_argument("--home")
