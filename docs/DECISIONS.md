@@ -5,7 +5,7 @@
 
 ## 審議索引
 
-實作期間（M0 → v1.0）共開了 15 次審議、18 個 sub-agent，全部都有對應的 ADR。規劃階段撰寫規格 00–11 用的 sub-agent，以及提高 mutation score 的實作 sub-agent，不屬於審議，因此不列入。
+實作期間（M0 → v1.0）共開了 16 次審議、19 個 sub-agent，全部都有對應的 ADR。規劃階段撰寫規格 00–11 用的 sub-agent，以及提高 mutation score 的實作 sub-agent，不屬於審議，因此不列入。
 
 | ADR | 審議題目 | sub-agent 數 | 里程碑 |
 |---|---|---|---|
@@ -25,6 +25,7 @@
 | ADR-0015 | C-21：內建 AS 或外部 IdP（使用者定案） | 2 | 5 |
 | ADR-0016 | workspace 隔離：row filter 或每個 workspace 一個資料庫 | 2 | 5 |
 | ADR-0017 | Worker 協定版本格式 | 1 | 6 |
+| ADR-0018 | VIEW-009 在整合測試中偶發失敗：量測方式 | 1 | 6（最終 gate） |
 
 
 ## ADR-0001：任務門檻（accept／review）與分類 cascade 的關係
@@ -481,3 +482,37 @@
 - VERSIONING §4 改寫為上述規則；02 §5.3 維持不變。
 
 **影響的測試 ID**：FRZ-002（快照比對 `x-protocol-version`、`/worker-api/v1` 的 schema 與 RPC 種類）、MU-WORKER-005（不變）。
+
+---
+
+## ADR-0018：Python 效能測試（layer F）在自己的 pytest 行程執行，不與整合測試共用
+
+- 日期：2026-11-03｜狀態：已採納｜審議：1 個獨立 sub-agent（題目、09a VIEW-009／PERF-008、CLAUDE.md §4／§5、`test_timeline.py`、`justfile`、`ci.yml`、量測數字）
+
+**背景**：VIEW-009（10 萬張的時間軸 API，單一 bucket p95 < 80 ms）單獨執行時一定通過，放在完整的 `just test-int` 最後執行時偶發失敗。在同一個行程、同一個資料庫上量測：
+- SQL 本身只要 0.3 ms：index scan 加 incremental sort。
+- 一般情況下 median 9.3 ms、p95 117.8 ms。用 `gc.callbacks` 追蹤，30 個請求期間剛好發生一次 generation-2 GC，耗時 232 ms；其他 gen-0／1 都在 0.4 ms 以下。
+- 關閉 GC 時 p95 11.1 ms；先 `gc.collect()` 再 `gc.freeze()` 時 p95 12.3 ms。
+
+這時行程裡有約 41 萬個被 GC 追蹤的物件，大多是前面約 300 個測試留下的。審議另外確認：
+- 沒有 app 洩漏，PERF-008 的修正有效。
+- 光是載入 `opagent_*` 模組就有約 19 萬個物件，完整一次 collect 約 46 ms。gen-2 的成本隨整個 heap 線性成長，所以 232 ms 符合預期，不是病態行為。
+- 根本原因在選擇式：`test-int` 的 `-m` 覆蓋了 pyproject `addopts` 裡的 `not perf`，因此兩個效能測試（VIEW-009、PF-075）在整合測試行程的最後執行，量到的是別的測試塞滿的 heap。
+
+**選項**：
+- A. 不處理，或失敗時重跑：違反 09 §1.6（PR 不自動重跑，不穩定的測試必須修正），也會讓真正的退化被重跑掩蓋。否決。
+- B. 計時前執行 `gc.collect()` + `gc.freeze()`：會連產品本身的 gen-2 成本一起拿掉，量到的是沒有出貨的設定，等於悄悄弱化測試。除非產品啟動時也呼叫 `gc.freeze()`（那是另一個產品決定，需要自己的測試 ID），否則不採用。
+- C. 效能測試在自己的行程執行：不是弱化。它拿掉的是其他測試造成的干擾；產品的 API 本來就是獨立行程，產品本身的載入量與 GC 仍然算在量測裡。門檻、p95、10 萬張資料、暖身全部不變。
+- D. 找出讓 gen-2 變慢的原因並修正：查過，沒有洩漏，產品程式碼不需要修改。
+- E. 放寬門檻或改用 median：屬於弱化（§5.7 禁止），而且會掩蓋 tail latency 的退化。否決。
+
+**決定**：C。
+- `just test-int` 與 ci.yml 的整合 job 改用 `-m "(integration or chaos) and not perf and not nightly and not release_gate"`。
+- 新增 `just perf-api`，以 `-m "perf and not nightly and not gpu and not real_model"` 在獨立行程執行，結果寫到 `.tc/py-perf.json`。
+- `just test-int` 先跑整合測試，再呼叫 `just perf-api`；CI 在同一個 job 加一個獨立步驟。PR 仍然必須通過這兩個效能測試。
+
+**影響的測試 ID**：
+- 新增 PERF-009（回歸）：整合選擇式收集不到任何 `perf` 測試，獨立的效能呼叫一定會收集到 VIEW-009 與 PF-075。先紅後綠。
+- VIEW-009 與 PF-075 的斷言、門檻都沒有修改。
+
+**同步修改的規格**：09 §2.1 Performance 列、09a PERF-008 備註與 PERF-009、CLAUDE.md §6 指令清單。

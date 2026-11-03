@@ -58,7 +58,7 @@
 
 | 完成條件 | 狀態 | 證據 |
 |---|---|---|
-| 不需 GPU 的切片 7～10 v0.1 ID 全部通過 | ✅／⏳ | INF-*、DL-*、MDL-*、DOC-*、PF-*、PACK-*、SRCH-*、VIEW-*、E2E-*。例外：INF-CAL-003、DOC-020 需真機；DL-019 是 nightly（見附錄） |
+| 不需 GPU 的切片 7～10 v0.1 ID 全部通過 | ✅／⏳ | INF-*、DL-*、MDL-*、DOC-*、PF-*、PACK-*、SRCH-*、VIEW-*、E2E-*。例外：INF-CAL-003、DOC-020 需真機。DL-019（nightly）在 2026-11-03 於本機以目前的程式重跑通過：單獨 47 張/秒、下載中 45 張/秒（−4%，門檻 −10%） |
 | 旅程 A、B 的 E2E 全綠 | ✅ | E2E-A-001～005、E2E-B-001～010 |
 | axe 0 serious／critical | ✅ | A11Y-001～006；v1.0 擴大到每個路由（A11Y-010） |
 | zh-TW、en 沒有缺漏的 key | ✅ | I18N-001～005；v1.0 加上 I18N-010 雙語完整性檢查 |
@@ -139,6 +139,7 @@
 | 完整 i18n 與 a11y 稽核 | ✅ | I18N-010／011、A11Y-010／011 |
 | 從 v0.x 升級的 migration 測試 | ✅ | MIG-001～003 |
 | stable 更新通道 | ✅ | UPD-010 |
+| VIEW-009 偶發失敗的根因 | ✅ | 不是產品問題：前面約 300 個測試留下的 heap 造成一次 232 ms 的 gen-2 GC；端點本身 p95 約 12 ms。效能測試改在獨立行程執行（ADR-0018），並以 PERF-009 防止回歸 |
 | 所有測試與 release gate 全綠 | ✅／⏳ | 雲端能跑的全綠（見最終 gate）；release gate 的真機項目 → B-20 |
 | `release-v1.0.md` 列出手動項目 | ✅ | `docs/checklists/release-v1.0.md`（REL-010 檢查它涵蓋所有開放中的 BLOCKERS） |
 | 破壞性變更都有遷移說明 | ✅ | `docs/upgrading-to-1.0.md`；MIG-003 lint |
@@ -151,7 +152,7 @@
 | 里程碑 0～6 的完成條件都已達成（例外都列在 BLOCKERS 與 PR） | ✅ | 上面各表；BLOCKERS 附錄 |
 | 每個里程碑都有疊加 PR | ✅ | PR #1～#12 |
 | 最終分支 lint／test／test-int／e2e 全綠 | 見下 | 最終 gate |
-| DECISIONS 記錄所有審議 | ✅ | 15 次審議、18 個 sub-agent → ADR-0001～0017（審議索引） |
+| DECISIONS 記錄所有審議 | ✅ | 16 次審議、19 個 sub-agent → ADR-0001～0018（審議索引） |
 | BLOCKERS 彙整所有使用者事項 | ✅ | B-1～B-20 與附錄 |
 
 ## 最終 gate

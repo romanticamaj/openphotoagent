@@ -69,7 +69,9 @@ jobs:
           sudo apt-get install -y postgresql-17 postgresql-17-pgvector
           echo "OPAGENT_PG_BIN=/usr/lib/postgresql/17/bin" >> $GITHUB_ENV
       - run: uv sync
-      - run: OPAGENT_TC_RESULTS=.tc/py-int.json uv run pytest -q -m "(integration or chaos) and not nightly and not release_gate"
+      - run: OPAGENT_TC_RESULTS=.tc/py-int.json uv run pytest -q -m "(integration or chaos) and not perf and not nightly and not release_gate"
+      - name: Python perf budgets in their own process (ADR-0018)
+        run: OPAGENT_TC_RESULTS=.tc/py-perf.json uv run pytest -q -p no:randomly -m "perf and not nightly and not gpu and not real_model"
       - uses: actions/upload-artifact@v4
         with: { name: tc-py-int, path: .tc/ }
 

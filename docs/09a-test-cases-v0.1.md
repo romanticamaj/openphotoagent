@@ -790,7 +790,8 @@
 | PERF-005 | 推論吞吐基準 | 三台參考機、測試圖庫子集 1,000 張 | 記錄張/秒、VRAM、載入時間；回歸 > 10% 警示、> 20% 失敗；寫入 release notes | N | DoD 5.5 |
 | PERF-006 | 搜尋延遲 | 10 萬張，文字 + facet | p95 < 300 ms | F | DoD 5.4 |
 | PERF-007 | 暖啟動 | 桌面（Win／Linux tauri-driver） | < 5 s 可操作 | D/F | #3、DoD 5.1 |
-| PERF-008 | 釋放後的 app 不會留在記憶體（回歸） | 建立數個 `create_app`、放掉參考、`gc.collect()` | 不留下任何 FastAPI app 或 engine（端點不得是捕捉 app 的 closure，FastAPI 會把端點 callable 放在模組層級的快取裡）；這個洩漏曾讓長時間的測試行程 GC 變慢，VIEW-009 因此不穩 | I | DoD 5.4 |
+| PERF-008 | 釋放後的 app 不會留在記憶體（回歸） | 建立數個 `create_app`、放掉參考、`gc.collect()` | 不留下任何 FastAPI app 或 engine（端點不得是捕捉 app 的 closure，FastAPI 會把端點 callable 放在模組層級的快取裡）；這個洩漏曾讓長時間的測試行程 GC 變慢（洩漏已修正；VIEW-009 剩下的不穩定來自與整合測試共用行程，見 PERF-009） | I | DoD 5.4 |
+| PERF-009 | Python 效能測試不與整合測試共用行程（回歸） | `just test-int` 與 ci.yml 整合 job 的 `-m` 選擇式；`just perf-api` 與 CI 效能步驟 | 整合選擇式收集不到任何 `perf` 測試；獨立的效能呼叫一定會收集到 VIEW-009 與 PF-075（ADR-0018） | C | DoD 5.4 |
 | A11Y-001 | axe 全路由 | onboarding、照片、Lightbox、整理精靈、計畫核准、待確認、模型、環境醫生、Activity Center、設定 × light/dark × zh-TW/en | axe 0 serious／critical | A | #11、DoD 5.4 |
 | A11Y-002 | 網格語意 | 照片網格 | `role=grid/row/gridcell`；roving tabindex；`aria-rowcount`／`aria-rowindex` | A | #90 |
 | A11Y-003 | Lightbox | 開啟／切換 | `role=dialog aria-modal`；切換時 `aria-live` 播報「第 12 張，共 312 張」 | A | #90 |

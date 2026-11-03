@@ -48,4 +48,3 @@
 | FACE-N-001 | v0.2 | 需要真人臉模型與授權允許的資料集 | B-2、B-7 |
 | DIST-002、WINML-001 | v0.4 | M 類（人工審閱）：`docs/research/distribution.md`、`docs/research/windows-ml.md` 已寫好，等待審閱 | B-18 |
 | SEC-AUDIT-001 | v1.0 | 外部安全審查 | B-20 |
-| DL-019 | v0.1 | nightly；見下方說明 | B-12 |
