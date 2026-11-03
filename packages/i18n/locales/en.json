@@ -632,7 +632,10 @@
     "skipWrite": "I'll set it up myself",
     "written": "Wrote {path}",
     "backup": "The previous config is at {path}",
-    "restartClient": "Restart {client}."
+    "restartClient": "Restart {client}.",
+    "enabled": "Enable MCP Server",
+    "test": "Test connection",
+    "testOk": "Connected: this app can search your photos"
   },
   "approval": {
     "title": {

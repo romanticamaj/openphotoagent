@@ -171,6 +171,7 @@ def list_calls(req: Request, token_id: str | None = None, limit: int = 100) -> l
 
 
 class SettingsIn(BaseModel):
+    enabled: bool | None = None
     allow_apply_requests: bool | None = None
     faces_enabled: bool | None = None
     media_policy: str | None = None

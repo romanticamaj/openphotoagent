@@ -530,7 +530,10 @@ ARRANGE = {
     "PF-063": a_pack_index("PACK_SIGNATURE_INVALID"),
     "PF-064": a_pack_index("PACK_INCOMPATIBLE"),
     "PF-065": a_locked,
+    # v0.4 row: the worker's doctor reports wsl.gpu as a warning (it only matters to vLLM); job.start blocks on it
+    "PF-018": a_doctor("WSL_GPU_UNAVAILABLE", "wsl.gpu", status="warn"),
 }
+LATER_ROWS = {"PF-018"}  # rows past v0.1 that reuse the same arrangement helpers
 SUBCASES = {
     "PF-066": {
         "DL_REMOTE_CHANGED": last_download_failed("DL_REMOTE_CHANGED"),
@@ -541,7 +544,7 @@ SUBCASES = {
 CASES = [
     pytest.param(r["id"], r["codes"][0], r, marks=pytest.mark.tc(r["id"]), id=f"{r['id']}-{r['codes'][0]}")
     for r in GOLDEN
-    if r["version"].startswith("v0.1") and r["id"] in ARRANGE
+    if (r["version"].startswith("v0.1") or r["id"] in LATER_ROWS) and r["id"] in ARRANGE
 ]
 CASES += [
     pytest.param(pid, code, next(r for r in GOLDEN if r["id"] == pid), marks=pytest.mark.tc(pid), id=f"{pid}-{code}")

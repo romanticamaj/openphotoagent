@@ -2,10 +2,11 @@
 // revoke in one click, and a wizard that creates a read-only token by default, shows the client config change
 // before writing it, and stores the token in the OS keyring (MCP-PAT-001/002/004, MCP-AUD-004).
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../../components/Button";
-import { api, type McpClientProposal, type McpToken } from "../../lib/api";
+import { ProblemCard, type Fix, type Problem } from "../../components/ProblemCard";
+import { api, type McpClientProposal, type McpSettings, type McpToken } from "../../lib/api";
 
 const CLIENTS = ["claude-desktop", "claude-code", "cursor"] as const;
 
@@ -21,7 +22,10 @@ export function IntegrationsPage() {
   });
   const save = useMutation({
     mutationFn: (patch: Record<string, unknown>) => api.putMcpSettings(patch),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["mcp-settings"] }),
+    // switches move when clicked; the server's answer replaces the guess
+    onMutate: (patch) => qc.setQueryData(["mcp-settings"], (old: McpSettings | undefined) => (old ? { ...old, ...patch } : old)),
+    onSuccess: (data) => qc.setQueryData(["mcp-settings"], data),
+    onError: () => qc.invalidateQueries({ queryKey: ["mcp-settings"] }),
   });
   const live = (tokens.data ?? []).filter((x) => !x.revoked);
   return (
@@ -35,12 +39,19 @@ export function IntegrationsPage() {
       <ul className="space-y-3" aria-label={t("mcp.apps")}>
         {live.length === 0 && <li className="text-sm">{t("mcp.none")}</li>}
         {live.map((x) => (
-          <AppRow key={x.id} token={x} onRevoke={() => revoke.mutate(x.id)} />
+          <AppRow
+            key={x.id}
+            token={x}
+            onRevoke={() => revoke.mutate(x.id)}
+            onEnable={() => save.mutateAsync({ enabled: true })}
+            onRegenerate={() => setWizard(true)}
+          />
         ))}
       </ul>
       {settings.data && (
         <fieldset className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border)] p-4">
           <legend className="px-1 text-sm font-semibold">{t("mcp.workspace")}</legend>
+          <Switch id="enable-mcp" label={t("mcp.enabled")} on={settings.data.enabled !== false} onChange={(v) => save.mutate({ enabled: v })} />
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
@@ -68,10 +79,48 @@ export function IntegrationsPage() {
   );
 }
 
-function AppRow({ token, onRevoke }: { token: McpToken; onRevoke: () => void }) {
-  const { t } = useTranslation();
+// the box follows the click at once and then whatever the server stored
+function Switch({ id, label, on, onChange }: { id: string; label: string; on: boolean; onChange: (v: boolean) => void }) {
+  const [local, setLocal] = useState(on);
+  useEffect(() => setLocal(on), [on]);
   return (
-    <li data-testid="mcp-app" className="flex items-center justify-between rounded-[var(--radius-md)] border border-[var(--border)] p-3">
+    <label className="flex items-center gap-2 text-sm font-medium">
+      <input
+        id={id}
+        type="checkbox"
+        checked={local}
+        onChange={(e) => {
+          setLocal(e.target.checked);
+          onChange(e.target.checked);
+        }}
+      />
+      {label}
+    </label>
+  );
+}
+
+type RowProps = { token: McpToken; onRevoke: () => void; onEnable: () => Promise<unknown>; onRegenerate: () => void };
+
+// 「測試連線」 runs the `mcp.connect` preflight (06 §4.2): a blocker shows its card, and each fix does what it says
+function AppRow({ token, onRevoke, onEnable, onRegenerate }: RowProps) {
+  const { t } = useTranslation();
+  const [result, setResult] = useState<Problem[] | null>(null);
+  const test = useMutation({
+    mutationFn: () => api.preflightFull("mcp.connect", { token_id: token.id }),
+    onSuccess: (pf) => setResult(pf.blockers as Problem[]),
+  });
+  const onFix = async (f: Fix) => {
+    if (f.type === "open_settings" && f.target === "enable-mcp") {
+      await onEnable();
+      test.mutate();
+    } else if (f.target === "regenerate_token") {
+      setResult(null);
+      onRegenerate();
+    }
+  };
+  return (
+    <li data-testid="mcp-app" className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border)] p-3">
+      <div className="flex items-center justify-between">
       <div>
         <p className="font-medium">
           {token.name} <span className="text-xs text-[var(--text-muted)]">{`#${token.number}`}</span>
@@ -80,7 +129,17 @@ function AppRow({ token, onRevoke }: { token: McpToken; onRevoke: () => void }) 
           {t("mcp.usage", { calls: token.calls, images: token.images_returned })} · {token.scopes.join(", ")}
         </p>
       </div>
-      <Button variant="ghost" onClick={onRevoke}>{t("mcp.revoke")}</Button>
+      <div className="flex gap-2">
+        <Button variant="ghost" disabledReason={test.isPending ? { code: "BUSY", message: t("common.working") } : null} onClick={() => test.mutate()}>
+          {t("mcp.test")}
+        </Button>
+        <Button variant="ghost" onClick={onRevoke}>{t("mcp.revoke")}</Button>
+      </div>
+      </div>
+      {result && result.length === 0 && (
+        <p role="status" data-testid="mcp-test-ok" className="text-sm">✓ {t("mcp.testOk")}</p>
+      )}
+      {result?.map((p) => <ProblemCard key={p.code} problem={p} tone="danger" onFix={(f) => void onFix(f)} />)}
     </li>
   );
 }

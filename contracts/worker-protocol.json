@@ -2623,6 +2623,17 @@
             ],
             "title": "Auto Approve"
           },
+          "enabled": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enabled"
+          },
           "exif_free_text": {
             "anyOf": [
               {

@@ -632,7 +632,10 @@
     "skipWrite": "我自己設定",
     "written": "已寫入 {path}",
     "backup": "原設定備份在 {path}",
-    "restartClient": "請重新啟動 {client}。"
+    "restartClient": "請重新啟動 {client}。",
+    "enabled": "啟用 MCP Server",
+    "test": "測試連線",
+    "testOk": "連線正常：這個 App 可以搜尋你的照片"
   },
   "approval": {
     "title": {

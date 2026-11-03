@@ -38,7 +38,7 @@ export type McpToken = {
   images_returned: number;
   last_used_at: string | null;
 };
-export type McpSettings = { allow_apply_requests: boolean; faces_enabled: boolean; media_policy: string; exif_free_text: boolean };
+export type McpSettings = { enabled: boolean; allow_apply_requests: boolean; faces_enabled: boolean; media_policy: string; exif_free_text: boolean };
 export type McpClientProposal = { client: string; path: string; exists: boolean; before: unknown; after: { command: string; args: string[] }; command_line: string | null };
 export type Approval = {
   id: string;
