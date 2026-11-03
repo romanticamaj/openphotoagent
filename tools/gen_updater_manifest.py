@@ -20,7 +20,12 @@ PATTERNS = {
 }
 
 
-def build(version: str, folder: Path, base_url: str, notes: str, pub_date: str) -> dict[str, object]:
+def build(
+    version: str, folder: Path, base_url: str, notes: str, pub_date: str, channel: str = "stable"
+) -> dict[str, object]:
+    if channel == "stable" and "-" in version.lstrip("v"):
+        # the stable channel only ever carries releases (UPD-010); a beta goes to beta.json
+        raise SystemExit(f"{version} is a pre-release and cannot be published to the stable channel")
     platforms: dict[str, dict[str, str]] = {}
     for f in sorted(folder.iterdir()):
         if f.suffix == ".sig" or not f.is_file():
@@ -44,9 +49,10 @@ def main() -> int:
     ap.add_argument("--notes", default="")
     ap.add_argument("--pub-date", required=True)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--channel", choices=["stable", "beta"], default="stable")
     a = ap.parse_args()
     try:
-        manifest = build(a.version, Path(a.dir), a.base_url, a.notes, a.pub_date)
+        manifest = build(a.version, Path(a.dir), a.base_url, a.notes, a.pub_date, channel=a.channel)
     except SystemExit as e:
         print(f"error: {e}", file=sys.stderr)
         return 1

@@ -96,8 +96,8 @@ jobs:
       - name: latest.json / beta.json
         run: |
           mkdir -p upd && find dl \( -name '*.nsis.zip*' -o -name '*.app.tar.gz*' -o -name '*.AppImage.tar.gz*' -o -name '*-setup.exe*' \) -exec cp {} upd/ \;
-          case "$TAG" in *-*) OUT=beta.json ;; *) OUT=latest.json ;; esac
-          python3 tools/gen_updater_manifest.py --version "$TAG" --dir upd \
+          case "$TAG" in *-*) OUT=beta.json CH=beta ;; *) OUT=latest.json CH=stable ;; esac
+          python3 tools/gen_updater_manifest.py --version "$TAG" --channel "$CH" --dir upd \
             --base-url "https://github.com/${{ github.repository }}/releases/download/$TAG" \
             --notes "See CHANGELOG.md" --pub-date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --out "upd/$OUT"
       - name: Attach installers and the manifest to the release
