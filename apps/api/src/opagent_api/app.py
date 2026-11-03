@@ -56,6 +56,7 @@ def create_app(
     insecure_cookies: bool = False,
     tenant_of: AppState | None = None,
     public_url: str | None = None,
+    oidc: dict[str, Any] | None = None,
     ws_id: str = "default",
 ) -> FastAPI:
     from opagent_core.version import VERSION
@@ -81,6 +82,7 @@ def create_app(
     )
     if public_url:
         st.public_url = public_url.rstrip("/")
+    st.oidc = oidc
     if tenant_of is not None:  # an inner workspace app behind the control plane's guard (ADR-0016)
         st.multi_user, st.control, st.ws_id, st.jwt_secret = True, tenant_of, ws_id, tenant_of.jwt_secret
         st.insecure_cookies = tenant_of.insecure_cookies
@@ -125,6 +127,9 @@ def create_app(
         from . import oauth
 
         app.include_router(oauth.router)
+        from . import oidc as oidc_routes
+
+        app.include_router(oidc_routes.router, prefix="/api/v1")
     if multi_user or tenant_of is not None:
         from . import oauth
 

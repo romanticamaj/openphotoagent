@@ -179,7 +179,7 @@ def me(req: Request) -> dict[str, Any]:
     u = getattr(req.state, "opa_user", None)
     if u is None:
         raise HTTPException(401, detail={"code": "AUTH_REQUIRED"})
-    return {"id": u["id"], "email": u["email"], "roles": u["roles"]}
+    return {"id": u["id"], "email": u["email"], "roles": u["roles"], "csrf": u["csrf"]}
 
 
 class MemberIn(BaseModel):

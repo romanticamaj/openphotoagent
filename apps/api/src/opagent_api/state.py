@@ -60,6 +60,10 @@ class AppState:
     ws_apps: dict[str, Any] = field(default_factory=dict)  # control plane: workspace id → inner FastAPI app
     app_kwargs: dict[str, Any] = field(default_factory=dict)  # how to build an inner workspace app
     fastapi_app: Any = None
+    oidc: dict[str, Any] | None = None  # {issuer, client_id, client_secret}: OIDC sign-in (oidc.py)
+    oidc_transport: Any = None  # tests: the fake IdP
+    oidc_cache: dict[str, Any] = field(default_factory=dict)  # discovery document and JWKS
+    oidc_pending: dict[str, Any] = field(default_factory=dict)  # state → nonce, PKCE verifier, expiry
     oauth_server: Any = None  # the built-in OAuth 2.1 AS (oauth.py), control plane only
     oauth_resolver: Any = None  # tests: a fake DNS resolver for client-metadata fetches (MU-OAUTH-006)
     oauth_transport: Any = None  # tests: an httpx transport standing in for client-metadata hosts
