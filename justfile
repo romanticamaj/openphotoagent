@@ -43,6 +43,7 @@ lint:
     uv run python tools/gen_error_i18n.py --check
     uv run python tools/gen_problem_stories.py --check
     uv run python tools/contracts.py
+    uv run python tools/check_changelog.py
     pnpm -r --if-present lint
     pnpm -r --if-present typecheck
     cd apps/desktop/supervisor && cargo fmt --check && cargo clippy -q --all-targets -- -D warnings

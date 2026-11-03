@@ -123,6 +123,8 @@ jobs:
       - run: python3 tools/check_test_integrity.py --base origin/${{ github.base_ref }}
         env:
           TEST_CHANGE_APPROVED: ${{ contains(github.event.pull_request.labels.*.name, 'test-change-approved') && '1' || '0' }}
+      # MIG-003: a breaking commit (`!` or BREAKING CHANGE:) must carry a `Migration:` note
+      - run: python3 tools/check_changelog.py --commits origin/${{ github.base_ref }}..HEAD
 
   tc-status:
     needs: [unit-py, unit-ts, unit-rust, integration-linux, e2e-smoke]
