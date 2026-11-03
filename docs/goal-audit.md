@@ -157,4 +157,13 @@
 
 ## 最終 gate
 
-<!-- filled after the run -->
+2026-11-03，在 `feat/v1.0` 的 commit `94968c0` 上依序執行一次；開始前與結束後工作樹都是乾淨的，HEAD 沒有變動：
+
+| gate | 結果 | 時間 | 內容 |
+|---|---|---|---|
+| `just lint` | ✅ exit 0 | 11 s | ruff、mypy、import-linter、i18n／stories／contracts／changelog 檢查、eslint、tsc、cargo fmt＋clippy |
+| `just test` | ✅ exit 0 | 184 s | pytest 1,200 passed；Vitest 37＋7；cargo test |
+| `just test-int` | ✅ exit 0 | 453 s | 整合 498 passed；接著在獨立行程跑效能測試 2 passed（VIEW-009、PF-075，ADR-0018） |
+| `just e2e` | ✅ exit 0 | 534 s | Playwright 83 passed |
+
+`just tc-status`：940 個案例中 905 綠、1 紅、34 未開始。紅的是 PERF-001：雲端量到 16.8 ms，門檻 16.7 ms 以參考 runner 為準（B-13）。34 個未開始的 ID 都在 BLOCKERS 附錄裡對到負責的 B-x。
