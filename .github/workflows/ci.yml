@@ -110,7 +110,8 @@ jobs:
           nmake /NOLOGO /F Makefile.win
           nmake /NOLOGO /F Makefile.win install
       - run: uv sync
-      - run: uv run pytest -q packages/core packages/fs-sandbox packages/testing
+      # a hang must name its test, not eat the job (windows-latest once stalled for 20 min)
+      - run: uv run pytest -q --timeout=300 packages/core packages/fs-sandbox packages/testing
 
   e2e-smoke:
     runs-on: ubuntu-24.04

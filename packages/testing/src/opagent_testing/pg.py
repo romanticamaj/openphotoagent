@@ -86,7 +86,19 @@ def start_cluster(base_dir: str, init_schema: Callable[[str], None] | None = Non
         f"-p {port} -k {base_dir} -c listen_addresses=127.0.0.1 "
         "-c fsync=off -c synchronous_commit=off -c full_page_writes=off"
     )
-    _run(prefix, [str(bin_dir / "pg_ctl"), "-D", data, "-o", opts, "-l", str(Path(base_dir) / "pg.log"), "-w", "start"])
+    log = Path(base_dir) / "pg.log"
+    # no captured pipes: on Windows the postmaster inherits them and never closes them, so a captured run waits for
+    # EOF forever (windows-latest hung here); -l sends the server's output to the log, quoted if start fails
+    r = subprocess.run(
+        [*prefix, str(bin_dir / "pg_ctl"), "-D", data, "-o", opts, "-l", str(log), "-w", "start"],
+        stdin=subprocess.DEVNULL,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    if r.returncode:
+        tail = log.read_text(encoding="utf-8", errors="replace")[-2000:] if log.exists() else ""
+        raise RuntimeError(f"pg_ctl start exited {r.returncode}: {tail}")
     cluster = PgCluster(
         host="127.0.0.1",
         port=port,
