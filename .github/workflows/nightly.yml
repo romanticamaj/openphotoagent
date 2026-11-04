@@ -26,7 +26,7 @@ jobs:
       - run: uv run python tools/mutate_diff.py --all
       - uses: actions/upload-artifact@v4
         if: always()
-        with: { name: tc-nightly, path: .tc/ }
+        with: { name: tc-nightly, path: .tc/, include-hidden-files: true }
 
   # 09 §5.1 visual layer, rendered only in the official image pinned to @playwright/test (ADR-0019, VIS-004)
   visual:

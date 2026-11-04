@@ -34,7 +34,7 @@ jobs:
       - run: uv sync
       - run: OPAGENT_TC_RESULTS=.tc/py-fast.json uv run pytest -q -m "not integration and not e2e and not chaos and not perf and not release_gate and not nightly" --cov --cov-branch --cov-report=xml
       - uses: actions/upload-artifact@v4
-        with: { name: tc-py-fast, path: .tc/ }
+        with: { name: tc-py-fast, path: .tc/, include-hidden-files: true }
 
   unit-ts:
     runs-on: ubuntu-24.04
@@ -45,7 +45,7 @@ jobs:
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile && pnpm -r --if-present test
       - uses: actions/upload-artifact@v4
-        with: { name: tc-ts, path: .tc/ }
+        with: { name: tc-ts, path: .tc/, include-hidden-files: true }
 
   unit-rust:
     runs-on: ubuntu-24.04
@@ -55,7 +55,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - run: uv run --no-project python tools/cargo_tc.py
       - uses: actions/upload-artifact@v4
-        with: { name: tc-rust, path: .tc/ }
+        with: { name: tc-rust, path: .tc/, include-hidden-files: true }
 
   integration-linux:
     runs-on: ubuntu-24.04
@@ -73,7 +73,7 @@ jobs:
       - name: Python perf budgets in their own process (ADR-0018)
         run: OPAGENT_TC_RESULTS=.tc/py-perf.json uv run pytest -q -p no:randomly -m "perf and not nightly and not gpu and not real_model"
       - uses: actions/upload-artifact@v4
-        with: { name: tc-py-int, path: .tc/ }
+        with: { name: tc-py-int, path: .tc/, include-hidden-files: true }
 
   os-matrix:
     strategy:
@@ -131,7 +131,7 @@ jobs:
       - run: uv tool install rust-just && just e2e-pr
       - uses: actions/upload-artifact@v4
         if: always()
-        with: { name: tc-e2e, path: .tc/ }
+        with: { name: tc-e2e, path: .tc/, include-hidden-files: true }
 
   test-integrity:
     if: github.event_name == 'pull_request'

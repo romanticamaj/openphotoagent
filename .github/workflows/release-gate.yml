@@ -19,7 +19,7 @@ jobs:
       - run: OPAGENT_TC_RESULTS=.tc/py-gate.json uv run pytest -q -m release_gate -o addopts="-p no:cacheprovider --import-mode=importlib"
       - uses: actions/upload-artifact@v4
         if: always()
-        with: { name: tc-gate, path: .tc/ }
+        with: { name: tc-gate, path: .tc/, include-hidden-files: true }
   supply-chain:  # SEC-SBOM-001: SBOM + vulnerability gate (High/Critical without a VEX reason block the release)
     runs-on: ubuntu-24.04
     steps:
