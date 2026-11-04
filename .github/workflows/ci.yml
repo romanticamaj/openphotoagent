@@ -98,6 +98,14 @@ jobs:
         if: runner.os == 'Windows'
         shell: bash
         run: echo "OPAGENT_PG_BIN=$PGBIN" >> $GITHUB_ENV
+      - name: Test temp dir on the work drive, outside Defender's real-time scan (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # C:'s %TEMP% plus real-time scanning made each PG-013 template clone 270 ms+ (budget 200 ms)
+          $t = Join-Path $env:RUNNER_TEMP "t"; New-Item -ItemType Directory -Force $t | Out-Null
+          Add-MpPreference -ExclusionPath $t, $env:GITHUB_WORKSPACE
+          "TEMP=$t" >> $env:GITHUB_ENV; "TMP=$t" >> $env:GITHUB_ENV
       - uses: ilammy/msvc-dev-cmd@v1
         if: runner.os == 'Windows'
       - name: pgvector for the preinstalled PostgreSQL (Windows; pgvector's documented nmake build)
