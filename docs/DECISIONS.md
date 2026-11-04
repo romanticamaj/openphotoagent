@@ -700,7 +700,7 @@
 1. **先修 P0**：runtime 改為複製整個 uv 管理的 python-build-standalone，再把套件裝進去。新增 DESK-039（回歸）：複製到別的路徑、以空環境 `-I` 執行；desktop-build 對實際產物再跑一次同樣的檢查。
 2. **大小閘門檢查每一種安裝包**：Linux 同時檢查 AppImage 與 .deb（DESK-030 的文字同步修改）。
 3. **低風險的 payload 縮減先做**：jieba 子模組、strip debug info、標準函式庫的 `tkinter`／`idlelib`／`turtledemo`／`ensurepip`／`lib2to3`／`pydoc_data`。
-4. 修正 runtime 後**重新量測**。如果 AppImage 仍超過 200 MB，就做 (b)：AppImage 不附 WebKitGTK／GTK，AppRun 先檢查系統函式庫，缺少時顯示新的錯誤碼 `DESK_WEBVIEW_MISSING`（含各發行版的安裝指令）。另外新增 DESK-037（AppImage 內沒有 WebKitGTK 的結構檢查）與 DESK-038（AppRun preflight）。
+4. **做 (b)**。這本來就是 08 §4.1 的設計，與大小無關，而且修正 runtime 只會讓安裝包變大（多了標準函式庫），所以不等重新量測：AppImage 不附 WebKitGTK／GTK，AppRun 先檢查系統函式庫，缺少時顯示新的錯誤碼 `DESK_WEBVIEW_MISSING`（含各發行版的安裝指令）。另外新增 DESK-037（AppImage 內沒有 WebKitGTK 的結構檢查）與 DESK-038（AppRun preflight）。
 5. HDBSCAN 改寫延後：風險較高，而且人臉分群的測試要重新驗證，等真的需要時再做。
 
 **理由**：
@@ -708,7 +708,9 @@
 - (b) 只是讓實作回到 08 §4.1 原本的設計；Linux 桌面環境幾乎都已有 WebKitGTK，.deb 本來就是用套件相依取得。
 - (c) 之中風險低的項目不改變任何行為，只移除不會被 import 的檔案與除錯資訊。
 
-**影響的測試 ID**：新增 DESK-039（回歸，先紅後綠）；修改 DESK-030 的範圍（檢查更多產物，不是放寬）；保留 DESK-037／038 給決定 4。
+**影響的測試 ID**：新增 DESK-039（回歸，先紅後綠）；修改 DESK-030 的範圍（檢查更多產物，不是放寬）；新增 DESK-037／038（決定 4，先紅後綠）。
 
-**同步修改的規格**：09a DESK-030、DESK-039；08 §4.1 D6 的超標處理順序。
+**同步修改的規格**：09a DESK-030、DESK-037～039；06 §4.7 #111 `DESK_WEBVIEW_MISSING`；08 §4.1 D6 的超標處理順序。
+
+**實作**：`tools/slim_appimage.py`。AppRun 會依名稱 source 每個 hook，所以它會重寫 AppRun：移除 GTK hook，先 source 我們的 preflight，再保留其他 hook。重新打包時沿用原本的 AppImage runtime 與 squashfs 壓縮方式；desktop-build 會重新解開並驗證，在 release tag 上重新簽章。
 
