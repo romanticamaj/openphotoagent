@@ -121,7 +121,9 @@ def clone(cluster: PgCluster) -> ClonedDb:
     name = "t_" + uuid.uuid4().hex[:16]
     with psycopg.connect(cluster.dsn("postgres"), autocommit=True) as c:
         t0 = time.perf_counter()
-        c.execute(f'CREATE DATABASE "{name}" TEMPLATE {cluster.template}')
+        # FILE_COPY: a straight file copy of the small template; the default WAL_LOG pushes every page through WAL,
+        # which took 2.2 s per test on windows-latest (PG-013 budget 200 ms); same or faster on Linux
+        c.execute(f'CREATE DATABASE "{name}" TEMPLATE {cluster.template} STRATEGY = FILE_COPY')
         ms = (time.perf_counter() - t0) * 1000
     return ClonedDb(dsn=cluster.dsn(name), name=name, clone_ms=ms)
 

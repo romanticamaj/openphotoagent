@@ -76,6 +76,9 @@ jobs:
           NO_STRIP: "true"
           # the pg pack is built without rpath; linuxdeploy resolves its libraries (libpq for pg_dump) from here
           LD_LIBRARY_PATH: ${{ github.workspace }}/build/desktop/pg/lib
+          # Python wheels already carry their own libraries (auditwheel: lib<name>-<8 hex>.so, loaded via $ORIGIN
+          # rpaths); linuxdeploy copied them a second time into usr/lib (~100 MB uncompressed, DESK-030)
+          LINUXDEPLOY_EXCLUDED_LIBRARIES: "*-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f].so*"
         run: |
           cargo install tauri-cli --version "^2" --locked
           # updater artifacts are signed releases only (B-5); PR and branch builds check the installers and size
@@ -89,11 +92,11 @@ jobs:
           B=apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle
           ls -la $B/*/ 2>/dev/null | grep -E "\.(AppImage|deb|dmg|exe|msi)$" || true
           for d in build/desktop/python build/desktop/pg apps/web/dist $B/appimage/*.AppDir/usr/lib $B/macos/*.app; do
-            [ -e "$d" ] && du -sh "$d"
+            if [ -e "$d" ]; then du -sh "$d"; fi
           done
-          AD=$(ls -d $B/appimage/*.AppDir 2>/dev/null | head -1)
-          [ -n "$AD" ] && du -sh "$AD"/usr/lib/* 2>/dev/null | sort -rh | head -25 || true
-          [ -d build/desktop/python ] && du -sh build/desktop/python/lib/python3*/site-packages/* 2>/dev/null | sort -rh | head -15 || true
+          AD=$(ls -d $B/appimage/*.AppDir 2>/dev/null | head -1 || true)
+          if [ -n "$AD" ]; then du -sh "$AD"/usr/lib/* 2>/dev/null | sort -rh | head -25 || true; fi
+          if [ -d build/desktop/python/lib ]; then du -sh build/desktop/python/lib/python3*/site-packages/* 2>/dev/null | sort -rh | head -15 || true; fi
       - name: Size gate (≤ 200 MB, DESK-030)
         shell: bash
         run: uv run --no-project python tools/check_bundle_size.py apps/desktop/src-tauri/target/${{ matrix.target }}/release/${{ matrix.artefact }}
