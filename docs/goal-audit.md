@@ -151,9 +151,9 @@
 |---|---|---|
 | 里程碑 0～6 的完成條件都已達成（例外都列在 BLOCKERS 與 PR） | ✅ | 上面各表；BLOCKERS 附錄 |
 | 每個里程碑都有疊加 PR | ✅ | PR #1～#12 |
-| 最終分支 lint／test／test-int／e2e 全綠 | 見下 | 最終 gate |
-| DECISIONS 記錄所有審議 | ✅ | 16 次審議、19 個 sub-agent → ADR-0001～0018（審議索引） |
-| BLOCKERS 彙整所有使用者事項 | ✅ | B-1～B-20 與附錄 |
+| 最終分支 lint／test／test-int／e2e 全綠 | ✅ | 最終 gate（下）；同一 commit 的 GitHub Actions 也全綠 |
+| DECISIONS 記錄所有審議 | ✅ | 21 次審議、25 個 sub-agent → ADR-0001～0023（審議索引；逐筆見下表） |
+| BLOCKERS 彙整所有使用者事項 | ✅ | B-1～B-21 與附錄；地端接手見 `docs/HANDOFF-local.md` |
 
 ## 審議 sub-agent 對照（逐筆）
 
@@ -180,18 +180,30 @@
 | 2026-11-02 19:30 | Deliberate: tenant isolation (db per ws) | ADR-0016 | ✅ |
 | 2026-11-03 13:56 | Deliberate protocol_version format | ADR-0017 | ✅ |
 | 2026-11-03 16:1x | Deliberate VIEW-009 GC measurement | ADR-0018 | ✅ |
+| 2026-11-03 16:36 | Deliberate CI visual baseline mismatch | ADR-0019 | ✅ |
+| 2026-11-04 00:41 | Deliberate PG-001 locale spec conflict | ADR-0020 | ✅ |
+| 2026-11-04 02:05 | Deliberate tc-status --check design | ADR-0021 | ✅ |
+| 2026-11-04 02:49 | Argue: Linux installer packaging choice | ADR-0022 | ✅ |
+| 2026-11-04 02:49 | Argue: shrink the bundled payload | ADR-0022 | ✅ |
+| 2026-11-04 05:41 | Deliberate: shipping app data in bundle | ADR-0023 | ✅ |
 
-共 19 個 sub-agent、16 次審議。全部 18 份 ADR 都有五個必填段落，由 `docs/DECISIONS.md` 的段落檢查確認：2026-11-03 已補齊 ADR-0014～0018 的段落標題。
+共 25 個 sub-agent、21 次審議。全部 23 份 ADR 都有五個必填段落（背景、選項、決定、理由、影響的測試 ID）；2026-11-03 已補齊 ADR-0014～0018 的段落標題。DECISIONS 的審議索引與 `## ADR-` 標題一一對應（23 份）。
 
 ## 最終 gate
 
-2026-11-03，在 `feat/v1.0` 的 commit `94968c0` 上依序執行一次；開始前與結束後工作樹都是乾淨的，HEAD 沒有變動：
+2026-11-04，在 `feat/v1.0` 的 commit `dc1d82f` 上依序執行一次。這是最後一個改動程式的 commit；開始前與結束後工作樹都是乾淨的，HEAD 沒有變動。之後的 commit 只改文件（`docs/generated/coverage-status.md`、本檔）。
 
 | gate | 結果 | 時間 | 內容 |
 |---|---|---|---|
-| `just lint` | ✅ exit 0 | 11 s | ruff、mypy、import-linter、i18n／stories／contracts／changelog 檢查、eslint、tsc、cargo fmt＋clippy |
-| `just test` | ✅ exit 0 | 184 s | pytest 1,200 passed；Vitest 37＋7；cargo test |
-| `just test-int` | ✅ exit 0 | 453 s | 整合 498 passed；接著在獨立行程跑效能測試 2 passed（VIEW-009、PF-075，ADR-0018） |
-| `just e2e` | ✅ exit 0 | 534 s | Playwright 83 passed |
+| `just lint` | ✅ exit 0 | 12 s | ruff、mypy、import-linter、i18n／stories／contracts／changelog／api-labels 檢查、eslint、tsc、cargo fmt＋clippy |
+| `just test` | ✅ exit 0 | 74 s | pytest 1,173 passed；Vitest；cargo test |
+| `just test-int` | ✅ exit 0 | 547 s | 整合 564 passed；接著在獨立行程跑效能測試 2 passed（VIEW-009、PF-075，ADR-0018） |
+| `just e2e` | ✅ exit 0 | 541 s | Playwright 83 passed |
 
-`just tc-status`：940 個案例中 905 綠、1 紅、34 未開始。紅的是 PERF-001：雲端量到 16.8 ms，門檻 16.7 ms 以參考 runner 為準（B-13）。34 個未開始的 ID 都在 BLOCKERS 附錄裡對到負責的 B-x。
+GitHub Actions：
+- `dc1d82f` 的 ci.yml 全部 job 成功：lint、unit-py／ts／rust、integration-linux、Windows／macOS／Ubuntu 測試矩陣、e2e-smoke、mutation-diff、audit、tc-inventory、tc-status。
+- 最後一次 desktop-build（`d20c856`）三平台 bundle 成功。四種安裝包都 ≤ 200 MB（ADR-0022 量測）。
+
+`just tc-status`：965 個案例中 930 綠、1 紅、34 未開始。
+- 紅的是 PERF-001：雲端量到 16.8 ms，門檻 16.7 ms 以參考 runner 為準（B-13）。
+- 34 個未開始的 ID 都在 BLOCKERS 附錄裡對到負責的 B-x。
