@@ -6,7 +6,7 @@
 
 | 版本 | 總數 | 綠 | 部分 | 紅 | 未開始 | 廢止 |
 |---|---|---|---|---|---|---|
-| v0.1 | 643 | 615 | 1 | 1 | 26 | 0 |
+| v0.1 | 643 | 616 | 0 | 1 | 26 | 0 |
 | v0.2 | 181 | 178 | 0 | 0 | 3 | 0 |
 | v0.3 | 55 | 53 | 0 | 0 | 2 | 0 |
 | v0.4 | 31 | 29 | 0 | 0 | 2 | 0 |
@@ -41,7 +41,7 @@
 | v0.1 | INF-CAS | 10 | 10 | 0 | 0 |
 | v0.1 | INF-CONF | 13 | 13 | 0 | 0 |
 | v0.1 | INF-JSON | 12 | 12 | 0 | 0 |
-| v0.1 | INF-OOM | 4 | 3 | 0 | 1 |
+| v0.1 | INF-OOM | 4 | 4 | 0 | 0 |
 | v0.1 | INF-REG | 8 | 7 | 1 | 0 |
 | v0.1 | INF-RT | 12 | 12 | 0 | 0 |
 | v0.1 | INF-VRAM | 8 | 8 | 0 | 0 |
@@ -416,10 +416,10 @@
 | INF-VRAM-006 | v0.1 | U | #13 | 綠 | 1 | Mac 統一記憶體 |
 | INF-VRAM-007 | v0.1 | U | #26 | 綠 | 1 | DXGI／Vulkan provider |
 | INF-VRAM-008 | v0.1 | U | #14 | 綠 | 1 | 外部佔用不改等級 |
-| INF-OOM-001 | v0.1 | I | #28 | 部分 | 4 | llama-server 崩潰 |
-| INF-OOM-002 | v0.1 | U | #28 | 綠 | 4 | ORT OOM |
-| INF-OOM-003 | v0.1 | I | #28 | 綠 | 2 | CUDA pack 連續崩潰 → Vulkan |
-| INF-OOM-004 | v0.1 | U | #9 | 綠 | 2 | 假 llama-server 的跨重啟狀態在並行請求與 SIGKILL 下不損壞（回歸） |
+| INF-OOM-001 | v0.1 | I | #28 | 綠 | 2 | llama-server 崩潰 |
+| INF-OOM-002 | v0.1 | U | #28 | 綠 | 2 | ORT OOM |
+| INF-OOM-003 | v0.1 | I | #28 | 綠 | 1 | CUDA pack 連續崩潰 → Vulkan |
+| INF-OOM-004 | v0.1 | U | #9 | 綠 | 4 | 假 llama-server 的跨重啟狀態在並行請求與 SIGKILL 下不損壞（回歸） |
 | INF-RT-001 | v0.1 | U | #13,#22 | 綠 | 1 | 5070 Ti（Win，驅動 580，cc 12.0） |
 | INF-RT-002 | v0.1 | U | #13 | 綠 | 1 | RTX 4060 8 GB 筆電 |
 | INF-RT-003 | v0.1 | U | #13 | 綠 | 2 | Mac M2／M3 16 GB |
@@ -1038,10 +1038,10 @@
 | RT-PACK-012 | v0.4 | I | #23 | 綠 | 5 | 新 pack 的平台過濾 |
 | RT-PACK-013 | v0.4 | I | #23 | 綠 | 2 | 大 pack 分段 |
 | RT-PACK-014 | v0.4 | U | #23 | 綠 | 2 | pack 建置可重現 |
-| RT-VLLM-001 | v0.4 | C | #23 | 綠 | 10 | vLLM adapter 一致性 |
-| RT-MLX-001 | v0.4 | C | #23 | 綠 | 10 | MLX adapter 一致性 |
-| RT-TORCH-001 | v0.4 | C | #23 | 綠 | 2 | torch sidecar 一致性 |
-| RT-TORCH-002 | v0.4 | U | #23 | 綠 | 14 | Blackwell 自檢 |
+| RT-VLLM-001 | v0.4 | C | #23 | 綠 | 5 | vLLM adapter 一致性 |
+| RT-MLX-001 | v0.4 | C | #23 | 綠 | 5 | MLX adapter 一致性 |
+| RT-TORCH-001 | v0.4 | C | #23 | 綠 | 1 | torch sidecar 一致性 |
+| RT-TORCH-002 | v0.4 | U | #23 | 綠 | 7 | Blackwell 自檢 |
 | RT-TORCH-003 | v0.4 | I | #23 | 綠 | 1 | trust_remote_code 必須確認 |
 | MDL-IMP-001 | v0.4 | I | #20 | 綠 | 1 | 匯入 Ollama 模型 |
 | MDL-IMP-002 | v0.4 | I | #20 | 綠 | 1 | 匯入資料夾、LM Studio、HF cache |
