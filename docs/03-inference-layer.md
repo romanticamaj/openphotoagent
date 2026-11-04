@@ -914,7 +914,7 @@ UI 選模型 → 檢查 license.requires_acceptance
    - 支援 HF_ENDPOINT 鏡像、hf_transfer / Xet 加速、續傳
 → 驗證：
    - LFS 檔以 HF API 提供的 sha256 比對（snapshot 下載後再算一次）
-   - 內建模型的 `revision: <commit>` 與 size／sha256 清單一律放在 CI 產生的 `registry/pins.lock`（ADR-0002）；未釘選的 variant 不推薦、不可下載（`MODEL_NOT_PINNED`）
+   - 內建模型的 `revision: <commit>` 與 size／sha256 清單一律放在 CI 產生的 `opagent_registry/builtin/pins.lock`（ADR-0002）；未釘選的 variant 不推薦、不可下載（`MODEL_NOT_PINNED`）
 → 註冊為 installed，寫入 ~/.opagent/models/installed.json（路徑、大小、sha、revision、下載時間）
 → 自動跑 smoke test（1 張內建測試圖）
 ```
@@ -978,7 +978,7 @@ UI 選模型 → 檢查 license.requires_acceptance
 
 | 主題 | 變更 | 來源 | 版本 |
 |------|------|------|------|
-| 內建整理方式（審查補充，08 §8.1） | `presets/builtin/`：**`by-date`**（不跑模型，只用 EXIF／mtime，樣板 `{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}`，選完資料夾就能用）；**`by-content-12`**（內建類別集：人物、風景、美食、寵物、文件與截圖、旅行、活動、建築、植物、交通、藝術、其他；每類附 zh-Hant／en 名稱與一句描述，供 SigLIP2 zero-shot 與 VLM enum 使用；「其他」為 fallback）；**`custom`**（使用者類別 = 名稱 + 描述 + 範例照片 prototype，§3.3.1）。三者都是一般 Pipeline preset，可在進階模式檢視 YAML | 08 §8.1 | v0.1 |
+| 內建整理方式（審查補充，08 §8.1） | `opagent_api/presets/builtin/`：**`by-date`**（不跑模型，只用 EXIF／mtime，樣板 `{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}`，選完資料夾就能用）；**`by-content-12`**（內建類別集：人物、風景、美食、寵物、文件與截圖、旅行、活動、建築、植物、交通、藝術、其他；每類附 zh-Hant／en 名稱與一句描述，供 SigLIP2 zero-shot 與 VLM enum 使用；「其他」為 fallback）；**`custom`**（使用者類別 = 名稱 + 描述 + 範例照片 prototype，§3.3.1）。三者都是一般 Pipeline preset，可在進階模式檢視 YAML | 08 §8.1 | v0.1 |
 | Runtime 主軸 | llama.cpp（CPU／Metal 內建，`llamacpp-cuda13`、`llamacpp-vulkan` pack）+ ONNX Runtime（DirectML／CoreML／CPU，CUDA EP 為 pack）；vLLM（僅 Linux）、MLX（僅 Mac）、torch 為 v0.4 選用 pack | 08 §3、D5 | v0.1／v0.4 |
 | 小模型路徑 | SigLIP2、tagger、人臉改走 ORT；新增 SigLIP2 patch14-384 ONNX 匯出與數值對齊測試（與 PyTorch cosine ≥ 0.999） | 08 C-12 | v0.1 |
 | Registry 欄位 | `variants[].requires`、`variants[].files[]`（size + sha256 釘選）、`perf_prior`、`tasks_default_rank`；`kind` 增加 `face_detector`／`face_embedder`／`face_quality`；`license` 拆成 `code`／`weights`，新增 `redistributable`、`biometric`、`training_data`、`remote_allowed` | 06 §1.1、07 §11 | v0.1／v0.2 |

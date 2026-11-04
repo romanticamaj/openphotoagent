@@ -5,7 +5,7 @@
 
 ## 審議索引
 
-實作期間（M0 → v1.0）共開了 20 次審議、24 個 sub-agent，全部都有對應的 ADR。規劃階段撰寫規格 00–11 用的 sub-agent，以及提高 mutation score 的實作 sub-agent，不屬於審議，因此不列入。
+實作期間（M0 → v1.0）共開了 21 次審議、25 個 sub-agent，全部都有對應的 ADR。規劃階段撰寫規格 00–11 用的 sub-agent，以及提高 mutation score 的實作 sub-agent，不屬於審議，因此不列入。
 
 | ADR | 審議題目 | sub-agent 數 | 里程碑 |
 |---|---|---|---|
@@ -30,6 +30,7 @@
 | ADR-0020 | PG-001 的 initdb locale 在 macOS／Windows 無效 | 1 | 6（第一次 CI） |
 | ADR-0021 | `tc-status --check` 的逐位元比對永遠無法通過 | 1 | 6（第一次 CI） |
 | ADR-0022 | Linux AppImage 超過 200 MB；隨附的 Python runtime 不含直譯器 | 2 | 1D／6（desktop-build CI） |
+| ADR-0023 | 安裝後的 app 讀不到自己的資料（registry、整理方式、標籤、詞彙） | 1 | 1D／6（desktop-build CI 之後） |
 
 
 ## ADR-0001：任務門檻（accept／review）與分類 cascade 的關係
@@ -728,3 +729,50 @@
 三個平台的 DESK-039 煙霧測試都通過（含原生擴充）。.deb 的餘裕太小，下一次相依升級就可能超標，因此再從 runtime 移除 `pip`（安裝後的 app 不安裝任何東西；runtime pack 是簽章過的封存檔），DESK-039 同時檢查 runtime 中沒有 pip／setuptools／wheel。.deb 仍高於 150 MB 目標：下一步是 ORT 未使用的 provider（約 10 MB）與 HDBSCAN 改寫（決定 5），列為後續工作。
 
 移除 pip 後（commit `d2b3e8d`）：NSIS 100.4 MB、dmg 123.2 MB、AppImage 157.2 MB、.deb 197.0 MB，全部通過；.deb 的餘裕約 3 MB，仍然偏小，上述後續縮減應在下一次加入相依前完成。
+
+## ADR-0023：app 的資料隨套件安裝，不再從原始碼樹找
+
+- 日期：2026-11-04｜狀態：已採納｜審議：1 個獨立 sub-agent（題目、08 D3、`tools/build_desktop_python.py`、八個以 `Path(__file__).parents[N]` 找資料的位置、Dockerfile、DOCK-004、ADR-0002）
+
+**背景**：
+- ADR-0022 之後，CI 上的 integration job 卡住，追查時發現隨附 runtime 的另一個 P0：
+  - `uv export` 把 workspace 自己的套件輸出成 editable，runtime 裡只有指回建置機 repo 的 `.pth`。
+  - 即使改成真正的 wheel，模型 registry、內建整理方式、zh-TW 標籤、標籤詞彙都以 `Path(__file__).parents[N]` 從 repo 根目錄讀取。
+- 桌面安裝包只帶 `python/` 與 `pg/`，所以安裝後的 app 既 import 不到自己的程式，也讀不到資料。
+- DESK-039 沒有發現，因為測試與 CI 煙霧測試執行時，repo 仍在原來的路徑。
+- Docker 映像靠逐一 COPY repo 目錄繞過這個問題，而且這份清單已經漂移過一次（DOCK-004）。
+
+**選項**：
+- (A) 每份資料移進擁有它的 Python 套件，成為 package data。
+- (B) 資料不動，加一個 data-root 解析器（環境變數 → 安裝位置 → repo），由打包流程複製資料。
+- (C) 用 hatchling `force-include` 在建 wheel 時把樹外的目錄帶進去。
+
+**決定**：(A)，只有 zh-TW 標籤例外。
+- `registry/` → `packages/registry/src/opagent_registry/builtin/`。
+- `presets/builtin/` → `apps/api/src/opagent_api/presets/builtin/`。
+- 標籤詞彙 → `packages/core/src/opagent_core/vocabularies/`。
+  - 審議建議放在 opagent_inference，再由 search import。但 API 經由 search 會間接 import inference，違反不變量 1，所以改放 core。
+  - core 只提供路徑常數，讀檔由呼叫端負責，不破壞 core 的純度。
+- zh-TW 標籤：web build 也讀同一份，所以來源仍在 `packages/i18n`。由 `tools/gen_api_labels.py` 產生 `opagent_api/_data/zh-TW.json`，`just lint` 以 `--check` 比對，不使用執行期的退回路徑。
+- runtime 建置改為 `--no-editable`、`--no-sources`，並重建 app 自己的套件（`--refresh-package`）。
+- hw profile 與 FakeBackend 向量只供測試使用，留在 `fixtures/`，不進安裝包。
+
+**理由**：
+- (A) 讓開發、Docker、wheel、桌面讀同一個路徑，沒有退回鏈，也沒有各自維護的複製清單。
+- (B) 的環境變數覆寫會讓人能把釘選過的 registry 換成未釘選的版本，削弱 ADR-0002 的信任錨。它也保留了雙路徑與清單漂移的問題。
+- (C) 從 sdist 建置會失效，editable 安裝也不一定支援。
+
+**影響的測試 ID**（都先紅後綠）：
+- DESK-039 加強：每個 import 的模組都必須從搬移後的 runtime 載入。
+- 新增 DESK-040：以 app 自己的載入函式讀資料，並稽核每一次開檔。
+- 新增 DESK-041：`src/` 不得以 `parents[N]` 找資料，例外只有三個測試 fixture，各附理由。
+- 其他測試只改了資料路徑，斷言不變。
+- DOCK-004 不變；Dockerfile 移除已不存在的 `registry/`、`presets/` COPY。
+
+**同步修改的規格**：
+- 03、06、09、09a、11 中 registry、presets 的路徑。
+- 09a 新增 DESK-040／041。
+- `registry-pin.yml` 與 `tools/pin_registry.py` 的路徑。
+
+**後續**：jieba 把字典快取寫在系統暫存目錄。這不影響正確性，但多人共用的 Linux 上宜改到 app 的快取目錄。
+

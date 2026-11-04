@@ -52,7 +52,9 @@ def test_preset_001_export_import_and_use(env):
     assert {p["key"]: p for p in client.get("/api/v1/presets").json()}["trips-by-year"]["source"] == "imported"
 
     # an old bare (v1) file migrates
-    v1 = (Path(__file__).resolve().parents[4] / "presets/builtin/by-date.yaml").read_text(encoding="utf-8")
+    v1 = (Path(__file__).resolve().parents[4] / "apps/api/src/opagent_api/presets/builtin/by-date.yaml").read_text(
+        encoding="utf-8"
+    )
     r = client.post("/api/v1/presets/import", json={"text": v1.replace("key: by-date", "key: old-style")})
     assert r.status_code == 201 and r.json()["migrated_from"] == 1
 

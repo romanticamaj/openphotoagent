@@ -318,7 +318,7 @@
 - [ ] 每一個會被擋住的操作在按下前就顯示原因與至少一個修復 CTA；ESLint `opa/no-bare-disabled` 在 CI 開啟且通過。
 - [ ] 驅動過舊或 GPU pack 失敗時，提供「先用 Vulkan／CPU 繼續」並能完成任務。
 - [ ] 模型下載可暫停、續傳（斷網後從斷點繼續）、取消（≤ 2 s 停止）；sha256 驗證；磁碟不足時下載前就擋下。
-- [ ] 所有內建模型 variant 都已在 `registry/pins.lock` 釘選 commit／size／sha256（INF-REG-013，ADR-0002）。
+- [ ] 所有內建模型 variant 都已在 `opagent_registry/builtin/pins.lock` 釘選 commit／size／sha256（INF-REG-013，ADR-0002）。
 - [ ] 下載在背景進行時，可以同時選資料夾、掃描、產生縮圖；SigLIP2 先下載，以文搜圖最早可用。
 - [ ] 模型可刪除、可搬移目錄（附進度與 ETA）；搬移後可直接載入。
 - [ ] 所有長操作（下載、掃描、縮圖、推論、整理、復原、搬移、pack 安裝）都是 Operation：開始前預估、執行中 ETA（rough／precise／stalled）、經過時間（扣除暫停）、等待原因。

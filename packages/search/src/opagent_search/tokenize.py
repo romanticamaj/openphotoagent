@@ -22,9 +22,10 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from opagent_core.vocabularies import VOCAB_DIR
 
 TOKENIZER_VERSION = "jieba-zh-hant@1+opencc-s2twp+bigram"
-VOCAB = Path(__file__).resolve().parents[3] / "inference-sdk" / "vocabularies" / "general-photo.yaml"
+VOCAB = VOCAB_DIR / "general-photo.yaml"  # package data in opagent_core (ADR-0023)
 _ZW = re.compile("[​‌‍⁠﻿­]")
 _CJK = re.compile(r"[぀-ヿ㐀-䶿一-鿿豈-﫿]+")
 _WORD = re.compile(r"[0-9a-z]+(?:['._-][0-9a-z]+)*|[぀-ヿ㐀-䶿一-鿿豈-﫿]+")

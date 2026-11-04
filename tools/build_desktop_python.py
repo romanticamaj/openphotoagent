@@ -39,6 +39,12 @@ def _base_prefix() -> Path:
     return Path(prefix.stdout.strip())
 
 
+def _project_name(project: Path) -> str:
+    import tomllib
+
+    return str(tomllib.loads((project / "pyproject.toml").read_text(encoding="utf-8"))["project"]["name"])
+
+
 def _python(out: Path) -> Path:
     return out / "python.exe" if os.name == "nt" else out / "bin" / "python3"
 
@@ -55,8 +61,37 @@ def main(out: Path) -> int:
         marker.unlink()
     for marker in out.glob("Lib/EXTERNALLY-MANAGED"):
         marker.unlink()
-    sh("uv", "export", "--frozen", "--no-dev", "--package", "opagent-cli", "--no-hashes", "-o", str(out / "req.txt"))
-    sh("uv", "pip", "install", "--python", str(_python(out)), "--break-system-packages", "-r", str(out / "req.txt"))
+    sh(
+        "uv",
+        "export",
+        "--frozen",
+        "--no-dev",
+        "--no-editable",
+        "--package",
+        "opagent-cli",
+        "--no-hashes",
+        "-o",
+        str(out / "req.txt"),
+    )
+    # real wheels, not editable .pth files back into this checkout (DESK-039); the app's own packages are rebuilt
+    # every time, or uv reuses a cached wheel built before a data file moved (DESK-040)
+    own = [
+        _project_name(ROOT / ln.strip())
+        for ln in (out / "req.txt").read_text(encoding="utf-8").splitlines()
+        if ln.startswith("./")
+    ]
+    sh(
+        "uv",
+        "pip",
+        "install",
+        "--no-sources",
+        *[a for name in own for a in ("--refresh-package", name)],
+        "--python",
+        str(_python(out)),
+        "--break-system-packages",
+        "-r",
+        str(out / "req.txt"),
+    )
     (out / "req.txt").unlink()
     lib = next(iter(sorted(out.glob("lib/python3*"))), out / "Lib")
     site = lib / "site-packages"

@@ -36,7 +36,7 @@ from .db import offset_minutes, set_job_status, to_aware
 from .operations import ensure_operation, set_op_status
 from .state import DEFAULT_WS
 
-PRESETS_DIR = Path(__file__).resolve().parents[4] / "presets" / "builtin"
+PRESETS_DIR = Path(__file__).resolve().parent / "presets" / "builtin"  # package data (ADR-0023)
 ACTIVE_JOB = ("queued", "running", "paused", "planning", "applying", "cancelling")
 
 

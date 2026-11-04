@@ -17,7 +17,7 @@ from pydantic import ValidationError
 
 from .schema import FileRef, GpuClass, GpuClasses, ModelSpec, PinsLock, RuntimePack
 
-BUILTIN_DIR = Path(__file__).resolve().parents[4] / "registry"
+BUILTIN_DIR = Path(__file__).resolve().parent / "builtin"  # package data: ships in the wheel (ADR-0023)
 PinState = Literal["pinned", "unpinned"]
 
 

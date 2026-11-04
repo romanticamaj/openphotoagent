@@ -83,8 +83,8 @@ variants:
     files:                        # Artifact 清單：catalog 只寫 repo 與 path；size／sha256 不得寫在這裡（schema 拒絕）
       - { repo: Qwen/Qwen3-VL-8B-Instruct-GGUF, path: "Qwen3-VL-8B-Instruct-Q4_K_M.gguf" }
       - { repo: Qwen/Qwen3-VL-8B-Instruct-GGUF, path: "mmproj-F16.gguf" }
-    revision: main                # 人寫的 ref；實際釘選的 40-hex commit 在 registry/pins.lock（ADR-0002）
-    # registry/pins.lock（CI 的 registry-pin.yml 產生）：{model, variant, revision: <commit>, files: [{path, size, sha256, lfs_oid}]}
+    revision: main                # 人寫的 ref；實際釘選的 40-hex commit 在 opagent_registry/builtin/pins.lock（ADR-0002）
+    # opagent_registry/builtin/pins.lock（CI 的 registry-pin.yml 產生）：{model, variant, revision: <commit>, files: [{path, size, sha256, lfs_oid}]}
     # 載入時合併，variant 得到 pin_state ∈ {pinned, unpinned}；部分釘選＝載入錯誤；unpinned 不會被推薦，下載時 MODEL_NOT_PINNED
     perf_prior:                   # 冷啟動 ETA 用的先驗（03 §5.3），以參考 GPU 表示
       ref_gpu: rtx-5070-ti
@@ -318,7 +318,7 @@ flowchart LR
 
 | 階段 | 權重（預設，§5.4 會依位元數動態調整） | 內容 |
 |------|------|------|
-| `resolve` | 1% | 內建模型一律使用 `registry/pins.lock` 的釘選值（未釘選 → preflight blocker `MODEL_NOT_PINNED`，ADR-0002）；使用者自訂 YAML 使用其自帶的 sha256，大小可呼叫 `HfApi().model_info(repo, revision, files_metadata=True)` 補齊。只挑 variant 需要的檔案（03 §7.1 的 allow_patterns）。**一開始就知道精確總量**，因此不需要 VB 的 indeterminate／1 MB 門檻 hack。 |
+| `resolve` | 1% | 內建模型一律使用 `opagent_registry/builtin/pins.lock` 的釘選值（未釘選 → preflight blocker `MODEL_NOT_PINNED`，ADR-0002）；使用者自訂 YAML 使用其自帶的 sha256，大小可呼叫 `HfApi().model_info(repo, revision, files_metadata=True)` 補齊。只挑 variant 需要的檔案（03 §7.1 的 allow_patterns）。**一開始就知道精確總量**，因此不需要 VB 的 indeterminate／1 MB 門檻 hack。 |
 | `precheck` | 1% | §2.5 磁碟、§1.9 授權、HF token、網路／鏡像連通。任何失敗都轉為 blocker 並附上 fix。 |
 | `fetch` | 88%（依 bytes） | §2.2 引擎。 |
 | `verify` | 8% | 逐檔 sha256（續傳的檔案需要重算整檔；未中斷的檔案邊下載邊 hash，所以這階段幾乎是 0）。 |

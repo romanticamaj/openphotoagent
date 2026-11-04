@@ -145,7 +145,7 @@
 | CORE-RULE-004 | require_reviewed | `require_reviewed=true`，3 張 needs_review | 這 3 張不產生 action，直到 review；選「略過剩下的放進其他」後改進其他 | U | #49 |
 | CORE-RULE-005 | DSL 語法錯誤 | `when: "category == "` | 驗證錯誤含 JSON pointer 與欄位位置 | U | #39 |
 | CORE-RULE-006 | DSL 沙箱 | `when` 嘗試 `__import__`、屬性存取 `a.__class__`、函式呼叫 | 解析拒絕（DSL 只允許白名單欄位、比較、`in`、`and/or/not`） | S | #39 |
-| CORE-RULE-007 | `by-date` preset 不需模型 | 載入 `presets/builtin/by-date.yaml` | task_configs 為空；模板 `{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}`；plan 產生不呼叫推論 | U | #40 |
+| CORE-RULE-007 | `by-date` preset 不需模型 | 載入 `opagent_api/presets/builtin/by-date.yaml` | task_configs 為空；模板 `{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}`；plan 產生不呼叫推論 | U | #40 |
 | CORE-RULE-008 | `by-content-12` 完整性 | 載入 preset | 恰 12 類（人物、風景、美食、寵物、文件與截圖、旅行、活動、建築、植物、交通、藝術、其他），每類有 zh-Hant／en 名稱與描述，`other` 為 fallback | C | #41 |
 | CORE-RULE-009 | `custom` preset 驗證 | 類別只有名稱、無描述也無範例 | 驗證錯誤「至少要有描述或 1 張範例照片」；有 3 張範例時通過 | U | #42 |
 | CORE-RULE-010 | final_label 優先 review | result=food、review.corrected=pets | `final_label.category=pets`、`source=review` | U | #56 |
@@ -340,7 +340,7 @@
 
 | ID | 標題 | 前置／輸入 | 預期 | 層 | # |
 |----|------|-----------|------|----|---|
-| INF-REG-001 | 內建 YAML 與 lock 全部通過 schema | `registry/models/*.yaml`、`registry/runtimes/*.yaml`、`gpu_classes.yaml`、`registry/pins.lock` | 全部通過 JSON Schema；catalog 不含 `size`／`sha256`；每個 lock 條目指向存在的 variant 與檔案；合併後每個 `pinned` variant 的每個檔案都有 `size > 0` 與 64-hex `sha256`（ADR-0002） | C | #15 |
+| INF-REG-001 | 內建 YAML 與 lock 全部通過 schema | `opagent_registry/builtin/models/*.yaml`、`opagent_registry/builtin/runtimes/*.yaml`、`gpu_classes.yaml`、`opagent_registry/builtin/pins.lock` | 全部通過 JSON Schema；catalog 不含 `size`／`sha256`；每個 lock 條目指向存在的 variant 與檔案；合併後每個 `pinned` variant 的每個檔案都有 `size > 0` 與 64-hex `sha256`（ADR-0002） | C | #15 |
 | INF-REG-002 | 缺 sha256 拒絕 | 使用者 YAML 檔案缺 sha256；內建 lock 條目 sha256 缺漏或格式錯；內建 variant 沒有 lock 條目 | 使用者檔：該模型標 `invalid`，不影響其他；內建 lock 條目不完整：載入錯誤（CI 失敗）；內建 variant 無 lock 條目：載入為 `unpinned`（ADR-0002） | U | #24 |
 | INF-REG-003 | 使用者自訂 YAML | 在 `models/custom/` 放合法 YAML | Models 頁出現、跑過 compat；`source=user` | I | #24 |
 | INF-REG-004 | 自訂 YAML 壞掉 | 語法錯誤／欄位錯誤 | 顯示錯誤與檔名行號，registry 其餘照常 | U | #24 |
@@ -864,6 +864,8 @@
 | DESK-037 | AppImage 不含 WebKitGTK（08 §4.1，ADR-0022） | 精簡後的 AppDir；desktop-build 對實際產物重新解開後檢查 | 不含系統 `libwebkit2gtk-4.1` 的函式庫閉包、GTK hook 與模組；app 自己的資源樹（pg pack、Python）與系統匣函式庫保留 | U/C | #1、DoD 5.1 |
 | DESK-038 | AppRun preflight：缺少 WebKitGTK | AppRun hook，函式庫搜尋路徑中沒有／有 `libwebkit2gtk-4.1.so.0` | 沒有：停止啟動，以 `DESK_WEBVIEW_MISSING` 顯示雙語原因與修復（文字取自 packages/i18n）以及 apt／dnf／pacman 安裝指令；有：不輸出任何東西並繼續啟動 | U | #1、#8 |
 | DESK-039 | 隨附的 Python runtime 自給自足（回歸，ADR-0022） | 建置 runtime，複製到另一個路徑，以空環境 `-I` 執行 | 樹中沒有指向外部的 symlink、內含標準函式庫、`pyvenv.cfg` 不指向建置機；`encodings`、`ssl`、`sqlite3`、`opagent_cli`、`opagent_api` 都能 import；desktop-build 對實際產物再跑一次 | I/C | #1、DoD 5.1 |
+| DESK-040 | app 資料隨 runtime 安裝（回歸，ADR-0022） | 在搬移後的 runtime 中，以 app 自己的載入函式讀取模型 registry、內建整理方式、zh-TW 標籤、標籤詞彙與搜尋詞彙，並稽核每一次開檔 | 每一項都非空；所有開啟的檔案都在 runtime 內（不得讀取建置機的 repo） | I/C | #1、DoD 5.1 |
+| DESK-041 | 程式碼不以原始碼樹的相對路徑找資料（ADR-0023） | 掃描 `apps/*/src`、`packages/*/src` | 沒有 `Path(__file__).parents[N]`；例外只有 opagent_testing 與三個只供測試使用的 fixture 定位（各附理由） | C | #1 |
 
 ### 13.2 PG：嵌入式 PostgreSQL 17 + pgvector（08 §2.3）
 
