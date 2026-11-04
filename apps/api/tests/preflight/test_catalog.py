@@ -15,8 +15,11 @@ from opagent_testing.clock import FakeClock
 from sqlalchemy import text
 
 ROOT = Path(__file__).resolve().parents[4]
-GOLDEN = yaml.safe_load((ROOT / "fixtures/golden/preflight_catalog.yaml").read_text())["rows"]
-I18N = {lang: json.loads((ROOT / f"packages/i18n/errors.{lang}.json").read_text()) for lang in ("zh-TW", "en")}
+GOLDEN = yaml.safe_load((ROOT / "fixtures/golden/preflight_catalog.yaml").read_text(encoding="utf-8"))["rows"]
+I18N = {
+    lang: json.loads((ROOT / f"packages/i18n/errors.{lang}.json").read_text(encoding="utf-8"))
+    for lang in ("zh-TW", "en")
+}
 EMB8 = "siglip2-so400m-384@onnx-int8"
 EMB16 = "siglip2-so400m-384@onnx-fp16"
 Q5, Q4, Q8 = "qwen3-vl-8b-instruct@q5_k_m", "qwen3-vl-8b-instruct@q4_k_m", "qwen3-vl-8b-instruct@q8_0"
@@ -35,7 +38,7 @@ class Env:
             "qwen3-vl-2b-instruct",
             "fixture-nc-vlm",
         ):
-            spec = yaml.safe_load((reg / "models" / f"{m}.yaml").read_text())
+            spec = yaml.safe_load((reg / "models" / f"{m}.yaml").read_text(encoding="utf-8"))
             for v in spec["variants"]:
                 pins.append(
                     {
@@ -45,7 +48,7 @@ class Env:
                         "files": [{"path": f["path"], "size": 1_000_000, "sha256": "b" * 64} for f in v["files"]],
                     }
                 )
-        (reg / "pins.lock").write_text(json.dumps({"schema_version": 1, "pins": pins}))
+        (reg / "pins.lock").write_text(json.dumps({"schema_version": 1, "pins": pins}), encoding="utf-8")
         self.clock = FakeClock()
         self.client = TestClient(create_app(dsn=dsn, clock=self.clock, registry_dir=reg))
         self.dsn, self.roots = dsn, roots

@@ -61,7 +61,7 @@ def main(argv: list[str]) -> int:
     if "--commits" in argv:
         bad = check_commits(_commits(argv[argv.index("--commits") + 1]))
     else:
-        bad = check_changelog((ROOT / "CHANGELOG.md").read_text())
+        bad = check_changelog((ROOT / "CHANGELOG.md").read_text(encoding="utf-8"))
     for b in bad:
         print(f"breaking change without a 'Migration:' note: {b}")
     return 1 if bad else 0

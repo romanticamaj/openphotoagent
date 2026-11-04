@@ -29,7 +29,7 @@ def test_core_thr_011_rule_first():
 @pytest.mark.unit
 @pytest.mark.tc("CORE-THR-012")
 def test_core_thr_012_temperature_softmax_golden():
-    g = json.loads(GOLDEN.read_text())
+    g = json.loads(GOLDEN.read_text(encoding="utf-8"))
     for case in g:
         got = temperature_softmax(case["sims"], case["T"])
         assert len(got) == len(case["expected"])

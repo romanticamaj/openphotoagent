@@ -29,7 +29,7 @@ def _server(home: Path, explicit: str | None) -> str | None:
         return env.rstrip("/")
     run = home / "run" / "api.json"
     try:
-        info = json.loads(run.read_text())
+        info = json.loads(run.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
     return f"http://127.0.0.1:{int(info['port'])}"

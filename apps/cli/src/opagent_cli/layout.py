@@ -66,7 +66,7 @@ BACKUP: dict[int, list[str]] = {0: ["run", "secrets"]}
 def current(home: Path) -> int | None:
     f = Path(home) / FILE
     if f.exists():
-        return int(json.loads(f.read_text()).get("layout_version", 0))
+        return int(json.loads(f.read_text(encoding="utf-8")).get("layout_version", 0))
     if any(Path(home).iterdir()) if Path(home).is_dir() else False:
         return 0  # a v0.x folder: no layout file yet
     return None
@@ -86,13 +86,13 @@ def _backup(home: Path, version: int) -> Path:
                     (dst / r).parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(f, dst / r)
                     files.append(r)
-    (dst / "manifest.json").write_text(json.dumps({"from": version, "files": files}, indent=2))
+    (dst / "manifest.json").write_text(json.dumps({"from": version, "files": files}, indent=2), encoding="utf-8")
     return dst
 
 
 def _write(home: Path, version: int) -> None:
     tmp = home / f".{FILE}.tmp"
-    tmp.write_text(json.dumps({"layout_version": version}))
+    tmp.write_text(json.dumps({"layout_version": version}), encoding="utf-8")
     tmp.replace(home / FILE)
 
 

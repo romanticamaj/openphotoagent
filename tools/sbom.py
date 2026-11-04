@@ -22,7 +22,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def _pypi() -> list[dict[str, Any]]:
     out = []
-    for p in tomllib.loads((ROOT / "uv.lock").read_text())["package"]:
+    for p in tomllib.loads((ROOT / "uv.lock").read_text(encoding="utf-8"))["package"]:
         if "registry" not in p.get("source", {}):
             continue
         name = p["name"].lower()
@@ -34,7 +34,7 @@ def _pypi() -> list[dict[str, Any]]:
 
 def _npm() -> list[dict[str, Any]]:
     out = []
-    for key in yaml.safe_load((ROOT / "pnpm-lock.yaml").read_text()).get("packages") or {}:
+    for key in yaml.safe_load((ROOT / "pnpm-lock.yaml").read_text(encoding="utf-8")).get("packages") or {}:
         name, _, version = key.rpartition("@")
         purl_name = name.replace("@", "%40", 1) if name.startswith("@") else name
         out.append({"type": "library", "name": name, "version": version, "purl": f"pkg:npm/{purl_name}@{version}"})
@@ -46,7 +46,7 @@ def _cargo() -> list[dict[str, Any]]:
     for lock in sorted(ROOT.glob("apps/**/Cargo.lock")):
         if "target" in lock.parts or "node_modules" in lock.parts:
             continue
-        for p in tomllib.loads(lock.read_text())["package"]:
+        for p in tomllib.loads(lock.read_text(encoding="utf-8"))["package"]:
             if not str(p.get("source", "")).startswith("registry+"):
                 continue
             out.append(
@@ -64,7 +64,7 @@ def build() -> dict[str, Any]:
     seen: dict[str, dict[str, Any]] = {}
     for c in [*_pypi(), *_npm(), *_cargo()]:
         seen.setdefault(c["purl"], {**c, "bom-ref": c["purl"]})
-    version = (ROOT / "packages/core/src/opagent_core/version.py").read_text().split('"')[1]
+    version = (ROOT / "packages/core/src/opagent_core/version.py").read_text(encoding="utf-8").split('"')[1]
     return {
         "bomFormat": "CycloneDX",
         "specVersion": "1.5",

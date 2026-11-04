@@ -32,7 +32,7 @@ case "$(uname -s)" in
 esac
 
 # smoke test before packing
-"$PREFIX/bin/initdb$EXE" -D "$WORK/smoke" -U opagent -A trust -E UTF8 --locale-provider=builtin --locale=C.UTF-8 >/dev/null
+"$PREFIX/bin/initdb$EXE" -D "$WORK/smoke" -U opagent -A trust -E UTF8 --locale-provider=builtin --builtin-locale=C.UTF-8 --locale=C >/dev/null
 "$PREFIX/bin/pg_ctl$EXE" -D "$WORK/smoke" -o "-p 54329 -c listen_addresses=127.0.0.1" -l "$WORK/smoke.log" -w start >/dev/null
 "$PREFIX/bin/psql$EXE" -h 127.0.0.1 -p 54329 -U opagent -d postgres -v ON_ERROR_STOP=1 -q -c \
   "CREATE EXTENSION vector; CREATE TABLE v(id int, e vector(3)); INSERT INTO v VALUES (1,'[1,0,0]'),(2,'[0,1,0]'),(3,'[0.9,0.1,0]'); CREATE INDEX ON v USING hnsw (e vector_cosine_ops);" \

@@ -27,11 +27,24 @@ test-int:
 perf-api:
     OPAGENT_TC_RESULTS=.tc/py-perf.json uv run pytest -q -p no:randomly -m "perf and not nightly and not gpu and not real_model"
 
-# Playwright against the web build + all-in-one backend with FakeBackend
+# Playwright against the web build + all-in-one backend with FakeBackend: every project, visual included.
+# Visual baselines match this dev container and the pinned Playwright image only (ADR-0019).
 e2e:
     pnpm --filter web build
     pnpm --filter web build-storybook
     pnpm --filter web e2e
+
+# PR CI: everything except the pixel baselines (09 §5: visual is a nightly layer, in the pinned image)
+e2e-pr:
+    pnpm --filter web build
+    pnpm --filter web build-storybook
+    pnpm --filter web exec playwright test --project=chromium
+
+# visual baselines only; CI runs this inside mcr.microsoft.com/playwright:v<@playwright/test>-noble (VIS-004)
+visual *args:
+    pnpm --filter web build
+    pnpm --filter web build-storybook
+    pnpm --filter web exec playwright test --project=visual {{args}}
 
 # perf budgets (VIEW-002/003/010, PERF-001/002/003/006) on a 100k-photo library; not part of PR CI
 perf:

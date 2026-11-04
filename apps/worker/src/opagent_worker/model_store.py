@@ -43,13 +43,13 @@ class ModelStore:
 
     @property
     def models_root(self) -> Path:
-        return Path(json.loads(self.cfg.read_text())["models_root"])
+        return Path(json.loads(self.cfg.read_text(encoding="utf-8"))["models_root"])
 
     def _set_root(self, p: Path) -> None:
-        d = json.loads(self.cfg.read_text())
+        d = json.loads(self.cfg.read_text(encoding="utf-8"))
         d["models_root"] = str(p)
         tmp = self.cfg.with_suffix(".tmp")
-        tmp.write_text(json.dumps(d))
+        tmp.write_text(json.dumps(d), encoding="utf-8")
         os.replace(tmp, self.cfg)
 
     @staticmethod
@@ -90,7 +90,8 @@ class ModelStore:
         files = self._files(src)
         total = sum(f["size"] for f in files) or 1
         self.journal.write_text(
-            json.dumps({"src": str(src), "dst": str(dst), "staging": str(staging), "state": "copying"})
+            json.dumps({"src": str(src), "dst": str(dst), "staging": str(staging), "state": "copying"}),
+            encoding="utf-8",
         )
         self._emit(emit, "prepare", 1.0, 0, total)
         same_fs = (not cross_fs) and _same_device(src, dst.parent)
@@ -127,9 +128,9 @@ class ModelStore:
 
     def _switch(self, staging: Path, dst: Path, emit: Callable[[dict[str, Any]], None], total: int) -> MoveResult:
         os.replace(staging, dst)
-        j = json.loads(self.journal.read_text())
+        j = json.loads(self.journal.read_text(encoding="utf-8"))
         j["state"] = "switched"
-        self.journal.write_text(json.dumps(j))
+        self.journal.write_text(json.dumps(j), encoding="utf-8")
         crash_point("model_move_switch")
         self._set_root(dst)
         self.journal.unlink(missing_ok=True)
@@ -145,7 +146,7 @@ class ModelStore:
         """After a crash: finish a move that already switched, otherwise roll back to the old directory."""
         if not self.journal.exists():
             return MoveResult("done")
-        j = json.loads(self.journal.read_text())
+        j = json.loads(self.journal.read_text(encoding="utf-8"))
         if j.get("state") == "switched" and Path(j["dst"]).exists():
             self._set_root(Path(j["dst"]))
             self.journal.unlink(missing_ok=True)

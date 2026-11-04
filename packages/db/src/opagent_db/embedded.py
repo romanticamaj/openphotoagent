@@ -61,7 +61,7 @@ def _is_postgres(pid: int) -> bool:
     except OSError:
         return False
     try:
-        name = Path(f"/proc/{pid}/comm").read_text().strip()
+        name = Path(f"/proc/{pid}/comm").read_text(encoding="utf-8").strip()
         cmd = Path(f"/proc/{pid}/cmdline").read_bytes().split(b"\0")[0].decode(errors="replace")
     except OSError:  # no procfs (macOS / Windows): ask ps
         r = subprocess.run(["ps", "-p", str(pid), "-o", "comm="], text=True, capture_output=True, check=False)
@@ -128,7 +128,9 @@ class EmbeddedPg:
         if not self.desktop:
             args.append("--locale=C")
         elif _pg_major(self.bin) >= 17:  # byte-order collation that is identical on every OS (D4)
-            args += ["--locale-provider=builtin", "--builtin-locale=C.UTF-8", "--locale=C.UTF-8"]
+            # collation/ctype come from the builtin provider; the OS-level lc_* must be "C", the only locale every
+            # OS has (C.UTF-8 is Linux-only — initdb refuses it on macOS and Windows, PG-016)
+            args += ["--locale-provider=builtin", "--builtin-locale=C.UTF-8", "--locale=C"]
         else:
             args.append("--locale=C.UTF-8")
         self.run_as(*args)
@@ -138,7 +140,7 @@ class EmbeddedPg:
         if not pidfile.exists():
             return
         try:
-            pid = int(pidfile.read_text().split()[0])
+            pid = int(pidfile.read_text(encoding="utf-8").split()[0])
         except (OSError, ValueError, IndexError):
             pid = 0
         if pid > 0 and _is_postgres(pid):
@@ -189,7 +191,7 @@ class EmbeddedPg:
 
     def _failed(self, err: subprocess.CalledProcessError) -> PgError | None:
         try:
-            log = (self.home / "pg.log").read_text(errors="replace")
+            log = (self.home / "pg.log").read_text(errors="replace", encoding="utf-8")
         except OSError:
             log = ""
         if "No space left on device" in log or "No space left on device" in (err.stderr or ""):

@@ -16,7 +16,7 @@ from pathlib import Path
 
 def _read(p: Path) -> str:
     try:
-        return p.read_text().strip()
+        return p.read_text(encoding="utf-8").strip()
     except OSError:
         return ""
 

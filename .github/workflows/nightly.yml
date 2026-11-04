@@ -27,3 +27,31 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: tc-nightly, path: .tc/ }
+
+  # 09 §5.1 visual layer, rendered only in the official image pinned to @playwright/test (ADR-0019, VIS-004)
+  visual:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --ipc=host
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: pnpm/action-setup@v4
+      - name: PostgreSQL 17 + pgvector (inside the pinned image)
+        run: |
+          apt-get update && apt-get install -y postgresql-common
+          /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          apt-get install -y postgresql-17 postgresql-17-pgvector
+          echo "OPAGENT_PG_BIN=/usr/lib/postgresql/17/bin" >> $GITHUB_ENV
+      - run: uv sync && pnpm install --frozen-lockfile
+      - run: uv tool install rust-just && echo "$HOME/.local/bin" >> $GITHUB_PATH
+      - run: just visual
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: visual-report
+          path: |
+            apps/web/test-results/
+            .tc/

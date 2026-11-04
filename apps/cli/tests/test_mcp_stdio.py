@@ -40,7 +40,9 @@ class Live:
         while not self.server.started:
             self.thread.join(0.02)
         (self.home / "run").mkdir(parents=True, exist_ok=True)
-        (self.home / "run" / "api.json").write_text(json.dumps({"port": self.port, "pid": os.getpid()}))
+        (self.home / "run" / "api.json").write_text(
+            json.dumps({"port": self.port, "pid": os.getpid()}), encoding="utf-8"
+        )
 
     def stop(self):
         self.server.should_exit = True

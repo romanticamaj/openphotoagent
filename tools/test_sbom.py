@@ -23,15 +23,15 @@ sbom, vuln = _load("sbom"), _load("vuln_scan")
 def expected():
     uv = {
         (p["name"], p["version"])
-        for p in tomllib.loads((ROOT / "uv.lock").read_text())["package"]
+        for p in tomllib.loads((ROOT / "uv.lock").read_text(encoding="utf-8"))["package"]
         if "registry" in p.get("source", {})
     }
     cargo = {
         (p["name"], p["version"])
-        for p in tomllib.loads((ROOT / "apps/desktop/supervisor/Cargo.lock").read_text())["package"]
+        for p in tomllib.loads((ROOT / "apps/desktop/supervisor/Cargo.lock").read_text(encoding="utf-8"))["package"]
         if p.get("source", "").startswith("registry+")
     }
-    npm = set(yaml.safe_load((ROOT / "pnpm-lock.yaml").read_text())["packages"])
+    npm = set(yaml.safe_load((ROOT / "pnpm-lock.yaml").read_text(encoding="utf-8"))["packages"])
     return uv, cargo, npm
 
 
@@ -82,7 +82,7 @@ def test_sec_sbom_001_gate_on_high_and_critical():
         ]
     }
     assert [f["id"] for f in vuln.gate(findings, bad_vex)] == ["GHSA-1", "GHSA-2"]  # a VEX entry needs a reason
-    real = yaml.safe_load((ROOT / "security/vex.json").read_text())
+    real = yaml.safe_load((ROOT / "security/vex.json").read_text(encoding="utf-8"))
     assert vuln.validate_vex(real) == []
 
 

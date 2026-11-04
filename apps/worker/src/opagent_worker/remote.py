@@ -53,12 +53,12 @@ class Credentials:
 
     def save(self, home: Path) -> None:
         p = self.path(home)
-        p.write_text(json.dumps(asdict(self)))
+        p.write_text(json.dumps(asdict(self)), encoding="utf-8")
         os.chmod(p, 0o600)
 
     @classmethod
     def load(cls, home: Path) -> Credentials:
-        return cls(**json.loads(cls.path(home).read_text()))
+        return cls(**json.loads(cls.path(home).read_text(encoding="utf-8")))
 
 
 def _key_path(home: Path) -> Path:
@@ -102,7 +102,7 @@ def enroll(server: str, code: str, home: Path, name: str, http: Any = None) -> C
     b = r.json()
     cred = Credentials(server, b["worker_id"], b["refresh_token"], b["server_pubkey_pin"], name)
     cred.save(home)
-    (home / "worker_id").write_text(cred.worker_id)
+    (home / "worker_id").write_text(cred.worker_id, encoding="utf-8")
     return cred
 
 
@@ -133,7 +133,7 @@ class EgressFilter:
         self.path_map: dict[str, str] = {}
         self.map_path = log_path.parent / "pathmap.jsonl" if log_path is not None else None
         if self.map_path is not None and self.map_path.exists():  # hashed paths must survive restarts
-            for line in self.map_path.read_text().splitlines():
+            for line in self.map_path.read_text(encoding="utf-8").splitlines():
                 if line.strip():
                     k, v = json.loads(line)
                     self.path_map[k] = v
@@ -147,7 +147,7 @@ class EgressFilter:
     def deny(self, what: str) -> None:
         _log.warning("EGRESS_POLICY_DENIED: %s (mode %s)", what, self.mode)
         if self.log_path is not None:
-            with open(self.log_path, "a") as f:
+            with open(self.log_path, "a", encoding="utf-8") as f:
                 f.write(json.dumps({"at": self.clock.now().isoformat(), "mode": self.mode, "denied": what}) + "\n")
         raise EgressDenied(what)
 
@@ -167,7 +167,7 @@ class EgressFilter:
         if h not in self.path_map:
             self.path_map[h] = rel
             if self.map_path is not None:
-                with open(self.map_path, "a") as f:
+                with open(self.map_path, "a", encoding="utf-8") as f:
                     f.write(json.dumps([h, rel]) + "\n")
         return h
 

@@ -32,7 +32,7 @@ def test_mig_003_changelog_breaking_entries_need_migration_notes():
     assert cc.check_changelog(GOOD) == []
     bad = cc.check_changelog(BAD)
     assert len(bad) == 1 and "protocol 3.0" in bad[0]
-    assert cc.check_changelog((ROOT / "CHANGELOG.md").read_text()) == []  # the real one
+    assert cc.check_changelog((ROOT / "CHANGELOG.md").read_text(encoding="utf-8")) == []  # the real one
 
 
 @pytest.mark.tc("MIG-003")

@@ -184,6 +184,7 @@
 | FS-024 | 性質 fuzz：路徑字串 | Hypothesis 依文法產生 rel：段 ∈ {`..`,`.`,``,`/`,`\`,NUL,`:`,保留名,隨機 Unicode,255+ bytes} | 結果只有兩種：在 root 之下的路徑，或 `PathViolation`；**永遠不回傳 root 外路徑**。PR 2,000 例、nightly 1,000,000 例 | P/S | DoD 5.3 |
 | FS-025 | 性質 fuzz：真實樹 + 隨機 symlink | 每例在 tmp 建立隨機深度 ≤ 5 的樹，隨機放入指向內／外的 symlink 與 junction（Windows） | 任何解析結果的 realpath 都在 root 之下 | P/I/S | DoD 5.3 |
 | FS-026 | import-linter 契約 | `apps/api`、`packages/db` 匯入 `fs_sandbox` 或 `inference_*` | import-linter 失敗（CI 守門） | C | — |
+| FS-027 | 文字檔讀寫一律指定編碼（回歸） | repo 內所有 Python 檔的 `read_text`／`write_text`／`open` | 都帶 `encoding=`；Windows 預設 cp1252，CI 的 Windows runner 曾讀不了含 CJK 的 golden 檔 | C | #2 |
 
 ---
 
@@ -342,6 +343,7 @@
 | INF-REG-005 | 每任務預設 | `tasks_default_rank` 與 `task_default_model` 覆寫 | caption、classify、embed 各自解析到指定 variant | U | #25 |
 | INF-REG-006 | 預設組合授權 | 檔位預設組合的所有 variant | `license.weights` 皆為 Apache-2.0 或同等寬鬆，`redistributable=true`；否則 CI 失敗 | C | #21 |
 | INF-REG-013 | 發版前全部釘選 | release gate：所有內建 variant 與 runtime pack | 每個內建 variant 都是 `pinned`；每個 runtime pack 都有 sha256；否則 release gate 失敗（與 INF-REG-001 合起來等價於原本的「全部有 sha256」，ADR-0002） | G | #15 |
+| INF-REG-014 | 空的 catalog 不會讓 recommend 當掉（回歸） | 沒有任何 model 與 runtime 的 registry | 回傳建議並列為未釘選，不丟 KeyError（曾讓 job.start 回 500） | U | #24 |
 
 ### 6.2 INF-CONF：InferenceBackend／Adapter 一致性套件（`packages/inference-sdk/conformance`）
 
@@ -801,6 +803,7 @@
 | VIS-001 | 元件視覺回歸 | Storybook：OperationProgress、ReadinessChecklist、CompatBadge、GatedButton、ProblemCard | light/dark 快照，差異 > 0.1% 失敗（只在 Linux Chromium、字型釘選） | V | — |
 | VIS-002 | 頁面視覺回歸 | 10 個主要路由 × light/dark × zh-TW/en | Playwright `toHaveScreenshot`；動態區域（時間、ETA）遮罩 | V | #11 |
 | VIS-003 | 每個錯誤碼一個 story | 自動產生 | story 數 = 錯誤碼目錄數；每個都有快照 | V/C | #27 |
+| VIS-004 | 視覺基準只在釘選的 Playwright 映像算繪 | 所有 workflow | 跑 `visual` project 的 job 一律在 `mcr.microsoft.com/playwright:v<@playwright/test 版本>-noble`；nightly 與 `visual-baselines.yml` 都有；PR 的 `e2e-smoke` 只跑 `chromium` project（ADR-0019） | C | #85 |
 | I18N-001 | 無缺漏 key | 比對 zh-TW 與 en key 集合 | 完全相同；無空字串 | C | #11、DoD 5.4 |
 | I18N-002 | 無硬編碼字串 | ESLint `i18next/no-literal-string`（JSX 文字） | 0 違規（allowlist 除外） | C | #11 |
 | I18N-003 | 數字與複數 | 1 photo／2 photos；「1,284 張」 | ICU MessageFormat 正確；`tnum` | U | #11 |
@@ -873,6 +876,7 @@
 | PG-013 | 測試 fixture 速度 | `embedded_pg` session 級 initdb + 每測試 template clone | clone < 200 ms；三平台 CI 可用（macOS runner 無 Docker） | I | DoD 5.5 |
 | PG-014 | Docker parity | Linux：testcontainers `pgvector/pgvector:pg17` | 同一組 migration 與 Q-* 整合測試全過 | I | #2 |
 | PG-015 | 用到真 PostgreSQL 的測試一律是 integration（回歸） | 只標 `security`／`property`、或沒有標記，但使用 `embedded_pg` 的測試 | 快速選擇式（`just test`、CI unit-py）收集不到；`-m integration` 收集得到（CI unit-py 沒有 PostgreSQL，曾有 63 個這類測試在那裡出錯） | C | #2 |
+| PG-016 | 桌面 initdb 只用每個 OS 都有的 locale（回歸） | PG 17、`desktop=True`；`tools/build_desktop_pg.sh` 的 smoke | `--locale-provider=builtin --builtin-locale=C.UTF-8 --locale=C`；不得有 `--locale=C.UTF-8`（只有 Linux 有，macOS 與 Windows 的 initdb 會拒絕） | U | #4 |
 
 ### 13.3 PACK：Runtime pack 驗證（08 §4.3）
 
@@ -903,4 +907,5 @@
 | DOCK-001 | Docker all-in-one | `docker compose -f deploy/compose/allinone.yml up` | 健康檢查通過；Playwright 完成 onboarding 與一次「依日期」整理 | E | #2、DoD 5.1 |
 | DOCK-002 | 同一份 web build | 比對 Docker 映像內與桌面 bundle 內的 web 資產 hash | 相同（`vite build --mode` 僅影響 runtime 設定檔） | C | #2 |
 | DOCK-003 | 來源唯讀掛載 | compose 以 `:ro` 掛來源 | 嘗試寫入失敗於 OS 層（雙重保護） | I/S | — |
+| DOCK-004 | 映像內含執行時讀取的資料（回歸） | 依 Dockerfile app stage 的 COPY 重建 `/app` | 只靠這個目錄樹就能載入 registry（含 SigLIP2）、內建 presets、hw profiles、FakeBackend 向量；第一次 docker.yml 因缺 `registry/` 而 job.start 回 500 | C | #2 |
 

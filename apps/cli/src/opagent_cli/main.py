@@ -236,7 +236,7 @@ def read_lan_password_hash(home: Path) -> str | None:
     import json
 
     try:
-        h = json.loads(lan_file(home).read_text()).get("password_hash")
+        h = json.loads(lan_file(home).read_text(encoding="utf-8")).get("password_hash")
     except (OSError, ValueError):
         return None
     return h if isinstance(h, str) and h.startswith("$argon2id$") else None
@@ -298,7 +298,7 @@ def cmd_worker_enroll(a: argparse.Namespace) -> None:
     if a.egress_floor:
         if a.egress_floor not in MODES:
             raise SystemExit(f"--egress-floor must be one of {', '.join(MODES)}")
-        (home / "egress-floor").write_text(a.egress_floor)
+        (home / "egress-floor").write_text(a.egress_floor, encoding="utf-8")
     print(json.dumps({"worker_id": cred.worker_id, "server": cred.server}))
 
 
@@ -310,7 +310,7 @@ def _load_roots(home: Path) -> list[dict[str, str]]:
     import json
 
     f = _roots_file(home)
-    return list(json.loads(f.read_text())) if f.exists() else []
+    return list(json.loads(f.read_text(encoding="utf-8"))) if f.exists() else []
 
 
 def cmd_worker_roots(a: argparse.Namespace) -> None:
@@ -331,7 +331,7 @@ def cmd_worker_roots(a: argparse.Namespace) -> None:
     elif a.action == "remove":
         roots = [r for r in roots if r["alias"] != a.alias]
     if a.action != "list":
-        _roots_file(home).write_text(json.dumps(roots, indent=2))
+        _roots_file(home).write_text(json.dumps(roots, indent=2), encoding="utf-8")
     print(json.dumps(roots, indent=2))
 
 
@@ -342,7 +342,7 @@ def cmd_worker_run(a: argparse.Namespace) -> None:
 
     home = _remote_home(a)
     floor_f = home / "egress-floor"
-    floor = floor_f.read_text().strip() if floor_f.exists() else None
+    floor = floor_f.read_text(encoding="utf-8").strip() if floor_f.exists() else None
     client = RemoteClient(home, egress=EgressFilter(floor=floor, log_path=home / "egress-denied.log"))
     backend = None
     if a.backend == "fake":

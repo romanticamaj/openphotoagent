@@ -114,7 +114,7 @@ def test_frz_005_registry_from_v0_1(current, tmp_path):
     files = sorted((old / "models").glob("*.yaml"))
     assert files and len(reg.models) == len(files)
     for f in files:
-        raw = yaml.safe_load(f.read_text())
+        raw = yaml.safe_load(f.read_text(encoding="utf-8"))
         spec = reg.models[raw["id"]].spec
         assert spec.schema_version == raw.get("schema_version", 1)
         assert sorted(v.id for v in spec.variants) == sorted(v["id"] for v in raw["variants"])  # content kept
@@ -127,12 +127,13 @@ def test_frz_006_presets_from_v0_1_and_v0_3(current):
 
     unchanged(current, "preset-schema")
     for name in ("by-date", "by-content-12"):
-        v1 = import_text((ROOT / f"fixtures/compat/presets-v0.1/{name}.yaml").read_text())
-        v2 = import_text((ROOT / f"fixtures/compat/presets-v0.3/{name}.yaml").read_text())
+        v1 = import_text((ROOT / f"fixtures/compat/presets-v0.1/{name}.yaml").read_text(encoding="utf-8"))
+        v2 = import_text((ROOT / f"fixtures/compat/presets-v0.3/{name}.yaml").read_text(encoding="utf-8"))
         assert v1["migrated_from"] == 1 and "migrated_from" not in v2
-        raw = yaml.safe_load((ROOT / f"fixtures/compat/presets-v0.1/{name}.yaml").read_text())
+        raw = yaml.safe_load((ROOT / f"fixtures/compat/presets-v0.1/{name}.yaml").read_text(encoding="utf-8"))
         assert v1["preset"]["key"] == raw["key"] == name
         assert v1["preset"].get("output_rules") == raw.get("output_rules")
         assert json.dumps(v2["preset"], sort_keys=True) == json.dumps(
-            yaml.safe_load((ROOT / f"fixtures/compat/presets-v0.3/{name}.yaml").read_text())["preset"], sort_keys=True
+            yaml.safe_load((ROOT / f"fixtures/compat/presets-v0.3/{name}.yaml").read_text(encoding="utf-8"))["preset"],
+            sort_keys=True,
         )

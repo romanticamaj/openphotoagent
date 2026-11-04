@@ -24,6 +24,12 @@ COPY packages/ packages/
 COPY apps/api apps/api
 COPY apps/worker apps/worker
 COPY apps/cli apps/cli
+# data the app reads at runtime from the repo root (DOCK-004): model catalog, built-in presets, hw probe
+# profiles, and the FakeBackend vectors used by `opagent dev` until real adapters arrive with packs
+COPY registry/ registry/
+COPY presets/ presets/
+COPY fixtures/hw/ fixtures/hw/
+COPY fixtures/fake_vectors.yaml fixtures/fake_vectors.yaml
 RUN uv sync --frozen --no-dev --package opagent-cli && rm -rf /root/.cache
 COPY --from=web /src/apps/web/dist /app/web
 COPY --from=web /web-dist.sha256 /app/web-dist.sha256

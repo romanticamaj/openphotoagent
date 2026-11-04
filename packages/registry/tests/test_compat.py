@@ -52,7 +52,7 @@ def test_mdl_002_golden_matrix(tmp_path):
     reg = reg_with_fixtures(tmp_path)
     got = matrix(reg)
     assert len(got) == 48
-    assert got == json.loads(GOLDEN.read_text())
+    assert got == json.loads(GOLDEN.read_text(encoding="utf-8"))
 
 
 @pytest.mark.unit

@@ -77,7 +77,7 @@ class Stack:
                 "files": [{"path": f.path, "size": f.size, "sha256": f.sha256, "lfs_oid": f.sha256} for f in qwen],
             },
         ]
-        (self.registry / "pins.lock").write_text(json.dumps({"schema_version": 1, "pins": pins}))
+        (self.registry / "pins.lock").write_text(json.dumps({"schema_version": 1, "pins": pins}), encoding="utf-8")
         self.pg = EmbeddedPg(self.home / "pg")
         self.dsn = self.pg.start()
         from opagent_db.schema import create_all
@@ -432,7 +432,10 @@ class Stack:
         os.environ["OPAGENT_CLI_PATH"] = str(self.base / "app" / "bin" / "opagent")
         p = mcp_clients.config_path("claude-desktop")
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(json.dumps({"mcpServers": {"other": {"command": "/usr/bin/other-server"}}}, indent=2) + "\n")
+        p.write_text(
+            json.dumps({"mcpServers": {"other": {"command": "/usr/bin/other-server"}}}, indent=2) + "\n",
+            encoding="utf-8",
+        )
         (self.home / "data" / "secrets").mkdir(parents=True, exist_ok=True)
         shutil.rmtree(self.home / "data" / "secrets")
 
@@ -451,7 +454,7 @@ class Stack:
                 shutil.copy2(f, self.photos / "other" / f.name)
         run = Path(self.web_dist).parent / "e2e" / ".run" if self.web_dist else self.base / ".run"
         run.mkdir(parents=True, exist_ok=True)
-        (run / "tree.json").write_text(json.dumps(self.tree()))
+        (run / "tree.json").write_text(json.dumps(self.tree()), encoding="utf-8")
 
     def reset(
         self,

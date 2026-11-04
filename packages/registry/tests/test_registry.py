@@ -17,7 +17,7 @@ def _copy_builtin(tmp_path: Path) -> Path:
 
 
 def _lock(d: Path, pins: list) -> None:
-    (d / "pins.lock").write_text(json.dumps({"schema_version": 1, "pins": pins}))
+    (d / "pins.lock").write_text(json.dumps({"schema_version": 1, "pins": pins}), encoding="utf-8")
 
 
 def _pin(model: str, variant: str, files: list[str], sha: str = "a" * 64) -> dict:
@@ -51,7 +51,10 @@ def test_inf_reg_001_builtin_registry_valid():
 def test_inf_reg_001_catalog_with_hash_rejected(tmp_path):
     d = _copy_builtin(tmp_path)
     p = d / "models" / "qwen3-vl-4b-instruct.yaml"
-    p.write_text(p.read_text().replace("role: weights }", 'role: weights, sha256: "' + "b" * 64 + '" }', 1))
+    p.write_text(
+        p.read_text(encoding="utf-8").replace("role: weights }", 'role: weights, sha256: "' + "b" * 64 + '" }', 1),
+        encoding="utf-8",
+    )
     with pytest.raises(RegistryLoadError, match="sha256"):
         load_registry(d)
 
@@ -116,8 +119,10 @@ variants:
 def test_inf_reg_002_user_file_without_sha_is_invalid_only(tmp_path):
     user = tmp_path / "custom"
     user.mkdir()
-    (user / "ok.yaml").write_text(USER_OK)
-    (user / "nosha.yaml").write_text(USER_OK.replace("my-gguf", "no-sha").replace(', sha256: "' + "c" * 64 + '"', ""))
+    (user / "ok.yaml").write_text(USER_OK, encoding="utf-8")
+    (user / "nosha.yaml").write_text(
+        USER_OK.replace("my-gguf", "no-sha").replace(', sha256: "' + "c" * 64 + '"', ""), encoding="utf-8"
+    )
     reg = load_registry(user_dirs=[user])
     assert reg.models["my-gguf"].status == "valid" and reg.models["my-gguf"].source == "user"
     bad = reg.models["no-sha"]
@@ -130,8 +135,10 @@ def test_inf_reg_002_user_file_without_sha_is_invalid_only(tmp_path):
 def test_inf_reg_004_broken_user_yaml_reports_file_and_line(tmp_path):
     user = tmp_path / "custom"
     user.mkdir()
-    (user / "syntax.yaml").write_text("id: x\nkind: vlm\nvariants: [\n  - id: a\n")
-    (user / "field.yaml").write_text(USER_OK.replace("my-gguf", "bad-field").replace("kind: vlm", "kind: spaceship"))
+    (user / "syntax.yaml").write_text("id: x\nkind: vlm\nvariants: [\n  - id: a\n", encoding="utf-8")
+    (user / "field.yaml").write_text(
+        USER_OK.replace("my-gguf", "bad-field").replace("kind: vlm", "kind: spaceship"), encoding="utf-8"
+    )
     reg = load_registry(user_dirs=[user])
     errs = {Path(e.file).name: e for e in reg.errors}
     assert errs["syntax.yaml"].line >= 3

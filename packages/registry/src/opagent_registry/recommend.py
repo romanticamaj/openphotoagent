@@ -194,11 +194,15 @@ def recommend(reg: Registry, hw: HwSummary, pin_states: dict[str, str] | None = 
     # download size and time (exact when pinned, else estimated from the catalog)
     total, estimated = 0, False
     for pid in r.packs:
-        total += reg.runtimes[pid].size_est or 0
+        if pid in reg.runtimes:  # a catalog without the pack (INF-REG-014): unknown size, not a crash
+            total += reg.runtimes[pid].size_est or 0
         estimated = True
     for key in filter(None, [r.vlm, r.embed]):
         mid, _, vid = key.partition("@")
-        m = reg.models[mid]
+        m = reg.models.get(mid)
+        if m is None:  # not in this catalog: download preflight reports MODEL_NOT_PINNED
+            estimated = True
+            continue
         files = m.pinned_files(vid)
         exact = sum(f.size or 0 for f in files)
         if exact and all(f.size for f in files):

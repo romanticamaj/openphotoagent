@@ -8,7 +8,7 @@ from opagent_fs.fsops import RealFs
 from opagent_fs.journal import Journal
 from opagent_fs.safepath import RootConfig, Sandbox
 
-spec = json.load(open(sys.argv[1]))
+spec = json.load(open(sys.argv[1], encoding="utf-8"))
 cmd = sys.argv[2]
 ex = Executor(Sandbox([RootConfig(**r) for r in spec["roots"]]), RealFs(), Journal(spec["journal"]))
 if cmd == "apply":

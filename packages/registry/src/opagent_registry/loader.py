@@ -123,7 +123,7 @@ def _validate_model(path: Path, data: Any, node: yaml.Node | None) -> tuple[Mode
 def _load_lock(path: Path) -> PinsLock:
     if not path.exists():
         return PinsLock()
-    text = "\n".join(ln for ln in path.read_text().splitlines() if not ln.lstrip().startswith("#"))
+    text = "\n".join(ln for ln in path.read_text(encoding="utf-8").splitlines() if not ln.lstrip().startswith("#"))
     try:
         return PinsLock.model_validate(json.loads(text or "{}"))
     except (ValidationError, json.JSONDecodeError) as e:
@@ -194,13 +194,17 @@ def load_registry(root: Path | None = None, user_dirs: list[Path] | None = None)
     runtimes: dict[str, RuntimePack] = {}
     for path in sorted((root / "runtimes").glob("*.yaml")):
         try:
-            rt = RuntimePack.model_validate(yaml.safe_load(path.read_text()))
+            rt = RuntimePack.model_validate(yaml.safe_load(path.read_text(encoding="utf-8")))
         except (ValidationError, yaml.YAMLError) as e:
             raise RegistryLoadError(f"{path}: {e}") from None
         runtimes[rt.id] = rt
     gpu_path = root / "gpu_classes.yaml"
     try:
-        gpu = GpuClasses.model_validate(yaml.safe_load(gpu_path.read_text())).classes if gpu_path.exists() else []
+        gpu = (
+            GpuClasses.model_validate(yaml.safe_load(gpu_path.read_text(encoding="utf-8"))).classes
+            if gpu_path.exists()
+            else []
+        )
     except ValidationError as e:
         raise RegistryLoadError(f"{gpu_path}: {e}") from None
     lock_path = root / "pins.lock"

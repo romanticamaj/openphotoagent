@@ -18,7 +18,7 @@ def artefacts(d):
         "OpenPhotoAgent_1.1.0.AppImage.tar.gz",
     ):
         (d / n).write_bytes(b"x")
-        (d / (n + ".sig")).write_text("sig")
+        (d / (n + ".sig")).write_text("sig", encoding="utf-8")
 
 
 @pytest.mark.tc("UPD-010")

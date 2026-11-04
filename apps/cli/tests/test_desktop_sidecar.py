@@ -48,7 +48,7 @@ def _wait_run(home: Path, p, timeout=30.0):
     while time.monotonic() - t0 < timeout:  # noqa: TID251
         if f.exists():
             try:
-                return json.loads(f.read_text())
+                return json.loads(f.read_text(encoding="utf-8"))
             except json.JSONDecodeError:
                 pass
         if p.poll() is not None:
@@ -68,7 +68,7 @@ def _listening(port: int) -> list[str]:
     for name in ("/proc/net/tcp", "/proc/net/tcp6"):
         if not Path(name).exists():  # kernels without IPv6
             continue
-        for line in Path(name).read_text().splitlines()[1:]:
+        for line in Path(name).read_text(encoding="utf-8").splitlines()[1:]:
             local, state = line.split()[1], line.split()[3]
             addr, p = local.split(":")
             if state == "0A" and int(p, 16) == port:
@@ -102,7 +102,7 @@ def test_desk_012_014_token_on_stdin_and_loopback_only(embedded_pg, tmp_path, st
     assert httpx.get(f"{base}/api/v1/sources", headers={"Authorization": f"Bearer {TOKEN}"}).status_code == 200
     assert _listening(port) == ["0100007F"]  # 127.0.0.1 only
     logs = (
-        "".join(f.read_text(errors="ignore") for f in (home / "logs").glob("*.log*"))
+        "".join(f.read_text(errors="ignore", encoding="utf-8") for f in (home / "logs").glob("*.log*"))
         if (home / "logs").exists()
         else ""
     )
@@ -127,7 +127,7 @@ def test_desk_010_port_conflicts(embedded_pg, tmp_path, stop):
         # (b) another OpenPhotoAgent on the same data dir holds the port → do not start a second one
         p2 = _launch(embedded_pg.dsn, home, info["port"])
         assert p2.wait(30) == 3, p2.stdout.read().decode()[-2000:]
-        assert json.loads((home / "run" / "api.json").read_text())["pid"] == p.pid  # unchanged
+        assert json.loads((home / "run" / "api.json").read_text(encoding="utf-8"))["pid"] == p.pid  # unchanged
     finally:
         blocker.close()
 
@@ -138,8 +138,8 @@ def test_desk_027_user_python_environment_is_ignored(embedded_pg, tmp_path, stop
     evil = tmp_path / "evil"
     evil.mkdir()
     marker = tmp_path / "pwned"
-    (evil / "json.py").write_text(f"open({str(marker)!r}, 'w').write('x')\nraise SystemExit(9)\n")
-    (evil / "sitecustomize.py").write_text(f"open({str(marker)!r}, 'w').write('x')\n")
+    (evil / "json.py").write_text(f"open({str(marker)!r}, 'w').write('x')\nraise SystemExit(9)\n", encoding="utf-8")
+    (evil / "sitecustomize.py").write_text(f"open({str(marker)!r}, 'w').write('x')\n", encoding="utf-8")
     home = tmp_path / "data"
     p = _launch(
         embedded_pg.dsn, home, _free_port(), extra_env={"PYTHONPATH": str(evil), "PYTHONSTARTUP": str(evil / "json.py")}
@@ -194,7 +194,7 @@ def test_desk_035_port_listens_before_run_file_appears(embedded_pg, tmp_path, st
         f = home / "run" / "api.json"
         while not f.exists():  # tight poll: catch the earliest moment the file is visible
             assert p.poll() is None, p.stdout.read().decode()[-2000:]
-        info = json.loads(f.read_text())
+        info = json.loads(f.read_text(encoding="utf-8"))
         with socket.create_connection(("127.0.0.1", info["port"]), timeout=2):
             pass
         p.terminate()
@@ -217,7 +217,7 @@ def test_desk_015_lan_mode_needs_a_password_then_binds_all_interfaces(embedded_p
         timeout=60,
     )
     assert r.returncode == 0, r.stderr
-    cfg = json.loads((home / "config" / "lan.json").read_text())
+    cfg = json.loads((home / "config" / "lan.json").read_text(encoding="utf-8"))
     assert cfg["password_hash"].startswith("$argon2id$") and "correct horse" not in json.dumps(cfg)
     assert stat.S_IMODE((home / "config" / "lan.json").stat().st_mode) == 0o600
     p = _launch(embedded_pg.dsn, home, port, extra_args=["--lan"])
@@ -291,9 +291,8 @@ def test_desk_011_worker_authenticates_with_the_launch_token_from_stdin(embedded
         out = w.stdout.read().decode()[-2000:] if w.poll() is not None else "never registered"
         assert w.poll() is None and time.monotonic() < deadline, out  # noqa: TID251
         time.sleep(0.2)  # noqa: TID251
-    assert (
-        TOKEN not in Path(f"/proc/{w.pid}/cmdline").read_text()
-        and TOKEN not in Path(f"/proc/{w.pid}/environ").read_text()
-    )
+    assert TOKEN not in Path(f"/proc/{w.pid}/cmdline").read_text(encoding="utf-8") and TOKEN not in Path(
+        f"/proc/{w.pid}/environ"
+    ).read_text(encoding="utf-8")
     w.stdin.close()  # the shell is gone
     w.wait(timeout=10)

@@ -168,7 +168,7 @@ class Downloader:
     def _load_meta(p: Path) -> dict[str, Any]:
         if p.exists():
             try:
-                return dict(json.loads(p.read_text()))
+                return dict(json.loads(p.read_text(encoding="utf-8")))
             except ValueError:
                 return {}
         return {}
@@ -176,7 +176,7 @@ class Downloader:
     @staticmethod
     def _save_meta(p: Path, meta: dict[str, Any]) -> None:
         tmp = p.with_suffix(".json.tmp")
-        tmp.write_text(json.dumps(meta))
+        tmp.write_text(json.dumps(meta), encoding="utf-8")
         os.replace(tmp, p)
 
     # ---- public ----

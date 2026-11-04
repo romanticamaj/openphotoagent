@@ -58,7 +58,7 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     existing: dict[str, list[dict[str, str]]] = {}
     if path.exists() and os.environ.get("OPAGENT_TC_APPEND"):
-        existing = json.loads(path.read_text())
+        existing = json.loads(path.read_text(encoding="utf-8"))
     for k, v in _results.items():
         existing.setdefault(k, []).extend(v)
-    path.write_text(json.dumps(existing, indent=1, sort_keys=True))
+    path.write_text(json.dumps(existing, indent=1, sort_keys=True), encoding="utf-8")

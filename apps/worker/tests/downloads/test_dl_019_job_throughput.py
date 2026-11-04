@@ -75,7 +75,7 @@ def test_dl_019_download_does_not_slow_a_running_job(embedded_pg, sandbox_tree, 
                 "files": [{"path": p, "size": n, "sha256": h, "lfs_oid": h} for p, n, h in served],
             }
         ]
-        (reg / "pins.lock").write_text(json.dumps({"schema_version": 1, "pins": pins}))
+        (reg / "pins.lock").write_text(json.dumps({"schema_version": 1, "pins": pins}), encoding="utf-8")
         client = TestClient(create_app(dsn=embedded_pg.dsn, registry_dir=reg))
         w = WorkerAgent(
             client,

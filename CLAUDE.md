@@ -136,7 +136,9 @@ just setup          # uv sync + pnpm install + 下載測試用嵌入式 PG
 just test           # unit + property + contract（快速，PR 必跑）
 just test-int       # integration（真 Postgres），之後在獨立行程跑 Python 效能測試（perf-api）
 just perf-api       # VIEW-009、PF-075：只在自己的 pytest 行程執行（ADR-0018）
-just e2e            # Playwright（web build + FakeBackend）
+just e2e            # Playwright（web build + FakeBackend），chromium 與 visual 兩個 project
+just e2e-pr         # PR CI：不含 visual（ADR-0019）
+just visual         # 只跑視覺基準；CI 在釘選的 Playwright 映像內執行（VIS-004）
 just lint           # ruff + mypy + eslint + tsc + import-linter
 just tc-status      # 更新 docs/generated/coverage-status.md
 just mutate-diff    # mutation testing（fs-sandbox / path_template）

@@ -93,7 +93,7 @@ def test_dl_003_pause_and_resume_with_range_and_if_range(server, tmp_path):
     d.on_progress = on_progress
     r1 = run(d.download("op3", files_for(srv), tok))
     assert r1.status == "paused"
-    meta = json.loads(next((tmp_path / ".downloads" / "op3").glob("*.part.json")).read_text())
+    meta = json.loads(next((tmp_path / ".downloads" / "op3").glob("*.part.json")).read_text(encoding="utf-8"))
     written = meta["written"]
     assert written >= 0.4 * 4 * MB
     r2 = run(mk(srv, tmp_path).download("op3", files_for(srv), CancelToken()))
@@ -245,7 +245,7 @@ def test_dl_013_part_json_tracks_each_segment(server, tmp_path):
     d = mk(srv, tmp_path, segment_threshold=MB, segments=4)
     d.on_progress = lambda ev: tok.pause() if ev["done_bytes"] > 2 * MB and not tok.requested else None
     assert run(d.download("op13b", files_for(srv), tok)).status == "paused"
-    meta = json.loads(next((tmp_path / ".downloads" / "op13b").glob("*.part.json")).read_text())
+    meta = json.loads(next((tmp_path / ".downloads" / "op13b").glob("*.part.json")).read_text(encoding="utf-8"))
     segs = meta["segments"]
     assert len(segs) == 4 and sum(s["written"] for s in segs) == meta["written"]
     assert all(0 <= s["written"] <= s["end"] - s["start"] + 1 for s in segs)
@@ -285,7 +285,8 @@ def test_dl_017_finalize_crash_leaves_consistent_state(server, tmp_path):
         "from opagent_worker.downloads import Downloader, DlFile, CancelToken\n"
         f"files=[DlFile('{REPO}','main','w.onnx',{srv.files[0].size},'{srv.files[0].sha256}')]\n"
         f"d=Downloader(Path(r'{tmp_path / 'm'}'), sources=['{srv.url}'], reserve_floor=0)\n"
-        "print(asyncio.run(d.download('op17', files, CancelToken())).status)\n"
+        "print(asyncio.run(d.download('op17', files, CancelToken())).status)\n",
+        encoding="utf-8",
     )
     env = {**__import__("os").environ, "OPAGENT_TEST_MODE": "1", "OPAGENT_CRASH_AT": "download_finalize"}
     p = subprocess.run([sys.executable, str(script)], env=env, capture_output=True, text=True, timeout=60)

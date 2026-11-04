@@ -135,7 +135,7 @@ def generate() -> dict[str, dict[str, Any]]:
 
 
 def load(name: str) -> dict[str, Any]:
-    return json.loads((DIR / f"{name}.json").read_text())  # type: ignore[no-any-return]
+    return json.loads((DIR / f"{name}.json").read_text(encoding="utf-8"))  # type: ignore[no-any-return]
 
 
 def dump(doc: dict[str, Any]) -> str:
@@ -166,7 +166,7 @@ def main(argv: list[str]) -> int:
     if "--update" in argv:
         DIR.mkdir(exist_ok=True)
         for name, doc in cur.items():
-            (DIR / f"{name}.json").write_text(dump(doc))
+            (DIR / f"{name}.json").write_text(dump(doc), encoding="utf-8")
         print(f"wrote {len(cur)} contracts to {DIR}")
         return 0
     bad = 0

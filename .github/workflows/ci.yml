@@ -87,10 +87,28 @@ jobs:
       - name: PostgreSQL 17 (macOS)
         if: runner.os == 'macOS'
         run: brew install postgresql@17 pgvector && echo "OPAGENT_PG_BIN=$(brew --prefix postgresql@17)/bin" >> $GITHUB_ENV
+      - name: PostgreSQL 17 + pgvector (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-17 postgresql-17-pgvector
+          echo "OPAGENT_PG_BIN=/usr/lib/postgresql/17/bin" >> $GITHUB_ENV
       - name: PostgreSQL (Windows preinstalled)
         if: runner.os == 'Windows'
         shell: bash
         run: echo "OPAGENT_PG_BIN=$PGBIN" >> $GITHUB_ENV
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
+      - name: pgvector for the preinstalled PostgreSQL (Windows; pgvector's documented nmake build)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          set "PGROOT=%PGROOT%"
+          git clone --depth 1 --branch v0.8.0 https://github.com/pgvector/pgvector.git "%RUNNER_TEMP%\pgvector"
+          cd /d "%RUNNER_TEMP%\pgvector"
+          nmake /NOLOGO /F Makefile.win
+          nmake /NOLOGO /F Makefile.win install
       - run: uv sync
       - run: uv run pytest -q packages/core packages/fs-sandbox packages/testing
 
@@ -110,7 +128,7 @@ jobs:
           echo "OPAGENT_PG_BIN=/usr/lib/postgresql/17/bin" >> $GITHUB_ENV
       - run: uv sync && pnpm install --frozen-lockfile
       - run: pnpm --filter web exec playwright install --with-deps chromium
-      - run: uv tool install rust-just && just e2e
+      - run: uv tool install rust-just && just e2e-pr
       - uses: actions/upload-artifact@v4
         if: always()
         with: { name: tc-e2e, path: .tc/ }

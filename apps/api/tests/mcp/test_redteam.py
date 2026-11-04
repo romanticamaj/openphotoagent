@@ -14,7 +14,7 @@ import yaml
 from opagent_testing.mcp_harness import M
 
 ROOT = Path(__file__).resolve().parents[4]
-CASES = yaml.safe_load((ROOT / "fixtures/security/redteam.yaml").read_text())["cases"]
+CASES = yaml.safe_load((ROOT / "fixtures/security/redteam.yaml").read_text(encoding="utf-8"))["cases"]
 CONTROL_CHARS = "​‮‬\x1b\x00"
 
 

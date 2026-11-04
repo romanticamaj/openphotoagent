@@ -54,7 +54,7 @@ def _pip_audit() -> list[dict[str, Any]]:
     ).stdout
     tmp = ROOT / ".tc" / "requirements-audit.txt"
     tmp.parent.mkdir(exist_ok=True)
-    tmp.write_text(req)
+    tmp.write_text(req, encoding="utf-8")
     r = subprocess.run(
         ["uvx", "pip-audit", "-r", str(tmp), "-f", "json", "--progress-spinner", "off"],
         capture_output=True,
@@ -122,7 +122,7 @@ def collect() -> tuple[list[dict[str, Any]], list[str]]:
 
 
 def main() -> int:
-    vex = json.loads((ROOT / "security/vex.json").read_text())
+    vex = json.loads((ROOT / "security/vex.json").read_text(encoding="utf-8"))
     errs = validate_vex(vex)
     findings, unavailable = collect()
     blocked = gate(findings, vex)

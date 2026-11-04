@@ -99,18 +99,18 @@ def test_desk_009_stale_postmaster_pid(pg):
     p.stop()
     pidfile = p.data / "postmaster.pid"
     # a pid that no longer exists → cleaned up, start succeeds
-    pidfile.write_text("999999\n" + str(p.data) + "\n")
+    pidfile.write_text("999999\n" + str(p.data) + "\n", encoding="utf-8")
     p.start()
     p.stop()
     # a live process that is not postgres (this test runner) → also cleaned up
-    pidfile.write_text(f"{os.getpid()}\n{p.data}\n")
+    pidfile.write_text(f"{os.getpid()}\n{p.data}\n", encoding="utf-8")
     p.start()
-    live_pid = int(pidfile.read_text().split()[0])
+    live_pid = int(pidfile.read_text(encoding="utf-8").split()[0])
     # a live postgres → never removed; the caller is told another instance owns the data
     other = EmbeddedPg(p.home, desktop=True)
     with pytest.raises(PgAlreadyRunning):
         other.start()
-    assert int(pidfile.read_text().split()[0]) == live_pid
+    assert int(pidfile.read_text(encoding="utf-8").split()[0]) == live_pid
 
 
 @pytest.mark.integration
@@ -163,12 +163,14 @@ def test_pg_005_006_daily_retention_and_restore(pg, base):
 def test_pg_009_full_disk_is_reported_and_data_kept(tmp_path):
     p = EmbeddedPg(tmp_path / "d", desktop=True)
     p.data.mkdir(parents=True)
-    (p.data / "PG_VERSION").write_text("16\n")
+    (p.data / "PG_VERSION").write_text("16\n", encoding="utf-8")
     (p.data / "base").mkdir()
 
     def runner(*args: str) -> subprocess.CompletedProcess[str]:
         if "start" in args:
-            (p.home / "pg.log").write_text("FATAL:  could not write lock file: No space left on device\n")
+            (p.home / "pg.log").write_text(
+                "FATAL:  could not write lock file: No space left on device\n", encoding="utf-8"
+            )
             raise subprocess.CalledProcessError(1, list(args))
         return subprocess.CompletedProcess(list(args), 0, "", "")
 
@@ -245,3 +247,25 @@ def test_pg_010_fifty_starts_and_stops_without_failure(pg):
         finally:
             p.stop()
     assert failures == []
+
+
+@pytest.mark.unit
+@pytest.mark.tc("PG-016")
+def test_pg_016_desktop_initdb_uses_locales_every_os_has(tmp_path, monkeypatch):
+    """回歸: `--locale=C.UTF-8` sets the OS-level lc_* categories, and C.UTF-8 exists only on Linux — initdb
+    refused it on macOS and Windows (desktop-build CI). Collation comes from PG 17's builtin provider (08 §1, D4);
+    the OS-level categories must be "C", which every OS has. The pack build script runs the same smoke test."""
+    import opagent_db.embedded as E
+
+    monkeypatch.setattr(E, "_pg_major", lambda _b: 17)
+    p = EmbeddedPg(tmp_path / "pg", desktop=True)
+    seen: list[tuple[str, ...]] = []
+    p.run_as = lambda *a: seen.append(a) or subprocess.CompletedProcess(list(a), 0, "", "")  # type: ignore[method-assign]
+    p._initdb()
+    [args] = seen
+    assert "--locale-provider=builtin" in args and "--builtin-locale=C.UTF-8" in args
+    os_level = [a for a in args if a.startswith(("--locale=", "--lc-"))]
+    assert os_level == ["--locale=C"], os_level
+    script = (Path(__file__).resolve().parents[3] / "tools/build_desktop_pg.sh").read_text(encoding="utf-8")
+    smoke = next(ln for ln in script.splitlines() if "initdb" in ln and "--locale" in ln)
+    assert "--builtin-locale=C.UTF-8" in smoke and "--locale=C " in smoke + " " and "--locale=C.UTF-8" not in smoke

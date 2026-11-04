@@ -69,6 +69,10 @@ jobs:
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # linuxdeploy is itself an AppImage: without FUSE on the runner it must extract itself; and its bundled
+          # strip predates the runner's binutils, so leave the binaries unstripped (first desktop-build run failed)
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+          NO_STRIP: "true"
         run: |
           cargo install tauri-cli --version "^2" --locked
           cargo tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}

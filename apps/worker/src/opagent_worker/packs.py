@@ -164,13 +164,13 @@ class PackInstaller:
     # ---- active state ----
     def _active(self) -> dict[str, str]:
         p = self.root / "active.json"
-        return dict(json.loads(p.read_text())) if p.exists() else {}
+        return dict(json.loads(p.read_text(encoding="utf-8"))) if p.exists() else {}
 
     def _set_active(self, pid: str, version: str) -> None:
         act = self._active()
         act[pid] = version
         tmp = self.root / "active.json.tmp"
-        tmp.write_text(json.dumps(act, sort_keys=True))
+        tmp.write_text(json.dumps(act, sort_keys=True), encoding="utf-8")
         os.replace(tmp, self.root / "active.json")
         meta = self.root / pid / version / ".opagent-pack.json"
         if not meta.exists():
@@ -194,7 +194,7 @@ class PackInstaller:
             shutil.rmtree(dest, ignore_errors=True)
             raise
         (dest / ".opagent-pack.json").write_text(
-            json.dumps({k: e[k] for k in ("id", "version", "numerics_epoch", "pack_api") if k in e})
+            json.dumps({k: e[k] for k in ("id", "version", "numerics_epoch", "pack_api") if k in e}), encoding="utf-8"
         )
         return dest
 
@@ -244,7 +244,7 @@ class PackInstaller:
 
     def import_file(self, archive: Path, index_path: Path, sig_path: Path) -> InstallResult:
         """Offline import (08 §4.3, PACK-009): same verification as a download."""
-        index = self._index(index_path.read_bytes(), sig_path.read_text())
+        index = self._index(index_path.read_bytes(), sig_path.read_text(encoding="utf-8"))
         data = archive.read_bytes()
         sha = hashlib.sha256(data).hexdigest()
         e = next((p for p in index["packs"] if p["sha256"] == sha), None)
@@ -275,7 +275,7 @@ class PackInstaller:
         from opagent_core.config_hash import model_fingerprint
 
         ver = self._active()[pid]
-        meta = json.loads((self.root / pid / ver / ".opagent-pack.json").read_text())
+        meta = json.loads((self.root / pid / ver / ".opagent-pack.json").read_text(encoding="utf-8"))
         return model_fingerprint(
             adapter, adapter_version, weights, int(meta.get("numerics_epoch", 0)), pack_version=ver
         )

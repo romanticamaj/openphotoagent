@@ -62,7 +62,7 @@ def load(home: Path, profile: str = "default", kind: str = "mcp-pat") -> str | N
             if v:
                 return str(v)
     f = _file(home, profile, kind)
-    return f.read_text().strip() if f.exists() else None
+    return f.read_text(encoding="utf-8").strip() if f.exists() else None
 
 
 def delete(home: Path, profile: str = "default", kind: str = "mcp-pat") -> None:

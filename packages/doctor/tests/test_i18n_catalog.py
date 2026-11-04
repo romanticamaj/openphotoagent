@@ -8,8 +8,10 @@ from opagent_doctor.codes import CATALOG, problem
 
 ROOT = Path(__file__).resolve().parents[3]
 LANGS = ("zh-TW", "en")
-ERRORS = {lang: json.loads((ROOT / f"packages/i18n/errors.{lang}.json").read_text()) for lang in LANGS}
-LOCALES = {lang: json.loads((ROOT / f"packages/i18n/locales/{lang}.json").read_text()) for lang in LANGS}
+ERRORS = {lang: json.loads((ROOT / f"packages/i18n/errors.{lang}.json").read_text(encoding="utf-8")) for lang in LANGS}
+LOCALES = {
+    lang: json.loads((ROOT / f"packages/i18n/locales/{lang}.json").read_text(encoding="utf-8")) for lang in LANGS
+}
 
 
 def lookup(d, dotted):

@@ -187,7 +187,7 @@ def collect_probes() -> dict[str, Any]:
         }
     }
     with contextlib.suppress(OSError):
-        probes["meminfo"] = Path("/proc/meminfo").read_text()
+        probes["meminfo"] = Path("/proc/meminfo").read_text(encoding="utf-8")
     smi = shutil.which("nvidia-smi")
     if smi:
         try:

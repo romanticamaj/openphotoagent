@@ -42,7 +42,7 @@ def test_desk_026_json_lines_rotation_and_redaction(tmp_path):
     log = logging.getLogger("opagent.test")
     log.warning("scanned /home/a/Pictures/2024/x.jpg with token %s", secret)
     h.flush()
-    lines = (tmp_path / "api.log").read_text().splitlines()
+    lines = (tmp_path / "api.log").read_text(encoding="utf-8").splitlines()
     rec = json.loads(lines[-1])
     assert rec["level"] == "WARNING" and rec["proc"] == "api" and "ts" in rec
     assert "photos:2024/x.jpg" in rec["msg"] and "/home/a" not in rec["msg"] and secret not in rec["msg"]

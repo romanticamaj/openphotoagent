@@ -159,9 +159,9 @@ class WorkerAgent:
     def _load_id(self) -> str:
         f = self.home / "worker_id"
         if f.exists():
-            return f.read_text().strip()
+            return f.read_text(encoding="utf-8").strip()
         wid = "w-" + uuid.uuid4().hex[:12]
-        f.write_text(wid)
+        f.write_text(wid, encoding="utf-8")
         return wid
 
     def register(self) -> None:

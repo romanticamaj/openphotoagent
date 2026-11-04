@@ -1,0 +1,39 @@
+# Regenerate the visual baselines in the pinned Playwright image (ADR-0019, VIS-004).
+# Dispatch by hand; download the artifact, review every PNG diff, and commit the ones that are rendering-only.
+# The report lists each image's diff ratio and size change against the committed baseline before updating.
+name: visual-baselines
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+env:
+  UV_SYSTEM_CERTS: "1"
+jobs:
+  baselines:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --ipc=host
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: pnpm/action-setup@v4
+      - name: PostgreSQL 17 + pgvector (inside the pinned image)
+        run: |
+          apt-get update && apt-get install -y postgresql-common
+          /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          apt-get install -y postgresql-17 postgresql-17-pgvector
+          echo "OPAGENT_PG_BIN=/usr/lib/postgresql/17/bin" >> $GITHUB_ENV
+      - run: uv sync && pnpm install --frozen-lockfile
+      - run: uv tool install rust-just && echo "$HOME/.local/bin" >> $GITHUB_PATH
+      - name: Compare against the committed baselines first (the report shows what will change)
+        run: just visual || true
+      - name: Render new baselines
+        run: just visual --update-snapshots
+      - uses: actions/upload-artifact@v4
+        with:
+          name: visual-baselines
+          path: |
+            apps/web/e2e/visual/**/*-snapshots/
+            apps/web/test-results/

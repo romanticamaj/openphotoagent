@@ -5,7 +5,7 @@
 
 ## 審議索引
 
-實作期間（M0 → v1.0）共開了 16 次審議、19 個 sub-agent，全部都有對應的 ADR。規劃階段撰寫規格 00–11 用的 sub-agent，以及提高 mutation score 的實作 sub-agent，不屬於審議，因此不列入。
+實作期間（M0 → v1.0）共開了 17 次審議、20 個 sub-agent，全部都有對應的 ADR。規劃階段撰寫規格 00–11 用的 sub-agent，以及提高 mutation score 的實作 sub-agent，不屬於審議，因此不列入。
 
 | ADR | 審議題目 | sub-agent 數 | 里程碑 |
 |---|---|---|---|
@@ -26,6 +26,7 @@
 | ADR-0016 | workspace 隔離：row filter 或每個 workspace 一個資料庫 | 2 | 5 |
 | ADR-0017 | Worker 協定版本格式 | 1 | 6 |
 | ADR-0018 | VIEW-009 在整合測試中偶發失敗：量測方式 | 1 | 6（最終 gate） |
+| ADR-0019 | CI 的視覺基準與本機不一致 | 1 | 6（第一次 CI） |
 
 
 ## ADR-0001：任務門檻（accept／review）與分類 cascade 的關係
@@ -451,6 +452,8 @@
 
 **同步修改的規格**：08 C-21、05 §3.2（`organize:apply` 註記）、09b §8.6。
 
+
+**補充（2026-11-04，ADR-0019）**：「字型釘選」只釘選了字型檔；FreeType 的 hinting、antialias 與 fallback 字型依 OS 而異。CI 的視覺基準因此改在釘選的 Playwright 官方映像算繪。
 ---
 
 ## ADR-0016：v0.5 的 workspace 隔離採「每個 workspace 一個資料庫」
@@ -550,3 +553,45 @@
 - VIEW-009 與 PF-075 的斷言、門檻都沒有修改。
 
 **同步修改的規格**：09 §2.1 Performance 列、09a PERF-008 備註與 PERF-009、CLAUDE.md §6 指令清單。
+
+---
+
+## ADR-0019：視覺基準只在釘選的 Playwright 官方映像中算繪；PR 的 E2E 不含 visual
+
+- 日期：2026-11-04｜狀態：已採納｜審議：1 個獨立 sub-agent（題目、09 §2 與 §5、09a VIS-001～003／ACT-006、ADR-0003、`playwright.config.ts`、`visual.spec.ts`、ci.yml、nightly.yml、justfile、CI 的差異數字）
+
+**背景**：
+- PR #12 第一次跑 GitHub Actions，`e2e-smoke` 有 9 個視覺測試失敗。每張圖都約有 1% 的像素不同（723～3,517 px），元件、頁面、兩種主題都一樣，門檻是 0.1%。
+- 兩邊的 Chromium 完全相同：@playwright/test 1.63.0，revision 1243。
+- 差異來自 OS 的字型算繪：雲端開發容器有自己的 fontconfig（subpixel、hinting slight、系統 Inter、wqy fallback）。
+- @fontsource 釘選的是字型檔，不是 FreeType 的 hinting、antialias 與 fallback 字型。所以 ADR-0003「字型釘選就能跨機器一致」的前提並不完整。
+- 另外，09 §2／§5 規定 PR 只跑 E2E 煙霧、visual 在 nightly。但 ci.yml 的 `e2e-smoke` 跑的是 `just e2e` 全套（含 visual），nightly.yml 也沒有 Playwright job。
+
+**選項**：
+- A. 放寬到 0.02：違反 VIS-001 的「差異 > 0.1% 失敗」與 ADR-0003 的「門檻不變」，屬於弱化。而且改一個字或位移 1px 往往不到 2%，會漏掉真正的回歸。否決。
+- B. 在 CI 用釘選的官方映像算繪與比對；基準由 `workflow_dispatch` 的 workflow 在同一個映像產生，人工審閱後提交。不是弱化，算繪環境也變得可重現。
+- C. 依規格分層：PR 跑 E2E（不含 visual），visual 放 nightly。這符合規格，但單獨採用只是把失敗移到 nightly。
+- D. 每個環境各一份基準：兩份會漂移，每次都要審兩次。否決。
+- E. 在裸的 ubuntu runner 重產基準：runner 映像與 apt 字型會無預警變動。比 B 差。
+
+**決定**：B＋C。
+- Playwright 分成 `chromium` 與 `visual` 兩個 project；門檻 0.1% 與 `animations: "disabled"` 不變。
+- `visual` 的快照路徑沿用拆分前的檔名。
+- PR 的 `e2e-smoke` 改跑 `just e2e-pr`，也就是 `--project=chromium`：除了 visual，其他 E2E 全部照跑，不縮小 PR 的涵蓋範圍。
+- nightly.yml 新增 `visual` job，在 `mcr.microsoft.com/playwright:v1.63.0-noble` 內執行 `just visual`。
+- 新增 `visual-baselines.yml`（`workflow_dispatch`，同一個映像）：
+  - 先比對並保留報告，再 `--update-snapshots`；
+  - 上傳新基準，由人逐張審閱、提交。
+- 本機 `just e2e` 仍然跑兩個 project：現有基準就是在這個開發容器產生的，所以本機仍然可以重現。
+- 新基準提交後，本機與 CI 以釘選映像的基準為準。
+
+**理由**：
+- 這是唯一不弱化門檻，又讓 CI 能重現基準的做法。
+- CI 的輸出本身沒有錯；問題是基準只記錄了一個別人無法重建的環境。
+- 因此，改用釘選映像重產基準，不是「修改 golden 去配合錯誤的輸出」。但這仍然是 golden 的變更，所以必須人工審閱。
+
+**影響的測試 ID**：
+- 新增 VIS-004：跑 `visual` 的 job 一律使用與 `@playwright/test` 同版本的映像；nightly 與 baselines workflow 都有；PR 只跑 `chromium`。
+- VIS-001～003、ACT-006 的斷言與門檻都沒有修改。新基準提交前，這四條在 CI nightly 會是紅的，記在 B-21。
+
+**同步修改的規格**：09 §2 Visual regression 列；ADR-0003 的「字型釘選」補充為「字型檔釘選，算繪環境由 ADR-0019 釘選」；CLAUDE.md §6 指令清單。

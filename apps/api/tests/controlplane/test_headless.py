@@ -35,7 +35,7 @@ def listening_inodes():
     for f in ("/proc/net/tcp", "/proc/net/tcp6", "/proc/net/udp", "/proc/net/udp6"):
         if not os.path.exists(f):
             continue
-        for line in Path(f).read_text().splitlines()[1:]:
+        for line in Path(f).read_text(encoding="utf-8").splitlines()[1:]:
             cols = line.split()
             state, inode = cols[3], cols[9]
             if f.endswith(("tcp", "tcp6")) and state != "0A":  # TCP LISTEN

@@ -32,7 +32,7 @@ def env(embedded_pg, sandbox_tree, tmp_path):
             "files": [{"path": f.path, "size": f.size, "sha256": f.sha256, "lfs_oid": f.sha256} for f in files],
         }
     ]
-    (reg / "pins.lock").write_text(json.dumps({"schema_version": 1, "pins": pins}))
+    (reg / "pins.lock").write_text(json.dumps({"schema_version": 1, "pins": pins}), encoding="utf-8")
     user = tmp_path / "custom-models"
     user.mkdir()
     client = TestClient(create_app(dsn=embedded_pg.dsn, registry_dir=reg, user_models_dir=user))
@@ -83,9 +83,10 @@ def test_mdl_012_list_models_has_compat_and_legacy_fits_now(env):
 def test_inf_reg_003_user_yaml_shows_up(env):
     (env["user"] / "mine.yaml").write_text(
         (ROOT / "fixtures/registry/models/fixture-nc-vlm.yaml")
-        .read_text()
+        .read_text(encoding="utf-8")
         .replace("fixture-nc-vlm", "my-user-vlm")
-        .replace('"nc-q4.gguf" }', '"nc-q4.gguf", size: 10, sha256: "' + "d" * 64 + '" }')
+        .replace('"nc-q4.gguf" }', '"nc-q4.gguf", size: 10, sha256: "' + "d" * 64 + '" }'),
+        encoding="utf-8",
     )
     m = _models(env["client"])["my-user-vlm"]
     assert m["source"] == "user" and m["status"] == "valid"

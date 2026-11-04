@@ -37,9 +37,9 @@ def _bump_persistent(key: str) -> int:
     f = _state_file()
     if f is None:
         return 0
-    d = json.loads(f.read_text()) if f.exists() else {}
+    d = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
     d[key] = int(d.get(key, 0)) + 1
-    f.write_text(json.dumps(d))
+    f.write_text(json.dumps(d), encoding="utf-8")
     return int(d[key])
 
 
@@ -47,7 +47,7 @@ def _persistent(key: str, default: int = 0) -> int:
     f = _state_file()
     if f is None or not f.exists():
         return default
-    return int(json.loads(f.read_text()).get(key, default))
+    return int(json.loads(f.read_text(encoding="utf-8")).get(key, default))
 
 
 def _content(body: dict[str, Any]) -> str:

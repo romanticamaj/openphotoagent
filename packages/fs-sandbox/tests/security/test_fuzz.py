@@ -80,7 +80,7 @@ def build_tree(base):
     (root / "dir" / "deep").mkdir(parents=True)
     (root / "in").mkdir()
     outside.mkdir()
-    (outside / "secret.txt").write_text("nope")
+    (outside / "secret.txt").write_text("nope", encoding="utf-8")
     (root / "dir" / "photo.jpg").write_bytes(b"x")
     (root / "dir" / "deep" / "photo.jpg").write_bytes(b"x")
     os.symlink(outside, root / "out")  # escapes

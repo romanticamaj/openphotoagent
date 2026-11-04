@@ -80,7 +80,7 @@ def parse_cases() -> list[Case]:
 def load_results() -> dict[str, list[dict[str, str]]]:
     res: dict[str, list[dict[str, str]]] = defaultdict(list)
     for f in sorted((ROOT / ".tc").glob("*.json")):
-        for k, v in json.loads(f.read_text()).items():
+        for k, v in json.loads(f.read_text(encoding="utf-8")).items():
             res[k].extend(v)
     return res
 

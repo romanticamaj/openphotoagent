@@ -10,7 +10,10 @@ from opagent_doctor.probes import read_profile
 from opagent_testing.clock import FakeClock
 
 ROOT = Path(__file__).resolve().parents[3]
-I18N = {lang: json.loads((ROOT / f"packages/i18n/checks.{lang}.json").read_text()) for lang in ("zh-TW", "en")}
+I18N = {
+    lang: json.loads((ROOT / f"packages/i18n/checks.{lang}.json").read_text(encoding="utf-8"))
+    for lang in ("zh-TW", "en")
+}
 
 
 def ctx(profile="rtx5070ti-win11", **env):

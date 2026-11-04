@@ -32,7 +32,7 @@ def client(embedded_pg, sandbox_tree, tmp_path):
     )
     qw = enumerate([("Qwen3VL-8B-Instruct-Q4_K_M.gguf", 4_000_000_000), ("mmproj-Qwen3VL-8B-Instruct-F16.gguf", 1)], 5)
     pins = [_pin("siglip2-so400m-384", "onnx-int8", sig), _pin("qwen3-vl-8b-instruct", "q4_k_m", qw)]
-    (reg / "pins.lock").write_text(json.dumps({"schema_version": 1, "pins": pins}))
+    (reg / "pins.lock").write_text(json.dumps({"schema_version": 1, "pins": pins}), encoding="utf-8")
     c = TestClient(create_app(dsn=embedded_pg.dsn, registry_dir=reg))
 
     def worker(hw: str, wid: str) -> str:

@@ -355,7 +355,7 @@ def test_prv_003_only_the_face_repository_switches_role():
     from pathlib import Path
 
     src = Path(__file__).resolve().parents[2] / "src"
-    hits = [p.name for p in src.rglob("*.py") if "opagent_bio" in p.read_text()]
+    hits = [p.name for p in src.rglob("*.py") if "opagent_bio" in p.read_text(encoding="utf-8")]
     assert hits == ["faces.py"]
 
 

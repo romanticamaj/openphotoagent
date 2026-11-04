@@ -49,6 +49,7 @@
 | control plane 實機部署（NAS、反向代理、真 IdP、桌面當 client） | B-19、MU-DEPLOY-002 | 實機 |
 | 舊版桌面實際升級到 v1.0（Windows、macOS、Linux 各一台，含 v0.x 資料夾） | MIG-001、MIG-002、UPD-010 | 實機 VM |
 | 參考 runner 上的效能門檻（PERF-001 等） | B-13 | 實機 |
+| 視覺基準改在釘選的 Playwright 映像產生、人工審閱後提交，再確認 nightly 的 visual 為綠（ADR-0019） | B-21、VIS-001～004、ACT-006 | CI＋使用者 |
 | 環境清理（只限雲端 session） | B-14 | — |
 
 ## 3. 發版

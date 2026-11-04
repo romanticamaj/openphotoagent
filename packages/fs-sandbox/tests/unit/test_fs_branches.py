@@ -64,7 +64,7 @@ class FakeLibc:
 def test_rename_noreplace_libc_paths(tmp_path, monkeypatch, platform):
     monkeypatch.setattr(sys, "platform", platform)
     a, b = tmp_path / "a", tmp_path / "b"
-    a.write_text("a")
+    a.write_text("a", encoding="utf-8")
     monkeypatch.setattr(fsops, "_LIBC", FakeLibc(-1, 0))
     for err, exc in ((errno.EEXIST, FileExistsError), (errno.EACCES, PermissionError)):
         monkeypatch.setattr(fsops.ctypes, "get_errno", lambda e=err: e)
@@ -72,7 +72,7 @@ def test_rename_noreplace_libc_paths(tmp_path, monkeypatch, platform):
             RealFs().rename_noreplace(a, b)
     monkeypatch.setattr(fsops.ctypes, "get_errno", lambda: errno.EINVAL)
     RealFs().rename_noreplace(a, b)  # falls back to link + unlink
-    assert b.read_text() == "a" and not a.exists()
+    assert b.read_text(encoding="utf-8") == "a" and not a.exists()
     monkeypatch.setattr(fsops, "_LIBC", FakeLibc(0, 0))
     RealFs().rename_noreplace(b, a)  # libc call "succeeds" (fake) -> nothing else happens
     assert b.exists()
@@ -81,17 +81,17 @@ def test_rename_noreplace_libc_paths(tmp_path, monkeypatch, platform):
 def test_rename_fallback_never_overwrites(tmp_path, monkeypatch):
     monkeypatch.setattr(fsops, "_LIBC", None)
     a, b = tmp_path / "a", tmp_path / "b"
-    a.write_text("a")
-    b.write_text("b")
+    a.write_text("a", encoding="utf-8")
+    b.write_text("b", encoding="utf-8")
     with pytest.raises(FileExistsError):
         RealFs().rename_noreplace(a, b)
-    assert b.read_text() == "b"
+    assert b.read_text(encoding="utf-8") == "b"
 
 
 def test_windows_branches(tmp_path, monkeypatch, sandbox_tree, sb):
     monkeypatch.setattr(sys, "platform", "win32")
     a, b = tmp_path / "a", tmp_path / "b"
-    a.write_text("a")
+    a.write_text("a", encoding="utf-8")
     RealFs().rename_noreplace(a, b)
     RealFs().fsync_dir(tmp_path)
     (sandbox_tree.photos / "w.jpg").write_bytes(b"w")

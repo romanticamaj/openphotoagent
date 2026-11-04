@@ -36,7 +36,10 @@ def build(
                 sig = f.with_name(f.name + ".sig")
                 if not sig.is_file():
                     raise SystemExit(f"missing signature for {f.name} (expected {sig.name})")
-                platforms[target] = {"signature": sig.read_text().strip(), "url": f"{base_url.rstrip('/')}/{f.name}"}
+                platforms[target] = {
+                    "signature": sig.read_text(encoding="utf-8").strip(),
+                    "url": f"{base_url.rstrip('/')}/{f.name}",
+                }
     if not platforms:
         raise SystemExit("no updater artefacts found")
     return {"version": version.lstrip("v"), "notes": notes, "pub_date": pub_date, "platforms": platforms}
@@ -57,7 +60,7 @@ def main() -> int:
     except SystemExit as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
-    Path(a.out).write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
+    Path(a.out).write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     return 0
 
 

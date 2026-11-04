@@ -12,8 +12,8 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
-JUST = (ROOT / "justfile").read_text()
-CI = (ROOT / ".github/workflows/ci.yml").read_text()
+JUST = (ROOT / "justfile").read_text(encoding="utf-8")
+CI = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
 PERF_TESTS = ("test_view_009_timeline_latency", "test_pf_075")
 
 

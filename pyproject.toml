@@ -61,6 +61,10 @@ extend-exclude = ["spikes", "apps/web", "node_modules", "docs", "*.md"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "S", "DTZ", "TID", "SIM", "RUF"]
+# Windows decodes text as cp1252 unless told otherwise (CI os-matrix found it); preview rules only when named
+preview = true
+explicit-preview-rules = true
+extend-select = ["PLW1514"]
 ignore = ["S101", "RUF001", "RUF002", "RUF003", "S603", "S607"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
