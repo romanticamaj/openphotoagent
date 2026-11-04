@@ -177,7 +177,7 @@ just dev            # all-in-one 開發模式（api + worker + PG + web）
 4. 切片 2 → 12，依 09 §7 的順序。切片 7（推論）和 11（桌面殼）依賴 M0 結果：結果還沒出來時，先以 FakeBackend 或抽象介面完成，真實 adapter 保持在可切換狀態。
 5. 每完成一個切片：更新 coverage-status，在本檔 §8 追加一行進度紀錄，然後 commit、push。
 
-> **各里程碑可直接貼上的 `/goal` 指令見 [`docs/GOALS.md`](docs/GOALS.md)**（M0、v0.1-A～D、v0.2-A～C、v0.3～v1.0）。
+> **地端（參考機）接手請先讀 [`docs/HANDOFF-local.md`](docs/HANDOFF-local.md)。** 各里程碑可直接貼上的 `/goal` 指令見 [`docs/GOALS.md`](docs/GOALS.md)（M0、v0.1-A～D、v0.2-A～C、v0.3～v1.0）。
 
 ### 進度紀錄（每個切片完成後追加）
 | 日期 | 切片 | 狀態 | 備註 |
@@ -207,6 +207,7 @@ just dev            # all-in-one 開發模式（api + worker + PG + web）
 | 2026-11-03 | v1.0（`feat/v1.0`） | ✅（外部審查與發版待使用者：B-20） | 先細化 09b §9 為 21 條並新增 11 #114～#116（docs commit）。介面凍結：`contracts/` 六份快照與 `opagent_schemas.compat` 比對器，`just contracts` 已加入 lint（FRZ-001～007）；ADR-0017 協定版本維持 `"MAJOR.MINOR"`、服務 N 與 N-1，並修正 VERSIONING §4。升級：修正 v0.x 安裝永遠不會補上新表的問題（`frozen_v1_0` 加上 `0002` 補齊 migration，以各里程碑真實的 schema 測試）、`layout_version`、`DATA_LAYOUT_TOO_NEW`（#110）、CHANGELOG 與 commit 的 `Migration:` 檢查（MIG-001～003）。安全：沙箱 fuzz 1M 例 0 逃逸、MCP 紅隊 110 條、可驗證的人臉刪除、SBOM 與漏洞閘門；掃描發現 maplibre-gl 的 Critical 漏洞，已升級到 6.16.0（SEC-*）。i18n 與 a11y：雙語完整性與修復選項代價（修正標題截斷、單人版用語、缺少的按鈕文字）；每個路由都跑 axe；只用鍵盤的流程；問 AI 面板可用 Esc 關閉；搜尋結果改為鍵盤網格並可開 Lightbox（I18N-010/011、A11Y-010/011）。stable 與 beta 通道（UPD-010）；`docs/checklists/release-v1.0.md`（REL-010）、`docs/security/review-v1.0.md`、`docs/upgrading-to-1.0.md` |
 | 2026-11-03 | 收尾稽核（`feat/v1.0`） | ✅ | `docs/goal-audit.md` 逐條對照 GOALS 0～6；補上 PF-060／061（`mcp.enabled` 開關在 PAT 與 OAuth 兩種 transport 都會執行、`mcp.connect` preflight、「測試連線」）與 PF-018 的 catalog 測試；DL-019 以目前的程式重跑通過（−4%）；VIEW-009 的根因是共用行程的 gen-2 GC，改為效能測試在獨立行程執行（ADR-0018、PERF-009）；DECISIONS 審議索引（16 次、19 個 sub-agent）；BLOCKERS 附錄列出每個未綠 ID；四個 gate 在 `94968c0` 上一次全綠 |
 | 2026-11-04 | 首次 CI 修正（`feat/v1.0`） | ✅（B-5、B-21 待使用者） | PR #12 的 CI 全部 job 第一次實跑並修到全綠：Windows（編碼 FS-027、fsync FS-029、保留名 FS-028、TEMP 與 Defender）、PG 17 initdb locale（ADR-0020）、視覺基準只在釘選映像算繪（ADR-0019）、coverage-status 改為一致性檢查（ADR-0021）。ADR-0022：隨附的 Python runtime 原本不含直譯器與標準函式庫（P0，DESK-039），改為複製整個 python-build-standalone；AppImage 依 08 §4.1 使用系統 WebKitGTK，缺少時 AppRun 顯示 `DESK_WEBVIEW_MISSING`（DESK-037／038）；四種安裝包都 ≤ 200 MB（NSIS 101.3、dmg 124.7、AppImage 158.6、.deb 198.6 MB）。本機 gate 的兩個不穩定測試以回歸測試修正：Q-029（outbox 用 WAL）、VIS-005（E2E stack 不讀主機磁碟） |
+| 2026-11-04 | 安裝包可用性與地端交接（`feat/v1.0`） | ✅（實機驗證交給地端） | ADR-0023（1 個審議 sub-agent）：隨附 runtime 原本以 editable `.pth` 指回建置機 repo，registry、整理方式、標籤、詞彙也從 repo 讀取 → 改為真正的 wheel，資料移進各自的套件（詞彙放 opagent_core，以免 API 間接 import inference，違反不變量 1），zh-TW 標籤為 lint 檢查的產生副本（DESK-039～041）；CI 的 runtime 建置誤把 venv 背後的 `/usr` 當來源（DESK-042）；outbox 建立時即為 WAL（Q-029）；CI 整合 job 加上 45 分鐘與逐測試 thread 逾時。**地端接手見 `docs/HANDOFF-local.md`** |
 
 ### 仍待決定／待驗證（可用 sub-agent 討論的依 §5.8 處理；屬於使用者本人決定的記到 `docs/BLOCKERS.md`）
 - 人臉測試影像的授權來源（09 Q-T1）；中文日期表達的精確範圍，例如「過年」（Q-T5）。
