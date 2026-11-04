@@ -727,3 +727,4 @@
 
 三個平台的 DESK-039 煙霧測試都通過（含原生擴充）。.deb 的餘裕太小，下一次相依升級就可能超標，因此再從 runtime 移除 `pip`（安裝後的 app 不安裝任何東西；runtime pack 是簽章過的封存檔），DESK-039 同時檢查 runtime 中沒有 pip／setuptools／wheel。.deb 仍高於 150 MB 目標：下一步是 ORT 未使用的 provider（約 10 MB）與 HDBSCAN 改寫（決定 5），列為後續工作。
 
+移除 pip 後（commit `d2b3e8d`）：NSIS 100.4 MB、dmg 123.2 MB、AppImage 157.2 MB、.deb 197.0 MB，全部通過；.deb 的餘裕約 3 MB，仍然偏小，上述後續縮減應在下一次加入相依前完成。
