@@ -716,3 +716,14 @@
 
 **實作**：`tools/slim_appimage.py`。AppRun 會依名稱 source 每個 hook，所以它會重寫 AppRun：移除 GTK hook，先 source 我們的 preflight，再保留其他 hook。重新打包時沿用原本的 AppImage runtime 與 squashfs 壓縮方式；desktop-build 會重新解開並驗證，在 release tag 上重新簽章。
 
+**量測（desktop-build，commit `1368247`）**：
+
+| 安裝包 | 大小 | 結果 |
+|---|---|---|
+| Windows NSIS | 101.3 MB | 在目標 150 MB 內 |
+| macOS dmg | 124.7 MB | 在目標內 |
+| Linux AppImage | 158.6 MB（精簡前 224.1 MiB，移除 119 項） | 通過上限；DESK-037 驗證不含 WebKitGTK |
+| Linux .deb | 198.6 MB | 通過上限，但只剩 1.4 MB |
+
+三個平台的 DESK-039 煙霧測試都通過（含原生擴充）。.deb 的餘裕太小，下一次相依升級就可能超標，因此再從 runtime 移除 `pip`（安裝後的 app 不安裝任何東西；runtime pack 是簽章過的封存檔），DESK-039 同時檢查 runtime 中沒有 pip／setuptools／wheel。.deb 仍高於 150 MB 目標：下一步是 ORT 未使用的 provider（約 10 MB）與 HDBSCAN 改寫（決定 5），列為後續工作。
+

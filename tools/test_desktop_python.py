@@ -40,6 +40,9 @@ def test_desk_039_runtime_carries_its_own_interpreter_and_stdlib(runtime, tmp_pa
     assert outside == [], f"symlinks leaving the bundle: {outside[:5]}"
     stdlib = [*tree.glob("lib/python3*/encodings/__init__.py"), *tree.glob("Lib/encodings/__init__.py")]
     assert stdlib, "no standard library inside the bundle"
+    site = stdlib[0].parent.parent / "site-packages"
+    installers = sorted(p.name for p in site.iterdir() if p.name.split("-")[0] in ("pip", "setuptools", "wheel"))
+    assert installers == [], f"package installers in an installed app: {installers}"  # ADR-0022: dead weight
     cfg = tree / "pyvenv.cfg"
     assert not cfg.exists() or "home = /" not in cfg.read_text(encoding="utf-8"), "pyvenv.cfg points outside"
     moved = tmp_path / "elsewhere" / "python"  # a user's install location

@@ -64,6 +64,11 @@ def main(out: Path) -> int:
         shutil.rmtree(lib / name, ignore_errors=True)
     for name in SITE_DROP:
         shutil.rmtree(site / name, ignore_errors=True)
+    for p in site.glob("pip*"):  # the app installs nothing at runtime; packs ship as signed archives (ADR-0022)
+        if p.name == "pip" or p.name.startswith("pip-"):
+            shutil.rmtree(p, ignore_errors=True)
+    for p in [*out.glob("bin/pip*"), *out.glob("Scripts/pip*")]:
+        p.unlink()
     for p in list(out.rglob("__pycache__")) + [d for d in out.rglob("tests") if d.is_dir()]:
         shutil.rmtree(p, ignore_errors=True)
     for p in list(out.glob("include")) + list(out.glob("share")):
