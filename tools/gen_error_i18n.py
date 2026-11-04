@@ -78,6 +78,7 @@ EN = {
     "DECODE_FAILED": "{n} files are damaged or unsupported and were skipped",
     "FFMPEG_MISSING": "ffmpeg is missing; {n} videos will be skipped (no thumbnails)",
     "DB_SCHEMA_TOO_NEW": "The database was created by a newer version of the app ({found}); this version cannot downgrade it and nothing was changed",
+    "DESK_WEBVIEW_MISSING": "WebKitGTK 4.1 ({lib}) is missing, so the Linux desktop app cannot open its window; nothing was changed",
     "DATA_LAYOUT_TOO_NEW": "This data folder was created by a newer version of the app (layout {found}); this version cannot use it and nothing was changed",
     "DISK_INSUFFICIENT_DB": "The disk holding the database is full ({free} left); startup stopped and no data was deleted",
     "DISK_INSUFFICIENT_MODELS": "Not enough space for models: {req} needed, {free} left",

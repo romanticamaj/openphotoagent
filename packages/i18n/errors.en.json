@@ -71,6 +71,12 @@
     "severity": "W",
     "title": "RAW files cannot be read"
   },
+  "DESK_WEBVIEW_MISSING": {
+    "cta": "Install WebKitGTK 4.1",
+    "message": "WebKitGTK 4.1 ({lib}) is missing, so the Linux desktop app cannot open its window; nothing was changed",
+    "severity": "B",
+    "title": "WebKitGTK 4.1 ({lib}) is missing, so the Linux desktop app cannot open its window"
+  },
   "DISK_INSUFFICIENT_DB": {
     "cta": "Free up space and retry",
     "message": "The disk holding the database is full ({free} left); startup stopped and no data was deleted",

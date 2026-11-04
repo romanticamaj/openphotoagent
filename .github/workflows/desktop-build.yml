@@ -52,7 +52,7 @@ jobs:
         with: { node-version: 22, cache: pnpm }
       - name: Linux WebView headers
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf squashfs-tools
       - run: pnpm install --frozen-lockfile && pnpm --filter web build
       - name: MSVC dev shell (pgvector nmake)
         if: runner.os == 'Windows'
@@ -85,6 +85,19 @@ jobs:
           $extra = @()
           if ("${{ github.ref }}" -notlike "refs/tags/v*" -and "${{ inputs.tag }}" -eq "") { $extra = @("--config", "tauri.ci.json") }
           cargo tauri build --verbose --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} @extra
+      - name: AppImage on the system WebKitGTK (08 §4.1, ADR-0022, DESK-037)
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          A=$(ls apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage)
+          uv run --no-project python tools/slim_appimage.py "$A"
+          uv run --no-project python tools/slim_appimage.py --verify "$A"
+          # the updater signs the AppImage itself: the signature must cover the slimmed file (release tags only)
+          if [ -f "$A.sig" ]; then (cd apps/desktop/src-tauri && cargo tauri signer sign "$A"); fi
       - name: Size breakdown (what the installer is made of)
         if: always()
         shell: bash

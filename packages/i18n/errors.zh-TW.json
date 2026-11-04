@@ -71,6 +71,12 @@
     "severity": "W",
     "title": "無法讀取 RAW"
   },
+  "DESK_WEBVIEW_MISSING": {
+    "cta": "安裝 WebKitGTK 4.1",
+    "message": "系統缺少 WebKitGTK 4.1（{lib}），Linux 桌面版無法開啟視窗；資料未被更動",
+    "severity": "B",
+    "title": "系統缺少 WebKitGTK 4.1（{lib}）"
+  },
   "DISK_INSUFFICIENT_DB": {
     "cta": "釋放空間後重試",
     "message": "資料庫所在磁碟空間不足（剩 {free}），已停止啟動；資料不會被刪除",
