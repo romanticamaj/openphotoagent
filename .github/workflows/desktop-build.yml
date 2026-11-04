@@ -41,7 +41,7 @@ jobs:
         include:
           - { os: windows-latest, target: x86_64-pc-windows-msvc, bundles: nsis, artefact: "bundle/nsis/*-setup.exe" }
           - { os: macos-14, target: aarch64-apple-darwin, bundles: "app,dmg", artefact: "bundle/dmg/*.dmg" }
-          - { os: ubuntu-22.04, target: x86_64-unknown-linux-gnu, bundles: "appimage,deb", artefact: "bundle/appimage/*.AppImage" }
+          - { os: ubuntu-22.04, target: x86_64-unknown-linux-gnu, bundles: "appimage,deb", artefact: "bundle/appimage/*.AppImage bundle/deb/*.deb" }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -60,7 +60,7 @@ jobs:
       - name: pg pack (PG 17 + pgvector, built per platform; 08 §2.3)
         shell: bash
         run: bash tools/build_desktop_pg.sh build/desktop/pg
-      - name: Python runtime (python-build-standalone + relocatable venv; 08 D3)
+      - name: Python runtime (python-build-standalone copied whole, then packages; 08 D3, ADR-0022)
         shell: bash
         run: uv run --no-project python tools/build_desktop_python.py build/desktop/python
       - name: Tauri bundle
@@ -97,9 +97,17 @@ jobs:
           AD=$(ls -d $B/appimage/*.AppDir 2>/dev/null | head -1 || true)
           if [ -n "$AD" ]; then du -sh "$AD"/usr/lib/* 2>/dev/null | sort -rh | head -25 || true; fi
           if [ -d build/desktop/python/lib ]; then du -sh build/desktop/python/lib/python3*/site-packages/* 2>/dev/null | sort -rh | head -15 || true; fi
-      - name: Size gate (≤ 200 MB, DESK-030)
+      - name: Bundled Python runtime starts on its own (DESK-039)
         shell: bash
-        run: uv run --no-project python tools/check_bundle_size.py apps/desktop/src-tauri/target/${{ matrix.target }}/release/${{ matrix.artefact }}
+        run: |
+          PY=build/desktop/python/bin/python3; KEEP=()
+          # Windows CPython needs SYSTEMROOT to seed its RNG; everything else from the build machine is withheld
+          if [ "$RUNNER_OS" = Windows ]; then PY=build/desktop/python/python.exe; KEEP=("SYSTEMROOT=$SYSTEMROOT"); fi
+          env -i "${KEEP[@]}" "$PY" -I -c "import encodings, ssl, sqlite3, json, opagent_cli, opagent_api; print('runtime ok')"
+      - name: Size gate (every installer ≤ 200 MB, DESK-030)
+        shell: bash
+        working-directory: apps/desktop/src-tauri/target/${{ matrix.target }}/release
+        run: uv run --no-project python "$GITHUB_WORKSPACE/tools/check_bundle_size.py" ${{ matrix.artefact }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:

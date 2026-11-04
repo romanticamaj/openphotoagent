@@ -852,13 +852,14 @@
 | DESK-027 | Python 隔離 | 設使用者 `PYTHONPATH`、`PYTHONHOME`、site-packages 放惡意 `json.py` | `python -I` 不載入；app 正常 | S | — |
 | DESK-028 | 版本一致 | 手動替換 worker 版本 | 啟動時偵測不一致並提示 | U | — |
 | DESK-029 | 解除安裝保留資料 | NSIS 解除安裝（預設選項）；macOS 拖垃圾桶；deb remove | 照片、輸出資料夾、data dir 皆保留；有 `.opagent-trash/` 檔案時先提示（`GET /trash/summary`） | M/D | #10 |
-| DESK-030 | 安裝包大小 | CI 產物 | 三平台壓縮後各 ≤ 200 MB（硬上限）；超過則 build 失敗 | C | #1、DoD 5.1 |
+| DESK-030 | 安裝包大小 | CI 產物：每個平台產出的每一種安裝包（Windows NSIS、macOS dmg、Linux AppImage 與 .deb） | 壓縮後各 ≤ 200 MB（硬上限）；超過則 build 失敗（ADR-0022） | C | #1、DoD 5.1 |
 | DESK-031 | 一般使用者安裝 | 乾淨 VM：Win 11（標準帳號）、macOS 14、Ubuntu 22.04 | 安裝並啟動成功，不需 UAC／sudo | M/D | #1、DoD 5.1 |
 | DESK-032 | capabilities 驅動 UI | `GET /capabilities` 回 `single_user=true` | UI 無 Org／Workspace 選單、無 Workers 頁 | E | #8、DoD 5.1 |
 | DESK-033 | Photos Library 選擇提示 | macOS 選 `Photos Library.photoslibrary` | 顯示封裝格式說明 | D/M | #54 |
 | DESK-034 | 桌面煙霧總表 | Win、Linux：tauri-driver + WebdriverIO；macOS：手動清單 | 啟動 → onboarding（FakeBackend 模式）→ 依日期整理 → undo → 搜尋 → 結束，全程無錯誤 | D/M | DoD 5.5 |
 | DESK-035 | `run/api.json` 出現時 port 已在 listen（回歸） | 啟動 api，偵測到 `run/api.json` 後立即連線，重複 5 次 | 每次都連得上；port 由同一個已 bind 的 socket 提供（沒有「檢查空閒 → 稍後 bind」的競態） | I | #8 |
 | DESK-036 | 桌面傳輸與媒體解析（10 §5.4） | 殼注入 `__OPA_PLATFORM__`（backend `{baseUrl, token}`、`thumbsDir`、`assetUrl`） | REST 改打 `baseUrl` 並帶 `Bearer`；事件流以 fetch 讀 SSE 並帶 token；縮圖 URL＝`assetUrl(<thumbsDir>/<ch[:2]>/<ch>.<variant>.webp)`；影像 payload（時間軸、搜尋、待確認、預覽）都帶 `ch`；Web build 行為不變 | U/I | #8、#93 |
+| DESK-039 | 隨附的 Python runtime 自給自足（回歸，ADR-0022） | 建置 runtime，複製到另一個路徑，以空環境 `-I` 執行 | 樹中沒有指向外部的 symlink、內含標準函式庫、`pyvenv.cfg` 不指向建置機；`encodings`、`ssl`、`sqlite3`、`opagent_cli`、`opagent_api` 都能 import；desktop-build 對實際產物再跑一次 | I/C | #1、DoD 5.1 |
 
 ### 13.2 PG：嵌入式 PostgreSQL 17 + pgvector（08 §2.3）
 

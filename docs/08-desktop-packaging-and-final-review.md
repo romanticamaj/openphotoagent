@@ -264,7 +264,7 @@ VRAM / 記憶體皆為**【估算】**（GGUF 權重 + mmproj + KV，8k context�
 | GeoNames（cities1000 + admin1 + 過濾成 zh/en/ja 的 alternateNames） | 8–15 MB | 8–15 MB | 8–15 MB |
 | **合計** | **約 120–190 MB** | **約 115–185 MB** | **約 110–180 MB** |
 
-**【決定】D6**：CI 設 **200 MB 硬上限**（超過就讓 build 失敗），目標 150 MB。若超標，第一個移出的是 GeoNames（改成首次啟動的 data pack）。XMP「寫入原檔」需要的 exiftool 不放進安裝包：XMP **sidecar** 由我們自己的 Python writer 產生（純 XML）；只有「寫入原檔 EXIF」（02 §6.2，預設關閉）才需要下載 `exiftool` pack。
+**【決定】D6**：CI 設 **200 MB 硬上限**（超過就讓 build 失敗），目標 150 MB。Linux 同時檢查 AppImage 與 .deb。超標時的處理順序見 ADR-0022：先移除不會被 import 的檔案與除錯資訊，再讓 AppImage 依賴系統 WebKitGTK（如上表）；GeoNames 只有約 10 MB，移出效果有限。XMP「寫入原檔」需要的 exiftool 不放進安裝包：XMP **sidecar** 由我們自己的 Python writer 產生（純 XML）；只有「寫入原檔 EXIF」（02 §6.2，預設關閉）才需要下載 `exiftool` pack。
 
 ### 4.2 Pack 目錄
 

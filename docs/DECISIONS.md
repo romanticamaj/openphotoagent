@@ -5,7 +5,7 @@
 
 ## 審議索引
 
-實作期間（M0 → v1.0）共開了 19 次審議、22 個 sub-agent，全部都有對應的 ADR。規劃階段撰寫規格 00–11 用的 sub-agent，以及提高 mutation score 的實作 sub-agent，不屬於審議，因此不列入。
+實作期間（M0 → v1.0）共開了 20 次審議、24 個 sub-agent，全部都有對應的 ADR。規劃階段撰寫規格 00–11 用的 sub-agent，以及提高 mutation score 的實作 sub-agent，不屬於審議，因此不列入。
 
 | ADR | 審議題目 | sub-agent 數 | 里程碑 |
 |---|---|---|---|
@@ -29,6 +29,7 @@
 | ADR-0019 | CI 的視覺基準與本機不一致 | 1 | 6（第一次 CI） |
 | ADR-0020 | PG-001 的 initdb locale 在 macOS／Windows 無效 | 1 | 6（第一次 CI） |
 | ADR-0021 | `tc-status --check` 的逐位元比對永遠無法通過 | 1 | 6（第一次 CI） |
+| ADR-0022 | Linux AppImage 超過 200 MB；隨附的 Python runtime 不含直譯器 | 2 | 1D／6（desktop-build CI） |
 
 
 ## ADR-0001：任務門檻（accept／review）與分類 cascade 的關係
@@ -679,3 +680,35 @@
 **同步修改的規格**：09 步驟 6、09 test-integrity 列；09a 新增 TCS 列。另外補上 FS-028～030 與 MCP-SCOPE-001 的規格列：這次的一致性檢查發現它們有測試，卻沒有出現在 09a／09b 的表格裡。
 
 **後續**：nightly 以 `--strict-nightly` 檢查 `main` 提交的檔案，需要 nightly run 同時拿到當次的 PR 層結果，目前尚未接上。在那之前，規則 5 只在本機與 PR 上以警告形式提供。
+
+## ADR-0022：Linux 安裝包的大小，以及隨附 Python runtime 的 P0 錯誤
+
+- 日期：2026-11-04｜狀態：已採納｜審議：2 個獨立 sub-agent（打包面、payload 面各一個；題目、08 §4.1 D6、DESK-030、desktop-build.yml、`tools/build_desktop_python.py`、`tools/build_desktop_pg.sh`、CI 的大小明細）
+
+**背景**：
+- desktop-build 第一次完整跑完：Windows NSIS 與 macOS dmg 通過 200 MB；Linux AppImage 為 220.9 MiB，**超過硬上限**；.deb 為 186.3 MiB，但大小閘門只檢查 AppImage。
+- 明細：AppImage 內含 linuxdeploy-plugin-gtk 帶進來的 WebKitGTK、GTK、ICU 等，解壓後約 180 MB。08 §4.1 原本就寫「AppImage 不附 WebKitGTK，依賴系統」，實作與規格不一致。
+- payload 面的審議另外發現一個 **P0 錯誤**：`uv venv --relocatable` 只讓套件可搬移，直譯器本身是指向建置機 uv 目錄的 symlink，樹中也沒有標準函式庫。安裝後的 app 在任何使用者機器上都無法啟動 sidecar。CI 沒有發現，因為建置機上的 symlink 剛好有效。
+
+**選項**：
+- (a) 放寬 Linux 的上限：違反 D6 的硬上限。否決。
+- (b) AppImage 依賴系統 WebKitGTK（符合 08 §4.1），缺少時由 AppRun 給出原因與修復指示。
+- (c) 縮減 payload：jieba 未使用的子模組（約 15 MB）、ORT 未使用的 provider（約 10 MB）、strip debug info（約 8 MB）、標準函式庫中不會用到的模組；以自己的實作取代 HDBSCAN 相依（約 44 MB）。
+- (d) 把 GeoNames 改成 data pack（D6 原本的第一順位）：資料只有約 10 MB，不足以解決問題。
+
+**決定**：
+1. **先修 P0**：runtime 改為複製整個 uv 管理的 python-build-standalone，再把套件裝進去。新增 DESK-039（回歸）：複製到別的路徑、以空環境 `-I` 執行；desktop-build 對實際產物再跑一次同樣的檢查。
+2. **大小閘門檢查每一種安裝包**：Linux 同時檢查 AppImage 與 .deb（DESK-030 的文字同步修改）。
+3. **低風險的 payload 縮減先做**：jieba 子模組、strip debug info、標準函式庫的 `tkinter`／`idlelib`／`turtledemo`／`ensurepip`／`lib2to3`／`pydoc_data`。
+4. 修正 runtime 後**重新量測**。如果 AppImage 仍超過 200 MB，就做 (b)：AppImage 不附 WebKitGTK／GTK，AppRun 先檢查系統函式庫，缺少時顯示新的錯誤碼 `DESK_WEBVIEW_MISSING`（含各發行版的安裝指令）。另外新增 DESK-037（AppImage 內沒有 WebKitGTK 的結構檢查）與 DESK-038（AppRun preflight）。
+5. HDBSCAN 改寫延後：風險較高，而且人臉分群的測試要重新驗證，等真的需要時再做。
+
+**理由**：
+- 正確性優先於大小：一個無法啟動的安裝包，大小合格也沒有意義。
+- (b) 只是讓實作回到 08 §4.1 原本的設計；Linux 桌面環境幾乎都已有 WebKitGTK，.deb 本來就是用套件相依取得。
+- (c) 之中風險低的項目不改變任何行為，只移除不會被 import 的檔案與除錯資訊。
+
+**影響的測試 ID**：新增 DESK-039（回歸，先紅後綠）；修改 DESK-030 的範圍（檢查更多產物，不是放寬）；保留 DESK-037／038 給決定 4。
+
+**同步修改的規格**：09a DESK-030、DESK-039；08 §4.1 D6 的超標處理順序。
+

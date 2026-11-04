@@ -1,7 +1,7 @@
 """Relocatable Python runtime for the desktop bundle (08 §1.2 D3). CI only (desktop-build.yml).
 
-python-build-standalone (``install_only_stripped``) → ``uv venv --relocatable`` → the app's packages from the
-lockfile without dev dependencies → strip ``__pycache__``, tests and headers. The shell runs
+python-build-standalone (uv-managed) copied whole → the app's packages from the lockfile without dev
+dependencies, installed into it → drop unused stdlib/site modules, ``__pycache__``, tests, headers, debug info. The shell runs
 ``<res>/python/bin/python3 -I -m opagent_cli …`` (``-I``: the user's PYTHONPATH / site-packages are ignored).
 """
 
@@ -22,22 +22,57 @@ def sh(*args: str, **kw: object) -> None:
     subprocess.run(args, check=True, cwd=ROOT, **kw)  # type: ignore[call-overload]
 
 
+# never shipped: the app imports none of these, and they are large (ADR-0022)
+STDLIB_DROP = ("tkinter", "idlelib", "turtledemo", "ensurepip", "lib2to3", "pydoc_data")
+SITE_DROP = ("jieba/lac_small", "jieba/posseg", "jieba/analyse")  # only Tokenizer().cut / add_word are used
+
+
+def _base_prefix() -> Path:
+    """The uv-managed python-build-standalone install itself (not a venv pointing at it)."""
+    out = subprocess.run(
+        ["uv", "python", "find", "--managed-python", "--no-project", PY], capture_output=True, text=True, check=True
+    ).stdout.strip()
+    prefix = subprocess.run(
+        [out, "-c", "import sys; print(sys.base_prefix)"], capture_output=True, text=True, check=True
+    )
+    return Path(prefix.stdout.strip())
+
+
+def _python(out: Path) -> Path:
+    return out / "python.exe" if os.name == "nt" else out / "bin" / "python3"
+
+
 def main(out: Path) -> int:
     out = out.resolve()
     if out.exists():
         shutil.rmtree(out)
     sh("uv", "python", "install", PY)
-    sh("uv", "venv", "--relocatable", "--python", PY, str(out))
-    env = {**os.environ, "VIRTUAL_ENV": str(out)}
+    # the interpreter and its standard library travel with the app (DESK-039): a venv only points at the build
+    # machine's install, which no user has
+    shutil.copytree(_base_prefix(), out, symlinks=True)
+    for marker in out.glob("lib/python3*/EXTERNALLY-MANAGED"):
+        marker.unlink()
+    for marker in out.glob("Lib/EXTERNALLY-MANAGED"):
+        marker.unlink()
     sh("uv", "export", "--frozen", "--no-dev", "--package", "opagent-cli", "--no-hashes", "-o", str(out / "req.txt"))
-    sh("uv", "pip", "install", "--python", str(out), "-r", str(out / "req.txt"), env=env)
+    sh("uv", "pip", "install", "--python", str(_python(out)), "--break-system-packages", "-r", str(out / "req.txt"))
     (out / "req.txt").unlink()
+    lib = next(iter(sorted(out.glob("lib/python3*"))), out / "Lib")
+    site = lib / "site-packages"
+    for name in STDLIB_DROP:
+        shutil.rmtree(lib / name, ignore_errors=True)
+    for name in SITE_DROP:
+        shutil.rmtree(site / name, ignore_errors=True)
     for p in list(out.rglob("__pycache__")) + [d for d in out.rglob("tests") if d.is_dir()]:
         shutil.rmtree(p, ignore_errors=True)
-    for p in out.rglob("include"):
-        if p.is_dir():
-            shutil.rmtree(p, ignore_errors=True)
-    size = sum(f.stat().st_size for f in out.rglob("*") if f.is_file())
+    for p in list(out.glob("include")) + list(out.glob("share")):
+        shutil.rmtree(p, ignore_errors=True)
+    if sys.platform.startswith("linux") and shutil.which("strip"):
+        # debug info in extension modules (zstandard, sqlalchemy, PIL, …): ~35 MB uncompressed (ADR-0022)
+        sos = [str(f) for f in site.rglob("*.so*") if f.is_file() and not f.is_symlink()]
+        for i in range(0, len(sos), 200):
+            subprocess.run(["strip", "--strip-debug", *sos[i : i + 200]], check=False)
+    size = sum(f.stat().st_size for f in out.rglob("*") if f.is_file() and not f.is_symlink())
     print(f"python runtime: {size / 2**20:.1f} MB uncompressed")
     return 0
 
