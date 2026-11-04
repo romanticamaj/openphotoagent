@@ -110,6 +110,8 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     """OS-specific cases (09a §2 `os` column) only run on their OS; the OS matrix in CI covers the rest."""
     import sys
 
+    if os.environ.get("OPAGENT_TC_INVENTORY"):
+        return  # the inventory lists every test on every OS (ADR-0021)
     here = {"win32": "os_windows", "darwin": "os_macos"}.get(sys.platform, "os_linux")
     keep: list[pytest.Item] = []
     drop: list[pytest.Item] = []

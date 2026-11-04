@@ -138,6 +138,7 @@
 
 | ID | 標題 | 前置／輸入 | 預期 | 層 | # |
 |----|------|-----------|------|----|---|
+| MCP-SCOPE-001 | 全矩陣（見上） | 27 tools × 10 單一 scope token，加上全部 scope 與無 scope | `tools/list` 恰為可呼叫的集合；其餘一律 -32601 並記錄拒絕原因（ADR-0009） | C | #68 |
 | MCP-SCOPE-002 | 預設 token | 精靈建立的本機 PAT | scopes 恰為 `[photos:read]`；不含 `photos:media`、`faces:*`（D-1） | I | #68 |
 | MCP-SCOPE-003 | 唯讀呼叫寫入 | 只有 `photos:read` 呼叫 `update_labels` | `-32601`；`mcp_call_log` 記 `denied/insufficient_scope`（ADR-0009）；沒有寫入任何 review | I | #68 |
 | MCP-SCOPE-004 | faces 雙重閘門 | 有 `faces:read` 但 `mcp.faces_enabled=false` | faces tools 不出現；`PhotoSummary.people` 欄位**不存在**（不是空陣列）；`persons_*` filter 回 403 | I | #67 |

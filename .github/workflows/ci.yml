@@ -112,6 +112,28 @@ jobs:
       - run: uv sync
       # a hang must name its test, not eat the job (windows-latest once stalled for 20 min)
       - run: uv run pytest -q --timeout=300 packages/core packages/fs-sandbox packages/testing
+        env: { OPAGENT_TC_RESULTS: ".tc/py-os-${{ matrix.os }}.json" }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: "tc-os-${{ matrix.os }}", path: .tc/, include-hidden-files: true }
+
+  # every tc-linked test and its tier, for tc-status --verify (ADR-0021)
+  tc-inventory:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: uv sync && pnpm install --frozen-lockfile
+      - run: OPAGENT_TC_INVENTORY=.tc/inventory-py.json uv run pytest --collect-only -q -p no:randomly -m ""
+      - run: |
+          cd apps/web
+          pnpm exec playwright test --list --reporter=json | python3 ../../tools/tc_inventory_e2e.py > ../../.tc/inventory-e2e.json
+          OPAGENT_E2E_PERF=1 pnpm exec playwright test --list --reporter=json | python3 ../../tools/tc_inventory_e2e.py --tier perf > ../../.tc/inventory-perf.json
+      - uses: actions/upload-artifact@v4
+        with: { name: tc-inventory, path: .tc/, include-hidden-files: true }
 
   e2e-smoke:
     runs-on: ubuntu-24.04
@@ -148,13 +170,15 @@ jobs:
       - run: python3 tools/check_changelog.py --commits origin/${{ github.base_ref }}..HEAD
 
   tc-status:
-    needs: [unit-py, unit-ts, unit-rust, integration-linux, e2e-smoke]
+    needs: [unit-py, unit-ts, unit-rust, integration-linux, e2e-smoke, os-matrix, tc-inventory]
+    if: always()  # a red job's results are evidence too
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
-        with: { path: dl }
-      - run: mkdir -p .tc && cp dl/tc-*/*.json .tc/ && python3 tools/tc_status.py --check
+        with: { path: dl, pattern: "tc-*" }
+      # consistency with this run's evidence, not byte-equality (ADR-0021, TCS-001..006)
+      - run: python3 tools/tc_status.py --verify --pr-results dl --inventory dl
 
   mutation-diff:
     if: github.event_name == 'pull_request'

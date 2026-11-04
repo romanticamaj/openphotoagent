@@ -51,6 +51,32 @@ def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo[Any]) -> 
             _results.setdefault(i, []).append({"nodeid": item.nodeid, "outcome": state})
 
 
+NON_PR = (("nightly", "nightly"), ("gpu", "gpu"), ("real_model", "gpu"), ("release_gate", "release_gate"))
+
+
+def _tier(item: pytest.Item) -> str:
+    names = {m.name for m in item.iter_markers()}
+    for marker, tier in NON_PR:
+        if marker in names:
+            return tier
+    if names & {"os_windows", "os_macos"} and "os_linux" not in names:
+        return "os"  # the OS matrix runs these
+    return "pr"
+
+
+def pytest_collection_finish(session: pytest.Session) -> None:
+    """``OPAGENT_TC_INVENTORY=path pytest --collect-only -m ""``: every tc-linked test and its CI tier (ADR-0021)."""
+    path = os.environ.get("OPAGENT_TC_INVENTORY")
+    if not path or hasattr(session.config, "workerinput"):
+        return
+    inv: dict[str, list[dict[str, str]]] = {}
+    for item in session.items:
+        for i in _ids(item):
+            inv.setdefault(i, []).append({"nodeid": item.nodeid, "tier": _tier(item)})
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+    Path(path).write_text(json.dumps(inv, indent=1, sort_keys=True), encoding="utf-8")
+
+
 def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
     if not _results or hasattr(session.config, "workerinput"):
         return

@@ -185,6 +185,9 @@
 | FS-025 | 性質 fuzz：真實樹 + 隨機 symlink | 每例在 tmp 建立隨機深度 ≤ 5 的樹，隨機放入指向內／外的 symlink 與 junction（Windows） | 任何解析結果的 realpath 都在 root 之下 | P/I/S | DoD 5.3 |
 | FS-026 | import-linter 契約 | `apps/api`、`packages/db` 匯入 `fs_sandbox` 或 `inference_*` | import-linter 失敗（CI 守門） | C | — |
 | FS-027 | 文字檔讀寫一律指定編碼（回歸） | repo 內所有 Python 檔的 `read_text`／`write_text`／`open` | 都帶 `encoding=`；Windows 預設 cp1252，CI 的 Windows runner 曾讀不了含 CJK 的 golden 檔 | C | #2 |
+| FS-028 | Windows 不允許的名稱是 PathViolation（回歸） | `windows=True`：0–31 號字元、`<>"\|?*`、結尾為點或空白的段 | `PathViolation("windows_invalid_name")`，不會丟 OSError；其他 OS 保留在該 OS 合法的名稱（如 `what?.jpg`） | U | #48 |
+| FS-029 | Windows 上 fsync 用可寫入的 handle（回歸） | `sys.platform = win32` 的 `fsync_file` | 以 `O_RDWR` 開檔（Windows 的 `_commit` 需要寫入權限，唯讀 handle 會 EBADF） | U | #48 |
+| FS-030 | 檔案底下的路徑在每個 OS 都是 not_a_directory（回歸） | `file.jpg/child.jpg`，lstat 回傳 Windows 的「找不到路徑」 | `PathViolation("not_a_directory")`，與 POSIX 的 ENOTDIR 相同 | U | #48 |
 
 ---
 
@@ -908,4 +911,10 @@
 | DOCK-002 | 同一份 web build | 比對 Docker 映像內與桌面 bundle 內的 web 資產 hash | 相同（`vite build --mode` 僅影響 runtime 設定檔） | C | #2 |
 | DOCK-003 | 來源唯讀掛載 | compose 以 `:ro` 掛來源 | 嘗試寫入失敗於 OS 層（雙重保護） | I/S | — |
 | DOCK-004 | 映像內含執行時讀取的資料（回歸） | 依 Dockerfile app stage 的 COPY 重建 `/app` | 只靠這個目錄樹就能載入 registry（含 SigLIP2）、內建 presets、hw profiles、FakeBackend 向量；第一次 docker.yml 因缺 `registry/` 而 job.start 回 500 | C | #2 |
+| TCS-001 | coverage-status 一致性檢查（回歸） | 提交的檔案含 nightly／visual 證據，CI 只有 PR 層結果 | `tc_status.py --verify` 通過（舊的逐位元比對永遠不會通過，ADR-0021） | C | — |
+| TCS-002 | CI 為紅或部分時不得隱藏 | CI 紅／部分，檔案寫綠／部分／未開始 | 失敗並指出該 ID | C | — |
+| TCS-003 | 綠必須有對應的測試 | 檔案寫綠，但 inventory 沒有測試，或只有 CI 沒回報的 PR 層測試 | 失敗 | C | — |
+| TCS-004 | 明細與摘要必須由規格產生 | 改動標題、版本、ID 集合或摘要數字 | 失敗 | C | — |
+| TCS-005 | 比 CI 保守只警告；nightly 證據在 strict 模式才失敗 | CI 綠但檔案未開始；nightly 紅但檔案綠 | 警告；`--strict-nightly` 時失敗 | C | — |
+| TCS-006 | 未登記的 ID 會失敗 | CI 結果或 inventory 出現 09a／09b 沒有的 ID | 失敗 | C | — |
 

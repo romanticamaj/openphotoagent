@@ -5,7 +5,7 @@
 
 ## 審議索引
 
-實作期間（M0 → v1.0）共開了 18 次審議、21 個 sub-agent，全部都有對應的 ADR。規劃階段撰寫規格 00–11 用的 sub-agent，以及提高 mutation score 的實作 sub-agent，不屬於審議，因此不列入。
+實作期間（M0 → v1.0）共開了 19 次審議、22 個 sub-agent，全部都有對應的 ADR。規劃階段撰寫規格 00–11 用的 sub-agent，以及提高 mutation score 的實作 sub-agent，不屬於審議，因此不列入。
 
 | ADR | 審議題目 | sub-agent 數 | 里程碑 |
 |---|---|---|---|
@@ -28,6 +28,7 @@
 | ADR-0018 | VIEW-009 在整合測試中偶發失敗：量測方式 | 1 | 6（最終 gate） |
 | ADR-0019 | CI 的視覺基準與本機不一致 | 1 | 6（第一次 CI） |
 | ADR-0020 | PG-001 的 initdb locale 在 macOS／Windows 無效 | 1 | 6（第一次 CI） |
+| ADR-0021 | `tc-status --check` 的逐位元比對永遠無法通過 | 1 | 6（第一次 CI） |
 
 
 ## ADR-0001：任務門檻（accept／review）與分類 cascade 的關係
@@ -633,3 +634,48 @@
 在 PG 16 上檢查 libc 的 `C.UTF-8` 與 `datlocprovider = 'c'`。兩條路徑都是真的斷言，不是 skip。PG-016 不變。
 
 **同步修改的規格**：09a PG-001；08 §1 initdb 列補上「主版本升級後要 REINDEX 依賴 `lower()` 的運算式索引」。
+
+---
+
+## ADR-0021：coverage-status 由 CI 檢查一致性，而不是逐位元比對
+
+- 日期：2026-11-04｜狀態：已採納｜審議：1 個獨立 sub-agent（題目、09 步驟 6、`tools/tc_status.py`、pytest 外掛、ci.yml、nightly.yml、release-gate.yml、本機 `.tc/` 的內容）
+
+**背景**：
+- 09 步驟 6 規定 CI 重新產生 `docs/generated/coverage-status.md` 並比對，未更新就失敗；`--check` 是逐位元比對。
+- 在 upload-artifact 開始收錄隱藏的 `.tc/` 之後，CI 才第一次拿到結果，然後一直失敗。
+- 兩邊的輸入本來就不同：
+  - 提交的檔案含有 PR CI 從來不會產生的證據：本機 nightly、visual project、獨立行程的效能測試。
+  - CI 看得到開發機看不到的結果：其他 OS、PG 17 專屬分支。
+- 因此沒有任何一份提交的檔案能等於 CI 重新產生的結果：這個檢查從來不會通過，也就證明不了任何事。
+
+**選項**：
+- (a) 只用 CI 產物逐位元比對：每個 nightly／visual／硬體 ID 都會變成未開始，檔案反而不真實。開發者也只能提交上一次 run 的產物，永遠差一次 push、無法收斂。否決。
+- (b) 一致性檢查。
+- (c) bot 依 CI 產物重新產生並 commit：需要對 PR 分支的寫入權限（fork 不行），`GITHUB_TOKEN` 的 commit 不會觸發 CI，而且會改寫別人的分支。否決。
+- (d) 提交 nightly／visual 的原始 JSON 一起合併：自行宣告，隨手就能偽造。否決。
+
+**決定**：(b)。`tools/tc_status.py --verify --pr-results <CI 產物> --inventory <測試清單>`：
+1. 檔案必須能由 09a／09b 與它自己的每個 ID 狀態重新產生（標題、版本、ID 集合、摘要數字都不能手改或漂移）。
+2. CI 結果或 inventory 出現 09a／09b 沒有的 ID 就失敗。
+3. PR CI 跑過的 ID：CI 為紅，檔案只能是紅；CI 為部分，只能是部分或紅；CI 為綠而檔案較保守，只給警告。
+4. PR CI 沒跑的 ID：只有在 inventory 中確實有屬於 nightly、visual、perf、OS、release-gate 層的測試時，才能標成未開始以外的狀態；有 PR 層測試卻沒有 CI 結果，就失敗。
+5. 提供 `--nightly-results` 與 `--strict-nightly`：nightly 證據比檔案紅時警告，strict 模式下失敗。
+
+配套：
+- inventory 由 pytest 外掛（`OPAGENT_TC_INVENTORY`，收集所有層、不套用 OS 篩選）與 `tools/tc_inventory_e2e.py`（Playwright `--list`）產生，在新的 `tc-inventory` job。
+- OS 矩陣上傳結果。
+- `tc-status` 以 `if: always()` 執行，紅的 job 的結果也算證據。
+- nightly 的 visual 產物改名為 `tc-visual`，並收錄隱藏檔，release gate 才真的看得到。
+- release gate（`--gate`）只採用 CI 產物，不讀提交的檔案。
+
+**理由**：
+- (b) 檢查的正是規格的本意：PR 不能把紅的或不存在的測試宣告成綠，而且規格列表沒有漂移。
+- 它不會比原本弱：原本的檢查從來無法通過。
+- 唯一能自行宣告的是 PR CI 不跑的層，而規則 4 要求那一層確實有測試；發版的權威仍然是只讀 CI 產物的 release gate。
+
+**影響的測試 ID**：新增 TCS-001（回歸）～TCS-006，先紅後綠。
+
+**同步修改的規格**：09 步驟 6、09 test-integrity 列；09a 新增 TCS 列。另外補上 FS-028～030 與 MCP-SCOPE-001 的規格列：這次的一致性檢查發現它們有測試，卻沒有出現在 09a／09b 的表格裡。
+
+**後續**：nightly 以 `--strict-nightly` 檢查 `main` 提交的檔案，需要 nightly run 同時拿到當次的 PR 層結果，目前尚未接上。在那之前，規則 5 只在本機與 PR 上以警告形式提供。

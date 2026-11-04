@@ -53,7 +53,7 @@ flowchart LR
 | 3. 紅 | 寫測試並執行，確認它失敗，**而且失敗在預期的斷言上**（不是 `ImportError`、fixture 錯誤或語法錯誤）。AI agent 必須在 PR 描述貼出紅燈時的失敗摘要（測試名稱 + 斷言訊息一行）。 |
 | 4. 綠 | 寫讓測試通過的最小實作；不要順便實作還沒有測試的行為。 |
 | 5. 重構 | 在全綠狀態下整理程式碼；重構 commit 不得修改測試的斷言。`packages/fs-sandbox` 與 `packages/core/path_template` 的變更要在本機跑一次 `just mutate-diff`。 |
-| 6. 狀態 | 執行 `tools/tc_status.py`，重新產生 `docs/generated/coverage-status.md`（每個 11 能力 → 測試 ID → 狀態：`未開始／紅／綠／部分`）。CI 會重新產生並比對，未更新就失敗。11 §1 矩陣的「驗收標準」欄因此有可追蹤的測試狀態。 |
+| 6. 狀態 | 執行 `tools/tc_status.py`，重新產生 `docs/generated/coverage-status.md`（每個 11 能力 → 測試 ID → 狀態：`未開始／紅／綠／部分`）。CI 的 `tc-status` job 以 `--verify` 檢查一致性（ADR-0021）：(1) ID、版本、層、能力、標題與 09a／09b 完全一致，摘要表必須能由明細重新產生；(2) 不得出現 09a／09b 沒有的 ID；(3) PR CI 跑過的 ID，提交的狀態不得比 CI 結果更綠，CI 為紅或部分時不得標成綠或未開始（比 CI 保守只給警告）；(4) PR CI 沒跑的 ID，只有在 CI 的測試清單（inventory）中確實有屬於 nightly／visual／perf／OS／release-gate 層的測試時，才可以標成未開始以外的狀態，PR 層的測試沒有 CI 結果則失敗。release gate（`--gate`）只採用 CI 產物，不讀提交的檔案。11 §1 矩陣的「驗收標準」欄因此有可追蹤的測試狀態。 |
 
 ### 1.2 測試 ID 標註與追蹤
 
@@ -416,7 +416,7 @@ Doctor 的所有探針（NVML、`nvidia-smi -q -x`、DXGI、Vulkan、Metal／`sy
 | `chaos-smoke` | OUT-CRASH-001–011 各 1 次、Q-022、DL-004 | ubuntu | 4 min |
 | `e2e-smoke` | Playwright web build（Chromium）：E2E-A-001、E2E-B-001、E2E-B-002、E2E-L-001、E2E-S-001；axe 3 個路由；desktop build（mock backend_info）跑 E2E-B-001 | ubuntu | 12 min |
 | `size` | `size-limit`（PERF-003）；packaging 路徑變更時建置 Linux AppImage 並檢查 ≤ 200 MB | ubuntu | 3 min（打包時 15 min） |
-| `test-integrity` | 刪除測試、新增 skip、放寬門檻、golden 變更偵測（§1.5）；`tdd-order`（§1.3）；`tc_status.py` 產物是否最新 | ubuntu | 1 min |
+| `test-integrity` | 刪除測試、新增 skip、放寬門檻、golden 變更偵測（§1.5）；`tdd-order`（§1.3）；`tc_status.py --verify` 一致性（ADR-0021，在 `tc-status` job） | ubuntu | 1 min |
 | `mutation-diff` | 只在 `packages/fs-sandbox/**`、`packages/core/path_template*`、`packages/ts-path-template/**` 變更時：mutmut／Stryker 只對變更檔案 | ubuntu | ≤ 15 min |
 | `audit` | `pip-audit`、`pnpm audit --prod`、`cargo audit`、`bandit`、`semgrep`（自訂規則：路徑操作必經 SafePath、禁止 `shell=True`） | ubuntu | 3 min |
 
