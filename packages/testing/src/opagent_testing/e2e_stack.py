@@ -46,6 +46,15 @@ def _files(spec: list[tuple[str, int]], seed0: int) -> list[HfFile]:
     return [HfFile(p, n, seed=seed0 + i) for i, (p, n) in enumerate(spec)]
 
 
+# Raw doctor facts the worker would otherwise read from the machine running the suite. Pages and snapshots must
+# look the same on every host (VIS-005): the e2e home is a scratch dir, its free space says nothing about the app.
+HOST_FACTS: dict[str, Any] = {"disk": {"models_free": 500 * 1024**3}}
+
+
+def pin_host_facts(worker: Any) -> None:
+    worker.doctor_env = {**worker.doctor_env, **HOST_FACTS}
+
+
 class Stack:
     def __init__(self, base: Path, port: int, web_dist: str | None, rate_bps: float) -> None:
         from opagent_db.embedded import EmbeddedPg
@@ -495,6 +504,7 @@ class Stack:
         )
         # stand-in models are a few MB: do not make the suite depend on the host's spare gigabytes (06 §2.5 reserve)
         self.worker.download_reserve_floor = 0
+        pin_host_facts(self.worker)
         if models == "ready":  # caption text models for R2 (ADR-0014); semantic fakes, cross-lingual keywords
             self.worker.text_embedders = {
                 "qwen3-embedding-0.6b": FakeBackend(vectors="semantic"),
@@ -580,6 +590,7 @@ class Stack:
         )
         # stand-in models are a few MB: do not make the suite depend on the host's spare gigabytes (06 §2.5 reserve)
         self.worker.download_reserve_floor = 0
+        pin_host_facts(self.worker)
         self.worker.text_embedders = old.text_embedders
         self.worker.register()
         self._thread = threading.Thread(target=self.worker.run_forever, args=(self._stop,), daemon=True)

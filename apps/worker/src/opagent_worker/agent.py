@@ -346,6 +346,9 @@ class WorkerAgent:
         import sqlite3
 
         db = sqlite3.connect(self.home / "outbox.db")
+        db.execute(
+            "PRAGMA journal_mode=WAL"
+        )  # like scanner/journal: no rollback journal, append while flushing (Q-029)
         db.execute("CREATE TABLE IF NOT EXISTS outbox(k TEXT PRIMARY KEY, body TEXT NOT NULL)")
         return db
 

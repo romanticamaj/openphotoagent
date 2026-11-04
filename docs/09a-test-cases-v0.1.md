@@ -330,6 +330,7 @@
 | Q-026 | 電池暫停 | FakePower：拔電源 | 10 s 內重型 Operation 為 `paused`、`waiting_reason=PAUSED_ON_BATTERY`；搜尋仍可用；接回 → 自動繼續 | I | #9、DoD 5.2 |
 | Q-027 | GPU 被占用 / 全螢幕 | `hw:game-running-5gb`、FakeFullscreen=true | `PAUSED_GPU_CONTENDED`；GPU 釋放後自動繼續；選「改用 CPU」可繼續 | I | #9、DoD 5.2 |
 | Q-028 | 只在閒置時處理 | `only_when_idle=true`，FakeIdle 秒數 = 5 | `PAUSED_NOT_IDLE`；閒置達門檻後繼續；「現在就處理」覆寫 | I | #32 |
+| Q-029 | outbox 使用 WAL（回歸） | 開啟 worker outbox；另一個連線在交易中寫入 | `journal_mode` 為 `wal`；目錄中不會出現 `outbox.db-journal`（IMG-002 曾在寫入當下看到它） | U | #3 |
 
 ---
 
@@ -807,6 +808,7 @@
 | VIS-002 | 頁面視覺回歸 | 10 個主要路由 × light/dark × zh-TW/en | Playwright `toHaveScreenshot`；動態區域（時間、ETA）遮罩 | V | #11 |
 | VIS-003 | 每個錯誤碼一個 story | 自動產生 | story 數 = 錯誤碼目錄數；每個都有快照 | V/C | #27 |
 | VIS-004 | 視覺基準只在釘選的 Playwright 映像算繪 | 所有 workflow | 跑 `visual` project 的 job 一律在 `mcr.microsoft.com/playwright:v<@playwright/test 版本>-noble`；nightly 與 `visual-baselines.yml` 都有；PR 的 `e2e-smoke` 只跑 `chromium` project（ADR-0019） | C | #85 |
+| VIS-005 | E2E 畫面不受執行機器影響（回歸） | 以不同的主機剩餘磁碟空間（0.5 GB、5 GB、2000 GB）產生 E2E stack 的 doctor 報告 | 三份報告除了時間欄位外完全相同，`disk.models` 為正常（曾因開發容器剩不到 20 GB，讓 VIS-002 的 doctor 快照多出警告） | U | #85 |
 | I18N-001 | 無缺漏 key | 比對 zh-TW 與 en key 集合 | 完全相同；無空字串 | C | #11、DoD 5.4 |
 | I18N-002 | 無硬編碼字串 | ESLint `i18next/no-literal-string`（JSX 文字） | 0 違規（allowlist 除外） | C | #11 |
 | I18N-003 | 數字與複數 | 1 photo／2 photos；「1,284 張」 | ICU MessageFormat 正確；`tnum` | U | #11 |
