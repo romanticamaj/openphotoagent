@@ -1,7 +1,8 @@
 """Relocatable Python runtime for the desktop bundle (08 §1.2 D3). CI only (desktop-build.yml).
 
 python-build-standalone (uv-managed) copied whole → the app's packages from the lockfile without dev
-dependencies, installed into it → drop unused stdlib/site modules, ``__pycache__``, tests, headers, debug info. The shell runs
+dependencies, installed into it → drop unused stdlib/site modules, ``__pycache__``, tests, headers. No ``strip``: with it, linuxdeploy's ldd failed on
+a scipy extension on the Ubuntu 22.04 runner (ADR-0022). The shell runs
 ``<res>/python/bin/python3 -I -m opagent_cli …`` (``-I``: the user's PYTHONPATH / site-packages are ignored).
 """
 
@@ -67,11 +68,6 @@ def main(out: Path) -> int:
         shutil.rmtree(p, ignore_errors=True)
     for p in list(out.glob("include")) + list(out.glob("share")):
         shutil.rmtree(p, ignore_errors=True)
-    if sys.platform.startswith("linux") and shutil.which("strip"):
-        # debug info in extension modules (zstandard, sqlalchemy, PIL, …): ~35 MB uncompressed (ADR-0022)
-        sos = [str(f) for f in site.rglob("*.so*") if f.is_file() and not f.is_symlink()]
-        for i in range(0, len(sos), 200):
-            subprocess.run(["strip", "--strip-debug", *sos[i : i + 200]], check=False)
     size = sum(f.stat().st_size for f in out.rglob("*") if f.is_file() and not f.is_symlink())
     print(f"python runtime: {size / 2**20:.1f} MB uncompressed")
     return 0

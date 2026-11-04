@@ -46,7 +46,12 @@ def test_desk_039_runtime_carries_its_own_interpreter_and_stdlib(runtime, tmp_pa
     shutil.copytree(tree, moved, symlinks=True)
     exe = moved / ("python.exe" if os.name == "nt" else "bin/python3")
     r = subprocess.run(
-        [str(exe), "-I", "-c", "import encodings, ssl, sqlite3, json, opagent_cli, opagent_api; print('ok')"],
+        [
+            str(exe),
+            "-I",
+            "-c",
+            "import encodings, ssl, sqlite3, json, opagent_cli, opagent_api, numpy, scipy.integrate, sklearn.cluster, onnxruntime, PIL.Image, pillow_heif, psycopg; print('ok')",
+        ],
         env={"SYSTEMROOT": os.environ["SYSTEMROOT"]} if os.name == "nt" else {},
         capture_output=True,
         text=True,

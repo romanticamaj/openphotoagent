@@ -116,7 +116,7 @@ jobs:
           PY=build/desktop/python/bin/python3; KEEP=()
           # Windows CPython needs SYSTEMROOT to seed its RNG; everything else from the build machine is withheld
           if [ "$RUNNER_OS" = Windows ]; then PY=build/desktop/python/python.exe; KEEP=("SYSTEMROOT=$SYSTEMROOT"); fi
-          env -i "${KEEP[@]}" "$PY" -I -c "import encodings, ssl, sqlite3, json, opagent_cli, opagent_api; print('runtime ok')"
+          env -i "${KEEP[@]}" "$PY" -I -c "import encodings, ssl, sqlite3, json, opagent_cli, opagent_api, numpy, scipy.integrate, sklearn.cluster, onnxruntime, PIL.Image, pillow_heif, psycopg; print('runtime ok')"
       - name: Size gate (every installer ≤ 200 MB, DESK-030)
         shell: bash
         working-directory: apps/desktop/src-tauri/target/${{ matrix.target }}/release

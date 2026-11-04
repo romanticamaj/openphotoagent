@@ -699,7 +699,7 @@
 **決定**：
 1. **先修 P0**：runtime 改為複製整個 uv 管理的 python-build-standalone，再把套件裝進去。新增 DESK-039（回歸）：複製到別的路徑、以空環境 `-I` 執行；desktop-build 對實際產物再跑一次同樣的檢查。
 2. **大小閘門檢查每一種安裝包**：Linux 同時檢查 AppImage 與 .deb（DESK-030 的文字同步修改）。
-3. **低風險的 payload 縮減先做**：jieba 子模組、strip debug info、標準函式庫的 `tkinter`／`idlelib`／`turtledemo`／`ensurepip`／`lib2to3`／`pydoc_data`。
+3. **低風險的 payload 縮減先做**：jieba 子模組、標準函式庫的 `tkinter`／`idlelib`／`turtledemo`／`ensurepip`／`lib2to3`／`pydoc_data`。
 4. **做 (b)**。這本來就是 08 §4.1 的設計，與大小無關，而且修正 runtime 只會讓安裝包變大（多了標準函式庫），所以不等重新量測：AppImage 不附 WebKitGTK／GTK，AppRun 先檢查系統函式庫，缺少時顯示新的錯誤碼 `DESK_WEBVIEW_MISSING`（含各發行版的安裝指令）。另外新增 DESK-037（AppImage 內沒有 WebKitGTK 的結構檢查）與 DESK-038（AppRun preflight）。
 5. HDBSCAN 改寫延後：風險較高，而且人臉分群的測試要重新驗證，等真的需要時再做。
 
@@ -711,6 +711,8 @@
 **影響的測試 ID**：新增 DESK-039（回歸，先紅後綠）；修改 DESK-030 的範圍（檢查更多產物，不是放寬）；新增 DESK-037／038（決定 4，先紅後綠）。
 
 **同步修改的規格**：09a DESK-030、DESK-037～039；06 §4.7 #111 `DESK_WEBVIEW_MISSING`；08 §4.1 D6 的超標處理順序。
+
+**實作補記**：strip debug info 試過一次後撤回。加上 strip 之後，Ubuntu 22.04 runner 上 linuxdeploy 的 `ldd` 在 scipy 的擴充模組上失敗；沒有 strip 時同一批套件可以正常打包。原因推測是舊版 binutils 處理 auditwheel 以 patchelf 修改過的函式庫時出錯，但沒有在 runner 上單獨驗證。這只省約 8 MB，不值得冒險。DESK-039 與 CI 的 runtime 煙霧測試因此擴大到 numpy、scipy、sklearn、onnxruntime、Pillow、pillow-heif、psycopg 等原生擴充，壞掉的函式庫會在這裡就失敗。
 
 **實作**：`tools/slim_appimage.py`。AppRun 會依名稱 source 每個 hook，所以它會重寫 AppRun：移除 GTK hook，先 source 我們的 preflight，再保留其他 hook。重新打包時沿用原本的 AppImage runtime 與 squashfs 壓縮方式；desktop-build 會重新解開並驗證，在 release tag 上重新簽章。
 
