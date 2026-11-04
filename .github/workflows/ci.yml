@@ -59,6 +59,7 @@ jobs:
 
   integration-linux:
     runs-on: ubuntu-24.04
+    timeout-minutes: 45  # a full run takes ~10 min; without this a hung test burns GitHub's 6 h default
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -69,7 +70,8 @@ jobs:
           sudo apt-get install -y postgresql-17 postgresql-17-pgvector
           echo "OPAGENT_PG_BIN=/usr/lib/postgresql/17/bin" >> $GITHUB_ENV
       - run: uv sync
-      - run: OPAGENT_TC_RESULTS=.tc/py-int.json uv run pytest -q -m "(integration or chaos) and not perf and not nightly and not release_gate"
+      # --timeout: a hung test fails with every thread's stack instead of stalling the job
+      - run: OPAGENT_TC_RESULTS=.tc/py-int.json uv run pytest -q --timeout=900 -m "(integration or chaos) and not perf and not nightly and not release_gate"
       - name: Python perf budgets in their own process (ADR-0018)
         run: OPAGENT_TC_RESULTS=.tc/py-perf.json uv run pytest -q -p no:randomly -m "perf and not nightly and not gpu and not real_model"
       - uses: actions/upload-artifact@v4
