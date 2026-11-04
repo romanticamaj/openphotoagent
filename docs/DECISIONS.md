@@ -776,3 +776,10 @@
 
 **後續**：jieba 把字典快取寫在系統暫存目錄。這不影響正確性，但多人共用的 Linux 上宜改到 app 的快取目錄。
 
+**CI 補記**：
+- integration job 卡住的真正原因：`uv python find --managed-python --no-project` 會回傳專案目前的 `.venv`。CI 的 venv 建在 runner 的系統 Python 上，所以 runtime 的「來源 prefix」變成 `/usr`，建置開始複製整個 `/usr`。
+  - 開發容器的 venv 剛好是 uv 管理的直譯器，所以沒有發現。
+  - 改從 `uv python dir` 內的安裝挑選，並拒絕任何不在該目錄下的來源。
+  - 新增 DESK-042（回歸，先紅後綠）。
+- 同一次 CI 中，IMG-002 再次看到 `outbox.db-journal`：outbox 改成在 worker 建立時（單執行緒）就以 WAL 建立。Q-029 加強為「建立後立即是 WAL」。
+

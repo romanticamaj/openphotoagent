@@ -29,14 +29,38 @@ SITE_DROP = ("jieba/lac_small", "jieba/posseg", "jieba/analyse")  # only Tokeniz
 
 
 def _base_prefix() -> Path:
-    """The uv-managed python-build-standalone install itself (not a venv pointing at it)."""
-    out = subprocess.run(
-        ["uv", "python", "find", "--managed-python", "--no-project", PY], capture_output=True, text=True, check=True
-    ).stdout.strip()
+    """The uv-managed python-build-standalone install itself: never a venv, never the system Python.
+
+    ``uv python find`` answers with the project's active ``.venv``; on CI that venv sits on the runner's system
+    Python, whose prefix is /usr (DESK-042). Pick from uv's own install dir instead."""
+    import json
+
+    def uv(*a: str) -> str:
+        return subprocess.run(["uv", *a], capture_output=True, text=True, check=True, stdin=subprocess.DEVNULL).stdout
+
+    managed = Path(uv("python", "dir").strip()).resolve()
+    found = json.loads(uv("python", "list", PY, "--only-installed", "--managed-python", "--output-format", "json"))
+    exes = [Path(e["path"]) for e in found if Path(e["path"]).resolve().is_relative_to(managed)]
+    if not exes:
+        raise SystemExit(f"no uv-managed Python {PY} under {managed}")
+    exe = max(exes, key=lambda x: [int(n) for n in uv_version(x).split(".")])
     prefix = subprocess.run(
-        [out, "-c", "import sys; print(sys.base_prefix)"], capture_output=True, text=True, check=True
+        [str(exe), "-I", "-c", "import sys; print(sys.base_prefix)"], capture_output=True, text=True, check=True
     )
-    return Path(prefix.stdout.strip())
+    out = Path(prefix.stdout.strip()).resolve()
+    if not out.is_relative_to(managed):
+        raise SystemExit(f"refusing to bundle {out}: not under {managed}")
+    return out
+
+
+def uv_version(exe: Path) -> str:
+    r = subprocess.run(
+        [str(exe), "-I", "-c", "import platform; print(platform.python_version())"],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return r.stdout.strip()
 
 
 def _project_name(project: Path) -> str:

@@ -122,3 +122,29 @@ def test_desk_040_app_data_ships_inside_the_runtime(runtime, tmp_path):
         timeout=300,
     )
     assert r.returncode == 0 and r.stdout.strip() == "ok", (r.stdout + r.stderr)[-2000:]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("DESK-042")
+def test_desk_042_runtime_source_is_uv_managed_even_inside_a_system_venv(tmp_path, monkeypatch):
+    """回歸 (ADR-0023): ``uv python find`` answered with the active project venv. CI's venv sits on the runner's
+    system Python, so the "interpreter prefix" was /usr and the build copied all of /usr (the integration job hung).
+    """
+    import importlib.util
+
+    system = shutil.which("python3.12", path="/usr/bin:/usr/local/bin")
+    if system is None:
+        pytest.fail("this check needs a non-uv python3.12 on the machine (CI runner and dev container have one)")
+    proj = tmp_path / "proj"
+    proj.mkdir()
+    subprocess.run([system, "-m", "venv", "--without-pip", str(proj / ".venv")], check=True, timeout=120)
+    monkeypatch.chdir(proj)
+    monkeypatch.setenv("VIRTUAL_ENV", str(proj / ".venv"))
+    spec = importlib.util.spec_from_file_location("build_desktop_python", ROOT / "tools/build_desktop_python.py")
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    managed = Path(subprocess.run(["uv", "python", "dir"], capture_output=True, text=True, check=True).stdout.strip())
+    prefix = mod._base_prefix()
+    assert prefix.resolve().is_relative_to(managed.resolve()), (prefix, managed)
+    assert (prefix / "lib").is_dir() or (prefix / "Lib").is_dir()

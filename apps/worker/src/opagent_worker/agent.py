@@ -98,6 +98,7 @@ class WorkerAgent:
         self.doctor_env: dict[str, Any] = {}  # raw-fact overrides for the doctor (tests / FakeWorkerLink)
         self.models_root = Path(models_root) if models_root else self.home / "models"
         self.download_sources = download_sources or ["https://huggingface.co"]
+        self._outbox().close()  # create it in WAL now, single-threaded, before any loop or RPC thread opens it (Q-029)
         caps = backend.describe().task_types if backend is not None else ()
         self.embedder = embedder if embedder is not None else (backend if "embed" in caps else None)
         self._cascade: Any = None

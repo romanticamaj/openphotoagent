@@ -866,6 +866,7 @@
 | DESK-039 | 隨附的 Python runtime 自給自足（回歸，ADR-0022） | 建置 runtime，複製到另一個路徑，以空環境 `-I` 執行 | 樹中沒有指向外部的 symlink、內含標準函式庫、`pyvenv.cfg` 不指向建置機；`encodings`、`ssl`、`sqlite3`、`opagent_cli`、`opagent_api` 都能 import；desktop-build 對實際產物再跑一次 | I/C | #1、DoD 5.1 |
 | DESK-040 | app 資料隨 runtime 安裝（回歸，ADR-0022） | 在搬移後的 runtime 中，以 app 自己的載入函式讀取模型 registry、內建整理方式、zh-TW 標籤、標籤詞彙與搜尋詞彙，並稽核每一次開檔 | 每一項都非空；所有開啟的檔案都在 runtime 內（不得讀取建置機的 repo） | I/C | #1、DoD 5.1 |
 | DESK-041 | 程式碼不以原始碼樹的相對路徑找資料（ADR-0023） | 掃描 `apps/*/src`、`packages/*/src` | 沒有 `Path(__file__).parents[N]`；例外只有 opagent_testing 與三個只供測試使用的 fixture 定位（各附理由） | C | #1 |
+| DESK-042 | runtime 來源一定是 uv 管理的直譯器（回歸，ADR-0023） | 在以系統 Python 建立、已啟用的 venv 中解析 runtime 來源 | 回傳的 prefix 位於 `uv python dir` 之下（CI 曾把 venv 背後的 `/usr` 當成來源而整個複製） | I | #1 |
 
 ### 13.2 PG：嵌入式 PostgreSQL 17 + pgvector（08 §2.3）
 

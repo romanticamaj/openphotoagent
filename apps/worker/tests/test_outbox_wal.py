@@ -16,6 +16,11 @@ def test_q_029_outbox_is_wal_and_writes_leave_no_rollback_journal(tmp_path: Path
     from opagent_worker.agent import WorkerAgent
 
     w = WorkerAgent(None, [], tmp_path / "w")
+    # created in WAL at construction, while single-threaded: two threads racing to create it could leave one
+    # connection in rollback mode (PRAGMA journal_mode=WAL fails silently under a lock), as seen again on CI
+    probe = sqlite3.connect(tmp_path / "w" / "outbox.db")
+    assert probe.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
+    probe.close()
     db = w._outbox()
     assert db.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
     held = sqlite3.connect(tmp_path / "w" / "outbox.db")  # a writer mid-transaction, as the loop would be
