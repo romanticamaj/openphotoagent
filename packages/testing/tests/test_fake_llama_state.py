@@ -54,7 +54,7 @@ def test_inf_oom_004_exactly_n_requests_claim_a_crash(state):
         barrier = threading.Barrier(16)
         claims: list[bool] = []
 
-        def go() -> None:
+        def go(barrier: threading.Barrier = barrier, claims: list[bool] = claims) -> None:
             barrier.wait()
             claims.append(F._claim_crash())
 
