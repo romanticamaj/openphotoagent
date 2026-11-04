@@ -18,13 +18,18 @@ ROOT = Path(__file__).resolve().parents[1]
 @pytest.fixture(scope="module")
 def runtime(tmp_path_factory):
     out = tmp_path_factory.mktemp("rt") / "python"
-    r = subprocess.run(
-        [sys.executable, str(ROOT / "tools/build_desktop_python.py"), str(out)],
-        capture_output=True,
-        text=True,
-        check=False,
-        timeout=1200,  # a stuck build fails with its output instead of hanging the suite
-    )
+    try:
+        r = subprocess.run(
+            [sys.executable, str(ROOT / "tools/build_desktop_python.py"), str(out)],
+            stdin=subprocess.DEVNULL,
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=600,  # below pytest's own timeout, so a stuck build fails with its output (which step)
+        )
+    except subprocess.TimeoutExpired as e:
+        tail = [x.decode() if isinstance(x, bytes) else (x or "") for x in (e.stdout, e.stderr)]
+        pytest.fail("runtime build timed out; last output:\n" + tail[0][-3000:] + tail[1][-3000:])
     assert r.returncode == 0, r.stdout[-2000:] + r.stderr[-2000:]
     return out
 

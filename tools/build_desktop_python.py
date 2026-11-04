@@ -20,7 +20,7 @@ PY = "3.12"
 
 def sh(*args: str, **kw: object) -> None:
     print("+", " ".join(args), flush=True)
-    subprocess.run(args, check=True, cwd=ROOT, **kw)  # type: ignore[call-overload]
+    subprocess.run(args, check=True, cwd=ROOT, stdin=subprocess.DEVNULL, **kw)  # type: ignore[call-overload]
 
 
 # never shipped: the app imports none of these, and they are large (ADR-0022)
