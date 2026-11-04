@@ -64,7 +64,9 @@ def test_pg_001_012_initdb_once_utf8_socket_only(pg):
         assert row == "b|C.UTF-8|C|C", row
         assert q(dsn, "SELECT upper('é')") == "É"  # Unicode case mapping, not ASCII-only C
         assert q(dsn, "SELECT ('é' ~ '^\\w$')::text") == "true"
-        assert q(dsn, "SELECT array_to_string(array_agg(x ORDER BY x), ',') FROM unnest(ARRAY['é','a','B']) x") == "B,a,é"
+        assert (
+            q(dsn, "SELECT array_to_string(array_agg(x ORDER BY x), ',') FROM unnest(ARRAY['é','a','B']) x") == "B,a,é"
+        )
     else:  # PG 16 (Linux dev only): no builtin provider; libc C.UTF-8
         assert q(dsn, f"SELECT datlocprovider::text {db}") == "c"
         assert q(dsn, f"SELECT datcollate {db}").lower().replace("-", "") == "c.utf8"
