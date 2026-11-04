@@ -45,6 +45,8 @@ for b in postgres initdb pg_ctl pg_dump pg_restore pg_upgrade; do cp "$PREFIX/bi
 [ -z "$EXE" ] || cp "$PREFIX"/bin/*.dll "$OUT/bin/"
 cp -R "$PREFIX/lib" "$OUT/lib"
 rm -rf "$OUT/lib/pgxs" "$OUT/lib/pkgconfig" "$OUT"/lib/*.a
+# embedded-SQL (ecpg) client libraries: never used, and linuxdeploy cannot resolve their libpgtypes dependency
+rm -f "$OUT"/lib/libecpg* "$OUT"/lib/libpgtypes* "$OUT"/bin/ecpg*
 cp -R "$PREFIX/share" "$OUT/share"
 rm -rf "$OUT/share/doc" "$OUT/share/man"
 [ -n "$EXE" ] || find "$OUT/bin" "$OUT/lib" -type f \( -perm -u+x -o -name '*.so*' -o -name '*.dylib' \) -exec strip -S {} + 2>/dev/null || true

@@ -60,7 +60,7 @@ def test_pg_001_012_initdb_once_utf8_socket_only(pg):
     db = "FROM pg_database WHERE datname = current_database()"
     if int(q(dsn, "SHOW server_version_num")) >= 170000:  # the shipped pack and CI (ADR-0020)
         # builtin provider with the C.UTF-8 locale; the OS-level lc_* are "C", which every OS has
-        row = q(dsn, f"SELECT datlocprovider || '|' || datlocale || '|' || datcollate || '|' || datctype {db}")
+        row = q(dsn, f"SELECT concat_ws('|', datlocprovider::text, datlocale, datcollate, datctype) {db}")
         assert row == "b|C.UTF-8|C|C", row
         assert q(dsn, "SELECT upper('é')") == "É"  # Unicode case mapping, not ASCII-only C
         assert q(dsn, "SELECT ('é' ~ '^\\w$')::text") == "true"

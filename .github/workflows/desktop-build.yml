@@ -74,9 +74,14 @@ jobs:
           # strip predates the runner's binutils, so leave the binaries unstripped (first desktop-build run failed)
           APPIMAGE_EXTRACT_AND_RUN: "1"
           NO_STRIP: "true"
+          # the pg pack is built without rpath; linuxdeploy resolves its libraries (libpq for pg_dump) from here
+          LD_LIBRARY_PATH: ${{ github.workspace }}/build/desktop/pg/lib
         run: |
           cargo install tauri-cli --version "^2" --locked
-          cargo tauri build --verbose --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+          # updater artifacts are signed releases only (B-5); PR and branch builds check the installers and size
+          $extra = @()
+          if ("${{ github.ref }}" -notlike "refs/tags/v*" -and "${{ inputs.tag }}" -eq "") { $extra = @("--config", "tauri.ci.json") }
+          cargo tauri build --verbose --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} @extra
       - name: Size gate (≤ 200 MB, DESK-030)
         shell: bash
         run: uv run --no-project python tools/check_bundle_size.py apps/desktop/src-tauri/target/${{ matrix.target }}/release/${{ matrix.artefact }}
