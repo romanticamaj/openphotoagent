@@ -419,6 +419,7 @@
 | INF-OOM-001 | llama-server 崩潰 | FakeRuntime 第一次請求 SIGKILL | 重啟一次並 `--parallel` 減半；第二次崩潰 → 改用下一個 variant；provenance 記錄 fallback | I | #28 |
 | INF-OOM-002 | ORT OOM | `fb:inject(OOM)` 持續 | batch 16→8→4→2→1，仍 OOM → 降 `max_pixels` 一檔；最後失敗為 `MODEL_OOM` | U | #28 |
 | INF-OOM-003 | CUDA pack 連續崩潰 → Vulkan | CUDA FakeRuntime 崩潰兩次 | doctor 產生「改用 Vulkan」建議；選擇後 Job 繼續並完成 | I | #28、DoD 5.2 |
+| INF-OOM-004 | 假 llama-server 的跨重啟狀態在並行請求與 SIGKILL 下不損壞（回歸） | 多執行緒同時更新狀態檔並持續讀取；16 個執行緒同時搶 `--crash-first-n 1` 的崩潰 | 讀到的永遠是完整 JSON；恰好一個請求取得崩潰（INF-OOM-001 曾因此約 1/12 失敗） | U | #9 |
 | INF-RT-001 | 5070 Ti（Win，驅動 580，cc 12.0） | `hw:rtx5070ti-win11` | packs=`[llamacpp-cuda13]`；VLM=Qwen3-VL-8B Q5_K_M；ORT=DirectML；只推薦一個組合，附下載 GB 與分鐘數 | U | #13、#22 |
 | INF-RT-002 | RTX 4060 8 GB 筆電 | `hw:rtx4060-laptop` | Qwen3-VL-4B Q4_K_M；8B Q4 為「序列模式」選項 | U | #13 |
 | INF-RT-003 | Mac M2／M3 16 GB | `hw:m2-air-16`、`hw:m3-16` | 不需要 pack（Metal 內建）；4B Q4；CoreML | U | #13 |
