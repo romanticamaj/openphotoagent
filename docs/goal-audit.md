@@ -69,7 +69,7 @@
 | 完成條件 | 狀態 | 證據 |
 |---|---|---|
 | 能在雲端或 CI 驗證的 v0.1 ID 全部通過 | ✅／⏳ | 雲端能驗證的部分全綠。D／M 類（DESK-*、UPD-001／002、PG-011、PERF-007）→ B-13；Docker（DOCK-*、PG-014）→ B-12 |
-| CI 三平台建置成功，安裝包 ≤ 200 MB | ⏳ | `desktop-build.yml` 和 DESK-030 大小門檻已寫好；雲端不能觸發 workflow → B-12 |
+| CI 三平台建置成功，安裝包 ≤ 200 MB | ✅ | PR #12 的 desktop-build（commit `1368247`）：NSIS 101.3 MB、dmg 124.7 MB、AppImage 158.6 MB、.deb 198.6 MB 全部通過 DESK-030；三平台的 DESK-039 runtime 煙霧測試通過；AppImage 依 08 §4.1 使用系統 WebKitGTK（DESK-037／038，ADR-0022） |
 | `release-v0.1.md` 列出 DoD 每一項 | ✅ | `docs/checklists/release-v0.1.md` |
 | README 快速開始與安裝流程一致 | ✅ | README 雙語「快速開始」；`opagent dev` |
 | 開 PR，請使用者驗證後合併 | ✅ | PR #5；發版 → B-9 |
