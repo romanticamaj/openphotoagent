@@ -20,7 +20,7 @@ test:
 
 # integration (real PostgreSQL) + chaos subset; then the Python perf budgets in a process of their own (ADR-0018)
 test-int:
-    OPAGENT_TC_RESULTS=.tc/py-int.json uv run pytest -q --timeout=900 -m "(integration or chaos) and not perf and not nightly and not release_gate"
+    OPAGENT_TC_RESULTS=.tc/py-int.json uv run pytest -q --timeout=900 --timeout-method=thread -m "(integration or chaos) and not perf and not nightly and not release_gate"
     just perf-api
 
 # Python perf budgets (layer F: VIEW-009, PF-075) — never in the integration process, whose heap they would time

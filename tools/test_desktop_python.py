@@ -23,6 +23,7 @@ def runtime(tmp_path_factory):
         capture_output=True,
         text=True,
         check=False,
+        timeout=1200,  # a stuck build fails with its output instead of hanging the suite
     )
     assert r.returncode == 0, r.stdout[-2000:] + r.stderr[-2000:]
     return out
@@ -66,6 +67,7 @@ def test_desk_039_runtime_carries_its_own_interpreter_and_stdlib(runtime, tmp_pa
         capture_output=True,
         text=True,
         check=False,
+        timeout=300,
     )
     assert r.returncode == 0 and r.stdout.strip() == "ok", r.stderr[-2000:]
 
@@ -112,5 +114,6 @@ def test_desk_040_app_data_ships_inside_the_runtime(runtime, tmp_path):
         text=True,
         check=False,
         cwd=tmp_path,
+        timeout=300,
     )
     assert r.returncode == 0 and r.stdout.strip() == "ok", (r.stdout + r.stderr)[-2000:]
