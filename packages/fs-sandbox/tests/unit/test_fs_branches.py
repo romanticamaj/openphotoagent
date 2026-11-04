@@ -40,7 +40,7 @@ def test_tmp_removed_when_copy_fails(tmp_path):
     (tmp_path / "ro").mkdir()
     os.chmod(tmp_path / "ro", 0o500)
     try:
-        if os.geteuid() != 0:
+        if os.name == "posix" and os.geteuid() != 0:  # a 0o500 directory is POSIX; Windows has no such mode
             with pytest.raises(OSError):
                 RealFs().write_tmp_bytes(b"x", tmp_path / "ro")
     finally:

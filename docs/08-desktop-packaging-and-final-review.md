@@ -176,7 +176,7 @@ apps/web（同一份原始碼）
 |------|------|
 | 版本 | **PostgreSQL 17.x + pgvector 0.8.x**（Docker 版同步改用 `pgvector/pgvector:pg17`，桌面與 Docker 同一個大版本）【未驗證：發佈時的最新 minor 版】。PG 大版本**最多每年升級一次**，並寫在 release notes |
 | 二進位來源 | CI 從官方原始碼建置（macOS arm64、Linux x64 用 glibc 2.35 基準），或改用 theseus-rs 預編版（PostgreSQL License）；**pgvector 一律由我們在 CI 逐平台編譯**並跑 smoke test（`CREATE EXTENSION vector`、建 HNSW、查詢）。打包成 `pg` pack（內建在安裝包裡），只保留 `bin/postgres`、`initdb`、`pg_ctl`、`pg_dump`、`pg_restore`、`pg_upgrade`、`lib/`、`share/`（只留 `contrib` 的 `pg_trgm`、`citext`、`btree_gin`；刪掉 docs、i18n 以外的語系檔）【估算：壓縮後 25–40 MB】 |
-| initdb | `--locale-provider=builtin --builtin-locale=C.UTF-8 --locale=C -E UTF8`（PG 17 的內建 provider；OS 層的 lc_* 用每個 OS 都有的 `C`，`C.UTF-8` 只有 Linux 有，PG-016）。**不依賴 OS 或 ICU 的 collation**，避免 OS 更新後 collation 版本改變、索引失效。中文排序在應用層處理 |
+| initdb | `--locale-provider=builtin --builtin-locale=C.UTF-8 --locale=C -E UTF8`（PG 17 的內建 provider；OS 層的 lc_* 用每個 OS 都有的 `C`，`C.UTF-8` 只有 Linux 有，PG-016、ADR-0020）。`C.UTF-8` 的大小寫與字元類別跟隨 PG 主版本內建的 Unicode 版本；主版本升級（pg_upgrade）後要 `REINDEX` 依賴 `lower()`／`upper()` 的運算式索引（目前是 `person_name_uq`）。**不依賴 OS 或 ICU 的 collation**，避免 OS 更新後 collation 版本改變、索引失效。中文排序在應用層處理 |
 | 資源設定（`desktop` profile） | `shared_buffers=256MB`（RAM ≤ 8 GB 時用 128MB）、`max_connections=30`、`work_mem=16MB`、`maintenance_work_mem=512MB`（建 HNSW 時臨時調高到 min(RAM×0.25, 2GB)）、`effective_cache_size=RAM×0.25`、`max_parallel_maintenance_workers=2`、`huge_pages=off`、`fsync=on`、`synchronous_commit=on`（照片 journal 不能丟）、`autovacuum=on`、`log_destination=stderr` 由殼收集 |
 | 連線 | 見 §1.3。api 連線池 10，worker 不連 DB（02 原則不變），scheduler 與 Procrastinate 共用 api 進程 |
 | 備份 | 每日一次加上每次 migration 前執行 `pg_dump -Fc`，保留 7 份；「設定 → 資料」提供「立即備份 / 還原 / 匯出到資料夾」 |

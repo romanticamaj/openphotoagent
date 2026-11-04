@@ -64,7 +64,9 @@ def _free_port() -> int:
 
 
 def _run(cluster_prefix: list[str], args: list[str]) -> None:
-    subprocess.run(cluster_prefix + args, check=True, capture_output=True, text=True)
+    r = subprocess.run(cluster_prefix + args, capture_output=True, text=True, check=False)
+    if r.returncode:  # say why (initdb's own message), not only that it failed
+        raise RuntimeError(f"{' '.join(args[:1])} exited {r.returncode}: {(r.stderr or r.stdout).strip()[-2000:]}")
 
 
 def start_cluster(base_dir: str, init_schema: Callable[[str], None] | None = None) -> PgCluster:

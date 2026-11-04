@@ -861,7 +861,7 @@
 
 | ID | 標題 | 前置／輸入 | 預期 | 層 | # |
 |----|------|-----------|------|----|---|
-| PG-001 | initdb | 全新 data dir | `--locale-provider=builtin --locale=C.UTF-8 -E UTF8`；第二次啟動不重跑 | I | #4 |
+| PG-001 | initdb | 全新 data dir | `-E UTF8 --locale-provider=builtin --builtin-locale=C.UTF-8 --locale=C`（PG 17）：`pg_database` 的 `datlocprovider = 'b'`、`datlocale = 'C.UTF-8'`、`datcollate = datctype = 'C'`；`server_encoding = UTF8`；`upper('é') = 'É'`（C.UTF-8 的 Unicode ctype，不是 ASCII-only 的 C）；排序為 code point（`'B' < 'a' < 'é'`）；第二次啟動不重跑 initdb（ADR-0020） | I | #4 |
 | PG-002 | pgvector 煙霧 | 三平台 | `CREATE EXTENSION vector`、建 HNSW、kNN 查詢結果正確 | I | #4 |
 | PG-003 | desktop profile | RAM 8 GB 與 32 GB 的 FakeRAM | `shared_buffers` 128MB／256MB；`fsync=on`、`synchronous_commit=on` | U/I | #4 |
 | PG-004 | migration 前備份 | 有待執行 migration | 先產生 `pg_dump -Fc` 備份再 `alembic upgrade` | I | #4、DoD 5.1 |

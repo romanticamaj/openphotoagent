@@ -5,7 +5,7 @@
 
 ## 審議索引
 
-實作期間（M0 → v1.0）共開了 17 次審議、20 個 sub-agent，全部都有對應的 ADR。規劃階段撰寫規格 00–11 用的 sub-agent，以及提高 mutation score 的實作 sub-agent，不屬於審議，因此不列入。
+實作期間（M0 → v1.0）共開了 18 次審議、21 個 sub-agent，全部都有對應的 ADR。規劃階段撰寫規格 00–11 用的 sub-agent，以及提高 mutation score 的實作 sub-agent，不屬於審議，因此不列入。
 
 | ADR | 審議題目 | sub-agent 數 | 里程碑 |
 |---|---|---|---|
@@ -27,6 +27,7 @@
 | ADR-0017 | Worker 協定版本格式 | 1 | 6 |
 | ADR-0018 | VIEW-009 在整合測試中偶發失敗：量測方式 | 1 | 6（最終 gate） |
 | ADR-0019 | CI 的視覺基準與本機不一致 | 1 | 6（第一次 CI） |
+| ADR-0020 | PG-001 的 initdb locale 在 macOS／Windows 無效 | 1 | 6（第一次 CI） |
 
 
 ## ADR-0001：任務門檻（accept／review）與分類 cascade 的關係
@@ -595,3 +596,40 @@
 - VIS-001～003、ACT-006 的斷言與門檻都沒有修改。新基準提交前，這四條在 CI nightly 會是紅的，記在 B-21。
 
 **同步修改的規格**：09 §2 Visual regression 列；ADR-0003 的「字型釘選」補充為「字型檔釘選，算繪環境由 ADR-0019 釘選」；CLAUDE.md §6 指令清單。
+
+---
+
+## ADR-0020：桌面 PG 17 的 initdb 用 builtin provider 的 `C.UTF-8`，OS 層的 lc_* 用 `C`
+
+- 日期：2026-11-04｜狀態：已採納｜審議：1 個獨立 sub-agent（題目、09a PG-001、08 §1 initdb 列、`embedded.py` 的 `_initdb`、`build_desktop_pg.sh`、CI 的錯誤訊息）
+
+**背景**：
+- 09a PG-001 規定 `--locale-provider=builtin --locale=C.UTF-8 -E UTF8`。
+- desktop-build 在 macos-14 與 windows-latest 上，initdb 以 `invalid locale name "C.UTF-8"` 失敗。
+- 原因：`--locale` 同時設定 OS 層（libc）的 lc_collate、lc_ctype、lc_messages 等，而 `C.UTF-8` 只有 glibc 有。builtin provider 的 locale 要用 `--builtin-locale` 指定。
+- 所以原本的規格在三個目標平台中的兩個上根本無法滿足，桌面版在那兩個平台會建立不了資料庫。
+
+**選項**：
+- (a) 保留 `--locale=C.UTF-8`，macOS 與 Windows 改用各自的 libc locale：catalog 與設定在每個 OS 都不同，違反 08 §1「不依賴 OS」的目的。否決。
+- (b) `--locale-provider=builtin --builtin-locale=C.UTF-8 --locale=C`：
+  - SQL 的排序、大小寫與字元類別全部來自 PostgreSQL 本身，三個 OS 完全一致。
+  - 排序依 code point；大小寫轉換與字元類別支援 Unicode。
+  - `lc_messages = C`：伺服器訊息為英文，app 本來就把錯誤對應到自己的錯誤碼與 i18n。
+- (c) `--builtin-locale=C`：完全不受版本影響，但 `lower()` 與 `ILIKE` 只處理 ASCII。`person_name_uq`（`lower(display_name)`）會把「Émile」與「émile」當成兩個人，是行為回歸。否決。
+
+**決定**：(b)。
+- 程式碼（PG-016）與 `build_desktop_pg.sh` 已經是這組參數。
+- PG < 17 的 `--locale=C.UTF-8` 只保留給 Linux 開發環境（雲端 PG 16）。
+
+**理由**：
+- (b) 正確表達了 PG-001 的原意：UTF8、builtin provider、C.UTF-8 語意、不依賴 OS。
+- 原本規格的寫法是錯的：它把 provider 的 locale 與 libc 的類別混在一起。
+
+**影響的測試 ID**：PG-001 改為更嚴格的斷言。在 PG 17 上檢查：
+- `datlocprovider = 'b'`、`datlocale = 'C.UTF-8'`、`datcollate = datctype = 'C'`；
+- `upper('é') = 'É'`、`'é' ~ '^\w$'`；
+- 排序為 `B,a,é`。
+
+在 PG 16 上檢查 libc 的 `C.UTF-8` 與 `datlocprovider = 'c'`。兩條路徑都是真的斷言，不是 skip。PG-016 不變。
+
+**同步修改的規格**：09a PG-001；08 §1 initdb 列補上「主版本升級後要 REINDEX 依賴 `lower()` 的運算式索引」。

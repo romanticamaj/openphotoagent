@@ -65,7 +65,8 @@ jobs:
         run: uv run --no-project python tools/build_desktop_python.py build/desktop/python
       - name: Tauri bundle
         working-directory: apps/desktop/src-tauri
-        shell: bash
+        # not bash: on Windows, Git's /usr/bin/link.exe shadows MSVC's link.exe and every Rust link fails
+        shell: pwsh
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
@@ -75,7 +76,7 @@ jobs:
           NO_STRIP: "true"
         run: |
           cargo install tauri-cli --version "^2" --locked
-          cargo tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
+          cargo tauri build --verbose --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
       - name: Size gate (≤ 200 MB, DESK-030)
         shell: bash
         run: uv run --no-project python tools/check_bundle_size.py apps/desktop/src-tauri/target/${{ matrix.target }}/release/${{ matrix.artefact }}

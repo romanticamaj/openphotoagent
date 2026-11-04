@@ -57,9 +57,17 @@ def test_pg_001_012_initdb_once_utf8_socket_only(pg):
     p = pg()
     dsn = p.start()
     assert q(dsn, "SHOW server_encoding") == "UTF8"
-    assert q(dsn, "SELECT datcollate FROM pg_database WHERE datname = current_database()").lower().replace("-", "") in (
-        "c.utf8",
-    )
+    db = "FROM pg_database WHERE datname = current_database()"
+    if int(q(dsn, "SHOW server_version_num")) >= 170000:  # the shipped pack and CI (ADR-0020)
+        # builtin provider with the C.UTF-8 locale; the OS-level lc_* are "C", which every OS has
+        row = q(dsn, f"SELECT datlocprovider || '|' || datlocale || '|' || datcollate || '|' || datctype {db}")
+        assert row == "b|C.UTF-8|C|C", row
+        assert q(dsn, "SELECT upper('é')") == "É"  # Unicode case mapping, not ASCII-only C
+        assert q(dsn, "SELECT ('é' ~ '^\\w$')::text") == "true"
+        assert q(dsn, "SELECT array_to_string(array_agg(x ORDER BY x), ',') FROM unnest(ARRAY['é','a','B']) x") == "B,a,é"
+    else:  # PG 16 (Linux dev only): no builtin provider; libc C.UTF-8
+        assert q(dsn, f"SELECT datlocprovider::text {db}") == "c"
+        assert q(dsn, f"SELECT datcollate {db}").lower().replace("-", "") == "c.utf8"
     assert q(dsn, "SHOW listen_addresses") == ""  # Unix socket only (mac/linux)
     run = p.home / "run"
     assert stat.S_IMODE(run.stat().st_mode) == 0o700
