@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import os
 import shutil
+import sys
 import tempfile
+import uuid
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 
@@ -25,7 +28,13 @@ except ImportError:  # pragma: no cover
 
 @pytest.fixture(scope="session")
 def embedded_pg_cluster() -> Iterator[_pg.PgCluster]:
-    base = tempfile.mkdtemp(prefix="opagent-pg-")
+    if sys.platform == "win32":
+        # mkdtemp's owner-only ACL locks out initdb, which drops to a restricted token on Windows; a plain mkdir
+        # under %TEMP% inherits the usual ACL (first windows-latest run: "could not create directory")
+        base = str(Path(tempfile.gettempdir()) / f"opagent-pg-{uuid.uuid4().hex[:8]}")
+        os.mkdir(base)
+    else:
+        base = tempfile.mkdtemp(prefix="opagent-pg-")
     init = None
     try:
         from opagent_db.schema import create_all  # optional: only when packages/db is installed
