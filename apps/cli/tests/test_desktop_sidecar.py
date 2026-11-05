@@ -12,6 +12,7 @@ from pathlib import Path
 import httpx
 import psycopg
 import pytest
+from opagent_testing import winproc
 from opagent_testing.perms import assert_owner_only
 
 TOKEN = "s" * 64
@@ -64,23 +65,9 @@ def _free_port() -> int:
         return s.getsockname()[1]
 
 
-def _win_processes(pid: int) -> list[dict]:
-    """``pid`` and its children: a venv's python.exe is a launcher, and the interpreter is its child."""
-    ps = (
-        "[Console]::OutputEncoding = [Text.Encoding]::UTF8; "
-        f"Get-CimInstance Win32_Process -Filter 'ProcessId={pid} or ParentProcessId={pid}'"
-        " | Select-Object ProcessId,CommandLine | ConvertTo-Json"
-    )
-    r = subprocess.run(
-        ["powershell", "-NoProfile", "-Command", ps], capture_output=True, encoding="utf-8", check=True, timeout=60
-    )
-    got = json.loads(r.stdout)
-    return got if isinstance(got, list) else [got]
-
-
 def _is_process(pid: int, p) -> bool:
     if sys.platform == "win32":
-        return pid in [x["ProcessId"] for x in _win_processes(p.pid)]
+        return pid in [x["ProcessId"] for x in winproc.processes(p.pid)]
     return pid == p.pid
 
 
@@ -88,27 +75,14 @@ def _readable_by_others(p) -> str:
     """What another local process can read about ``p``. Windows: the command line. Its environment needs debug
     rights to read, and is what the test passed to Popen."""
     if sys.platform == "win32":
-        return " ".join(x["CommandLine"] or "" for x in _win_processes(p.pid))
+        return " ".join(x["CommandLine"] or "" for x in winproc.processes(p.pid))
     environ = Path(f"/proc/{p.pid}/environ").read_bytes().decode(errors="ignore")
     return environ + Path(f"/proc/{p.pid}/cmdline").read_bytes().decode(errors="ignore")
 
 
-def _win_listening(port: int) -> list[str]:
-    out = []
-    for proto in ("TCP", "TCPv6"):
-        r = subprocess.run(["netstat", "-an", "-p", proto], capture_output=True, encoding="oem", check=True, timeout=60)
-        for line in r.stdout.splitlines():
-            cols = line.split()
-            # the state word is localized, a listener's remote end is not; same hex as /proc/net/tcp
-            if len(cols) >= 3 and cols[1].endswith(f":{port}") and cols[2].rsplit(":", 1)[-1] in ("0", "*"):
-                host = cols[1].rsplit(":", 1)[0]
-                out.append("".join(f"{int(b):02X}" for b in reversed(host.split("."))) if proto == "TCP" else host)
-    return out
-
-
 def _listening(port: int) -> list[str]:
     if sys.platform == "win32":
-        return _win_listening(port)
+        return winproc.listening_hosts(port)
     out = []
     for name in ("/proc/net/tcp", "/proc/net/tcp6"):
         if not Path(name).exists():  # kernels without IPv6
