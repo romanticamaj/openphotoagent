@@ -3,7 +3,6 @@
 import json
 import os
 import shutil
-import stat
 import subprocess
 import sys
 import threading
@@ -12,6 +11,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 from opagent_api.app import create_app
+from opagent_testing.perms import assert_owner_only
 from sqlalchemy import text
 
 FX = Path(__file__).resolve().parents[4] / "fixtures/photos/basic"
@@ -104,7 +104,7 @@ def test_worker_006_headless_from_cli(real_cp, tmp_path):
     out = json.loads(cli("enroll", "--server", url, "--code", code, "--name", "gpu-box", home=home).stdout)
     wid = out["worker_id"]
     for f in ("worker.key", "remote.json"):
-        assert stat.S_IMODE((home / f).stat().st_mode) == 0o600, f
+        assert_owner_only(home / f, 0o600)
     assert b"PRIVATE" not in (home / "remote.json").read_bytes()
     assert cli("enroll", "--server", url, "--code", code, home=tmp_path / "again", check=False).returncode != 0
     cli("roots", "add", "photos", str(photos), "--mode", "ro", home=home)

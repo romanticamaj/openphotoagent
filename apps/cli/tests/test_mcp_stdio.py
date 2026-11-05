@@ -4,7 +4,6 @@ import io
 import json
 import os
 import socket
-import stat
 import subprocess
 import sys
 import threading
@@ -14,6 +13,7 @@ import pytest
 import uvicorn
 from opagent_api.app import create_app
 from opagent_testing.mcp_harness import M
+from opagent_testing.perms import assert_owner_only
 
 
 def _free_port():
@@ -202,7 +202,7 @@ def test_pat_001_keyring_first_file_fallback(tmp_path, monkeypatch):
         keyring.set_keyring(Fail())
         r = credstore.save("opagent_pat_other", tmp_path)
         assert r == {"store": "file", "warning": "KEYRING_UNAVAILABLE", "path": r["path"]}
-        assert stat.S_IMODE(os.stat(r["path"]).st_mode) == 0o600
+        assert_owner_only(r["path"], 0o600)
         assert credstore.load(tmp_path) == "opagent_pat_other"
     finally:
         keyring.set_keyring(prev)

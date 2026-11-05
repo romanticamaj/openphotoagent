@@ -4,7 +4,6 @@ run/api.json, isolation from the user's Python environment."""
 import json
 import os
 import socket
-import stat
 import subprocess
 import sys
 import time
@@ -13,6 +12,7 @@ from pathlib import Path
 import httpx
 import psycopg
 import pytest
+from opagent_testing.perms import assert_owner_only
 
 TOKEN = "s" * 64
 
@@ -93,7 +93,7 @@ def test_desk_012_014_token_on_stdin_and_loopback_only(embedded_pg, tmp_path, st
     stop(p)
     info = _wait_run(home, p)
     port = info["port"]
-    assert stat.S_IMODE((home / "run" / "api.json").stat().st_mode) == 0o600
+    assert_owner_only(home / "run" / "api.json", 0o600)
     # the token reached the API but is in neither the environment nor the command line
     assert TOKEN not in Path(f"/proc/{p.pid}/environ").read_bytes().decode(errors="ignore")
     assert TOKEN not in Path(f"/proc/{p.pid}/cmdline").read_bytes().decode(errors="ignore")
@@ -219,7 +219,7 @@ def test_desk_015_lan_mode_needs_a_password_then_binds_all_interfaces(embedded_p
     assert r.returncode == 0, r.stderr
     cfg = json.loads((home / "config" / "lan.json").read_text(encoding="utf-8"))
     assert cfg["password_hash"].startswith("$argon2id$") and "correct horse" not in json.dumps(cfg)
-    assert stat.S_IMODE((home / "config" / "lan.json").stat().st_mode) == 0o600
+    assert_owner_only(home / "config" / "lan.json", 0o600)
     p = _launch(embedded_pg.dsn, home, port, extra_args=["--lan"])
     stop(p)
     _wait_run(home, p)

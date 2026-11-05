@@ -218,14 +218,11 @@ def write_run_file(home: Path, info: dict[str, object]) -> None:
     """Atomic, owner-only (0600) — it names the port of a token-protected API."""
     import json
 
+    from opagent_secure import private_dir, write_private
+
     run = Path(home) / "run"
-    run.mkdir(parents=True, exist_ok=True)
-    tmp = run / "api.json.tmp"
-    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w") as f:
-        json.dump(info, f)
-    os.chmod(tmp, 0o600)
-    os.replace(tmp, run / "api.json")
+    private_dir(run)
+    write_private(run / "api.json", json.dumps(info).encode())
 
 
 def lan_file(home: Path) -> Path:
@@ -247,6 +244,7 @@ def cmd_lan_password(a: argparse.Namespace) -> None:
     import json
 
     from opagent_api.security import hash_password
+    from opagent_secure import write_private
 
     pw = sys.stdin.readline().rstrip("\n")
     if len(pw) < 8:
@@ -255,12 +253,7 @@ def cmd_lan_password(a: argparse.Namespace) -> None:
     home = Path(a.home) if a.home else _home()
     f = lan_file(home)
     f.parent.mkdir(parents=True, exist_ok=True)
-    tmp = f.with_suffix(".tmp")
-    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w") as fh:
-        json.dump({"password_hash": hash_password(pw)}, fh)
-    os.chmod(tmp, 0o600)
-    os.replace(tmp, f)
+    write_private(f, json.dumps({"password_hash": hash_password(pw)}).encode())
 
 
 def cmd_pg_prepare(a: argparse.Namespace) -> None:
