@@ -290,6 +290,9 @@ class HashCache:
         self._db.commit()
         self._uncommitted = 0
 
+    def close(self) -> None:
+        self._db.close()  # uncommitted rows are only lost work, and a scan has flushed by the time this runs
+
 
 def _entry_to_json(e: ScanEntry) -> dict[str, Any]:
     d = asdict(e)

@@ -366,6 +366,11 @@ class WorkerAgent:
                 },
             )
 
+    def close(self) -> None:
+        """Release the database files: Windows cannot delete or replace a file that is still open."""
+        self.executor.journal.close()
+        self.cache.close()
+
     # ---- offline tolerance: results go to a local outbox when the CP is unreachable (02 §4.3, Q-013) ----
     def _outbox(self) -> Any:
         import sqlite3

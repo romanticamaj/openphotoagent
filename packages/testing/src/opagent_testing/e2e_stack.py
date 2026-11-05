@@ -37,7 +37,7 @@ SIGLIP_REPO = "onnx-community/siglip2-so400m-patch14-384-ONNX"
 QWEN_REPO = "Qwen/Qwen3-VL-8B-Instruct-GGUF"
 REV = "0123456789abcdef0123456789abcdef01234567"
 # small stand-ins for the pinned weights; sizes are what the recorded server really serves
-SIGLIP = [("vision_model_int8.onnx", 600_000), ("text_model_int8.onnx", 400_000), ("tokenizer.json", 20_000)]
+SIGLIP = [("onnx/vision_model_int8.onnx", 600_000), ("onnx/text_model_int8.onnx", 400_000), ("tokenizer.json", 20_000)]
 QWEN = [("Qwen3VL-8B-Instruct-Q4_K_M.gguf", 6_000_000), ("mmproj-Qwen3VL-8B-Instruct-F16.gguf", 1_000_000)]
 DEAD = "http://127.0.0.1:9"  # discard port: connection refused → NET_UNREACHABLE
 
@@ -96,6 +96,7 @@ class Stack:
         self.worker: Any = None
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
+        self._retired: list[Any] = []
         self.app = self._app()
 
     # ---- app ---------------------------------------------------------------
@@ -307,6 +308,10 @@ class Stack:
             self._thread.join(15)
         self._stop = threading.Event()
         self._thread = None
+        for w in [*self._retired, self.worker]:
+            if w is not None:
+                w.close()
+        self._retired = []
 
     def _wipe_db(self) -> None:
         from opagent_db.schema import engine_for, metadata
@@ -573,6 +578,7 @@ class Stack:
                 return fail
 
         old = self.worker
+        self._retired.append(old)  # its files stay open until the next reset, like a dying process's handles
         old.client = _Dead()
         self._stop.set()
         self._stop = threading.Event()

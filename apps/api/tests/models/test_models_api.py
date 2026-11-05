@@ -13,7 +13,7 @@ from sqlalchemy import text
 
 ROOT = Path(__file__).resolve().parents[4]
 EMB = "siglip2-so400m-384"
-INT8 = ["vision_model_int8.onnx", "text_model_int8.onnx", "tokenizer.json"]
+INT8 = ["onnx/vision_model_int8.onnx", "onnx/text_model_int8.onnx", "tokenizer.json"]
 
 
 @pytest.fixture

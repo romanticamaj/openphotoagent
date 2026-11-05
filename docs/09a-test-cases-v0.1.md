@@ -333,6 +333,7 @@
 | Q-027 | GPU 被占用 / 全螢幕 | `hw:game-running-5gb`、FakeFullscreen=true | `PAUSED_GPU_CONTENDED`；GPU 釋放後自動繼續；選「改用 CPU」可繼續 | I | #9、DoD 5.2 |
 | Q-028 | 只在閒置時處理 | `only_when_idle=true`，FakeIdle 秒數 = 5 | `PAUSED_NOT_IDLE`；閒置達門檻後繼續；「現在就處理」覆寫 | I | #32 |
 | Q-029 | outbox 使用 WAL（回歸） | 開啟 worker outbox；另一個連線在交易中寫入 | `journal_mode` 為 `wal`；目錄中不會出現 `outbox.db-journal`（IMG-002 曾在寫入當下看到它） | U | #3 |
+| Q-030 | 停止的 worker 釋放資料庫檔案（回歸） | `close()` 後刪除 worker 資料夾；連續呼叫兩次 | 刪除成功、不報錯（Windows 不能刪開啟中的檔案，e2e 每個案例的 reset 都因此 WinError 32） | U | Windows |
 
 ---
 
