@@ -20,7 +20,7 @@ jobs:
   supervisor:
     strategy:
       fail-fast: false
-      matrix: { os: [windows-latest, macos-14, ubuntu-22.04] }
+      matrix: { os: [windows-latest, macos-15, ubuntu-22.04] }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -40,7 +40,7 @@ jobs:
       matrix:
         include:
           - { os: windows-latest, target: x86_64-pc-windows-msvc, bundles: nsis, artefact: "bundle/nsis/*-setup.exe" }
-          - { os: macos-14, target: aarch64-apple-darwin, bundles: "app,dmg", artefact: "bundle/dmg/*.dmg" }
+          - { os: macos-15, target: aarch64-apple-darwin, bundles: "app,dmg", artefact: "bundle/dmg/*.dmg" }
           - { os: ubuntu-22.04, target: x86_64-unknown-linux-gnu, bundles: "appimage,deb", artefact: "bundle/appimage/*.AppImage bundle/deb/*.deb" }
     runs-on: ${{ matrix.os }}
     steps:

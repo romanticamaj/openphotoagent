@@ -412,7 +412,7 @@ Doctor 的所有探針（NVML、`nvidia-smi -q -x`、DXGI、Vulkan、Metal／`sy
 | `unit-ts` | Vitest + coverage + fast-check | ubuntu | 4 min |
 | `contract` | `oasdiff` 對 base 分支（破壞性變更需 `api-breaking` 標籤與 VERSIONING 說明）；schemathesis（PF-082）；Worker 協定、preflight 目錄、registry、MCP tools（v0.2 起）JSON Schema 快照；INF-CONF 一致性（FakeBackend、tiny ORT、tiny llama.cpp CPU）；path_template Python↔TS golden（CORE-TPL-025） | ubuntu | 6 min |
 | `integration-linux` | 嵌入式 PG pack（`embedded_pg`）跑 Q、OUT、SCAN、DL、PF、SRCH、OP 整合測試；另跑一次 testcontainers `pgvector/pgvector:pg17` 一致性（PG-014）；tmpfs 磁碟滿與 loop device 跨裝置 | ubuntu | 8 min |
-| `os-matrix` | **windows-latest、macos-14、ubuntu-22.04**：core 全部、fs-sandbox 全部（含 `os` 案例）、executor + OUT-CRASH-001–011、scanner 的 OS 相關案例（SCAN-015、016、023）、嵌入式 PG（PG-001–006、PG-013）、Rust 殼單元測試 | 3 OS | 每 OS 12 min |
+| `os-matrix` | **windows-latest、macos-15、ubuntu-22.04**：core 全部、fs-sandbox 全部（含 `os` 案例）、executor + OUT-CRASH-001–011、scanner 的 OS 相關案例（SCAN-015、016、023）、嵌入式 PG（PG-001–006、PG-013）、Rust 殼單元測試 | 3 OS | 每 OS 12 min |
 | `chaos-smoke` | OUT-CRASH-001–011 各 1 次、Q-022、DL-004 | ubuntu | 4 min |
 | `e2e-smoke` | Playwright web build（Chromium）：E2E-A-001、E2E-B-001、E2E-B-002、E2E-L-001、E2E-S-001；axe 3 個路由；desktop build（mock backend_info）跑 E2E-B-001 | ubuntu | 12 min |
 | `size` | `size-limit`（PERF-003）；packaging 路徑變更時建置 Linux AppImage 並檢查 ≤ 200 MB | ubuntu | 3 min（打包時 15 min） |

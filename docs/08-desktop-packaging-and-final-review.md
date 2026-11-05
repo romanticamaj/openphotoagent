@@ -400,7 +400,7 @@ jobs:
 | Runner | Target | 產物 | 簽章 |
 |--------|--------|------|------|
 | `windows-latest` | `x86_64-pc-windows-msvc` | `-setup.exe`（NSIS）、`.msi`（只有 stable）、`.nsis.zip` + `.sig` | SignPath（內層 → installer）、updater 簽章 |
-| `macos-14`（arm64） | `aarch64-apple-darwin` | `.dmg`、`.app.tar.gz` + `.sig` | Developer ID + notarize + staple |
+| `macos-15`（arm64） | `aarch64-apple-darwin` | `.dmg`、`.app.tar.gz` + `.sig` | Developer ID + notarize + staple |
 | `ubuntu-22.04` | `x86_64-unknown-linux-gnu` | `.AppImage` + `.sig`、`.deb`、`.rpm` | updater 簽章 |
 | `ubuntu-latest`（彙整 job） | — | 產生 `latest.json`（stable）或更新 `beta.json`（pre-release）、SBOM、attestation、上傳到 Release | — |
 
