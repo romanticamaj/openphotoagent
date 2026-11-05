@@ -434,7 +434,7 @@ def test_pg_011_elevated_app_starts_postgres_through_pg_ctl(tmp_path, monkeypatc
 @pytest.mark.tc("PG-011")
 def test_pg_011_pg_run_serves_and_stops_with_its_parent(pg):
     import sys
-    import time
+    import threading
 
     p = pg(transport="tcp")
     p.prepare()
@@ -451,7 +451,7 @@ def test_pg_011_pg_run_serves_and_stops_with_its_parent(pg):
                 assert q(p.dsn_for("postgres"), "SELECT 1") == 1
                 break
             except psycopg.OperationalError:
-                time.sleep(0.1)
+                threading.Event().wait(0.1)
         else:
             raise AssertionError("pg-run never served")
         child.stdin.close()
