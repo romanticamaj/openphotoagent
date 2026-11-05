@@ -29,6 +29,8 @@
 
 > **2026-11-05 地端更新**：B-10 的釘選已在本機完成（`pins.lock` 9 個 variant），只剩 bot PR 的 App token。B-11 主要流程已在參考機走過（見 HANDOFF-local 開頭）。B-7 查證結果：`fal/AuraFace-v1` 的 LICENSE.md 是未填寫的 Apache-2.0 範本，模型卡未列訓練資料，只有 `glintr100.onnx` 可用，**需要法律審閱（併入 B-6）**。新增授權確認：`onnx-community/siglip2-so400m-patch14-384-ONNX` 沒有授權檔（上游 Apache-2.0），請確認或改發佈自己的匯出。
 
+> **2026-11-06 地端更新**：B-11 完成（實測見 `docs/checklists/release-v0.1.md`）。B-13：DESK-001 以外的 002～007、PERF-001、PERF-007 已實測通過；VM 全新帳號（DESK-031）、更新（UPD-001／002）、拖放、OS 通知未做。B-15：Claude Code 通過；Claude Desktop、Cursor 待測。B-1：S3、S7（8B）、S4、S1a 通過，S4b 只有替代資料集（0.605，未達 0.80，尚無定論），V7、V9、S1a 管理員未跑。
+
 ## 附錄：還沒有綠燈的測試 ID 與對應項目
 
 > 依 `docs/generated/coverage-status.md`（2026-11-03，feat/v1.0）。這裡列出每一條沒有綠燈的 ID，說明為什麼沒有在雲端執行，以及由哪一項 B-x 負責。其餘 ID 全部是綠燈。

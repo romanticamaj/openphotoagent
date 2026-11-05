@@ -235,7 +235,12 @@ impl Shell {
                 let _ = s.child.kill();
             }
         }
-        let b = self.backend.lock().unwrap().clone().ok_or("api not ready")?;
+        let b = self
+            .backend
+            .lock()
+            .unwrap()
+            .clone()
+            .ok_or("api not ready")?;
         self.start_worker(&b.base_url)
     }
 
@@ -321,7 +326,11 @@ fn supervise(app: tauri::AppHandle, shell: Arc<Shell>, dsn: String) {
                     let tracker = &mut trackers.iter_mut().find(|(n, _)| *n == name).unwrap().1;
                     match tracker.failed(shell.started.elapsed()) {
                         Decision::GiveUp => {
-                            shell.fatal(&app, &format!("{name}_CRASHED"), &format!("exit code {code:?}"));
+                            shell.fatal(
+                                &app,
+                                &format!("{name}_CRASHED"),
+                                &format!("exit code {code:?}"),
+                            );
                             return;
                         }
                         Decision::RestartAfter(d) => {
@@ -545,12 +554,16 @@ fn main() {
             let start = remote::plan(&mode);
             if let Some(url) = start.window_url.clone() {
                 let guard = mode.clone();
-                WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url.parse().expect("checked origin")))
-                    .title("OpenPhotoAgent")
-                    .inner_size(1280.0, 820.0)
-                    .min_inner_size(960.0, 600.0)
-                    .on_navigation(move |u| remote::may_navigate(&guard, u.as_str()))
-                    .build()?;
+                WebviewWindowBuilder::new(
+                    app,
+                    "main",
+                    WebviewUrl::External(url.parse().expect("checked origin")),
+                )
+                .title("OpenPhotoAgent")
+                .inner_size(1280.0, 820.0)
+                .min_inner_size(960.0, 600.0)
+                .on_navigation(move |u| remote::may_navigate(&guard, u.as_str()))
+                .build()?;
                 return Ok(());
             }
             WebviewWindowBuilder::new(app, "main", WebviewUrl::default())
