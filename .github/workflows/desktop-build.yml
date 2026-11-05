@@ -120,6 +120,13 @@ jobs:
           # Windows CPython needs SYSTEMROOT to seed its RNG; everything else from the build machine is withheld
           if [ "$RUNNER_OS" = Windows ]; then PY=build/desktop/python/python.exe; KEEP=("SYSTEMROOT=$SYSTEMROOT"); fi
           env -i "${KEEP[@]}" "$PY" -I -c "import encodings, ssl, sqlite3, json, opagent_cli, opagent_api, numpy, scipy.integrate, sklearn.cluster, onnxruntime, PIL.Image, pillow_heif, psycopg; print('runtime ok')"
+      - name: Install and launch the real thing (Windows, DESK-054)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $setup = (Get-ChildItem "apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*-setup.exe")[0].FullName
+          Start-Process $setup -ArgumentList '/S' -Wait
+          uv run --no-project python tools/desktop_smoke.py "$env:LOCALAPPDATA\Programs\OpenPhotoAgent\openphotoagent.exe"
       - name: Size gate (every installer ≤ 200 MB, DESK-030)
         shell: bash
         working-directory: apps/desktop/src-tauri/target/${{ matrix.target }}/release

@@ -886,6 +886,7 @@
 | DESK-051 | 安裝包內含 llama-server（回歸） | `tools/build_desktop_llama.py` 的檔案篩選、釘選雜湊、tauri 資源 | 只留 server 與其函式庫；三平台都有 sha256；資源已列入 | U | #15、08 §4.1 |
 | DESK-052 | spawn 的子進程不重跑 CLI（回歸） | 以 `__mp_main__` 匯入 `opagent_cli.__main__` | 不呼叫 `main()`；以 `__main__` 執行時才呼叫 | U | DL-*、#15 |
 | DESK-053 | 監看父進程時仍能產生子進程（回歸） | 監看 stdin 的 sidecar 以 spawn 開子進程，再關閉 stdin | 子進程正常回應；sidecar 在 stdin 關閉後結束 | I | DL-*、DESK-006 |
+| DESK-054 | CI 真的安裝並啟動安裝版（回歸） | `desktop-build.yml`：NSIS 靜默安裝後跑 `tools/desktop_smoke.py` | API 健康、worker 註冊、log 沒有 Traceback／ImportError；提早結束視為失敗 | U＋CI | DoD 5.1 |
 
 ### 13.2 PG：嵌入式 PostgreSQL 17 + pgvector（08 §2.3）
 
