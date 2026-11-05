@@ -20,7 +20,9 @@ AUTHENTICATED_USERS = "*S-1-5-11"
 
 @lru_cache(maxsize=1)
 def _me() -> str:
-    out = subprocess.run(["whoami", "/user", "/fo", "csv", "/nh"], capture_output=True, text=True, check=True).stdout
+    out = subprocess.run(
+        ["whoami", "/user", "/fo", "csv", "/nh"], capture_output=True, encoding="oem", check=True
+    ).stdout
     return next(csv.reader([out.strip()]))[1]
 
 

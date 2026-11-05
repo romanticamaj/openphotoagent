@@ -18,7 +18,8 @@ TOKEN = "s" * 64
 
 
 def _launch(dsn, home: Path, port: int, extra_env=None, pre=(), extra_args=()):
-    env = {k: v for k, v in os.environ.items() if not k.startswith("OPAGENT_")}
+    # PG_BIN stays: outside Linux there is no distro path to fall back on, and the shell always knows its own PG
+    env = {k: v for k, v in os.environ.items() if k == "OPAGENT_PG_BIN" or not k.startswith("OPAGENT_")}
     env.update(extra_env or {})
     argv = [
         sys.executable,
@@ -42,7 +43,7 @@ def _launch(dsn, home: Path, port: int, extra_env=None, pre=(), extra_args=()):
     return p
 
 
-def _wait_run(home: Path, p, timeout=30.0):
+def _wait_run(home: Path, p, timeout=120.0):  # first start: every import comes cold off the disk
     f = home / "run" / "api.json"
     t0 = time.monotonic()  # noqa: TID251 - waiting on a real subprocess
     while time.monotonic() - t0 < timeout:  # noqa: TID251
@@ -63,7 +64,51 @@ def _free_port() -> int:
         return s.getsockname()[1]
 
 
+def _win_processes(pid: int) -> list[dict]:
+    """``pid`` and its children: a venv's python.exe is a launcher, and the interpreter is its child."""
+    ps = (
+        "[Console]::OutputEncoding = [Text.Encoding]::UTF8; "
+        f"Get-CimInstance Win32_Process -Filter 'ProcessId={pid} or ParentProcessId={pid}'"
+        " | Select-Object ProcessId,CommandLine | ConvertTo-Json"
+    )
+    r = subprocess.run(
+        ["powershell", "-NoProfile", "-Command", ps], capture_output=True, encoding="utf-8", check=True, timeout=60
+    )
+    got = json.loads(r.stdout)
+    return got if isinstance(got, list) else [got]
+
+
+def _is_process(pid: int, p) -> bool:
+    if sys.platform == "win32":
+        return pid in [x["ProcessId"] for x in _win_processes(p.pid)]
+    return pid == p.pid
+
+
+def _readable_by_others(p) -> str:
+    """What another local process can read about ``p``. Windows: the command line. Its environment needs debug
+    rights to read, and is what the test passed to Popen."""
+    if sys.platform == "win32":
+        return " ".join(x["CommandLine"] or "" for x in _win_processes(p.pid))
+    environ = Path(f"/proc/{p.pid}/environ").read_bytes().decode(errors="ignore")
+    return environ + Path(f"/proc/{p.pid}/cmdline").read_bytes().decode(errors="ignore")
+
+
+def _win_listening(port: int) -> list[str]:
+    out = []
+    for proto in ("TCP", "TCPv6"):
+        r = subprocess.run(["netstat", "-an", "-p", proto], capture_output=True, encoding="oem", check=True, timeout=60)
+        for line in r.stdout.splitlines():
+            cols = line.split()
+            # the state word is localized, a listener's remote end is not; same hex as /proc/net/tcp
+            if len(cols) >= 3 and cols[1].endswith(f":{port}") and cols[2].rsplit(":", 1)[-1] in ("0", "*"):
+                host = cols[1].rsplit(":", 1)[0]
+                out.append("".join(f"{int(b):02X}" for b in reversed(host.split("."))) if proto == "TCP" else host)
+    return out
+
+
 def _listening(port: int) -> list[str]:
+    if sys.platform == "win32":
+        return _win_listening(port)
     out = []
     for name in ("/proc/net/tcp", "/proc/net/tcp6"):
         if not Path(name).exists():  # kernels without IPv6
@@ -95,8 +140,7 @@ def test_desk_012_014_token_on_stdin_and_loopback_only(embedded_pg, tmp_path, st
     port = info["port"]
     assert_owner_only(home / "run" / "api.json", 0o600)
     # the token reached the API but is in neither the environment nor the command line
-    assert TOKEN not in Path(f"/proc/{p.pid}/environ").read_bytes().decode(errors="ignore")
-    assert TOKEN not in Path(f"/proc/{p.pid}/cmdline").read_bytes().decode(errors="ignore")
+    assert TOKEN not in _readable_by_others(p)
     base = f"http://127.0.0.1:{port}"
     assert httpx.get(f"{base}/api/v1/sources").status_code == 401
     assert httpx.get(f"{base}/api/v1/sources", headers={"Authorization": f"Bearer {TOKEN}"}).status_code == 200
@@ -122,12 +166,12 @@ def test_desk_010_port_conflicts(embedded_pg, tmp_path, stop):
         p = _launch(embedded_pg.dsn, home, pref)
         stop(p)
         info = _wait_run(home, p)
-        assert info["port"] != pref and info["pid"] == p.pid
+        assert info["port"] != pref and _is_process(info["pid"], p)
         assert httpx.get(f"http://127.0.0.1:{info['port']}/healthz").json()["app"] == "openphotoagent"
         # (b) another OpenPhotoAgent on the same data dir holds the port → do not start a second one
         p2 = _launch(embedded_pg.dsn, home, info["port"])
         assert p2.wait(30) == 3, p2.stdout.read().decode()[-2000:]
-        assert json.loads((home / "run" / "api.json").read_text(encoding="utf-8"))["pid"] == p.pid  # unchanged
+        assert json.loads((home / "run" / "api.json").read_text(encoding="utf-8"))["pid"] == info["pid"]  # unchanged
     finally:
         blocker.close()
 
@@ -194,7 +238,12 @@ def test_desk_035_port_listens_before_run_file_appears(embedded_pg, tmp_path, st
         f = home / "run" / "api.json"
         while not f.exists():  # tight poll: catch the earliest moment the file is visible
             assert p.poll() is None, p.stdout.read().decode()[-2000:]
-        info = json.loads(f.read_text(encoding="utf-8"))
+        while True:
+            try:
+                info = json.loads(f.read_text(encoding="utf-8"))
+                break
+            except PermissionError:  # Windows, just after the rename; the shell's own poll retries the same way
+                continue
         with socket.create_connection(("127.0.0.1", info["port"]), timeout=2):
             pass
         p.terminate()
@@ -291,8 +340,6 @@ def test_desk_011_worker_authenticates_with_the_launch_token_from_stdin(embedded
         out = w.stdout.read().decode()[-2000:] if w.poll() is not None else "never registered"
         assert w.poll() is None and time.monotonic() < deadline, out  # noqa: TID251
         time.sleep(0.2)  # noqa: TID251
-    assert TOKEN not in Path(f"/proc/{w.pid}/cmdline").read_text(encoding="utf-8") and TOKEN not in Path(
-        f"/proc/{w.pid}/environ"
-    ).read_text(encoding="utf-8")
+    assert TOKEN not in _readable_by_others(w)
     w.stdin.close()  # the shell is gone
     w.wait(timeout=10)

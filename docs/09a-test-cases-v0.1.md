@@ -296,7 +296,7 @@
 | SCAN-024 | 輸出資料夾不被掃描 | 輸出 target 位於來源 root 之下（使用者仍堅持時） | 掃描自動排除該 target 子樹；preflight 另有 `OUTPUT_TARGET_INSIDE_SOURCE` | I | #47 |
 | SCAN-025 | 掃描進度型態 | 10,000 檔，無上次總數 | enumerate 階段 `indeterminate` 並回報「已找到 N 張 · X 張/秒」；數完後轉 determinate；有上次總數時直接 rough | I | #30 |
 | SCAN-026 | junction 不被跟隨（回歸） | Windows：來源 root 內有指向 root 外的 junction（`mklink /J`，不需要權限） | 不走進去、不中止掃描；列入略過，原因 `symlink` | U | Windows |
-| SCAN-027 | 掃描快取批次提交（回歸） | 超過兩個批次的檔案；每個檔案時以第二條連線檢查快取；掃描中途丟例外；重新掃描 | commit 次數 ≤ 檔案數／批次＋1；任何時刻落後已掃描數不超過一個批次（kill -9 只需重算這些）；掃描結束或丟例外時全部落地；重掃讀 0 bytes（每檔一次 fsync 曾讓 Windows 上 3,500 檔超過 300 s） | U | #33、Windows |
+| SCAN-027 | 掃描快取批次提交（回歸） | 超過兩個批次的檔案；每個檔案時以第二條連線檢查快取；掃描中途丟例外；重新掃描 | commit 次數 ≤ 檔案數／批次＋1；任何時刻落後已掃描數不超過一個批次（kill -9 只需重算這些）；掃描結束或丟例外時全部落地；重掃讀 0 bytes（參考機實測：每檔一次 fsync 在 4 TB 硬碟上約 590 ms／檔，批次後約 150 ms；NVMe 上兩者都約 10 ms） | U | #33、Windows |
 
 ## 5. Q — 佇列與 Job 生命週期（02 §4.3；真 PostgreSQL）
 
