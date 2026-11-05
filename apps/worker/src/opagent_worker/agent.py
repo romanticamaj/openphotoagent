@@ -174,7 +174,11 @@ class WorkerAgent:
         def fp(b: Any) -> str | None:
             return b.describe().model_fingerprint if b is not None else None
 
-        new = self.backend_factory()
+        try:
+            new = self.backend_factory()
+        except Exception:  # a broken model must cost that model, not the worker and its running download
+            _log.exception("cannot load the models on disk")
+            return
         faces = getattr(new, "faces", None)
         if fp(faces) != fp(self.face_backend):
             self.face_backend = faces  # the fingerprint travels with each result, so no re-registration

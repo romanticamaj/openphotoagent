@@ -221,3 +221,27 @@ def test_inf_local_004_embedding_size_comes_from_the_catalogue(tmp_path):
     files = install(tmp_path, EMB, EMB_VARIANT)
     tiny_tokenizer(files["tokenizer"])
     assert load_local(tmp_path, env={}).embedder.describe().embedding_dim == 1152
+
+
+@pytest.mark.unit
+@pytest.mark.tc("INF-LOCAL-005")
+def test_inf_local_005_a_bad_model_on_disk_does_not_take_the_worker_down(tmp_path, caplog):
+    """回歸: an exception here killed the worker at start, the shell restarted it into the same crash, and the download
+    that was running stopped for good."""
+    from types import SimpleNamespace
+
+    from opagent_worker.agent import WorkerAgent
+
+    class Client:
+        def post(self, url, json=None):
+            return SimpleNamespace(raise_for_status=lambda: None, json=lambda: {})
+
+    a = WorkerAgent(Client(), roots=[], home=tmp_path / "w", worker_id="w1")
+
+    def boom():
+        raise ValueError("corrupt tokenizer")
+
+    a.backend_factory = boom
+    a.refresh_backends()
+    assert a.backend is None
+    assert "corrupt tokenizer" in caplog.text
