@@ -1,22 +1,21 @@
 # 地端接手（Handoff）：從雲端 session 交給參考機
 
-> **2026-11-05 地端 session 中途更新（因用量上限暫停）：下面 §1「里程碑全部完成」並不準確，請先讀本節。**
+> **2026-11-05 地端 session 更新（因用量上限暫停）。下面 §1「里程碑全部完成」並不準確，請先讀本節。**
 >
-> **實機發現的缺口（雲端驗證不到）：**
-> 1. **安裝版從未真的啟動過**：已修一批（commit `fix(desktop): the installed app starts on Windows`），但到暫停為止**還沒看到安裝版完整開起來**。最後一個錯誤是 `\\?\` 路徑讓 initdb 失敗，修正（DESK-049）已 commit，尚未重新實測。
-> 2. **生產路徑沒有接真推論**：`opagent worker --backend` 只有 `fake`／`none`，殼傳 `none`；`LlamaCppServerAdapter`、`OrtEmbedAdapter` 沒有被 worker 建立。人臉只有 `FakeFaceBackend`，沒有真 adapter。**這是最大的未完成項。**
-> 3. **安裝包沒有 `llama-server`**：08 要求內建 CPU 版，`tauri.conf.json` 只打包 python 與 pg。.deb 只剩約 3 MB 餘裕，要先縮減。
-> 4. **模型目錄**：`pins.lock` 已在本機釘選 7 個 variant（B-10 實質部分）。仍有問題：`openphotoagent/siglip2-...-onnx` repo 不存在（要自行上傳或換來源）、`deepinsight/buffalo_l` 404、Qwen3-VL Q5_K_M 官方 repo 沒有此檔。
-> 5. **`feat/v1.0` 在 c3ac250 的 CI 其實是紅的**（SRCH-IMG-002、DESK-042，連帶 tc-status）；已修，待 push 後 CI 確認。
+> **已在參考機實際驗證（真安裝、真模型、以 CDP 操作真 WebView）**：靜默安裝 → 啟動（首次 13 s）→ onboarding → 原生資料夾對話框加入來源 → 真實下載與續傳 → 掃描 → Qwen3-VL＋SigLIP2 依內容分類（80 張 83 s，含載入）→ 核准 → 複製 → 原檔 hash 與 mtime 不變 → 復原 → 繁中語意搜尋 → 開啟人臉（下載、回填 136 張臉、分群）→ 問 AI → kill 各進程 3 s 內恢復 → 乾淨關機。
 >
-> **這台機器：** D: 是 HDD，**不要**照 §2 把 TEMP 放 D:（initdb 超過 3 分鐘，C: NVMe 只要 7 秒）。環境見 `D:\tools\opa-env.sh`：PG 17.6＋pgvector（`D:\tools\pg17`）、`TEMP=C:\t`、`CARGO_TARGET_DIR=C:\t\cargo-target`。帳號非管理員且未開開發者模式，5 條 symlink 測試因 WinError 1314 無法在此跑（CI Windows 可以，或開啟開發者模式）。Vitest 需 `--pool=threads`。
+> **未完成，依優先序：**
+> 1. **CI 還不是全綠**（最後完整結果在 8d99cf2，之後有新 commit）：`os-matrix (windows-latest)` 在 `apps/api/tests/controlplane/test_deploy.py::test_deploy_001_two_processes` 逾時；`os-matrix (macos-14)` 的 INF-OOM-005[torch_sidecar] 沒有如預期斷線；`tc-status` 需要用 CI 證據重新產生 coverage-status（Windows 本機結果會誤報）。
+> 2. **本機用的是修補過的安裝目錄**：最後驗證時把新版 Python 檔複製進去。要以最新 commit 重建安裝包再驗一次；CI 的 DESK-054 啟動煙霧測試尚未看到結果。
+> 3. **搜尋品質**：planner 把「海邊」轉成硬性標籤 `scene.beach`，只找到 2 張，語意搜尋其實找得到更多；chip 也顯示原始 key。這牽涉 05 的規格，要審議。
+> 4. **畫面仍寫「執行方式：CUDA」**，實際跑的是內建 Vulkan。recommend 也還會建議 Windows 下載 Vulkan pack（ADR-0025 的後續）。
+> 5. `query_plan` RPC 沒有 handler，每次搜尋記一筆 `UNKNOWN_RPC`（退回規則式，功能正常）。
+> 6. 未跑：V7、V9、S1b 完整、S1a 管理員、S4b 真資料集、`just perf`（PERF-001）、真 AI client（B-15）、B-16、B-19；本機 e2e 的 web server 30 s 內沒起來（CI 的 e2e 是綠的）。ADR-0025 列的無 Vulkan 驅動／VM 測試也未做。
+> 7. `fixtures/hw/rtx5070ti-win11.yaml` 仍是合成檔：實錄時機器正忙，存為 `-busy`，要在閒置時重錄。
 >
-> **平行工作的分支（尚未合併）：** `worktree-agent-a7278ca19d4aa9e0c`（Windows gate 修正）、`worktree-agent-a130b03183d039e03`（M0 實機結果）。合併前先看各分支的 commit；結果以實際內容為準。llama-server 與模型的路徑見 `D:\t\agentB\READY.md`。
+> **需要你決定（法律）**：AuraFace 的 LICENSE 是未填寫的 Apache 範本，訓練資料未揭露，其餘 ONNX 檔與 InsightFace 非商用包相同（只用 `glintr100.onnx`）；`onnx-community` 的 SigLIP2 repo 沒有授權檔（上游 Apache-2.0）。
 >
-> **建議順序：** 合併兩個分支 → 重新 build 並實測安裝版（`tools/build_desktop_python.py` 要重跑，別只替換 exe）→ 加入 CI 實際啟動安裝版的煙霧測試 → 接真推論與 llama-server → 其餘 §4。
-
-> 寫於 2026-11-04，雲端 session 結束前。對象是你本人，以及在參考機（Windows 11、RTX 5070 Ti 16 GB）上接手的 Claude Code session。
-> 接手的 session 請依序讀：`CLAUDE.md`（特別是 §4 不變量、§5 TDD、§8 進度紀錄）→ 本檔 → `docs/BLOCKERS.md` → `docs/research/m0-results.md` §3。
+> **這台機器：** D: 是 HDD，**不要**照 §2 把 TEMP 放 D:（initdb 超過 3 分鐘，C: NVMe 只要 7 秒）。環境見 `D:\tools\opa-env.sh`。帳號非管理員、未開開發者模式，10 條 symlink 測試只會得到 WinError 1314（CI Windows 可跑）。Vitest 需 `--pool=threads`。PG-013 在 Defender 下超過預算。測試用 CDP 腳本在 `D:\t\cdp`，模型在 `%LOCALAPPDATA%\OpenPhotoAgent\models`。
 
 ## 1. 現況
 

@@ -27,6 +27,8 @@
 | B-20 | 外部審查＋發版 | v1.0：(1) 外部安全審查（SEC-AUDIT-001）：路徑沙箱、MCP 與 OAuth、人臉刪除、control plane 認證，由有經驗的審查者完成並記錄；審查材料見 `docs/security/review-v1.0.md`。(2) 合併 release-please 的 Release PR，發佈 `v1.0.0`（雲端 session 不能 push tag） | v1.0 穩定版的承諾 | 雲端已完成的自動化部分：1,000,000 例沙箱 fuzz、110 條 MCP 紅隊、可驗證的人臉刪除、SBOM 與漏洞掃描、介面快照；手動項目見 `docs/checklists/release-v1.0.md` | v1.0 |
 | B-21 | CI 首次執行（人工審閱） | 視覺基準改在釘選的 Playwright 映像產生（ADR-0019）：(1) 在 `feat/v1.0` dispatch `visual-baselines.yml`；(2) 下載 artifact，逐張確認差異只是字型算繪，再提交新的 `*-snapshots/`；(3) dispatch 一次 `nightly.yml`，確認 VIS-001～003、ACT-006 為綠 | 新基準提交前，這四條在 CI nightly 是紅的；雲端開發容器內的結果是綠的 | 雲端 session 沒有 Docker，也不能觸發 workflow | v1.0 |
 
+> **2026-11-05 地端更新**：B-10 的釘選已在本機完成（`pins.lock` 9 個 variant），只剩 bot PR 的 App token。B-11 主要流程已在參考機走過（見 HANDOFF-local 開頭）。B-7 查證結果：`fal/AuraFace-v1` 的 LICENSE.md 是未填寫的 Apache-2.0 範本，模型卡未列訓練資料，只有 `glintr100.onnx` 可用，**需要法律審閱（併入 B-6）**。新增授權確認：`onnx-community/siglip2-so400m-patch14-384-ONNX` 沒有授權檔（上游 Apache-2.0），請確認或改發佈自己的匯出。
+
 ## 附錄：還沒有綠燈的測試 ID 與對應項目
 
 > 依 `docs/generated/coverage-status.md`（2026-11-03，feat/v1.0）。這裡列出每一條沒有綠燈的 ID，說明為什麼沒有在雲端執行，以及由哪一項 B-x 負責。其餘 ID 全部是綠燈。
