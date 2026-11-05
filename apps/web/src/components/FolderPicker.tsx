@@ -1,7 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "../lib/api";
+import { platform } from "../lib/platform";
 import { Button } from "./Button";
 
 /** Browse inside the roots the user registered in the app (invariant 2: no free-form paths). */
@@ -9,7 +10,23 @@ export function FolderPicker({ onPick, title }: { onPick: (root: string, path: s
   const { t } = useTranslation();
   const [root, setRoot] = useState<string | null>(null);
   const [path, setPath] = useState<string[]>([]);
-  const roots = useQuery({ queryKey: ["roots"], queryFn: api.roots });
+  const [awaited, setAwaited] = useState<string | null>(null);
+  const roots = useQuery({
+    queryKey: ["roots"],
+    queryFn: api.roots,
+    // the worker restarts to take a new root and registers it a moment later
+    refetchInterval: (q) => (awaited && !q.state.data?.some((r) => r.alias === awaited) ? 500 : false),
+  });
+  const addRoot = platform().addRoot;
+  const add = useMutation({
+    mutationFn: () => addRoot!("ro"),
+    onSuccess: (alias) => {
+      if (alias) {
+        setAwaited(alias);
+        void roots.refetch();
+      }
+    },
+  });
   const dirs = useQuery({
     queryKey: ["browse", root, path.join("/")],
     queryFn: () => api.browse(root!, path.join("/")),
@@ -22,6 +39,11 @@ export function FolderPicker({ onPick, title }: { onPick: (root: string, path: s
         {(roots.data ?? []).map((r) => (
           <Button key={r.alias} variant="ghost" onClick={() => { setRoot(r.alias); setPath([]); }}>{r.alias}</Button>
         ))}
+        {addRoot && (
+          <Button data-testid="add-root" onClick={() => add.mutate()}>
+            {t("organize.addFolder")}
+          </Button>
+        )}
       </div>
       {root && (
         <div className="space-y-2">

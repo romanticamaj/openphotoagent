@@ -2,6 +2,9 @@
 // build has none of these and talks to the same-origin API.
 export type Backend = { baseUrl: string; token: string };
 
+/** What the shell says about start-up: the API cannot report that it failed to start (08 §1.4). */
+export type BootStatus = { fatal: string | null; detail: string | null; reconnecting: string | null; logs: string };
+
 export type Platform = {
   kind: "desktop" | "web";
   revealInFileManager?: (rootAlias: string, relPath: string) => Promise<void>;
@@ -13,6 +16,10 @@ export type Platform = {
   assetUrl?: (absPath: string) => string;
   /** desktop: an OS notification; clicking it brings the window forward at `route` (08 §6, DESK-022) */
   notify?: (title: string, route: string) => void;
+  /** desktop: how the sidecars are doing */
+  status?: () => Promise<BootStatus>;
+  /** desktop: the OS folder dialog; the only way a root is added (invariant 2, C-09). Resolves to its alias, or null */
+  addRoot?: (mode: "ro" | "rw") => Promise<string | null>;
 };
 
 declare global {

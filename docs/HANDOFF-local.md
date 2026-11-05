@@ -1,5 +1,20 @@
 # 地端接手（Handoff）：從雲端 session 交給參考機
 
+> **2026-11-05 地端 session 中途更新（因用量上限暫停）：下面 §1「里程碑全部完成」並不準確，請先讀本節。**
+>
+> **實機發現的缺口（雲端驗證不到）：**
+> 1. **安裝版從未真的啟動過**：已修一批（commit `fix(desktop): the installed app starts on Windows`），但到暫停為止**還沒看到安裝版完整開起來**。最後一個錯誤是 `\\?\` 路徑讓 initdb 失敗，修正（DESK-049）已 commit，尚未重新實測。
+> 2. **生產路徑沒有接真推論**：`opagent worker --backend` 只有 `fake`／`none`，殼傳 `none`；`LlamaCppServerAdapter`、`OrtEmbedAdapter` 沒有被 worker 建立。人臉只有 `FakeFaceBackend`，沒有真 adapter。**這是最大的未完成項。**
+> 3. **安裝包沒有 `llama-server`**：08 要求內建 CPU 版，`tauri.conf.json` 只打包 python 與 pg。.deb 只剩約 3 MB 餘裕，要先縮減。
+> 4. **模型目錄**：`pins.lock` 已在本機釘選 7 個 variant（B-10 實質部分）。仍有問題：`openphotoagent/siglip2-...-onnx` repo 不存在（要自行上傳或換來源）、`deepinsight/buffalo_l` 404、Qwen3-VL Q5_K_M 官方 repo 沒有此檔。
+> 5. **`feat/v1.0` 在 c3ac250 的 CI 其實是紅的**（SRCH-IMG-002、DESK-042，連帶 tc-status）；已修，待 push 後 CI 確認。
+>
+> **這台機器：** D: 是 HDD，**不要**照 §2 把 TEMP 放 D:（initdb 超過 3 分鐘，C: NVMe 只要 7 秒）。環境見 `D:\tools\opa-env.sh`：PG 17.6＋pgvector（`D:\tools\pg17`）、`TEMP=C:\t`、`CARGO_TARGET_DIR=C:\t\cargo-target`。帳號非管理員且未開開發者模式，5 條 symlink 測試因 WinError 1314 無法在此跑（CI Windows 可以，或開啟開發者模式）。Vitest 需 `--pool=threads`。
+>
+> **平行工作的分支（尚未合併）：** `worktree-agent-a7278ca19d4aa9e0c`（Windows gate 修正）、`worktree-agent-a130b03183d039e03`（M0 實機結果）。合併前先看各分支的 commit；結果以實際內容為準。llama-server 與模型的路徑見 `D:\t\agentB\READY.md`。
+>
+> **建議順序：** 合併兩個分支 → 重新 build 並實測安裝版（`tools/build_desktop_python.py` 要重跑，別只替換 exe）→ 加入 CI 實際啟動安裝版的煙霧測試 → 接真推論與 llama-server → 其餘 §4。
+
 > 寫於 2026-11-04，雲端 session 結束前。對象是你本人，以及在參考機（Windows 11、RTX 5070 Ti 16 GB）上接手的 Claude Code session。
 > 接手的 session 請依序讀：`CLAUDE.md`（特別是 §4 不變量、§5 TDD、§8 進度紀錄）→ 本檔 → `docs/BLOCKERS.md` → `docs/research/m0-results.md` §3。
 

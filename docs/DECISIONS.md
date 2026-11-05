@@ -814,12 +814,12 @@
 **最強的反對意見**：單人桌面在使用者設定檔底下，繼承的 ACL 本來就安全，這些 ctypes 程式碼不划算。但資料夾明確允許放在其他磁碟，上述 PAT 導向風險就是實際的。
 
 **測試**：
-- 新增 DESK-043、DESK-044（回歸，先紅後綠）。
+- 新增 DESK-050、DESK-051（回歸，先紅後綠）。
 - `opagent_testing.perms.assert_owner_only`：POSIX 分支仍是完全相等的 mode 比對；Windows 分支是實作的 oracle，不共用任何程式碼（`icacls /save` 取 SDDL、`whoami` 取 SID）。
 - pytest 的 tmp 資料夾本來就是私有的，測試會先用 `widen()` 放寬，並有負向對照，否則斷言沒有意義。
 - MIG-002、MCP-PAT-001、DESK 系列的 mode 斷言改用此 helper，POSIX 行為不變。
 
-**同步修改的規格**：08 §1.3、09a DESK-043／044、09b MCP-PAT-001。
+**同步修改的規格**：08 §1.3、09a DESK-050／044、09b MCP-PAT-001。
 
 **順帶修正的 POSIX 問題**：`Credentials.save` 先寫入才 chmod；credstore 寫入既有檔案後才 chmod；`api.json.tmp` 是固定檔名。現在都是原子寫入。
 

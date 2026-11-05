@@ -4,13 +4,16 @@ from __future__ import annotations
 
 import glob
 import os
+import secrets
 import shlex
 import shutil
 import socket
 import subprocess
 import sys
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path
+from urllib.parse import quote
 
 
 def find_pg_bin() -> Path:
@@ -26,6 +29,22 @@ def find_pg_bin() -> Path:
         if (Path(c) / "initdb").exists():
             return Path(c)
     raise RuntimeError("PostgreSQL binaries not found; set OPAGENT_PG_BIN")
+
+
+def write_private(path: Path, text: str) -> None:
+    """A file only its owner can read (0600 on POSIX)."""
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(text)
+
+
+def _port_is_free(port: int) -> bool:
+    with socket.socket() as s:
+        try:
+            s.bind(("127.0.0.1", port))
+        except OSError:
+            return False
+    return True
 
 
 def free_port() -> int:
@@ -51,8 +70,29 @@ def _pg_major(bin_dir: Path) -> int:
     return int(digits[0].split(".")[0]) if digits else 0
 
 
+def _windows_image_name(pid: int) -> str | None:
+    """The executable name of a live process; never signals it (``os.kill(pid, 0)`` is CTRL_C_EVENT on Windows)."""
+    import ctypes
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)  # type: ignore[attr-defined,unused-ignore]
+    kernel32.OpenProcess.restype = ctypes.c_void_p
+    handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+    if not handle:
+        return None
+    try:
+        size = ctypes.c_ulong(1024)
+        buf = ctypes.create_unicode_buffer(size.value)
+        if not kernel32.QueryFullProcessImageNameW(ctypes.c_void_p(handle), 0, buf, ctypes.byref(size)):
+            return None
+        return Path(buf.value).name
+    finally:
+        kernel32.CloseHandle(ctypes.c_void_p(handle))
+
+
 def _is_postgres(pid: int) -> bool:
     """True when ``pid`` is alive and is a postgres server process (08 §2.3: never kill or unlink a live one)."""
+    if os.name == "nt":
+        return (_windows_image_name(pid) or "").lower() == "postgres.exe"
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
@@ -113,24 +153,38 @@ class EmbeddedPg:
     db: str = "opagent"
     desktop: bool = False
     ram_gb: float | None = None
+    transport: str = ""  # desktop only: "socket" (macOS, Linux) or "tcp" (Windows), 08 §1.3
 
     def __post_init__(self) -> None:
         self.home = Path(self.home)
         self.bin = find_pg_bin()
         self.data = self.home / "data"
         self.run_dir = self.home / "run"
+        self.transport = self.transport or ("tcp" if os.name == "nt" else "socket")
+        self.passfile = self.home / "pgpass"
         self.prefix: list[str] = []
         if hasattr(os, "geteuid") and os.geteuid() == 0:
             u = os.environ.get("OPAGENT_PG_OS_USER", "postgres")
             self.prefix = ["runuser", "-u", u, "--"]
 
     def run_as(self, *args: str) -> subprocess.CompletedProcess[str]:
-        return subprocess.run([*self.prefix, *args], check=True, capture_output=True, text=True)
+        """Output goes through files, not pipes: on Windows the postmaster inherits pg_ctl's stdout, so reading a pipe
+        never reaches EOF and ``pg_ctl start`` hung for good."""
+        with tempfile.TemporaryFile() as out, tempfile.TemporaryFile() as err:
+            r = subprocess.run([*self.prefix, *args], check=False, stdin=subprocess.DEVNULL, stdout=out, stderr=err)
+            out.seek(0)
+            err.seek(0)
+            stdout, stderr = (f.read().decode("utf-8", "replace") for f in (out, err))
+        if r.returncode:
+            raise subprocess.CalledProcessError(r.returncode, r.args, stdout, stderr)
+        return subprocess.CompletedProcess(r.args, 0, stdout, stderr)
 
     def disk_free(self) -> int:
         return shutil.disk_usage(self.home).free
 
     def dsn_for(self, db: str) -> str:
+        if self.desktop and self.transport == "tcp":  # the password stays in the passfile, off the shell's argv
+            return f"postgresql://{self.user}@127.0.0.1:{self.port}/{db}?passfile={quote(str(self.passfile), safe='')}"
         if self.desktop:
             return f"postgresql://{self.user}@/{db}?host={self.run_dir}&port={self.port}"
         return f"postgresql://{self.user}@127.0.0.1:{self.port}/{db}"
@@ -144,7 +198,9 @@ class EmbeddedPg:
             shutil.chown(path, self.prefix[2], self.prefix[2])
 
     def _initdb(self) -> None:
-        args = [str(self.bin / "initdb"), "-D", str(self.data), "-U", self.user, "-A", "trust", "-E", "UTF8"]
+        scram = self.desktop and self.transport == "tcp"
+        auth = "scram-sha-256" if scram else "trust"
+        args = [str(self.bin / "initdb"), "-D", str(self.data), "-U", self.user, "-A", auth, "-E", "UTF8"]
         if not self.desktop:
             args.append("--locale=C")
         elif _pg_major(self.bin) >= 17:  # byte-order collation that is identical on every OS (D4)
@@ -153,7 +209,18 @@ class EmbeddedPg:
             args += ["--locale-provider=builtin", "--builtin-locale=C.UTF-8", "--locale=C"]
         else:
             args.append("--locale=C.UTF-8")
-        self.run_as(*args)
+        if not scram:
+            self.run_as(*args)
+            return
+        self.home.mkdir(parents=True, exist_ok=True)
+        password = secrets.token_urlsafe(32)
+        once = self.home / ".pw-initdb"
+        write_private(once, password)
+        try:
+            self.run_as(*args, f"--pwfile={once}")
+        finally:
+            once.unlink(missing_ok=True)
+        write_private(self.passfile, f"127.0.0.1:*:*:{self.user}:{password}\n")
 
     def _clear_stale_pid(self) -> None:
         pidfile = self.data / "postmaster.pid"
@@ -171,15 +238,14 @@ class EmbeddedPg:
         if not self.desktop:
             return ["-p", str(self.port), "-k", str(self.home), "-c", "listen_addresses=127.0.0.1"]
         ram = self.ram_gb if self.ram_gb is not None else _total_ram_gb()
+        if self.transport == "tcp":
+            listen = ["-c", "listen_addresses=127.0.0.1"]
+        else:
+            listen = ["-k", str(self.run_dir), "-c", "listen_addresses=", "-c", "unix_socket_permissions=0700"]
         return [
             "-p",
             str(self.port),
-            "-k",
-            str(self.run_dir),
-            "-c",
-            "listen_addresses=",
-            "-c",
-            "unix_socket_permissions=0700",
+            *listen,
             "-c",
             f"shared_buffers={shared_buffers_for(ram)}",
             "-c",
@@ -206,8 +272,22 @@ class EmbeddedPg:
             os.chmod(self.run_dir, 0o700)
             self._own(self.run_dir)
         self._clear_stale_pid()
-        self.port = self.port or free_port()
+        self.port = self.port or self._stable_port()
         return [*self.prefix, str(self.bin / "postgres"), "-D", str(self.data), *self.server_args()]
+
+    def _stable_port(self) -> int:
+        """The api keeps its DSN while the shell restarts a crashed postmaster, so the port outlives the process."""
+        if not self.desktop:
+            return free_port()
+        saved = self.home / "port"
+        try:
+            port = int(saved.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            port = 0
+        if not port or not _port_is_free(port):
+            port = free_port()
+            saved.write_text(str(port), encoding="utf-8")
+        return port
 
     def _failed(self, err: subprocess.CalledProcessError) -> PgError | None:
         try:
@@ -218,20 +298,24 @@ class EmbeddedPg:
             return PgError("DISK_INSUFFICIENT_DB", free=self.disk_free())
         return None
 
+    def _pg_ctl_start(self) -> None:
+        log = str(self.home / "pg.log")
+        self.run_as(
+            str(self.bin / "pg_ctl"),
+            "-D",
+            str(self.data),
+            "-o",
+            shlex.join(self.server_args()),
+            "-l",
+            log,
+            "-w",
+            "start",
+        )
+
     def start(self) -> str:
         self.prepare()
         try:
-            self.run_as(
-                str(self.bin / "pg_ctl"),
-                "-D",
-                str(self.data),
-                "-o",
-                shlex.join(self.server_args()),
-                "-l",
-                str(self.home / "pg.log"),
-                "-w",
-                "start",
-            )
+            self._pg_ctl_start()
         except subprocess.CalledProcessError as e:
             mapped = self._failed(e)
             if mapped is not None:

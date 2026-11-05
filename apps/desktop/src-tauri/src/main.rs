@@ -6,14 +6,17 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use opagent_supervisor::backoff::{Decision, Policy, RestartTracker};
-use opagent_supervisor::children::{spawn_supervised, Supervised};
+use opagent_supervisor::children::{hide_console, spawn_supervised, Supervised};
 use opagent_supervisor::exit::{classify, ExitClass};
 use opagent_supervisor::lock::{DataDirLock, LockError};
+use opagent_supervisor::logs;
+use opagent_supervisor::paths::{self, Os};
 use opagent_supervisor::remote;
+use opagent_supervisor::roots;
 use opagent_supervisor::updater;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::{Emitter, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
@@ -24,9 +27,21 @@ struct BackendInfo {
     token: String,
 }
 
+/// What the SPA shows before the API answers (DESK-001), and instead of it when start-up failed.
+#[derive(Clone, Default, Serialize)]
+struct BootStatus {
+    fatal: Option<String>,
+    detail: Option<String>,
+    reconnecting: Option<String>,
+    logs: String,
+}
+
 struct Shell {
     home: PathBuf,
     python: PathBuf,
+    pg_bin: PathBuf,
+    pg_stop: Mutex<Option<(String, String)>>,
+    status: Mutex<BootStatus>,
     token: String,
     started: Instant,
     children: Mutex<Vec<(&'static str, Supervised)>>,
@@ -42,12 +57,12 @@ fn launch_token() -> String {
 }
 
 fn data_home() -> PathBuf {
-    if let Ok(h) = std::env::var("OPAGENT_HOME") {
-        return PathBuf::from(h); // portable mode overrides every location (DESK-025)
-    }
-    dirs::data_local_dir()
-        .unwrap_or_else(std::env::temp_dir)
-        .join("OpenPhotoAgent")
+    let user = dirs::home_dir().unwrap_or_else(std::env::temp_dir);
+    paths::data_home(
+        Os::current(),
+        &|k: &str| std::env::var(k).ok(),
+        &user.to_string_lossy(),
+    )
 }
 
 fn python_in(resources: &Path) -> PathBuf {
@@ -63,13 +78,46 @@ impl Shell {
         let mut c = Command::new(&self.python);
         c.arg("-I").arg("-m").arg("opagent_cli").args(args);
         c.env_remove("PYTHONPATH").env_remove("PYTHONHOME"); // DESK-027
+        c.env("OPAGENT_PG_BIN", &self.pg_bin); // the bundled pack, also for pg_dump in the api
+        hide_console(&mut c);
         c
+    }
+
+    /// Sends a sidecar's stdout/stderr to `logs/<name>`: it has no console, and a failed start has nothing else.
+    fn logged(&self, mut c: Command, file: &str) -> Result<Command, String> {
+        let dir = self.home.join("logs");
+        let log = logs::open_rotated(&dir, file, logs::MAX_BYTES).map_err(|e| e.to_string())?;
+        c.stdout(Stdio::from(log.try_clone().map_err(|e| e.to_string())?));
+        c.stderr(Stdio::from(log));
+        Ok(c)
+    }
+
+    fn log(&self, level: &str, msg: &str) {
+        let dir = self.home.join("logs");
+        if let Ok(mut f) = logs::open_rotated(&dir, "shell.log", logs::MAX_BYTES) {
+            let ts = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            let _ = logs::line(&mut f, ts, level, msg);
+        }
+    }
+
+    fn fatal(&self, app: &tauri::AppHandle, code: &str, detail: &str) {
+        self.log("ERROR", &format!("{code}: {detail}"));
+        {
+            let mut st = self.status.lock().unwrap();
+            st.fatal = Some(code.to_string());
+            st.detail = Some(detail.chars().take(4000).collect());
+        }
+        let _ = app.emit("shell://fatal", code);
     }
 
     fn start_postgres(&self) -> Result<String, String> {
         let pg_home = self.home.join("pg");
         let out = self
             .opagent(&["pg-prepare", "--home", pg_home.to_str().unwrap_or_default()])
+            .stdin(Stdio::null())
             .output()
             .map_err(|e| e.to_string())?;
         if !out.status.success() {
@@ -84,8 +132,12 @@ impl Shell {
             .filter_map(|v| v.as_str().map(String::from))
             .collect();
         let (exe, rest) = argv.split_first().ok_or("empty postgres argv")?;
+        if let (Some(ctl), Some(data)) = (info["pg_ctl"].as_str(), info["data"].as_str()) {
+            *self.pg_stop.lock().unwrap() = Some((ctl.to_string(), data.to_string()));
+        }
         let mut cmd = Command::new(exe);
         cmd.args(rest);
+        let cmd = self.logged(cmd, "postgres.log")?;
         let child = spawn_supervised(cmd).map_err(|e| e.to_string())?;
         self.children.lock().unwrap().push(("postgres", child));
         Ok(info["dsn"].as_str().unwrap_or_default().to_string())
@@ -93,15 +145,9 @@ impl Shell {
 
     fn start_api(&self, dsn: &str) -> Result<(), String> {
         let home = self.home.to_str().unwrap_or_default().to_string();
-        let mut child = spawn_supervised(self.opagent(&[
-            "api",
-            "--dsn",
-            dsn,
-            "--token-stdin",
-            "--home",
-            &home,
-        ]))
-        .map_err(|e| e.to_string())?;
+        let cmd = self.opagent(&["api", "--dsn", dsn, "--token-stdin", "--home", &home]);
+        let mut child =
+            spawn_supervised(self.logged(cmd, "api.stderr.log")?).map_err(|e| e.to_string())?;
         child.send_line(&self.token).map_err(|e| e.to_string())?; // never argv / env (DESK-012)
         self.children.lock().unwrap().push(("api", child));
         Ok(())
@@ -126,26 +172,70 @@ impl Shell {
         None
     }
 
+    fn roots_file(&self) -> PathBuf {
+        self.home.join("config").join("roots.json")
+    }
+
     fn start_worker(&self, base_url: &str) -> Result<(), String> {
         let wh = self.home.join("worker");
-        let roots =
-            std::fs::read_to_string(self.home.join("config").join("roots.txt")).unwrap_or_default();
-        let mut child = spawn_supervised(self.opagent(&[
+        let roots_file = self.roots_file();
+        let cmd = self.opagent(&[
             "worker",
             "--api",
             base_url,
-            "--roots",
-            roots.trim(),
+            "--roots-file",
+            roots_file.to_str().unwrap_or_default(),
+            "--worker-id",
+            "desktop",
             "--home",
             wh.to_str().unwrap_or_default(),
             "--token-stdin",
             "--backend",
             "none",
-        ]))
-        .map_err(|e| e.to_string())?;
+        ]);
+        let mut child =
+            spawn_supervised(self.logged(cmd, "worker.stderr.log")?).map_err(|e| e.to_string())?;
         child.send_line(&self.token).map_err(|e| e.to_string())?;
         self.children.lock().unwrap().push(("worker", child));
         Ok(())
+    }
+
+    /// The worker reads its roots once, at start: a new folder takes a restart, which keeps its job leases safe.
+    fn restart_worker(&self) -> Result<(), String> {
+        let old = {
+            let mut kids = self.children.lock().unwrap();
+            kids.iter()
+                .position(|(n, _)| *n == "worker")
+                .map(|i| kids.remove(i))
+        };
+        if let Some((_, mut s)) = old {
+            drop(s.stdin.take());
+            let t0 = Instant::now();
+            while t0.elapsed() < Duration::from_secs(10) {
+                if let Ok(Some(_)) = s.child.try_wait() {
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(50));
+            }
+            if s.child.try_wait().ok().flatten().is_none() {
+                let _ = s.child.kill();
+            }
+        }
+        let b = self.backend.lock().unwrap().clone().ok_or("api not ready")?;
+        self.start_worker(&b.base_url)
+    }
+
+    /// `pg_ctl stop`: postgres ignores stdin, so waiting for EOF only ended in a kill and crash recovery next start.
+    fn stop_postgres(&self) {
+        if let Some((ctl, data)) = self.pg_stop.lock().unwrap().clone() {
+            let mut c = Command::new(ctl);
+            c.args(["-D", &data, "-m", "fast", "-w", "stop"])
+                .stdin(Stdio::null())
+                .stdout(Stdio::null())
+                .stderr(Stdio::null());
+            hide_console(&mut c);
+            let _ = c.status();
+        }
     }
 
     /// Ordered shutdown (08 §1.1): worker first (it hands back its lease), then api, then postgres.
@@ -153,6 +243,9 @@ impl Shell {
         *self.stopping.lock().unwrap() = true;
         let mut kids = self.children.lock().unwrap();
         for name in ["worker", "api", "postgres"] {
+            if name == "postgres" {
+                self.stop_postgres();
+            }
             for (n, s) in kids.iter_mut().filter(|(n, _)| *n == name) {
                 drop(s.stdin.take()); // EOF: the sidecars stop themselves
                 let t0 = Instant::now();
@@ -198,15 +291,15 @@ fn supervise(app: tauri::AppHandle, shell: Arc<Shell>, dsn: String) {
         for (name, code) in exited {
             match classify(code, false) {
                 ExitClass::DatabaseTooNew => {
-                    let _ = app.emit("shell://fatal", "DB_SCHEMA_TOO_NEW"); // "restore a backup" page (UPD-004)
+                    shell.fatal(&app, "DB_SCHEMA_TOO_NEW", name); // "restore a backup" page (UPD-004)
                     return;
                 }
                 ExitClass::LanPasswordRequired => {
-                    let _ = app.emit("shell://fatal", "LAN_PASSWORD_REQUIRED");
+                    shell.fatal(&app, "LAN_PASSWORD_REQUIRED", name);
                     return;
                 }
                 ExitClass::LayoutTooNew => {
-                    let _ = app.emit("shell://fatal", "DATA_LAYOUT_TOO_NEW"); // restore a backup / install newer (MIG-002)
+                    shell.fatal(&app, "DATA_LAYOUT_TOO_NEW", name); // restore a backup / install newer (MIG-002)
                     return;
                 }
                 ExitClass::AlreadyRunning | ExitClass::Stopped => return,
@@ -214,10 +307,12 @@ fn supervise(app: tauri::AppHandle, shell: Arc<Shell>, dsn: String) {
                     let tracker = &mut trackers.iter_mut().find(|(n, _)| *n == name).unwrap().1;
                     match tracker.failed(shell.started.elapsed()) {
                         Decision::GiveUp => {
-                            let _ = app.emit("shell://fatal", format!("{name}_CRASHED"));
+                            shell.fatal(&app, &format!("{name}_CRASHED"), &format!("exit code {code:?}"));
                             return;
                         }
                         Decision::RestartAfter(d) => {
+                            shell.log("WARN", &format!("{name} exited ({code:?}); restarting"));
+                            shell.status.lock().unwrap().reconnecting = Some(name.to_string());
                             let _ = app.emit("shell://reconnecting", name); // keep screen state (DESK-002/003)
                             std::thread::sleep(d);
                             let r = match name {
@@ -232,8 +327,9 @@ fn supervise(app: tauri::AppHandle, shell: Arc<Shell>, dsn: String) {
                                     .and_then(|b| shell.start_worker(&b.base_url)),
                             };
                             if let Err(e) = r {
-                                eprintln!("restart {name} failed: {e}");
+                                shell.log("ERROR", &format!("restart {name} failed: {e}"));
                             }
+                            shell.status.lock().unwrap().reconnecting = None;
                         }
                     }
                 }
@@ -262,6 +358,8 @@ fn platform_script(thumbs: &Path) -> String {
       await new Promise((r) => setTimeout(r, 100));
     }}
   }},
+  status: () => window.__TAURI_INTERNALS__.invoke("shell_status"),
+  addRoot: (mode) => window.__TAURI_INTERNALS__.invoke("add_root", {{ mode }}),
 }};"#
     )
 }
@@ -333,8 +431,39 @@ fn backend_info(shell: tauri::State<'_, Arc<Shell>>) -> Option<BackendInfo> {
     shell.backend.lock().unwrap().clone()
 }
 
+#[tauri::command]
+fn shell_status(shell: tauri::State<'_, Arc<Shell>>) -> BootStatus {
+    shell.status.lock().unwrap().clone()
+}
+
+/// The only way a folder becomes a root on the desktop (invariant 2, C-09): the person picks it in the OS's own
+/// dialog, so a page cannot name a path. `None` when they cancel.
+#[tauri::command(async)]
+fn add_root(
+    app: tauri::AppHandle,
+    shell: tauri::State<'_, Arc<Shell>>,
+    mode: String,
+) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    if mode != "ro" && mode != "rw" {
+        return Err(format!("bad mode {mode}"));
+    }
+    let Some(picked) = app.dialog().file().blocking_pick_folder() else {
+        return Ok(None);
+    };
+    let path = picked.into_path().map_err(|e| e.to_string())?;
+    let file = shell.roots_file();
+    let mut list = roots::load(&file);
+    let alias = roots::add(&mut list, &path, &mode);
+    roots::save(&file, &list).map_err(|e| e.to_string())?;
+    shell.log("INFO", &format!("root {alias} added ({mode})"));
+    shell.restart_worker()?;
+    Ok(Some(alias))
+}
+
 fn main() {
     let home = data_home();
+    let _ = std::fs::create_dir_all(&home);
     let lock = match DataDirLock::acquire(&home) {
         Ok(l) => l,
         Err(LockError::InUse(p)) => {
@@ -359,17 +488,28 @@ fn main() {
         }))
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_notification::init());
     if !updates_off {
         builder = builder.plugin(tauri_plugin_updater::Builder::new().build()); // UPD-005: not even registered
     }
     let app = builder
-        .invoke_handler(tauri::generate_handler![backend_info])
+        .invoke_handler(tauri::generate_handler![
+            backend_info,
+            shell_status,
+            add_root
+        ])
         .setup(move |app| {
-            let resources = app.path().resource_dir()?;
+            let resources = paths::plain(&app.path().resource_dir()?);
             let shell = Arc::new(Shell {
                 home: home.clone(),
                 python: python_in(&resources),
+                pg_bin: resources.join("pg").join("bin"),
+                pg_stop: Mutex::new(None),
+                status: Mutex::new(BootStatus {
+                    logs: home.join("logs").to_string_lossy().to_string(),
+                    ..BootStatus::default()
+                }),
                 token: launch_token(),
                 started: Instant::now(),
                 children: Mutex::new(vec![]),
@@ -404,17 +544,21 @@ fn main() {
                 .min_inner_size(960.0, 600.0)
                 .initialization_script(&platform_script(&thumbs))
                 .build()?;
+            let pictures = dirs::picture_dir().unwrap_or_else(|| home.join("pictures"));
+            if let Err(e) = roots::seed_output(&shell.roots_file(), &pictures) {
+                shell.log("WARN", &format!("no output folder: {e}"));
+            }
             let handle = app.handle().clone();
             std::thread::spawn(move || {
                 let dsn = match shell.start_postgres() {
                     Ok(d) => d,
                     Err(e) => {
-                        let _ = handle.emit("shell://fatal", e);
+                        shell.fatal(&handle, "PG_START_FAILED", &e);
                         return;
                     }
                 };
                 if let Err(e) = shell.start_api(&dsn) {
-                    let _ = handle.emit("shell://fatal", e);
+                    shell.fatal(&handle, "API_START_FAILED", &e);
                     return;
                 }
                 match shell.wait_for_api(Duration::from_secs(60)) {
@@ -422,11 +566,11 @@ fn main() {
                         *shell.backend.lock().unwrap() = Some(info.clone());
                         let _ = handle.emit("shell://ready", info.clone());
                         if let Err(e) = shell.start_worker(&info.base_url) {
-                            eprintln!("worker: {e}");
+                            shell.log("ERROR", &format!("worker: {e}"));
                         }
                     }
                     None => {
-                        let _ = handle.emit("shell://fatal", "API_START_TIMEOUT");
+                        shell.fatal(&handle, "API_START_TIMEOUT", "see api.stderr.log");
                         return;
                     }
                 }
