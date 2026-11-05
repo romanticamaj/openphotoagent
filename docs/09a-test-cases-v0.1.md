@@ -295,6 +295,7 @@
 | SCAN-023 | Unicode 與長檔名 | NFC、NFD、255 bytes 檔名、emoji 檔名 | 全部被索引；`rel_path` 存 NFC | I | — |
 | SCAN-024 | 輸出資料夾不被掃描 | 輸出 target 位於來源 root 之下（使用者仍堅持時） | 掃描自動排除該 target 子樹；preflight 另有 `OUTPUT_TARGET_INSIDE_SOURCE` | I | #47 |
 | SCAN-025 | 掃描進度型態 | 10,000 檔，無上次總數 | enumerate 階段 `indeterminate` 並回報「已找到 N 張 · X 張/秒」；數完後轉 determinate；有上次總數時直接 rough | I | #30 |
+| SCAN-026 | junction 不被跟隨（回歸） | Windows：來源 root 內有指向 root 外的 junction（`mklink /J`，不需要權限） | 不走進去、不中止掃描；列入略過，原因 `symlink` | U | Windows |
 
 ## 5. Q — 佇列與 Job 生命週期（02 §4.3；真 PostgreSQL）
 
@@ -482,6 +483,7 @@
 | DL-021 | 限速 | 設定 20 MB/s | 10 秒平均 ∈ [18, 22] MB/s | I | — |
 | DL-022 | 優先下載 | 佇列第 2 位按「優先下載」 | 目前下載暫停（保留斷點），被提升者開始 | I | — |
 | DL-023 | 退避中取消（ADR-0004） | 來源連線被拒，下載在退避重試中（`waiting: NET_UNREACHABLE`）→ 取消 | Operation 顯示 `waiting` + NET_UNREACHABLE 問題卡（retry／鏡像／代理）；取消後 ≤ 2 s 到 `cancelled`；不再對來源發出請求；`.part` 已刪除 | I | #24、#32 |
+| DL-024 | 沒有 `os.pwrite` 的平台也能下載（回歸） | 移除 `os.pwrite`（Windows 本來就沒有），下載含換行位元組的 3 MB 檔 | 完成且 sha256 相符（fd 為 binary mode） | I | — |
 
 ### 7.3 DOC：Environment Doctor（`hw:<profile>` 探針注入，09 §3.4）
 

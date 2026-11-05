@@ -157,7 +157,7 @@ def _walk(
             continue
         for e in reversed(ents):
             rel = unicodedata.normalize("NFC", Path(e.path).relative_to(root_real).as_posix())
-            if e.is_symlink():
+            if e.is_symlink() or e.is_junction():  # a junction is not a symlink to DirEntry, and needs no privilege
                 skipped.append(Skipped(rel, "symlink"))
                 continue
             if e.is_dir(follow_symlinks=False):

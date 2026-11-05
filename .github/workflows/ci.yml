@@ -69,12 +69,14 @@ jobs:
           sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
           sudo apt-get install -y postgresql-17 postgresql-17-pgvector
           echo "OPAGENT_PG_BIN=/usr/lib/postgresql/17/bin" >> $GITHUB_ENV
+      - run: uv python install 3.12  # DESK-042 needs a uv-managed interpreter; the runner's venv sits on the system one
       - run: uv sync
       # --timeout: a hung test fails with every thread's stack instead of stalling the job
       - run: OPAGENT_TC_RESULTS=.tc/py-int.json uv run pytest -q --timeout=900 --timeout-method=thread -m "(integration or chaos) and not perf and not nightly and not release_gate"
       - name: Python perf budgets in their own process (ADR-0018)
         run: OPAGENT_TC_RESULTS=.tc/py-perf.json uv run pytest -q -p no:randomly -m "perf and not nightly and not gpu and not real_model"
       - uses: actions/upload-artifact@v4
+        if: always()  # a red test must not also erase the evidence of the green ones (tc-status)
         with: { name: tc-py-int, path: .tc/, include-hidden-files: true }
 
   os-matrix:

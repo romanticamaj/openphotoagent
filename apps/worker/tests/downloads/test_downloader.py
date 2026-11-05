@@ -1,6 +1,7 @@
 import asyncio
 import hashlib
 import json
+import os
 import threading
 import time
 from pathlib import Path
@@ -75,6 +76,20 @@ def test_dl_002_complete_download_verified_and_finalized(server, tmp_path):
         assert (tmp_path / "hf" / "models--org--model" / "blobs" / f.sha256).exists()
     assert not (tmp_path / ".downloads" / "op2").exists()
     assert res.installed and {i["path"] for i in res.installed} == {"a.onnx", "b.json"}
+
+
+@pytest.mark.integration
+@pytest.mark.tc("DL-024")
+def test_dl_024_download_works_without_os_pwrite(server, tmp_path, monkeypatch):
+    """回歸: Windows has no ``os.pwrite``, so every model download died on the first chunk. Removing it here keeps the
+    fallback covered on every OS. The content is binary with newlines, so a text-mode descriptor fails the sha too."""
+    monkeypatch.delattr(os, "pwrite", raising=False)
+    srv = server([HfFile("a.onnx", 3 * MB)])
+    res = run(mk(srv, tmp_path).download("op24", files_for(srv), CancelToken()))
+    assert res.status == "done" and res.error_code is None
+    f = srv.files[0]
+    snap = tmp_path / "hf" / "models--org--model" / "snapshots" / "main" / f.path
+    assert hashlib.sha256(snap.read_bytes()).hexdigest() == f.sha256
 
 
 @pytest.mark.integration

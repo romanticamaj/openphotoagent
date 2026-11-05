@@ -486,11 +486,15 @@ def test_img_002_search_by_uploaded_image_keeps_it_in_memory(s, tmp_path):
         s=space,
     )
     before = _files(tmp_path)
-    stop = serve(s.w)
+    stop = threading.Event()
+    loop = threading.Thread(target=s.w.run_forever, args=(stop,), daemon=True)
+    loop.start()
     try:
         r = s.client.post("/api/v1/search/by-image", files={"file": ("q.jpg", data, "image/jpeg")}, data={"k": "5"})
     finally:
         stop.set()
+        loop.join(30)  # the loop closing its WAL outbox removes -shm/-wal, which raced the read below (CI, c3ac250)
+    assert not loop.is_alive()
     assert r.status_code == 200, r.text
     items = r.json()["items"]
     assert items[0]["asset_id"] == target and items[0]["matched_by"] == ["image_vector"]

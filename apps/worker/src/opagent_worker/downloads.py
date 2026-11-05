@@ -107,6 +107,16 @@ def queue_precheck(sizes: list[int], free_bytes: int) -> dict[str, Any] | None:
     }
 
 
+def _write_at(fd: int, data: bytes, off: int) -> None:
+    """Positional write. Windows has no ``os.pwrite``; segments share ``fd``, but they all run on one event loop and
+    there is no await between the seek and the write."""
+    if hasattr(os, "pwrite"):
+        os.pwrite(fd, data, off)
+        return
+    os.lseek(fd, off, os.SEEK_SET)
+    os.write(fd, data)
+
+
 def _cache_dir(root: Path, repo: str) -> Path:
     return root / "hf" / ("models--" + repo.replace("/", "--"))
 
@@ -369,7 +379,7 @@ class Downloader:
             with part.open("wb") as fh:
                 fh.truncate(f.size)
         self._save_meta(meta_p, meta)
-        fd = os.open(part, os.O_RDWR)
+        fd = os.open(part, os.O_RDWR | getattr(os, "O_BINARY", 0))  # Windows defaults to text mode
         lock = asyncio.Lock()
         try:
             while True:
@@ -443,7 +453,7 @@ class Downloader:
                     unsaved = 0
                     async for chunk in r.aiter_bytes(CHUNK):
                         off = seg["start"] + seg["written"]
-                        os.pwrite(fd, chunk, off)
+                        _write_at(fd, chunk, off)
                         async with lock:
                             seg["written"] += len(chunk)
                             meta["written"] += len(chunk)
