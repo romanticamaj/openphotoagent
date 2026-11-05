@@ -135,7 +135,7 @@ def load_local(
         out.embedder = OrtEmbedAdapter(
             str(files["vision"]),
             str(files["text"]),
-            embed_dim or (spec.dim if spec else 1152),
+            embed_dim or int((spec or {}).get("dim", 1152)),
             providers=_providers(),
             tokenizer=siglip_tokenizer(files["tokenizer"]),
             fingerprint=_fingerprint(m, variant),

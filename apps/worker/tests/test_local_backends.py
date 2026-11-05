@@ -213,3 +213,11 @@ def test_face_ort_005_both_face_models_on_disk_make_the_real_backend(tmp_path):
     got = load_local(tmp_path, env={}).faces
     assert isinstance(got, OrtFaceBackend)
     assert "yunet" in got.fingerprint and "auraface" in got.fingerprint  # faces re-run when either model changes
+
+
+@pytest.mark.unit
+@pytest.mark.tc("INF-LOCAL-004")
+def test_inf_local_004_embedding_size_comes_from_the_catalogue(tmp_path):
+    files = install(tmp_path, EMB, EMB_VARIANT)
+    tiny_tokenizer(files["tokenizer"])
+    assert load_local(tmp_path, env={}).embedder.describe().embedding_dim == 1152
