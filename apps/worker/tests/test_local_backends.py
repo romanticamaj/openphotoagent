@@ -286,3 +286,53 @@ def test_inf_local_006_the_discrete_gpu_is_chosen(listing, device):
 @pytest.mark.tc("INF-LOCAL-006")
 def test_inf_local_006_cpu_can_be_forced(tmp_path):
     assert device_args(tmp_path / "x", {"OPAGENT_LLAMA_CPU": "1"}) == ["--device", "none"]
+
+
+class _Backlog:
+    """The two calls of the backlog, with the worker's real file handling behind them."""
+
+    def __init__(self, items):
+        self.items, self.posted, self.asked = items, [], []
+
+    def get(self, url, params=None):
+        from types import SimpleNamespace
+
+        self.asked.append(params)
+        after = (params or {}).get("after") or ""
+        rest = [i for i in self.items if i["asset_id"] > after][: params["limit"]]
+        body = {"items": rest, "next": rest[-1]["asset_id"] if rest else after}
+        return SimpleNamespace(status_code=200, json=lambda: body, raise_for_status=lambda: None)
+
+    def post(self, url, json=None):
+        from types import SimpleNamespace
+
+        self.posted.append((url, json))
+        return SimpleNamespace(status_code=200, json=lambda: {}, raise_for_status=lambda: None)
+
+
+@pytest.mark.unit
+@pytest.mark.tc("FACE-BKL-002")
+def test_face_bkl_002_idle_worker_scans_the_backlog_once_and_survives_a_bad_file(tmp_path, sandbox_tree):
+    from opagent_inference.fake_faces import FakeFaceBackend
+    from opagent_worker.agent import WorkerAgent
+
+    Image.new("RGB", (64, 64), (9, 9, 9)).save(sandbox_tree.photos / "IMG_p1.jpg")
+    items = [
+        {"asset_id": "a1", "root_alias": "photos", "rel": "IMG_p1.jpg"},
+        {"asset_id": "a2", "root_alias": "photos", "rel": "gone.jpg"},
+    ]
+    client = _Backlog(items)
+    a = WorkerAgent(client, roots=sandbox_tree.roots, home=tmp_path / "w", worker_id="w1")
+    assert a.faces_backlog_once() == 0  # no face models yet: nothing to do
+    a.face_backend = FakeFaceBackend()
+    assert a.faces_backlog_once() == 2
+    assert [u for u, _ in client.posted] == ["/worker-api/v1/faces"]  # the missing file is skipped, not fatal
+    body = client.posted[0][1]
+    assert body["asset_id"] == "a1" and len(body["faces"]) == 1 and "person_hint" not in body["faces"][0]
+    assert a.faces_backlog_once() == 0  # the cursor moved on
+    fresh = WorkerAgent(client, roots=sandbox_tree.roots, home=tmp_path / "w", worker_id="w1")
+    fresh.face_backend = a.face_backend
+    assert fresh.faces_backlog_once() == 0  # and it survives a restart
+    a.face_backend = FakeFaceBackend()
+    a.face_backend.fingerprint = "another-model"
+    assert a.faces_backlog_once() == 2  # a new model starts over

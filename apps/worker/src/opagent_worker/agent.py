@@ -6,6 +6,7 @@ change through the journaled executor (invariant 3).
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 import threading
@@ -351,6 +352,43 @@ class WorkerAgent:
         self._send_faces(reports)
         return len(items)
 
+    def _backlog_cursor(self) -> Path:
+        """Per model: a new one starts over. Inside ``faces/``, so a purge removes it with the rest (07 §6.3)."""
+        name = hashlib.sha256(self.face_backend.fingerprint.encode()).hexdigest()[:16]
+        return self.home / "faces" / f"backlog-{name}.txt"
+
+    def faces_backlog_once(self, limit: int = 32) -> int:
+        """Photos that never had a face step, one page at a time, when there is nothing else to do."""
+        if self.face_backend is None or self.remote:
+            return 0
+        from .imaging import open_image, oriented
+
+        cursor = self._backlog_cursor()
+        after = cursor.read_text(encoding="utf-8").strip() if cursor.exists() else ""
+        r = self.client.get("/worker-api/v1/faces/backlog", params={"after": after, "limit": limit})
+        r.raise_for_status()
+        page = r.json()
+        for it in page["items"]:
+            try:
+                sp = self.sb.resolve(it["root_alias"], it["rel"])
+                with open_image(sp.real) as im:
+                    faces = self.face_backend.detect(it["rel"], oriented(im).convert("RGB"))
+            except Exception:  # a moved or unreadable photo costs that photo, not the scan
+                _log.warning("face scan skipped a photo", exc_info=True)
+                continue
+            self.client.post(
+                "/worker-api/v1/faces",
+                json={
+                    "worker_id": self.worker_id,
+                    "asset_id": it["asset_id"],
+                    "fingerprint": self.face_backend.fingerprint,
+                    "faces": [{k: v for k, v in f.items() if k != "person_hint"} for f in faces],
+                },
+            )
+        cursor.parent.mkdir(parents=True, exist_ok=True)
+        cursor.write_text(str(page["next"]), encoding="utf-8")
+        return len(page["items"])
+
     def _send_faces(self, reports: list[dict[str, Any]]) -> None:
         from opagent_core.faces import should_run
 
@@ -623,6 +661,8 @@ class WorkerAgent:
             self.tick_waiting()
             if self.outbox_size():
                 self.flush_outbox()
+            if not busy:
+                busy = self.faces_backlog_once() > 0
             if not busy:
                 stop.wait(0.2)
         except Exception:

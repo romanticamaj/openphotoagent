@@ -457,3 +457,28 @@ def test_clu_005_large_pool_uses_the_knn_graph_path(f, monkeypatch):
     run = f.post("/faces/cluster")
     assert run["algo"] == "knn_graph+chinese_whispers" and run["clusters"] == 3
     assert f.sql("select algo from face_cluster_run").scalar() == "knn_graph+chinese_whispers"
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-BKL-001")
+def test_face_bkl_001_backlog_lists_photos_that_never_had_a_face_step(f):
+    """回歸: the face step rides on a job's decode, and a cached photo never reaches it, so turning faces on after
+    organizing left the whole library unscanned for good."""
+
+    def backlog(**params):
+        return f.client.get("/worker-api/v1/faces/backlog", params=params, headers=f.ui).json()
+
+    a = f.add("old/a.jpg")
+    b = f.add("old/b.jpg")
+    assert backlog()["items"] == []  # off by default: nothing is even listed (FACE-GATE-001)
+    f.enable()
+    got = backlog()
+    assert {i["asset_id"] for i in got["items"]} == {a, b}
+    assert {i["rel"] for i in got["items"]} == {"old/a.jpg", "old/b.jpg"}
+    assert all(i["root_alias"] for i in got["items"])
+    first = backlog(limit=1)
+    assert len(first["items"]) == 1 and first["next"] == first["items"][0]["asset_id"]
+    rest = backlog(after=first["next"])
+    assert [i["asset_id"] for i in rest["items"]] == [({a, b} - {first["next"]}).pop()]
+    done, _ = f.photo("old/p1.jpg")  # a photo that went through a job already has its faces
+    assert done not in {i["asset_id"] for i in backlog()["items"]}

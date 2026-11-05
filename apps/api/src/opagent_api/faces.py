@@ -297,6 +297,34 @@ def face_plan(asset_id: str, req: Request) -> dict[str, Any]:
         return {"run": enabled_for(c, sid)}
 
 
+@worker_router.get("/faces/backlog")
+def backlog(req: Request, after: str = "", limit: int = 32) -> dict[str, Any]:
+    """Photos with no face step yet. It rides on a job's decode, and a cached photo never reaches that, so a library
+    organized before faces were turned on is scanned from here, when the worker is idle. Ordered by asset id: the
+    worker keeps the cursor, so a photo with no faces in it is not listed forever."""
+    with _st(req).engine.begin() as c:
+        s = fsettings(c)
+        if not s.get("enabled"):
+            return {"items": [], "next": after}
+        q = (
+            select(
+                asset_location.c.asset_id, asset_location.c.rel_path, asset_location.c.source_id, source.c.root_alias
+            )
+            .join(source, source.c.id == asset_location.c.source_id)
+            .where(asset_location.c.missing.is_(False), asset_location.c.asset_id > after)
+            .order_by(asset_location.c.asset_id)
+            .limit(limit)
+        )
+        rows = c.execute(q).all()
+        seen = {r for (r,) in c.execute(select(face.c.asset_id).where(face.c.asset_id.in_([r.asset_id for r in rows])))}
+        items = [
+            {"asset_id": r.asset_id, "root_alias": r.root_alias, "rel": r.rel_path}
+            for r in rows
+            if r.asset_id not in seen and enabled_for(c, r.source_id)
+        ]
+    return {"items": items, "next": rows[-1].asset_id if rows else after}
+
+
 @worker_router.post("/faces")
 def ingest(body: FacesIn, req: Request) -> dict[str, Any]:
     st = _st(req)
