@@ -457,6 +457,8 @@
 | MDL-011 | 授權同意 | 預設組合（Apache-2.0）／非商用權重 | 前者不需勾選；後者 `LICENSE_CONSENT_REQUIRED`，同意後寫 `license_acceptance(license_hash)`；授權文字改變（hash 不同）需重新同意 | I | #21 |
 | MDL-012 | `list_models()` 相容欄位 | 呼叫 | 含 compat 物件與舊欄位 `fits_now` | C | #14 |
 | MDL-013 | 回歸：徽章載入中 | 首次設定的方案卡，模型資料尚未回來 | 不顯示「? 未檢查」徽章，改顯示載入中；資料回來後才顯示與其他三處相同的徽章（MDL-005 偶發失敗） | U | #14 |
+| MDL-014 | 搬移時硬連結的 snapshot 只複製一次（回歸） | snapshot 是 blob 的硬連結（沒有 symlink 權限時下載器的退路，DL-018） | 預估的總量與目標磁碟的實際用量都只算一份；搬移後 snapshot 與 blob 仍是同一個檔案（曾複製兩份，模型佔用的空間加倍） | U | #19、Windows |
+| MDL-015 | 沒有 symlink 權限也能搬移含 symlink 的模型資料夾（回歸） | `os.symlink` 回傳權限錯誤 | 依序退回硬連結、複製，與下載器相同；搬移成功（曾直接失敗） | U | #19、Windows |
 
 ### 7.2 DL：Download Manager（`hf:<scenario>` 錄製伺服器）
 

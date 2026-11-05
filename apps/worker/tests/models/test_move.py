@@ -31,7 +31,10 @@ def make_store(tmp_path, size, n=3):
                 h.update(chunk)
         sha = h.hexdigest()
         tmp.rename(blobs / sha)
-        os.symlink(f"../../blobs/{sha}", snap / f"f{i}.gguf")
+        try:
+            os.symlink(f"../../blobs/{sha}", snap / f"f{i}.gguf")
+        except OSError:  # no symlink privilege: what the downloader itself falls back to (DL-018)
+            os.link(blobs / sha, snap / f"f{i}.gguf")
         shas.append(sha)
     cfg = tmp_path / "worker.json"
     cfg.write_text(json.dumps({"models_root": str(root)}), encoding="utf-8")
@@ -58,7 +61,8 @@ def test_mdl_008_move_phases_and_switch(tmp_path, size):
         "models_root"
     ] == str(dst)
     for i, sha in enumerate(shas):
-        assert (dst / "hf/models--org--m/snapshots/main" / f"f{i}.gguf").resolve().name == sha
+        repo = dst / "hf/models--org--m"
+        assert os.path.samefile(repo / "snapshots/main" / f"f{i}.gguf", repo / "blobs" / sha)
     assert root.exists()  # old copy kept (deleted later after confirmation / 24 h)
 
 
