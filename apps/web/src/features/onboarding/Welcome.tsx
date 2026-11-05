@@ -27,7 +27,8 @@ export function Welcome() {
   const { t, i18n } = useTranslation();
   const [step, setStep] = useState<Step>("welcome");
   const [pack, setPack] = useState<string | null>(null);
-  const roots = useQuery({ queryKey: ["roots"], queryFn: api.roots });
+  // the page can open before the worker has registered: keep asking until it has
+  const roots = useQuery({ queryKey: ["roots"], queryFn: api.roots, refetchInterval: (q) => (q.state.data?.length ? false : 1000) });
   const workerId = roots.data?.[0]?.worker_id;
   const reco = useQuery({
     queryKey: ["recommendation", workerId],

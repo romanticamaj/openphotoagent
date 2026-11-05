@@ -899,6 +899,7 @@
 | DESK-052 | spawn 的子進程不重跑 CLI（回歸） | 以 `__mp_main__` 匯入 `opagent_cli.__main__` | 不呼叫 `main()`；以 `__main__` 執行時才呼叫 | U | DL-*、#15 |
 | DESK-053 | 監看父進程時仍能產生子進程（回歸） | 監看 stdin 的 sidecar 以 spawn 開子進程，再關閉 stdin | 子進程正常回應；sidecar 在 stdin 關閉後結束 | I | DL-*、DESK-006 |
 | DESK-054 | CI 真的安裝並啟動安裝版（回歸） | `desktop-build.yml`：NSIS 靜默安裝後跑 `tools/desktop_smoke.py` | API 健康、worker 註冊、log 沒有 Traceback／ImportError；提早結束視為失敗 | U＋CI | DoD 5.1 |
+| DESK-055 | worker 比頁面晚註冊（回歸） | 全新安裝，頁面先開、worker 之後才註冊 | 推薦仍會載入，不卡在「正在檢查你的電腦」 | U | #15 |
 | DESK-060 | 秘密檔案從第一個 byte 起就是 owner-only（回歸，ADR-0024） | 上層資料夾權限寬鬆（Windows：Authenticated Users 可修改）；寫入、取代舊檔、寫入失敗；以 `icacls /save` 與 `whoami` 獨立檢查 | POSIX 為 0600；Windows 為受保護的 DACL，只有目前使用者與 SYSTEM；寫入第一個 byte 前就成立；失敗時舊檔不變、不留暫存檔 | U | #8 |
 | DESK-061 | 既有檔案與資料夾收緊為 owner-only（回歸，ADR-0024） | 寬鬆的既有檔案與資料夾；新檔放進私有資料夾；不支援 ACL 的磁碟區；ACL 沒有生效 | POSIX 為 0600／0700；Windows 同 DESK-060，資料夾的項目可繼承；不支援 ACL 時照寫並記錄 `SECRET_UNPROTECTED_VOLUME`；支援 ACL 卻沒生效時拒絕（不留下秘密或暫存檔） | U | #8 |
 
