@@ -161,7 +161,8 @@ def serve(pipe: Any, host: str, port: int, fake: bool) -> None:
                         pipe.faults[fault] -= 1
                     latency = float(pipe.faults.get("latency_s", 0))
             if fault == "RUNTIME":
-                os.kill(os.getpid(), signal.SIGKILL)
+                # no SIGKILL on Windows: os.kill with any other signal there is TerminateProcess, equally uncatchable
+                os.kill(os.getpid(), getattr(signal, "SIGKILL", signal.SIGTERM))
             if fault == "OOM":
                 self._json(500, {"error": {"message": "CUDA out of memory"}})
                 return

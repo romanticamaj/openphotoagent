@@ -421,6 +421,7 @@
 | INF-OOM-002 | ORT OOM | `fb:inject(OOM)` 持續 | batch 16→8→4→2→1，仍 OOM → 降 `max_pixels` 一檔；最後失敗為 `MODEL_OOM` | U | #28 |
 | INF-OOM-003 | CUDA pack 連續崩潰 → Vulkan | CUDA FakeRuntime 崩潰兩次 | doctor 產生「改用 Vulkan」建議；選擇後 Job 繼續並完成 | I | #28、DoD 5.2 |
 | INF-OOM-004 | 假 llama-server 的跨重啟狀態在並行請求與 SIGKILL 下不損壞（回歸） | 多執行緒同時更新狀態檔並持續讀取；16 個執行緒同時搶 `--crash-first-n 1` 的崩潰 | 讀到的永遠是完整 JSON；恰好一個請求取得崩潰（INF-OOM-001 曾因此約 1/12 失敗） | U | #9 |
+| INF-OOM-005 | RUNTIME 故障在每個 OS 都真的結束行程（回歸） | 假 llama-server 與 torch sidecar（`--fake-pipeline`）注入 `RUNTIME` 後送一個請求 | 請求得不到回應，行程在 10 s 內結束（Windows 沒有 `signal.SIGKILL`，曾只丟 AttributeError、行程繼續活著，崩潰復原路徑沒有被走到） | U | #28 |
 | INF-RT-001 | 5070 Ti（Win，驅動 580，cc 12.0） | `hw:rtx5070ti-win11` | packs=`[llamacpp-cuda13]`；VLM=Qwen3-VL-8B Q5_K_M；ORT=DirectML；只推薦一個組合，附下載 GB 與分鐘數 | U | #13、#22 |
 | INF-RT-002 | RTX 4060 8 GB 筆電 | `hw:rtx4060-laptop` | Qwen3-VL-4B Q4_K_M；8B Q4 為「序列模式」選項 | U | #13 |
 | INF-RT-003 | Mac M2／M3 16 GB | `hw:m2-air-16`、`hw:m3-16` | 不需要 pack（Metal 內建）；4B Q4；CoreML | U | #13 |
@@ -891,6 +892,7 @@
 | PG-014 | Docker parity | Linux：testcontainers `pgvector/pgvector:pg17` | 同一組 migration 與 Q-* 整合測試全過 | I | #2 |
 | PG-015 | 用到真 PostgreSQL 的測試一律是 integration（回歸） | 只標 `security`／`property`、或沒有標記，但使用 `embedded_pg` 的測試 | 快速選擇式（`just test`、CI unit-py）收集不到；`-m integration` 收集得到（CI unit-py 沒有 PostgreSQL，曾有 63 個這類測試在那裡出錯） | C | #2 |
 | PG-016 | 桌面 initdb 只用每個 OS 都有的 locale（回歸） | PG 17、`desktop=True`；`tools/build_desktop_pg.sh` 的 smoke | `--locale-provider=builtin --builtin-locale=C.UTF-8 --locale=C`；不得有 `--locale=C.UTF-8`（只有 Linux 有，macOS 與 Windows 的 initdb 會拒絕） | U | #4 |
+| PG-017 | 桌面 profile 讀到真實 RAM（回歸） | Windows：與 `Win32_ComputerSystem.TotalPhysicalMemory` 比對 | 誤差 ≤ 1%（`os.sysconf` 在 Windows 不存在，曾一律回傳 8.0 GB，每台 Windows 都拿到小筆電的 `shared_buffers`） | U | #4 |
 
 ### 13.3 PACK：Runtime pack 驗證（08 §4.3）
 

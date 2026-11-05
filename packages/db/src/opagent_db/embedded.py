@@ -8,6 +8,7 @@ import shlex
 import shutil
 import socket
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -75,9 +76,28 @@ def shared_buffers_for(ram_gb: float) -> str:
 
 
 def _total_ram_gb() -> float:
+    if sys.platform == "win32":
+        import ctypes
+
+        class MemoryStatusEx(ctypes.Structure):
+            _fields_ = [
+                ("dwLength", ctypes.c_ulong),
+                ("dwMemoryLoad", ctypes.c_ulong),
+                ("ullTotalPhys", ctypes.c_ulonglong),
+                ("ullAvailPhys", ctypes.c_ulonglong),
+                ("ullTotalPageFile", ctypes.c_ulonglong),
+                ("ullAvailPageFile", ctypes.c_ulonglong),
+                ("ullTotalVirtual", ctypes.c_ulonglong),
+                ("ullAvailVirtual", ctypes.c_ulonglong),
+                ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
+            ]
+
+        m = MemoryStatusEx()
+        m.dwLength = ctypes.sizeof(m)
+        return m.ullTotalPhys / 2**30 if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(m)) else 8.0
     try:
         return os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES") / 2**30
-    except (ValueError, OSError, AttributeError):  # pragma: no cover - non-POSIX
+    except (ValueError, OSError):  # pragma: no cover - sysconf name missing
         return 8.0
 
 
