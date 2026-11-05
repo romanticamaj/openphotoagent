@@ -486,7 +486,8 @@
     "loadMore": "載入更多",
     "none": "找不到符合的照片",
     "indexing": "已可搜尋 {have} / {total} 張（以文搜圖）",
-    "degraded": "以文搜圖暫時無法使用，只顯示文字結果"
+    "degraded": "以文搜圖暫時無法使用，只顯示文字結果",
+    "related": "可能相關的照片"
   },
   "problem": {
     "chosen": "已改用 {what}"

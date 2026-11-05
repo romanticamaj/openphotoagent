@@ -486,7 +486,8 @@
     "loadMore": "Load more",
     "none": "No matching photos",
     "indexing": "{have} / {total} photos searchable (text-to-image)",
-    "degraded": "Text-to-image search is unavailable right now; showing text matches only"
+    "degraded": "Text-to-image search is unavailable right now; showing text matches only",
+    "related": "Possibly related"
   },
   "problem": {
     "chosen": "Switched to {what}"

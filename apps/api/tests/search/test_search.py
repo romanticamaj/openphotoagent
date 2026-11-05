@@ -537,3 +537,54 @@ def test_srch_tok_009_nul_and_control_characters_do_not_crash(s):
         r = s.client.post("/api/v1/search", json={"q": q, "plan": True})
         assert r.status_code == 200, (q, r.text)
     assert aid in [x["asset_id"] for x in s.search(q="海邊\x00的貓", semantic=False)["items"]]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-SEM-008")
+def test_srch_sem_008_weak_vector_hits_are_related_not_results(s, monkeypatch):
+    """回歸 (ADR-0027): the vector route took the K nearest photos with no floor, so every query matched the whole
+    library: 「一隻熊」 reported 80 of 80 photos. Below the space's floor a photo is only "possibly related"."""
+    import opagent_api.search as S
+
+    monkeypatch.setattr(S, "vector_floor", lambda _st, _space: 0.5)
+    targets = {s.add(i, groups=["dog", "beach"]) for i in range(3)}
+    others = {s.add(i, groups=["city"]) for i in range(3, 10)}
+    s.index()
+    stop = serve(s.w)
+    try:
+        res = s.search(q="a dog on the beach", limit=5)
+        none = s.search(q="zzz", limit=5)
+    finally:
+        stop.set()
+    assert {x["asset_id"] for x in res["items"]} == targets
+    assert res["total"] == 3 and not res["total_capped"]
+    assert {x["asset_id"] for x in res["related"]} == others  # shown apart: not counted, not selected
+    assert none["total"] == 0 and none["items"] == []
+    assert none["related"]  # the empty state still has something to offer
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-SEM-008")
+def test_srch_sem_008_a_space_with_no_floor_keeps_every_neighbour(s):
+    aid = s.add(1, groups=["city"])
+    s.index()
+    stop = serve(s.w)
+    try:
+        res = s.search(q="a dog on the beach", limit=5)
+    finally:
+        stop.set()
+    assert [x["asset_id"] for x in res["items"]] == [aid] and res["related"] == []
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-SEM-009")
+def test_srch_sem_009_the_floor_comes_from_the_catalogue_entry():
+    """Query time only: changing it needs no re-embedding (invariant 7)."""
+    from types import SimpleNamespace
+
+    from opagent_api.search import vector_floor
+    from opagent_registry.loader import load_registry
+
+    st = SimpleNamespace(registry=load_registry)
+    assert vector_floor(st, SimpleNamespace(fingerprint="siglip2-so400m-384@onnx-fp16:21086ca63010")) == 0.07
+    assert vector_floor(st, SimpleNamespace(fingerprint="fake-embed")) is None

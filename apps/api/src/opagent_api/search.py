@@ -137,6 +137,17 @@ def query_vector(st: AppState, text_q: str, space: Any, modality: str = "image")
     return None
 
 
+RELATED_MAX = 24
+
+
+def vector_floor(st: AppState, space: Any) -> float | None:
+    """The cosine under which a neighbour is not a match (ADR-0027). It sits in the catalog, per model: scores mean
+    different things in different spaces, and it applies at query time, so tuning it costs no re-embedding."""
+    m = st.registry().models.get(str(space.fingerprint).split("@")[0])
+    floor = ((m.spec.embedding or {}) if m else {}).get("min_cosine")
+    return float(floor) if floor is not None else None
+
+
 def active_space(c: Any) -> Any:
     return c.execute(
         select(embedding_space)
@@ -301,6 +312,8 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
         cspace = caption_space(c)
     qvec = None
     cvec = None
+    weak: list[str] = []
+    capped = False
     if q and body.semantic and cspace is not None:
         cvec = query_vector(st, q, cspace, modality="caption")
         if cvec is None:
@@ -339,7 +352,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
             if qvec is not None and space is not None:
                 # exact scan over the pre-filtered set: an HNSW post-filter would return fewer (SRCH-SEM-004)
                 vq = (
-                    select(search_doc.c.asset_id)
+                    select(search_doc.c.asset_id, text("1 - (asset_embedding.vec <=> CAST(:qv AS vector)) AS cos"))
                     .join(
                         asset_embedding,
                         and_(
@@ -350,7 +363,11 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                     .order_by(text("asset_embedding.vec <=> CAST(:qv AS vector)"), search_doc.c.asset_id)
                     .limit(PER_ROUTE)
                 )
-                routes["image_vector"] = [r[0] for r in c.execute(vq, {"qv": str(qvec)})]
+                near = c.execute(vq, {"qv": str(qvec)}).all()
+                floor = vector_floor(st, space)
+                routes["image_vector"] = [r[0] for r in near if floor is None or r[1] >= floor]
+                weak = [r[0] for r in near if floor is not None and r[1] < floor]
+                capped = len(routes["image_vector"]) == PER_ROUTE
             if cvec is not None and cspace is not None:  # R2: multilingual caption vectors (05 §2, ADR-0014)
                 cq = (
                     select(search_doc.c.asset_id)
@@ -406,8 +423,17 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
             else {}
         )
         facets = _facets(c, None, [*where, match] if q else where, body.facets)
+        # first page only, outside the set: not counted, not faceted, not in a selection (ADR-0027)
+        near_ids = [] if cur else [a for a in weak if a not in scores][:RELATED_MAX]
+        rel_rows = (
+            {r.asset_id: r for r in c.execute(select(search_doc).where(search_doc.c.asset_id.in_(near_ids)))}
+            if near_ids
+            else {}
+        )
         hashes = (
-            dict(c.execute(select(asset.c.id, asset.c.content_hash).where(asset.c.id.in_(page))).all()) if page else {}
+            dict(c.execute(select(asset.c.id, asset.c.content_hash).where(asset.c.id.in_([*page, *near_ids]))).all())
+            if page or near_ids
+            else {}
         )
     items = [
         {
@@ -445,6 +471,10 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
         "facets": facets,
         "next_cursor": _sign({"o": nxt, "s": snapshot, "h": _qhash(body)}) if nxt < total else None,
         "total": total,
+        "total_capped": capped,  # the vector route hit K: `total` is a lower bound
+        "related": [
+            {"asset_id": a, "ch": hashes.get(a), "caption": rel_rows[a].caption} for a in near_ids if a in rel_rows
+        ],
         "fulltext_mode": mode,
         "degraded": degraded,
     }

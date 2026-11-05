@@ -137,6 +137,9 @@ export type SearchResult = {
   facets: Record<string, Record<string, number>>;
   next_cursor: string | null;
   total: number;
+  total_capped?: boolean;
+  /** near misses, shown apart: outside `total`, facets and selections (ADR-0027) */
+  related?: { asset_id: string; ch: string | null; caption: string | null }[];
   degraded: string[];
   planner?: Planner;
 };

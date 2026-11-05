@@ -7,8 +7,8 @@
 > **這次實機才發現、已修好的大問題**：安裝版打不開（PG 路徑、CORS、資料目錄撞名、管理員身分、PGPASSWORD）；worker 根本沒接真推論，安裝包沒有 llama-server；下載在 Windows 無法進行；精靈寫出的 MCP 設定不能啟動；重啟後語意搜尋失效；快速捲動整片空白。
 >
 > **未完成，依優先序：**
-> 1. **問 AI 的搜尋品質**：「海邊」被轉成硬性標籤，只找到 2 張；改成軟條件的話，向量 top-200 又會讓「找到 80 張」失去意義（Claude Code 透過 MCP 也指出了這點）。需要為向量結果設門檻，牽涉 05 與 ADR-0005，要開審議。
-> 2. **recommend 仍建議 Windows 下載 Vulkan pack**（ADR-0025 的後續），方案卡的執行方式已改為顯示實際值。
+> 1. **向量下限 0.07 是暫定值**（ADR-0027）：只有 80 張的證據，要 ≥ 5,000 張與 50 個中英查詢的標註集才能定案；caption 向量路徑尚未設下限；`related` 目前只在沒有結果時顯示。
+> 2. `recommend` 的 `packs` 仍列 `llamacpp-vulkan`，但只是內部建議，onboarding 不下載，畫面顯示實際的執行方式。
 > 3. **未實測**：Claude Desktop 與 Cursor（B-15）；macOS／Linux 安裝版只在 CI 驗到能打包，Windows 才有啟動煙霧（DESK-054）；無 Vulkan 驅動的機器；DESK-001 啟動畫面、拖放、OS 通知、更新流程、乾淨 VM（DESK-031）；S1a 管理員；S4b 真資料集（替代資料集 0.605，門檻 0.80，尚無定論）；B-16、B-19；nightly.yml、release-gate.yml。
 > 4. **V7**：腳本要的 `opagent ops export-calibration` 不存在，要先補指令。
 > 5. **本機 e2e**：連續跑時 OP-012 偶發 WinError 32（E2E stack 重置時檔案被占用），單獨跑會過；visual 基準只有 Linux（B-21）。

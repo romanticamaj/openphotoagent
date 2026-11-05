@@ -641,7 +641,10 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
             elif info:
                 yield from run("describe_photo", {"id": pid, "question": body.message[:500]})
         else:
-            args = {"query": text_q, "filters": filters, "limit": 50, "return_selection": True}
+            # a word the planner matched to a tag stays a ranking signal, as in the search box: as a hard filter it
+            # hid every photo nobody tagged, and 「海邊」 found 2 of them (ADR-0027). Edited chips are the person's own
+            soft = filters if body.filters is not None else {k: v for k, v in filters.items() if k != "tags_any"}
+            args = {"query": text_q, "filters": soft, "limit": 50, "return_selection": True}
             if body.context.get("photo_ids"):
                 args = {"query": text_q, "limit": 50}
             yield from run("search_photos", args)

@@ -9,7 +9,7 @@ languages: [en, zh-Hant, zh-Hans, ja]
 license: { spdx: Apache-2.0, weights: Apache-2.0, commercial_use: true, redistributable: true, requires_acceptance: false, url: "https://huggingface.co/google/siglip2-so400m-patch14-384" }
 source: { hf_repo: google/siglip2-so400m-patch14-384, revision: main }
 structured_output: none
-embedding: { dim: 1152, normalize: true, similarity: sigmoid, text_template: "This is a photo of {label}.", multilingual: true }
+embedding: { min_cosine: 0.07, dim: 1152, normalize: true, similarity: sigmoid, text_template: "This is a photo of {label}.", multilingual: true }
 tasks_default_rank: { embed: 1, classify_embed: 1 }
 tiers: [all]
 variants:

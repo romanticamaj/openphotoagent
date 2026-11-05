@@ -46,6 +46,8 @@
 | SRCH-PLAN-019 | 回歸：只有停用詞 | 「photo」「的 照片」 | 沒有任何條件時保留原查詢（不把查詢清成空字串而變成全部照片） | U | #62 |
 | SRCH-PLAN-020 | 問句不是搜尋文字（回歸） | 「我有幾張滑雪的照片？」「幫我找海邊的照片」等 | 只留下主題詞 | U | #24、#40 |
 | SRCH-PLAN-021 | 沒有 LLM planner 的 worker 明確回覆（回歸） | `query_plan` RPC | 不記 `UNKNOWN_RPC`；回空結果，API 退回規則式 | U | #24 |
+| SRCH-SEM-008 | 向量下限（回歸，ADR-0027） | 有下限的空間：相近與不相近的照片；沒有相符；沒有下限的空間 | 低於下限的不計入 total 與 items，列在 related；沒有相符時 total 0；沒有下限時行為不變 | I | #24 |
+| SRCH-SEM-009 | 下限來自模型目錄 | SigLIP2 與未知 fingerprint | 0.07；未知為 None；不需重新嵌入 | U | 不變量 7 |
 | CORE-LUNAR-001 | 初一對照表 | `opagent_core.lunar` | 1900–2099 每年一筆；2024-02-10、2025-01-29、2026-02-17、2030-02-03 正確；`gen_lunar_table.py --check` 一致 | U | #62 |
 
 ### 1.3 SRCH-IMG、SRCH-DUP：以圖搜圖與重複
@@ -344,6 +346,7 @@
 | ASK-UI-001 | 建議問題 chips 依資料產生 | 圖庫 top tag 為「貓」、最近年份 2025；Lightbox 單張 | 「我有幾張貓？」「貓的照片」「2025 年的照片」；單張先給「在哪裡／什麼時候」；**不呼叫 LLM** | I | #100 |
 | ASK-UI-002 | 快捷鍵與面板互斥 | `⌘I`／`Ctrl+I`；面板開著時按 `⌘J` | ⌘I 開關問 AI；開活動中心（⌘J，ACT-005）會關掉問 AI，反之亦然；關閉後焦點回到開啟它的元素（ADR-0013） | E | #102 |
 | ASK-LLM-001 | OpenAI 相容 client | llama-server `--jinja` 或外部 endpoint；tool call、壞 JSON、未提供的 tool、逾時、探測 | 只接受本輪提供的 tool 與合法 JSON 物件；逾時安靜回空答案；從不送影像；探測 3/3 才開 tool loop；外部 endpoint 必須 https；API key 存 OS keyring、不回傳；egress log 記實際送出的 bytes | C/I | #101、#105 |
+| ASK-SRCH-001 | 標籤詞不擋住沒標籤的照片（回歸，ADR-0027） | 問「幫我找海邊的照片」，有張照片只有 caption 提到海邊 | 也被找到；使用者編輯過的 chips 仍是硬條件 | I | #40 |
 
 ---
 

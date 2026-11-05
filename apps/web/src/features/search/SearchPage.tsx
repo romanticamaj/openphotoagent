@@ -8,7 +8,7 @@ import { Button } from "../../components/Button";
 import { COMPARE_MAX, CompareView } from "./CompareView";
 import { Lightbox } from "../viewer/Lightbox";
 import type { GridApi } from "../viewer/PhotoGrid";
-import { api, mediaUrl, type SearchBody, isDegraded } from "../../lib/api";
+import { api, isDegraded, mediaUrl, type SearchBody, type SearchResult } from "../../lib/api";
 
 type Chip = { kind: "tag"; value: string } | { kind: "year"; value: string } | { kind: "range"; value: string; from: string; to: string };
 
@@ -198,6 +198,7 @@ export function SearchPage({ q }: { q: string }) {
         />
       ) : null}
       {res.isSuccess && hits.length === 0 && <p>{t("search.none")}</p>}
+      {(first?.related?.length ?? 0) > 0 && hits.length === 0 && <RelatedPhotos photos={first!.related!} />}
       <div ref={gridRef} onKeyDown={onKey} role="grid" aria-label={t("search.results")} aria-multiselectable="true" aria-rowcount={-1} className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-0.5 outline-none">
         <div role="row" className="contents">
         {hits.map((h, i) => {
@@ -252,6 +253,20 @@ export function SearchPage({ q }: { q: string }) {
           {toast}
         </div>
       )}
+    </section>
+  );
+}
+
+function RelatedPhotos({ photos }: { photos: NonNullable<SearchResult["related"]> }) {
+  const { t } = useTranslation();
+  return (
+    <section aria-label={t("search.related")} data-testid="search-related" className="space-y-2">
+      <h2 className="text-sm text-[var(--text-muted)]">{t("search.related")}</h2>
+      <div className="grid grid-cols-6 gap-0.5">
+        {photos.map((p) => (
+          <img key={p.asset_id} src={mediaUrl(p.asset_id, "t256", p.ch)} alt={p.caption ?? ""} className="aspect-square w-full rounded-[var(--radius-photo)] object-cover" />
+        ))}
+      </div>
     </section>
   );
 }
