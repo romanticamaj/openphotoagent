@@ -306,6 +306,18 @@ def cmd_pg_prepare(a: argparse.Namespace) -> None:
     print(json.dumps({**result, "pg_ctl": str(pg.bin / "pg_ctl")}))
 
 
+def cmd_pg_run(a: argparse.Namespace) -> None:
+    """Runs the postmaster through pg_ctl for an elevated app (see EmbeddedPg.prepare); stdin EOF stops it."""
+    from opagent_db.embedded import EmbeddedPg
+
+    pg = EmbeddedPg(Path(a.home), desktop=True)
+    pg.port = int((pg.home / "port").read_text(encoding="utf-8"))
+    stop = threading.Event()
+    signal.signal(signal.SIGTERM, lambda *_: stop.set())
+    watch_parent_pipe()
+    raise SystemExit(pg.run_until_stopped(stop))
+
+
 def _remote_home(a: argparse.Namespace) -> Path:
     return Path(a.home) if a.home else _home() / "remote-worker"
 
@@ -515,6 +527,9 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--home")
     p.add_argument("--ram-gb", type=float)
     p.set_defaults(fn=cmd_pg_prepare)
+    p = sub.add_parser("pg-run", help="desktop shell: run the embedded database when the app is elevated")
+    p.add_argument("--home", required=True)
+    p.set_defaults(fn=cmd_pg_run)
     p = sub.add_parser("lan-password", help="set the LAN-access password from stdin")
     p.add_argument("--home")
     p.set_defaults(fn=cmd_lan_password)

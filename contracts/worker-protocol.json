@@ -2930,6 +2930,59 @@
         "summary": "Ingest"
       }
     },
+    "/worker-api/v1/faces/backlog": {
+      "get": {
+        "description": "Photos with no face step yet. It rides on a job's decode, and a cached photo never reaches that, so a library\norganized before faces were turned on is scanned from here, when the worker is idle. Ordered by asset id: the\nworker keeps the cursor, so a photo with no faces in it is not listed forever.",
+        "operationId": "backlog_worker_api_v1_faces_backlog_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "after",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "After",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 32,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Backlog Worker Api V1 Faces Backlog Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Backlog"
+      }
+    },
     "/worker-api/v1/faces/plan": {
       "get": {
         "operationId": "face_plan_worker_api_v1_faces_plan_get",

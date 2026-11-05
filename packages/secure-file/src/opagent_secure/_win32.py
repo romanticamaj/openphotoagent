@@ -183,6 +183,11 @@ def _dacl_of(handle: wintypes.HANDLE) -> str:
             _k32.LocalFree(ctypes.cast(out, wintypes.LPVOID))
 
 
+def names_user(dacl: str, sid: str) -> bool:
+    """SDDL prints some accounts as aliases: the built-in Administrator (RID 500) is LA, not its SID."""
+    return sid in dacl or (sid.endswith("-500") and ";;;LA)" in dacl)
+
+
 def create_private(path: Path) -> int:
     """CREATE_NEW with the descriptor in the create call itself, read back from the handle before any byte is written.
     Returns a CRT file descriptor that owns the handle."""
@@ -204,7 +209,7 @@ def create_private(path: Path) -> int:
         raise _fail(f"CreateFileW {path}")
     try:
         got = _dacl_of(h)
-        if not got.startswith("D:P") or user_sid() not in got:
+        if not got.startswith("D:P") or not names_user(got, user_sid()):
             raise PermissionError(f"{path}: owner-only ACL did not stick ({got})")
         return msvcrt.open_osfhandle(h, os.O_WRONLY | os.O_BINARY)
     except BaseException:

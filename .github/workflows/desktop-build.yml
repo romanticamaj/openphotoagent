@@ -127,6 +127,12 @@ jobs:
           $setup = (Get-ChildItem "apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*-setup.exe")[0].FullName
           Start-Process $setup -ArgumentList '/S' -Wait
           uv run --no-project python tools/desktop_smoke.py "$env:LOCALAPPDATA\Programs\OpenPhotoAgent\openphotoagent.exe"
+      - name: Recompress the .deb with xz (Tauri uses gzip; ADR-0022's limit is 200 MB)
+        if: runner.os == 'Linux'
+        working-directory: apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/deb
+        run: |
+          D=$(ls *.deb); dpkg-deb -R "$D" repack && rm "$D"
+          dpkg-deb -Zxz -z6 --root-owner-group -b repack "$D" && rm -rf repack
       - name: Size gate (every installer ≤ 200 MB, DESK-030)
         shell: bash
         working-directory: apps/desktop/src-tauri/target/${{ matrix.target }}/release

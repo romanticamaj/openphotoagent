@@ -414,3 +414,49 @@ def test_pg_020_ensure_database_waits_for_a_postmaster_still_starting(pg):
     finally:
         t.join()
     assert q(p.dsn, "SELECT current_database()") == "opagent"
+
+
+@pytest.mark.unit
+@pytest.mark.tc("PG-011")
+def test_pg_011_elevated_app_starts_postgres_through_pg_ctl(tmp_path, monkeypatch):
+    """postgres.exe exits at once under administrative rights, so the shell must not run it directly."""
+    import opagent_db.embedded as E
+
+    monkeypatch.setattr(EmbeddedPg, "_initdb", lambda self: None)
+    monkeypatch.setattr(E, "is_elevated", lambda: True)
+    argv = EmbeddedPg(tmp_path / "pg", desktop=True, transport="tcp").prepare()
+    assert argv[3:5] == ["opagent_cli", "pg-run"] and str(tmp_path / "pg") in argv
+    monkeypatch.setattr(E, "is_elevated", lambda: False)
+    assert "postgres" in EmbeddedPg(tmp_path / "pg", desktop=True, transport="tcp").prepare()[0]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("PG-011")
+def test_pg_011_pg_run_serves_and_stops_with_its_parent(pg):
+    import sys
+    import time
+
+    p = pg(transport="tcp")
+    p.prepare()
+    child = subprocess.Popen(
+        [sys.executable, "-m", "opagent_cli", "pg-run", "--home", str(p.home)],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        env={**os.environ, "PYTHONUTF8": "1"},
+    )
+    try:
+        for _ in range(300):
+            try:
+                assert q(p.dsn_for("postgres"), "SELECT 1") == 1
+                break
+            except psycopg.OperationalError:
+                time.sleep(0.1)
+        else:
+            raise AssertionError("pg-run never served")
+        child.stdin.close()
+        assert child.wait(timeout=30) == 0
+        with pytest.raises(psycopg.OperationalError):
+            psycopg.connect(p.dsn_for("postgres"), connect_timeout=2).close()
+    finally:
+        child.kill()

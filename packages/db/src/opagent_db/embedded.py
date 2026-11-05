@@ -11,6 +11,7 @@ import socket
 import subprocess
 import sys
 import tempfile
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import quote
@@ -36,6 +37,15 @@ def find_pg_bin() -> Path:
 def _pg_options(args: list[str]) -> str:
     """pg_ctl's ``-o`` text is parsed by the shell that starts postgres, and POSIX quotes stay literal under cmd.exe."""
     return subprocess.list2cmdline(args) if os.name == "nt" else shlex.join(args)
+
+
+def is_elevated() -> bool:
+    """Windows only: started with "Run as administrator", or as an account that always is."""
+    if os.name != "nt":
+        return False
+    import ctypes
+
+    return bool(ctypes.WinDLL("shell32").IsUserAnAdmin())  # type: ignore[attr-defined,unused-ignore]
 
 
 def _port_is_free(port: int) -> bool:
@@ -274,6 +284,9 @@ class EmbeddedPg:
             self._own(self.run_dir)
         self._clear_stale_pid()
         self.port = self.port or self._stable_port()
+        if self.desktop and is_elevated():
+            # postgres.exe refuses to run with administrative rights; pg_ctl starts it with a restricted token (PG-011)
+            return [sys.executable, "-I", "-m", "opagent_cli", "pg-run", "--home", str(self.home)]
         return [*self.prefix, str(self.bin / "postgres"), "-D", str(self.data), *self.server_args()]
 
     def _stable_port(self) -> int:
@@ -328,6 +341,16 @@ class EmbeddedPg:
             if c.execute("SELECT 1 FROM pg_database WHERE datname=%s", (self.db,)).fetchone() is None:
                 c.execute(f'CREATE DATABASE "{self.db}"')
         return self.dsn
+
+    def run_until_stopped(self, stop: threading.Event) -> int:
+        """The shell supervises this process in place of the postmaster: it ends when the postmaster does."""
+        self._pg_ctl_start()
+        pid = int((self.data / "postmaster.pid").read_text(encoding="utf-8").split()[0])
+        while _is_postgres(pid):
+            if stop.wait(1.0):
+                self.stop()
+                return 0
+        return 1
 
     def stop(self) -> None:
         subprocess.run(

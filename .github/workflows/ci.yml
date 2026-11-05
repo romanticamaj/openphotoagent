@@ -130,7 +130,7 @@ jobs:
       - name: Everything else on Windows
         if: "!cancelled() && runner.os == 'Windows'"
         timeout-minutes: 120
-        run: uv run pytest -q --timeout=600 -m "not e2e and not perf and not nightly and not release_gate and not real_model and not gpu" apps packages/secure-file packages/db packages/doctor packages/registry packages/mcp-tools packages/search packages/assistant packages/inference-sdk packages/inference-adapters tools
+        run: uv run pytest -v --tb=line --timeout=600 -m "not e2e and not perf and not nightly and not release_gate and not real_model and not gpu" apps packages/secure-file packages/db packages/doctor packages/registry packages/mcp-tools packages/search packages/assistant packages/inference-sdk packages/inference-adapters tools
         env: { OPAGENT_TC_RESULTS: ".tc/py-os-apps-${{ matrix.os }}.json" }
       - uses: actions/upload-artifact@v4
         if: always()

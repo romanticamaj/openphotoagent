@@ -25,7 +25,13 @@ def sh(*args: str, **kw: object) -> None:
 
 # never shipped: the app imports none of these, and they are large (ADR-0022)
 STDLIB_DROP = ("tkinter", "idlelib", "turtledemo", "ensurepip", "lib2to3", "pydoc_data")
-SITE_DROP = ("jieba/lac_small", "jieba/posseg", "jieba/analyse")  # only Tokenizer().cut / add_word are used
+SITE_DROP = (
+    "jieba/lac_small",
+    "jieba/posseg",
+    "jieba/analyse",  # only Tokenizer().cut / add_word are used
+    "huggingface_hub",  # a dependency of tokenizers for from_pretrained; the app loads tokenizer.json from a file
+    "hf_xet",
+)
 
 
 def _base_prefix() -> Path:

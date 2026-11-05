@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import io
+import re
 import shutil
 import subprocess
 import sys
@@ -32,16 +33,41 @@ ASSETS = {
 }
 
 
+SONAME = re.compile(r"\.so\.\d+$|\.\d+\.dylib$")  # what the loader asks for: libllama.so.0, libllama.0.dylib
+VERSIONED = re.compile(r"\.so\.\d+\.\d+\.\d+$|\.\d+\.\d+\.\d+\.dylib$")
+
+
 def keep(name: str) -> bool:
     """The server, its libraries and the licence; not the other tools or their ``*-impl`` libraries."""
     low = name.lower()
     if low.startswith("license"):
         return True
-    if low.endswith((".dll", ".so", ".dylib", ".metal")) or ".so." in low or ".dylib" in low:
-        if low.startswith("llama-") and not low.startswith(("llama-server", "llama-common")):
+    if low in ("llama-server", "llama-server.exe"):
+        return True
+    if low.endswith((".dll", ".so", ".dylib", ".metal")) or ".so." in low:
+        stem = low.removeprefix("lib")
+        if stem.startswith("llama-") and not stem.startswith(("llama-server", "llama-common")):
             return False
         return "rpc" not in low
-    return low in ("llama-server", "llama-server.exe")
+    return False
+
+
+def from_tar(members: dict[str, tarfile.TarInfo]) -> list[tuple[str, str]]:
+    """(file to write, member holding its bytes). A library ships as libX.so -> libX.so.0 -> libX.so.0.9.0: only the
+    middle name is ever loaded, so it alone is kept, and the bundle needs no symlinks."""
+    out = []
+    for name, m in sorted(members.items()):
+        if not keep(name):
+            continue
+        if m.issym():
+            if SONAME.search(name):
+                target = m
+                while target.issym():
+                    target = members[Path(target.linkname).name]
+                out.append((name, target.name.rsplit("/", 1)[-1]))
+        elif not VERSIONED.search(name):
+            out.append((name, name))
+    return out
 
 
 def unpack(data: bytes, name: str, out: Path) -> None:
@@ -54,22 +80,12 @@ def unpack(data: bytes, name: str, out: Path) -> None:
                     (out / base).write_bytes(z.read(i))
         return
     with tarfile.open(fileobj=io.BytesIO(data)) as t:
-        for m in t.getmembers():
-            base = Path(m.name).name
-            if not keep(base):
-                continue
-            if m.issym():  # versioned .so / .dylib names are links in the tarball
-                (out / base).write_bytes(b"")
-                continue
-            f = t.extractfile(m) if m.isfile() else None
-            if f:
-                (out / base).write_bytes(f.read())
-                (out / base).chmod(0o755)
-    for link in [m for m in out.iterdir() if m.stat().st_size == 0]:
-        target = next((p for p in sorted(out.iterdir()) if p.name.startswith(link.name) and p.stat().st_size), None)
-        if target is None:
-            target = next(p for p in sorted(out.iterdir()) if link.name.split(".so")[0] in p.name and p.stat().st_size)
-        shutil.copy2(target, link)
+        members = {Path(m.name).name: m for m in t.getmembers() if m.isfile() or m.issym()}
+        for dest, src in from_tar(members):
+            f = t.extractfile(members[src])
+            assert f is not None
+            (out / dest).write_bytes(f.read())
+            (out / dest).chmod(0o755)
 
 
 def main(out: Path) -> int:

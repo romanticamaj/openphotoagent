@@ -177,6 +177,7 @@ def test_desk_051_only_the_server_and_its_libraries_ship():
         assert mod.keep(name), name
     for name in ("llama-cli.exe", "llama-bench.exe", "llama-bench-impl.dll", "ggml-rpc.dll", "ggml-rpc-server.exe"):
         assert not mod.keep(name), name
+    assert not mod.keep("libllama-cli-impl.so") and mod.keep("libllama-server-impl.dylib")
     assert all(len(sha) == 64 for _, sha in mod.ASSETS.values())
     conf = (ROOT / "apps/desktop/src-tauri/tauri.conf.json").read_text(encoding="utf-8")
     assert "build/desktop/llama" in conf
@@ -201,3 +202,40 @@ def test_desk_054_smoke_fails_on_a_crash_in_the_logs_and_on_early_exit(tmp_path)
         mod.wait_for_api(tmp_path, lambda: False, 5)
     workflow = (ROOT / ".github/workflows/desktop-build.yml").read_text(encoding="utf-8")
     assert "tools/desktop_smoke.py" in workflow
+
+
+@pytest.mark.unit
+@pytest.mark.tc("DESK-051")
+def test_desk_051_tar_keeps_one_copy_of_each_library_under_its_soname():
+    """回歸: the macOS and Linux archives hold libX -> libX.0 -> libX.0.9.0 links; the unpacker died on them."""
+    import importlib.util
+    import tarfile
+
+    spec = importlib.util.spec_from_file_location("build_desktop_llama", ROOT / "tools/build_desktop_llama.py")
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    def member(name, link=None):
+        m = tarfile.TarInfo(f"llama-b1/{name}")
+        if link:
+            m.type, m.linkname = tarfile.SYMTYPE, link
+        return m
+
+    tree = {
+        "llama-server": member("llama-server"),
+        "libllama.so": member("libllama.so", "libllama.so.0"),
+        "libllama.so.0": member("libllama.so.0", "libllama.so.0.9.0"),
+        "libllama.so.0.9.0": member("libllama.so.0.9.0"),
+        "libggml-cpu-zen4.so": member("libggml-cpu-zen4.so"),
+        "libllama.dylib": member("libllama.dylib", "libllama.0.dylib"),
+        "libllama.0.dylib": member("libllama.0.dylib", "libllama.0.9.0.dylib"),
+        "libllama.0.9.0.dylib": member("libllama.0.9.0.dylib"),
+        "libllama-bench-impl.so": member("libllama-bench-impl.so"),
+    }
+    assert sorted(mod.from_tar(tree)) == [
+        ("libggml-cpu-zen4.so", "libggml-cpu-zen4.so"),
+        ("libllama.0.dylib", "libllama.0.9.0.dylib"),
+        ("libllama.so.0", "libllama.so.0.9.0"),
+        ("llama-server", "llama-server"),
+    ]
