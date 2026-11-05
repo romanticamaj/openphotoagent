@@ -137,7 +137,7 @@ export type SearchResult = {
   facets: Record<string, Record<string, number>>;
   next_cursor: string | null;
   total: number;
-  degraded: boolean;
+  degraded: string[];
   planner?: Planner;
 };
 
@@ -240,6 +240,9 @@ export type CaptionIndexState = {
   active: { id: number; model_key: string; count: number } | null;
   building: { id: number; model_key: string; done: number; total: number; ready: boolean; operation_id: string | null } | null;
 };
+
+/** The vector paths that could not answer; empty when search ran in full (05 §2.6). */
+export const isDegraded = (r?: { degraded: string[] }) => (r?.degraded.length ?? 0) > 0;
 
 export const api = {
   captionIndex: () => req<CaptionIndexState>("GET", "/search/caption-index"),

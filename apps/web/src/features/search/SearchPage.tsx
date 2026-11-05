@@ -8,7 +8,7 @@ import { Button } from "../../components/Button";
 import { COMPARE_MAX, CompareView } from "./CompareView";
 import { Lightbox } from "../viewer/Lightbox";
 import type { GridApi } from "../viewer/PhotoGrid";
-import { api, mediaUrl, type SearchBody } from "../../lib/api";
+import { api, mediaUrl, type SearchBody, isDegraded } from "../../lib/api";
 
 type Chip = { kind: "tag"; value: string } | { kind: "year"; value: string } | { kind: "range"; value: string; from: string; to: string };
 
@@ -157,7 +157,7 @@ export function SearchPage({ q }: { q: string }) {
           {t("search.indexing", { have: index.data.searchable.toLocaleString(i18n.language), total: index.data.total.toLocaleString(i18n.language) })}
         </p>
       )}
-      {first?.degraded && <p role="status">{t("search.degraded")}</p>}
+      {isDegraded(first) && <p role="status">{t("search.degraded")}</p>}
       <ul aria-label={t("search.chips")} className="flex flex-wrap gap-2">
         {chips.map((c) => (
           <li key={`${c.kind}:${c.value}`} className="flex items-center gap-1 rounded-full border border-[var(--border)] px-3 py-0.5 text-sm">
