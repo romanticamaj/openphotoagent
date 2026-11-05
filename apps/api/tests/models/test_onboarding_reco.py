@@ -28,7 +28,11 @@ def client(embedded_pg, sandbox_tree, tmp_path):
     reg = tmp_path / "registry"
     shutil.copytree(BUILTIN_DIR, reg)
     sig = enumerate(
-        [("onnx/vision_model_int8.onnx", 300_000_000), ("onnx/text_model_int8.onnx", 300_000_000), ("tokenizer.json", 1)]
+        [
+            ("onnx/vision_model_int8.onnx", 300_000_000),
+            ("onnx/text_model_int8.onnx", 300_000_000),
+            ("tokenizer.json", 1),
+        ]
     )
     qw = enumerate([("Qwen3VL-8B-Instruct-Q4_K_M.gguf", 4_000_000_000), ("mmproj-Qwen3VL-8B-Instruct-F16.gguf", 1)], 5)
     pins = [_pin("siglip2-so400m-384", "onnx-int8", sig), _pin("qwen3-vl-8b-instruct", "q4_k_m", qw)]
