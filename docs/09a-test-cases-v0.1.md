@@ -884,6 +884,8 @@
 | DESK-049 | 隨附路徑不帶 `\\?\` 前綴（回歸） | Tauri 回傳 verbatim 的 resource 路徑 | 傳給子進程的是一般路徑（initdb 才找得到 postgres） | U | DESK-034 |
 | DESK-050 | 桌面視窗可以呼叫 API（回歸） | 來源 `http://tauri.localhost` 的 preflight、帶 token 與不帶 token 的請求；其他來源 | preflight 204 不需 token；回應帶 `Access-Control-Allow-Origin`，不帶 credentials；其他來源一律沒有 CORS 標頭 | I | #8 |
 | DESK-051 | 安裝包內含 llama-server（回歸） | `tools/build_desktop_llama.py` 的檔案篩選、釘選雜湊、tauri 資源 | 只留 server 與其函式庫；三平台都有 sha256；資源已列入 | U | #15、08 §4.1 |
+| DESK-052 | spawn 的子進程不重跑 CLI（回歸） | 以 `__mp_main__` 匯入 `opagent_cli.__main__` | 不呼叫 `main()`；以 `__main__` 執行時才呼叫 | U | DL-*、#15 |
+| DESK-053 | 監看父進程時仍能產生子進程（回歸） | 監看 stdin 的 sidecar 以 spawn 開子進程，再關閉 stdin | 子進程正常回應；sidecar 在 stdin 關閉後結束 | I | DL-*、DESK-006 |
 
 ### 13.2 PG：嵌入式 PostgreSQL 17 + pgvector（08 §2.3）
 

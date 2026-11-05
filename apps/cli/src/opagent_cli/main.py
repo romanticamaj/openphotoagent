@@ -148,17 +148,43 @@ def cmd_controlplane(a: argparse.Namespace) -> None:
 from opagent_core.version import VERSION as __version__  # noqa: E402
 
 
+def _wait_for_pipe_close_windows() -> None:
+    """Polls instead of reading. A pending read on the stdin pipe blocks every process that inherits it inside
+    interpreter start-up, which froze the download child (DESK-053)."""
+    import ctypes
+    import msvcrt
+    from ctypes import wintypes
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)  # type: ignore[attr-defined,unused-ignore]
+    peek = kernel32.PeekNamedPipe
+    peek.argtypes = [
+        wintypes.HANDLE,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+        wintypes.LPVOID,
+        wintypes.LPVOID,
+        wintypes.LPVOID,
+    ]
+    handle = msvcrt.get_osfhandle(0)  # type: ignore[attr-defined,unused-ignore]
+    tick = threading.Event()
+    while peek(handle, None, 0, None, None, None):
+        tick.wait(0.2)
+
+
 def watch_parent_pipe() -> None:
     """Orphan protection where the OS has none (macOS, 08 §1.1): the shell keeps our stdin open for its whole
     life; EOF means it is gone, so stop — SIGTERM first for a graceful uvicorn shutdown, then hard exit."""
 
     def wait() -> None:
-        try:
-            while sys.stdin.buffer.read(4096):
+        if os.name == "nt":
+            _wait_for_pipe_close_windows()
+        else:
+            try:
+                while sys.stdin.buffer.read(4096):
+                    pass
+            except (OSError, ValueError):
                 pass
-        except (OSError, ValueError):
-            pass
-        os.kill(os.getpid(), signal.SIGTERM)
+        signal.raise_signal(signal.SIGTERM)  # os.kill would be TerminateProcess on Windows: no graceful stop
         threading.Timer(3.0, lambda: os._exit(0)).start()
 
     threading.Thread(target=wait, name="parent-pipe", daemon=True).start()
