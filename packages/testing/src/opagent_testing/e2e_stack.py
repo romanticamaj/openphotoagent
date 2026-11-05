@@ -33,7 +33,7 @@ from .hfserver import HfFile, HfServer
 
 REPO = Path(__file__).resolve().parents[4]
 FIX = REPO / "fixtures" / "photos"
-SIGLIP_REPO = "openphotoagent/siglip2-so400m-patch14-384-onnx"
+SIGLIP_REPO = "onnx-community/siglip2-so400m-patch14-384-ONNX"
 QWEN_REPO = "Qwen/Qwen3-VL-8B-Instruct-GGUF"
 REV = "0123456789abcdef0123456789abcdef01234567"
 # small stand-ins for the pinned weights; sizes are what the recorded server really serves

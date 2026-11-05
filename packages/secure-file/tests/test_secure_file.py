@@ -1,4 +1,4 @@
-"""DESK-050/044 (回歸, ADR-0024): secrets are owner-only on every OS, including a data folder on D:\\.
+"""DESK-060/044 (回歸, ADR-0024): secrets are owner-only on every OS, including a data folder on D:\\.
 
 ``os.chmod(p, 0o600)`` does nothing useful on Windows, so run/api.json, the worker key and the credstore fallback kept
 whatever ACL they inherited: on a non-system drive that is readable and writable by every local user. ``parent`` below
@@ -21,8 +21,8 @@ def parent(tmp_path):
 
 
 @pytest.mark.unit
-@pytest.mark.tc("DESK-050")
-def test_desk_050_the_oracle_rejects_a_plain_file(parent):
+@pytest.mark.tc("DESK-060")
+def test_desk_060_the_oracle_rejects_a_plain_file(parent):
     f = parent / "plain"
     f.write_bytes(b"x")
     widen(f, 0o644)
@@ -31,8 +31,8 @@ def test_desk_050_the_oracle_rejects_a_plain_file(parent):
 
 
 @pytest.mark.unit
-@pytest.mark.tc("DESK-050")
-def test_desk_050_write_private_is_owner_only_under_a_wide_parent(parent):
+@pytest.mark.tc("DESK-060")
+def test_desk_060_write_private_is_owner_only_under_a_wide_parent(parent):
     f = parent / "api.json"
     assert write_private(f, b'{"port": 1}') is True
     assert f.read_bytes() == b'{"port": 1}'
@@ -41,8 +41,8 @@ def test_desk_050_write_private_is_owner_only_under_a_wide_parent(parent):
 
 
 @pytest.mark.unit
-@pytest.mark.tc("DESK-050")
-def test_desk_050_owner_only_before_the_first_byte(parent):
+@pytest.mark.tc("DESK-060")
+def test_desk_060_owner_only_before_the_first_byte(parent):
     seen = []
 
     def check(tmp):
@@ -55,8 +55,8 @@ def test_desk_050_owner_only_before_the_first_byte(parent):
 
 
 @pytest.mark.unit
-@pytest.mark.tc("DESK-050")
-def test_desk_050_replacing_a_wide_file_narrows_it(parent):
+@pytest.mark.tc("DESK-060")
+def test_desk_060_replacing_a_wide_file_narrows_it(parent):
     f = parent / "remote.json"
     f.write_bytes(b"old")
     widen(f, 0o644)
@@ -66,8 +66,8 @@ def test_desk_050_replacing_a_wide_file_narrows_it(parent):
 
 
 @pytest.mark.unit
-@pytest.mark.tc("DESK-050")
-def test_desk_050_a_failed_write_leaves_the_old_file_and_no_temporary(parent):
+@pytest.mark.tc("DESK-060")
+def test_desk_060_a_failed_write_leaves_the_old_file_and_no_temporary(parent):
     f = parent / "api.json"
     write_private(f, b"old")
 
@@ -81,8 +81,8 @@ def test_desk_050_a_failed_write_leaves_the_old_file_and_no_temporary(parent):
 
 
 @pytest.mark.unit
-@pytest.mark.tc("DESK-051")
-def test_desk_051_restrict_tightens_an_existing_file_and_folder(parent):
+@pytest.mark.tc("DESK-061")
+def test_desk_061_restrict_tightens_an_existing_file_and_folder(parent):
     d = parent / "secrets"
     d.mkdir()
     widen(d, 0o755)
@@ -96,8 +96,8 @@ def test_desk_051_restrict_tightens_an_existing_file_and_folder(parent):
 
 
 @pytest.mark.unit
-@pytest.mark.tc("DESK-051")
-def test_desk_051_private_dir_creates_parents_and_is_idempotent(parent):
+@pytest.mark.tc("DESK-061")
+def test_desk_061_private_dir_creates_parents_and_is_idempotent(parent):
     d = parent / "a" / "run"
     assert private_dir(d) is True
     assert private_dir(d) is True
@@ -108,8 +108,8 @@ def test_desk_051_private_dir_creates_parents_and_is_idempotent(parent):
 
 @pytest.mark.unit
 @pytest.mark.os_windows
-@pytest.mark.tc("DESK-051")
-def test_desk_051_a_new_file_in_a_private_dir_inherits_the_protection(parent):
+@pytest.mark.tc("DESK-061")
+def test_desk_061_a_new_file_in_a_private_dir_inherits_the_protection(parent):
     d = parent / "backups"
     private_dir(d)
     (d / "copy.bin").write_bytes(b"x")  # shutil.copy2 into a backup folder: no explicit ACL of its own
@@ -121,8 +121,8 @@ def test_desk_051_a_new_file_in_a_private_dir_inherits_the_protection(parent):
 
 @pytest.mark.unit
 @pytest.mark.os_windows
-@pytest.mark.tc("DESK-051")
-def test_desk_051_a_volume_without_acls_degrades_with_a_warning(parent, monkeypatch, caplog):
+@pytest.mark.tc("DESK-061")
+def test_desk_061_a_volume_without_acls_degrades_with_a_warning(parent, monkeypatch, caplog):
     assert sys.platform == "win32"
     from opagent_secure import _win32
 
@@ -136,8 +136,8 @@ def test_desk_051_a_volume_without_acls_degrades_with_a_warning(parent, monkeypa
 
 @pytest.mark.unit
 @pytest.mark.os_windows
-@pytest.mark.tc("DESK-051")
-def test_desk_051_an_acl_that_does_not_stick_fails_closed(parent, monkeypatch):
+@pytest.mark.tc("DESK-061")
+def test_desk_061_an_acl_that_does_not_stick_fails_closed(parent, monkeypatch):
     assert sys.platform == "win32"
     from opagent_secure import _win32
 

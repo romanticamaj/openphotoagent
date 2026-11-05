@@ -18,9 +18,9 @@ variants:
     quant: fp16
     revision: main
     files:
-      - { repo: openphotoagent/siglip2-so400m-patch14-384-onnx, path: "vision_model_fp16.onnx", role: vision }
-      - { repo: openphotoagent/siglip2-so400m-patch14-384-onnx, path: "text_model_fp16.onnx", role: text }
-      - { repo: openphotoagent/siglip2-so400m-patch14-384-onnx, path: "tokenizer.json", role: tokenizer }
+      - { repo: onnx-community/siglip2-so400m-patch14-384-ONNX, path: "onnx/vision_model_fp16.onnx", role: vision }
+      - { repo: onnx-community/siglip2-so400m-patch14-384-ONNX, path: "onnx/text_model_fp16.onnx", role: text }
+      - { repo: onnx-community/siglip2-so400m-patch14-384-ONNX, path: "tokenizer.json", role: tokenizer }
     vram_gb: { weights: 1.0, runtime_overhead: 0.5 }
     recommended_batch: 32
     requires: { runtime_pack: ["ort-*"], os: [windows, macos, linux], min_ram_gb: 4, accel_any: [cuda, directml, coreml, cpu] }
@@ -31,9 +31,9 @@ variants:
     device: cpu
     revision: main
     files:
-      - { repo: openphotoagent/siglip2-so400m-patch14-384-onnx, path: "vision_model_int8.onnx", role: vision }
-      - { repo: openphotoagent/siglip2-so400m-patch14-384-onnx, path: "text_model_int8.onnx", role: text }
-      - { repo: openphotoagent/siglip2-so400m-patch14-384-onnx, path: "tokenizer.json", role: tokenizer }
+      - { repo: onnx-community/siglip2-so400m-patch14-384-ONNX, path: "onnx/vision_model_int8.onnx", role: vision }
+      - { repo: onnx-community/siglip2-so400m-patch14-384-ONNX, path: "onnx/text_model_int8.onnx", role: text }
+      - { repo: onnx-community/siglip2-so400m-patch14-384-ONNX, path: "tokenizer.json", role: tokenizer }
     vram_gb: { weights: 0 }
     ram_gb: 1.5
     recommended_batch: 8

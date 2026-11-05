@@ -105,6 +105,56 @@
       ]
     },
     {
+      "model": "siglip2-so400m-384",
+      "variant": "onnx-fp16",
+      "revision": "8ecf3f2bbb135bec33f4bb721c11479bf6a8a254",
+      "files": [
+        {
+          "path": "onnx/vision_model_fp16.onnx",
+          "size": 857034174,
+          "sha256": "7eff9ceb868eceea1aed8d9c5fa3da358eec042abf3f2c8bced5d97de065f9f3",
+          "lfs_oid": "7eff9ceb868eceea1aed8d9c5fa3da358eec042abf3f2c8bced5d97de065f9f3"
+        },
+        {
+          "path": "onnx/text_model_fp16.onnx",
+          "size": 1416135143,
+          "sha256": "21086ca63010a7f9a4310c362ff351f26499f64461c942a0a71732daaba226ac",
+          "lfs_oid": "21086ca63010a7f9a4310c362ff351f26499f64461c942a0a71732daaba226ac"
+        },
+        {
+          "path": "tokenizer.json",
+          "size": 34363039,
+          "sha256": "cb9140fae3ac5122c972d37adf83e1248471a38147ad76f8215c8872c6fd8322",
+          "lfs_oid": "cb9140fae3ac5122c972d37adf83e1248471a38147ad76f8215c8872c6fd8322"
+        }
+      ]
+    },
+    {
+      "model": "siglip2-so400m-384",
+      "variant": "onnx-int8",
+      "revision": "8ecf3f2bbb135bec33f4bb721c11479bf6a8a254",
+      "files": [
+        {
+          "path": "onnx/vision_model_int8.onnx",
+          "size": 434199287,
+          "sha256": "75aafa7f17d15cf3c7ab9335ac87832f7e01b7391fdfa33263d4b1e80eff51ce",
+          "lfs_oid": "75aafa7f17d15cf3c7ab9335ac87832f7e01b7391fdfa33263d4b1e80eff51ce"
+        },
+        {
+          "path": "onnx/text_model_int8.onnx",
+          "size": 711126655,
+          "sha256": "3423f71ad99e102bf3c389fb0ebafd181faec6dedef9e28ddf17ecc6852e0397",
+          "lfs_oid": "3423f71ad99e102bf3c389fb0ebafd181faec6dedef9e28ddf17ecc6852e0397"
+        },
+        {
+          "path": "tokenizer.json",
+          "size": 34363039,
+          "sha256": "cb9140fae3ac5122c972d37adf83e1248471a38147ad76f8215c8872c6fd8322",
+          "lfs_oid": "cb9140fae3ac5122c972d37adf83e1248471a38147ad76f8215c8872c6fd8322"
+        }
+      ]
+    },
+    {
       "model": "yunet-2023mar",
       "variant": "onnx-fp32",
       "revision": "3cc26e7f1014a5ee5d74a42acee58bafc9d0a310",

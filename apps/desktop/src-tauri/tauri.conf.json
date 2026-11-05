@@ -11,7 +11,7 @@
   "app": {
     "windows": [],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost data: blob:; connect-src 'self' http://127.0.0.1:*; style-src 'self' 'unsafe-inline'; font-src 'self' data:",
+      "csp": "default-src 'self'; img-src 'self' asset: http://asset.localhost http://127.0.0.1:* data: blob:; connect-src 'self' ipc: http://ipc.localhost http://127.0.0.1:*; style-src 'self' 'unsafe-inline'; font-src 'self' data:",
       "assetProtocol": {
         "enable": true,
         "scope": {
@@ -36,7 +36,8 @@
     ],
     "resources": {
       "../../../build/desktop/python/": "python/",
-      "../../../build/desktop/pg/": "pg/"
+      "../../../build/desktop/pg/": "pg/",
+      "../../../build/desktop/llama/": "llama/"
     },
     "createUpdaterArtifacts": true,
     "license": "Apache-2.0",

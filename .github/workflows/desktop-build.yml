@@ -63,6 +63,9 @@ jobs:
       - name: Python runtime (python-build-standalone copied whole, then packages; 08 D3, ADR-0022)
         shell: bash
         run: uv run --no-project python tools/build_desktop_python.py build/desktop/python
+      - name: llama-server (official release, pinned; 08 §4.1, ADR-0024)
+        shell: bash
+        run: uv run --no-project python tools/build_desktop_llama.py build/desktop/llama
       - name: Tauri bundle
         working-directory: apps/desktop/src-tauri
         # not bash: on Windows, Git's /usr/bin/link.exe shadows MSVC's link.exe and every Rust link fails

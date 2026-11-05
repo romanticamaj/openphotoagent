@@ -88,6 +88,7 @@ class WorkerAgent:
         self.backend = backend
         self.bench_backends: dict[str, Any] = {}  # benchmark candidates by name (03 §6); loaded on demand
         self.text_embedders: dict[str, Any] = {}  # caption text models by registry key (R2, ADR-0014)
+        self.backend_factory: Any = None  # production: rebuilds the adapters from the models on disk (backends.py)
         self.face_backend = face_backend  # detection + embedding run only here, on the decoded image (07 §2.2)
         self._faces: dict[str, tuple[str, list[dict[str, Any]]]] = {}
         self._active_child: Any = None  # the running download child (ADR-0007)
@@ -164,6 +165,27 @@ class WorkerAgent:
         wid = "w-" + uuid.uuid4().hex[:12]
         f.write_text(wid, encoding="utf-8")
         return wid
+
+    def refresh_backends(self) -> None:
+        """A model that finished downloading goes live here, with no restart; a running one is left alone."""
+        if self.backend_factory is None:
+            return
+
+        def fp(b: Any) -> str | None:
+            return b.describe().model_fingerprint if b is not None else None
+
+        new = self.backend_factory()
+        if fp(new.vlm) == fp(self.backend) and fp(new.embedder) == fp(self.embedder):
+            return
+        old = self.backend
+        if fp(new.vlm) != fp(old):
+            self.backend = new.vlm
+            if old is not None and hasattr(old, "close"):
+                old.close()
+        if fp(new.embedder) != fp(self.embedder):
+            self.embedder = new.embedder
+        self._cascade = None
+        self.register()
 
     def register(self) -> None:
         models: dict[str, str] = {}
@@ -285,6 +307,8 @@ class WorkerAgent:
             result, ok = {"error": code, "detail": str(e)[:500]}, False
         self.waiting.pop(task["id"], None)
         self.client.post(f"/worker-api/v1/tasks/{task['id']}/complete", json={"result": result, "ok": ok})
+        if ok and task.get("kind") == "download":
+            self.refresh_backends()
 
     RETRY_WAITING_S = 5.0
 
