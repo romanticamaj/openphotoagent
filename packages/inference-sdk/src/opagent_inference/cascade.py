@@ -8,9 +8,9 @@ candidate list contains that class (Q-025).
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import inspect
-import asyncio
 import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
