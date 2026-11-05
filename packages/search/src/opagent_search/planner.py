@@ -19,6 +19,13 @@ from zoneinfo import ZoneInfo
 
 from opagent_core.lunar import lunar_new_year
 
+# how a question is worded, not what it asks about: the words around the subject in 「我有幾張滑雪的照片？」
+QUESTION_FRAME = re.compile(
+    r"我有|我的|有沒有|有幾張|有多少張?|多少張|幾張|幫我找|幫我|請列出|請問|請|列出|找出|所有|全部|"
+    r"的?照片|的?相片|的?圖片|how many|do i have|show me|find me|find all|[？?！!。，,]+",
+    re.IGNORECASE,
+)
+
 STOP_WORDS = {
     "的",
     "照片",
@@ -278,7 +285,7 @@ def plan(
             if _VOCAB is None:
                 _VOCAB = _default_vocabulary()
             vocabulary = _VOCAB
-        t = _Text(q or "")
+        t = _Text(QUESTION_FRAME.sub(" ", q or ""))
         explain: list[str] = []
         filters: dict[str, Any] = {}
         people = _persons(t, persons or {}, scopes, explain)
