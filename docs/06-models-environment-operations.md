@@ -1085,7 +1085,7 @@ est(queue wait)     = 前方 Operation 的 ETA 總和（同一 Worker 的 GPU la
 
 #### 5.5.5 信心區間
 
-- 相對標準差 `cv = sqrt(var_obs) / rate`。每個 item 的時間大致獨立，所以剩餘 N 個 item 的總時間相對誤差約為 `cv / sqrt(N_batches_remaining)`，再加上一項「漂移」項 δ（rate 在長時間內的變化，取 0.1）。先驗來源再加上其本身的寬度（registry 的 p10–p90 約 ±50%）。
+- 相對標準差 `cv = sqrt(var_obs) / rate`。每個 item 的時間大致獨立，所以剩餘 N 個 item 的總時間相對誤差約為 `cv / sqrt(N_batches_remaining)`，再加上速率本身的估計誤差與「漂移」項（ADR-0028）：`σ_rel = cv·√(1/N_rem + 1/N_eff) + δ(T)`，`N_eff = min(已完成 batch 數, (2−a)/a)`，`a = 1 − exp(−dt/τ)`；`δ(T) = clamp(0.1·√(T/3600), 0.04, 0.1)`，T 為 p50 秒數（漂移只能在剩餘時間內發生）。先驗來源再加上其本身的寬度（registry 的 p10–p90 約 ±50%）。
 - `p10 / p90 = p50 × (1 ∓ 1.28 · σ_rel)`，σ_rel 的上限為 0.9。
 - 以上公式是工程近似，不追求統計嚴格；目標是「顯示的區間在事後回看時有 80% 涵蓋真值」。實作時以 `eta_calibration` 統計（完成時記錄 `actual / predicted_p50` 的分佈）持續校正 δ 與 n0【需實測調整】。
 
@@ -1173,7 +1173,7 @@ data: {"v":1,"id":"op_…","seq":812,"type":"model.download","status":"running",
 | 孤兒偵測 | `owner` 每 15 秒更新一次心跳（Worker heartbeat 夾帶 active op ids）。CP sweeper 發現心跳超過 60 秒未更新、且狀態為 running 時，改為 `interrupted`；`operation_event` 記錄原因 `OWNER_LOST`（借鏡 VB `_force_fail_if_active`，但改成可恢復的 interrupted，而不是直接標 failed）。 |
 | 重啟後 | 桌面版啟動時，Activity Center 顯示提示卡片「上次有 2 個操作被中斷：下載 Qwen3-VL（3.2/10.6 GB）、任務『2025 手機』（68%）」，附「全部繼續」與個別按鈕。`resumable_after_restart=true` 且設定為自動續跑的（下載預設開啟）會直接繼續，並在卡片中說明「已自動繼續」。 |
 | 保留 | 成功完成的 Operation 保留 30 天或最近 500 筆（可設定）；失敗的保留 90 天；`operation_event` 隨母表一起刪除。Job 投影的 Operation 跟隨 Job 保留。 |
-| 觀測回寫 | Operation 完成時寫入 `perf_observation`（吞吐、載入時間、頻寬）與 `eta_calibration`。 |
+| 觀測回寫 | Operation 成功時寫入 `perf_observation`（吞吐、載入時間、頻寬）與 `eta_calibration`。校準比對的是**第一次顯示給使用者的預估**（換算成總時長），actual 不含暫停與等待時間。 |
 
 ### 5.9 開始前預估（`estimate`）
 

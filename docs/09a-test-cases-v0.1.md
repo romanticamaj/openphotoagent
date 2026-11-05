@@ -686,6 +686,13 @@
 | ETA-017 | 佇列等待 | 前方 2 個 Operation p50 為 300 s、600 s | `queue.ahead_seconds_p50=900` | U | #32 |
 | ETA-018 | 開始前預估 | `POST /estimates`：10,234 張、3,150 快取、312 不支援 | `items` 正確；breakdown 含 download/load/embed/infer/postprocess；無頻寬歷史時文案為「100 Mbps 約 15 分鐘 · 1 Gbps 約 1.5 分鐘」 | I | #29、DoD 5.2 |
 | ETA-019 | 參考機涵蓋率實測 | release gate：三台參考機跑測試圖庫 | 記錄 `eta_calibration` 涵蓋率（≥ 70%）並寫入 release notes | N/M | #30、DoD 5.2 |
+| ETA-020 | 即時 ETA（回歸，不變量 9） | 進度序列：穩定、過早、bytes、無總數、過密、停滯 | 由進度算出 state 與 p10／p50／p90；可以 JSON 保存 | U | — |
+| ETA-021 | 校準樣本（回歸） | 第一次顯示的預估、暫停 | 保留第一次顯示的總時長預估；暫停時間不算入 | U | — |
+| ETA-022 | 實際路徑寫入 ETA（回歸，不變量 9） | Worker 回報 task 進度；標註 job 回報結果 | `operation.eta` 與 `progress` 更新；內部欄位不外露 | I | — |
+| ETA-023 | 完成時回寫（回歸） | Operation 經 `/tasks/{id}/complete` 成功、暫停後成功、失敗 | 成功才寫 `eta_calibration` 與 `perf_observation`；actual 不含暫停 | I | — |
+| ETA-024 | 匯出校準資料 | `opagent ops export-calibration` | 輸出 M0-V7 需要的欄位 | I | — |
+| ETA-026 | precise 的區間可信（ADR-0028） | 模擬 40 次 lognormal；δ 隨剩餘時間變化 | precise 顯示期間涵蓋率 ≥ 70%；δ 在 0.04～0.1 | U | — |
+| ETA-025 | 顯示剩餘時間（回歸，不變量 9） | Activity Center 收到 rough／precise／stalled | 畫面顯示時間文字，不是只有狀態字 | U | — |
 
 ### 9.3 ACT：Activity Center 與進度元件（Vitest + Playwright）
 

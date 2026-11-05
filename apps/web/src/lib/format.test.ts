@@ -1,3 +1,4 @@
+import { etaText } from "./format";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -32,3 +33,19 @@ describe("formatting", () => {
     expect(formatBytes(12_000_000_000, "en")).toBe("12 GB");
   });
 });
+
+describe("[ETA-025] the remaining time is readable", () => {
+  it("[ETA-025] rough, precise and stalled show words, not only a state", () => {
+    expect(etaText({ state: "rough", p50_s: 30 }, "zh-TW")).toBe("不到 1 分鐘");
+    expect(etaText({ state: "rough", p50_s: 180 }, "zh-TW")).toBe("約 3 分鐘");
+    expect(etaText({ state: "rough", p50_s: 4800 }, "zh-TW")).toBe("約 1 小時 20 分鐘");
+    expect(etaText({ state: "rough", p50_s: 180 }, "en")).toBe("About 3 min");
+    expect(etaText({ state: "precise", p50_s: 161 }, "zh-TW")).toBe("剩 2:41");
+    expect(etaText({ state: "stalled", since_s: 80, p50_s: 10 }, "en")).toContain("No progress for");
+  });
+  it("[ETA-025] nothing to say while estimating", () => {
+    expect(etaText({ state: "estimating" }, "zh-TW")).toBeNull();
+    expect(etaText({ state: "unknown" }, "en")).toBeNull();
+  });
+});
+

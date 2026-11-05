@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from opagent_core.eta import eta_active_s, live_eta, suspend_eta
 from opagent_core.operation import OP_TRANSITIONS, OpStatus
 from opagent_db.schema import event, operation, operation_event
 from sqlalchemy import insert, select, update
@@ -49,7 +50,9 @@ def ensure_operation(conn: Any, clock: Any, op_id: str, op_type: str, subject: d
 
 def set_op_status(conn: Any, clock: Any, op_id: str, target: str, waiting_reason: str | None = None) -> None:
     row = conn.execute(
-        select(operation.c.status, operation.c.seq, operation.c.type).where(operation.c.id == op_id).with_for_update()
+        select(operation.c.status, operation.c.seq, operation.c.type, operation.c.eta)
+        .where(operation.c.id == op_id)
+        .with_for_update()
     ).first()
     if row is None or row.status == target:
         return
@@ -62,10 +65,13 @@ def set_op_status(conn: Any, clock: Any, op_id: str, target: str, waiting_reason
         return None
     now = clock.now()
     seq = row.seq + 1
+    if row.eta and target == "succeeded":
+        _record_observation(conn, clock, op_id, row.type, row.eta)
     conn.execute(
         update(operation)
         .where(operation.c.id == op_id)
         .values(
+            eta=suspend_eta(row.eta, now.timestamp()) if row.eta and target != "running" else row.eta,
             status=target,
             seq=seq,
             updated_at=now,
@@ -259,7 +265,94 @@ def op_problem(d: dict[str, Any]) -> dict[str, Any] | None:
 
 def op_dict(row: Any) -> dict[str, Any]:
     d = dict(row._mapping)
+    if d.get("eta"):  # working state stays on the server
+        d["eta"] = {k: v for k, v in d["eta"].items() if not k.startswith("_")}
     d["auto_resumed"] = bool((d.get("progress") or {}).get("auto_resumed"))  # Activity Center: 「已自動繼續」
     if not d.get("error"):
         d["error"] = op_problem(d)
     return {k: (v.isoformat() if hasattr(v, "isoformat") else v) for k, v in d.items()}
+
+
+def observe_progress(conn: Any, clock: Any, op_id: str, progress: dict[str, Any]) -> None:
+    """Every progress report feeds the ETA (invariant 9). ``fraction`` wins over done/total; neither means unknown."""
+    done, total = progress.get("done"), progress.get("total")
+    fraction = progress.get("fraction")
+    if fraction is None and total:
+        fraction = min(1.0, (done or 0) / total)
+    eta = conn.execute(select(operation.c.eta).where(operation.c.id == op_id)).scalar()
+    unit = "bytes" if progress.get("unit") == "bytes" else "items"
+    conn.execute(
+        update(operation)
+        .where(operation.c.id == op_id)
+        .values(eta=live_eta(eta, clock.now().timestamp(), fraction, unit))
+    )
+
+
+def observe_job(conn: Any, clock: Any, job_id: str) -> None:
+    """A labelling job has no task reporting for it: its items are the progress."""
+    from .queue import counters
+
+    n = counters(conn, job_id)
+    total = n["total"]
+    if not total:
+        return
+    done = total - n["pending"] - n["leased"] - n["running"]
+    prog = conn.execute(select(operation.c.progress).where(operation.c.id == job_id)).scalar()
+    if prog is None:
+        return
+    now = {"done": done, "total": total, "unit": "items", "fraction": done / total}
+    conn.execute(update(operation).where(operation.c.id == job_id).values(progress={**prog, **now}))
+    observe_progress(conn, clock, job_id, now)
+
+
+def _record_observation(conn: Any, clock: Any, op_id: str, op_type: str, eta: dict[str, Any]) -> None:
+    """06 §5.8 觀測回寫, from what the operation itself recorded while it ran."""
+    from opagent_db.schema import eta_calibration, perf_observation
+
+    now = clock.now()
+    actual = eta_active_s(eta, now.timestamp())
+    first = eta.get("first")
+    if actual <= 0 or not first:
+        return
+    row = conn.execute(select(operation.c.progress, operation.c.worker_id).where(operation.c.id == op_id)).first()
+    prog = row.progress or {}
+    amount = float(prog.get("done") or 0) / actual
+    is_bytes = prog.get("unit") == "bytes"
+    conn.execute(
+        insert(perf_observation).values(
+            worker_id=row.worker_id,
+            op_type=op_type,
+            at=now,
+            items_per_s=None if is_bytes else amount or None,
+            bytes_per_s=amount or None if is_bytes else None,
+        )
+    )
+    conn.execute(
+        insert(eta_calibration).values(
+            operation_id=op_id,
+            op_type=op_type,
+            predicted_p50=first["p50_s"],
+            predicted_p10=first["p10_s"],
+            predicted_p90=first["p90_s"],
+            actual_s=actual,
+            ratio=actual / first["p50_s"],
+            covered=first["p10_s"] <= actual <= first["p90_s"],
+            at=now,
+        )
+    )
+
+
+def export_calibration(conn: Any) -> list[dict[str, Any]]:
+    """The rows M0-V7 scores (spikes/m0/V7/run.py)."""
+    from opagent_db.schema import eta_calibration as e
+
+    return [
+        {
+            "op_type": r.op_type,
+            "predicted_p10_s": r.predicted_p10,
+            "predicted_p50_s": r.predicted_p50,
+            "predicted_p90_s": r.predicted_p90,
+            "actual_s": r.actual_s,
+        }
+        for r in conn.execute(select(e).where(e.c.predicted_p10.is_not(None)).order_by(e.c.id))
+    ]

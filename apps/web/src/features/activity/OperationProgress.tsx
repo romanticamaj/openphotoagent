@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { formatDuration } from "../../lib/format";
+import { etaText, formatDuration } from "../../lib/format";
 import { ElapsedClock } from "../../lib/operations";
 import type { Op } from "./model";
 
@@ -32,6 +32,7 @@ export function OperationProgress({ op, variant = "compact" }: { op: Op; variant
   const elapsed = clock.elapsedMs(Date.now());
   const pct = Math.round((op.fraction ?? 0) * 100);
   const eta = op.eta?.state;
+  const etaLabel = running && op.eta ? etaText(op.eta, i18n.language) : null;
   return (
     <div className={`op-progress op-${variant}`} data-status={op.status}>
       <div
@@ -46,7 +47,7 @@ export function OperationProgress({ op, variant = "compact" }: { op: Op; variant
       </div>
       <div className="flex justify-between text-xs tabular-nums text-[var(--text-muted)]">
         <span>{t(`activity.status.${op.status}`, { defaultValue: op.status })}</span>
-        {eta ? <span data-eta={eta}>{t(`activity.eta.${eta}`, { defaultValue: eta })}</span> : null}
+        {eta ? <span data-eta={eta}>{etaLabel ?? t(`activity.eta.${eta}`, { defaultValue: eta })}</span> : null}
         <span data-testid="elapsed">{formatDuration(elapsed, i18n.language)}</span>
       </div>
       {variant === "full" && Array.isArray(op.phases) ? (

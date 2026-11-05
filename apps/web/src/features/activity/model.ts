@@ -12,7 +12,7 @@ export type Op = {
   active_ms?: number;
   updated_at_ms?: number;
   server_now_ms?: number;
-  eta?: { state?: string; p50_s?: number } | null;
+  eta?: { state?: string; p50_s?: number; since_s?: number } | null;
   waiting_reason?: string | null;
   [k: string]: unknown;
 };

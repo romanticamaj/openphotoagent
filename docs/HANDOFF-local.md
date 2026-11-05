@@ -10,7 +10,7 @@
 > 1. **向量下限 0.07 是暫定值**（ADR-0027）：只有 80 張的證據，要 ≥ 5,000 張與 50 個中英查詢的標註集才能定案；caption 向量路徑尚未設下限；`related` 目前只在沒有結果時顯示。
 > 2. `recommend` 的 `packs` 仍列 `llamacpp-vulkan`，但只是內部建議，onboarding 不下載，畫面顯示實際的執行方式。
 > 3. **未實測**：Claude Desktop 與 Cursor（B-15）；macOS／Linux 安裝版只在 CI 驗到能打包，Windows 才有啟動煙霧（DESK-054）；無 Vulkan 驅動的機器；DESK-001 啟動畫面、拖放、OS 通知、更新流程、乾淨 VM（DESK-031）；S1a 管理員；S4b 真資料集（替代資料集 0.605，門檻 0.80，尚無定論）；B-16、B-19；nightly.yml、release-gate.yml。
-> 4. **V7**：腳本要的 `opagent ops export-calibration` 不存在，要先補指令。
+> 4. **ETA 的先驗**：ETA 已接上實際路徑，並寫入 `eta_calibration`（之前 ETA 引擎沒有呼叫者，畫面沒有剩餘時間）。但 06 §5.5.3 的冷啟動先驗還沒接，第一批完成前都是「估算中」；開始前的預估也還沒帶進 Operation。
 > 5. **本機 e2e**：連續跑時 OP-012 偶發 WinError 32（E2E stack 重置時檔案被占用），單獨跑會過；visual 基準只有 Linux（B-21）。
 >
 > **需要你決定（法律）**：AuraFace 的 LICENSE 是未填寫的 Apache 範本，訓練資料未揭露，其餘 ONNX 檔與 InsightFace 非商用包相同（只用 `glintr100.onnx`）；`onnx-community` 的 SigLIP2 repo 沒有授權檔（上游 Apache-2.0）。其餘帳號、簽章、發版項目見 §5 與 BLOCKERS。

@@ -6,12 +6,18 @@ import pytest
 from fastapi.testclient import TestClient
 from opagent_api.app import create_app
 from opagent_api.events import ProgressThrottle
-from opagent_api.operations import OperationWriter, complete_operation, ensure_operation, set_op_status
+from opagent_api.operations import (
+    OperationWriter,
+    complete_operation,
+    ensure_operation,
+    set_op_status,
+)
 from opagent_db.schema import (
     asset,
     engine_for,
     eta_calibration,
     job,
+    job_item,
     operation,
     operation_event,
     perf_observation,
@@ -19,7 +25,7 @@ from opagent_db.schema import (
 )
 from opagent_testing.clock import FakeClock
 from opagent_worker.agent import WorkerAgent
-from sqlalchemy import func, insert, select
+from sqlalchemy import func, insert, select, text
 
 FX = Path(__file__).resolve().parents[4] / "fixtures/photos/basic"
 
@@ -298,3 +304,153 @@ def test_desk_020_tray_pauses_and_resumes_every_heavy_operation(env):
     assert sorted(r.json()["resumed"]) == ["S1", "T1"]
     with env.eng.begin() as c:
         assert {o.id: o.status for o in c.execute(select(operation)).all()}["S1"] == "running"
+
+
+def _task(env, tid, kind="download"):
+    with env.eng.begin() as c:
+        c.execute(
+            text("insert into worker_task(id, kind, payload, status, worker_id) values (:i, :k, '{}', 'leased', 'w1')"),
+            {"i": tid, "k": kind},
+        )
+        ensure_operation(c, env.clk, tid, "model.download")
+        set_op_status(c, env.clk, tid, "running")
+
+
+def _report(env, tid, done, total=1000, unit="bytes"):
+    env.client.post(
+        f"/worker-api/v1/tasks/{tid}/progress", json={"progress": {"done": done, "total": total, "unit": unit}}
+    )
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ETA-022")
+def test_eta_022_a_running_task_shows_its_remaining_time(env):
+    """回歸 (invariant 9): nothing ever wrote operation.eta, so every operation ran without an ETA."""
+    _task(env, "t1")
+    for i in range(11):
+        _report(env, "t1", i * 20)
+        env.clk.advance(2)
+    op = env.client.get("/api/v1/operations/t1").json()
+    assert op["eta"]["state"] in ("rough", "precise")
+    assert op["eta"]["p50_s"] == pytest.approx(78, rel=0.05)
+    assert not [k for k in op["eta"] if k.startswith("_")]  # working state stays on the server
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ETA-022")
+def test_eta_022_a_labelling_job_reports_progress_and_eta(env):
+    """回歸: labelling results never reached the Operation: its bar stayed at 0 until it finished."""
+    with env.eng.begin() as c:
+        c.execute(insert(job).values(id="j1", workspace_id="default", kind="label", status="running", params={}))
+        ensure_operation(c, env.clk, "j1", "job.label")
+        set_op_status(c, env.clk, "j1", "running")
+        c.execute(
+            insert(asset),
+            [{"id": f"a{i}", "workspace_id": "default", "content_hash": f"h{i}", "size_bytes": 1} for i in range(10)],
+        )
+        c.execute(
+            insert(job_item),
+            [
+                {
+                    "id": f"i{i}",
+                    "job_id": "j1",
+                    "asset_id": f"a{i}",
+                    "root_alias": "photos",
+                    "rel": f"{i}.jpg",
+                    "status": "leased",
+                }
+                for i in range(10)
+            ],
+        )
+    env.client.post("/worker-api/v1/register", json={"id": "w1"})
+    items = [{"job_item_id": f"i{i}", "status": "ok", "output": {}} for i in range(4)]
+    assert env.client.post("/worker-api/v1/results", json={"worker_id": "w1", "items": items}).status_code == 200
+    op = env.client.get("/api/v1/operations/j1").json()
+    assert op["progress"]["done"] == 4 and op["progress"]["total"] == 10
+    assert op["progress"]["fraction"] == pytest.approx(0.4)
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ETA-023")
+def test_eta_023_success_records_what_was_predicted(env):
+    """回歸: complete_operation had no caller outside tests, so eta_calibration stayed empty and V7 had no data."""
+    _task(env, "t2")
+    for i in range(11):
+        _report(env, "t2", i * 50)
+        env.clk.advance(2)
+    env.clk.advance(18)
+    env.client.post("/worker-api/v1/tasks/t2/complete", json={"ok": True, "result": {}})
+    with env.eng.begin() as c:
+        cal = c.execute(select(eta_calibration)).all()
+        obs = c.execute(select(perf_observation)).all()
+    assert len(cal) == 1 and cal[0].op_type == "model.download"
+    assert cal[0].actual_s == pytest.approx(40)
+    assert cal[0].predicted_p50 == pytest.approx(40, rel=0.1)
+    assert cal[0].covered is True
+    assert obs[0].bytes_per_s == pytest.approx(500 / 40, rel=0.1) and obs[0].items_per_s is None
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ETA-023")
+def test_eta_023_a_paused_stretch_is_left_out(env):
+    _task(env, "t3")
+    for i in range(6):
+        _report(env, "t3", i * 100)
+        env.clk.advance(2)
+    with env.eng.begin() as c:
+        set_op_status(c, env.clk, "t3", "pausing")
+        set_op_status(c, env.clk, "t3", "paused", "PAUSED_BY_USER")
+    env.clk.advance(1000)
+    with env.eng.begin() as c:
+        set_op_status(c, env.clk, "t3", "running")
+    _report(env, "t3", 600)
+    env.clk.advance(2)
+    env.client.post("/worker-api/v1/tasks/t3/complete", json={"ok": True, "result": {}})
+    with env.eng.begin() as c:
+        assert c.execute(select(eta_calibration.c.actual_s)).scalar() == pytest.approx(14)
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ETA-023")
+def test_eta_023_a_failure_is_not_a_calibration_sample(env):
+    _task(env, "t4")
+    for i in range(6):
+        _report(env, "t4", i * 100)
+        env.clk.advance(2)
+    env.client.post("/worker-api/v1/tasks/t4/complete", json={"ok": False, "result": {"error": "x"}})
+    with env.eng.begin() as c:
+        assert c.execute(select(func.count()).select_from(eta_calibration)).scalar() == 0
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ETA-024")
+def test_eta_024_export_calibration_rows(env, embedded_pg):
+    """The input M0-V7 reads; the command existed only in the experiment's README."""
+    from opagent_api.operations import export_calibration
+
+    _task(env, "t5")
+    for i in range(11):
+        _report(env, "t5", i * 50)
+        env.clk.advance(2)
+    env.client.post("/worker-api/v1/tasks/t5/complete", json={"ok": True, "result": {}})
+    with env.eng.begin() as c:
+        rows = export_calibration(c)
+    assert len(rows) == 1
+    assert set(rows[0]) == {"op_type", "predicted_p10_s", "predicted_p50_s", "predicted_p90_s", "actual_s"}
+    assert rows[0]["op_type"] == "model.download"
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ETA-024")
+def test_eta_024_the_command_prints_json(env, embedded_pg, capsys):
+    import json
+
+    from opagent_cli.main import main
+
+    _task(env, "t6")
+    for i in range(11):
+        _report(env, "t6", i * 50)
+        env.clk.advance(2)
+    env.client.post("/worker-api/v1/tasks/t6/complete", json={"ok": True, "result": {}})
+    main(["ops", "export-calibration", "--dsn", embedded_pg.dsn])
+    assert json.loads(capsys.readouterr().out)[0]["op_type"] == "model.download"

@@ -11,6 +11,7 @@ from opagent_core.state_machine import JobStatus
 from opagent_db.schema import (
     event,
     job,
+    job_item,
     journal_mirror,
     operation,
     output_action,
@@ -26,7 +27,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from . import organize
 from . import queue as q
 from .db import set_job_status, to_aware
-from .operations import ensure_operation, set_op_status
+from .operations import ensure_operation, observe_job, observe_progress, set_op_status
 from .state import AppState
 
 router = APIRouter()
@@ -352,7 +353,11 @@ class ResultsIn(BaseModel):
 def results(body: ResultsIn, req: Request) -> dict[str, int]:
     st = _st(req)
     with st.engine.begin() as c:
-        return q.report(c, st.clock, body.worker_id, body.items)
+        out = q.report(c, st.clock, body.worker_id, body.items)
+        ids = [i["job_item_id"] for i in body.items]
+        for jid in c.execute(select(job_item.c.job_id).where(job_item.c.id.in_(ids)).distinct()).scalars():
+            observe_job(c, st.clock, jid)
+        return out
 
 
 @router.post("/release")
@@ -432,6 +437,8 @@ def task_progress(task_id: str, body: ProgressIn, req: Request) -> dict[str, Any
             keep = c.execute(select(operation.c.progress).where(operation.c.id == task_id)).scalar() or {}
             sticky = {k: keep[k] for k in ("auto_resumed",) if k in keep}  # 「已自動繼續」 outlives new progress
             c.execute(update(operation).where(operation.c.id == task_id).values(progress={**body.progress, **sticky}))
+            if op_status not in ("paused", "pausing") and not body.waiting_reason:
+                observe_progress(c, st.clock, task_id, body.progress)
         if body.waiting_reason:
             set_op_status(c, st.clock, task_id, "waiting", body.waiting_reason)
             if body.waiting_reason == "SOURCE_OFFLINE" and t.payload.get("source_id"):

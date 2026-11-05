@@ -506,6 +506,29 @@ def cmd_login(a: argparse.Namespace) -> None:
         print(f"no system keyring available: saved to {r['path']} (readable only by you)", file=sys.stderr)
 
 
+def cmd_ops_export_calibration(a: argparse.Namespace) -> None:
+    """ETA calibration rows as JSON, the input of M0-V7. Read-only, straight from the database: the app's API needs
+    the launch token, which only the shell has."""
+    import json
+
+    from opagent_api.operations import export_calibration
+    from opagent_db.embedded import EmbeddedPg
+    from opagent_db.schema import engine_for
+
+    dsn = a.dsn or os.environ.get("OPAGENT_DSN")
+    if not dsn:
+        pg_home = (Path(a.home) if a.home else _home()) / "pg"
+        try:
+            port = int((pg_home / "port").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            sys.exit(f"no database in {pg_home}: pass --dsn, or start the app once")
+        dsn = EmbeddedPg(pg_home, port=port, desktop=True).dsn
+    eng = engine_for(dsn)
+    with eng.connect() as c:
+        print(json.dumps(export_calibration(c), ensure_ascii=False, indent=2))
+    eng.dispose()
+
+
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(prog="opagent")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -578,6 +601,13 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--profile", default="default")
     p.add_argument("--home")
     p.set_defaults(fn=cmd_login)
+    p = sub.add_parser("ops", help="operation records")
+    osub = p.add_subparsers(dest="ops_cmd", required=True)
+    q = osub.add_parser("export-calibration", help="ETA predictions next to real durations, as JSON (M0-V7)")
+    q.add_argument("--dsn", help="database (default: the desktop app's, from the data folder)")
+    q.add_argument("--home", help="data folder")
+    q.set_defaults(fn=cmd_ops_export_calibration)
+
     p = sub.add_parser("dev")
     p.add_argument("--port", type=int, default=47800)
     p.add_argument("--roots", default=os.environ.get("OPAGENT_ROOTS", ""))
