@@ -18,7 +18,7 @@ from pathlib import Path
 
 TAG = "b12121"
 BASE = f"https://github.com/ggml-org/llama.cpp/releases/download/{TAG}/"
-# Windows takes the Vulkan build (ADR-0024): GPU on any vendor with no signed pack, CPU backends included
+# Windows takes the Vulkan build (ADR-0025): GPU on any vendor with no signed pack, CPU backends included
 ASSETS = {
     "win32": (
         f"llama-{TAG}-bin-win-vulkan-x64.zip",

@@ -31,6 +31,8 @@
 | ADR-0021 | `tc-status --check` 的逐位元比對永遠無法通過 | 1 | 6（第一次 CI） |
 | ADR-0022 | Linux AppImage 超過 200 MB；隨附的 Python runtime 不含直譯器 | 2 | 1D／6（desktop-build CI） |
 | ADR-0023 | 安裝後的 app 讀不到自己的資料（registry、整理方式、標籤、詞彙） | 1 | 1D／6（desktop-build CI 之後） |
+| ADR-0024 | Windows 上的 0600 | 1 | 地端 |
+| ADR-0025 | Windows 安裝包內建哪個 llama-server | 1 | 地端 |
 
 
 ## ADR-0001：任務門檻（accept／review）與分類 cascade 的關係
@@ -830,3 +832,22 @@
 - 資料庫、縮圖與人臉資料在 `D:\` 上仍依繼承的 ACL。是否保護整個資料夾要另行決定。
 - OneDrive 資料夾：ACL 擋不住以使用者身分執行的同步程式，應由 doctor 警示。
 
+## ADR-0025：Windows 安裝包內建 Vulkan 版 llama-server
+
+- 日期：2026-11-05｜狀態：已採納｜審議：1 個獨立 sub-agent（題目、08 §0 D5、§3、§4.1、實測數據）
+
+**背景**：08 §4.1 規定每個平台都有零下載的路徑，內建 CPU 版，GPU 靠簽章過的 runtime pack。但 pack 要等使用者的簽章金鑰與 CI recipe（B-5、B-17）。在那之前，只有 CPU 版的安裝包會讓 GPU 使用者跑不動 8B VLM，而 08 §3.3 的 CPU 檔位預設沒有 VLM，v0.1 的招牌功能等於不存在。
+
+**選項**：(A) 依規格內建 CPU 版；(B) Windows 內建 Vulkan 版，pack 裝好時優先；(C) 兩個都帶，執行時選擇。
+
+**決定**：採用 (B)。官方 win-vulkan 包已含所有 CPU backend，保留了零下載的 CPU 路徑；壓縮後約 38 MB，安裝包約 139 MB，仍在 150 MB 目標內。(C) 多 23 MB 與選擇邏輯，只有在 Vulkan 版無法退回 CPU 時才值得。macOS 維持 Metal，Linux 維持 CPU（.deb 空間不足）。
+
+**實測**（RTX 5070 Ti，Qwen3-VL-8B Q4_K_M，b12121）：CUDA 13 約 125 tok/s；Vulkan 只用獨顯 **約 85 tok/s，每張約 1.3 秒**。
+
+**實機發現**：這台機器同時有 AMD 內顯。llama.cpp 預設把模型切到所有裝置，內顯還回報整個系統記憶體，速度掉到 27 tok/s。`load_local` 因此解析 `--list-devices`，排除內顯，只用最大的獨顯（INF-LOCAL-006）。原本審議時擔心的「比 CUDA 慢 3–4 倍」，大部分是這個原因。
+
+**退回 CPU**：`GGML_VK_VISIBLE_DEVICES=none` 時 `--list-devices` 乾淨地回報沒有裝置；`OPAGENT_LLAMA_CPU=1` 強制 `--device none`。
+
+**仍待驗證**：沒有 `vulkan-1.dll`、壞掉的 ICD、無 GPU 的 VM；AMD 獨顯與 Intel 內顯的實機表現（只有這一台參考機）。NVIDIA 使用者在 pack 可用後仍應改用 CUDA。
+
+**同步修改的規格**：08 §3.2、§4.1。

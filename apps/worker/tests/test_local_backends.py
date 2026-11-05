@@ -11,7 +11,15 @@ from opagent_adapters.llamacpp import LlamaCppServerAdapter
 from opagent_adapters.ort_embed import OrtEmbedAdapter
 from opagent_inference.types import BatchRequest, ImageInput, LoadOptions
 from opagent_registry.loader import load_registry
-from opagent_worker.backends import LLAMA, find_llama_server, load_local, siglip_tokenizer, snapshot_path
+from opagent_worker.backends import (
+    LLAMA,
+    device_args,
+    find_llama_server,
+    load_local,
+    pick_device,
+    siglip_tokenizer,
+    snapshot_path,
+)
 from PIL import Image
 
 VLM, VLM_VARIANT = "qwen3-vl-8b-instruct", "q4_k_m"
@@ -245,3 +253,36 @@ def test_inf_local_005_a_bad_model_on_disk_does_not_take_the_worker_down(tmp_pat
     a.refresh_backends()
     assert a.backend is None
     assert "corrupt tokenizer" in caplog.text
+
+
+@pytest.mark.unit
+@pytest.mark.tc("INF-LOCAL-006")
+@pytest.mark.parametrize(
+    ("listing", "device"),
+    [
+        (
+            "Available devices:\n  Vulkan0: NVIDIA GeForce RTX 5070 Ti (15995 MiB, 15227 MiB free)\n"
+            "  Vulkan1: AMD Radeon(TM) Graphics (33613 MiB, 31933 MiB free)\n",
+            "Vulkan0",
+        ),
+        (
+            "  Vulkan0: Intel(R) UHD Graphics 770 (16000 MiB, 1 MiB free)\n  Vulkan1: AMD Radeon RX 7800 XT (16368 MiB, 1 MiB free)\n",
+            "Vulkan1",
+        ),
+        (
+            "  CUDA0: NVIDIA GeForce RTX 4090 (24000 MiB, 1 MiB free)\n  CUDA1: NVIDIA GeForce RTX 3060 (12000 MiB, 1 MiB free)\n",
+            "CUDA0",
+        ),
+        ("  Vulkan0: Intel(R) Iris(R) Xe Graphics (8000 MiB, 1 MiB free)\n", "Vulkan0"),  # only an iGPU: still use it
+        ("Available devices:\n  (none)\n", None),
+    ],
+)
+def test_inf_local_006_the_discrete_gpu_is_chosen(listing, device):
+    """回歸: the model was split over the 5070 Ti and the integrated Radeon: 27 tok/s, against 85 on the GPU alone."""
+    assert pick_device(listing) == device
+
+
+@pytest.mark.unit
+@pytest.mark.tc("INF-LOCAL-006")
+def test_inf_local_006_cpu_can_be_forced(tmp_path):
+    assert device_args(tmp_path / "x", {"OPAGENT_LLAMA_CPU": "1"}) == ["--device", "none"]

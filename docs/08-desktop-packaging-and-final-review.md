@@ -262,7 +262,7 @@ VRAM / 記憶體皆為**【估算】**（GGUF 權重 + mmproj + KV，8k context�
 | Python 依賴（FastAPI、pydantic-core、SQLAlchemy、asyncpg、alembic、procrastinate、Pillow、pillow-heif、numpy、blake3、jieba + 繁中字典、OpenCC、tokenizers、huggingface_hub、mcp SDK、structlog）| 35–50 MB | 35–50 MB | 35–50 MB |
 | ONNX Runtime（Win：DirectML 版；Mac：含 CoreML；Linux：CPU）| 15–25 MB | 15–25 MB | 10–15 MB |
 | `pg` pack（PG 17 + pgvector + 必要 contrib） | 25–40 MB | 20–35 MB | 20–35 MB |
-| llama-server（Win/Linux：CPU；Mac：Metal） | 5–15 MB | 5–15 MB | 5–15 MB |
+| llama-server（Win：Vulkan，含 CPU backend，ADR-0025；Linux：CPU；Mac：Metal） | 約 38 MB | 5–15 MB | 5–15 MB |
 | GeoNames（cities1000 + admin1 + 過濾成 zh/en/ja 的 alternateNames） | 8–15 MB | 8–15 MB | 8–15 MB |
 | **合計** | **約 120–190 MB** | **約 115–185 MB** | **約 110–180 MB** |
 

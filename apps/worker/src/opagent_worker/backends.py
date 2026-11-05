@@ -6,6 +6,8 @@ counts only once every file of its variant has landed. Nothing starts here: adap
 from __future__ import annotations
 
 import os
+import re
+import subprocess
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -17,6 +19,8 @@ from opagent_registry.loader import LoadedModel, Registry, load_registry
 from .downloads import _cache_dir
 
 LLAMA = "llama-server.exe" if os.name == "nt" else "llama-server"
+DEVICE_LINE = re.compile(r"^\s*(\w+\d+): (.+?) \((\d+) MiB", re.M)
+INTEGRATED = re.compile(r"Radeon\(TM\) Graphics|Radeon Graphics|UHD|Iris|Intel\(R\) Graphics", re.I)
 TEXT_LENGTH = 64  # SigLIP2 was trained with fixed-length, max_length-padded text
 
 
@@ -68,6 +72,26 @@ def find_llama_server(env: Mapping[str, str], packs_root: Path) -> Path | None:
             return packs[0]
     bundled = Path(env.get("OPAGENT_RUNTIME_DIR") or "") / LLAMA
     return bundled if env.get("OPAGENT_RUNTIME_DIR") and bundled.is_file() else None
+
+
+def pick_device(listing: str) -> str | None:
+    """``llama-server --list-devices`` → the device to use. llama.cpp splits a model over every device it sees, and an
+    integrated GPU reports all of system RAM as its memory: on the reference machine that cost 3x (27 vs 85 tok/s)."""
+    found = [(m[1], m[2], int(m[3])) for m in DEVICE_LINE.finditer(listing)]
+    discrete = [d for d in found if not INTEGRATED.search(d[1])]
+    best = max(discrete or found, key=lambda d: d[2], default=None)
+    return best[0] if best else None
+
+
+def device_args(exe: Path, env: Mapping[str, str]) -> list[str]:
+    if env.get("OPAGENT_LLAMA_CPU"):  # no usable GPU driver, or the person asked for it
+        return ["--device", "none"]
+    try:
+        r = subprocess.run([str(exe), "--list-devices"], capture_output=True, text=True, timeout=30, check=False)
+    except (OSError, subprocess.SubprocessError):
+        return []
+    device = pick_device(r.stdout + r.stderr)
+    return ["--device", device] if device else []
 
 
 def siglip_tokenizer(path: Path, length: int = TEXT_LENGTH) -> Callable[[Sequence[str]], np.ndarray]:
@@ -125,6 +149,7 @@ def load_local(
                 parallel=v.recommended_batch or 2,
                 fingerprint=_fingerprint(m, variant),
                 has_gpu=True,
+                extra_args=device_args(exe, env),
             )
     embedders = _installed(models_root, reg, "embedding")
     if embedders:
