@@ -5,9 +5,10 @@ from __future__ import annotations
 import json
 import subprocess
 from dataclasses import dataclass
+from typing import Any
 
 
-def processes(pid: int) -> list[dict]:
+def processes(pid: int) -> list[dict[str, Any]]:
     """``pid`` and its children: a venv's python.exe is a launcher, and the interpreter is its child."""
     ps = (
         "[Console]::OutputEncoding = [Text.Encoding]::UTF8; "
