@@ -32,7 +32,7 @@ def make_store(tmp_path, size, n=3):
         sha = h.hexdigest()
         tmp.rename(blobs / sha)
         try:
-            os.symlink(f"../../blobs/{sha}", snap / f"f{i}.gguf")
+            os.symlink(os.path.join("..", "..", "blobs", sha), snap / f"f{i}.gguf")  # as the downloader writes it
         except OSError:  # no symlink privilege: what the downloader itself falls back to (DL-018)
             os.link(blobs / sha, snap / f"f{i}.gguf")
         shas.append(sha)

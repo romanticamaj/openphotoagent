@@ -20,7 +20,9 @@ from opagent_testing.perms import assert_owner_only, widen
 @pytest.fixture
 def base():
     # pytest's tmp_path is private to root; the server runs as the postgres user when the runner is root
-    d = tempfile.mkdtemp(prefix="opagent-dpg-")
+    # not mkdtemp: on Windows its owner-only ACL locks out initdb, which drops admin rights (see the embedded_pg plugin)
+    d = os.path.join(tempfile.gettempdir(), f"opagent-dpg-{os.urandom(6).hex()}")
+    os.makedirs(d)
     os.chmod(d, 0o755)
     yield Path(d)
     shutil.rmtree(d, ignore_errors=True)
@@ -431,6 +433,7 @@ def test_pg_011_elevated_app_starts_postgres_through_pg_ctl(tmp_path, monkeypatc
 
 
 @pytest.mark.integration
+@pytest.mark.os_windows  # the only OS where postgres cannot be started directly by an elevated app
 @pytest.mark.tc("PG-011")
 def test_pg_011_pg_run_serves_and_stops_with_its_parent(pg):
     import sys

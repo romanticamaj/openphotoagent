@@ -230,3 +230,16 @@ def test_stdin_loop_handles_garbage():
     out = io.StringIO()
     serve(Relay(Path("/nonexistent"), "opagent_pat_x", server="http://127.0.0.1:9"), io.StringIO("not json\n"), out)
     assert json.loads(out.getvalue())["error"]["code"] == -32700
+
+
+@pytest.mark.unit
+@pytest.mark.tc("MCP-TRN-008")
+def test_trn_008_stdio_is_utf8_whatever_the_code_page():
+    """回歸: on Windows stdout defaulted to cp1252 and the first Chinese caption killed `opagent mcp`."""
+    code = "from opagent_cli.mcp_stdio import utf8_stdio; utf8_stdio(); print('貓')"
+    env = {k: v for k, v in os.environ.items() if k not in ("PYTHONUTF8", "PYTHONIOENCODING")}
+    r = subprocess.run(
+        [sys.executable, "-X", "utf8=0", "-c", code], capture_output=True, env={**env, "PYTHONIOENCODING": "cp1252"}
+    )
+    assert r.returncode == 0, r.stderr
+    assert r.stdout == "貓\n".encode()

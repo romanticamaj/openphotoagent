@@ -47,7 +47,8 @@ def assert_owner_only(path: Path | str, mode: int) -> None:
     d = sddl(path)
     inherit = "OICI" if path.is_dir() else ""
     assert d.startswith("D:P"), f"{path}: DACL is not protected from inheritance: {d}"
-    want = {f"(A;{inherit};FA;;;{_me()})", f"(A;{inherit};FA;;;SY)"}
+    me = "LA" if _me().endswith("-500") else _me()  # SDDL prints the built-in Administrator as an alias
+    want = {f"(A;{inherit};FA;;;{me})", f"(A;{inherit};FA;;;SY)"}
     assert set(re.findall(r"\([^)]*\)", d)) == want, f"{path}: {d}"
 
 

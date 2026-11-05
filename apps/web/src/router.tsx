@@ -47,7 +47,6 @@ const ApprovalInbox = lazy(() => import("./features/mcp/ApprovalPage").then((m) 
 const PeoplePage = lazy(() => import("./features/people/PeoplePage").then((m) => ({ default: m.PeoplePage })));
 const FaceReview = lazy(() => import("./features/people/PeoplePage").then((m) => ({ default: m.FaceReview })));
 const FaceSettingsPage = lazy(() => import("./features/people/PeoplePage").then((m) => ({ default: m.FaceSettingsPage })));
-const FaceOptInCard = lazy(() => import("./features/people/PeoplePage").then((m) => ({ default: m.FaceOptInCard })));
 const AskPanel = lazy(() => import("./features/ask/AskPanel").then((m) => ({ default: m.AskPanel })));
 const AssistantSettingsPage = lazy(() => import("./features/ask/AssistantSettingsPage").then((m) => ({ default: m.AssistantSettingsPage })));
 const MapPage = lazy(() => import("./features/map/MapPage").then((m) => ({ default: m.MapPage })));
@@ -188,7 +187,6 @@ function Shell() {
         <RecoveryCard onReview={() => setActivityOpen(true)} />
         <Suspense fallback={null}>
           <ApprovalInbox />
-          <FaceOptInCard />
         </Suspense>
         <Suspense fallback={<div aria-busy="true" />}>
           <Outlet />

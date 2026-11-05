@@ -22,6 +22,9 @@ export type GridApi = {
 
 const DENSITY = { comfortable: 260, standard: 200, compact: 120 } as const;
 const FAST_SCREENS_PER_S = 4;
+// the tiles below come from React state, a frame behind the browser's scroll: a wheel flick moves three screens in that
+// frame. Only ThumbHash backgrounds are painted while scrolling fast, so reaching further ahead is cheap (VIEW-003).
+const FAST_OVERSCAN_ROWS = 30;
 
 function aspect(a: TimelineAsset): number {
   return a.w && a.h ? Math.min(Math.max(a.w / a.h, 0.25), 4) : 1.5;
@@ -262,7 +265,7 @@ export function PhotoGrid({
             const top = v.start;
             const label = monthLabel(b.month, i18n.language) ?? t("viewer.unknownDate");
             const local = scrollTop - top - HEADER_H;
-            const tiles = l && assets ? visibleTiles(l, local, viewport, 2) : [];
+            const tiles = l && assets ? visibleTiles(l, local, viewport, fast ? FAST_OVERSCAN_ROWS : 2) : [];
             const rowOf = new Map<number, number>();
             l?.rows.forEach((r, ri) => r.tiles.forEach((x) => rowOf.set(x.index, ri)));
             const byRow = new Map<number, typeof tiles>();

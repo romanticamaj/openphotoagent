@@ -477,10 +477,11 @@ def cmd_mcp(a: argparse.Namespace) -> None:
     """stdio MCP server for AI clients (05 §3.1): a thin relay to the running app; no DB, no photos, no worker."""
     from opagent_mcp.credstore import load
 
-    from opagent_cli.mcp_stdio import Relay, serve
+    from opagent_cli.mcp_stdio import Relay, serve, utf8_stdio
 
     home = Path(a.home) if a.home else _home()
     readonly = a.readonly or os.environ.get("OPAGENT_MCP_READONLY") == "1"
+    utf8_stdio()
     serve(Relay(home, load(home, a.profile), server=a.server, readonly=readonly))
 
 

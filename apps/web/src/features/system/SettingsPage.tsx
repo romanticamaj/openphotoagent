@@ -4,6 +4,7 @@ import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { switchLanguage } from "../../lib/i18n";
 import { api } from "../../lib/api";
 
 export function applyTheme(theme: string) {
@@ -28,7 +29,7 @@ export function SettingsPage() {
       <h1 id="settings-h" className="text-xl font-semibold">{t("settings.title")}</h1>
       <label className="flex flex-col gap-1">
         {t("settings.language")}
-        <select value={i18n.language} onChange={(e) => void i18n.changeLanguage(e.target.value)} className="w-60 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-2 py-1">
+        <select value={i18n.language} onChange={(e) => void switchLanguage(e.target.value)} className="w-60 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-2 py-1">
           <option value="zh-TW">繁體中文</option>
           <option value="en">English</option>
         </select>

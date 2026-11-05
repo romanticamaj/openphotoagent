@@ -4,7 +4,7 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import "@fontsource-variable/inter";
 import "@fontsource-variable/noto-sans-tc";
-import "./lib/i18n";
+import { i18nReady } from "./lib/i18n";
 import { applyTheme } from "./features/system/SettingsPage";
 import "./styles.css";
 
@@ -13,6 +13,8 @@ try {
 } catch {
   /* storage unavailable: follow the system */
 }
+
+await i18nReady;
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

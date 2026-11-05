@@ -51,7 +51,9 @@ def main() -> int:
     ap.add_argument("app", type=Path)
     ap.add_argument("--timeout", type=float, default=180)
     a = ap.parse_args()
-    home = Path(tempfile.mkdtemp(prefix="opa-smoke-"))
+    # not mkdtemp: its owner-only ACL on Windows locks out initdb, which drops admin rights on a CI runner
+    home = Path(tempfile.gettempdir()) / f"opa-smoke-{os.urandom(6).hex()}"
+    home.mkdir(parents=True)
     env = {**os.environ, "OPAGENT_HOME": str(home)}
     app = subprocess.Popen([str(a.app)], env=env)
     code = 1

@@ -239,6 +239,7 @@
 | MCP-TRN-005 | 錯誤帶錯誤碼不帶 fix_id | 觸發 `SEARCH_INDEX_INCOMPLETE` | tool result 帶 `code` 與 `fixes[].label`，**沒有** `fix_id` | C | #72 | v0.2 |
 | MCP-TRN-006 | `--experimental` 唯讀 stdio | v0.1 若啟用（11 §5.5 例外） | 只提供 photos:read tools | C | #60 | v0.1（選用） |
 | MCP-TRN-007 | HTTP `/mcp` + OAuth | Claude Code 以 `/mcp` 完成 OAuth；撤銷 grant | 撤銷後下一次呼叫失敗；Host／Origin 驗證 | I/S | #73 | v0.5 |
+| MCP-TRN-008 | stdio 一律 UTF-8（回歸） | 主控台字碼頁 cp1252，輸出中文 | 不崩潰，位元組為 UTF-8 | U | Windows |
 | MCP-PAT-001 | keyring 儲存 | 精靈建立 PAT | 存在 OS keyring；設定檔不含明文；Linux 無 Secret Service 時降級 owner-only 檔（0600，ADR-0024）並顯示警示 | I/S | #60 | v0.2 |
 | MCP-PAT-002 | 精靈只寫已知路徑 | 偵測 Claude Desktop／Claude Code／Cursor 設定 | 顯示 diff 後才寫；只寫已知設定檔路徑表內的檔案；寫入前備份 | E | #61 | v0.2 |
 | MCP-PAT-003 | 設定寫絕對路徑 | 產生的 client 設定 | `command` 為 `opagent` 的絕對路徑（安裝程式不改 PATH） | U | #60 | v0.2 |

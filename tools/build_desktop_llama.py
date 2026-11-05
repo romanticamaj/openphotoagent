@@ -52,7 +52,7 @@ def keep(name: str) -> bool:
     return False
 
 
-def from_tar(members: dict[str, tarfile.TarInfo]) -> list[tuple[str, str]]:
+def from_tar(members: dict[str, tarfile.TarInfo], aliases: bool = False) -> list[tuple[str, str]]:
     """(file to write, member holding its bytes). A library ships as libX.so -> libX.so.0 -> libX.so.0.9.0: only the
     middle name is ever loaded, so it alone is kept, and the bundle needs no symlinks."""
     out = []
@@ -60,12 +60,12 @@ def from_tar(members: dict[str, tarfile.TarInfo]) -> list[tuple[str, str]]:
         if not keep(name):
             continue
         if m.issym():
-            if SONAME.search(name):
+            if aliases or SONAME.search(name):
                 target = m
                 while target.issym():
                     target = members[Path(target.linkname).name]
                 out.append((name, target.name.rsplit("/", 1)[-1]))
-        elif not VERSIONED.search(name):
+        elif aliases or not VERSIONED.search(name):
             out.append((name, name))
     return out
 
@@ -81,7 +81,7 @@ def unpack(data: bytes, name: str, out: Path) -> None:
         return
     with tarfile.open(fileobj=io.BytesIO(data)) as t:
         members = {Path(m.name).name: m for m in t.getmembers() if m.isfile() or m.issym()}
-        for dest, src in from_tar(members):
+        for dest, src in from_tar(members, aliases=sys.platform == "darwin"):
             f = t.extractfile(members[src])
             assert f is not None
             (out / dest).write_bytes(f.read())

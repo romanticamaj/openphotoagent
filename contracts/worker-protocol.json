@@ -3855,6 +3855,7 @@
     "fix",
     "hash_sha1",
     "probe_root",
+    "query_plan",
     "remove",
     "scan",
     "scan_models",

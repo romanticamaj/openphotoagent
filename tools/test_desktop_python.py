@@ -126,6 +126,7 @@ def test_desk_040_app_data_ships_inside_the_runtime(runtime, tmp_path):
 
 
 @pytest.mark.integration
+@pytest.mark.os_linux  # the failure needs a system python3.12 under /usr, which only the Linux runner has
 @pytest.mark.tc("DESK-042")
 def test_desk_042_runtime_source_is_uv_managed_even_inside_a_system_venv(tmp_path, monkeypatch):
     """回歸 (ADR-0023): ``uv python find`` answered with the active project venv. CI's venv sits on the runner's
@@ -233,9 +234,10 @@ def test_desk_051_tar_keeps_one_copy_of_each_library_under_its_soname():
         "libllama.0.9.0.dylib": member("libllama.0.9.0.dylib"),
         "libllama-bench-impl.so": member("libllama-bench-impl.so"),
     }
-    assert sorted(mod.from_tar(tree)) == [
+    assert sorted(mod.from_tar({k: v for k, v in tree.items() if "dylib" not in k})) == [
         ("libggml-cpu-zen4.so", "libggml-cpu-zen4.so"),
-        ("libllama.0.dylib", "libllama.0.9.0.dylib"),
         ("libllama.so.0", "libllama.so.0.9.0"),
         ("llama-server", "llama-server"),
     ]
+    # ggml's backend loader finds macOS libraries by their bare name: there every name stays
+    assert ("libllama.dylib", "libllama.0.9.0.dylib") in mod.from_tar(tree, aliases=True)
