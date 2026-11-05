@@ -17,7 +17,7 @@ test.describe("connect AI assistants", () => {
     await wiz.getByRole("checkbox", { name: /傳送縮圖/ }).uncheck();
     await wiz.getByRole("button", { name: "建立並繼續" }).click();
     await expect(wiz.getByTestId("mcp-credential")).toBeVisible();
-    await expect(wiz.getByTestId("mcp-diff")).toContainText('"args":["mcp"]');
+    await expect(wiz.getByTestId("mcp-diff")).toContainText('"args":["mcp","--home",');
     expect(existsSync(cfg.path)).toBe(true);
     const before = readFileSync(cfg.path, "utf8");
     expect(before).not.toContain("openphotoagent"); // nothing written before the person says so
