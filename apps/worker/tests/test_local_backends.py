@@ -11,7 +11,7 @@ from opagent_adapters.llamacpp import LlamaCppServerAdapter
 from opagent_adapters.ort_embed import OrtEmbedAdapter
 from opagent_inference.types import BatchRequest, ImageInput, LoadOptions
 from opagent_registry.loader import load_registry
-from opagent_worker.backends import find_llama_server, load_local, siglip_tokenizer, snapshot_path
+from opagent_worker.backends import LLAMA, find_llama_server, load_local, siglip_tokenizer, snapshot_path
 from PIL import Image
 
 VLM, VLM_VARIANT = "qwen3-vl-8b-instruct", "q4_k_m"
@@ -111,7 +111,7 @@ def test_inf_local_002_vlm_without_a_runtime_is_reported_not_faked(tmp_path):
 def test_inf_local_002_runtime_lookup_order(tmp_path):
     bundled = tmp_path / "bundled"
     bundled.mkdir()
-    name = "llama-server.exe"
+    name = LLAMA
     (bundled / name).write_bytes(b"")
     pack = tmp_path / "packs" / "llamacpp-cuda13" / "1.0.0"
     pack.mkdir(parents=True)
