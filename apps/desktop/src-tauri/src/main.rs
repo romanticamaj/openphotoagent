@@ -40,6 +40,7 @@ struct Shell {
     home: PathBuf,
     python: PathBuf,
     pg_bin: PathBuf,
+    runtime_dir: PathBuf,
     pg_stop: Mutex<Option<(String, String)>>,
     status: Mutex<BootStatus>,
     token: String,
@@ -79,6 +80,7 @@ impl Shell {
         c.arg("-I").arg("-m").arg("opagent_cli").args(args);
         c.env_remove("PYTHONPATH").env_remove("PYTHONHOME"); // DESK-027
         c.env("OPAGENT_PG_BIN", &self.pg_bin); // the bundled pack, also for pg_dump in the api
+        c.env("OPAGENT_RUNTIME_DIR", &self.runtime_dir); // llama-server inside the app (08 §4.1)
         hide_console(&mut c);
         c
     }
@@ -145,6 +147,8 @@ impl Shell {
 
     fn start_api(&self, dsn: &str) -> Result<(), String> {
         let home = self.home.to_str().unwrap_or_default().to_string();
+        // a leftover from the last run names a port nobody may be listening on
+        let _ = std::fs::remove_file(self.home.join("run").join("api.json"));
         let cmd = self.opagent(&["api", "--dsn", dsn, "--token-stdin", "--home", &home]);
         let mut child =
             spawn_supervised(self.logged(cmd, "api.stderr.log")?).map_err(|e| e.to_string())?;
@@ -179,6 +183,7 @@ impl Shell {
     fn start_worker(&self, base_url: &str) -> Result<(), String> {
         let wh = self.home.join("worker");
         let roots_file = self.roots_file();
+        let models = self.home.join("models");
         let cmd = self.opagent(&[
             "worker",
             "--api",
@@ -191,7 +196,9 @@ impl Shell {
             wh.to_str().unwrap_or_default(),
             "--token-stdin",
             "--backend",
-            "none",
+            "auto",
+            "--models-root",
+            models.to_str().unwrap_or_default(),
         ]);
         let mut child =
             spawn_supervised(self.logged(cmd, "worker.stderr.log")?).map_err(|e| e.to_string())?;
@@ -505,6 +512,7 @@ fn main() {
                 home: home.clone(),
                 python: python_in(&resources),
                 pg_bin: resources.join("pg").join("bin"),
+                runtime_dir: resources.join("llama"),
                 pg_stop: Mutex::new(None),
                 status: Mutex::new(BootStatus {
                     logs: home.join("logs").to_string_lossy().to_string(),

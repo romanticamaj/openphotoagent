@@ -219,7 +219,8 @@ class EmbeddedPg:
             return ["-p", str(self.port), "-k", str(self.home), "-c", "listen_addresses=127.0.0.1"]
         ram = self.ram_gb if self.ram_gb is not None else _total_ram_gb()
         if self.transport == "tcp":
-            listen = ["-c", "listen_addresses=127.0.0.1"]
+            # no socket either: its default directory on Linux is one this user cannot write
+            listen = ["-c", "listen_addresses=127.0.0.1", "-c", "unix_socket_directories="]
         else:
             listen = ["-k", str(self.run_dir), "-c", "listen_addresses=", "-c", "unix_socket_permissions=0700"]
         return [

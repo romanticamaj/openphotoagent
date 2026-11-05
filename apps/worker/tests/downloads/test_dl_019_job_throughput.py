@@ -58,7 +58,7 @@ def test_dl_019_download_does_not_slow_a_running_job(embedded_pg, sandbox_tree, 
     parent, child = ctx.Pipe()
     host = ctx.Process(
         target=serve_in_child,
-        args=(child, "openphotoagent/siglip2-so400m-patch14-384-onnx", FILES, 100 * 1024 * 1024),
+        args=(child, "onnx-community/siglip2-so400m-patch14-384-ONNX", FILES, 100 * 1024 * 1024),
         daemon=True,
     )
     host.start()

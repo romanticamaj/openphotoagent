@@ -148,3 +148,34 @@ def test_desk_042_runtime_source_is_uv_managed_even_inside_a_system_venv(tmp_pat
     prefix = mod._base_prefix()
     assert prefix.resolve().is_relative_to(managed.resolve()), (prefix, managed)
     assert (prefix / "lib").is_dir() or (prefix / "Lib").is_dir()
+
+
+@pytest.mark.unit
+@pytest.mark.tc("DESK-051")
+def test_desk_051_only_the_server_and_its_libraries_ship():
+    """回歸: 08 §4.1 puts llama-server in the installer, and it was missing: a fresh install could run no model."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("build_desktop_llama", ROOT / "tools/build_desktop_llama.py")
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    for name in (
+        "llama-server.exe",
+        "llama-server",
+        "llama-server-impl.dll",
+        "llama-common.dll",
+        "ggml-vulkan.dll",
+        "ggml-cpu-zen4.dll",
+        "llama.dll",
+        "mtmd.dll",
+        "libllama.so.0",
+        "libggml.dylib",
+        "LICENSE-LLVM-OpenMP",
+    ):
+        assert mod.keep(name), name
+    for name in ("llama-cli.exe", "llama-bench.exe", "llama-bench-impl.dll", "ggml-rpc.dll", "ggml-rpc-server.exe"):
+        assert not mod.keep(name), name
+    assert all(len(sha) == 64 for _, sha in mod.ASSETS.values())
+    conf = (ROOT / "apps/desktop/src-tauri/tauri.conf.json").read_text(encoding="utf-8")
+    assert "build/desktop/llama" in conf

@@ -119,8 +119,13 @@ class OrtEmbedAdapter:
         arr = np.asarray(rgb, dtype=np.float32) / 255.0
         return ((arr - self.mean) / self.std).transpose(2, 0, 1)
 
+    @staticmethod
+    def _embedding_output(sess: ort.InferenceSession) -> list[str] | None:
+        """Exports differ: ours has one output; the public one puts last_hidden_state first (INF-LOCAL-004)."""
+        return ["pooler_output"] if any(o.name == "pooler_output" for o in sess.get_outputs()) else None
+
     def _run(self, sess: ort.InferenceSession, feeds: dict[str, np.ndarray], ro: ort.RunOptions) -> np.ndarray:
-        return np.asarray(sess.run(None, feeds, ro)[0], dtype=np.float32)
+        return np.asarray(sess.run(self._embedding_output(sess), feeds, ro)[0], dtype=np.float32)
 
     @staticmethod
     def _l2(x: np.ndarray) -> np.ndarray:
@@ -172,5 +177,5 @@ class OrtEmbedAdapter:
         if self.text is None or self.tokenizer is None:
             raise ModelUnavailable("text encoder not loaded")
         ids = self.tokenizer(texts)
-        out = self.text.run(None, {self.text.get_inputs()[0].name: ids})[0]
+        out = self.text.run(self._embedding_output(self.text), {self.text.get_inputs()[0].name: ids})[0]
         return self._l2(np.asarray(out, dtype=np.float32))

@@ -385,17 +385,23 @@ def cmd_worker(a: argparse.Namespace) -> None:
     if a.token_stdin:
         watch_parent_pipe()
     backend = None
-    if a.backend == "fake":  # v0.1-B: the FakeBackend until the real adapters land (slice 7)
+    if a.backend == "fake":  # tests and `opagent dev`; production is `auto`
         from opagent_inference.fake import FakeBackend
 
         backend = FakeBackend()
+    models_root = Path(a.models_root) if a.models_root else None
     agent = WorkerAgent(
         client,
         roots=_read_roots_file(Path(a.roots_file)) if a.roots_file else _parse_roots(a.roots),
         home=Path(a.home) if a.home else _home() / "worker",
         backend=backend,
         worker_id=a.worker_id,
+        models_root=models_root,
     )
+    if a.backend == "auto":
+        from opagent_worker.backends import load_local
+
+        agent.backend_factory = lambda: load_local(agent.models_root)
     if a.token_stdin:  # desktop: pause heavy labelling on battery (06 §5, DESK-023)
         from opagent_worker.policy import ResourcePolicy
         from opagent_worker.power import system_power
@@ -405,6 +411,7 @@ def cmd_worker(a: argparse.Namespace) -> None:
     signal.signal(signal.SIGTERM, lambda *_: stop.set())
     while not stop.is_set():
         try:
+            agent.refresh_backends()
             agent.register()
             break
         except httpx.HTTPError:
@@ -518,7 +525,8 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--roots", help="alias=path:mode,...")
     p.add_argument("--worker-id")
     p.add_argument("--roots-file", help="desktop: the JSON list the shell writes after the folder dialog")
-    p.add_argument("--backend", default="fake", choices=["fake", "none"])
+    p.add_argument("--backend", default="fake", choices=["fake", "none", "auto"])
+    p.add_argument("--models-root", help="where models live (default <home>/models)")
     p.add_argument("--once", action="store_true", help="process what is queued, then exit")
     p.add_argument("--home", help="worker state directory (default <OPAGENT_HOME>/worker)")
     p.add_argument("--token-stdin", action="store_true", help="desktop: read the launch token from stdin")

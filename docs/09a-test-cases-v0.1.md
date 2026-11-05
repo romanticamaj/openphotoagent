@@ -369,6 +369,11 @@
 | INF-CONF-011 | 不接觸路徑 | 靜態檢查 `BatchRequest`／`ImageInput` 傳入 adapter 時 `path is None` | adapter 程式碼中無 `open(`／`Path(` 於影像輸入（ruff 自訂規則 + 執行期斷言） | C/S | — |
 | INF-CONF-012 | `health()` | — | 回傳 `vram_used_mb`（無 GPU 時為 0） | C | — |
 | INF-CONF-013 | 載入進度回報 | `load(opts, reporter)` | 至少回報一個子階段；無法取得時以時間模型進度且 ≤ 95% 直到 ready | C | #33 |
+| INF-LOCAL-001 | 依磁碟上的模型建立真 adapter（回歸） | 無模型；VLM 檔案齊全且有 runtime | 無模型時兩者皆無；有時為 `LlamaCppServerAdapter`，參數含權重、mmproj、`--jinja`；fingerprint 含 variant | U | #15、不變量 7 |
+| INF-LOCAL-002 | 缺 runtime 要回報，不假裝（回歸） | 有 VLM、無 llama-server；override／pack／內建三處 | 回報 `RUNTIME_NOT_INSTALLED`；順序為 override > GPU pack > 內建 | U | 不變量 8 |
+| INF-LOCAL-003 | SigLIP2 tokenizer 固定長度（回歸） | 短句與超長句 | int64、長度 64，padding 與截斷 | U | M0-S4 |
+| INF-LOCAL-004 | embedding 取 `pooler_output`（回歸） | 第一個輸出是 last_hidden_state 的 ONNX | 影像與文字都取到正規化的 embedding | U | M0-S4 |
+| INF-LOCAL-005 | 下載完成的模型免重啟生效（回歸） | 模型出現、相同模型重建、換模型 | 換上新 adapter 並重新註冊；相同模型不動；舊 adapter 關閉 | U | DoD 5.2 |
 
 ### 6.3 INF-JSON：fused 結構化輸出驗證與修復（03 §3.0、§2.3）
 
@@ -877,6 +882,8 @@
 | DESK-047 | 啟動畫面與啟動失敗頁（回歸） | 後端未就緒；`shell_status` 回報 fatal；就緒後 reconnecting | 顯示啟動中而非空白；失敗時顯示代碼、細節、log 位置與複製診斷；重新連線時保留畫面 | U | #8、DESK-001 |
 | DESK-048 | 桌面版用系統對話框新增來源（回歸） | 桌面點「加入資料夾」；取消；Web build | root 出現後可選；取消無變化；Web build 沒有此按鈕 | U | 不變量 2 |
 | DESK-049 | 隨附路徑不帶 `\\?\` 前綴（回歸） | Tauri 回傳 verbatim 的 resource 路徑 | 傳給子進程的是一般路徑（initdb 才找得到 postgres） | U | DESK-034 |
+| DESK-050 | 桌面視窗可以呼叫 API（回歸） | 來源 `http://tauri.localhost` 的 preflight、帶 token 與不帶 token 的請求；其他來源 | preflight 204 不需 token；回應帶 `Access-Control-Allow-Origin`，不帶 credentials；其他來源一律沒有 CORS 標頭 | I | #8 |
+| DESK-051 | 安裝包內含 llama-server（回歸） | `tools/build_desktop_llama.py` 的檔案篩選、釘選雜湊、tauri 資源 | 只留 server 與其函式庫；三平台都有 sha256；資源已列入 | U | #15、08 §4.1 |
 
 ### 13.2 PG：嵌入式 PostgreSQL 17 + pgvector（08 §2.3）
 

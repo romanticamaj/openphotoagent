@@ -20,7 +20,7 @@ INT8 = ["vision_model_int8.onnx", "text_model_int8.onnx", "tokenizer.json"]
 def env(embedded_pg, sandbox_tree, tmp_path):
     """Registry copy with fixture pins for SigLIP2 int8 whose bytes the fake HF server serves (ADR-0002)."""
     files = [HfFile(p, 200_000 + i * 1000, seed=i) for i, p in enumerate(INT8)]
-    srv = HfServer("openphotoagent/siglip2-so400m-patch14-384-onnx", files).start()
+    srv = HfServer("onnx-community/siglip2-so400m-patch14-384-ONNX", files).start()
     reg = tmp_path / "registry"
     shutil.copytree(BUILTIN_DIR, reg)
     shutil.copy(ROOT / "fixtures/registry/models/fixture-nc-vlm.yaml", reg / "models")
