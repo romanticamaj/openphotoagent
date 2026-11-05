@@ -452,7 +452,8 @@
       "vulkan": "Vulkan（相容模式）",
       "cuda": "CUDA",
       "cpu": "CPU",
-      "metal": "Metal"
+      "metal": "Metal",
+      "allInstalled": "模型都已安裝，不需要下載。"
     },
     "download": "開始下載",
     "pickTitle": "選擇照片資料夾",
