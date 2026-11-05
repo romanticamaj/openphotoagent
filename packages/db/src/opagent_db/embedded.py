@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import quote
 
+from opagent_secure import write_private
+
 
 def find_pg_bin() -> Path:
     env = os.environ.get("OPAGENT_PG_BIN")
@@ -29,13 +31,6 @@ def find_pg_bin() -> Path:
         if (Path(c) / "initdb").exists():
             return Path(c)
     raise RuntimeError("PostgreSQL binaries not found; set OPAGENT_PG_BIN")
-
-
-def write_private(path: Path, text: str) -> None:
-    """A file only its owner can read (0600 on POSIX)."""
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w", encoding="utf-8") as f:
-        f.write(text)
 
 
 def _port_is_free(port: int) -> bool:
@@ -215,12 +210,12 @@ class EmbeddedPg:
         self.home.mkdir(parents=True, exist_ok=True)
         password = secrets.token_urlsafe(32)
         once = self.home / ".pw-initdb"
-        write_private(once, password)
+        write_private(once, password.encode())
         try:
             self.run_as(*args, f"--pwfile={once}")
         finally:
             once.unlink(missing_ok=True)
-        write_private(self.passfile, f"127.0.0.1:*:*:{self.user}:{password}\n")
+        write_private(self.passfile, f"127.0.0.1:*:*:{self.user}:{password}\n".encode())
 
     def _clear_stale_pid(self) -> None:
         pidfile = self.data / "postmaster.pid"

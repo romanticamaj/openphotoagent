@@ -910,6 +910,7 @@
 | PG-019 | 存活檢查不對進程送訊號（回歸） | Windows：`os.kill` 被禁止；活著的非 postgres 進程與已結束的 pid | 都回 False，進程不受影響 | I | Windows |
 | PG-020 | 等 postmaster 啟動完成（回歸） | 建庫時 postmaster 1 秒後才起來 | 重試到連上，不崩潰 | I | DESK-034 |
 | PG-021 | 桌面 profile 讀到真實 RAM（回歸） | Windows：與 `Win32_ComputerSystem.TotalPhysicalMemory` 比對 | 誤差 ≤ 1%（`os.sysconf` 在 Windows 不存在，曾一律回傳 8.0 GB，每台 Windows 都拿到小筆電的 `shared_buffers`） | U | #4 |
+| PG-022 | SCRAM 密碼檔是 owner-only（回歸，ADR-0024） | 資料夾權限寬鬆；`.pw-initdb` 與 `pgpass` | 兩者都符合 DESK-050 的 owner-only（Windows 上 `os.open(..., 0o600)` 沒有作用，其他本機使用者曾可讀取 TCP 資料庫的密碼） | I | #8 |
 
 ### 13.3 PACK：Runtime pack 驗證（08 §4.3）
 

@@ -819,13 +819,14 @@
 - pytest 的 tmp 資料夾本來就是私有的，測試會先用 `widen()` 放寬，並有負向對照，否則斷言沒有意義。
 - MIG-002、MCP-PAT-001、DESK 系列的 mode 斷言改用此 helper，POSIX 行為不變。
 
-**同步修改的規格**：08 §1.3、09a DESK-050／044、09b MCP-PAT-001。
+**同步修改的規格**：08 §1.3、09a DESK-050／051、PG-022、09b MCP-PAT-001。
+
+**補記**：`EmbeddedPg` 的 SCRAM 密碼檔（`pgpass`、`.pw-initdb`）也走同一個 helper（PG-022）。
 
 **順帶修正的 POSIX 問題**：`Credentials.save` 先寫入才 chmod；credstore 寫入既有檔案後才 chmod；`api.json.tmp` 是固定檔名。現在都是原子寫入。
 
 **後續（尚未處理）**：
 - SID 改變（重灌 Windows、把磁碟搬到別台）之後，受保護的 `run/` 對新帳號不可寫，app 會起不來。需要獨立的錯誤碼與修復 CTA（不變量 8）。
 - 資料庫、縮圖與人臉資料在 `D:\` 上仍依繼承的 ACL。是否保護整個資料夾要另行決定。
-- 嵌入式 PG 在 Windows 的認證（PG-012 的 SCRAM 隨機密碼檔）目前沒有實作，見 `EmbeddedPg`；這項不在本 ADR 範圍。
 - OneDrive 資料夾：ACL 擋不住以使用者身分執行的同步程式，應由 doctor 警示。
 

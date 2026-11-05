@@ -14,6 +14,7 @@ import pytest
 from opagent_db.embedded import EmbeddedPg, PgAlreadyRunning, PgError
 from opagent_db.lifecycle import SCHEMA_REVISION, Backups, SchemaTooNew, migrate, schema_revision
 from opagent_testing.clock import FakeClock
+from opagent_testing.perms import assert_owner_only, widen
 
 
 @pytest.fixture
@@ -283,6 +284,31 @@ def test_pg_016_desktop_initdb_uses_locales_every_os_has(tmp_path, monkeypatch):
     script = (Path(__file__).resolve().parents[3] / "tools/build_desktop_pg.sh").read_text(encoding="utf-8")
     smoke = next(ln for ln in script.splitlines() if "initdb" in ln and "--locale" in ln)
     assert "--builtin-locale=C.UTF-8" in smoke and "--locale=C " in smoke + " " and "--locale=C.UTF-8" not in smoke
+
+
+@pytest.mark.integration
+@pytest.mark.tc("PG-022")
+def test_pg_022_the_scram_password_is_owner_only_under_a_wide_data_folder(pg, monkeypatch):
+    """回歸 (ADR-0024): os.open(..., 0o600) means nothing on Windows, so on a data folder on D:\\ every local user could
+    read the password of a database that listens on TCP."""
+    monkeypatch.delenv("PGPASSFILE", raising=False)
+    p = pg(transport="tcp")
+    p.home.mkdir(parents=True, exist_ok=True)
+    widen(p.home, 0o777)
+    seen = []
+    real = p.run_as
+
+    def run_as(*args):
+        for a in args:
+            if a.startswith("--pwfile="):
+                assert_owner_only(a.removeprefix("--pwfile="), 0o600)
+                seen.append(a)
+        return real(*args)
+
+    monkeypatch.setattr(p, "run_as", run_as)
+    assert q(p.start(), "SELECT 1") == 1
+    assert seen, "initdb never got a password file"
+    assert_owner_only(p.passfile, 0o600)
 
 
 @pytest.mark.integration

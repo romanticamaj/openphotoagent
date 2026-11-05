@@ -79,7 +79,9 @@ class ModelStore:
             elif p.is_file():
                 st = p.stat()
                 same = first.setdefault((st.st_dev, st.st_ino), rel) if st.st_nlink > 1 else rel
-                out.append({"rel": rel, "size": st.st_size} if same == rel else {"rel": rel, "hardlink": same, "size": 0})
+                out.append(
+                    {"rel": rel, "size": st.st_size} if same == rel else {"rel": rel, "hardlink": same, "size": 0}
+                )
         return out
 
     def verify(self, root: Path) -> list[str]:

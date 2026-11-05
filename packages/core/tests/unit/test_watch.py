@@ -107,4 +107,3 @@ def test_watch_007_mapped_network_drives_become_a_mount_table():
     assert W.mode_for(W.fstype_of("Z:\\photos", table)) == "poll"
     assert W.mode_for(W.fstype_of("C:\\photos", table)) == "native"
     assert W.mode_for(W.fstype_of("E:\\DCIM", table)) == "native"
-

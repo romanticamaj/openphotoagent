@@ -93,4 +93,3 @@ def test_trash_010_expiry_is_utc_whatever_the_database_session_zone(embedded_pg)
     _seed(embedded_pg.dsn, clk)
     got = client.get("/api/v1/trash/summary").json()["earliest_expiry"]
     assert got == (clk.now() - timedelta(days=10) + timedelta(days=30)).astimezone(UTC).isoformat()
-

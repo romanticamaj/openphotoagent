@@ -35,4 +35,3 @@ def test_view_012_a_dotted_folder_in_a_client_route_is_still_the_web_app(embedde
     (tmp_path / "index.html").write_text("<!doctype html><div id=root></div>", encoding="utf-8")
     c = TestClient(create_app(dsn=embedded_pg.dsn, static_dir=str(tmp_path)))
     assert "id=root" in c.get("/review/v1.2/abc").text  # only the last segment decides "this is a file"
-
