@@ -173,7 +173,7 @@ def prepare_database(dsn: str, home: Path) -> None:
     from opagent_db.embedded import find_pg_bin
     from opagent_db.lifecycle import Backups, SchemaTooNew, ensure_database, migrate
 
-    ensure_database(dsn)  # the shell starts a bare postmaster; the app database is created on first start
+    ensure_database(dsn, wait_s=60)  # the shell starts a bare postmaster; the app database is created on first start
     backups = Backups(home / "backups", find_pg_bin(), SystemClock())
     try:
         migrate(dsn, backups)
@@ -280,7 +280,8 @@ def cmd_pg_prepare(a: argparse.Namespace) -> None:
     except PgError as e:
         print(json.dumps({"code": e.code, "params": e.params}), file=sys.stderr)
         raise SystemExit(6) from e
-    print(json.dumps({"argv": argv, "dsn": pg.dsn, "admin_dsn": pg.dsn_for("postgres"), "data": str(pg.data)}))
+    result = {"argv": argv, "dsn": pg.dsn, "admin_dsn": pg.dsn_for("postgres"), "data": str(pg.data)}
+    print(json.dumps({**result, "pg_ctl": str(pg.bin / "pg_ctl")}))
 
 
 def _remote_home(a: argparse.Namespace) -> Path:
@@ -306,11 +307,14 @@ def _roots_file(home: Path) -> Path:
     return home / "roots.json"
 
 
-def _load_roots(home: Path) -> list[dict[str, str]]:
+def _read_roots_file(f: Path) -> list[dict[str, str]]:
     import json
 
-    f = _roots_file(home)
     return list(json.loads(f.read_text(encoding="utf-8"))) if f.exists() else []
+
+
+def _load_roots(home: Path) -> list[dict[str, str]]:
+    return _read_roots_file(_roots_file(home))
 
 
 def cmd_worker_roots(a: argparse.Namespace) -> None:
@@ -368,7 +372,7 @@ def cmd_worker_run(a: argparse.Namespace) -> None:
 def cmd_worker(a: argparse.Namespace) -> None:
     import httpx
 
-    if not a.api or not a.roots:
+    if not a.api or not (a.roots or a.roots_file):
         raise SystemExit("opagent worker: --api and --roots are required (or use enroll / roots / run)")
     from opagent_worker.agent import WorkerAgent
 
@@ -384,7 +388,7 @@ def cmd_worker(a: argparse.Namespace) -> None:
         backend = FakeBackend()
     agent = WorkerAgent(
         client,
-        roots=_parse_roots(a.roots),
+        roots=_read_roots_file(Path(a.roots_file)) if a.roots_file else _parse_roots(a.roots),
         home=Path(a.home) if a.home else _home() / "worker",
         backend=backend,
         worker_id=a.worker_id,
@@ -510,6 +514,7 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--api")
     p.add_argument("--roots", help="alias=path:mode,...")
     p.add_argument("--worker-id")
+    p.add_argument("--roots-file", help="desktop: the JSON list the shell writes after the folder dialog")
     p.add_argument("--backend", default="fake", choices=["fake", "none"])
     p.add_argument("--once", action="store_true", help="process what is queued, then exit")
     p.add_argument("--home", help="worker state directory (default <OPAGENT_HOME>/worker)")

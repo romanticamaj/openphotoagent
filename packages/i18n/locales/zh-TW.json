@@ -84,7 +84,8 @@
     "moveNeedAck": "請先勾選確認",
     "moveNeedText": "請輸入確認字串",
     "close": "取消",
-    "summaryTrash": "將移到垃圾桶 {count} 張，保留每組的代表張。可隨時復原"
+    "summaryTrash": "將移到垃圾桶 {count} 張，保留每組的代表張。可隨時復原",
+    "addFolder": "加入資料夾…"
   },
   "eta": {
     "slow": {
@@ -819,5 +820,13 @@
     "smaller_variant": "改用較小的版本：佔用的空間與記憶體較少，準確度略低。",
     "t256_only": "只保留最小的縮圖：空間足夠之前，檢視器顯示的細節較少。",
     "vulkan": "改用 Vulkan runtime：這個驅動程式可以用，但可能較慢。"
+  },
+  "boot": {
+    "starting": "正在啟動 OpenPhotoAgent…",
+    "failed": "OpenPhotoAgent 無法啟動",
+    "failedHelp": "你的照片和資料都沒有被動到。請把下面的診斷資訊附在回報中。",
+    "logs": "記錄檔位置",
+    "copy": "複製診斷資訊",
+    "reconnecting": "正在重新連線…畫面上的內容都還在。"
   }
 }

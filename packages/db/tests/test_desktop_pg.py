@@ -51,6 +51,8 @@ def q(dsn, sql):
         return c.execute(sql).fetchone()[0]
 
 
+@pytest.mark.os_linux  # socket-only is the macOS/Linux profile (08 §1.3); PG-017 is the Windows one
+@pytest.mark.os_macos
 @pytest.mark.integration
 @pytest.mark.tc("PG-001", "PG-012")
 def test_pg_001_012_initdb_once_utf8_socket_only(pg):
@@ -192,6 +194,8 @@ def test_pg_009_full_disk_is_reported_and_data_kept(tmp_path):
     assert (p.data / "PG_VERSION").exists() and (p.data / "base").exists()  # never delete the data dir
 
 
+@pytest.mark.os_linux  # socket-only is the macOS/Linux profile (08 §1.3); PG-017 is the Windows one
+@pytest.mark.os_macos
 @pytest.mark.integration
 @pytest.mark.tc("PG-012")
 def test_pg_012_shell_runs_postgres_directly_from_prepared_argv(base):
@@ -279,3 +283,95 @@ def test_pg_016_desktop_initdb_uses_locales_every_os_has(tmp_path, monkeypatch):
     script = (Path(__file__).resolve().parents[3] / "tools/build_desktop_pg.sh").read_text(encoding="utf-8")
     smoke = next(ln for ln in script.splitlines() if "initdb" in ln and "--locale" in ln)
     assert "--builtin-locale=C.UTF-8" in smoke and "--locale=C " in smoke + " " and "--locale=C.UTF-8" not in smoke
+
+
+@pytest.mark.integration
+@pytest.mark.tc("PG-017")
+def test_pg_017_tcp_transport_needs_scram_and_keeps_the_password_off_argv(pg, monkeypatch):
+    """回歸: the desktop profile was socket-only, which 08 §1.3 keeps for macOS/Linux; Windows takes 127.0.0.1 with a
+    random SCRAM password. The password lives in a libpq passfile, never in the DSN the shell puts on argv."""
+    monkeypatch.delenv("PGPASSWORD", raising=False)
+    monkeypatch.delenv("PGPASSFILE", raising=False)
+    p = pg(transport="tcp")
+    dsn = p.start()
+    assert q(dsn, "SELECT 1") == 1
+    assert "@127.0.0.1:" in dsn and "passfile=" in dsn
+    secret = p.passfile.read_text(encoding="utf-8").strip().rsplit(":", 1)[1]
+    assert len(secret) >= 32 and secret not in dsn and secret not in " ".join(p.server_args())
+    assert not list(p.home.glob(".pw*")), "the initdb password file must not outlive initdb"
+    assert q(dsn, "SHOW listen_addresses") == "127.0.0.1"
+    assert q(dsn, "SHOW password_encryption") == "scram-sha-256"
+    with pytest.raises(psycopg.OperationalError):
+        psycopg.connect(f"postgresql://{p.user}:wrong@127.0.0.1:{p.port}/postgres", connect_timeout=5).close()
+
+
+@pytest.mark.unit
+@pytest.mark.tc("PG-018")
+def test_pg_018_desktop_port_survives_a_restart_of_the_postmaster(tmp_path, monkeypatch):
+    """回歸: every pg-prepare drew a new port, but the api keeps its DSN, so after the shell restarted a crashed
+    postgres the api talked to a dead port for good (DESK-002)."""
+    monkeypatch.setattr(EmbeddedPg, "_initdb", lambda self: None)
+    first = EmbeddedPg(tmp_path / "pg", desktop=True, transport="tcp")
+    first.prepare()
+    second = EmbeddedPg(tmp_path / "pg", desktop=True, transport="tcp")
+    second.prepare()
+    assert second.port == first.port != 0
+
+
+@pytest.mark.unit
+@pytest.mark.tc("PG-018")
+def test_pg_018_saved_port_taken_by_another_program_is_replaced(tmp_path, monkeypatch):
+    import socket
+
+    monkeypatch.setattr(EmbeddedPg, "_initdb", lambda self: None)
+    first = EmbeddedPg(tmp_path / "pg", desktop=True, transport="tcp")
+    first.prepare()
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", first.port))
+        s.listen(1)
+        second = EmbeddedPg(tmp_path / "pg", desktop=True, transport="tcp")
+        second.prepare()
+    assert second.port != first.port
+
+
+@pytest.mark.integration
+@pytest.mark.os_windows
+@pytest.mark.tc("PG-019")
+def test_pg_019_liveness_check_never_signals_a_process_on_windows(monkeypatch):
+    """回歸: ``os.kill(pid, 0)`` is no probe on Windows: 0 is CTRL_C_EVENT. The stale postmaster.pid check ran it."""
+    import sys
+
+    import opagent_db.embedded as E
+
+    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+    try:
+
+        def refuse(*_a):
+            raise AssertionError("os.kill called")
+
+        monkeypatch.setattr(os, "kill", refuse)
+        assert E._is_postgres(child.pid) is False  # alive, but python
+        assert child.poll() is None
+    finally:
+        child.kill()
+        child.wait()
+    assert E._is_postgres(child.pid) is False  # gone
+
+
+@pytest.mark.integration
+@pytest.mark.tc("PG-020")
+def test_pg_020_ensure_database_waits_for_a_postmaster_still_starting(pg):
+    """回歸: the shell starts postgres and the api back to back; the api's first connection was refused and it died."""
+    import threading
+
+    from opagent_db.lifecycle import ensure_database
+
+    p = pg(transport="tcp")
+    p.prepare()
+    t = threading.Timer(1.0, p._pg_ctl_start)
+    t.start()
+    try:
+        ensure_database(p.dsn, wait_s=30)
+    finally:
+        t.join()
+    assert q(p.dsn, "SELECT current_database()") == "opagent"

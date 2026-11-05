@@ -84,7 +84,8 @@
     "moveNeedAck": "Tick the confirmation first",
     "moveNeedText": "Type the confirmation text",
     "close": "Cancel",
-    "summaryTrash": "Move {count} to the trash, keeping one copy of each group. You can undo at any time"
+    "summaryTrash": "Move {count} to the trash, keeping one copy of each group. You can undo at any time",
+    "addFolder": "Add a folder…"
   },
   "eta": {
     "slow": {
@@ -819,5 +820,13 @@
     "smaller_variant": "Uses a smaller variant: less space and memory, slightly lower accuracy.",
     "t256_only": "Keeps only the smallest thumbnails: less detail in the viewer until there is space.",
     "vulkan": "Uses the Vulkan runtime: works with this driver, may be slower."
+  },
+  "boot": {
+    "starting": "Starting OpenPhotoAgent…",
+    "failed": "OpenPhotoAgent could not start",
+    "failedHelp": "Your photos and data were not touched. Please include the details below in your report.",
+    "logs": "Log folder",
+    "copy": "Copy diagnostics",
+    "reconnecting": "Reconnecting… everything on screen is still here."
   }
 }

@@ -870,6 +870,12 @@
 | DESK-040 | app 資料隨 runtime 安裝（回歸，ADR-0022） | 在搬移後的 runtime 中，以 app 自己的載入函式讀取模型 registry、內建整理方式、zh-TW 標籤、標籤詞彙與搜尋詞彙，並稽核每一次開檔 | 每一項都非空；所有開啟的檔案都在 runtime 內（不得讀取建置機的 repo） | I/C | #1、DoD 5.1 |
 | DESK-041 | 程式碼不以原始碼樹的相對路徑找資料（ADR-0023） | 掃描 `apps/*/src`、`packages/*/src` | 沒有 `Path(__file__).parents[N]`；例外只有 opagent_testing 與三個只供測試使用的 fixture 定位（各附理由） | C | #1 |
 | DESK-042 | runtime 來源一定是 uv 管理的直譯器（回歸，ADR-0023） | 在以系統 Python 建立、已啟用的 venv 中解析 runtime 來源 | 回傳的 prefix 位於 `uv python dir` 之下（CI 曾把 venv 背後的 `/usr` 當成來源而整個複製） | I | #1 |
+| DESK-043 | 殼與 CLI 的資料目錄一致（回歸） | 三個 OS 的環境變數組合、`OPAGENT_HOME`、空值 | 與 08 §1.5 及 `paths.py` 相同（Linux 為小寫） | U | #8 |
+| DESK-044 | 新增來源的別名規則（回歸） | 含空白、數字開頭、非 ASCII、超長資料夾名；同一資料夾兩次；名為 sorted | 別名符合 `[a-z][a-z0-9_-]{0,31}`；同資料夾只一個 root，rw 只升不降；輸出別名保留 | U | 不變量 2 |
+| DESK-045 | 首次啟動建立輸出資料夾（回歸） | 全新 data dir；使用者之後刪除該 root | 建立 `Pictures/OpenPhotoAgent` 並登記為 `sorted`（rw）；之後不再自動加回；Windows 路徑與逗號不會破壞清單 | U | DoD 5.3 |
+| DESK-046 | sidecar 輸出落地到 log（回歸） | 超過大小上限後重啟 | 啟動時輪替、保留 5 份；`shell.log` 為 JSON lines | U | 08 §1.5 |
+| DESK-047 | 啟動畫面與啟動失敗頁（回歸） | 後端未就緒；`shell_status` 回報 fatal；就緒後 reconnecting | 顯示啟動中而非空白；失敗時顯示代碼、細節、log 位置與複製診斷；重新連線時保留畫面 | U | #8、DESK-001 |
+| DESK-048 | 桌面版用系統對話框新增來源（回歸） | 桌面點「加入資料夾」；取消；Web build | root 出現後可選；取消無變化；Web build 沒有此按鈕 | U | 不變量 2 |
 
 ### 13.2 PG：嵌入式 PostgreSQL 17 + pgvector（08 §2.3）
 
@@ -891,6 +897,10 @@
 | PG-014 | Docker parity | Linux：testcontainers `pgvector/pgvector:pg17` | 同一組 migration 與 Q-* 整合測試全過 | I | #2 |
 | PG-015 | 用到真 PostgreSQL 的測試一律是 integration（回歸） | 只標 `security`／`property`、或沒有標記，但使用 `embedded_pg` 的測試 | 快速選擇式（`just test`、CI unit-py）收集不到；`-m integration` 收集得到（CI unit-py 沒有 PostgreSQL，曾有 63 個這類測試在那裡出錯） | C | #2 |
 | PG-016 | 桌面 initdb 只用每個 OS 都有的 locale（回歸） | PG 17、`desktop=True`；`tools/build_desktop_pg.sh` 的 smoke | `--locale-provider=builtin --builtin-locale=C.UTF-8 --locale=C`；不得有 `--locale=C.UTF-8`（只有 Linux 有，macOS 與 Windows 的 initdb 會拒絕） | U | #4 |
+| PG-017 | Windows 桌面 PG 走 127.0.0.1＋SCRAM（回歸） | `desktop=True`、`transport=tcp` | 只聽 127.0.0.1；錯誤密碼被拒；密碼只在 passfile，不在 DSN／argv；`.pw-initdb` 不殘留 | I | #8 |
+| PG-018 | 桌面 port 跨 postmaster 重啟不變（回歸） | 連續兩次 `prepare()`；存下的 port 被別的程式佔用 | 相同 port（api 的 DSN 仍有效）；被佔用時換新 port | U | DESK-002 |
+| PG-019 | 存活檢查不對進程送訊號（回歸） | Windows：`os.kill` 被禁止；活著的非 postgres 進程與已結束的 pid | 都回 False，進程不受影響 | I | Windows |
+| PG-020 | 等 postmaster 啟動完成（回歸） | 建庫時 postmaster 1 秒後才起來 | 重試到連上，不崩潰 | I | DESK-034 |
 
 ### 13.3 PACK：Runtime pack 驗證（08 §4.3）
 
