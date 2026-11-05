@@ -73,6 +73,7 @@
 | TRASH-007 | trash 永不自動核准 | `mcp.auto_approve` 含 trash | 設定驗證拒絕（與 move 同級） | U/S | #69 | v0.2 |
 | TRASH-008 | 當機注入 | trash rename 前後 kill -9 | 09a OUT-CRASH 不變量成立 | X | #59 | v0.2 |
 | TRASH-009 | `/trash/summary` | 3 個 plan 的 trash 檔 | 回傳檔案數、總 bytes、最早到期日（解除安裝提示用） | I | #10 | v0.1 端點／v0.2 資料 |
+| TRASH-010 | 到期時間一律是 UTC（回歸） | 資料庫 session 時區為 `Asia/Taipei` | `earliest_expiry` 的 offset 為 `+00:00`（時區來自 initdb 所在機器，回應曾隨機器而變） | I | #10 | v0.2 |
 | XMP-001 | 寫入 sidecar | `sidecar_xmp` | `.xmp` 含 `dc:subject`、`dc:description`、`lr:hierarchicalSubject`；exiftool 讀回與預期相同 | I | #50 | v0.2 |
 | XMP-002 | 相容性 | 用 digiKam／Lightroom 範例 XMP schema 驗證；手動清單：digiKam、Lightroom Classic 匯入 | 讀出 tags | C/M | #50 | v0.2 |
 | XMP-003 | 合併既有 XMP | 已存在 XMP 含評分與未知 namespace | 保留原有欄位，只合併我們的欄位；先備份原 XMP | I | #50 | v0.2 |
@@ -345,6 +346,7 @@
 | WATCH-004 | 事件遺失補償 | 停用 watcher 期間新增檔案 | 重新啟用時做增量掃描補上 | I | #57 |
 | WATCH-005 | 大量事件 | 一次放入 5,000 檔 | 批次合併；不爆量建 Job | F | #57 |
 | WATCH-006 | 網路磁碟無原生事件 | SMB／NFS root | 改用定期增量掃描（間隔設定）並在 UI 說明 | I | #57 |
+| WATCH-007 | Windows 網路磁碟改用輪詢（回歸） | 對應的網路磁碟機（`GetDriveTypeW` = remote）、UNC 路徑、本機與卸除式磁碟；反斜線與大小寫 | 網路磁碟與 UNC 為 `poll`，本機為 `native`（只讀 `/proc/mounts`，Windows 的網路磁碟曾一律當成 `native`，事件不可靠） | U | #57 |
 | BENCH-001 | 兩模型比較 | golden set 已標 200 張、兩個候選 | 輸出準確率、速度、VRAM、門檻覆蓋率曲線 | I/N | #35 |
 | BENCH-002 | golden set 下限 | 標註 < 下限 | preflight `benchmark.run` blocker | U | #35 |
 | BENCH-003 | 自動門檻建議 | benchmark 完成 | 建議 τ 值並可一鍵套用（只改門檻 → 不重算） | U | #35 |

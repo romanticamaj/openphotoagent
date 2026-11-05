@@ -80,3 +80,31 @@ def test_watch_006_mount_lookup_takes_the_longest_prefix():
     assert W.fstype_of("/mnt/nas/deep/a.jpg", mounts) == "nfs4"
     assert W.fstype_of("/mnt/nasty", mounts) == "ext4"
     assert W.fstype_of("/home/u/Pictures", mounts) == "ext4"
+
+
+@pytest.mark.unit
+@pytest.mark.tc("WATCH-007")
+def test_watch_007_mount_lookup_understands_windows_paths():
+    mounts = "Z: Z:/ cifs rw 0 0\n//nas/deep Y:/photos nfs4 rw 0 0\n"
+    assert W.fstype_of("Z:\\2024\\a.jpg", mounts) == "cifs"
+    assert W.fstype_of("z:\\2024", mounts) == "cifs"  # drive letters are not case sensitive
+    assert W.fstype_of("Y:\\photos\\a.jpg", mounts) == "nfs4"
+    assert W.fstype_of("Y:\\photos2", mounts) == ""
+    assert W.fstype_of("C:\\Users\\u\\Pictures", mounts) == ""
+
+
+@pytest.mark.unit
+@pytest.mark.tc("WATCH-007")
+def test_watch_007_a_unc_path_is_a_network_share_without_any_mount_table():
+    assert W.mode_for(W.fstype_of("\\\\nas\\photos\\2024", "")) == "poll"
+    assert W.mode_for(W.fstype_of("//nas/photos/2024", "")) == "native"  # a POSIX path, however odd
+
+
+@pytest.mark.unit
+@pytest.mark.tc("WATCH-007")
+def test_watch_007_mapped_network_drives_become_a_mount_table():
+    table = W.windows_mount_table({"C": 3, "D": 3, "E": 2, "Z": 4})  # GetDriveTypeW: fixed, removable, remote
+    assert W.mode_for(W.fstype_of("Z:\\photos", table)) == "poll"
+    assert W.mode_for(W.fstype_of("C:\\photos", table)) == "native"
+    assert W.mode_for(W.fstype_of("E:\\DCIM", table)) == "native"
+

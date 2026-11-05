@@ -1,14 +1,14 @@
 """``GET /trash/summary`` (08 §5.5): what sits in ``.opagent-trash/`` before an uninstall. Answered from the plan
 journal in the database — the API never reads photo folders (invariant 1)."""
 
-from datetime import timedelta
+from datetime import UTC, timedelta
 
 import pytest
 from fastapi.testclient import TestClient
 from opagent_api.app import create_app
 from opagent_db.schema import asset, engine_for, job, output_action, output_plan
 from opagent_testing.clock import FakeClock
-from sqlalchemy import insert
+from sqlalchemy import insert, text
 
 
 def _seed(dsn, clk):
@@ -76,3 +76,21 @@ def test_trash_009_summary_counts_files_bytes_and_earliest_expiry(embedded_pg):
 def test_trash_009_empty(embedded_pg):
     s = TestClient(create_app(dsn=embedded_pg.dsn)).get("/api/v1/trash/summary").json()
     assert s == {"files": 0, "bytes": 0, "plans": 0, "roots": [], "earliest_expiry": None, "retention_days": 30}
+
+
+@pytest.mark.integration
+@pytest.mark.tc("TRASH-010")
+def test_trash_010_expiry_is_utc_whatever_the_database_session_zone(embedded_pg):
+    """回歸: the timestamp came back in the session's zone, which initdb takes from the machine, so the API's answer
+    depended on where it ran (``+08:00`` on the reference machine, ``+00:00`` in CI)."""
+    db = embedded_pg.dsn.rsplit("/", 1)[-1]
+    eng = engine_for(embedded_pg.dsn)
+    with eng.connect().execution_options(isolation_level="AUTOCOMMIT") as c:
+        c.execute(text(f"ALTER DATABASE {db} SET timezone TO 'Asia/Taipei'"))
+    eng.dispose()
+    clk = FakeClock()
+    client = TestClient(create_app(dsn=embedded_pg.dsn, clock=clk))
+    _seed(embedded_pg.dsn, clk)
+    got = client.get("/api/v1/trash/summary").json()["earliest_expiry"]
+    assert got == (clk.now() - timedelta(days=10) + timedelta(days=30)).astimezone(UTC).isoformat()
+
