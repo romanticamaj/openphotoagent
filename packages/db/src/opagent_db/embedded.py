@@ -33,6 +33,11 @@ def find_pg_bin() -> Path:
     raise RuntimeError("PostgreSQL binaries not found; set OPAGENT_PG_BIN")
 
 
+def _pg_options(args: list[str]) -> str:
+    """pg_ctl's ``-o`` text is parsed by the shell that starts postgres, and POSIX quotes stay literal under cmd.exe."""
+    return subprocess.list2cmdline(args) if os.name == "nt" else shlex.join(args)
+
+
 def _port_is_free(port: int) -> bool:
     with socket.socket() as s:
         try:
@@ -301,7 +306,7 @@ class EmbeddedPg:
             "-D",
             str(self.data),
             "-o",
-            shlex.join(self.server_args()),
+            _pg_options(self.server_args()),
             "-l",
             log,
             "-w",

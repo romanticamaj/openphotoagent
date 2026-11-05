@@ -287,6 +287,19 @@ def test_pg_016_desktop_initdb_uses_locales_every_os_has(tmp_path, monkeypatch):
 
 
 @pytest.mark.integration
+@pytest.mark.tc("PG-023")
+@pytest.mark.parametrize("folder", ["plain", "with space"])
+def test_pg_023_the_dev_profile_starts_on_every_os(base, folder):
+    """回歸: pg_ctl's -o text is parsed by the shell that starts postgres. shlex's POSIX quotes stay literal under
+    cmd.exe, so the socket directory became ``'C:/x'`` and ``opagent dev`` and the e2e stack could not start."""
+    p = EmbeddedPg(base / folder)
+    try:
+        assert q(p.start(), "SELECT 1") == 1
+    finally:
+        p.stop()
+
+
+@pytest.mark.integration
 @pytest.mark.tc("PG-022")
 def test_pg_022_the_scram_password_is_owner_only_under_a_wide_data_folder(pg, monkeypatch):
     """回歸 (ADR-0024): os.open(..., 0o600) means nothing on Windows, so on a data folder on D:\\ every local user could
