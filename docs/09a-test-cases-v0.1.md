@@ -296,6 +296,7 @@
 | SCAN-024 | 輸出資料夾不被掃描 | 輸出 target 位於來源 root 之下（使用者仍堅持時） | 掃描自動排除該 target 子樹；preflight 另有 `OUTPUT_TARGET_INSIDE_SOURCE` | I | #47 |
 | SCAN-025 | 掃描進度型態 | 10,000 檔，無上次總數 | enumerate 階段 `indeterminate` 並回報「已找到 N 張 · X 張/秒」；數完後轉 determinate；有上次總數時直接 rough | I | #30 |
 | SCAN-026 | junction 不被跟隨（回歸） | Windows：來源 root 內有指向 root 外的 junction（`mklink /J`，不需要權限） | 不走進去、不中止掃描；列入略過，原因 `symlink` | U | Windows |
+| SCAN-027 | 掃描快取批次提交（回歸） | 超過兩個批次的檔案；每個檔案時以第二條連線檢查快取；掃描中途丟例外；重新掃描 | commit 次數 ≤ 檔案數／批次＋1；任何時刻落後已掃描數不超過一個批次（kill -9 只需重算這些）；掃描結束或丟例外時全部落地；重掃讀 0 bytes（每檔一次 fsync 曾讓 Windows 上 3,500 檔超過 300 s） | U | #33、Windows |
 
 ## 5. Q — 佇列與 Job 生命週期（02 §4.3；真 PostgreSQL）
 
@@ -871,6 +872,8 @@
 | DESK-040 | app 資料隨 runtime 安裝（回歸，ADR-0022） | 在搬移後的 runtime 中，以 app 自己的載入函式讀取模型 registry、內建整理方式、zh-TW 標籤、標籤詞彙與搜尋詞彙，並稽核每一次開檔 | 每一項都非空；所有開啟的檔案都在 runtime 內（不得讀取建置機的 repo） | I/C | #1、DoD 5.1 |
 | DESK-041 | 程式碼不以原始碼樹的相對路徑找資料（ADR-0023） | 掃描 `apps/*/src`、`packages/*/src` | 沒有 `Path(__file__).parents[N]`；例外只有 opagent_testing 與三個只供測試使用的 fixture 定位（各附理由） | C | #1 |
 | DESK-042 | runtime 來源一定是 uv 管理的直譯器（回歸，ADR-0023） | 在以系統 Python 建立、已啟用的 venv 中解析 runtime 來源 | 回傳的 prefix 位於 `uv python dir` 之下（CI 曾把 venv 背後的 `/usr` 當成來源而整個複製） | I | #1 |
+| DESK-043 | 秘密檔案從第一個 byte 起就是 owner-only（回歸，ADR-0024） | 上層資料夾權限寬鬆（Windows：Authenticated Users 可修改）；寫入、取代舊檔、寫入失敗；以 `icacls /save` 與 `whoami` 獨立檢查 | POSIX 為 0600；Windows 為受保護的 DACL，只有目前使用者與 SYSTEM；寫入第一個 byte 前就成立；失敗時舊檔不變、不留暫存檔 | U | #8 |
+| DESK-044 | 既有檔案與資料夾收緊為 owner-only（回歸，ADR-0024） | 寬鬆的既有檔案與資料夾；新檔放進私有資料夾；不支援 ACL 的磁碟區；ACL 沒有生效 | POSIX 為 0600／0700；Windows 同 DESK-043，資料夾的項目可繼承；不支援 ACL 時照寫並記錄 `SECRET_UNPROTECTED_VOLUME`；支援 ACL 卻沒生效時拒絕（不留下秘密或暫存檔） | U | #8 |
 
 ### 13.2 PG：嵌入式 PostgreSQL 17 + pgvector（08 §2.3）
 

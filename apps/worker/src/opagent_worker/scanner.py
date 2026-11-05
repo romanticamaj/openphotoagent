@@ -43,6 +43,7 @@ GPS_IFD = 0x8825
 DATETIME_ORIGINAL = 0x9003
 OFFSET_TIME_ORIGINAL = 0x9011
 CHUNK = 1 << 20
+CACHE_BATCH = 256  # files per cache commit: a WAL commit is an fsync, and a crash re-hashes at most this many
 ALWAYS_EXCLUDE = [
     "**/.DS_Store",
     "**/Thumbs.db",
@@ -258,7 +259,10 @@ def read_meta(path: Path, mtime: datetime, tz: tzinfo) -> PhotoMeta:
 
 
 class HashCache:
-    """Worker-local cache (abs path, size, mtime_ns, file id) -> scan entry (02 §4.1 stage 2)."""
+    """Worker-local cache (abs path, size, mtime_ns, file id) -> scan entry (02 §4.1 stage 2).
+
+    Only an optimisation, so ``put`` commits every ``CACHE_BATCH`` files, not every file (SCAN-027): a crash loses at
+    most one batch, and those files are simply hashed again. The scan's own resume cursor does not depend on it."""
 
     def __init__(self, path: Path) -> None:
         self.path = Path(path)
@@ -266,6 +270,7 @@ class HashCache:
         self._db = sqlite3.connect(self.path, check_same_thread=False)
         self._db.execute("PRAGMA journal_mode=WAL")
         self._db.execute("CREATE TABLE IF NOT EXISTS entry(k TEXT PRIMARY KEY, v TEXT NOT NULL)")
+        self._uncommitted = 0
 
     @staticmethod
     def key(abs_path: Path, st: os.stat_result) -> str:
@@ -277,7 +282,13 @@ class HashCache:
 
     def put(self, k: str, v: dict[str, Any]) -> None:
         self._db.execute("INSERT OR REPLACE INTO entry(k, v) VALUES (?, ?)", (k, json.dumps(v)))
+        self._uncommitted += 1
+        if self._uncommitted >= CACHE_BATCH:
+            self.flush()
+
+    def flush(self) -> None:
         self._db.commit()
+        self._uncommitted = 0
 
 
 def _entry_to_json(e: ScanEntry) -> dict[str, Any]:
@@ -329,23 +340,27 @@ def scan(
     entries: list[ScanEntry] = []
     bytes_read = 0
     total = len(files)
-    for n, (rel, st) in enumerate(files, start=1):
-        sp = sb.resolve(alias, rel)
-        k = HashCache.key(sp.real, st)
-        cached = cache.get(k) if cache is not None else None
-        if cached is not None:
-            entries.append(_entry_from_json(cached))
-        else:
-            e, reason = _scan_one(sp.real, sp.rel, st, tz, thumbs_dir)
-            if e is None:
-                skipped.append(Skipped(rel, reason or "DECODE_FAILED"))
+    try:
+        for n, (rel, st) in enumerate(files, start=1):
+            sp = sb.resolve(alias, rel)
+            k = HashCache.key(sp.real, st)
+            cached = cache.get(k) if cache is not None else None
+            if cached is not None:
+                entries.append(_entry_from_json(cached))
             else:
-                bytes_read += st.st_size
-                if cache is not None:
-                    cache.put(k, _entry_to_json(e))
-                entries.append(e)
-        if reporter is not None:
-            reporter.progress(n, total)
+                e, reason = _scan_one(sp.real, sp.rel, st, tz, thumbs_dir)
+                if e is None:
+                    skipped.append(Skipped(rel, reason or "DECODE_FAILED"))
+                else:
+                    bytes_read += st.st_size
+                    if cache is not None:
+                        cache.put(k, _entry_to_json(e))
+                    entries.append(e)
+            if reporter is not None:
+                reporter.progress(n, total)
+    finally:  # also when a source goes offline mid-scan: what was hashed stays hashed
+        if cache is not None:
+            cache.flush()
     skipped.sort(key=lambda s: s.rel)
     if reporter is not None:
         reporter.finish("succeeded")
