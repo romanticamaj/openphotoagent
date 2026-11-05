@@ -791,6 +791,7 @@
 | VIEW-009 | 時間軸 API | 10 萬張 DB | `timeline/buckets` < 50 ms；單 bucket（≤ 5,000）< 80 ms | F | #85 |
 | VIEW-010 | 記憶體預算 | 10 萬張捲動 3 分鐘 + 開 Lightbox 20 次 | 已解碼影像估算 ≤ 512 MB（CDP heap + ImageBitmap 計數） | F | #85 |
 | VIEW-011 | 資訊面板資料 | 某照片有 EXIF、AI 結果 | 欄位齊全；AI 欄位附模型與 `source`；無 GPS 時不顯示地點（不編造） | U | #89 |
+| VIEW-012 | 不存在的 API 路徑不會回網頁（回歸） | web build 掛在 `/`；`/api/v1/nope`、多層路徑、`/worker-api/…`、`/mcp/…`；用戶端路由含有點的資料夾 | API 路徑回 404，內容不是 index.html；`/review/v1.2/abc` 仍回 index.html（Windows 上 StaticFiles 給的是 `api\\v1\\nope`，曾對每個未知路徑回 200 與 HTML） | I | Windows |
 
 ### 12.5 PERF、A11Y、VIS、I18N
 

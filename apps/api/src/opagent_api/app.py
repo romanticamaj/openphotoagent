@@ -3,6 +3,7 @@ all filesystem work is delegated to the Worker over the worker protocol (worker_
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -193,10 +194,11 @@ def create_app(
                 try:
                     return await super().get_response(path, scope)
                 except StarletteHTTPException as e:
+                    url = path.replace(os.sep, "/")  # StaticFiles hands over an OS path: api\\v1\\x on Windows
                     if (
                         e.status_code != 404
-                        or path.startswith(("api/", "worker-api/", "mcp/"))
-                        or "." in path.rsplit("/", 1)[-1]
+                        or url.startswith(("api/", "worker-api/", "mcp/"))
+                        or "." in url.rsplit("/", 1)[-1]
                     ):
                         raise
                     return await super().get_response("index.html", scope)
