@@ -22,7 +22,7 @@ export function ActivityButton({ onToggle }: { onToggle: () => void }) {
   const ops = useActivity().data ?? [];
   const ind = indicatorState(ops);
   return (
-    <button type="button" onClick={onToggle} aria-label={`${t("activity.open")}：${t(ind.labelKey)}`} className="ml-auto flex items-center gap-1 rounded-[var(--radius-sm)] px-2 py-1 text-sm hover:bg-[var(--surface-2)]">
+    <button data-testid="activity-button" type="button" onClick={onToggle} aria-label={`${t("activity.open")}：${t(ind.labelKey)}`} className="ml-auto flex items-center gap-1 rounded-[var(--radius-sm)] px-2 py-1 text-sm hover:bg-[var(--surface-2)]">
       <span aria-hidden="true" style={{ color: `var(${ind.token})` }}>
         {{ check: "✓", spinner: "◌", pause: "⏸", alert: "⚠", "plug-off": "⏏" }[ind.icon] ?? "•"}
       </span>

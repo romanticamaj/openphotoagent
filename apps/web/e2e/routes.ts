@@ -49,7 +49,7 @@ export const ROUTES: Route[] = [
     open: async (p, _s, l) => {
       await go(p, "/models", l);
       // the button, not Ctrl+J: right after navigation the shortcut listener may not be attached yet (see OP-012)
-      await p.getByRole("button", { name: /^(活動|Activity)/ }).click();
+      await p.getByTestId("activity-button").click();
       await p.locator(".activity-center").waitFor();
     },
   },
