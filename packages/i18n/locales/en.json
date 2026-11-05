@@ -452,7 +452,8 @@
       "vulkan": "Vulkan (compatibility)",
       "cuda": "CUDA",
       "cpu": "CPU",
-      "metal": "Metal"
+      "metal": "Metal",
+      "allInstalled": "The models are already installed. Nothing to download."
     },
     "download": "Start download",
     "pickTitle": "Choose your photo folder",

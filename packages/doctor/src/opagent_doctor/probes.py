@@ -132,6 +132,28 @@ def parse_apple(sysctl: dict[str, Any] | None, metal: dict[str, Any] | None) -> 
     ]
 
 
+def _windows_ram_mb() -> int:
+    """No /proc on Windows: the recommender saw 0 GB of RAM there."""
+    import ctypes
+
+    class Status(ctypes.Structure):
+        _fields_ = [
+            ("length", ctypes.c_ulong),
+            ("load", ctypes.c_ulong),
+            ("total_phys", ctypes.c_ulonglong),
+            ("avail_phys", ctypes.c_ulonglong),
+            ("total_page", ctypes.c_ulonglong),
+            ("avail_page", ctypes.c_ulonglong),
+            ("total_virtual", ctypes.c_ulonglong),
+            ("avail_virtual", ctypes.c_ulonglong),
+            ("avail_extended", ctypes.c_ulonglong),
+        ]
+
+    s = Status(length=ctypes.sizeof(Status))
+    kernel32 = ctypes.WinDLL("kernel32")  # type: ignore[attr-defined,unused-ignore]
+    return int(s.total_phys // 2**20) if kernel32.GlobalMemoryStatusEx(ctypes.byref(s)) else 0
+
+
 def _ram_gb(p: dict[str, Any]) -> float:
     if p.get("ram_total_mb"):
         return float(p["ram_total_mb"]) / 1024
@@ -188,6 +210,8 @@ def collect_probes() -> dict[str, Any]:
     }
     with contextlib.suppress(OSError):
         probes["meminfo"] = Path("/proc/meminfo").read_text(encoding="utf-8")
+    if os.name == "nt":
+        probes["ram_total_mb"] = _windows_ram_mb()
     smi = shutil.which("nvidia-smi")
     if smi:
         try:

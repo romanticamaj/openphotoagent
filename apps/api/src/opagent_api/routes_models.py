@@ -441,6 +441,9 @@ def onboarding_recommendation(req: Request, worker_id: str) -> dict[str, Any]:
         rate = rates.get("fused") or rates.get("classify") or rates.get("embed")
         if rate:
             per_1000 = [round(1000 / max(rate) / 60, 2), round(1000 / min(rate) / 60, 2)]
+    have = [k for k in variants if k in ctx["inst"] and ctx["inst"][k].status == "installed"]
+    left = 0 if len(have) == len(variants) else max(0, r.download_bytes - sum(_size_of(reg, k) for k in have))
+    minutes = round(r.download_minutes * left / r.download_bytes, 1) if r.download_bytes else 0.0
     return {
         "mode": mode,
         "hardware": {
@@ -452,8 +455,8 @@ def onboarding_recommendation(req: Request, worker_id: str) -> dict[str, Any]:
         "combo": {
             "variants": variants,
             "packs": r.packs,
-            "download_bytes": r.download_bytes,
-            "download_minutes": r.download_minutes,
+            "download_bytes": left,
+            "download_minutes": minutes,
             "estimated": r.download_estimated,
         },
         "per_1000_minutes": per_1000,
@@ -465,6 +468,11 @@ def onboarding_recommendation(req: Request, worker_id: str) -> dict[str, Any]:
         "unsupported_reason": r.unsupported_reason,
         "docs_url": r.docs_url,
     }
+
+
+def _size_of(reg: Registry, key: str) -> int:
+    mid, _, vid = key.partition("@")
+    return sum(f.size or 0 for f in reg.models[mid].pinned_files(vid))
 
 
 def _catalog_params(code: str, p: dict[str, Any]) -> dict[str, Any]:

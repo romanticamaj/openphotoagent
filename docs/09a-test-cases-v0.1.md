@@ -460,6 +460,7 @@
 | MDL-011 | 授權同意 | 預設組合（Apache-2.0）／非商用權重 | 前者不需勾選；後者 `LICENSE_CONSENT_REQUIRED`，同意後寫 `license_acceptance(license_hash)`；授權文字改變（hash 不同）需重新同意 | I | #21 |
 | MDL-012 | `list_models()` 相容欄位 | 呼叫 | 含 compat 物件與舊欄位 `fits_now` | C | #14 |
 | MDL-013 | 回歸：徽章載入中 | 首次設定的方案卡，模型資料尚未回來 | 不顯示「? 未檢查」徽章，改顯示載入中；資料回來後才顯示與其他三處相同的徽章（MDL-005 偶發失敗） | U | #14 |
+| MDL-014 | 推薦組合只算還要下載的量（回歸） | 組合中的模型已安裝 | `download_bytes` 扣除已安裝者；全裝好時為 0，畫面不再要求下載 | I | #15 |
 
 ### 7.2 DL：Download Manager（`hf:<scenario>` 錄製伺服器）
 
@@ -514,6 +515,7 @@
 | DOC-018 | feature 對應 | `runtime.llamacpp` fail | 只有 `caption.vlm.llamacpp` 不可用；`embed.onnx` 照常 | U | #26 |
 | DOC-019 | 結果快取與事件 | doctor 結果 `expires_at`；狀態改變 | 發 `doctor.changed`，preflight `revalidate_on` 觸發重算 | I | #27 |
 | DOC-020 | 五類真機 | nightly／release：NVIDIA、AMD（Vulkan）、Intel、Apple Silicon、純 CPU | 報告產生且不崩潰；附在 release notes | N/M | #26、DoD 5.2 |
+| DOC-021 | Windows 回報實體記憶體（回歸） | Windows 上收集探針 | `ram_gb` 大於 0 | U | Windows |
 
 ### 7.4 DIAG：診斷包
 

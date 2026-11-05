@@ -189,3 +189,13 @@ def test_doc_018_feature_mapping():
     f = features(rs)
     assert f["caption.vlm.llamacpp"]["available"] is False
     assert f["embed.onnx"]["available"] is True
+
+
+@pytest.mark.unit
+@pytest.mark.os_windows
+@pytest.mark.tc("DOC-021")
+def test_doc_021_windows_reports_its_memory():
+    """回歸: RAM came only from /proc/meminfo, so Windows reported 0 GB to the recommender and the doctor."""
+    from opagent_doctor.probes import collect_probes, summarize
+
+    assert summarize(collect_probes()).ram_gb > 1

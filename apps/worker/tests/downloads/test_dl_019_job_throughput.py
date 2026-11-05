@@ -24,7 +24,11 @@ FX = ROOT / "fixtures/photos/basic"
 JOB = {"kind": "organize", "preset": "by-content-12", "target": {"root_alias": "sorted", "sub_path": ""}}
 EMB = "siglip2-so400m-384"
 GB = 1024 * 1024 * 1024
-FILES = [("onnx/vision_model_int8.onnx", GB, 1), ("onnx/text_model_int8.onnx", 200_000, 2), ("tokenizer.json", 1_000, 3)]
+FILES = [
+    ("onnx/vision_model_int8.onnx", GB, 1),
+    ("onnx/text_model_int8.onnx", 200_000, 2),
+    ("tokenizer.json", 1_000, 3),
+]
 
 
 def _photos(root: Path, sub: str, n: int) -> None:

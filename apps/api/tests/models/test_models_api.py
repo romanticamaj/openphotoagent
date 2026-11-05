@@ -5,11 +5,11 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 from opagent_api.app import create_app
-from opagent_db.schema import engine_for
+from opagent_db.schema import engine_for, installation
 from opagent_registry.loader import BUILTIN_DIR
 from opagent_testing.hfserver import HfFile, HfServer
 from opagent_worker.agent import WorkerAgent
-from sqlalchemy import text
+from sqlalchemy import insert, text
 
 ROOT = Path(__file__).resolve().parents[4]
 EMB = "siglip2-so400m-384"
@@ -203,3 +203,24 @@ def test_dl_020_onboarding_downloads_siglip_first_then_index(env):
     _drain(w)
     ops = c.get("/api/v1/operations", params={"status": "all", "type": "search.reindex"}).json()
     assert ops and ops[0]["status"] in ("queued", "running", "succeeded")
+
+
+@pytest.mark.integration
+@pytest.mark.tc("MDL-014")
+def test_mdl_014_the_plan_counts_only_what_is_still_to_download(env):
+    """回歸: with every model on disk, onboarding still asked for an 8.9 GB download."""
+    c = env["client"]
+
+    def combo():
+        return c.get("/api/v1/onboarding/recommendation", params={"worker_id": "w1"}).json()["combo"]
+
+    before = combo()
+    assert before["download_bytes"] > 0
+    with env["client"].app.state.opa.engine.begin() as db:
+        for key in before["variants"]:
+            db.execute(
+                insert(installation).values(
+                    id=key, worker_id="w1", kind="model", key=key, status="installed", size_bytes=1, files=[]
+                )
+            )
+    assert combo()["download_bytes"] == 0

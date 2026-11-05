@@ -89,7 +89,7 @@ export function Welcome() {
             </p>
           )}
           <p className="tnum">
-            {t("onboarding.plan.download", { size: formatBytes(r.combo.download_bytes, i18n.language), min: r.combo.download_minutes })}
+            {r.combo.download_bytes === 0 ? t("onboarding.plan.allInstalled") : t("onboarding.plan.download", { size: formatBytes(r.combo.download_bytes, i18n.language), min: r.combo.download_minutes })}
           </p>
           {r.per_1000_minutes && (
             <p className="tnum" data-testid="per-1000">
