@@ -15,6 +15,7 @@ import argparse
 import asyncio
 import platform
 import sys
+import time
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -54,14 +55,20 @@ def main() -> None:
     ap.add_argument("--port", type=int, default=5432)
     ap.add_argument("--user", default="opagent")
     ap.add_argument("--n", type=int, default=10000)
+    ap.add_argument("--asyncpg-n", type=int, help="asyncpg attempts (default --n); it fails structurally on Windows")
+    ap.add_argument("--notes", default="")
     a = ap.parse_args()
-    e1 = asyncio.run(run_asyncpg(a.sockdir, a.port, a.user, a.n))
+    n1 = a.n if a.asyncpg_n is None else a.asyncpg_n
+    e1 = asyncio.run(run_asyncpg(a.sockdir, a.port, a.user, n1))
+    t0 = time.perf_counter()
     e2 = run_psycopg(a.sockdir, a.port, a.user, a.n)
-    m = {"n": a.n, "asyncpg_errors": len(e1), "psycopg_errors": len(e2), "samples": (e1 + e2)[:5]}
+    m = {"n_psycopg": a.n, "n_asyncpg": n1, "asyncpg_errors": len(e1), "psycopg_errors": len(e2),
+         "psycopg_connects_per_s": a.n / (time.perf_counter() - t0),
+         "asyncpg_samples": e1[:3], "psycopg_samples": e2[:5]}
     is_win = platform.system() == "Windows"
     write_result("M0-S1c", status="measured" if is_win else "partial", metrics=m,
                  passed=(not e1 and not e2) if is_win else None,
-                 notes="" if is_win else "non-Windows baseline only; the decision requires a Windows run")
+                 notes=a.notes if is_win else "non-Windows baseline only; the decision requires a Windows run")
     print(m)
 
 

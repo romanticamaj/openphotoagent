@@ -1,0 +1,15 @@
+{
+  "pass": true,
+  "machine": {
+    "label": "rtx5070ti-win11-user",
+    "os": "Windows"
+  },
+  "notes": "junction/subst/recall attribute feasibility",
+  "status": "measured",
+  "metrics": {
+    "junction": true,
+    "subst": true,
+    "recall_attr": "SetFileAttributesW ok=True lastError=0 before=0x20 after=0x20 stuck=False"
+  },
+  "id": "M0-T1c"
+}
