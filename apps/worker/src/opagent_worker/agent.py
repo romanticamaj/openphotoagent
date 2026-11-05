@@ -662,6 +662,7 @@ class WorkerAgent:
             if self.outbox_size():
                 self.flush_outbox()
             if not busy:
+                self.warm_embedder()
                 busy = self.faces_backlog_once() > 0
             if not busy:
                 stop.wait(0.2)
@@ -913,6 +914,21 @@ class WorkerAgent:
         self._post_embeddings(images)
         return {"embedded": len(images)}
 
+    @staticmethod
+    def _ensure_loaded(emb: Any) -> None:
+        """Real adapters load on demand; only a job used to do it, so search died with every worker restart."""
+        import asyncio
+
+        from opagent_inference.types import LoadOptions
+
+        if not getattr(emb, "loaded", True):
+            asyncio.run(emb.load(LoadOptions()))
+
+    def warm_embedder(self) -> None:
+        """A cold load takes seconds and a search waits 2: idle time is when to pay for it."""
+        if self.embedder is not None:
+            self._ensure_loaded(self.embedder)
+
     def _do_embed_text(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         """``embed.text`` RPC (05 §2.6): the query vector must come from the same space as the stored vectors."""
         import asyncio
@@ -926,6 +942,7 @@ class WorkerAgent:
             own = f"caption:{p.get('model')}:{own}"
         if p.get("fingerprint") and p["fingerprint"] != own:
             return {"error": "MODEL_UNAVAILABLE", "reason": "space mismatch"}
+        self._ensure_loaded(emb)
         res: Any = emb.embed_texts([p["text"]])
         if inspect.isawaitable(res):
 

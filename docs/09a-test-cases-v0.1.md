@@ -377,6 +377,7 @@
 | INF-LOCAL-004 | embedding 取 `pooler_output`（回歸） | 第一個輸出是 last_hidden_state 的 ONNX | 影像與文字都取到正規化的 embedding | U | M0-S4 |
 | INF-LOCAL-005 | 下載完成的模型免重啟生效（回歸） | 模型出現、相同模型重建、換模型 | 換上新 adapter 並重新註冊；相同模型不動；舊 adapter 關閉 | U | DoD 5.2 |
 | INF-LOCAL-006 | 模型只放在獨立顯卡上（回歸） | 獨顯＋內顯、內顯排在前面、兩張獨顯、只有內顯、沒有裝置；強制 CPU | 選最大的獨顯；只有內顯時用內顯；沒有裝置時不加參數；`OPAGENT_LLAMA_CPU` 時為 `--device none` | U | 吞吐量 |
+| INF-LOCAL-007 | worker 重啟後語意搜尋仍可用（回歸） | 新啟動的 worker，模型尚未載入；閒置 | `embed_text` 自行載入；閒置時預熱，第一次查詢不必等 | U | #24 |
 
 ### 6.3 INF-JSON：fused 結構化輸出驗證與修復（03 §3.0、§2.3）
 

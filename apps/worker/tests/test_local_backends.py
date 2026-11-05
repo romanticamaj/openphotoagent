@@ -336,3 +336,57 @@ def test_face_bkl_002_idle_worker_scans_the_backlog_once_and_survives_a_bad_file
     a.face_backend = FakeFaceBackend()
     a.face_backend.fingerprint = "another-model"
     assert a.faces_backlog_once() == 2  # a new model starts over
+
+
+class _LazyEmbedder:
+    """Like OrtEmbedAdapter: nothing works until load()."""
+
+    def __init__(self):
+        self.loaded = False
+        self.loads = 0
+
+    def describe(self):
+        return type("I", (), {"model_fingerprint": "emb", "task_types": ("embed",)})()
+
+    async def load(self, opts=None, reporter=None):
+        self.loaded = True
+        self.loads += 1
+
+    async def embed_texts(self, texts):
+        if not self.loaded:
+            raise RuntimeError("text encoder not loaded")
+        return [[1.0, 0.0] for _ in texts]
+
+
+def _agent(tmp_path):
+    from types import SimpleNamespace
+
+    from opagent_worker.agent import WorkerAgent
+
+    class Client:
+        def post(self, url, json=None):
+            return SimpleNamespace(raise_for_status=lambda: None, json=lambda: {}, status_code=204)
+
+        def get(self, url, params=None):
+            return SimpleNamespace(raise_for_status=lambda: None, json=lambda: {"items": [], "next": ""})
+
+    return WorkerAgent(Client(), roots=[], home=tmp_path / "w", worker_id="w1", embedder=_LazyEmbedder())
+
+
+@pytest.mark.unit
+@pytest.mark.tc("INF-LOCAL-007")
+def test_inf_local_007_search_works_right_after_a_worker_start(tmp_path):
+    """回歸: only a job ever loaded the embedder, so every worker start broke text search until something was organized."""
+    a = _agent(tmp_path)
+    assert a._do_embed_text({"text": "熊", "modality": "image"}) == {"vec": [1.0, 0.0]}
+
+
+@pytest.mark.unit
+@pytest.mark.tc("INF-LOCAL-007")
+def test_inf_local_007_an_idle_worker_keeps_the_embedder_warm(tmp_path):
+    """A cold load takes 5-10 s and the search RPC waits 2 s: the first search would always fall back to text."""
+    a = _agent(tmp_path)
+    a.warm_embedder()
+    assert a.embedder.loaded and a.embedder.loads == 1
+    a.warm_embedder()
+    assert a.embedder.loads == 1
