@@ -313,8 +313,42 @@
         "text_cos_mean": 0.9999997019767761,
         "nan": false
       }
+    ],
+    "quiet_gpu_runs": [
+      {
+        "label": "quiet-fp16",
+        "ep": "DML",
+        "batch": 1,
+        "images_per_s": 28.263107462116192,
+        "image_cos_min": 0.9997983574867249,
+        "text_cos_min": 0.9999791979789734
+      },
+      {
+        "label": "quiet-fp16",
+        "ep": "DML",
+        "batch": 8,
+        "images_per_s": 45.90848395264446,
+        "image_cos_min": 0.9997973442077637,
+        "text_cos_min": 0.9999777674674988
+      },
+      {
+        "label": "quiet-fp16",
+        "ep": "DML",
+        "batch": 32,
+        "images_per_s": 44.53630879664445,
+        "image_cos_min": 0.9997973442077637,
+        "text_cos_min": 0.9999777674674988
+      },
+      {
+        "label": "quiet-fp32",
+        "ep": "DML",
+        "batch": 8,
+        "images_per_s": 20.89303692721747,
+        "image_cos_min": 0.9999997615814209,
+        "text_cos_min": 0.9999998807907104
+      }
     ]
   },
   "pass": false,
-  "notes": "pass=false because the public int8 pair fails the 0.999 criterion on CPU (image cos min 0.263). fp16 passes on DirectML, and on CPU only with ORT_DISABLE_ALL (with default optimisation the session fails to load). Single-file repack of our fp32 text model passes. images_per_s here was taken with S3 running on the same GPU and is a lower bound."
+  "notes": "pass=false because the public int8 pair fails the 0.999 criterion on CPU (image cos min 0.263). fp16 passes on DirectML, and on CPU only with ORT_DISABLE_ALL (with default optimisation the session fails to load). Single-file repack of our fp32 text model passes. metrics.runs images_per_s was taken with S3 on the same GPU; quiet_gpu_runs has the GPU free of compute (0% utilisation before the run, another idle llama-server resident)."
 }

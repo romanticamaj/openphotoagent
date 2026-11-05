@@ -33,5 +33,5 @@
     "platform_scope": "Windows"
   },
   "pass": false,
-  "notes": "Cold = initdb(--no-sync)+first start until pg_isready; warm = restart existing cluster. Desktop ships PG 17; this run used the PG binaries available on the machine (see pg_version)."
+  "notes": "Cold = initdb(--no-sync)+first start until pg_isready; warm = restart existing cluster. Desktop ships PG 17; this run used the PG binaries available on the machine (see pg_version). Scratch dir on a 5400 rpm SATA HDD saturated by downloads, venv installs and the gate suite: this is a worst case, not the expected desktop figure. See M0-S1a-win11-user-nvme.json for the same run on NVMe."
 }
