@@ -37,6 +37,8 @@ def main() -> None:
     ap.add_argument("--images", type=Path, required=True)
     ap.add_argument("--prompts", type=Path, default=Path(__file__).with_name("prompts.json"))
     ap.add_argument("--temperature", type=float, default=0.05)
+    ap.add_argument("--proxy", default="", help="set when --images is not img:by-content-12-large: say what it is; the pass "
+                                               "criterion is then not fully evaluated (status partial, pass null)")
     a = ap.parse_args()
     import torch
     from PIL import Image
@@ -68,10 +70,15 @@ def main() -> None:
         p = torch.softmax(iemb @ temb.T / a.temperature, dim=-1)
         conf, top = p.max(-1)
         hit = [cats[int(t)] == labels[f] for t, f in zip(top, files)]
-        m[name] = {"top1": sum(hit) / len(hit), "ece": ece(conf.tolist(), hit)}
+        per = {c: [h for h, f in zip(hit, files) if labels[f] == c] for c in cats}
+        m[name] = {"top1": sum(hit) / len(hit), "ece": ece(conf.tolist(), hit),
+                   "recall_per_class": {c: sum(v) / len(v) for c, v in per.items() if v}}
     zh_e, en = m["ensemble"]["top1"], m["en"]["top1"]  # type: ignore[index]
-    write_result("M0-S4b", status="measured", metrics=m, passed=bool(zh_e >= 0.80 and zh_e >= en - 0.03),
-                 notes="threshold 0.80 is the initial to-be-confirmed value (09 §6)")
+    m["criterion_on_this_set"] = {"ensemble_ge_0_80": bool(zh_e >= 0.80), "ensemble_within_3pp_of_en": bool(zh_e >= en - 0.03)}
+    # per-class recall of the three prompt sets, to see where a language loses
+    write_result("M0-S4b", status="partial" if a.proxy else "measured", metrics=m,
+                 passed=None if a.proxy else bool(zh_e >= 0.80 and zh_e >= en - 0.03),
+                 notes=f"threshold 0.80 is the initial to-be-confirmed value (09 §6). {a.proxy}".strip())
     print(m)
 
 
