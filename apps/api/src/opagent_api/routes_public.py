@@ -177,6 +177,12 @@ def start_job(st: AppState, c: Any, body: JobIn, extra: dict[str, Any] | None = 
     s = c.execute(select(source).where(source.c.id == body.source_id)).first()
     if s is None:
         raise HTTPException(404, detail={"code": "NOT_FOUND"})
+    from . import organize
+
+    try:
+        organize.preset(body.preset, body.categories, c)
+    except KeyError:  # found only when the scan ended, it left a job nothing could finish or cancel (ORG-011)
+        raise HTTPException(404, detail={"code": "PRESET_NOT_FOUND", "preset": body.preset}) from None
     from .preflight import enforce
 
     enforce(c, st, "job.start", body.model_dump())  # server-side enforcement (PF-073)

@@ -47,7 +47,7 @@ export function OperationProgress({ op, variant = "compact" }: { op: Op; variant
       </div>
       <div className="flex justify-between text-xs tabular-nums text-[var(--text-muted)]">
         <span>{t(`activity.status.${op.status}`, { defaultValue: op.status })}</span>
-        {eta ? <span data-eta={eta}>{etaLabel ?? t(`activity.eta.${eta}`, { defaultValue: eta })}</span> : null}
+        {eta && running ? <span data-eta={eta}>{etaLabel ?? t(`activity.eta.${eta}`, { defaultValue: eta })}</span> : null}
         <span data-testid="elapsed">{formatDuration(elapsed, i18n.language)}</span>
       </div>
       {variant === "full" && Array.isArray(op.phases) ? (

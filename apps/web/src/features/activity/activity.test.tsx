@@ -8,6 +8,11 @@ import { OperationProgress } from "./OperationProgress";
 const op = (o: Record<string, unknown>) => ({ id: "x", type: "model.download", status: "running", seq: 1, lane: "download", worker: "w1", fraction: 0.4, ...o });
 
 describe("activity center", () => {
+  it("[ETA-025] a finished operation has no time left to estimate", () => {
+    const { container } = render(<OperationProgress op={op({ status: "succeeded", eta: { state: "estimating" } })} />);
+    expect(container.querySelector("[data-eta]")).toBeNull();
+  });
+
   it("[ACT-001] five indicator states", () => {
     expect(indicatorState([])).toEqual({ state: "idle", icon: "check", token: "--text-muted", labelKey: "activity.indicator.idle" });
     expect(indicatorState([op({})]).state).toBe("running");

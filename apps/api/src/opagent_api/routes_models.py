@@ -20,7 +20,7 @@ from pydantic import BaseModel
 from sqlalchemy import delete, insert, select
 
 from .labels import emit
-from .operations import ensure_operation
+from .operations import ensure_operation, set_op_status
 from .state import DEFAULT_WS, AppState
 
 router = APIRouter()
@@ -401,6 +401,20 @@ def on_download_complete(st: AppState, c: Any, t: Any, result: dict[str, Any]) -
     if p.get("kind") == "embedding":  # semantic search becomes available before the VLM finishes (DL-020)
         rid = f"reindex:{t.worker_id}:{p['variant']}"
         ensure_operation(c, st.clock, rid, "search.reindex", {"kind": "variant", "id": p["variant"]})
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+        from .search import missing_vectors
+
+        items = missing_vectors(c).get(t.worker_id)
+        if items:  # the operation is this task: the worker's completion ends it
+            c.execute(
+                pg_insert(worker_task)
+                .values(id=rid, kind="embed_assets", worker_id=t.worker_id, payload={"items": items})
+                .on_conflict_do_nothing()
+            )
+        else:
+            set_op_status(c, st.clock, rid, "running")
+            set_op_status(c, st.clock, rid, "succeeded")
 
 
 def on_remove_complete(st: AppState, c: Any, t: Any, result: dict[str, Any]) -> None:

@@ -657,27 +657,34 @@ def ingest_embeddings(body: EmbeddingsIn, req: Request) -> dict[str, int]:
     return {"stored": n}
 
 
+def missing_vectors(c: Any) -> dict[str, list[dict[str, str]]]:
+    """Per worker, what has no vector in the active space."""
+    from opagent_db.schema import asset, asset_location, source
+
+    space = active_space(c)
+    have = select(asset_embedding.c.asset_id)
+    if space is not None:
+        have = have.where(asset_embedding.c.space_id == space.id)
+    rows = c.execute(
+        select(asset.c.content_hash, asset_location.c.rel_path, source.c.root_alias, source.c.worker_id)
+        .join(asset_location, asset_location.c.asset_id == asset.c.id)
+        .join(source, source.c.id == asset_location.c.source_id)
+        .where(asset.c.id.not_in(have), asset_location.c.missing.is_(False))
+    ).all()
+    by_worker: dict[str, list[dict[str, str]]] = {}
+    for h, rel, alias, wid in rows:
+        by_worker.setdefault(wid, []).append({"content_hash": h, "rel": rel, "root_alias": alias})
+    return by_worker
+
+
 @router.post("/search-index/reindex", status_code=202)
 def reindex(req: Request) -> dict[str, Any]:
     """Queue embedding for every asset without a vector in the active space (auto_fix ``reindex``, PF-053)."""
     from opagent_core.ids import uuid7
-    from opagent_db.schema import asset, asset_location, source
 
     st = _st(req)
     with st.engine.begin() as c:
-        space = active_space(c)
-        have = select(asset_embedding.c.asset_id)
-        if space is not None:
-            have = have.where(asset_embedding.c.space_id == space.id)
-        rows = c.execute(
-            select(asset.c.content_hash, asset_location.c.rel_path, source.c.root_alias, source.c.worker_id)
-            .join(asset_location, asset_location.c.asset_id == asset.c.id)
-            .join(source, source.c.id == asset_location.c.source_id)
-            .where(asset.c.id.not_in(have), asset_location.c.missing.is_(False))
-        ).all()
-        by_worker: dict[str, list[dict[str, str]]] = {}
-        for h, rel, alias, wid in rows:
-            by_worker.setdefault(wid, []).append({"content_hash": h, "rel": rel, "root_alias": alias})
+        by_worker = missing_vectors(c)
         tids = []
         for wid, items in by_worker.items():
             tid = uuid7(st.clock)

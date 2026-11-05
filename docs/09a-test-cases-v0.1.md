@@ -662,6 +662,7 @@
 | OP-016 | 同 lane 重新排序 | `POST /operations/reorder` | 只在同 worker × lane 生效；跨 lane 回 400 | I | — |
 | OP-017 | 等待原因目錄 | 參數化 13 個 code：QUEUED_BEHIND、WAITING_GPU_SLOT、WAITING_MODEL_DOWNLOAD、WAITING_MODEL_LOAD、WORKER_OFFLINE、DISK_INSUFFICIENT_*、NET_UNREACHABLE、PAUSED_BY_USER、PAUSED_ERROR_RATE、PAUSED_ON_BATTERY、PAUSED_GPU_CONTENDED、PAUSED_NOT_IDLE、SOURCE_OFFLINE | 每個都有 zh-TW/en 顯示文字與 CTA；`status=waiting` 或自動 paused 時 `waiting_reason` 必填（schema 驗證） | C/E | #32、DoD 5.2 |
 | OP-018 | 等待中暫停／取消（ADR-0004，回歸） | `waiting` 的 Operation：(a) Worker 持有 lease；(b) 沒有 lease | (a) 暫停 → `pausing`、取消 → `cancelling`，Worker 確認後才到 `paused`／`cancelled`；(b) 直接到 `paused`（`waiting_reason=PAUSED_BY_USER`）／`cancelled`；兩者狀態都真的改變 | I | #32、#47 |
+| OP-019 | 下載後的索引 Operation 會結束（回歸） | 嵌入模型下載完成 | `search.reindex` 不會永遠停在 queued | I | — |
 
 ### 9.2 ETA：估算（FakeClock 驅動，06 §2.3、§5.5）
 
@@ -692,6 +693,8 @@
 | ETA-023 | 完成時回寫（回歸） | Operation 經 `/tasks/{id}/complete` 成功、暫停後成功、失敗 | 成功才寫 `eta_calibration` 與 `perf_observation`；actual 不含暫停 | I | — |
 | ETA-024 | 匯出校準資料 | `opagent ops export-calibration` | 輸出 M0-V7 需要的欄位 | I | — |
 | ETA-026 | precise 的區間可信（ADR-0028） | 模擬 40 次 lognormal；δ 隨剩餘時間變化 | precise 顯示期間涵蓋率 ≥ 70%；δ 在 0.04～0.1 | U | — |
+| ETA-027 | 掃描回報進度（回歸，不變量 9） | 掃描 3 張 | Operation 的 progress 有 done／total | I | — |
+| ETA-028 | 匯出指令的預設資料夾（回歸） | 不帶參數 | 找桌面版的資料夾，不是 `~/.opagent` | U | — |
 | ETA-025 | 顯示剩餘時間（回歸，不變量 9） | Activity Center 收到 rough／precise／stalled | 畫面顯示時間文字，不是只有狀態字 | U | — |
 
 ### 9.3 ACT：Activity Center 與進度元件（Vitest + Playwright）
@@ -720,6 +723,7 @@
 | ORG-008 | 試跑一張串流 | 「試跑這張」 | `InferenceService.preview` 串流事件到 UI；interactive lane | I | #46 |
 | ORG-009 | caption 寫入搜尋 | Job 完成 | caption 經 index_outbox 寫入 `search_doc.tsv`，全文可查到 | I | #43 |
 | ORG-010 | 就地修正回饋 | `PATCH /assets/{id}/labels {category: pets}` | 寫 `review(status=corrected)`；下一次整理 final_label 用 pets；`search_doc` 更新 | I | #56、DoD 5.4 |
+| ORG-011 | 未知的 preset（回歸） | 建立時就不存在；掃描中被刪除 | 建立時回 404 `PRESET_NOT_FOUND`，不建 job；掃描中刪除時 job 失敗，不會卡住 | I | — |
 | REV-001 | 低信心建立 review | needs_review 結果 | `review(status=pending, reason=low_confidence)`；SSE `review.created`；計數「待確認 N 張」 | I | #49 |
 | REV-002 | 一次一張與數字鍵 | 待確認頁 | `1–9` 選候選類別、`0` 其他、`Enter` 接受建議、`S` 略過；處理後自動下一張 | E | #49、DoD 5.3 |
 | REV-003 | 逃生門 | 剩 40 張時「略過剩下的，全部放進『其他』」 | 40 張 `final_label=other`（`source=review_skip`）；Job 可進 planning | I/E | #49、DoD 5.3 |

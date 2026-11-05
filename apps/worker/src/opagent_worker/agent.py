@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 from opagent_core.clock import SystemClock
+from opagent_core.operation import NullReporter
 from opagent_fs.executor import Action, Executor
 from opagent_fs.fsops import RealFs
 from opagent_fs.journal import Journal
@@ -64,6 +65,22 @@ RPC_KINDS = frozenset(
         "vlm_ask",
     }
 )
+
+
+class _ScanReporter(NullReporter):
+    """A scan's count, at most once a second (invariant 9); the last one always goes out."""
+
+    def __init__(self, client: Any, clock: Any, task_id: str) -> None:
+        self.client, self.clock, self.task_id = client, clock, task_id
+        self.last = -1e9
+
+    def progress(self, done: int, total: int | None = None) -> None:
+        now = self.clock.monotonic()
+        if now - self.last < 1.0 and done != total:
+            return
+        self.last = now
+        body = {"progress": {"done": done, "total": total, "unit": "files"}}
+        self.client.post(f"/worker-api/v1/tasks/{self.task_id}/progress", json=body)
 
 
 class WorkerAgent:
@@ -673,7 +690,7 @@ class WorkerAgent:
     # ---- task handlers -------------------------------------------------
     def _do_scan(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         try:
-            res = self._scan(p)
+            res = self._scan(p, _ScanReporter(self.client, self.clock, task_id) if task_id else None)
         except RootUnavailable:
             raise _Waiting("SOURCE_OFFLINE") from None
         self.last_scan_skipped_before_cursor = res.skipped_before_cursor
@@ -735,7 +752,7 @@ class WorkerAgent:
             **e.extra,
         }
 
-    def _scan(self, p: dict[str, Any]) -> Any:
+    def _scan(self, p: dict[str, Any], reporter: Any = None) -> Any:
         return scan(
             self.sb,
             p["root_alias"],
@@ -747,6 +764,7 @@ class WorkerAgent:
             exclude_subtrees=p.get("exclude_subtrees") or [],
             after=self.egress.resolve(p["cursor"]) if self.egress is not None and p.get("cursor") else p.get("cursor"),
             thumbs_dir=self.home / "thumbs",
+            reporter=reporter,
         )
 
     def _do_apply(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:

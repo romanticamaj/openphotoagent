@@ -38,6 +38,7 @@ TASK_OP_TYPES = {
     "download": "model.download",
     "remove": "model.remove",
     "benchmark": "benchmark.run",
+    "embed_assets": "search.reindex",
 }
 LEASE_S = 120
 

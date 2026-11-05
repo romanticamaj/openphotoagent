@@ -233,3 +233,18 @@ def test_mdl_017_the_plan_names_the_runtime_that_will_really_run(env):
     combo = env["client"].get("/api/v1/onboarding/recommendation", params={"worker_id": "w1"}).json()["combo"]
     assert combo["packs"] == ["llamacpp-cuda13"]  # still what the machine should move to
     assert combo["runtime"] == "vulkan"  # what is inside the installer (ADR-0025)
+
+
+@pytest.mark.integration
+@pytest.mark.tc("OP-019")
+def test_op_019_the_index_operation_after_a_download_finishes(env):
+    """回歸 (seen on the reference machine): nothing ever ran search.reindex, so it sat in queued for good and the
+    activity indicator never went idle."""
+    c, w = env["client"], env["worker"]
+    assert (
+        c.post("/api/v1/onboarding/install", json={"worker_id": "w1", "variants": [f"{EMB}@onnx-fp16"]}).status_code
+        == 202
+    )
+    _drain(w)
+    ops = c.get("/api/v1/operations", params={"status": "all", "type": "search.reindex"}).json()
+    assert [o["status"] for o in ops] == ["succeeded"]

@@ -1,5 +1,7 @@
 import json
 import logging
+import os
+from pathlib import Path
 
 import pytest
 from opagent_cli.paths import app_dirs
@@ -47,3 +49,20 @@ def test_desk_026_json_lines_rotation_and_redaction(tmp_path):
     assert rec["level"] == "WARNING" and rec["proc"] == "api" and "ts" in rec
     assert "photos:2024/x.jpg" in rec["msg"] and "/home/a" not in rec["msg"] and secret not in rec["msg"]
     assert h.maxBytes == 10 * 1024 * 1024 and h.backupCount == 5
+
+
+@pytest.mark.unit
+@pytest.mark.tc("ETA-028")
+def test_eta_028_the_command_looks_in_the_desktop_data_folder(monkeypatch, tmp_path, capsys):
+    """回歸 (seen on the reference machine): it looked in ~/.opagent, where the desktop app keeps nothing."""
+    from opagent_cli.main import main
+    from opagent_cli.paths import app_dirs, current_os
+
+    monkeypatch.delenv("OPAGENT_DSN", raising=False)
+    monkeypatch.delenv("OPAGENT_HOME", raising=False)
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    with pytest.raises(SystemExit) as e:
+        main(["ops", "export-calibration"])
+    assert app_dirs(current_os(), os.environ, str(Path.home()))["data"] in str(e.value)

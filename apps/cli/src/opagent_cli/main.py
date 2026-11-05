@@ -517,7 +517,10 @@ def cmd_ops_export_calibration(a: argparse.Namespace) -> None:
 
     dsn = a.dsn or os.environ.get("OPAGENT_DSN")
     if not dsn:
-        pg_home = (Path(a.home) if a.home else _home()) / "pg"
+        from opagent_cli.paths import app_dirs, current_os
+
+        data = a.home or app_dirs(current_os(), os.environ, str(Path.home()))["data"]
+        pg_home = Path(data) / "pg"
         try:
             port = int((pg_home / "port").read_text(encoding="utf-8"))
         except (OSError, ValueError):

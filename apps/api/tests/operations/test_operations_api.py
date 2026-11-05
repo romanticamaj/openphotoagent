@@ -454,3 +454,51 @@ def test_eta_024_the_command_prints_json(env, embedded_pg, capsys):
     env.client.post("/worker-api/v1/tasks/t6/complete", json={"ok": True, "result": {}})
     main(["ops", "export-calibration", "--dsn", embedded_pg.dsn])
     assert json.loads(capsys.readouterr().out)[0]["op_type"] == "model.download"
+
+
+def _by_date_job(env, sandbox_tree, tmp_path, n=3):
+    for i in range(n):
+        shutil.copyfile(FX / f"IMG_{i + 1:04d}.jpg", sandbox_tree.photos / f"{i}.jpg")
+    w = WorkerAgent(env.client, roots=sandbox_tree.roots, home=tmp_path / "w")
+    w.register()
+    src = env.client.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": ""}).json()
+    body = {"kind": "organize", "source_id": src["id"], "target": {"root_alias": "sorted", "sub_path": ""}}
+    return w, body
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ETA-027")
+def test_eta_027_a_scan_reports_its_progress(env, sandbox_tree, tmp_path):
+    """回歸 (invariant 9, seen on the reference machine): a scan showed no count at all while it ran."""
+    w, body = _by_date_job(env, sandbox_tree, tmp_path)
+    assert env.client.post("/api/v1/jobs", json={**body, "preset": "by-date"}).status_code == 201
+    w.run_until_idle()
+    op = next(o for o in env.client.get("/api/v1/operations?status=recent").json() if o["type"] == "scan")
+    assert op["progress"]["done"] == 3 and op["progress"]["total"] == 3
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ORG-011")
+def test_org_011_an_unknown_preset_is_refused_up_front(env, sandbox_tree, tmp_path):
+    """回歸 (seen on the reference machine): 201, then a 500 when the scan ended; the job ran forever, could not be
+    cancelled, and blocked every later job on that folder with JOB_CONFLICT_RUNNING."""
+    _w, body = _by_date_job(env, sandbox_tree, tmp_path)
+    r = env.client.post("/api/v1/jobs", json={**body, "preset": "no-such-preset"})
+    assert r.status_code == 404
+    assert r.json()["code"] == "PRESET_NOT_FOUND"
+    with env.eng.begin() as c:
+        assert c.execute(select(func.count()).select_from(job)).scalar() == 0
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ORG-011")
+def test_org_011_a_preset_gone_during_the_scan_fails_the_job(env, sandbox_tree, tmp_path):
+    """Imported presets can be deleted while a job scans: it fails, it does not hang."""
+    w, body = _by_date_job(env, sandbox_tree, tmp_path)
+    jid = env.client.post("/api/v1/jobs", json={**body, "preset": "by-date"}).json()["id"]
+    with env.eng.begin() as c:
+        c.execute(text('update job set params = params || \'{"preset": "gone"}\' where id = :i'), {"i": jid})
+    w.run_until_idle()
+    j = env.client.get(f"/api/v1/jobs/{jid}").json()
+    assert j["status"] == "failed"
+    assert env.client.get(f"/api/v1/operations/{jid}").json()["status"] == "failed"
