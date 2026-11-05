@@ -1,21 +1,21 @@
 # 地端接手（Handoff）：從雲端 session 交給參考機
 
-> **2026-11-05 地端 session 更新（因用量上限暫停）。下面 §1「里程碑全部完成」並不準確，請先讀本節。**
+> **2026-11-06 地端 session 更新。下面 §1 以後是雲端寫的舊內容，「里程碑全部完成」並不準確，以本節為準。**
 >
-> **已在參考機實際驗證（真安裝、真模型、以 CDP 操作真 WebView）**：靜默安裝 → 啟動（首次 13 s）→ onboarding → 原生資料夾對話框加入來源 → 真實下載與續傳 → 掃描 → Qwen3-VL＋SigLIP2 依內容分類（80 張 83 s，含載入）→ 核准 → 複製 → 原檔 hash 與 mtime 不變 → 復原 → 繁中語意搜尋 → 開啟人臉（下載、回填 136 張臉、分群）→ 問 AI → kill 各進程 3 s 內恢復 → 乾淨關機。
+> **現況**：`feat/v1.0` 的 CI、desktop-build（三平台）、docker 全綠；coverage-status 991 綠、0 紅、0 部分、32 未開始（都是 D／M／N 層，或需要 Docker、發版）。安裝版已在參考機以真模型實測，紀錄在 `docs/checklists/release-v0.1.md` 末節。
+>
+> **這次實機才發現、已修好的大問題**：安裝版打不開（PG 路徑、CORS、資料目錄撞名、管理員身分、PGPASSWORD）；worker 根本沒接真推論，安裝包沒有 llama-server；下載在 Windows 無法進行；精靈寫出的 MCP 設定不能啟動；重啟後語意搜尋失效；快速捲動整片空白。
 >
 > **未完成，依優先序：**
-> 1. **CI 還不是全綠**（最後完整結果在 8d99cf2，之後有新 commit）：`os-matrix (windows-latest)` 在 `apps/api/tests/controlplane/test_deploy.py::test_deploy_001_two_processes` 逾時；`os-matrix (macos-14)` 的 INF-OOM-005[torch_sidecar] 沒有如預期斷線；`tc-status` 需要用 CI 證據重新產生 coverage-status（Windows 本機結果會誤報）。
-> 2. **本機用的是修補過的安裝目錄**：最後驗證時把新版 Python 檔複製進去。要以最新 commit 重建安裝包再驗一次；CI 的 DESK-054 啟動煙霧測試尚未看到結果。
-> 3. **搜尋品質**：planner 把「海邊」轉成硬性標籤 `scene.beach`，只找到 2 張，語意搜尋其實找得到更多；chip 也顯示原始 key。這牽涉 05 的規格，要審議。
-> 4. **畫面仍寫「執行方式：CUDA」**，實際跑的是內建 Vulkan。recommend 也還會建議 Windows 下載 Vulkan pack（ADR-0025 的後續）。
-> 5. `query_plan` RPC 沒有 handler，每次搜尋記一筆 `UNKNOWN_RPC`（退回規則式，功能正常）。
-> 6. 未跑：V7、V9、S1b 完整、S1a 管理員、S4b 真資料集、`just perf`（PERF-001）、真 AI client（B-15）、B-16、B-19；本機 e2e 的 web server 30 s 內沒起來（CI 的 e2e 是綠的）。ADR-0025 列的無 Vulkan 驅動／VM 測試也未做。
-> 7. `fixtures/hw/rtx5070ti-win11.yaml` 仍是合成檔：實錄時機器正忙，存為 `-busy`，要在閒置時重錄。
+> 1. **問 AI 的搜尋品質**：「海邊」被轉成硬性標籤，只找到 2 張；改成軟條件的話，向量 top-200 又會讓「找到 80 張」失去意義（Claude Code 透過 MCP 也指出了這點）。需要為向量結果設門檻，牽涉 05 與 ADR-0005，要開審議。
+> 2. **recommend 仍建議 Windows 下載 Vulkan pack**（ADR-0025 的後續），方案卡的執行方式已改為顯示實際值。
+> 3. **未實測**：Claude Desktop 與 Cursor（B-15）；macOS／Linux 安裝版只在 CI 驗到能打包，Windows 才有啟動煙霧（DESK-054）；無 Vulkan 驅動的機器；DESK-001 啟動畫面、拖放、OS 通知、更新流程、乾淨 VM（DESK-031）；S1a 管理員；S4b 真資料集（替代資料集 0.605，門檻 0.80，尚無定論）；B-16、B-19；nightly.yml、release-gate.yml。
+> 4. **V7**：腳本要的 `opagent ops export-calibration` 不存在，要先補指令。
+> 5. **本機 e2e**：連續跑時 OP-012 偶發 WinError 32（E2E stack 重置時檔案被占用），單獨跑會過；visual 基準只有 Linux（B-21）。
 >
-> **需要你決定（法律）**：AuraFace 的 LICENSE 是未填寫的 Apache 範本，訓練資料未揭露，其餘 ONNX 檔與 InsightFace 非商用包相同（只用 `glintr100.onnx`）；`onnx-community` 的 SigLIP2 repo 沒有授權檔（上游 Apache-2.0）。
+> **需要你決定（法律）**：AuraFace 的 LICENSE 是未填寫的 Apache 範本，訓練資料未揭露，其餘 ONNX 檔與 InsightFace 非商用包相同（只用 `glintr100.onnx`）；`onnx-community` 的 SigLIP2 repo 沒有授權檔（上游 Apache-2.0）。其餘帳號、簽章、發版項目見 §5 與 BLOCKERS。
 >
-> **這台機器：** D: 是 HDD，**不要**照 §2 把 TEMP 放 D:（initdb 超過 3 分鐘，C: NVMe 只要 7 秒）。環境見 `D:\tools\opa-env.sh`。帳號非管理員、未開開發者模式，10 條 symlink 測試只會得到 WinError 1314（CI Windows 可跑）。Vitest 需 `--pool=threads`。PG-013 在 Defender 下超過預算。測試用 CDP 腳本在 `D:\t\cdp`，模型在 `%LOCALAPPDATA%\OpenPhotoAgent\models`。
+> **這台機器：** D: 是 HDD，**不要**照 §2 把 TEMP 放 D:（initdb 超過 3 分鐘，C: NVMe 只要 7 秒）。環境見 `D:\tools\opa-env.sh`。帳號非管理員、未開開發者模式，symlink 測試只會得到 WinError 1314（CI Windows 可跑）。Vitest 需 `--pool=threads`。PG-013 在 Defender 下超過預算。有 AMD 內顯，llama.cpp 要指定裝置（已自動處理）。測試用 CDP 腳本在 `D:\t\cdp`，WebView 除錯埠用 `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9333`。
 
 ## 1. 現況
 
