@@ -206,8 +206,8 @@ def test_dl_020_onboarding_downloads_siglip_first_then_index(env):
 
 
 @pytest.mark.integration
-@pytest.mark.tc("MDL-014")
-def test_mdl_014_the_plan_counts_only_what_is_still_to_download(env):
+@pytest.mark.tc("MDL-016")
+def test_mdl_016_the_plan_counts_only_what_is_still_to_download(env):
     """回歸: with every model on disk, onboarding still asked for an 8.9 GB download."""
     c = env["client"]
 

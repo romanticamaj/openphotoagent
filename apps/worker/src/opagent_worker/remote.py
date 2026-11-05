@@ -25,6 +25,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from opagent_secure import write_private
+
 PROTOCOL_VERSION = "1.0"
 MODES = ("full", "thumbs", "edge-thumbs", "results-only")  # loosest → strictest
 THUMB_LIMIT = {"full": 1024, "thumbs": 512, "edge-thumbs": 0, "results-only": 0}
@@ -53,8 +55,7 @@ class Credentials:
 
     def save(self, home: Path) -> None:
         p = self.path(home)
-        p.write_text(json.dumps(asdict(self)), encoding="utf-8")
-        os.chmod(p, 0o600)
+        write_private(p, json.dumps(asdict(self)).encode())
 
     @classmethod
     def load(cls, home: Path) -> Credentials:
@@ -82,9 +83,7 @@ def enroll(server: str, code: str, home: Path, name: str, http: Any = None) -> C
     sk = Ed25519PrivateKey.generate()
     raw = sk.private_bytes(ser.Encoding.Raw, ser.PrivateFormat.Raw, ser.NoEncryption())
     kp = _key_path(home)
-    fd = os.open(kp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "wb") as f:
-        f.write(raw)
+    write_private(kp, raw)
     pub = base64.b64encode(sk.public_key().public_bytes(ser.Encoding.Raw, ser.PublicFormat.Raw)).decode()
     own = http is None
     http = http or httpx.Client(base_url=server, timeout=30)

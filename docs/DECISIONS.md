@@ -783,3 +783,50 @@
   - 新增 DESK-042（回歸，先紅後綠）。
 - 同一次 CI 中，IMG-002 再次看到 `outbox.db-journal`：outbox 改成在 worker 建立時（單執行緒）就以 WAL 建立。Q-029 加強為「建立後立即是 WAL」。
 
+## ADR-0024：Windows 上的「0600」是受保護的 DACL，並在建立時設定
+
+**日期**：2026-11-05｜**狀態**：已採納｜**審議**：1 個 sub-agent（依 CLAUDE.md §5.8）
+
+**問題**：規格（08 §1.3、02 §5.2、02 §6）要求秘密檔案 0600、秘密資料夾 0700。Windows 的 `os.chmod` 只切換唯讀位元，所以 `run/api.json`、`remote.json`、`worker.key`、`config/lan.json` 與 credstore 的退回檔案都只拿到繼承來的 ACL。資料夾放在非系統碟時，這個 ACL 實測是 `AU` 可修改。
+
+**選項**：
+- A：維持只有 POSIX 的規格，把 Windows 的落差寫進文件。
+- B：`icacls` 子行程。
+- C：pywin32。
+- D：DPAPI 或 Credential Manager。
+- E：以 ctypes 呼叫 advapi32，在建立時帶入 security descriptor。
+
+**決定**：E。
+- 規格裡的「0600／0700」一律解讀為 **owner-only**。POSIX 維持完全相同的 mode。
+- Windows 為受保護的 DACL，只有目前使用者（取自 process token）與 SYSTEM，都是完全控制：`D:P(A;;FA;;;<user>)(A;;FA;;;SY)`。資料夾的項目加上 `OICI`。
+- 新套件 `packages/secure-file`（`opagent_secure`），沒有相依，`secure-leaf` 合約確保它不 import 其他套件。
+- `write_private()`：暫存檔用唯一檔名，`CreateFileW(CREATE_NEW)` 時就帶 descriptor，從 handle 讀回確認後才寫入，再 `os.replace`。
+- `restrict()`：收緊既有檔案與資料夾。`private_dir()`：建立並收緊資料夾。
+- 不支援 ACL 的磁碟區（FAT、exFAT、部分網路磁碟）：照寫，回傳 `False`，記錄 `SECRET_UNPROTECTED_VOLUME`。支援 ACL 但讀回不符：拒絕（fail closed）。
+
+**理由**：
+- A 不成立：資料夾可以放在 `D:\`，而且 `run/api.json` 也有完整性問題。`opagent mcp` 會把 PAT 送到這個檔案指定的 port，其他本機使用者可以改檔，把 PAT 導走。所以 `api.json` 雖然只有 port 和 pid，也比照秘密處理。
+- B 是建立之後才改，留有空窗；C 增加安裝包大小；D 不涵蓋 `api.json` 的完整性，worker 也沒有 keyring 相依。
+- 納入 SYSTEM：它相當於 root，POSIX 的 0600 也擋不住 root，排除它只會弄壞系統服務。
+- 不納入 Administrators：提權的管理員本來就能取得所有權，而未提權的行程不應該因為在這個群組就能讀。
+- 放在新套件：`core` 必須純粹；`opagent_fs` 不行，因為 api 經由 mcp-tools 用到 credstore，會間接違反不變量 1。
+
+**最強的反對意見**：單人桌面在使用者設定檔底下，繼承的 ACL 本來就安全，這些 ctypes 程式碼不划算。但資料夾明確允許放在其他磁碟，上述 PAT 導向風險就是實際的。
+
+**測試**：
+- 新增 DESK-060、DESK-061（回歸，先紅後綠）。
+- `opagent_testing.perms.assert_owner_only`：POSIX 分支仍是完全相等的 mode 比對；Windows 分支是實作的 oracle，不共用任何程式碼（`icacls /save` 取 SDDL、`whoami` 取 SID）。
+- pytest 的 tmp 資料夾本來就是私有的，測試會先用 `widen()` 放寬，並有負向對照，否則斷言沒有意義。
+- MIG-002、MCP-PAT-001、DESK 系列的 mode 斷言改用此 helper，POSIX 行為不變。
+
+**同步修改的規格**：08 §1.3、09a DESK-060／051、PG-022、09b MCP-PAT-001。
+
+**補記**：`EmbeddedPg` 的 SCRAM 密碼檔（`pgpass`、`.pw-initdb`）也走同一個 helper（PG-022）。
+
+**順帶修正的 POSIX 問題**：`Credentials.save` 先寫入才 chmod；credstore 寫入既有檔案後才 chmod；`api.json.tmp` 是固定檔名。現在都是原子寫入。
+
+**後續（尚未處理）**：
+- SID 改變（重灌 Windows、把磁碟搬到別台）之後，受保護的 `run/` 對新帳號不可寫，app 會起不來。需要獨立的錯誤碼與修復 CTA（不變量 8）。
+- 資料庫、縮圖與人臉資料在 `D:\` 上仍依繼承的 ACL。是否保護整個資料夾要另行決定。
+- OneDrive 資料夾：ACL 擋不住以使用者身分執行的同步程式，應由 doctor 警示。
+

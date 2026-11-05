@@ -96,6 +96,7 @@ class Stack:
         self.worker: Any = None
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
+        self._retired: list[Any] = []
         self.app = self._app()
 
     # ---- app ---------------------------------------------------------------
@@ -307,6 +308,10 @@ class Stack:
             self._thread.join(15)
         self._stop = threading.Event()
         self._thread = None
+        for w in [*self._retired, self.worker]:
+            if w is not None:
+                w.close()
+        self._retired = []
 
     def _wipe_db(self) -> None:
         from opagent_db.schema import engine_for, metadata
@@ -573,6 +578,7 @@ class Stack:
                 return fail
 
         old = self.worker
+        self._retired.append(old)  # its files stay open until the next reset, like a dying process's handles
         old.client = _Dead()
         self._stop.set()
         self._stop = threading.Event()

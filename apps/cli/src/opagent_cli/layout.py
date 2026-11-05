@@ -16,13 +16,13 @@ Steps:
 from __future__ import annotations
 
 import json
-import os
 import shutil
-import stat
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+from opagent_secure import restrict
 
 LAYOUT_VERSION = 1
 FILE = "layout.json"
@@ -39,21 +39,16 @@ class LayoutTooNew(Exception):
         self.fixes = problem(self.code, {"found": found})["fixes"]
 
 
-def _tighten(path: Path, want: int) -> None:
-    if path.exists() and stat.S_IMODE(path.stat().st_mode) & ~want:
-        os.chmod(path, want)
-
-
 def _step_0_to_1(home: Path) -> list[str]:
     touched = []
     for d in ("run", "secrets"):
         p = home / d
         if p.is_dir():
-            _tighten(p, 0o700)
+            restrict(p)
             touched.append(d)
             for f in p.iterdir():
                 if f.is_file():
-                    _tighten(f, 0o600)
+                    restrict(f)
                     touched.append(f"{d}/{f.name}")
     return touched
 
@@ -76,6 +71,7 @@ def _backup(home: Path, version: int) -> Path:
     stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")  # noqa: TID251 - a file name, not logic
     dst = home / "backups" / f"layout-{version}-{stamp}"
     dst.mkdir(parents=True, exist_ok=False, mode=0o700)
+    restrict(dst)  # holds copies of the secrets, taken before they were tightened
     files = []
     for rel in BACKUP.get(version, []):
         src = home / rel

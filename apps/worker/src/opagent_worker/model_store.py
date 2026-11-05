@@ -29,6 +29,22 @@ class MoveError(Exception):
         self.code, self.params = code, params
 
 
+def _hardlink_or_copy(src: Path, target: Path) -> None:
+    try:
+        os.link(src, target)
+    except OSError:  # the target volume has no hardlinks (FAT, exFAT, some network shares)
+        shutil.copyfile(src, target)
+
+
+def _symlink_or_fallback(link: str, target: Path) -> None:
+    """The downloader's order, symlink → hardlink → copy (DL-018): the account moving a store need not be the one
+    that filled it, and only some Windows accounts may create symlinks (MDL-015)."""
+    try:
+        os.symlink(link, target)
+    except OSError:
+        _hardlink_or_copy(target.parent / link, target)
+
+
 @dataclass
 class MoveResult:
     status: str  # done | cancelled | rolled_back | failed
@@ -54,13 +70,18 @@ class ModelStore:
 
     @staticmethod
     def _files(root: Path) -> list[dict[str, Any]]:
-        out = []
+        out: list[dict[str, Any]] = []
+        first: dict[tuple[int, int], str] = {}  # blobs sort before snapshots, so a blob is what its links point at
         for p in sorted(root.rglob("*")):
             rel = p.relative_to(root).as_posix()
             if p.is_symlink():
                 out.append({"rel": rel, "link": os.readlink(p), "size": 0})
             elif p.is_file():
-                out.append({"rel": rel, "size": p.stat().st_size})
+                st = p.stat()
+                same = first.setdefault((st.st_dev, st.st_ino), rel) if st.st_nlink > 1 else rel
+                out.append(
+                    {"rel": rel, "size": st.st_size} if same == rel else {"rel": rel, "hardlink": same, "size": 0}
+                )
         return out
 
     def verify(self, root: Path) -> list[str]:
@@ -107,7 +128,10 @@ class ModelStore:
             target.parent.mkdir(parents=True, exist_ok=True)
             if "link" in f:
                 if not target.is_symlink():
-                    os.symlink(f["link"], target)
+                    _symlink_or_fallback(f["link"], target)
+                continue
+            if "hardlink" in f:
+                _hardlink_or_copy(staging / f["hardlink"], target)
                 continue
             crash_point("model_move_copy")
             with (src / f["rel"]).open("rb") as fi, target.open("wb") as fo:
@@ -117,7 +141,9 @@ class ModelStore:
                     rate = done / max(self.clock.monotonic() - t0, 1e-6)
                     self._emit(emit, "copy", done / total, done, total, eta_s=(total - done) / rate if rate else None)
                     if token.requested:
-                        return self._rollback(staging, "cancelled")
+                        break
+            if token.requested:  # outside the with: Windows cannot delete the file while it is still open
+                return self._rollback(staging, "cancelled")
         # verify (sha-named blobs are checked against their names: no need to re-hash the source)
         problems = self.verify(staging)
         self._emit(emit, "verify", 1.0, total, total)

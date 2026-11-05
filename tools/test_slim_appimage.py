@@ -96,6 +96,7 @@ def _run_hook(ad: Path, libdirs: str) -> subprocess.CompletedProcess[str]:
 
 
 @pytest.mark.unit
+@pytest.mark.os_linux  # executes the AppImage's shell hook; AppImage only exists on Linux
 @pytest.mark.tc("DESK-038")
 def test_desk_038_apprun_preflight_explains_a_missing_webview(tmp_path):
     ad = _appdir(tmp_path)

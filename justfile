@@ -55,7 +55,7 @@ perf:
 lint:
     uv run ruff check .
     uv run ruff format --check .
-    uv run mypy -p opagent_core -p opagent_fs -p opagent_schemas
+    uv run mypy -p opagent_core -p opagent_fs -p opagent_schemas -p opagent_secure
     uv run mypy -p opagent_inference -p opagent_adapters -p opagent_registry -p opagent_doctor -p opagent_search -p opagent_geo -p opagent_db -p opagent_api -p opagent_worker -p opagent_cli -p opagent_testing -p opagent_mcp -p opagent_assistant
     uv run lint-imports
     uv run python tools/gen_error_i18n.py --check

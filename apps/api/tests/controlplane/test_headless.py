@@ -3,7 +3,6 @@
 import json
 import os
 import shutil
-import stat
 import subprocess
 import sys
 import threading
@@ -12,6 +11,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 from opagent_api.app import create_app
+from opagent_testing import winproc
+from opagent_testing.perms import assert_owner_only
 from sqlalchemy import text
 
 FX = Path(__file__).resolve().parents[4] / "fixtures/photos/basic"
@@ -44,6 +45,16 @@ def listening_inodes():
                 continue  # a connected UDP socket is not listening
             out.add(inode)
     return out
+
+
+def socket_evidence(pid):
+    """(every socket of the process, the listening ones among them)."""
+    if sys.platform == "win32":
+        ids = {x["ProcessId"] for x in winproc.processes(pid)}
+        mine = {s for s in winproc.sockets() if s.pid in ids}
+        return mine, {s for s in mine if s.listening}
+    socks = sockets_of(pid)
+    return socks, socks & listening_inodes()
 
 
 def sockets_of(pid):
@@ -104,7 +115,7 @@ def test_worker_006_headless_from_cli(real_cp, tmp_path):
     out = json.loads(cli("enroll", "--server", url, "--code", code, "--name", "gpu-box", home=home).stdout)
     wid = out["worker_id"]
     for f in ("worker.key", "remote.json"):
-        assert stat.S_IMODE((home / f).stat().st_mode) == 0o600, f
+        assert_owner_only(home / f, 0o600)
     assert b"PRIVATE" not in (home / "remote.json").read_bytes()
     assert cli("enroll", "--server", url, "--code", code, home=tmp_path / "again", check=False).returncode != 0
     cli("roots", "add", "photos", str(photos), "--mode", "ro", home=home)
@@ -163,9 +174,9 @@ def test_worker_001_outbound_only(real_cp, tmp_path):
         seen, bad = [], []
 
         def done():
-            socks = sockets_of(proc.pid)
+            socks, listening = socket_evidence(proc.pid)
             seen.append(socks)
-            bad.extend(socks & listening_inodes())
+            bad.extend(listening)
             return len(sql(app, "select id from result where category is not null")) == 3  # scanned and labelled
 
         wait_for(done)
@@ -174,4 +185,4 @@ def test_worker_001_outbound_only(real_cp, tmp_path):
     finally:
         proc.terminate()
         out, err = proc.communicate(timeout=20)
-    assert proc.returncode in (0, -15), err
+    assert proc.returncode in ((0, 1) if sys.platform == "win32" else (0, -15)), err  # TerminateProcess exits 1

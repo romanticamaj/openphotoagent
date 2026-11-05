@@ -9,10 +9,13 @@ import shlex
 import shutil
 import socket
 import subprocess
+import sys
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import quote
+
+from opagent_secure import write_private
 
 
 def find_pg_bin() -> Path:
@@ -30,11 +33,9 @@ def find_pg_bin() -> Path:
     raise RuntimeError("PostgreSQL binaries not found; set OPAGENT_PG_BIN")
 
 
-def write_private(path: Path, text: str) -> None:
-    """A file only its owner can read (0600 on POSIX)."""
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w", encoding="utf-8") as f:
-        f.write(text)
+def _pg_options(args: list[str]) -> str:
+    """pg_ctl's ``-o`` text is parsed by the shell that starts postgres, and POSIX quotes stay literal under cmd.exe."""
+    return subprocess.list2cmdline(args) if os.name == "nt" else shlex.join(args)
 
 
 def _port_is_free(port: int) -> bool:
@@ -115,9 +116,28 @@ def shared_buffers_for(ram_gb: float) -> str:
 
 
 def _total_ram_gb() -> float:
+    if sys.platform == "win32":
+        import ctypes
+
+        class MemoryStatusEx(ctypes.Structure):
+            _fields_ = [
+                ("dwLength", ctypes.c_ulong),
+                ("dwMemoryLoad", ctypes.c_ulong),
+                ("ullTotalPhys", ctypes.c_ulonglong),
+                ("ullAvailPhys", ctypes.c_ulonglong),
+                ("ullTotalPageFile", ctypes.c_ulonglong),
+                ("ullAvailPageFile", ctypes.c_ulonglong),
+                ("ullTotalVirtual", ctypes.c_ulonglong),
+                ("ullAvailVirtual", ctypes.c_ulonglong),
+                ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
+            ]
+
+        m = MemoryStatusEx()
+        m.dwLength = ctypes.sizeof(m)
+        return m.ullTotalPhys / 2**30 if ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(m)) else 8.0
     try:
         return os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES") / 2**30
-    except (ValueError, OSError, AttributeError):  # pragma: no cover - non-POSIX
+    except (ValueError, OSError):  # pragma: no cover - sysconf name missing
         return 8.0
 
 
@@ -195,12 +215,12 @@ class EmbeddedPg:
         self.home.mkdir(parents=True, exist_ok=True)
         password = secrets.token_urlsafe(32)
         once = self.home / ".pw-initdb"
-        write_private(once, password)
+        write_private(once, password.encode())
         try:
             self.run_as(*args, f"--pwfile={once}")
         finally:
             once.unlink(missing_ok=True)
-        write_private(self.passfile, f"127.0.0.1:*:*:{self.user}:{password}\n")
+        write_private(self.passfile, f"127.0.0.1:*:*:{self.user}:{password}\n".encode())
 
     def _clear_stale_pid(self) -> None:
         pidfile = self.data / "postmaster.pid"
@@ -286,7 +306,7 @@ class EmbeddedPg:
             "-D",
             str(self.data),
             "-o",
-            shlex.join(self.server_args()),
+            _pg_options(self.server_args()),
             "-l",
             log,
             "-w",

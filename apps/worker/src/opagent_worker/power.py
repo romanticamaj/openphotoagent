@@ -53,6 +53,8 @@ class MacPower:
 class WindowsPower:
     @property
     def on_ac(self) -> bool:  # pragma: no cover - exercised on the Windows CI runner
+        if sys.platform != "win32":  # also tells mypy that windll exists below, on every checking OS
+            return True
         import ctypes
 
         class SPS(ctypes.Structure):
@@ -66,7 +68,7 @@ class WindowsPower:
             ]
 
         s = SPS()
-        if not ctypes.windll.kernel32.GetSystemPowerStatus(ctypes.byref(s)):  # type: ignore[attr-defined]
+        if not ctypes.windll.kernel32.GetSystemPowerStatus(ctypes.byref(s)):
             return True
         return bool(s.ACLineStatus != 0)  # 0 = offline (battery), 1 = online, 255 = unknown
 

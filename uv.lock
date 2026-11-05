@@ -24,6 +24,7 @@ members = [
     "opagent-registry",
     "opagent-schemas",
     "opagent-search",
+    "opagent-secure-file",
     "opagent-testing",
     "opagent-worker",
     "openphotoagent-workspace",
@@ -1906,6 +1907,7 @@ dependencies = [
     { name = "opagent-api" },
     { name = "opagent-db" },
     { name = "opagent-mcp-tools" },
+    { name = "opagent-secure-file" },
     { name = "opagent-worker" },
     { name = "uvicorn" },
 ]
@@ -1917,6 +1919,7 @@ requires-dist = [
     { name = "opagent-api", editable = "apps/api" },
     { name = "opagent-db", editable = "packages/db" },
     { name = "opagent-mcp-tools", editable = "packages/mcp-tools" },
+    { name = "opagent-secure-file", editable = "packages/secure-file" },
     { name = "opagent-worker", editable = "apps/worker" },
     { name = "uvicorn" },
 ]
@@ -1946,6 +1949,7 @@ dependencies = [
     { name = "alembic" },
     { name = "opagent-core" },
     { name = "opagent-schemas" },
+    { name = "opagent-secure-file" },
     { name = "psycopg", extra = ["binary"] },
     { name = "sqlalchemy" },
 ]
@@ -1955,6 +1959,7 @@ requires-dist = [
     { name = "alembic", specifier = ">=1.20.1" },
     { name = "opagent-core", editable = "packages/core" },
     { name = "opagent-schemas", editable = "packages/schemas" },
+    { name = "opagent-secure-file", editable = "packages/secure-file" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2" },
     { name = "sqlalchemy", specifier = ">=2" },
 ]
@@ -2051,12 +2056,14 @@ source = { editable = "packages/mcp-tools" }
 dependencies = [
     { name = "jsonschema" },
     { name = "opagent-core" },
+    { name = "opagent-secure-file" },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "jsonschema", specifier = ">=4.23" },
     { name = "opagent-core", editable = "packages/core" },
+    { name = "opagent-secure-file", editable = "packages/secure-file" },
 ]
 
 [[package]]
@@ -2109,6 +2116,11 @@ requires-dist = [
 ]
 
 [[package]]
+name = "opagent-secure-file"
+version = "0.0.1"
+source = { editable = "packages/secure-file" }
+
+[[package]]
 name = "opagent-testing"
 version = "0.0.1"
 source = { editable = "packages/testing" }
@@ -2141,6 +2153,7 @@ dependencies = [
     { name = "opagent-inference-sdk" },
     { name = "opagent-registry" },
     { name = "opagent-schemas" },
+    { name = "opagent-secure-file" },
     { name = "pillow" },
     { name = "pillow-heif" },
     { name = "tzfpy" },
@@ -2162,6 +2175,7 @@ requires-dist = [
     { name = "opagent-inference-sdk", editable = "packages/inference-sdk" },
     { name = "opagent-registry", editable = "packages/registry" },
     { name = "opagent-schemas", editable = "packages/schemas" },
+    { name = "opagent-secure-file", editable = "packages/secure-file" },
     { name = "pillow" },
     { name = "pillow-heif" },
     { name = "tzfpy" },
@@ -2208,6 +2222,7 @@ dev = [
     { name = "opagent-registry" },
     { name = "opagent-schemas" },
     { name = "opagent-search" },
+    { name = "opagent-secure-file" },
     { name = "opagent-testing" },
     { name = "opagent-worker" },
     { name = "pytest" },
@@ -2246,6 +2261,7 @@ dev = [
     { name = "opagent-registry", editable = "packages/registry" },
     { name = "opagent-schemas", editable = "packages/schemas" },
     { name = "opagent-search", editable = "packages/search" },
+    { name = "opagent-secure-file", editable = "packages/secure-file" },
     { name = "opagent-testing", editable = "packages/testing" },
     { name = "opagent-worker", editable = "apps/worker" },
     { name = "pytest", specifier = ">=8" },

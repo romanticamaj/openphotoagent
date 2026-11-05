@@ -24,7 +24,7 @@ test.describe("connect AI assistants", () => {
     await wiz.getByRole("button", { name: "寫入設定" }).click();
     await expect(wiz.getByTestId("mcp-written")).toContainText(cfg.path);
     const after = JSON.parse(readFileSync(cfg.path, "utf8"));
-    expect(after.mcpServers.openphotoagent.command).toMatch(/^\//); // absolute path (MCP-PAT-003)
+    expect(after.mcpServers.openphotoagent.command).toMatch(/^(\/|[A-Za-z]:[\\/])/); // absolute path (MCP-PAT-003)
     expect(after.mcpServers.other).toBeTruthy(); // existing servers kept
     expect(readFileSync(`${cfg.path}.opagent-backup`, "utf8")).toBe(before);
     expect(JSON.stringify(after)).not.toContain("opagent_pat_"); // the token is in the keyring, never the file

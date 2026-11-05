@@ -168,7 +168,8 @@ class H(BaseHTTPRequestHandler):
         elif fault == "RUNTIME":
             _bump_persistent("crashes")
         if fault == "RUNTIME":
-            os.kill(os.getpid(), signal.SIGKILL)
+            # no SIGKILL on Windows: os.kill with any other signal there is TerminateProcess, equally uncatchable
+            os.kill(os.getpid(), getattr(signal, "SIGKILL", signal.SIGTERM))
         if fault == "OOM":
             self._json(
                 500, {"error": {"code": 500, "message": "CUDA error: out of memory (failed to allocate buffer)"}}

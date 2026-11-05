@@ -296,6 +296,7 @@
 | SCAN-024 | 輸出資料夾不被掃描 | 輸出 target 位於來源 root 之下（使用者仍堅持時） | 掃描自動排除該 target 子樹；preflight 另有 `OUTPUT_TARGET_INSIDE_SOURCE` | I | #47 |
 | SCAN-025 | 掃描進度型態 | 10,000 檔，無上次總數 | enumerate 階段 `indeterminate` 並回報「已找到 N 張 · X 張/秒」；數完後轉 determinate；有上次總數時直接 rough | I | #30 |
 | SCAN-026 | junction 不被跟隨（回歸） | Windows：來源 root 內有指向 root 外的 junction（`mklink /J`，不需要權限） | 不走進去、不中止掃描；列入略過，原因 `symlink` | U | Windows |
+| SCAN-027 | 掃描快取批次提交（回歸） | 超過兩個批次的檔案；每個檔案時以第二條連線檢查快取；掃描中途丟例外；重新掃描 | commit 次數 ≤ 檔案數／批次＋1；任何時刻落後已掃描數不超過一個批次（kill -9 只需重算這些）；掃描結束或丟例外時全部落地；重掃讀 0 bytes（參考機實測：每檔一次 fsync 在 4 TB 硬碟上約 590 ms／檔，批次後約 150 ms；NVMe 上兩者都約 10 ms） | U | #33、Windows |
 
 ## 5. Q — 佇列與 Job 生命週期（02 §4.3；真 PostgreSQL）
 
@@ -332,6 +333,7 @@
 | Q-027 | GPU 被占用 / 全螢幕 | `hw:game-running-5gb`、FakeFullscreen=true | `PAUSED_GPU_CONTENDED`；GPU 釋放後自動繼續；選「改用 CPU」可繼續 | I | #9、DoD 5.2 |
 | Q-028 | 只在閒置時處理 | `only_when_idle=true`，FakeIdle 秒數 = 5 | `PAUSED_NOT_IDLE`；閒置達門檻後繼續；「現在就處理」覆寫 | I | #32 |
 | Q-029 | outbox 使用 WAL（回歸） | 開啟 worker outbox；另一個連線在交易中寫入 | `journal_mode` 為 `wal`；目錄中不會出現 `outbox.db-journal`（IMG-002 曾在寫入當下看到它） | U | #3 |
+| Q-030 | 停止的 worker 釋放資料庫檔案（回歸） | `close()` 後刪除 worker 資料夾；連續呼叫兩次 | 刪除成功、不報錯（Windows 不能刪開啟中的檔案，e2e 每個案例的 reset 都因此 WinError 32） | U | Windows |
 
 ---
 
@@ -428,6 +430,7 @@
 | INF-OOM-002 | ORT OOM | `fb:inject(OOM)` 持續 | batch 16→8→4→2→1，仍 OOM → 降 `max_pixels` 一檔；最後失敗為 `MODEL_OOM` | U | #28 |
 | INF-OOM-003 | CUDA pack 連續崩潰 → Vulkan | CUDA FakeRuntime 崩潰兩次 | doctor 產生「改用 Vulkan」建議；選擇後 Job 繼續並完成 | I | #28、DoD 5.2 |
 | INF-OOM-004 | 假 llama-server 的跨重啟狀態在並行請求與 SIGKILL 下不損壞（回歸） | 多執行緒同時更新狀態檔並持續讀取；16 個執行緒同時搶 `--crash-first-n 1` 的崩潰 | 讀到的永遠是完整 JSON；恰好一個請求取得崩潰（INF-OOM-001 曾因此約 1/12 失敗） | U | #9 |
+| INF-OOM-005 | RUNTIME 故障在每個 OS 都真的結束行程（回歸） | 假 llama-server 與 torch sidecar（`--fake-pipeline`）注入 `RUNTIME` 後送一個請求 | 請求得不到回應，行程在 10 s 內結束（Windows 沒有 `signal.SIGKILL`，曾只丟 AttributeError、行程繼續活著，崩潰復原路徑沒有被走到） | U | #28 |
 | INF-RT-001 | 5070 Ti（Win，驅動 580，cc 12.0） | `hw:rtx5070ti-win11` | packs=`[llamacpp-cuda13]`；VLM=Qwen3-VL-8B Q5_K_M；ORT=DirectML；只推薦一個組合，附下載 GB 與分鐘數 | U | #13、#22 |
 | INF-RT-002 | RTX 4060 8 GB 筆電 | `hw:rtx4060-laptop` | Qwen3-VL-4B Q4_K_M；8B Q4 為「序列模式」選項 | U | #13 |
 | INF-RT-003 | Mac M2／M3 16 GB | `hw:m2-air-16`、`hw:m3-16` | 不需要 pack（Metal 內建）；4B Q4；CoreML | U | #13 |
@@ -462,7 +465,9 @@
 | MDL-011 | 授權同意 | 預設組合（Apache-2.0）／非商用權重 | 前者不需勾選；後者 `LICENSE_CONSENT_REQUIRED`，同意後寫 `license_acceptance(license_hash)`；授權文字改變（hash 不同）需重新同意 | I | #21 |
 | MDL-012 | `list_models()` 相容欄位 | 呼叫 | 含 compat 物件與舊欄位 `fits_now` | C | #14 |
 | MDL-013 | 回歸：徽章載入中 | 首次設定的方案卡，模型資料尚未回來 | 不顯示「? 未檢查」徽章，改顯示載入中；資料回來後才顯示與其他三處相同的徽章（MDL-005 偶發失敗） | U | #14 |
-| MDL-014 | 推薦組合只算還要下載的量（回歸） | 組合中的模型已安裝 | `download_bytes` 扣除已安裝者；全裝好時為 0，畫面不再要求下載 | I | #15 |
+| MDL-016 | 推薦組合只算還要下載的量（回歸） | 組合中的模型已安裝 | `download_bytes` 扣除已安裝者；全裝好時為 0，畫面不再要求下載 | I | #15 |
+| MDL-014 | 搬移時硬連結的 snapshot 只複製一次（回歸） | snapshot 是 blob 的硬連結（沒有 symlink 權限時下載器的退路，DL-018） | 預估的總量與目標磁碟的實際用量都只算一份；搬移後 snapshot 與 blob 仍是同一個檔案（曾複製兩份，模型佔用的空間加倍） | U | #19、Windows |
+| MDL-015 | 沒有 symlink 權限也能搬移含 symlink 的模型資料夾（回歸） | `os.symlink` 回傳權限錯誤 | 依序退回硬連結、複製，與下載器相同；搬移成功（曾直接失敗） | U | #19、Windows |
 
 ### 7.2 DL：Download Manager（`hf:<scenario>` 錄製伺服器）
 
@@ -796,6 +801,7 @@
 | VIEW-009 | 時間軸 API | 10 萬張 DB | `timeline/buckets` < 50 ms；單 bucket（≤ 5,000）< 80 ms | F | #85 |
 | VIEW-010 | 記憶體預算 | 10 萬張捲動 3 分鐘 + 開 Lightbox 20 次 | 已解碼影像估算 ≤ 512 MB（CDP heap + ImageBitmap 計數） | F | #85 |
 | VIEW-011 | 資訊面板資料 | 某照片有 EXIF、AI 結果 | 欄位齊全；AI 欄位附模型與 `source`；無 GPS 時不顯示地點（不編造） | U | #89 |
+| VIEW-012 | 不存在的 API 路徑不會回網頁（回歸） | web build 掛在 `/`；`/api/v1/nope`、多層路徑、`/worker-api/…`、`/mcp/…`；用戶端路由含有點的資料夾 | API 路徑回 404，內容不是 index.html；`/review/v1.2/abc` 仍回 index.html（Windows 上 StaticFiles 給的是 `api\\v1\\nope`，曾對每個未知路徑回 200 與 HTML） | I | Windows |
 
 ### 12.5 PERF、A11Y、VIS、I18N
 
@@ -891,6 +897,8 @@
 | DESK-052 | spawn 的子進程不重跑 CLI（回歸） | 以 `__mp_main__` 匯入 `opagent_cli.__main__` | 不呼叫 `main()`；以 `__main__` 執行時才呼叫 | U | DL-*、#15 |
 | DESK-053 | 監看父進程時仍能產生子進程（回歸） | 監看 stdin 的 sidecar 以 spawn 開子進程，再關閉 stdin | 子進程正常回應；sidecar 在 stdin 關閉後結束 | I | DL-*、DESK-006 |
 | DESK-054 | CI 真的安裝並啟動安裝版（回歸） | `desktop-build.yml`：NSIS 靜默安裝後跑 `tools/desktop_smoke.py` | API 健康、worker 註冊、log 沒有 Traceback／ImportError；提早結束視為失敗 | U＋CI | DoD 5.1 |
+| DESK-060 | 秘密檔案從第一個 byte 起就是 owner-only（回歸，ADR-0024） | 上層資料夾權限寬鬆（Windows：Authenticated Users 可修改）；寫入、取代舊檔、寫入失敗；以 `icacls /save` 與 `whoami` 獨立檢查 | POSIX 為 0600；Windows 為受保護的 DACL，只有目前使用者與 SYSTEM；寫入第一個 byte 前就成立；失敗時舊檔不變、不留暫存檔 | U | #8 |
+| DESK-061 | 既有檔案與資料夾收緊為 owner-only（回歸，ADR-0024） | 寬鬆的既有檔案與資料夾；新檔放進私有資料夾；不支援 ACL 的磁碟區；ACL 沒有生效 | POSIX 為 0600／0700；Windows 同 DESK-060，資料夾的項目可繼承；不支援 ACL 時照寫並記錄 `SECRET_UNPROTECTED_VOLUME`；支援 ACL 卻沒生效時拒絕（不留下秘密或暫存檔） | U | #8 |
 
 ### 13.2 PG：嵌入式 PostgreSQL 17 + pgvector（08 §2.3）
 
@@ -916,6 +924,9 @@
 | PG-018 | 桌面 port 跨 postmaster 重啟不變（回歸） | 連續兩次 `prepare()`；存下的 port 被別的程式佔用 | 相同 port（api 的 DSN 仍有效）；被佔用時換新 port | U | DESK-002 |
 | PG-019 | 存活檢查不對進程送訊號（回歸） | Windows：`os.kill` 被禁止；活著的非 postgres 進程與已結束的 pid | 都回 False，進程不受影響 | I | Windows |
 | PG-020 | 等 postmaster 啟動完成（回歸） | 建庫時 postmaster 1 秒後才起來 | 重試到連上，不崩潰 | I | DESK-034 |
+| PG-021 | 桌面 profile 讀到真實 RAM（回歸） | Windows：與 `Win32_ComputerSystem.TotalPhysicalMemory` 比對 | 誤差 ≤ 1%（`os.sysconf` 在 Windows 不存在，曾一律回傳 8.0 GB，每台 Windows 都拿到小筆電的 `shared_buffers`） | U | #4 |
+| PG-022 | SCRAM 密碼檔是 owner-only（回歸，ADR-0024） | 資料夾權限寬鬆；`.pw-initdb` 與 `pgpass` | 兩者都符合 DESK-060 的 owner-only（Windows 上 `os.open(..., 0o600)` 沒有作用，其他本機使用者曾可讀取 TCP 資料庫的密碼） | I | #8 |
+| PG-023 | 開發 profile 在每個 OS 都能啟動（回歸） | 非桌面的 `EmbeddedPg`；路徑含空白 | 可連線（`pg_ctl -o` 由 shell 解析，POSIX 引號在 cmd.exe 會留在字串裡，`opagent dev` 與 e2e stack 曾無法啟動） | I | #4 |
 
 ### 13.3 PACK：Runtime pack 驗證（08 §4.3）
 

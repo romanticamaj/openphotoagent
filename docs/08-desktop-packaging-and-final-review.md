@@ -91,6 +91,8 @@ flowchart TB
 | 單一實例 | `tauri-plugin-single-instance`：第二次啟動只會把既有視窗帶到前景，並轉交參數或 deep link。另外在 data dir 放 `opagent.lock`（OS 檔案鎖），防止 AppImage 與 deb 兩種安裝同時開同一份資料；`postmaster.pid` 殘留時，確認該 PID 不存在才清除 |
 | Deep link | 註冊 `openphotoagent://`：`openphotoagent://approvals/{id}`（MCP 核准，取代 05 的瀏覽器 `approval_url`）、`openphotoagent://open?asset=…` |
 
+> **ADR-0024 補充**：本文件與 02 中的「0600／0700」都是指 owner-only。POSIX 是該 mode；Windows 是受保護的 DACL，只有目前使用者與 SYSTEM，並在建立檔案時就設定。一律透過 `opagent_secure` 寫入。
+
 ### 1.4 啟動序列與崩潰重啟
 
 ```

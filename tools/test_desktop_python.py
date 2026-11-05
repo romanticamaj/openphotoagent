@@ -114,7 +114,8 @@ def test_desk_040_app_data_ships_inside_the_runtime(runtime, tmp_path):
     exe = moved / ("python.exe" if os.name == "nt" else "bin/python3")
     r = subprocess.run(
         [str(exe), "-I", "-c", APP_DATA_PROBE],
-        env={"SYSTEMROOT": os.environ["SYSTEMROOT"]} if os.name == "nt" else {},
+        # every Windows process has a profile; without it tempfile probes a literal "~\\AppData\\Local\\Temp" in the cwd
+        env={k: os.environ[k] for k in ("SYSTEMROOT", "USERPROFILE", "TEMP", "TMP")} if os.name == "nt" else {},
         capture_output=True,
         text=True,
         check=False,
