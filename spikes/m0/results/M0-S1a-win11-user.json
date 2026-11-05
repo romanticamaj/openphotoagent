@@ -1,0 +1,37 @@
+{
+  "id": "M0-S1a-win11-user",
+  "status": "measured",
+  "machine": {
+    "hostname_label": "rtx5070ti-win11-user",
+    "os": "Windows",
+    "os_release": "11",
+    "arch": "AMD64",
+    "python": "3.12.13",
+    "cpu_count": 24
+  },
+  "metrics": {
+    "pg_version": "postgres (PostgreSQL) 17.6",
+    "runs": 50,
+    "cold_start_s": {
+      "n": 50,
+      "min": 2.358888499904424,
+      "p50": 11.089282850269228,
+      "p95": 41.097197380079876,
+      "max": 217.2496182997711,
+      "mean": 18.380184784019367
+    },
+    "warm_start_s": {
+      "n": 50,
+      "min": 1.0555771999061108,
+      "p50": 3.7261409002821892,
+      "p95": 6.74360411982052,
+      "max": 22.898503500036895,
+      "mean": 4.215485881986097
+    },
+    "failures": 0,
+    "failure_samples": [],
+    "platform_scope": "Windows"
+  },
+  "pass": false,
+  "notes": "Cold = initdb(--no-sync)+first start until pg_isready; warm = restart existing cluster. Desktop ships PG 17; this run used the PG binaries available on the machine (see pg_version). Scratch dir on a 5400 rpm SATA HDD saturated by downloads, venv installs and the gate suite: this is a worst case, not the expected desktop figure. See M0-S1a-win11-user-nvme.json for the same run on NVMe."
+}

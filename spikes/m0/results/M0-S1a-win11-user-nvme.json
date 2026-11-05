@@ -1,0 +1,37 @@
+{
+  "id": "M0-S1a-win11-user-nvme",
+  "status": "measured",
+  "machine": {
+    "hostname_label": "rtx5070ti-win11-user-nvme",
+    "os": "Windows",
+    "os_release": "11",
+    "arch": "AMD64",
+    "python": "3.12.13",
+    "cpu_count": 24
+  },
+  "metrics": {
+    "pg_version": "postgres (PostgreSQL) 17.6",
+    "runs": 50,
+    "cold_start_s": {
+      "n": 50,
+      "min": 1.775494699832052,
+      "p50": 2.0775121999904513,
+      "p95": 2.8035359601723027,
+      "max": 4.959221699740738,
+      "mean": 2.193551033996046
+    },
+    "warm_start_s": {
+      "n": 50,
+      "min": 0.1876095999032259,
+      "p50": 0.40733579988591373,
+      "p95": 0.7362014350946993,
+      "max": 1.1007651002146304,
+      "mean": 0.43313557401299474
+    },
+    "failures": 0,
+    "failure_samples": [],
+    "platform_scope": "Windows"
+  },
+  "pass": true,
+  "notes": "Cold = initdb(--no-sync)+first start until pg_isready; warm = restart existing cluster. Desktop ships PG 17; this run used the PG binaries available on the machine (see pg_version). Scratch dir on NVMe (where the app data lives), Defender on, normal account, gate suite possibly running (D: busy, CPU 11%). pg_ctl only, no Tauri shell. Admin account NOT run: this account is not an administrator, so the 'starts under admin' part of the criterion is unevaluated."
+}
