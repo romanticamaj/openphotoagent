@@ -876,6 +876,7 @@
 | DESK-046 | sidecar 輸出落地到 log（回歸） | 超過大小上限後重啟 | 啟動時輪替、保留 5 份；`shell.log` 為 JSON lines | U | 08 §1.5 |
 | DESK-047 | 啟動畫面與啟動失敗頁（回歸） | 後端未就緒；`shell_status` 回報 fatal；就緒後 reconnecting | 顯示啟動中而非空白；失敗時顯示代碼、細節、log 位置與複製診斷；重新連線時保留畫面 | U | #8、DESK-001 |
 | DESK-048 | 桌面版用系統對話框新增來源（回歸） | 桌面點「加入資料夾」；取消；Web build | root 出現後可選；取消無變化；Web build 沒有此按鈕 | U | 不變量 2 |
+| DESK-049 | 隨附路徑不帶 `\\?\` 前綴（回歸） | Tauri 回傳 verbatim 的 resource 路徑 | 傳給子進程的是一般路徑（initdb 才找得到 postgres） | U | DESK-034 |
 
 ### 13.2 PG：嵌入式 PostgreSQL 17 + pgvector（08 §2.3）
 

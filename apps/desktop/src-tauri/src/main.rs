@@ -500,7 +500,7 @@ fn main() {
             add_root
         ])
         .setup(move |app| {
-            let resources = app.path().resource_dir()?;
+            let resources = paths::plain(&app.path().resource_dir()?);
             let shell = Arc::new(Shell {
                 home: home.clone(),
                 python: python_in(&resources),

@@ -1,7 +1,7 @@
 //! Where the app keeps its data (08 §1.5). `apps/cli/src/opagent_cli/paths.py` is the same table: both sides have to
 //! agree, or `opagent mcp` looks for `run/api.json` in a folder the shell never wrote.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 pub const NAME: &str = "OpenPhotoAgent";
 pub const LOWER: &str = "openphotoagent";
@@ -47,6 +47,19 @@ pub fn data_home(os: Os, env: &dyn Fn(&str) -> Option<String>, home: &str) -> Pa
     }
 }
 
+/// Tauri canonicalizes resource paths into verbatim form on Windows. Programs that look for siblings next to their
+/// own path do not cope with it: initdb could not find postgres.
+pub fn plain(path: &Path) -> PathBuf {
+    let text = path.to_string_lossy();
+    if let Some(rest) = text.strip_prefix(r"\\?\UNC\") {
+        return PathBuf::from(format!(r"\\{rest}"));
+    }
+    match text.strip_prefix(r"\\?\") {
+        Some(rest) => PathBuf::from(rest),
+        None => path.to_path_buf(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -71,6 +84,22 @@ mod tests {
         assert_eq!(
             data_home(Os::Linux, &none, "/home/a"),
             PathBuf::from("/home/a/.local/share/openphotoagent")
+        );
+    }
+
+    #[test]
+    fn desk_049_verbatim_prefix_is_removed_from_bundled_paths() {
+        assert_eq!(
+            plain(Path::new(r"\\?\C:\Programs\OPA\pg\bin")),
+            PathBuf::from(r"C:\Programs\OPA\pg\bin")
+        );
+        assert_eq!(
+            plain(Path::new(r"\\?\UNC\nas\share\pg")),
+            PathBuf::from(r"\\nas\share\pg")
+        );
+        assert_eq!(
+            plain(Path::new("/opt/opa/pg")),
+            PathBuf::from("/opt/opa/pg")
         );
     }
 

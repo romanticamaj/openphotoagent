@@ -280,6 +280,9 @@ def cmd_pg_prepare(a: argparse.Namespace) -> None:
     except PgError as e:
         print(json.dumps({"code": e.code, "params": e.params}), file=sys.stderr)
         raise SystemExit(6) from e
+    except subprocess.CalledProcessError as e:  # the shell shows this on its failure page
+        print(f"{Path(e.cmd[0]).name} exited {e.returncode}: {e.stderr}", file=sys.stderr)
+        raise SystemExit(6) from e
     result = {"argv": argv, "dsn": pg.dsn, "admin_dsn": pg.dsn_for("postgres"), "data": str(pg.data)}
     print(json.dumps({**result, "pg_ctl": str(pg.bin / "pg_ctl")}))
 
