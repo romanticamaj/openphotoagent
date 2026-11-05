@@ -69,7 +69,7 @@ def _session(home, pat, lines, *extra):
         [sys.executable, "-m", "opagent_cli", "mcp", *extra],
         input="".join(json.dumps(x) + "\n" for x in lines),
         capture_output=True,
-        text=True,
+        encoding="utf-8",
         env=env,
         timeout=60,
     )
@@ -108,7 +108,7 @@ def test_trn_002_stdio_is_a_thin_client():
         "('sqlalchemy','psycopg','opagent_db','opagent_worker','opagent_fs','opagent_inference','PIL','opagent_api')];"
         "print(','.join(bad))"
     )
-    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=60)
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, encoding="utf-8", timeout=60)
     assert out.returncode == 0, out.stderr
     assert out.stdout.strip() == ""
 

@@ -17,6 +17,12 @@ from opagent_testing.clock import FakeClock
 from opagent_testing.perms import assert_owner_only, widen
 
 
+@pytest.fixture(autouse=True)
+def no_ambient_password(monkeypatch):
+    """GitHub's Windows runner sets PGPASSWORD; it outranks the passfile. The shell clears it for its children."""
+    monkeypatch.delenv("PGPASSWORD", raising=False)
+
+
 @pytest.fixture
 def base():
     # pytest's tmp_path is private to root; the server runs as the postgres user when the runner is root

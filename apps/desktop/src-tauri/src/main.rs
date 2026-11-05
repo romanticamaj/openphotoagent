@@ -79,10 +79,16 @@ impl Shell {
         let mut c = Command::new(&self.python);
         c.arg("-I").arg("-m").arg("opagent_cli").args(args);
         c.env_remove("PYTHONPATH").env_remove("PYTHONHOME"); // DESK-027
+        self.sidecar_env(&mut c);
+        c
+    }
+
+    /// Every child, postgres included: pg-run needs the pack too when the app is elevated.
+    fn sidecar_env(&self, c: &mut Command) {
         c.env("OPAGENT_PG_BIN", &self.pg_bin); // the bundled pack, also for pg_dump in the api
         c.env("OPAGENT_RUNTIME_DIR", &self.runtime_dir); // llama-server inside the app (08 §4.1)
-        hide_console(&mut c);
-        c
+        c.env_remove("PGPASSWORD"); // outranks the passfile: a value from the person's shell broke every login
+        hide_console(c);
     }
 
     /// Sends a sidecar's stdout/stderr to `logs/<name>`: it has no console, and a failed start has nothing else.
@@ -139,6 +145,7 @@ impl Shell {
         }
         let mut cmd = Command::new(exe);
         cmd.args(rest);
+        self.sidecar_env(&mut cmd);
         let cmd = self.logged(cmd, "postgres.log")?;
         let child = spawn_supervised(cmd).map_err(|e| e.to_string())?;
         self.children.lock().unwrap().push(("postgres", child));

@@ -48,7 +48,7 @@ def keep(name: str) -> bool:
         stem = low.removeprefix("lib")
         if stem.startswith("llama-") and not stem.startswith(("llama-server", "llama-common")):
             return False
-        return "rpc" not in low
+        return "rpc" not in low or low.endswith(".dylib")  # the macOS build links libggml-rpc
     return False
 
 
