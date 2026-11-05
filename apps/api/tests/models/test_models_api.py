@@ -224,3 +224,12 @@ def test_mdl_016_the_plan_counts_only_what_is_still_to_download(env):
                 )
             )
     assert combo()["download_bytes"] == 0
+
+
+@pytest.mark.integration
+@pytest.mark.tc("MDL-017")
+def test_mdl_017_the_plan_names_the_runtime_that_will_really_run(env):
+    """回歸: the card said CUDA because a CUDA pack was recommended; no pack was installed and Vulkan did the work."""
+    combo = env["client"].get("/api/v1/onboarding/recommendation", params={"worker_id": "w1"}).json()["combo"]
+    assert combo["packs"] == ["llamacpp-cuda13"]  # still what the machine should move to
+    assert combo["runtime"] == "vulkan"  # what is inside the installer (ADR-0025)

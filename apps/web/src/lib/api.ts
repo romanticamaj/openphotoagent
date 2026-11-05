@@ -98,7 +98,7 @@ export function mediaUrl(id: string, variant: Variant, ch?: string | null): stri
 export type Recommendation = {
   mode: "standard" | "fast" | "unsupported";
   hardware: { os: string; gpu: string | null; vram_gb: number | null; ram_gb: number };
-  combo: { variants: string[]; packs: string[]; download_bytes: number; download_minutes: number; estimated: boolean };
+  combo: { variants: string[]; packs: string[]; runtime?: string; download_bytes: number; download_minutes: number; estimated: boolean };
   per_1000_minutes: [number, number] | null;
   licenses: string[];
   requires_acceptance: boolean;

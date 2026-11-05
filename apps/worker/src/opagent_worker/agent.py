@@ -58,6 +58,7 @@ RPC_KINDS = frozenset(
         "scan",
         "scan_models",
         "thumb_fetch",
+        "query_plan",
         "try_one",
         "undo",
         "vlm_ask",
@@ -913,6 +914,10 @@ class WorkerAgent:
         asyncio.run(go())
         self._post_embeddings(images)
         return {"embedded": len(images)}
+
+    def _do_query_plan(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """No LLM planner here yet: an empty answer sends the API to its rule planner at once (SRCH-PLAN-011)."""
+        return {}
 
     @staticmethod
     def _ensure_loaded(emb: Any) -> None:

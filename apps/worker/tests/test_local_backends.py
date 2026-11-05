@@ -390,3 +390,14 @@ def test_inf_local_007_an_idle_worker_keeps_the_embedder_warm(tmp_path):
     assert a.embedder.loaded and a.embedder.loads == 1
     a.warm_embedder()
     assert a.embedder.loads == 1
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-PLAN-021")
+def test_srch_plan_021_a_worker_with_no_planner_says_so(tmp_path):
+    """回歸: every search logged UNKNOWN_RPC: the API asks for a plan, and no worker ever had the handler."""
+    from opagent_worker.agent import RPC_KINDS
+
+    a = _agent(tmp_path)
+    assert "query_plan" in RPC_KINDS
+    assert a._do_query_plan({"q": "貓"}) == {}  # the API falls back to the rule planner (SRCH-PLAN-011)

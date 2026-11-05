@@ -16,6 +16,7 @@ import { fromApi } from "../activity/model";
 type Step = "welcome" | "plan" | "folder";
 
 function runtimeOf(r: Recommendation, chosen: string | null): string {
+  if (!chosen && r.combo.runtime) return r.combo.runtime; // what runs today, not the pack it could move to
   const p = chosen ?? r.combo.packs[0] ?? "";
   if (p.includes("vulkan")) return "vulkan";
   if (p.includes("cuda")) return "cuda";

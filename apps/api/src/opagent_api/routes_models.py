@@ -455,6 +455,7 @@ def onboarding_recommendation(req: Request, worker_id: str) -> dict[str, Any]:
         "combo": {
             "variants": variants,
             "packs": r.packs,
+            "runtime": _runtime(hw),
             "download_bytes": left,
             "download_minutes": minutes,
             "estimated": r.download_estimated,
@@ -468,6 +469,15 @@ def onboarding_recommendation(req: Request, worker_id: str) -> dict[str, Any]:
         "unsupported_reason": r.unsupported_reason,
         "docs_url": r.docs_url,
     }
+
+
+def _runtime(hw: HwSummary) -> str:
+    """What will run the VLM today: an installed pack, else the build inside the installer (ADR-0025)."""
+    packs = " ".join(str(p[0]) for p in hw.installed_packs)
+    for accel in ("cuda", "rocm", "vulkan"):
+        if f"llamacpp-{accel}" in packs:
+            return accel
+    return {"windows": "vulkan", "macos": "metal"}.get(hw.os, "cpu")
 
 
 def _size_of(reg: Registry, key: str) -> int:
