@@ -347,7 +347,18 @@
         "image_cos_min": 0.9999997615814209,
         "text_cos_min": 0.9999998807907104
       }
-    ]
+    ],
+    "cuda_ep_extra": {
+      "onnxruntime_gpu": "1.31.1",
+      "needs": "CUDA 13 DLLs (cudart64_13, cublas64_13, cublasLt64_13) and cuDNN 9 for CUDA 13 (nvidia-cudnn-cu13 9.28) on PATH",
+      "model": "public fp16 pair",
+      "batch": 8,
+      "images_per_s": 59.44930750948012,
+      "image_cos_min": 0.9999421834945679,
+      "text_cos_min": 0.9999901652336121,
+      "without_the_dlls": "session silently fell back to CPUExecutionProvider (1.04 img/s) with only a warning; check session.get_providers()",
+      "fp16_on_cpu_in_1_31_1": "loads with default graph optimisation (image cos min 0.99998); the load failure was seen only in onnxruntime-directml 1.24.4"
+    }
   },
   "pass": false,
   "notes": "pass=false because the public int8 pair fails the 0.999 criterion on CPU (image cos min 0.263). fp16 passes on DirectML, and on CPU only with ORT_DISABLE_ALL (with default optimisation the session fails to load). Single-file repack of our fp32 text model passes. metrics.runs images_per_s was taken with S3 on the same GPU; quiet_gpu_runs has the GPU free of compute (0% utilisation before the run, another idle llama-server resident)."
