@@ -80,6 +80,7 @@ def cmd_api(a: argparse.Namespace) -> None:
         data_fp=fp,
         lan_password_hash=lan_hash,
         backups_dir=home / "backups" if a.token_stdin else None,  # Settings → Data on the desktop (08 §2.3)
+        home=home,
     )
     # the socket is bound and listening before run/api.json names it (DESK-035): no check-then-bind race
     write_run_file(home, {"port": port, "pid": os.getpid(), "version": __version__, "data_fp": fp})

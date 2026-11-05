@@ -239,12 +239,12 @@ def connect_client(client: str, body: ConnectIn, req: Request) -> dict[str, Any]
 
 
 @router.get("/mcp/clients/{client}/proposal")
-def client_proposal(client: str) -> dict[str, Any]:
+def client_proposal(client: str, req: Request) -> dict[str, Any]:
     from . import mcp_clients
 
     if client not in mcp_clients.CLIENTS:
         raise HTTPException(404, detail={"code": "CLIENT_UNKNOWN"})
-    p = mcp_clients.proposal(client)
+    p = mcp_clients.proposal(client, _st(req).home)
     p.pop("content")
     return p
 
@@ -258,4 +258,4 @@ def client_install(client: str, req: Request) -> dict[str, Any]:
     ui_only(req)
     if client not in mcp_clients.CLIENTS:
         raise HTTPException(404, detail={"code": "CLIENT_UNKNOWN"})
-    return mcp_clients.install(client)
+    return mcp_clients.install(client, _st(req).home)

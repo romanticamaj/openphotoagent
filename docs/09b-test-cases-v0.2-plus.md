@@ -244,6 +244,7 @@
 | MCP-PAT-002 | 精靈只寫已知路徑 | 偵測 Claude Desktop／Claude Code／Cursor 設定 | 顯示 diff 後才寫；只寫已知設定檔路徑表內的檔案；寫入前備份 | E | #61 | v0.2 |
 | MCP-PAT-003 | 設定寫絕對路徑 | 產生的 client 設定 | `command` 為 `opagent` 的絕對路徑（安裝程式不改 PATH） | U | #60 | v0.2 |
 | MCP-PAT-004 | media 勾選說明 | 精靈勾選 `photos:media` | 顯示外送說明文案；未勾選時 token 無 media scope | E | #70 | v0.2 |
+| MCP-PAT-007 | 精靈寫入的設定真的能啟動（回歸） | 安裝版，PATH 上沒有 `opagent` | command 為 app 的 Python，args 含 `-m opagent_cli mcp --home <資料夾>`；有 CLI 時用絕對路徑 | U | B-15 |
 
 ---
 
