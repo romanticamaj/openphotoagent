@@ -37,7 +37,7 @@ SIGLIP_REPO = "onnx-community/siglip2-so400m-patch14-384-ONNX"
 QWEN_REPO = "Qwen/Qwen3-VL-8B-Instruct-GGUF"
 REV = "0123456789abcdef0123456789abcdef01234567"
 # small stand-ins for the pinned weights; sizes are what the recorded server really serves
-SIGLIP = [("onnx/vision_model_int8.onnx", 600_000), ("onnx/text_model_int8.onnx", 400_000), ("tokenizer.json", 20_000)]
+SIGLIP = [("onnx/vision_model_fp16.onnx", 600_000), ("onnx/text_model_fp16.onnx", 400_000), ("tokenizer.json", 20_000)]
 QWEN = [("Qwen3VL-8B-Instruct-Q4_K_M.gguf", 6_000_000), ("mmproj-Qwen3VL-8B-Instruct-F16.gguf", 1_000_000)]
 DEAD = "http://127.0.0.1:9"  # discard port: connection refused → NET_UNREACHABLE
 
@@ -75,7 +75,7 @@ class Stack:
         pins = [
             {
                 "model": "siglip2-so400m-384",
-                "variant": "onnx-int8",
+                "variant": "onnx-fp16",
                 "revision": REV,
                 "files": [{"path": f.path, "size": f.size, "sha256": f.sha256, "lfs_oid": f.sha256} for f in siglip],
             },

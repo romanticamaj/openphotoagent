@@ -22,7 +22,7 @@ CUDA_PACKS = ("llamacpp-cuda13", "llamacpp-cuda12")
 
 Q8B5, Q8B4, Q8B8 = "qwen3-vl-8b-instruct@q5_k_m", "qwen3-vl-8b-instruct@q4_k_m", "qwen3-vl-8b-instruct@q8_0"
 Q4B4, Q2B4 = "qwen3-vl-4b-instruct@q4_k_m", "qwen3-vl-2b-instruct@q4_k_m"
-EMBED_GPU, EMBED_CPU = "siglip2-so400m-384@onnx-fp16", "siglip2-so400m-384@onnx-int8"
+EMBED_GPU, EMBED_CPU = "siglip2-so400m-384@onnx-fp16", "siglip2-so400m-384@onnx-fp16-cpu"
 
 # (min usable VRAM GB = total × 0.92, preference list) — 08 §3.3
 GPU_TIERS: list[tuple[float, list[str]]] = [

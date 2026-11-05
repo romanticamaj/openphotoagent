@@ -20,7 +20,7 @@ I18N = {
     lang: json.loads((ROOT / f"packages/i18n/errors.{lang}.json").read_text(encoding="utf-8"))
     for lang in ("zh-TW", "en")
 }
-EMB8 = "siglip2-so400m-384@onnx-int8"
+EMB8 = "siglip2-so400m-384@onnx-fp16"
 EMB16 = "siglip2-so400m-384@onnx-fp16"
 Q5, Q4, Q8 = "qwen3-vl-8b-instruct@q5_k_m", "qwen3-vl-8b-instruct@q4_k_m", "qwen3-vl-8b-instruct@q8_0"
 

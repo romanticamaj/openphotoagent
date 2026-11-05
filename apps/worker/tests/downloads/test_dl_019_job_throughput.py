@@ -25,8 +25,8 @@ JOB = {"kind": "organize", "preset": "by-content-12", "target": {"root_alias": "
 EMB = "siglip2-so400m-384"
 GB = 1024 * 1024 * 1024
 FILES = [
-    ("onnx/vision_model_int8.onnx", GB, 1),
-    ("onnx/text_model_int8.onnx", 200_000, 2),
+    ("onnx/vision_model_fp16.onnx", GB, 1),
+    ("onnx/text_model_fp16.onnx", 200_000, 2),
     ("tokenizer.json", 1_000, 3),
 ]
 
@@ -74,7 +74,7 @@ def test_dl_019_download_does_not_slow_a_running_job(embedded_pg, sandbox_tree, 
         pins = [
             {
                 "model": EMB,
-                "variant": "onnx-int8",
+                "variant": "onnx-fp16",
                 "revision": "0123456789abcdef0123456789abcdef01234567",
                 "files": [{"path": p, "size": n, "sha256": h, "lfs_oid": h} for p, n, h in served],
             }
@@ -102,7 +102,7 @@ def test_dl_019_download_does_not_slow_a_running_job(embedded_pg, sandbox_tree, 
         for s in ("b0", "b1", "c0", "c1"):
             _photos(sandbox_tree.photos, s, nb)
         alone = [_timed_job(client, w, "b0", nb)[0]]
-        op = client.post("/api/v1/workers/w1/installs", json={"variant": f"{EMB}@onnx-int8"}).json()["operation_id"]
+        op = client.post("/api/v1/workers/w1/installs", json={"variant": f"{EMB}@onnx-fp16"}).json()["operation_id"]
         while client.get(f"/api/v1/operations/{op}").json()["status"] in ("queued",):  # leased by the loop
             _loop_once(w)
         with_dl = [_timed_job(client, w, "b1", nb)[0]]

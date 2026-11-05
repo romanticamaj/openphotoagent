@@ -33,6 +33,7 @@
 | ADR-0023 | 安裝後的 app 讀不到自己的資料（registry、整理方式、標籤、詞彙） | 1 | 1D／6（desktop-build CI 之後） |
 | ADR-0024 | Windows 上的 0600 | 1 | 地端 |
 | ADR-0025 | Windows 安裝包內建哪個 llama-server | 1 | 地端 |
+| ADR-0026 | SigLIP2 int8 未通過一致性 | 0（實測直接否決，見內文） | 地端 |
 
 
 ## ADR-0001：任務門檻（accept／review）與分類 cascade 的關係
@@ -851,3 +852,17 @@
 **仍待驗證**：沒有 `vulkan-1.dll`、壞掉的 ICD、無 GPU 的 VM；AMD 獨顯與 Intel 內顯的實機表現（只有這一台參考機）。NVIDIA 使用者在 pack 可用後仍應改用 CUDA。
 
 **同步修改的規格**：08 §3.2、§4.1。
+
+## ADR-0026：移除 SigLIP2 int8，CPU 機器也用 fp16
+
+- 日期：2026-11-05｜狀態：已採納｜審議：未開 sub-agent：M0-S4 的門檻已在 09 §6 定案，實測遠低於門檻，沒有取捨空間
+
+**背景**：03 與 recommend 讓沒有 GPU 的機器用 `onnx-int8`。M0-S4 實測公開 int8 匯出的影像向量 cosine 最低 **0.263**、平均 0.544，門檻是每個向量 ≥ 0.999。這樣的向量等於錯誤的搜尋結果。
+
+**決定**：從目錄移除 int8，`EMBED_CPU` 改用 fp16。fp16 在 `onnxruntime-directml` 1.24.4 的 CPU EP 上圖優化會失敗，所以 `OrtEmbedAdapter` 在載入失敗時關閉圖優化重試。
+
+**代價**：沒有 GPU 的機器下載 2.3 GB 而不是 1.1 GB。實測 CPU 嵌入 0.78 張／秒（Ryzen 9 9900X，未做圖優化），以 `onnx-fp16-cpu` variant 記錄效能先驗。
+
+**同一批實測的目錄修正**：AuraFace 實際是 fp32、249 MiB，超過安裝包預算，`bundled` 改為 false，variant 改名 `onnx-fp32`，開啟人臉功能時才下載。
+
+**影響的測試**：把 int8 當範例 variant 的 fixture 改為 fp16，斷言不變；INF-RT 的 CPU 機器推薦改為 fp16。

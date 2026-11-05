@@ -99,7 +99,7 @@ export function FaceReview() {
   );
 }
 
-const FACE_MODELS = ["yunet-2023mar@onnx-fp32", "auraface-v1@onnx-fp16"];
+const FACE_MODELS = ["yunet-2023mar@onnx-fp32", "auraface-v1@onnx-fp32"];
 
 /** Settings › 人臉: opt-in with consent; disabling ticks 「同時刪除」 by default (FACE-PRG-004). */
 export function FaceSettingsPage() {

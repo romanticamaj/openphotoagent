@@ -48,7 +48,7 @@ test.describe("models", () => {
 
   test("[PF-077] 自動解鎖：MODEL_DOWNLOADING → model.installed 後重算、按鈕解鎖、aria-live 播報；勾「就緒後自動開始」自動送出", async ({ page, request }) => {
     const roots = await (await request.get("/api/v1/roots")).json();
-    await request.post("/api/v1/onboarding/install", { data: { worker_id: roots[0].worker_id, variants: ["siglip2-so400m-384@onnx-int8", VLM] } });
+    await request.post("/api/v1/onboarding/install", { data: { worker_id: roots[0].worker_id, variants: ["siglip2-so400m-384@onnx-fp16", VLM] } });
     await page.goto("/organize");
     await page.getByRole("button", { name: "photos" }).click();
     await page.getByRole("button", { name: "trip", exact: true }).click();

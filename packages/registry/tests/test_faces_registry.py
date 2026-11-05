@@ -19,7 +19,8 @@ def test_gate_005_bundled_face_weights_are_redistributable_and_local():
             assert m.spec.license.redistributable, m.spec.id
     ins = reg.models["insightface-buffalo-l"].spec
     assert not ins.license.redistributable and ins.license.requires_acceptance and not ins.defaults.get("bundled")
-    assert {m.spec.id for m in faces if m.spec.defaults.get("bundled")} == {"yunet-2023mar", "auraface-v1"}
+    # AuraFace is 249 MiB, over the installer budget: it comes with the person's opt-in (ADR-0026)
+    assert {m.spec.id for m in faces if m.spec.defaults.get("bundled")} == {"yunet-2023mar"}
 
 
 @pytest.mark.contract

@@ -217,7 +217,7 @@ def test_face_ort_005_both_face_models_on_disk_make_the_real_backend(tmp_path):
 
     install(tmp_path, "yunet-2023mar", "onnx-fp32")
     assert load_local(tmp_path, env={}).faces is None  # a detector alone cannot embed
-    install(tmp_path, "auraface-v1", "onnx-fp16")
+    install(tmp_path, "auraface-v1", "onnx-fp32")
     got = load_local(tmp_path, env={}).faces
     assert isinstance(got, OrtFaceBackend)
     assert "yunet" in got.fingerprint and "auraface" in got.fingerprint  # faces re-run when either model changes

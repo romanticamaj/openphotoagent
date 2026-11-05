@@ -13,7 +13,7 @@ from sqlalchemy import insert, text
 
 ROOT = Path(__file__).resolve().parents[4]
 EMB = "siglip2-so400m-384"
-INT8 = ["onnx/vision_model_int8.onnx", "onnx/text_model_int8.onnx", "tokenizer.json"]
+INT8 = ["onnx/vision_model_fp16.onnx", "onnx/text_model_fp16.onnx", "tokenizer.json"]
 
 
 @pytest.fixture
@@ -27,7 +27,7 @@ def env(embedded_pg, sandbox_tree, tmp_path):
     pins = [
         {
             "model": EMB,
-            "variant": "onnx-int8",
+            "variant": "onnx-fp16",
             "revision": "0123456789abcdef0123456789abcdef01234567",
             "files": [{"path": f.path, "size": f.size, "sha256": f.sha256, "lfs_oid": f.sha256} for f in files],
         }
@@ -97,13 +97,13 @@ def test_inf_reg_003_user_yaml_shows_up(env):
 @pytest.mark.tc("DL-002")
 def test_dl_002_install_flow_writes_installation_and_event(env):
     c, w = env["client"], env["worker"]
-    r = c.post("/api/v1/workers/w1/installs", json={"variant": f"{EMB}@onnx-int8"})
+    r = c.post("/api/v1/workers/w1/installs", json={"variant": f"{EMB}@onnx-fp16"})
     assert r.status_code == 202, r.text
     op = r.json()["operation_id"]
     _drain(w)
     o = c.get(f"/api/v1/operations/{op}").json()
     assert o["type"] == "model.download" and o["status"] == "succeeded"
-    v = next(x for x in _models(c)[EMB]["variants"] if x["id"] == "onnx-int8")
+    v = next(x for x in _models(c)[EMB]["variants"] if x["id"] == "onnx-fp16")
     assert v["installation"]["status"] == "installed"
     assert "MODEL_NOT_INSTALLED" not in [p["code"] for p in v["compat"]["prep"]]
     assert "event: model.installed" in _events(c)
@@ -122,16 +122,16 @@ def test_install_unpinned_builtin_is_blocked(env):
 @pytest.mark.tc("MDL-007")
 def test_mdl_007_delete_in_use_then_after_job(env):
     c, w = env["client"], env["worker"]
-    c.post("/api/v1/workers/w1/installs", json={"variant": f"{EMB}@onnx-int8"})
+    c.post("/api/v1/workers/w1/installs", json={"variant": f"{EMB}@onnx-fp16"})
     _drain(w)
-    inst = next(x for x in _models(c)[EMB]["variants"] if x["id"] == "onnx-int8")["installation"]
+    inst = next(x for x in _models(c)[EMB]["variants"] if x["id"] == "onnx-fp16")["installation"]
     eng = engine_for(env["dsn"])
     with eng.begin() as conn:  # a running job depends on the model
         conn.execute(
             text(
                 "insert into job(id, workspace_id, kind, status, params) values ('jx','default','organize','running', :p)"
             ),
-            {"p": json.dumps({"models": [f"{EMB}@onnx-int8"]})},
+            {"p": json.dumps({"models": [f"{EMB}@onnx-fp16"]})},
         )
     r = c.delete(f"/api/v1/workers/w1/installations/{inst['id']}")
     assert r.status_code == 409 and r.json()["blockers"][0]["code"] == "MODEL_IN_USE"
@@ -145,7 +145,7 @@ def test_mdl_007_delete_in_use_then_after_job(env):
     assert r.json()["freed_bytes"] == sum(200_000 + i * 1000 for i in range(3))
     assert not list((env["tmp"] / "models" / "hf").rglob("*.onnx"))
     assert "event: model.removed" in _events(c)
-    assert next(x for x in _models(c)[EMB]["variants"] if x["id"] == "onnx-int8")["installation"] is None
+    assert next(x for x in _models(c)[EMB]["variants"] if x["id"] == "onnx-fp16")["installation"] is None
 
 
 @pytest.mark.integration
@@ -194,11 +194,11 @@ def test_dl_020_onboarding_downloads_siglip_first_then_index(env):
     c, w = env["client"], env["worker"]
     r = c.post(
         "/api/v1/onboarding/install",
-        json={"worker_id": "w1", "variants": ["qwen3-vl-8b-instruct@q5_k_m", f"{EMB}@onnx-int8"]},
+        json={"worker_id": "w1", "variants": ["qwen3-vl-8b-instruct@q5_k_m", f"{EMB}@onnx-fp16"]},
     )
     assert r.status_code == 202
     plan = r.json()
-    assert plan["order"][0] == f"{EMB}@onnx-int8"
+    assert plan["order"][0] == f"{EMB}@onnx-fp16"
     assert plan["blocked"] == [{"variant": "qwen3-vl-8b-instruct@q5_k_m", "code": "MODEL_NOT_PINNED"}]
     _drain(w)
     ops = c.get("/api/v1/operations", params={"status": "all", "type": "search.reindex"}).json()

@@ -524,6 +524,7 @@
 | DOC-019 | 結果快取與事件 | doctor 結果 `expires_at`；狀態改變 | 發 `doctor.changed`，preflight `revalidate_on` 觸發重算 | I | #27 |
 | DOC-020 | 五類真機 | nightly／release：NVIDIA、AMD（Vulkan）、Intel、Apple Silicon、純 CPU | 報告產生且不崩潰；附在 release notes | N/M | #26、DoD 5.2 |
 | DOC-021 | Windows 回報實體記憶體（回歸） | Windows 上收集探針 | `ram_gb` 大於 0 | U | Windows |
+| DOC-022 | 解析 Windows 版 nvidia-smi XML（回歸） | `<gpu id=…>`、WDDM 下 `used_memory` 為 N/A | 認得 GPU；外部佔用改用 `fb_memory_usage/used` | U | M0-T2 |
 
 ### 7.4 DIAG：診斷包
 

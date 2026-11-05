@@ -6,3 +6,11 @@
     SetOutPath $INSTDIR
   ${EndIf}
 !macroend
+
+; Tauri removes the files it installed; python writes .pyc files next to them, which kept the folders alive.
+!macro NSIS_HOOK_POSTUNINSTALL
+  RMDir /r "$INSTDIR\python"
+  RMDir /r "$INSTDIR\llama"
+  RMDir /r "$INSTDIR\pg"
+  RMDir "$INSTDIR"
+!macroend

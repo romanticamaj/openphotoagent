@@ -94,14 +94,24 @@ class OrtEmbedAdapter:
             return
         rep.start("model.load", 2, "steps")
         rep.phase("vision_encoder")
-        self.vision = ort.InferenceSession(self.vision_model, providers=self.providers)
+        self.vision = self._session(self.vision_model)
         rep.progress(1, 2)
         rep.phase("text_encoder")
         if self.text_model is not None:
-            self.text = ort.InferenceSession(self.text_model, providers=self.providers)
+            self.text = self._session(self.text_model)
         rep.progress(2, 2)
         self.loaded = True
         rep.finish("succeeded")
+
+    def _session(self, model: str | bytes) -> ort.InferenceSession:
+        """The fp16 export fails graph optimization on the CPU provider of onnxruntime-directml (M0-S4): a machine with
+        no GPU still has to run it, so it loads unoptimized rather than not at all."""
+        try:
+            return ort.InferenceSession(model, providers=self.providers)
+        except Exception:
+            opts = ort.SessionOptions()
+            opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_DISABLE_ALL
+            return ort.InferenceSession(model, sess_options=opts, providers=self.providers)
 
     async def unload(self) -> None:
         self.vision = self.text = None

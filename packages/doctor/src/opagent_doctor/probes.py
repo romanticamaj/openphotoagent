@@ -44,7 +44,9 @@ def parse_nvidia(xml: str | None, csv: str | None) -> list[Gpu]:
     if xml:
         m = re.search(r"<driver_version>([^<]+)</driver_version>", xml)
         driver = m.group(1) if m else None
-        blocks = re.findall(r"<gpu>(.*?)</gpu>", xml, flags=re.S)
+        blocks = re.findall(
+            r"<gpu(?:\s[^>]*)?>(.*?)</gpu>", xml, flags=re.S
+        )  # real output: <gpu id="00000000:01:00.0">
     for i in range(max(len(blocks), len(rows))):
         b = blocks[i] if i < len(blocks) else ""
         row = rows[i] if i < len(rows) else {}
@@ -54,6 +56,9 @@ def parse_nvidia(xml: str | None, csv: str | None) -> list[Gpu]:
         if mt:
             total = _mib(mt.group(1))
         ext = sum(int(x) for x in re.findall(r"<used_memory>(\d+) MiB</used_memory>", b)) / 1024
+        fb_used = re.search(r"<fb_memory_usage>.*?<used>([^<]+)</used>", b, flags=re.S)
+        if not ext and fb_used:  # WDDM reports per-process memory as N/A: only the card's total is known
+            ext = _mib(fb_used.group(1))
         names = re.findall(r"<process_name>([^<]+)</process_name>", b)
         procs = tuple(n.rsplit("\\", 1)[-1].rsplit("/", 1)[-1] for n in names)
         gpus.append(

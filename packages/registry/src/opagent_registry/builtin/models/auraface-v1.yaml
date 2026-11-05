@@ -1,4 +1,4 @@
-# AuraFace v1 (Apache-2.0) — default face embedder (07 §1.4). Licence file to be confirmed on a machine that reaches HF (B-7).
+# AuraFace v1 — default face embedder (07 §1.4). 249 MiB fp32: downloaded on opt-in, too big for the installer. Licence review: B-7.
 schema_version: 1
 id: auraface-v1
 display_name: "AuraFace v1"
@@ -8,12 +8,12 @@ capabilities: [face_embed]
 license: { spdx: Apache-2.0, weights: Apache-2.0, commercial_use: true, redistributable: true, requires_acceptance: false, url: "https://huggingface.co/fal/AuraFace-v1" }
 source: { hf_repo: fal/AuraFace-v1, revision: main }
 embedding: { dim: 512, normalize: true, similarity: cosine }
-defaults: { bundled: true, thresholds: { auto: 0.60, suggest: 0.45, margin: 0.08, merge: 0.55, find_high: 0.55, find_low: 0.42 } }
+defaults: { bundled: false, thresholds: { auto: 0.60, suggest: 0.45, margin: 0.08, merge: 0.55, find_high: 0.55, find_low: 0.42 } }
 privacy: { local_only: true }
 variants:
-  - id: onnx-fp16
+  - id: onnx-fp32
     runtime: onnx
-    quant: fp16
+    quant: fp32
     revision: main
     files:
       - { repo: fal/AuraFace-v1, path: "glintr100.onnx", role: embedder }

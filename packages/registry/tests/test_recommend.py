@@ -62,7 +62,7 @@ def test_inf_rt_005_no_gpu():
     assert "GPU_NOT_FOUND" in [w.code for w in r.warnings]
     opt = [a for a in r.alternatives if a.vlm]
     assert opt and "PERF_CPU_ONLY_SLOW" in [w.code for w in opt[0].warnings]
-    assert r.embed == "siglip2-so400m-384@onnx-int8" and r.ort_ep == "cpu"
+    assert r.embed == "siglip2-so400m-384@onnx-fp16-cpu" and r.ort_ep == "cpu"
 
 
 @pytest.mark.unit
