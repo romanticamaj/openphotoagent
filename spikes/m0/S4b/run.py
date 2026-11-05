@@ -19,6 +19,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from common import write_result  # noqa: E402
 
 
+def _feat(out):  # type: ignore[no-untyped-def]
+    # transformers >= 5 returns a ModelOutput; older versions return the tensor
+    return out if hasattr(out, "numpy") else out.pooler_output
+
+
 def ece(conf: list[float], hit: list[bool], bins: int = 10) -> float:
     tot, n = 0.0, len(conf)
     for b in range(bins):
@@ -54,14 +59,14 @@ def main() -> None:
     def text_emb(texts: list[str]) -> "torch.Tensor":
         t = proc(text=texts, padding="max_length", max_length=64, truncation=True, return_tensors="pt")
         with torch.no_grad():
-            e = model.get_text_features(**t)
+            e = _feat(model.get_text_features(**t))
         return torch.nn.functional.normalize(e, dim=-1)
 
     with torch.no_grad():
         imgs = []
         for i in range(0, len(files), 16):
             batch = [Image.open(a.images / f).convert("RGB") for f in files[i : i + 16]]
-            imgs.append(model.get_image_features(**proc(images=batch, return_tensors="pt")))
+            imgs.append(_feat(model.get_image_features(**proc(images=batch, return_tensors="pt"))))
         iemb = torch.nn.functional.normalize(torch.cat(imgs), dim=-1)
     sets = {"zh": text_emb([prompts["zh"][c] for c in cats]), "en": text_emb([prompts["en"][c] for c in cats])}
     sets["ensemble"] = torch.nn.functional.normalize(sets["zh"] + sets["en"], dim=-1)
