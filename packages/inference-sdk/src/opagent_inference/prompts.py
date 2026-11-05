@@ -42,6 +42,7 @@ def render_fused_prompt(cats: CategoryMap, cfg: CaptionConfig, hints: list[str] 
         lines.append(f"caption: write it in natural English {LENGTH_EN[cfg.length]}.")
     choices = "、".join(cats.keys)
     lines.append(f"category 只能從下列類別選一個；都不符合或無法判斷時選 other：{choices}")
+    lines.append("confidence：你對 category 的把握，只能是 high、medium 或 low。")
     lines.append("tags：3–20 個名詞標籤，依重要性排序，不要「照片」「圖片」等泛詞。")
     lines.append("若畫面中有可讀的文字，contains_image_text 設為 true。")
     if hints:

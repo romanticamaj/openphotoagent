@@ -143,3 +143,42 @@ def test_q_025_description_change_reuses_image_embeddings():
     vlm_items_after = sum(len(r.items) for r in vlm.requests("classify")) - vlm_items_before
     affected = [r for r in res if r.stages["route"] == "vlm" and "food" in r.stages["hints"]]
     assert vlm_items_after == len(affected)
+
+
+class _Stage(FakeBackend):
+    """Counts how many classify calls run at once."""
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self.inflight = self.peak = 0
+
+    async def run_batch(self, req):
+        self.inflight += 1
+        self.peak = max(self.peak, self.inflight)
+        await asyncio.sleep(0.01)
+        try:
+            return await super().run_batch(req)
+        finally:
+            self.inflight -= 1
+
+
+@pytest.mark.integration
+@pytest.mark.tc("INF-CAS-011")
+def test_inf_cas_011_hint_groups_run_side_by_side(monkeypatch):
+    """回歸: images are grouped by their hints, nearly every image has its own, and groups ran one after another, so a
+    4-slot llama-server worked one slot at a time."""
+    import opagent_inference.cascade as cascade
+
+    real = cascade._scores
+    seen = iter(range(100))
+
+    def rotated(*a, **k):
+        """Each image ranks the classes differently, as real photos do."""
+        sc, n = real(*a, **k), next(seen)
+        return {c: v + 1e-6 * ((i + n) % len(sc)) for i, (c, v) in enumerate(sc.items())}
+
+    monkeypatch.setattr(cascade, "_scores", rotated)
+    emb, vlm = FakeBackend(scores="low"), _Stage(vlm_p=0.9)
+    res = run(Cascade(emb, vlm), items(8), tax())
+    assert len(res) == 8
+    assert 1 < vlm.peak <= vlm.describe().max_batch

@@ -391,6 +391,7 @@
 | INF-JSON-010 | 同義詞合併 | tags `["狗","犬","dog"]` | canonical key 皆為 `animal.dog`，只保留一個 | U | #44 |
 | INF-JSON-011 | 新詞上限 | 受控詞彙外的新 tag 12 個，上限 5 | 只保留分數最高 5 個，其餘丟棄並計數 | U | #44 |
 | INF-JSON-012 | 圖中文字標記 | 模型回傳 `contains_image_text=true` | 寫入結果欄位，供搜尋與 05 §3.9 injection 偵測使用 | U | #43 |
+| INF-JSON-013 | confidence 是必填且 prompt 有要求（回歸） | `fused_schema`、`render_fused_prompt` | 必填欄位含 confidence；關閉時不含；prompt 有說明 | U | M0-S3 |
 
 ### 6.4 INF-CAS：cascade 路由（03 §3.3）
 
@@ -406,6 +407,7 @@
 | INF-CAS-008 | prototype 權重 α | 範例數 0、2、5、8 | α = 1.0、golden 內插值、0.4、0.4；≥ 8 張時使用 k-medoids(k=2) 多原型 | U | #42 |
 | INF-CAS-009 | 反例降權 | 有 negative_examples 且與反例更相近 | 該類分數降低（golden） | U | #42 |
 | INF-CAS-010 | 全庫預估命中數 | 自訂類別 + 3 張範例，1,000 張已有 embedding | 只用向量運算（不呼叫 VLM）回傳預估命中數與分布，< 500 ms | I/F | #42、#46 |
+| INF-CAS-011 | 不同 hints 的分組併發（回歸） | 8 張照片各有不同 hints | 同時進行的請求 > 1，且不超過 runtime 的 slot 數 | I | 吞吐量 |
 
 ### 6.5 INF-CAL、INF-VRAM、INF-OOM、INF-RT：校準、資源、降級、runtime 選擇
 

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import inspect
+import asyncio
 import json
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -256,7 +257,10 @@ class Cascade:
             asked = sum(len(v) for v in need.values())
             if asked:
                 self._ev("vlm", str(asked))
-            for hints_json, group in need.items():
+            slots = asyncio.Semaphore(max(1, self.vlm.describe().max_batch))
+            vlm = self.vlm
+
+            async def ask(hints_json: str, group: list[Item]) -> None:
                 hints = json.loads(hints_json)
                 req = BatchRequest(
                     task_type="classify",
@@ -264,11 +268,12 @@ class Cascade:
                     variables={"categories": [*hints, "other"], "hints": hints},
                 )
                 try:
-                    outs = await self.vlm.run_batch(req)
+                    async with slots:  # nearly every image has its own hints: groups must fill the runtime's slots
+                        outs = await vlm.run_batch(req)
                 except InferenceError as e:
                     for g in group:
                         errors[g.image.item_id] = e.error_code
-                    continue
+                    return
                 by_id = {o.item_id: o for o in outs}
                 for g in group:
                     o = by_id[g.image.item_id]
@@ -280,6 +285,8 @@ class Cascade:
                     )
                     vlm_out[g.image.item_id] = val
                     self.vlm_cache[(g.image.content_hash, self._prompt_key(tax, hints))] = val
+
+            await asyncio.gather(*(ask(h, g) for h, g in need.items()))
 
         # 3. decision (stages are stored so thresholds can be re-applied without inference)
         for it in pending:

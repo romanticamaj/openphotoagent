@@ -79,7 +79,7 @@ def fused_schema(cats: CategoryMap, with_confidence: bool = True) -> dict[str, A
         "$id": "opagent.fused.v1",
         "type": "object",
         "properties": props,
-        "required": ["caption", "tags", "category"],
+        "required": ["caption", "tags", "category", *(["confidence"] if with_confidence else [])],
         "additionalProperties": False,
     }
 
