@@ -175,6 +175,9 @@ class WorkerAgent:
             return b.describe().model_fingerprint if b is not None else None
 
         new = self.backend_factory()
+        faces = getattr(new, "faces", None)
+        if fp(faces) != fp(self.face_backend):
+            self.face_backend = faces  # the fingerprint travels with each result, so no re-registration
         if fp(new.vlm) == fp(self.backend) and fp(new.embedder) == fp(self.embedder):
             return
         old = self.backend

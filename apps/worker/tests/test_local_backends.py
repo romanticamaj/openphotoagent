@@ -200,3 +200,16 @@ def test_inf_local_005_a_finished_download_goes_live_without_a_restart(tmp_path)
     current["vlm"] = _Fp("m@b")
     a.refresh_backends()
     assert first.closed and a.backend is current["vlm"] and len(posted) == 2
+
+
+@pytest.mark.unit
+@pytest.mark.tc("FACE-ORT-005")
+def test_face_ort_005_both_face_models_on_disk_make_the_real_backend(tmp_path):
+    from opagent_adapters.ort_face import OrtFaceBackend
+
+    install(tmp_path, "yunet-2023mar", "onnx-fp32")
+    assert load_local(tmp_path, env={}).faces is None  # a detector alone cannot embed
+    install(tmp_path, "auraface-v1", "onnx-fp16")
+    got = load_local(tmp_path, env={}).faces
+    assert isinstance(got, OrtFaceBackend)
+    assert "yunet" in got.fingerprint and "auraface" in got.fingerprint  # faces re-run when either model changes

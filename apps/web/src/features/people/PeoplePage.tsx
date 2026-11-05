@@ -99,6 +99,8 @@ export function FaceReview() {
   );
 }
 
+const FACE_MODELS = ["yunet-2023mar@onnx-fp32", "auraface-v1@onnx-fp16"];
+
 /** Settings › 人臉: opt-in with consent; disabling ticks 「同時刪除」 by default (FACE-PRG-004). */
 export function FaceSettingsPage() {
   const { t } = useTranslation();
@@ -111,7 +113,16 @@ export function FaceSettingsPage() {
   const [name, setName] = useState("");
   const [report, setReport] = useState<PurgeReport | null>(null);
   const refresh = () => void qc.invalidateQueries({ queryKey: ["face-settings"] });
-  const enable = useMutation({ mutationFn: () => api.enableFaces(), onSuccess: () => (setWizard(false), refresh()) });
+  const enable = useMutation({
+    mutationFn: async () => {
+      const on = await api.enableFaces();
+      // AuraFace is 260 MB, too big for the installer: the models arrive with the person's consent (07 §1.4)
+      const worker = (await api.roots())[0]?.worker_id;
+      if (worker) await api.installCombo(worker, FACE_MODELS);
+      return on;
+    },
+    onSuccess: () => (setWizard(false), refresh()),
+  });
   const disable = useMutation({
     mutationFn: () => api.disableFaces(del, name),
     onSuccess: (r) => (setOff(false), setReport(r.purged), refresh(), void qc.invalidateQueries({ queryKey: ["people"] })),
