@@ -24,6 +24,7 @@ TEXT_LENGTH = 64  # SigLIP2 was trained with fixed-length, max_length-padded tex
 class LocalBackends:
     vlm: Any = None
     embedder: Any = None
+    faces: Any = None
     problems: list[str] = field(default_factory=list)
 
 
@@ -134,10 +135,23 @@ def load_local(
         out.embedder = OrtEmbedAdapter(
             str(files["vision"]),
             str(files["text"]),
-            embed_dim or (spec.dim if spec else 1152),
+            embed_dim or int((spec or {}).get("dim", 1152)),
             providers=_providers(),
             tokenizer=siglip_tokenizer(files["tokenizer"]),
             fingerprint=_fingerprint(m, variant),
             max_batch=m.spec.variant(variant).recommended_batch or 8,
+        )
+    detectors = _installed(models_root, reg, "face_detector")
+    face_embedders = _installed(models_root, reg, "face_embedder")
+    if detectors and face_embedders:
+        from opagent_adapters.ort_face import OrtFaceBackend
+
+        dm, dv, dfiles = detectors[0]
+        em, ev, efiles = face_embedders[0]
+        out.faces = OrtFaceBackend(
+            str(dfiles["detector"]),
+            str(efiles["embedder"]),
+            providers=_providers(),
+            fingerprint=f"{_fingerprint(dm, dv)}+{_fingerprint(em, ev)}",
         )
     return out

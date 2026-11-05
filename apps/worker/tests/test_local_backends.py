@@ -11,7 +11,7 @@ from opagent_adapters.llamacpp import LlamaCppServerAdapter
 from opagent_adapters.ort_embed import OrtEmbedAdapter
 from opagent_inference.types import BatchRequest, ImageInput, LoadOptions
 from opagent_registry.loader import load_registry
-from opagent_worker.backends import find_llama_server, load_local, siglip_tokenizer, snapshot_path
+from opagent_worker.backends import LLAMA, find_llama_server, load_local, siglip_tokenizer, snapshot_path
 from PIL import Image
 
 VLM, VLM_VARIANT = "qwen3-vl-8b-instruct", "q4_k_m"
@@ -111,7 +111,7 @@ def test_inf_local_002_vlm_without_a_runtime_is_reported_not_faked(tmp_path):
 def test_inf_local_002_runtime_lookup_order(tmp_path):
     bundled = tmp_path / "bundled"
     bundled.mkdir()
-    name = "llama-server.exe"
+    name = LLAMA
     (bundled / name).write_bytes(b"")
     pack = tmp_path / "packs" / "llamacpp-cuda13" / "1.0.0"
     pack.mkdir(parents=True)
@@ -200,3 +200,48 @@ def test_inf_local_005_a_finished_download_goes_live_without_a_restart(tmp_path)
     current["vlm"] = _Fp("m@b")
     a.refresh_backends()
     assert first.closed and a.backend is current["vlm"] and len(posted) == 2
+
+
+@pytest.mark.unit
+@pytest.mark.tc("FACE-ORT-005")
+def test_face_ort_005_both_face_models_on_disk_make_the_real_backend(tmp_path):
+    from opagent_adapters.ort_face import OrtFaceBackend
+
+    install(tmp_path, "yunet-2023mar", "onnx-fp32")
+    assert load_local(tmp_path, env={}).faces is None  # a detector alone cannot embed
+    install(tmp_path, "auraface-v1", "onnx-fp16")
+    got = load_local(tmp_path, env={}).faces
+    assert isinstance(got, OrtFaceBackend)
+    assert "yunet" in got.fingerprint and "auraface" in got.fingerprint  # faces re-run when either model changes
+
+
+@pytest.mark.unit
+@pytest.mark.tc("INF-LOCAL-004")
+def test_inf_local_004_embedding_size_comes_from_the_catalogue(tmp_path):
+    files = install(tmp_path, EMB, EMB_VARIANT)
+    tiny_tokenizer(files["tokenizer"])
+    assert load_local(tmp_path, env={}).embedder.describe().embedding_dim == 1152
+
+
+@pytest.mark.unit
+@pytest.mark.tc("INF-LOCAL-005")
+def test_inf_local_005_a_bad_model_on_disk_does_not_take_the_worker_down(tmp_path, caplog):
+    """回歸: an exception here killed the worker at start, the shell restarted it into the same crash, and the download
+    that was running stopped for good."""
+    from types import SimpleNamespace
+
+    from opagent_worker.agent import WorkerAgent
+
+    class Client:
+        def post(self, url, json=None):
+            return SimpleNamespace(raise_for_status=lambda: None, json=lambda: {})
+
+    a = WorkerAgent(Client(), roots=[], home=tmp_path / "w", worker_id="w1")
+
+    def boom():
+        raise ValueError("corrupt tokenizer")
+
+    a.backend_factory = boom
+    a.refresh_backends()
+    assert a.backend is None
+    assert "corrupt tokenizer" in caplog.text

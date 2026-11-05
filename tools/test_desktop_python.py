@@ -180,3 +180,24 @@ def test_desk_051_only_the_server_and_its_libraries_ship():
     assert all(len(sha) == 64 for _, sha in mod.ASSETS.values())
     conf = (ROOT / "apps/desktop/src-tauri/tauri.conf.json").read_text(encoding="utf-8")
     assert "build/desktop/llama" in conf
+
+
+@pytest.mark.unit
+@pytest.mark.tc("DESK-054")
+def test_desk_054_smoke_fails_on_a_crash_in_the_logs_and_on_early_exit(tmp_path):
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("desktop_smoke", ROOT / "tools/desktop_smoke.py")
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    (logs / "api.log").write_text('{"level": "INFO"}\n', encoding="utf-8")
+    assert mod.problems_in_logs(logs) == []
+    (logs / "worker.stderr.log").write_text("ModuleNotFoundError: x\n", encoding="utf-8")
+    assert mod.problems_in_logs(logs) == ["worker.stderr.log: ModuleNotFoundError"]
+    with pytest.raises(SystemExit, match="exited during start-up"):
+        mod.wait_for_api(tmp_path, lambda: False, 5)
+    workflow = (ROOT / ".github/workflows/desktop-build.yml").read_text(encoding="utf-8")
+    assert "tools/desktop_smoke.py" in workflow
