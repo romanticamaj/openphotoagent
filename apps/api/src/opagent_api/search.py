@@ -65,6 +65,7 @@ class SearchIn(BaseModel):
     facets: list[str] = []
     collapse_duplicates: bool = True  # one representative per near-duplicate group, with "+N" (05 §2.1)
     plan: bool = False  # run the rule-based planner on q (05 §2.3): NL dates / tags → filters, rest stays text
+    lang: str = "zh-TW"  # the language of tag_names (IMP-022)
 
 
 # ---- cursors ----
@@ -469,6 +470,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
     out: dict[str, Any] = {
         "items": items,
         "facets": facets,
+        "tag_names": tag_names(list(facets.get("tags") or {}), body.lang),
         "next_cursor": _sign({"o": nxt, "s": snapshot, "h": _qhash(body)}) if nxt < total else None,
         "total": total,
         "total_capped": capped,  # the vector route hit K: `total` is a lower bound
@@ -483,6 +485,14 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
     if planned is not None:
         out["planner"] = planned  # shown as removable filter chips (05 §2.3)
     return out
+
+
+def tag_names(keys: list[str], lang: str) -> dict[str, str]:
+    """Display names for vocabulary ids; a free tag is already its own name (IMP-022)."""
+    from .labels import tokenizer
+
+    tok = tokenizer()
+    return {k: n for k in keys if (n := tok.term_name(k, lang)) is not None}
 
 
 def _facets(c: Any, ids: list[str] | None, where: list[Any], fields: list[str]) -> dict[str, dict[str, int]]:

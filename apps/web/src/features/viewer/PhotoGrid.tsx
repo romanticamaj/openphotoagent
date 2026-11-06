@@ -16,6 +16,25 @@ import { Scrubber } from "./Scrubber";
 import { HEADER_H, TimelineModel, monthLabel, type Bucket } from "./timeline";
 
 export type GridPos = { bucket: number; index: number };
+/** Its own component: the activity query ticks every second, and the grid must not render with it. */
+function EmptyLibrary() {
+  const { t } = useTranslation();
+  const working = useActivity().data?.some((o) => ["scan", "job.label"].includes(o.type)) ?? false;
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
+      <p className="text-base font-semibold">{t(working ? "viewer.arriving" : "viewer.empty")}</p>
+      {working ? null : (
+        <>
+          <p className="max-w-md text-[var(--text-muted)]">{t("viewer.emptyHint")}</p>
+          <Link to="/import" className="rounded-[var(--radius-md)] bg-[var(--accent)] px-4 py-2 font-semibold text-[var(--accent-fg)]">
+            {t("viewer.emptyAction")}
+          </Link>
+        </>
+      )}
+    </div>
+  );
+}
+
 export type GridApi = {
   total: number;
   ordinal: (p: GridPos) => number;
@@ -56,7 +75,6 @@ export function PhotoGrid({
   const buckets = useQuery({ queryKey: ["timeline", "buckets"], queryFn: api.buckets });
   const list: Bucket[] = useMemo(() => buckets.data?.buckets ?? [], [buckets.data]);
   const hasPhotos = list.length > 0;
-  const working = useActivity().data?.some((o) => ["scan", "job.label"].includes(o.type)) ?? false;
   const innerWidth = Math.max(0, width - 72); // scrubber gutter
   const model = useMemo(() => new TimelineModel(list, innerWidth || 1, target), [list, innerWidth, target]);
 
@@ -234,19 +252,7 @@ export function PhotoGrid({
   };
 
   if (buckets.isSuccess && list.length === 0) {
-    return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
-        <p className="text-base font-semibold">{t(working ? "viewer.arriving" : "viewer.empty")}</p>
-        {working ? null : (
-          <>
-            <p className="max-w-md text-[var(--text-muted)]">{t("viewer.emptyHint")}</p>
-            <Link to="/import" className="rounded-[var(--radius-md)] bg-[var(--accent)] px-4 py-2 font-semibold text-[var(--accent-fg)]">
-              {t("viewer.emptyAction")}
-            </Link>
-          </>
-        )}
-      </div>
-    );
+    return <EmptyLibrary />;
   }
 
   // global row numbering for aria-rowindex (unlaid buckets count their estimated rows)

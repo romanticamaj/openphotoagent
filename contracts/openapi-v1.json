@@ -2159,6 +2159,11 @@
           "filters": {
             "$ref": "#/components/schemas/Filters"
           },
+          "lang": {
+            "default": "zh-TW",
+            "title": "Lang",
+            "type": "string"
+          },
           "limit": {
             "default": 50,
             "maximum": 500.0,
@@ -3118,6 +3123,16 @@
             "required": true,
             "schema": {
               "title": "Asset Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "lang",
+            "required": false,
+            "schema": {
+              "default": "zh-TW",
+              "title": "Lang",
               "type": "string"
             }
           }

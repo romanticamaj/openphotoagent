@@ -7,12 +7,14 @@ beforeAll(async () => {
   await i18n.changeLanguage("zh-TW");
 });
 
-const s = vi.hoisted(() => ({ search: vi.fn(), total: 12 }));
+const s = vi.hoisted(() => ({ search: vi.fn(), analyze: vi.fn(), total: 12 }));
 vi.mock("../../lib/api", async (orig) => ({
   ...(await orig<typeof import("../../lib/api")>()),
   mediaUrl: (id: string) => `/m/${id}`,
   api: {
     search: s.search,
+    analyzeSource: s.analyze,
+    sources: async () => [{ id: "s1", root_alias: "a", sub_path: "" }, { id: "s2", root_alias: "b", sub_path: "" }],
     buckets: async () => ({ buckets: [{ month: "2024-04", count: s.total }] }),
     preset: async () => ({
       categories: [
@@ -67,5 +69,33 @@ describe("seeing what the AI found (ADR-0029)", () => {
     ui();
     await screen.findByText(/還沒有分析結果/);
     expect(screen.getByRole("link", { name: "匯入照片" }).getAttribute("href")).toBe("/import");
+  });
+});
+
+describe("the words the AI wrote (ADR-0029)", () => {
+  it("[IMP-021] 每張照片都看得到 AI 的說明文字", async () => {
+    s.search.mockReset();
+    s.search.mockResolvedValue(result([{ ...hit("a"), caption: "一盤中式炒菜配白飯" }], { category: { food: 3 } }));
+    ui();
+    expect(await screen.findByText("一盤中式炒菜配白飯")).toBeTruthy();
+  });
+
+  it("[IMP-022] 標籤顯示名稱，不顯示內部代號", async () => {
+    s.search.mockReset();
+    s.search.mockResolvedValue({ ...result([hit("a")], { category: { food: 3 }, tags: { "people.child": 4 } }), tag_names: { "people.child": "小孩" } });
+    ui();
+    expect(await screen.findByRole("button", { name: /小孩/ })).toBeTruthy();
+    expect(screen.queryByText("people.child")).toBeNull();
+  });
+
+  it("[IMP-023] 沒分析的照片一鍵補上，每個來源各跑一次", async () => {
+    s.search.mockReset();
+    s.search.mockResolvedValue(result([hit("a")], { category: { food: 3 } }));
+    s.analyze.mockReset();
+    s.analyze.mockResolvedValue({ job_id: "j" });
+    ui();
+    fireEvent.click(await screen.findByRole("button", { name: /分析剩下的 9 張/ }));
+    await waitFor(() => expect(s.analyze).toHaveBeenCalledTimes(2));
+    expect(s.analyze.mock.calls.map(([id]) => id)).toEqual(["s1", "s2"]);
   });
 });

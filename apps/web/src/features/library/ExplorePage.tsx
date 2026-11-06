@@ -1,6 +1,6 @@
 // 分類 (ADR-0029): what the AI found, at a glance. Categories and tags with their counts, biggest first; choosing one
 // narrows the photos below. Filtering only: nothing here changes a label or a file.
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -22,7 +22,7 @@ export function ExplorePage() {
   const names = useMemo(() => new Map((preset.data?.categories ?? []).map((c) => [c.key, c.name])), [preset.data]);
   const all = useQuery({
     queryKey: ["explore", "facets"],
-    queryFn: () => api.search({ q: null, limit: 1, facets: ["category", "tags"] }),
+    queryFn: () => api.search({ q: null, limit: 1, facets: ["category", "tags"], lang: i18n.language }),
     refetchInterval: 5000, // counts grow while a folder is being analysed
   });
   const library = useQuery({ queryKey: ["timeline", "buckets"], queryFn: api.buckets });
@@ -34,6 +34,12 @@ export function ExplorePage() {
     getNextPageParam: (last) => last.next_cursor,
   });
   const hits = (res.data?.pages ?? []).flatMap((p) => p.items);
+  // photos added before analysis was automatic: photos already labelled come back from the cache (Q-014)
+  const rest = useMutation({
+    mutationFn: async () => {
+      for (const s of await api.sources()) await api.analyzeSource(s.id);
+    },
+  });
   const grid: GridApi = useMemo(
     () => ({
       total: hits.length,
@@ -80,19 +86,25 @@ export function ExplorePage() {
           {t("explore.analysed", { n: num(analysed) })}
           {left ? ` ${t("explore.left", { n: num(left) })}` : ""}
         </p>
+        {left ? (
+          <Button variant="ghost" disabledReason={rest.isPending || rest.isSuccess ? { code: "BUSY", message: t("explore.started") } : null} onClick={() => rest.mutate()}>
+            {t("explore.analyseRest", { n: num(left) })}
+          </Button>
+        ) : null}
       </header>
       <section aria-label={t("explore.categories")} className="flex flex-wrap gap-2">
         {categories.map(([k, n]) => chip({ kind: "category", value: k }, names.get(k) ?? k, n))}
       </section>
       {tags.length > 0 ? (
         <section aria-label={t("explore.tags")} className="flex flex-wrap gap-2 text-sm">
-          {tags.map(([k, n]) => chip({ kind: "tag", value: k }, k, n))}
+          {tags.map(([k, n]) => chip({ kind: "tag", value: k }, all.data?.tag_names?.[k] ?? k, n))}
         </section>
       ) : null}
       <div className="explore-grid">
         {hits.map((h, i) => (
-          <button key={h.asset_id} type="button" className="explore-tile" aria-label={h.caption ?? (h.category ? (names.get(h.category) ?? h.category) : t("explore.photo"))} onClick={() => setViewing(i)}>
+          <button key={h.asset_id} type="button" className="explore-tile" onClick={() => setViewing(i)}>
             <img src={mediaUrl(h.asset_id, "t256", h.ch)} alt="" loading="lazy" />
+            <span className="explore-caption">{h.caption ?? (h.category ? (names.get(h.category) ?? h.category) : t("explore.photo"))}</span>
           </button>
         ))}
       </div>

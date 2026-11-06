@@ -78,6 +78,7 @@ export type Label = {
   model_fingerprint: string;
   caption: string | null;
   tags: string[] | null;
+  tag_names?: Record<string, string>;
 };
 export type AssetInfo = {
   id: string;
@@ -134,6 +135,7 @@ export type SearchBody = {
   limit?: number;
   cursor?: string | null;
   facets?: string[];
+  lang?: string;
 };
 export type SearchHit = { asset_id: string; ch?: string | null; score: number; matched_by: string[]; category: string | null; tags: string[]; caption: string | null; taken_at: string | null };
 export type Planner = {
@@ -147,6 +149,7 @@ export type Planner = {
 export type SearchResult = {
   items: SearchHit[];
   facets: Record<string, Record<string, number>>;
+  tag_names?: Record<string, string>;
   next_cursor: string | null;
   total: number;
   total_capped?: boolean;
@@ -348,7 +351,7 @@ export const api = {
     ),
   buckets: () => req<{ buckets: Array<{ month: string; count: number }> }>("GET", "/timeline/buckets"),
   bucket: (month: string) => req<{ month: string; assets: TimelineAsset[] }>("GET", `/timeline/buckets/${month}`),
-  asset: (id: string) => req<AssetInfo>("GET", `/assets/${encodeURIComponent(id)}`),
+  asset: (id: string, lang = "zh-TW") => req<AssetInfo>("GET", `/assets/${encodeURIComponent(id)}?lang=${encodeURIComponent(lang)}`),
   correct: (id: string, category: string) => req<unknown>("PATCH", `/assets/${encodeURIComponent(id)}/labels`, { category }),
   preset: (key: string, lang: string) =>
     req<{ key: string; categories: Category[] }>("GET", `/presets/${encodeURIComponent(key)}?lang=${encodeURIComponent(lang)}`),

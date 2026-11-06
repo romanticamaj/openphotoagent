@@ -29,6 +29,10 @@ test("[IMP-014] 匯入：先看資料夾內容，加入後自動分析，完成�
   await chips.first().click();
   await expect(page.locator(".explore-tile").first()).toBeVisible();
   if (shots) await page.screenshot({ path: `${shots}/explore.png` });
+  await page.locator(".explore-tile").first().click();
+  await page.keyboard.press("i");
+  await expect(page.getByTestId("ai-caption")).not.toBeEmpty();
+  await expect(page.getByTestId("ai-tags").getByRole("listitem").first()).toBeVisible();
 });
 
 test("[IMP-014] 圖庫是空的時候，照片頁直接帶去匯入", async ({ page }) => {

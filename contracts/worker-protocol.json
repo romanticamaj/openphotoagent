@@ -2159,6 +2159,11 @@
           "filters": {
             "$ref": "#/components/schemas/Filters"
           },
+          "lang": {
+            "default": "zh-TW",
+            "title": "Lang",
+            "type": "string"
+          },
           "limit": {
             "default": 50,
             "maximum": 500.0,

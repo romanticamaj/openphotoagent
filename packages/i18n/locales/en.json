@@ -418,7 +418,8 @@
       "layer": "Decided by",
       "human": "Your correction",
       "none": "Not analysed yet",
-      "advanced": "Advanced details"
+      "advanced": "Advanced details",
+      "tags": "Tags"
     },
     "layer": {
       "embedding": "Image similarity",
@@ -887,6 +888,8 @@
     "left": "{n} more to go.",
     "more": "Load more",
     "none": "No analysis results yet",
-    "noneHint": "Import a folder and AI analyses each photo. The results show up here."
+    "noneHint": "Import a folder and AI analyses each photo. The results show up here.",
+    "analyseRest": "Analyse the remaining {n}",
+    "started": "Analysis started. Progress is in the corner."
   }
 }
