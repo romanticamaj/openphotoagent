@@ -6,7 +6,7 @@
 
 | 版本 | 總數 | 綠 | 部分 | 紅 | 未開始 | 廢止 |
 |---|---|---|---|---|---|---|
-| v0.1 | 695 | 671 | 0 | 0 | 24 | 0 |
+| v0.1 | 699 | 675 | 0 | 0 | 24 | 0 |
 | v0.2 | 195 | 192 | 0 | 0 | 3 | 0 |
 | v0.3 | 57 | 55 | 0 | 0 | 2 | 0 |
 | v0.4 | 31 | 29 | 0 | 0 | 2 | 0 |
@@ -34,7 +34,7 @@
 | v0.1 | E2E-L | 3 | 3 | 0 | 0 |
 | v0.1 | E2E-S | 3 | 3 | 0 | 0 |
 | v0.1 | E2E-SEL | 2 | 2 | 0 | 0 |
-| v0.1 | ETA | 26 | 25 | 1 | 0 |
+| v0.1 | ETA | 28 | 27 | 1 | 0 |
 | v0.1 | FS | 30 | 30 | 0 | 0 |
 | v0.1 | I18N | 7 | 7 | 0 | 0 |
 | v0.1 | INF-CAL | 3 | 2 | 1 | 0 |
@@ -48,8 +48,8 @@
 | v0.1 | INF-VRAM | 8 | 8 | 0 | 0 |
 | v0.1 | MCP-TRN | 1 | 0 | 1 | 0 |
 | v0.1 | MDL | 17 | 17 | 0 | 0 |
-| v0.1 | OP | 18 | 18 | 0 | 0 |
-| v0.1 | ORG | 10 | 10 | 0 | 0 |
+| v0.1 | OP | 19 | 19 | 0 | 0 |
+| v0.1 | ORG | 11 | 11 | 0 | 0 |
 | v0.1 | OUT-CRASH | 12 | 12 | 0 | 0 |
 | v0.1 | OUT-EXE | 23 | 23 | 0 | 0 |
 | v0.1 | OUT-JRN | 5 | 5 | 0 | 0 |
@@ -157,162 +157,162 @@
 
 | ID | 版本 | 層 | # | 狀態 | 測試數 | 標題 |
 |---|---|---|---|---|---|---|
-| CORE-HASH-001 | v0.1 | U | #51 | 綠 | 3 | key 順序不影響 hash |
-| CORE-HASH-002 | v0.1 | P | #51 | 綠 | 6 | canonical 化對任意結構穩定 |
-| CORE-HASH-003 | v0.1 | U | #51 | 綠 | 3 | 數值正規化 |
-| CORE-HASH-004 | v0.1 | U |  | 綠 | 9 | 非法數值 |
-| CORE-HASH-005 | v0.1 | U | #51 | 綠 | 3 | Unicode 正規化 |
-| CORE-HASH-006 | v0.1 | U | #46 | 綠 | 15 | 影響推論的欄位改變 → 失效 |
-| CORE-HASH-007 | v0.1 | U | #46 | 綠 | 3 | **只改門檻不重算** |
-| CORE-HASH-008 | v0.1 | U | #46 | 綠 | 3 | 只改輸出規則不重算 |
-| CORE-HASH-009 | v0.1 | U | #51 | 綠 | 3 | fingerprint 用 `numerics_epoch` |
-| CORE-HASH-010 | v0.1 | U | #51 | 綠 | 9 | epoch 改變 → fingerprint 改變 |
-| CORE-HASH-011 | v0.1 | U | #51 | 綠 | 3 | 快取鍵三元組 |
-| CORE-HASH-012 | v0.1 | C | #51 | 綠 | 3 | 跨語言／跨平台 golden |
-| CORE-TPL-001 | v0.1 | U | #38 | 綠 | 3 | 基本渲染 |
-| CORE-TPL-002 | v0.1 | U | #38 | 綠 | 15 | `{date:YYYY}` 別名 |
-| CORE-TPL-003 | v0.1 | U | #40 | 綠 | 3 | 拍攝時區不轉 UTC |
-| CORE-TPL-004 | v0.1 | U | #40 | 綠 | 6 | 缺日期 → mtime 並標來源 |
-| CORE-TPL-005 | v0.1 | U | #38 | 綠 | 6 | 缺值 fallback |
-| CORE-TPL-006 | v0.1 | U | #38 | 綠 | 3 | 非法字元清理 |
-| CORE-TPL-007 | v0.1 | U | #38 | 綠 | 42 | 控制字元與 bidi |
-| CORE-TPL-008 | v0.1 | U | #38 | 綠 | 9 | `.` 與 `..` 值 |
-| CORE-TPL-009 | v0.1 | U | #38 | 綠 | 3 | 前後空白與結尾點 |
-| CORE-TPL-010 | v0.1 | U | #38 | 綠 | 42 | Windows 保留名 |
-| CORE-TPL-011 | v0.1 | U | #38 | 綠 | 3 | 斜線相似字元 |
-| CORE-TPL-012 | v0.1 | U | #38 | 綠 | 3 | 段長度上限 |
-| CORE-TPL-013 | v0.1 | U | #38 | 綠 | 3 | 截斷保留副檔名 |
-| CORE-TPL-014 | v0.1 | U | #38 | 綠 | 27 | Emoji 與組合字 |
-| CORE-TPL-015 | v0.1 | U | #38 | 綠 | 3 | NFD → NFC |
-| CORE-TPL-016 | v0.1 | U | #38 | 綠 | 6 | 全路徑過長（Windows 未開長路徑） |
-| CORE-TPL-017 | v0.1 | U | #38 | 綠 | 36 | 未知變數 |
-| CORE-TPL-018 | v0.1 | U | #38 | 綠 | 27 | 模板本身的路徑注入 |
-| CORE-TPL-019 | v0.1 | U | #38 | 綠 | 15 | strftime 白名單 |
-| CORE-TPL-020 | v0.1 | U | #38 | 綠 | 3 | 模板長度上限 |
-| CORE-TPL-021 | v0.1 | U | #38 | 綠 | 12 | stem 與 ext 拆分 |
-| CORE-TPL-022 | v0.1 | U | #38 | 綠 | 3 | `{tag:<prefix>}` |
-| CORE-TPL-023 | v0.1 | U | #38 | 綠 | 3 | casefold 鍵 |
-| CORE-TPL-024 | v0.1 | P | #38 | 綠 | 6 | 性質：段永遠安全 |
-| CORE-TPL-025 | v0.1 | C | #38 | 綠 | 7 | Python ↔ TS 一致 |
-| CORE-THR-001 | v0.1 | U | #45 | 綠 | 3 | embedding 高信心直接採用 |
-| CORE-THR-002 | v0.1 | U | #45 | 綠 | 3 | margin 不足 → VLM |
-| CORE-THR-003 | v0.1 | U | #45 | 綠 | 3 | 邊界值含等號 |
-| CORE-THR-004 | v0.1 | U | #42 | 綠 | 3 | 無範例圖提高門檻 |
-| CORE-THR-005 | v0.1 | U | #45 | 綠 | 3 | VLM 採用 |
-| CORE-THR-006 | v0.1 | U | #41 | 綠 | 3 | VLM 選 other |
-| CORE-THR-007 | v0.1 | U | #41 | 綠 | 3 | 全部低於 min_confidence |
-| CORE-THR-008 | v0.1 | U | #49 | 綠 | 3 | 介於 review 與 accept |
-| CORE-THR-009 | v0.1 | U | #45 | 綠 | 3 | E/V 一致加成 |
-| CORE-THR-010 | v0.1 | U | #45 | 綠 | 3 | E/V 不一致 |
-| CORE-THR-011 | v0.1 | U | #45 | 綠 | 3 | 規則先決 |
-| CORE-THR-012 | v0.1 | U | #45 | 綠 | 3 | 溫度縮放 golden |
-| CORE-THR-013 | v0.1 | U | #45 | 綠 | 3 | logprob 正規化 |
-| CORE-THR-014 | v0.1 | U | #42 | 綠 | 3 | taxonomy 首 token 衝突 |
-| CORE-THR-015 | v0.1 | P | #45 | 綠 | 3 | 單調性 |
-| CORE-THR-016 | v0.1 | P | #41 | 綠 | 3 | 完整性：每張照片恰一個結果 |
-| CORE-THR-017 | v0.1 | U | #46 | 綠 | 3 | 只重套門檻 = 純函式重算 |
-| CORE-THR-018 | v0.1 | U | #45,#46 | 綠 | 3 | accept 是 embedding 快速路徑的最終閘門（ADR-0001） |
-| CORE-THR-019 | v0.1 | U | #45,#49 | 綠 | 3 | conflict 低於 floor 仍交人工（ADR-0001） |
-| CORE-SM-001 | v0.1 | U | #47 | 綠 | 60 | Job 合法轉移表 |
-| CORE-SM-002 | v0.1 | P | #47 | 綠 | 3 | Job 非法轉移 |
-| CORE-SM-003 | v0.1 | U | #47 | 綠 | 3 | cancelling 收斂 |
-| CORE-SM-004 | v0.1 | U | #47 | 綠 | 3 | 失敗重試只重置失敗項 |
-| CORE-SM-005 | v0.1 | U | #47 | 綠 | 3 | 只標註不輸出 |
-| CORE-SM-006 | v0.1 | U | #33 | 綠 | 6 | Operation 合法／非法轉移 |
-| CORE-SM-007 | v0.1 | U | #33 | 綠 | 3 | 心跳逾時 → interrupted |
-| CORE-SM-008 | v0.1 | U | #33 | 綠 | 3 | Job → Operation 投影 |
-| CORE-SM-009 | v0.1 | U | #47 | 綠 | 3 | output_plan 狀態 |
-| CORE-SM-010 | v0.1 | U | #32 | 綠 | 3 | 錯誤率自動暫停 |
-| CORE-SM-011 | v0.1 | P | #30 | 綠 | 3 | seq 單調 |
-| CORE-RULE-001 | v0.1 | U | #39 | 綠 | 3 | 依 priority 第一個命中 |
-| CORE-RULE-002 | v0.1 | U | #39 | 綠 | 3 | 類別各自目標 |
-| CORE-RULE-003 | v0.1 | U | #41 | 綠 | 3 | 沒有規則命中 → 其他 |
-| CORE-RULE-004 | v0.1 | U | #49 | 綠 | 3 | require_reviewed |
-| CORE-RULE-005 | v0.1 | U | #39 | 綠 | 3 | DSL 語法錯誤 |
-| CORE-RULE-006 | v0.1 | S | #39 | 綠 | 33 | DSL 沙箱 |
-| CORE-RULE-007 | v0.1 | U | #40 | 綠 | 3 | `by-date` preset 不需模型 |
-| CORE-RULE-008 | v0.1 | C | #41 | 綠 | 3 | `by-content-12` 完整性 |
-| CORE-RULE-009 | v0.1 | U | #42 | 綠 | 3 | `custom` preset 驗證 |
-| CORE-RULE-010 | v0.1 | U | #56 | 綠 | 3 | final_label 優先 review |
-| FS-001 | v0.1 | U | #37 | 綠 | 3 | 正常相對路徑 |
-| FS-002 | v0.1 | U | #37 | 綠 | 9 | 絕對路徑 |
-| FS-003 | v0.1 | U |  | 綠 | 15 | `..` 元件 |
-| FS-004 | v0.1 | U |  | 綠 | 3 | 不做 URL decode |
-| FS-005 | v0.1 | U |  | 綠 | 3 | NUL |
-| FS-006 | v0.1 | U |  | 綠 | 15 | Windows 磁碟、UNC、裝置路徑 |
-| FS-007 | v0.1 | U |  | 綠 | 9 | NTFS ADS（冒號） |
-| FS-008 | v0.1 | U |  | 綠 | 6 | 反斜線 |
-| FS-009 | v0.1 | U |  | 綠 | 105 | 保留名路徑段 |
-| FS-010 | v0.1 | I |  | 綠 | 3 | 中間段是 symlink |
-| FS-011 | v0.1 | I |  | 綠 | 3 | 末段 symlink 指向 root 內 |
-| FS-012 | v0.1 | I |  | 綠 | 6 | TOCTOU：resolve 後換成 symlink |
-| FS-013 | v0.1 | I |  | 綠 | 4 | Windows junction／reparse point |
-| FS-014 | v0.1 | U |  | 綠 | 3 | 字串前綴假陽性 |
-| FS-015 | v0.1 | I |  | 綠 | 16 | 大小寫不敏感檔系統 |
-| FS-016 | v0.1 | I | #51 | 綠 | 3 | Unicode NFD 檔名 |
-| FS-017 | v0.1 | U | #48 | 綠 | 6 | 寫入 ro root |
-| FS-018 | v0.1 | U | #48 | 綠 | 6 | move 來源為 ro root |
-| FS-019 | v0.1 | U | #37 | 綠 | 6 | 未知 alias |
-| FS-020 | v0.1 | U |  | 綠 | 3 | 違規稽核且不重試 |
-| FS-021 | v0.1 | I |  | 綠 | 3 | root 本身是 symlink |
-| FS-022 | v0.1 | I | #53 | 綠 | 3 | root 不存在（外接硬碟拔除） |
-| FS-023 | v0.1 | I |  | 綠 | 3 | 寫入目標 hardlink 防護 |
-| FS-024 | v0.1 | P |  | 綠 | 12 | 性質 fuzz：路徑字串 |
-| FS-025 | v0.1 | P |  | 綠 | 3 | 性質 fuzz：真實樹 + 隨機 symlink |
+| CORE-HASH-001 | v0.1 | U | #51 | 綠 | 4 | key 順序不影響 hash |
+| CORE-HASH-002 | v0.1 | P | #51 | 綠 | 8 | canonical 化對任意結構穩定 |
+| CORE-HASH-003 | v0.1 | U | #51 | 綠 | 4 | 數值正規化 |
+| CORE-HASH-004 | v0.1 | U |  | 綠 | 12 | 非法數值 |
+| CORE-HASH-005 | v0.1 | U | #51 | 綠 | 4 | Unicode 正規化 |
+| CORE-HASH-006 | v0.1 | U | #46 | 綠 | 20 | 影響推論的欄位改變 → 失效 |
+| CORE-HASH-007 | v0.1 | U | #46 | 綠 | 4 | **只改門檻不重算** |
+| CORE-HASH-008 | v0.1 | U | #46 | 綠 | 4 | 只改輸出規則不重算 |
+| CORE-HASH-009 | v0.1 | U | #51 | 綠 | 4 | fingerprint 用 `numerics_epoch` |
+| CORE-HASH-010 | v0.1 | U | #51 | 綠 | 12 | epoch 改變 → fingerprint 改變 |
+| CORE-HASH-011 | v0.1 | U | #51 | 綠 | 4 | 快取鍵三元組 |
+| CORE-HASH-012 | v0.1 | C | #51 | 綠 | 4 | 跨語言／跨平台 golden |
+| CORE-TPL-001 | v0.1 | U | #38 | 綠 | 4 | 基本渲染 |
+| CORE-TPL-002 | v0.1 | U | #38 | 綠 | 20 | `{date:YYYY}` 別名 |
+| CORE-TPL-003 | v0.1 | U | #40 | 綠 | 4 | 拍攝時區不轉 UTC |
+| CORE-TPL-004 | v0.1 | U | #40 | 綠 | 8 | 缺日期 → mtime 並標來源 |
+| CORE-TPL-005 | v0.1 | U | #38 | 綠 | 8 | 缺值 fallback |
+| CORE-TPL-006 | v0.1 | U | #38 | 綠 | 4 | 非法字元清理 |
+| CORE-TPL-007 | v0.1 | U | #38 | 綠 | 56 | 控制字元與 bidi |
+| CORE-TPL-008 | v0.1 | U | #38 | 綠 | 12 | `.` 與 `..` 值 |
+| CORE-TPL-009 | v0.1 | U | #38 | 綠 | 4 | 前後空白與結尾點 |
+| CORE-TPL-010 | v0.1 | U | #38 | 綠 | 56 | Windows 保留名 |
+| CORE-TPL-011 | v0.1 | U | #38 | 綠 | 4 | 斜線相似字元 |
+| CORE-TPL-012 | v0.1 | U | #38 | 綠 | 4 | 段長度上限 |
+| CORE-TPL-013 | v0.1 | U | #38 | 綠 | 4 | 截斷保留副檔名 |
+| CORE-TPL-014 | v0.1 | U | #38 | 綠 | 36 | Emoji 與組合字 |
+| CORE-TPL-015 | v0.1 | U | #38 | 綠 | 4 | NFD → NFC |
+| CORE-TPL-016 | v0.1 | U | #38 | 綠 | 8 | 全路徑過長（Windows 未開長路徑） |
+| CORE-TPL-017 | v0.1 | U | #38 | 綠 | 48 | 未知變數 |
+| CORE-TPL-018 | v0.1 | U | #38 | 綠 | 36 | 模板本身的路徑注入 |
+| CORE-TPL-019 | v0.1 | U | #38 | 綠 | 20 | strftime 白名單 |
+| CORE-TPL-020 | v0.1 | U | #38 | 綠 | 4 | 模板長度上限 |
+| CORE-TPL-021 | v0.1 | U | #38 | 綠 | 16 | stem 與 ext 拆分 |
+| CORE-TPL-022 | v0.1 | U | #38 | 綠 | 4 | `{tag:<prefix>}` |
+| CORE-TPL-023 | v0.1 | U | #38 | 綠 | 4 | casefold 鍵 |
+| CORE-TPL-024 | v0.1 | P | #38 | 綠 | 8 | 性質：段永遠安全 |
+| CORE-TPL-025 | v0.1 | C | #38 | 綠 | 8 | Python ↔ TS 一致 |
+| CORE-THR-001 | v0.1 | U | #45 | 綠 | 4 | embedding 高信心直接採用 |
+| CORE-THR-002 | v0.1 | U | #45 | 綠 | 4 | margin 不足 → VLM |
+| CORE-THR-003 | v0.1 | U | #45 | 綠 | 4 | 邊界值含等號 |
+| CORE-THR-004 | v0.1 | U | #42 | 綠 | 4 | 無範例圖提高門檻 |
+| CORE-THR-005 | v0.1 | U | #45 | 綠 | 4 | VLM 採用 |
+| CORE-THR-006 | v0.1 | U | #41 | 綠 | 4 | VLM 選 other |
+| CORE-THR-007 | v0.1 | U | #41 | 綠 | 4 | 全部低於 min_confidence |
+| CORE-THR-008 | v0.1 | U | #49 | 綠 | 4 | 介於 review 與 accept |
+| CORE-THR-009 | v0.1 | U | #45 | 綠 | 4 | E/V 一致加成 |
+| CORE-THR-010 | v0.1 | U | #45 | 綠 | 4 | E/V 不一致 |
+| CORE-THR-011 | v0.1 | U | #45 | 綠 | 4 | 規則先決 |
+| CORE-THR-012 | v0.1 | U | #45 | 綠 | 4 | 溫度縮放 golden |
+| CORE-THR-013 | v0.1 | U | #45 | 綠 | 4 | logprob 正規化 |
+| CORE-THR-014 | v0.1 | U | #42 | 綠 | 4 | taxonomy 首 token 衝突 |
+| CORE-THR-015 | v0.1 | P | #45 | 綠 | 4 | 單調性 |
+| CORE-THR-016 | v0.1 | P | #41 | 綠 | 4 | 完整性：每張照片恰一個結果 |
+| CORE-THR-017 | v0.1 | U | #46 | 綠 | 4 | 只重套門檻 = 純函式重算 |
+| CORE-THR-018 | v0.1 | U | #45,#46 | 綠 | 4 | accept 是 embedding 快速路徑的最終閘門（ADR-0001） |
+| CORE-THR-019 | v0.1 | U | #45,#49 | 綠 | 4 | conflict 低於 floor 仍交人工（ADR-0001） |
+| CORE-SM-001 | v0.1 | U | #47 | 綠 | 80 | Job 合法轉移表 |
+| CORE-SM-002 | v0.1 | P | #47 | 綠 | 4 | Job 非法轉移 |
+| CORE-SM-003 | v0.1 | U | #47 | 綠 | 4 | cancelling 收斂 |
+| CORE-SM-004 | v0.1 | U | #47 | 綠 | 4 | 失敗重試只重置失敗項 |
+| CORE-SM-005 | v0.1 | U | #47 | 綠 | 4 | 只標註不輸出 |
+| CORE-SM-006 | v0.1 | U | #33 | 綠 | 8 | Operation 合法／非法轉移 |
+| CORE-SM-007 | v0.1 | U | #33 | 綠 | 4 | 心跳逾時 → interrupted |
+| CORE-SM-008 | v0.1 | U | #33 | 綠 | 4 | Job → Operation 投影 |
+| CORE-SM-009 | v0.1 | U | #47 | 綠 | 4 | output_plan 狀態 |
+| CORE-SM-010 | v0.1 | U | #32 | 綠 | 4 | 錯誤率自動暫停 |
+| CORE-SM-011 | v0.1 | P | #30 | 綠 | 4 | seq 單調 |
+| CORE-RULE-001 | v0.1 | U | #39 | 綠 | 4 | 依 priority 第一個命中 |
+| CORE-RULE-002 | v0.1 | U | #39 | 綠 | 4 | 類別各自目標 |
+| CORE-RULE-003 | v0.1 | U | #41 | 綠 | 4 | 沒有規則命中 → 其他 |
+| CORE-RULE-004 | v0.1 | U | #49 | 綠 | 4 | require_reviewed |
+| CORE-RULE-005 | v0.1 | U | #39 | 綠 | 4 | DSL 語法錯誤 |
+| CORE-RULE-006 | v0.1 | S | #39 | 綠 | 44 | DSL 沙箱 |
+| CORE-RULE-007 | v0.1 | U | #40 | 綠 | 4 | `by-date` preset 不需模型 |
+| CORE-RULE-008 | v0.1 | C | #41 | 綠 | 4 | `by-content-12` 完整性 |
+| CORE-RULE-009 | v0.1 | U | #42 | 綠 | 4 | `custom` preset 驗證 |
+| CORE-RULE-010 | v0.1 | U | #56 | 綠 | 4 | final_label 優先 review |
+| FS-001 | v0.1 | U | #37 | 綠 | 4 | 正常相對路徑 |
+| FS-002 | v0.1 | U | #37 | 綠 | 12 | 絕對路徑 |
+| FS-003 | v0.1 | U |  | 綠 | 20 | `..` 元件 |
+| FS-004 | v0.1 | U |  | 綠 | 4 | 不做 URL decode |
+| FS-005 | v0.1 | U |  | 綠 | 4 | NUL |
+| FS-006 | v0.1 | U |  | 綠 | 20 | Windows 磁碟、UNC、裝置路徑 |
+| FS-007 | v0.1 | U |  | 綠 | 12 | NTFS ADS（冒號） |
+| FS-008 | v0.1 | U |  | 綠 | 8 | 反斜線 |
+| FS-009 | v0.1 | U |  | 綠 | 140 | 保留名路徑段 |
+| FS-010 | v0.1 | I |  | 綠 | 4 | 中間段是 symlink |
+| FS-011 | v0.1 | I |  | 綠 | 4 | 末段 symlink 指向 root 內 |
+| FS-012 | v0.1 | I |  | 綠 | 8 | TOCTOU：resolve 後換成 symlink |
+| FS-013 | v0.1 | I |  | 綠 | 5 | Windows junction／reparse point |
+| FS-014 | v0.1 | U |  | 綠 | 4 | 字串前綴假陽性 |
+| FS-015 | v0.1 | I |  | 綠 | 22 | 大小寫不敏感檔系統 |
+| FS-016 | v0.1 | I | #51 | 綠 | 4 | Unicode NFD 檔名 |
+| FS-017 | v0.1 | U | #48 | 綠 | 8 | 寫入 ro root |
+| FS-018 | v0.1 | U | #48 | 綠 | 8 | move 來源為 ro root |
+| FS-019 | v0.1 | U | #37 | 綠 | 8 | 未知 alias |
+| FS-020 | v0.1 | U |  | 綠 | 4 | 違規稽核且不重試 |
+| FS-021 | v0.1 | I |  | 綠 | 4 | root 本身是 symlink |
+| FS-022 | v0.1 | I | #53 | 綠 | 4 | root 不存在（外接硬碟拔除） |
+| FS-023 | v0.1 | I |  | 綠 | 4 | 寫入目標 hardlink 防護 |
+| FS-024 | v0.1 | P |  | 綠 | 16 | 性質 fuzz：路徑字串 |
+| FS-025 | v0.1 | P |  | 綠 | 4 | 性質 fuzz：真實樹 + 隨機 symlink |
 | FS-026 | v0.1 | C |  | 綠 | 6 | import-linter 契約 |
 | FS-027 | v0.1 | C | #2 | 綠 | 2 | 文字檔讀寫一律指定編碼（回歸） |
-| FS-028 | v0.1 | U | #48 | 綠 | 39 | Windows 不允許的名稱是 PathViolation（回歸） |
-| FS-029 | v0.1 | U | #48 | 綠 | 3 | Windows 上 fsync 用可寫入的 handle（回歸） |
-| FS-030 | v0.1 | U | #48 | 綠 | 3 | 檔案底下的路徑在每個 OS 都是 not_a_directory（回歸） |
-| OUT-EXE-001 | v0.1 | U | #47 | 綠 | 3 | copy 快樂路徑 |
-| OUT-EXE-002 | v0.1 | I | #48 | 綠 | 3 | 原檔不變 |
-| OUT-EXE-003 | v0.1 | I | #48 | 綠 | 3 | 保留 mtime |
-| OUT-EXE-004 | v0.1 | I | #47 | 綠 | 3 | 計畫後原檔被改 |
-| OUT-EXE-005 | v0.1 | I | #48 | 綠 | 3 | dst 已存在且同 hash |
-| OUT-EXE-006 | v0.1 | U | #48 | 綠 | 3 | 重名加後綴 |
-| OUT-EXE-007 | v0.1 | U | #48 | 綠 | 12 | policy=skip／fail／overwrite_if_same_hash |
-| OUT-EXE-008 | v0.1 | I | #48 | 綠 | 12 | commit 時才出現的 dst |
-| OUT-EXE-009 | v0.1 | U | #48 | 綠 | 3 | 計畫內互撞 |
-| OUT-EXE-010 | v0.1 | I | #48 | 綠 | 1 | 大小寫不敏感目標 |
-| OUT-EXE-011 | v0.1 | I | #48 | 綠 | 3 | move 走垃圾桶 |
+| FS-028 | v0.1 | U | #48 | 綠 | 52 | Windows 不允許的名稱是 PathViolation（回歸） |
+| FS-029 | v0.1 | U | #48 | 綠 | 4 | Windows 上 fsync 用可寫入的 handle（回歸） |
+| FS-030 | v0.1 | U | #48 | 綠 | 4 | 檔案底下的路徑在每個 OS 都是 not_a_directory（回歸） |
+| OUT-EXE-001 | v0.1 | U | #47 | 綠 | 4 | copy 快樂路徑 |
+| OUT-EXE-002 | v0.1 | I | #48 | 綠 | 4 | 原檔不變 |
+| OUT-EXE-003 | v0.1 | I | #48 | 綠 | 4 | 保留 mtime |
+| OUT-EXE-004 | v0.1 | I | #47 | 綠 | 4 | 計畫後原檔被改 |
+| OUT-EXE-005 | v0.1 | I | #48 | 綠 | 4 | dst 已存在且同 hash |
+| OUT-EXE-006 | v0.1 | U | #48 | 綠 | 4 | 重名加後綴 |
+| OUT-EXE-007 | v0.1 | U | #48 | 綠 | 16 | policy=skip／fail／overwrite_if_same_hash |
+| OUT-EXE-008 | v0.1 | I | #48 | 綠 | 16 | commit 時才出現的 dst |
+| OUT-EXE-009 | v0.1 | U | #48 | 綠 | 4 | 計畫內互撞 |
+| OUT-EXE-010 | v0.1 | I | #48 | 綠 | 2 | 大小寫不敏感目標 |
+| OUT-EXE-011 | v0.1 | I | #48 | 綠 | 4 | move 走垃圾桶 |
 | OUT-EXE-012 | v0.1 | I | #48 | 綠 | 2 | move 未二次確認 |
 | OUT-EXE-013 | v0.1 | I | #48 | 綠 | 2 | 跨磁碟 move |
-| OUT-EXE-014 | v0.1 | X | #47 | 綠 | 3 | 磁碟滿 |
-| OUT-EXE-015 | v0.1 | X | #53 | 綠 | 3 | 輸出目標離線 |
-| OUT-EXE-016 | v0.1 | I |  | 綠 | 6 | 檔案被鎖（Windows） |
-| OUT-EXE-017 | v0.1 | I | #47 | 綠 | 11 | 取消 |
-| OUT-EXE-018 | v0.1 | I | #47 | 綠 | 3 | 暫停／續跑 |
+| OUT-EXE-014 | v0.1 | X | #47 | 綠 | 4 | 磁碟滿 |
+| OUT-EXE-015 | v0.1 | X | #53 | 綠 | 4 | 輸出目標離線 |
+| OUT-EXE-016 | v0.1 | I |  | 綠 | 8 | 檔案被鎖（Windows） |
+| OUT-EXE-017 | v0.1 | I | #47 | 綠 | 14 | 取消 |
+| OUT-EXE-018 | v0.1 | I | #47 | 綠 | 4 | 暫停／續跑 |
 | OUT-EXE-019 | v0.1 | I | #48 | 綠 | 2 | 大量 move 確認字串 |
-| OUT-EXE-020 | v0.1 | I | #50 | 綠 | 6 | sidecar JSON |
-| OUT-EXE-021 | v0.1 | U | #50 | 綠 | 3 | CSV 匯出 |
-| OUT-EXE-022 | v0.1 | U |  | 綠 | 3 | 計畫摘要句 |
-| OUT-EXE-023 | v0.1 | I | #47 | 綠 | 3 | 冪等重放 |
-| OUT-JRN-001 | v0.1 | U | #47 | 綠 | 9 | intent 先於任何檔案操作 |
-| OUT-JRN-002 | v0.1 | U | #47 | 綠 | 3 | append-only |
-| OUT-JRN-003 | v0.1 | U | #47 | 綠 | 12 | pre/post state 完整 |
-| OUT-JRN-004 | v0.1 | X | #47 | 綠 | 3 | WAL 在 kill -9 後完整 |
+| OUT-EXE-020 | v0.1 | I | #50 | 綠 | 8 | sidecar JSON |
+| OUT-EXE-021 | v0.1 | U | #50 | 綠 | 4 | CSV 匯出 |
+| OUT-EXE-022 | v0.1 | U |  | 綠 | 4 | 計畫摘要句 |
+| OUT-EXE-023 | v0.1 | I | #47 | 綠 | 4 | 冪等重放 |
+| OUT-JRN-001 | v0.1 | U | #47 | 綠 | 12 | intent 先於任何檔案操作 |
+| OUT-JRN-002 | v0.1 | U | #47 | 綠 | 4 | append-only |
+| OUT-JRN-003 | v0.1 | U | #47 | 綠 | 16 | pre/post state 完整 |
+| OUT-JRN-004 | v0.1 | X | #47 | 綠 | 4 | WAL 在 kill -9 後完整 |
 | OUT-JRN-005 | v0.1 | I | #47 | 綠 | 2 | CP 鏡像冪等 |
-| OUT-CRASH-001 | v0.1 | X | #47 | 綠 | 3 | journal intent 寫入前 |
-| OUT-CRASH-002 | v0.1 | X | #47 | 綠 | 6 | intent 已 fsync、tmp 尚未建立 |
-| OUT-CRASH-003 | v0.1 | X | #47 | 綠 | 3 | tmp 寫到一半 |
-| OUT-CRASH-004 | v0.1 | X | #47 | 綠 | 6 | tmp 完成、verify 前 |
-| OUT-CRASH-005 | v0.1 | X | #47 | 綠 | 3 | verify 後、fsync 前 |
-| OUT-CRASH-006 | v0.1 | X | #47 | 綠 | 6 | rename 後、journal done 前 |
-| OUT-CRASH-007 | v0.1 | X | #48 | 綠 | 3 | move：trash 搬移後、done 前 |
-| OUT-CRASH-008 | v0.1 | X | #48 | 綠 | 3 | move：trash 搬移進行中（跨 FS 情境） |
-| OUT-CRASH-009 | v0.1 | X | #50 | 綠 | 6 | sidecar 寫入中 |
-| OUT-CRASH-010 | v0.1 | X | #47 | 綠 | 24 | undo 進行中（每個 undo 步驟各一次參數化） |
-| OUT-CRASH-011 | v0.1 | X | #47 | 綠 | 6 | recovery 本身進行中再當機 |
+| OUT-CRASH-001 | v0.1 | X | #47 | 綠 | 4 | journal intent 寫入前 |
+| OUT-CRASH-002 | v0.1 | X | #47 | 綠 | 8 | intent 已 fsync、tmp 尚未建立 |
+| OUT-CRASH-003 | v0.1 | X | #47 | 綠 | 4 | tmp 寫到一半 |
+| OUT-CRASH-004 | v0.1 | X | #47 | 綠 | 8 | tmp 完成、verify 前 |
+| OUT-CRASH-005 | v0.1 | X | #47 | 綠 | 4 | verify 後、fsync 前 |
+| OUT-CRASH-006 | v0.1 | X | #47 | 綠 | 8 | rename 後、journal done 前 |
+| OUT-CRASH-007 | v0.1 | X | #48 | 綠 | 4 | move：trash 搬移後、done 前 |
+| OUT-CRASH-008 | v0.1 | X | #48 | 綠 | 4 | move：trash 搬移進行中（跨 FS 情境） |
+| OUT-CRASH-009 | v0.1 | X | #50 | 綠 | 8 | sidecar 寫入中 |
+| OUT-CRASH-010 | v0.1 | X | #47 | 綠 | 32 | undo 進行中（每個 undo 步驟各一次參數化） |
+| OUT-CRASH-011 | v0.1 | X | #47 | 綠 | 8 | recovery 本身進行中再當機 |
 | OUT-CRASH-012 | v0.1 | X |  | 綠 | 1 | 10,000 action 隨機當機 50 次（nightly） |
-| OUT-UNDO-001 | v0.1 | I | #47 | 綠 | 3 | undo copy 回到原狀 |
-| OUT-UNDO-002 | v0.1 | I | #47 | 綠 | 3 | dst 被使用者改過 |
-| OUT-UNDO-003 | v0.1 | I | #48 | 綠 | 3 | undo move |
-| OUT-UNDO-004 | v0.1 | I | #48 | 綠 | 6 | 原位置已被佔用 |
-| OUT-UNDO-005 | v0.1 | I | #47 | 綠 | 3 | undo partially_applied |
-| OUT-UNDO-006 | v0.1 | I | #47 | 綠 | 3 | undo 冪等 |
-| OUT-UNDO-007 | v0.1 | I | #48 | 綠 | 6 | trash 已過保留期 |
-| OUT-UNDO-008 | v0.1 | I | #33 | 綠 | 6 | undo 是 Operation |
-| OUT-UNDO-009 | v0.1 | I | #50 | 綠 | 9 | undo sidecar |
+| OUT-UNDO-001 | v0.1 | I | #47 | 綠 | 4 | undo copy 回到原狀 |
+| OUT-UNDO-002 | v0.1 | I | #47 | 綠 | 4 | dst 被使用者改過 |
+| OUT-UNDO-003 | v0.1 | I | #48 | 綠 | 4 | undo move |
+| OUT-UNDO-004 | v0.1 | I | #48 | 綠 | 8 | 原位置已被佔用 |
+| OUT-UNDO-005 | v0.1 | I | #47 | 綠 | 4 | undo partially_applied |
+| OUT-UNDO-006 | v0.1 | I | #47 | 綠 | 4 | undo 冪等 |
+| OUT-UNDO-007 | v0.1 | I | #48 | 綠 | 8 | trash 已過保留期 |
+| OUT-UNDO-008 | v0.1 | I | #33 | 綠 | 8 | undo 是 Operation |
+| OUT-UNDO-009 | v0.1 | I | #50 | 綠 | 12 | undo sidecar |
 | SCAN-001 | v0.1 | U | #37 | 綠 | 2 | globs |
 | SCAN-002 | v0.1 | U |  | 綠 | 2 | 永遠排除的檔案 |
 | SCAN-003 | v0.1 | U | #51 | 綠 | 2 | BLAKE3 golden |
@@ -436,8 +436,8 @@
 | INF-OOM-001 | v0.1 | I | #28 | 綠 | 4 | llama-server 崩潰 |
 | INF-OOM-002 | v0.1 | U | #28 | 綠 | 4 | ORT OOM |
 | INF-OOM-003 | v0.1 | I | #28 | 綠 | 2 | CUDA pack 連續崩潰 → Vulkan |
-| INF-OOM-004 | v0.1 | U | #9 | 綠 | 6 | 假 llama-server 的跨重啟狀態在並行請求與 SIGKILL 下不損壞（回歸） |
-| INF-OOM-005 | v0.1 | U | #28 | 綠 | 6 | RUNTIME 故障在每個 OS 都真的結束行程（回歸） |
+| INF-OOM-004 | v0.1 | U | #9 | 綠 | 8 | 假 llama-server 的跨重啟狀態在並行請求與 SIGKILL 下不損壞（回歸） |
+| INF-OOM-005 | v0.1 | U | #28 | 綠 | 8 | RUNTIME 故障在每個 OS 都真的結束行程（回歸） |
 | INF-RT-001 | v0.1 | U | #13,#22 | 綠 | 2 | 5070 Ti（Win，驅動 580，cc 12.0） |
 | INF-RT-002 | v0.1 | U | #13 | 綠 | 2 | RTX 4060 8 GB 筆電 |
 | INF-RT-003 | v0.1 | U | #13 | 綠 | 4 | Mac M2／M3 16 GB |
@@ -599,9 +599,9 @@
 | PF-084 | v0.1 | I | #27,#28 | 綠 | 2 | 不需模型的工作不受 GPU 檢查阻擋（回歸） |
 | PF-085 | v0.1 | C | #27 | 綠 | 2 | problem+json 細節欄位與保留欄位同名（回歸） |
 | OP-001 | v0.1 | C | #33 | 綠 | 10 | 所有長操作都是 Operation |
-| OP-002 | v0.1 | U | #30 | 綠 | 3 | 階段權重 |
-| OP-003 | v0.1 | U | #30 | 綠 | 3 | 快取命中不讓進度跳 |
-| OP-004 | v0.1 | U | #30 | 綠 | 3 | 子操作 |
+| OP-002 | v0.1 | U | #30 | 綠 | 4 | 階段權重 |
+| OP-003 | v0.1 | U | #30 | 綠 | 4 | 快取命中不讓進度跳 |
+| OP-004 | v0.1 | U | #30 | 綠 | 4 | 子操作 |
 | OP-005 | v0.1 | I | #33 | 綠 | 2 | 持久化節流 |
 | OP-006 | v0.1 | E | #33 | 綠 | 1 | 重啟恢復 |
 | OP-007 | v0.1 | I | #33 | 綠 | 2 | 保留期限 |
@@ -610,38 +610,41 @@
 | OP-010 | v0.1 | I |  | 綠 | 2 | 推送節流 |
 | OP-011 | v0.1 | I | #27 | 綠 | 2 | 控制前先 preflight |
 | OP-012 | v0.1 | E | #47 | 綠 | 1 | 取消模式 |
-| OP-013 | v0.1 | U | #31 | 綠 | 3 | 經過時間扣除暫停 |
+| OP-013 | v0.1 | U | #31 | 綠 | 4 | 經過時間扣除暫停 |
 | OP-014 | v0.1 | U | #31 | 綠 | 1 | 前端時鐘校正 |
 | OP-015 | v0.1 | I | #30 | 綠 | 2 | 完成回寫觀測 |
 | OP-016 | v0.1 | I |  | 綠 | 2 | 同 lane 重新排序 |
-| OP-017 | v0.1 | C | #32 | 綠 | 3 | 等待原因目錄 |
+| OP-017 | v0.1 | C | #32 | 綠 | 4 | 等待原因目錄 |
 | OP-018 | v0.1 | I | #32,#47 | 綠 | 4 | 等待中暫停／取消（ADR-0004，回歸） |
-| ETA-001 | v0.1 | U | #17 | 綠 | 3 | bytes EWMA（不等間隔） |
-| ETA-002 | v0.1 | U | #17 | 綠 | 3 | fast/slow 混合 |
-| ETA-003 | v0.1 | U | #30 | 綠 | 3 | 估算中 |
-| ETA-004 | v0.1 | U | #30 | 綠 | 3 | 貝氏收縮 |
-| ETA-005 | v0.1 | U | #29 | 綠 | 3 | 先驗來源順序 |
-| ETA-006 | v0.1 | U | #29 | 綠 | 3 | 多階段加總 |
-| ETA-007 | v0.1 | U | #30 | 綠 | 3 | 信心區間 |
-| ETA-008 | v0.1 | U | #30 | 綠 | 3 | 狀態遲滯 |
-| ETA-009 | v0.1 | U | #30 | 綠 | 3 | stalled |
-| ETA-010 | v0.1 | U | #30 | 綠 | 3 | unknown |
-| ETA-011 | v0.1 | U | #30 | 綠 | 3 | 四捨五入規則 |
-| ETA-012 | v0.1 | U | #30 | 綠 | 3 | 防抖動 |
-| ETA-013 | v0.1 | U | #30 | 綠 | 3 | 誠實說明變慢 |
-| ETA-014 | v0.1 | U | #30 | 綠 | 3 | 暫停中 |
-| ETA-015 | v0.1 | U | #30 | 綠 | 3 | cascade 混合工作量 |
-| ETA-016 | v0.1 | P | #30 | 綠 | 6 | 區間涵蓋率模擬 |
-| ETA-017 | v0.1 | U | #32 | 綠 | 3 | 佇列等待 |
+| OP-019 | v0.1 | I |  | 綠 | 2 | 下載後的索引 Operation 會結束（回歸） |
+| ETA-001 | v0.1 | U | #17 | 綠 | 4 | bytes EWMA（不等間隔） |
+| ETA-002 | v0.1 | U | #17 | 綠 | 4 | fast/slow 混合 |
+| ETA-003 | v0.1 | U | #30 | 綠 | 4 | 估算中 |
+| ETA-004 | v0.1 | U | #30 | 綠 | 4 | 貝氏收縮 |
+| ETA-005 | v0.1 | U | #29 | 綠 | 4 | 先驗來源順序 |
+| ETA-006 | v0.1 | U | #29 | 綠 | 4 | 多階段加總 |
+| ETA-007 | v0.1 | U | #30 | 綠 | 4 | 信心區間 |
+| ETA-008 | v0.1 | U | #30 | 綠 | 4 | 狀態遲滯 |
+| ETA-009 | v0.1 | U | #30 | 綠 | 4 | stalled |
+| ETA-010 | v0.1 | U | #30 | 綠 | 4 | unknown |
+| ETA-011 | v0.1 | U | #30 | 綠 | 4 | 四捨五入規則 |
+| ETA-012 | v0.1 | U | #30 | 綠 | 4 | 防抖動 |
+| ETA-013 | v0.1 | U | #30 | 綠 | 4 | 誠實說明變慢 |
+| ETA-014 | v0.1 | U | #30 | 綠 | 4 | 暫停中 |
+| ETA-015 | v0.1 | U | #30 | 綠 | 4 | cascade 混合工作量 |
+| ETA-016 | v0.1 | P | #30 | 綠 | 8 | 區間涵蓋率模擬 |
+| ETA-017 | v0.1 | U | #32 | 綠 | 4 | 佇列等待 |
 | ETA-018 | v0.1 | I | #29 | 綠 | 2 | 開始前預估 |
 | ETA-019 | v0.1 | N | #30 | 未開始 | 0 | 參考機涵蓋率實測 |
-| ETA-020 | v0.1 | U |  | 綠 | 21 | 即時 ETA（回歸，不變量 9） |
-| ETA-021 | v0.1 | U |  | 綠 | 9 | 校準樣本（回歸） |
+| ETA-020 | v0.1 | U |  | 綠 | 28 | 即時 ETA（回歸，不變量 9） |
+| ETA-021 | v0.1 | U |  | 綠 | 12 | 校準樣本（回歸） |
 | ETA-022 | v0.1 | I |  | 綠 | 4 | 實際路徑寫入 ETA（回歸，不變量 9） |
 | ETA-023 | v0.1 | I |  | 綠 | 6 | 完成時回寫（回歸） |
 | ETA-024 | v0.1 | I |  | 綠 | 4 | 匯出校準資料 |
-| ETA-026 | v0.1 | U |  | 綠 | 6 | precise 的區間可信（ADR-0028） |
-| ETA-025 | v0.1 | U |  | 綠 | 4 | 顯示剩餘時間（回歸，不變量 9） |
+| ETA-026 | v0.1 | U |  | 綠 | 8 | precise 的區間可信（ADR-0028） |
+| ETA-027 | v0.1 | I |  | 綠 | 2 | 掃描回報進度（回歸，不變量 9） |
+| ETA-028 | v0.1 | U |  | 綠 | 2 | 匯出指令的預設資料夾（回歸） |
+| ETA-025 | v0.1 | U |  | 綠 | 5 | 顯示剩餘時間（回歸，不變量 9） |
 | ACT-001 | v0.1 | U | #33 | 綠 | 1 | 頂列指示器五種狀態 |
 | ACT-002 | v0.1 | U | #33 | 綠 | 1 | 分組 |
 | ACT-003 | v0.1 | U | #27 | 綠 | 1 | 失敗列渲染 fix |
@@ -654,11 +657,12 @@
 | ORG-003 | v0.1 | I |  | 綠 | 6 | 預設輸出位置 |
 | ORG-004 | v0.1 | U | #48 | 綠 | 4 | 預設複製 |
 | ORG-005 | v0.1 | N |  | 綠 | 1 | 預設設定全庫原檔不變 |
-| ORG-006 | v0.1 | I | #50 | 綠 | 5 | sidecar golden |
+| ORG-006 | v0.1 | I | #50 | 綠 | 6 | sidecar golden |
 | ORG-007 | v0.1 | I | #46 | 綠 | 2 | 預估分布與總時間 |
 | ORG-008 | v0.1 | I | #46 | 綠 | 2 | 試跑一張串流 |
 | ORG-009 | v0.1 | I | #43 | 綠 | 2 | caption 寫入搜尋 |
 | ORG-010 | v0.1 | I | #56 | 綠 | 2 | 就地修正回饋 |
+| ORG-011 | v0.1 | I |  | 綠 | 4 | 未知的 preset（回歸） |
 | REV-001 | v0.1 | I | #49 | 綠 | 2 | 低信心建立 review |
 | REV-002 | v0.1 | E | #49 | 綠 | 1 | 一次一張與數字鍵 |
 | REV-003 | v0.1 | I | #49 | 綠 | 2 | 逃生門 |
@@ -739,7 +743,7 @@
 | VIS-002 | v0.1 | V | #11 | 綠 | 4 | 頁面視覺回歸 |
 | VIS-003 | v0.1 | V | #27 | 綠 | 1 | 每個錯誤碼一個 story |
 | VIS-004 | v0.1 | C | #85 | 綠 | 2 | 視覺基準只在釘選的 Playwright 映像算繪 |
-| VIS-005 | v0.1 | U | #85 | 綠 | 3 | E2E 畫面不受執行機器影響（回歸） |
+| VIS-005 | v0.1 | U | #85 | 綠 | 4 | E2E 畫面不受執行機器影響（回歸） |
 | I18N-001 | v0.1 | C | #11 | 綠 | 6 | 無缺漏 key |
 | I18N-002 | v0.1 | C | #11 | 綠 | 1 | 無硬編碼字串 |
 | I18N-003 | v0.1 | U | #11 | 綠 | 1 | 數字與複數 |
@@ -817,9 +821,9 @@
 | PG-010 | v0.1 | I | #4 | 綠 | 1 | 連續啟動穩定性 |
 | PG-011 | v0.1 | M | #4 | 綠 | 3 | Windows 管理員帳號 |
 | PG-012 | v0.1 | S | #8 | 綠 | 2 | socket 與權限 |
-| PG-013 | v0.1 | I |  | 綠 | 3 | 測試 fixture 速度 |
+| PG-013 | v0.1 | I |  | 綠 | 4 | 測試 fixture 速度 |
 | PG-014 | v0.1 | I | #2 | 未開始 | 0 | Docker parity |
-| PG-015 | v0.1 | C | #2 | 綠 | 3 | 用到真 PostgreSQL 的測試一律是 integration（回歸） |
+| PG-015 | v0.1 | C | #2 | 綠 | 4 | 用到真 PostgreSQL 的測試一律是 integration（回歸） |
 | PG-016 | v0.1 | U | #4 | 綠 | 2 | 桌面 initdb 只用每個 OS 都有的 locale（回歸） |
 | PG-017 | v0.1 | I | #8 | 綠 | 2 | Windows 桌面 PG 走 127.0.0.1＋SCRAM（回歸） |
 | PG-018 | v0.1 | U |  | 綠 | 4 | 桌面 port 跨 postmaster 重啟不變（回歸） |
@@ -887,7 +891,7 @@
 | SRCH-PLAN-021 | v0.2 | U | #24 | 綠 | 2 | 沒有 LLM planner 的 worker 明確回覆（回歸） |
 | SRCH-SEM-008 | v0.2 | I | #24 | 綠 | 4 | 向量下限（回歸，ADR-0027） |
 | SRCH-SEM-009 | v0.2 | U |  | 綠 | 2 | 下限來自模型目錄 |
-| CORE-LUNAR-001 | v0.2 | U | #62 | 綠 | 3 | 初一對照表 |
+| CORE-LUNAR-001 | v0.2 | U | #62 | 綠 | 4 | 初一對照表 |
 | SRCH-IMG-001 | v0.2 | I | #65 | 綠 | 2 | find_similar |
 | SRCH-IMG-002 | v0.2 | I | #65 | 綠 | 2 | UI 上傳以圖搜圖 |
 | SRCH-IMG-003 | v0.2 | U | #64 | 綠 | 2 | 文 + 圖組合 |
@@ -895,22 +899,22 @@
 | SRCH-DUP-002 | v0.2 | I | #66 | 綠 | 2 | 近似重複 |
 | SRCH-DUP-003 | v0.2 | U | #66 | 綠 | 2 | 代表張 |
 | SRCH-DUP-004 | v0.2 | I | #66 | 綠 | 4 | union-find 重新聚類 |
-| TRASH-001 | v0.2 | I | #59 | 綠 | 3 | trash 動作 |
-| TRASH-002 | v0.2 | U | #59 | 綠 | 3 | 同 FS 用 rename |
-| TRASH-003 | v0.2 | I | #59 | 綠 | 6 | undo 還原 |
-| TRASH-004 | v0.2 | U | #59 | 綠 | 3 | ro root 不可 trash |
+| TRASH-001 | v0.2 | I | #59 | 綠 | 4 | trash 動作 |
+| TRASH-002 | v0.2 | U | #59 | 綠 | 4 | 同 FS 用 rename |
+| TRASH-003 | v0.2 | I | #59 | 綠 | 8 | undo 還原 |
+| TRASH-004 | v0.2 | U | #59 | 綠 | 4 | ro root 不可 trash |
 | TRASH-005 | v0.2 | E | #59 | 綠 | 1 | 重複照片一鍵計畫 |
-| TRASH-006 | v0.2 | I | #59 | 綠 | 6 | 保留期與清空 |
-| TRASH-007 | v0.2 | U | #69 | 綠 | 12 | trash 永不自動核准 |
-| TRASH-008 | v0.2 | X | #59 | 綠 | 12 | 當機注入 |
+| TRASH-006 | v0.2 | I | #59 | 綠 | 8 | 保留期與清空 |
+| TRASH-007 | v0.2 | U | #69 | 綠 | 16 | trash 永不自動核准 |
+| TRASH-008 | v0.2 | X | #59 | 綠 | 16 | 當機注入 |
 | TRASH-009 | v0.1 | I | #10 | 綠 | 4 | `/trash/summary` |
 | TRASH-010 | v0.2 | I | #10 | 綠 | 2 | 到期時間一律是 UTC（回歸） |
-| XMP-001 | v0.2 | I | #50 | 綠 | 6 | 寫入 sidecar |
+| XMP-001 | v0.2 | I | #50 | 綠 | 8 | 寫入 sidecar |
 | XMP-002 | v0.2 | C | #50 | 未開始 | 0 | 相容性 |
-| XMP-003 | v0.2 | I | #50 | 綠 | 6 | 合併既有 XMP |
-| XMP-004 | v0.2 | I | #50 | 綠 | 3 | 原檔不變 |
-| XMP-005 | v0.2 | I | #50 | 綠 | 3 | undo |
-| XMP-006 | v0.2 | S | #50 | 綠 | 6 | XML 注入 |
+| XMP-003 | v0.2 | I | #50 | 綠 | 8 | 合併既有 XMP |
+| XMP-004 | v0.2 | I | #50 | 綠 | 4 | 原檔不變 |
+| XMP-005 | v0.2 | I | #50 | 綠 | 4 | undo |
+| XMP-006 | v0.2 | S | #50 | 綠 | 8 | XML 注入 |
 | MCP-TOOL-001 | v0.2 |  |  | 綠 | 114 | `search_photos` |
 | MCP-TOOL-002 | v0.2 |  |  | 綠 | 110 | `get_photo` |
 | MCP-TOOL-003 | v0.2 |  |  | 綠 | 110 | `find_similar` |
@@ -1019,29 +1023,29 @@
 | FACE-GATE-003 | v0.2 | I | #74 | 綠 | 2 | 限定 Source |
 | FACE-GATE-004 | v0.2 | E | #74 | 綠 | 1 | 可略過 |
 | FACE-GATE-005 | v0.2 | C | #75 | 綠 | 4 | 預設安裝包不含非可散布權重 |
-| FACE-DET-001 | v0.2 | U | #75 | 綠 | 31 | 品質分級 |
-| FACE-DET-002 | v0.2 | U | #75 | 綠 | 5 | 大合照截斷 |
-| FACE-DET-003 | v0.2 | U | #75 | 綠 | 3 | 跳過條件 |
+| FACE-DET-001 | v0.2 | U | #75 | 綠 | 40 | 品質分級 |
+| FACE-DET-002 | v0.2 | U | #75 | 綠 | 6 | 大合照截斷 |
+| FACE-DET-003 | v0.2 | U | #75 | 綠 | 4 | 跳過條件 |
 | FACE-DET-004 | v0.2 | I | #75 | 綠 | 2 | 只解碼一次 |
-| FACE-ASN-001 | v0.2 | U | #76 | 綠 | 8 | 自動指派 |
-| FACE-ASN-002 | v0.2 | U | #76 | 綠 | 3 | margin 不足 → 建議 |
-| FACE-ASN-003 | v0.2 | U | #76 | 綠 | 3 | 低品質不自動 |
-| FACE-ASN-004 | v0.2 | U | #76 | 綠 | 3 | age_variation／confusable |
-| FACE-ASN-005 | v0.2 | U | #76 | 綠 | 3 | 未達建議門檻 |
-| FACE-ASN-006 | v0.2 | U | #77 | 綠 | 5 | cannot-link |
+| FACE-ASN-001 | v0.2 | U | #76 | 綠 | 10 | 自動指派 |
+| FACE-ASN-002 | v0.2 | U | #76 | 綠 | 4 | margin 不足 → 建議 |
+| FACE-ASN-003 | v0.2 | U | #76 | 綠 | 4 | 低品質不自動 |
+| FACE-ASN-004 | v0.2 | U | #76 | 綠 | 4 | age_variation／confusable |
+| FACE-ASN-005 | v0.2 | U | #76 | 綠 | 4 | 未達建議門檻 |
+| FACE-ASN-006 | v0.2 | U | #77 | 綠 | 6 | cannot-link |
 | FACE-CLU-001 | v0.2 | I | #76 | 綠 | 4 | HDBSCAN 群組 |
 | FACE-CLU-002 | v0.2 | I | #76 | 綠 | 2 | 人工決策凍結 |
-| FACE-CLU-003 | v0.2 | U | #76 | 綠 | 3 | ID 穩定 |
-| FACE-CLU-004 | v0.2 | U | #76 | 綠 | 5 | 小群組摺疊 |
-| FACE-CLU-005 | v0.2 | I | #76 | 綠 | 5 | 大池退路 |
+| FACE-CLU-003 | v0.2 | U | #76 | 綠 | 4 | ID 穩定 |
+| FACE-CLU-004 | v0.2 | U | #76 | 綠 | 6 | 小群組摺疊 |
+| FACE-CLU-005 | v0.2 | I | #76 | 綠 | 6 | 大池退路 |
 | FACE-MGT-001 | v0.2 | I | #77 | 綠 | 2 | 合併可 undo |
 | FACE-MGT-002 | v0.2 | I | #77 | 綠 | 2 | 拆分 |
-| FACE-MGT-003 | v0.2 | U | #77 | 綠 | 3 | 合併建議不自動 |
+| FACE-MGT-003 | v0.2 | U | #77 | 綠 | 4 | 合併建議不自動 |
 | FACE-MGT-004 | v0.2 | I | #77 | 綠 | 2 | 忽略兩種模式 |
-| FACE-MGT-005 | v0.2 | U | #80 | 綠 | 3 | 命名清理 |
-| FACE-FIND-001 | v0.2 | I | #78 | 綠 | 7 | 點臉找人 |
+| FACE-MGT-005 | v0.2 | U | #80 | 綠 | 4 | 命名清理 |
+| FACE-FIND-001 | v0.2 | I | #78 | 綠 | 8 | 點臉找人 |
 | FACE-FIND-002 | v0.2 | I | #78 | 綠 | 4 | 拖照片找人不落地 |
-| FACE-FIND-003 | v0.2 | U | #78 | 綠 | 3 | 只吃 confirmed 擴充 |
+| FACE-FIND-003 | v0.2 | U | #78 | 綠 | 4 | 只吃 confirmed 擴充 |
 | FACE-FIND-004 | v0.2 | I | #78 | 綠 | 2 | 不跨 workspace |
 | FACE-TPL-001 | v0.2 | I | #80 | 綠 | 2 | `{person}` fan-out |
 | FACE-REV-001 | v0.2 | E | #81 | 綠 | 1 | Review Y/N |
@@ -1097,17 +1101,17 @@
 | ASK-LLM-001 | v0.3 | C | #101,#105 | 綠 | 8 | OpenAI 相容 client |
 | ASK-SRCH-001 | v0.3 | I | #40 | 綠 | 2 | 標籤詞不擋住沒標籤的照片（回歸，ADR-0027） |
 | WATCH-001 | v0.3 | I | #57 | 綠 | 2 | 新照片自動標註 |
-| WATCH-002 | v0.3 | I | #57 | 綠 | 8 | 去抖動 |
+| WATCH-002 | v0.3 | I | #57 | 綠 | 10 | 去抖動 |
 | WATCH-003 | v0.3 | I | #57 | 綠 | 2 | move 永遠需要核准 |
 | WATCH-004 | v0.3 | I | #57 | 綠 | 2 | 事件遺失補償 |
-| WATCH-005 | v0.3 | F | #57 | 綠 | 5 | 大量事件 |
-| WATCH-006 | v0.3 | I | #57 | 綠 | 38 | 網路磁碟無原生事件 |
-| WATCH-007 | v0.3 | U | #57 | 綠 | 10 | Windows 網路磁碟改用輪詢（回歸） |
-| BENCH-001 | v0.3 | I | #35 | 綠 | 8 | 兩模型比較 |
-| BENCH-002 | v0.3 | U | #35 | 綠 | 5 | golden set 下限 |
-| BENCH-003 | v0.3 | U | #35 | 綠 | 5 | 自動門檻建議 |
-| PRESET-001 | v0.3 | U | #58 | 綠 | 8 | 匯出匯入 |
-| PRESET-002 | v0.3 | S | #58 | 綠 | 68 | 匯入驗證 |
+| WATCH-005 | v0.3 | F | #57 | 綠 | 6 | 大量事件 |
+| WATCH-006 | v0.3 | I | #57 | 綠 | 50 | 網路磁碟無原生事件 |
+| WATCH-007 | v0.3 | U | #57 | 綠 | 13 | Windows 網路磁碟改用輪詢（回歸） |
+| BENCH-001 | v0.3 | I | #35 | 綠 | 10 | 兩模型比較 |
+| BENCH-002 | v0.3 | U | #35 | 綠 | 6 | golden set 下限 |
+| BENCH-003 | v0.3 | U | #35 | 綠 | 6 | 自動門檻建議 |
+| PRESET-001 | v0.3 | U | #58 | 綠 | 10 | 匯出匯入 |
+| PRESET-002 | v0.3 | S | #58 | 綠 | 90 | 匯入驗證 |
 | RT-PACK-012 | v0.4 | I | #23 | 綠 | 10 | 新 pack 的平台過濾 |
 | RT-PACK-013 | v0.4 | I | #23 | 綠 | 4 | 大 pack 分段 |
 | RT-PACK-014 | v0.4 | U | #23 | 綠 | 4 | pack 建置可重現 |
@@ -1176,7 +1180,7 @@
 | FRZ-005 | v1.0 | C |  | 綠 | 2 | Model registry `schema_version` |
 | FRZ-006 | v1.0 | C |  | 綠 | 2 | Preset schema |
 | FRZ-007 | v1.0 | U |  | 綠 | 3 | 相容性比對器 |
-| SEC-FUZZ-001 | v1.0 | S |  | 綠 | 3 | 路徑沙箱 1,000,000 例 fuzz |
+| SEC-FUZZ-001 | v1.0 | S |  | 綠 | 4 | 路徑沙箱 1,000,000 例 fuzz |
 | SEC-REDTEAM-001 | v1.0 | S | #71 | 綠 | 2 | MCP 紅隊集擴充 |
 | SEC-FACE-001 | v1.0 | S |  | 綠 | 2 | 人臉資料刪除可驗證 |
 | SEC-SBOM-001 | v1.0 | S |  | 綠 | 6 | SBOM 與漏洞掃描 |
