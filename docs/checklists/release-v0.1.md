@@ -93,4 +93,4 @@
 - 向量下限（ADR-0027）：「滑雪」5 張、「長頸鹿」0 張、「一隻熊」2 張。之前每個查詢都是 80 張。
 - ETA：掃描與 80 張標註工作都寫入 `eta_calibration`，第一次顯示的區間涵蓋實際時間，但樣本太少，**不算 M0-V7**（V7 要 3 種任務 × 3 次、各 1,000 張）。Activity Center 顯示「估算中…」→「不到 1 分鐘」；完成後不再顯示。掃描有即時計數。
 - 模型已在本機時，`search.reindex` 會結束；未知的 preset 回 404，不建立工作。
-- `opagent ops export-calibration`：`81b0b8a` 的安裝版仍失敗（找不到 PostgreSQL 執行檔），下一版已修，用開發環境的程式連安裝版資料庫驗證過。
+- `opagent ops export-calibration`：`81b0b8a` 的安裝版失敗（找不到 PostgreSQL 執行檔），`960f354` 已修，在該版安裝包實跑成功。
