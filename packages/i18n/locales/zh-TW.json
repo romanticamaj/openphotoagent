@@ -12,8 +12,8 @@
     "pickFolder": "選擇要整理的資料夾",
     "useThisFolder": "選擇此資料夾",
     "method": "整理方式",
-    "byDate": "依日期",
-    "byDateHint": "依拍攝年／月分資料夾，不需要下載模型",
+    "byDate": "依日期（不使用 AI）",
+    "byDateHint": "只依拍攝年／月分資料夾。不會分析內容，之後也搜尋不到照片裡的東西。",
     "pickMethodFirst": "請先選擇整理方式",
     "noWritableTarget": "沒有可寫入的輸出位置",
     "output": "輸出位置",
@@ -24,8 +24,8 @@
     "doneTitle": "整理完成",
     "undo": "復原",
     "undoneTitle": "已復原",
-    "byContent": "依內容（內建 12 類）",
-    "byContentHint": "用影像相似度與視覺語言模型分到 12 個類別",
+    "byContent": "依內容（AI，內建 12 類）",
+    "byContentHint": "AI 看每張照片，分到 12 個類別，之後也能用文字搜尋。",
     "custom": "自訂類別",
     "customHint": "自己定義類別，用描述和範例照片教 AI",
     "advanced": "進階",
@@ -360,12 +360,16 @@
     "duplicates": "重複照片",
     "people": "人物",
     "ask": "問 AI",
-    "map": "地圖"
+    "map": "地圖",
+    "import": "匯入",
+    "groupLibrary": "圖庫",
+    "groupWork": "工作",
+    "groupSystem": "系統"
   },
   "viewer": {
     "title": "照片",
     "grid": "照片網格",
-    "empty": "還沒有照片。先選一個資料夾開始。",
+    "empty": "還沒有照片",
     "unknownDate": "未知日期",
     "dateFromMtime": "依檔案時間",
     "count_one": "{count} 張",
@@ -378,7 +382,10 @@
     "jumpGo": "前往",
     "jumpInvalid": "看不懂這個日期，請輸入例如 2019-03",
     "photoAlt": "照片，{date}",
-    "loading": "載入中…"
+    "loading": "載入中…",
+    "emptyHint": "選一個資料夾，先看裡面有什麼再加入。原檔不會被修改。",
+    "emptyAction": "匯入照片",
+    "arriving": "照片馬上出現…"
   },
   "lightbox": {
     "label": "照片檢視",
@@ -830,5 +837,44 @@
     "logs": "記錄檔位置",
     "copy": "複製診斷資訊",
     "reconnecting": "正在重新連線…畫面上的內容都還在。"
+  },
+  "library": {
+    "importTitle": "匯入照片",
+    "importLede": "加入資料夾後，照片會先出現在圖庫，AI 接著在背景分析。之後才決定要不要整理到資料夾。",
+    "pickTitle": "選擇資料夾",
+    "pickHint": "從左邊選一個資料夾，這裡會顯示裡面有什麼。",
+    "counting": "正在計算…",
+    "previewFailed": "暫時看不到這個資料夾的內容，仍然可以加入。",
+    "empty": "這個資料夾沒有照片。",
+    "emptyTryChild": "這層沒有照片。從左邊打開子資料夾看看。",
+    "skips": "會略過 {{n}} 個非照片檔案。",
+    "truncated": "檔案很多，數字只算到前 50,000 個。",
+    "safe": "不會修改或移動這個資料夾裡的任何檔案。",
+    "photos": "張照片",
+    "videos": "部影片",
+    "size": "總大小",
+    "dates": "拍攝日期（抽樣）",
+    "sampleAlt": "資料夾裡的照片樣本",
+    "outputFolder": "輸出",
+    "addAndAnalyze": "加入圖庫並開始分析",
+    "scanOnly": "先只加入照片，不做 AI 分析"
+  },
+  "dock": {
+    "label": "進度",
+    "title": "正在處理照片",
+    "minimize": "縮小",
+    "close": "關閉",
+    "waitingScan": "等掃描完成",
+    "keepUsing": "可以繼續使用 app，照片會陸續出現。",
+    "done": "分析完成",
+    "doneCount": "分析完成：{{n}} 張照片",
+    "seePhotos": "看照片",
+    "organize": "整理到資料夾",
+    "stage": {
+      "scan": "掃描檔案",
+      "job.label": "AI 分析",
+      "output.apply": "複製檔案",
+      "output.undo": "復原"
+    }
   }
 }

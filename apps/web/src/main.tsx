@@ -9,7 +9,7 @@ import { applyTheme } from "./features/system/SettingsPage";
 import "./styles.css";
 
 try {
-  applyTheme(localStorage.getItem("opa.theme") ?? "system");
+  applyTheme(localStorage.getItem("opa.theme") ?? "dark");
 } catch {
   /* storage unavailable: follow the system */
 }

@@ -119,17 +119,171 @@ body {
   border-right: 1px solid var(--border);
   background: var(--surface);
   padding: 12px 8px;
+  overflow-y: auto;
+}
+.sidenav-group + .sidenav-group {
+  margin-top: 16px;
+}
+.sidenav-group p {
+  margin: 0 0 4px;
+  padding: 0 12px;
+  font-size: 12px;
+  color: var(--text-muted);
 }
 .sidenav a {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 6px 12px;
   border-radius: var(--radius-sm);
   color: var(--text);
   text-decoration: none;
 }
+.sidenav a:hover {
+  background: color-mix(in oklch, var(--surface-2) 60%, transparent);
+}
 .sidenav a[aria-current="page"] {
   background: var(--surface-2);
   font-weight: 600;
+}
+.nav-badge {
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* folder browser (ADR-0029): the tree on the left, what the chosen folder holds on the right */
+.folder-browser {
+  display: grid;
+  grid-template-columns: minmax(220px, 280px) minmax(0, 1fr);
+  gap: 16px;
+  min-height: 420px;
+}
+.folder-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 70vh;
+  overflow: auto;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.folder-tree ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.folder-tree ul ul {
+  padding-left: 14px;
+}
+.folder-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.folder-row:hover {
+  background: color-mix(in oklch, var(--surface-2) 60%, transparent);
+}
+.folder-row[aria-current="true"] {
+  background: var(--surface-2);
+  font-weight: 600;
+}
+.folder-caret {
+  flex: none;
+  width: 12px;
+  color: var(--text-muted);
+}
+.folder-note {
+  flex: none;
+  margin-left: auto;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 400;
+}
+.folder-hint {
+  align-self: center;
+  justify-self: center;
+  color: var(--text-muted);
+}
+.folder-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+.folder-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin: 0;
+}
+.folder-stats div {
+  display: flex;
+  flex-direction: column-reverse;
+}
+.folder-stats dd {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+.folder-stats dt {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.folder-samples {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 2px;
+}
+.folder-sample {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius-photo);
+  background: var(--surface-2);
+  object-fit: cover;
+}
+@media (max-width: 760px) {
+  .folder-browser {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* progress on every page (ADR-0029): clear of the scrubber on the right edge */
+.progress-dock {
+  position: fixed;
+  right: 72px;
+  bottom: 20px;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(340px, calc(100vw - 96px));
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.3);
+}
+.progress-dock-small {
+  width: 220px;
+  padding: 8px 12px;
 }
 .page {
   overflow: auto;

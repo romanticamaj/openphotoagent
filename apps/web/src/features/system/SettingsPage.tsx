@@ -14,7 +14,7 @@ export function applyTheme(theme: string) {
 
 function stored(): string {
   try {
-    return localStorage.getItem("opa.theme") ?? "system";
+    return localStorage.getItem("opa.theme") ?? "dark";
   } catch {
     return "system";
   }

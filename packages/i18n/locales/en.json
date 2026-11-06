@@ -12,8 +12,8 @@
     "pickFolder": "Choose a folder to organize",
     "useThisFolder": "Use this folder",
     "method": "How to organize",
-    "byDate": "By date",
-    "byDateHint": "Year / month folders from the capture date — no model download needed",
+    "byDate": "By date (no AI)",
+    "byDateHint": "Sorts into year and month folders only. Content isn't analysed, so you can't search what's in the photos.",
     "pickMethodFirst": "Choose a method first",
     "noWritableTarget": "No writable output location",
     "output": "Output",
@@ -24,8 +24,8 @@
     "doneTitle": "All done",
     "undo": "Undo",
     "undoneTitle": "Undone",
-    "byContent": "By content (12 built-in categories)",
-    "byContentHint": "Image similarity plus a vision-language model sort photos into 12 categories",
+    "byContent": "By content (AI, 12 built-in categories)",
+    "byContentHint": "AI looks at each photo and sorts it into 12 categories. You can then search by what's in them.",
     "custom": "Custom categories",
     "customHint": "Define your own categories and teach them with a description and example photos",
     "advanced": "Advanced",
@@ -360,12 +360,16 @@
     "duplicates": "Duplicates",
     "people": "People",
     "ask": "Ask AI",
-    "map": "Map"
+    "map": "Map",
+    "import": "Import",
+    "groupLibrary": "Library",
+    "groupWork": "Work",
+    "groupSystem": "System"
   },
   "viewer": {
     "title": "Photos",
     "grid": "Photo grid",
-    "empty": "No photos yet. Pick a folder to get started.",
+    "empty": "No photos yet",
     "unknownDate": "Unknown date",
     "dateFromMtime": "From file time",
     "count_one": "{count} photo",
@@ -378,7 +382,10 @@
     "jumpGo": "Go",
     "jumpInvalid": "That date wasn't understood; try e.g. 2019-03",
     "photoAlt": "Photo, {date}",
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "emptyHint": "Pick a folder and see what it holds before you add it. Your originals stay as they are.",
+    "emptyAction": "Import photos",
+    "arriving": "Your photos are on their way…"
   },
   "lightbox": {
     "label": "Photo viewer",
@@ -830,5 +837,44 @@
     "logs": "Log folder",
     "copy": "Copy diagnostics",
     "reconnecting": "Reconnecting… everything on screen is still here."
+  },
+  "library": {
+    "importTitle": "Import photos",
+    "importLede": "After you add a folder, its photos appear in the library and AI analyses them in the background. Organizing into folders is a later choice.",
+    "pickTitle": "Choose a folder",
+    "pickHint": "Pick a folder on the left to see what it holds.",
+    "counting": "Counting…",
+    "previewFailed": "Can't show this folder right now. You can still add it.",
+    "empty": "This folder has no photos.",
+    "emptyTryChild": "No photos at this level. Open a subfolder on the left.",
+    "skips": "{{n}} files that aren't photos will be skipped.",
+    "truncated": "This folder is very large: counts stop at the first 50,000 files.",
+    "safe": "Nothing in this folder will be changed or moved.",
+    "photos": "photos",
+    "videos": "videos",
+    "size": "total size",
+    "dates": "dates taken (sampled)",
+    "sampleAlt": "A sample photo from this folder",
+    "outputFolder": "Output",
+    "addAndAnalyze": "Add to library and analyse",
+    "scanOnly": "Add the photos without AI analysis for now"
+  },
+  "dock": {
+    "label": "Progress",
+    "title": "Working on your photos",
+    "minimize": "Minimize",
+    "close": "Close",
+    "waitingScan": "after the scan",
+    "keepUsing": "Keep using the app. Photos appear as they are ready.",
+    "done": "Analysis finished",
+    "doneCount": "Analysis finished: {{n}} photos",
+    "seePhotos": "See photos",
+    "organize": "Organize into folders",
+    "stage": {
+      "scan": "Scanning files",
+      "job.label": "AI analysis",
+      "output.apply": "Copying files",
+      "output.undo": "Undoing"
+    }
   }
 }

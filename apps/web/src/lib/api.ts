@@ -1,5 +1,17 @@
 import { endpoint, platform } from "./platform";
 // Thin REST client for /api/v1 (replaced by the OpenAPI-generated ts-client in slice 9/10).
+export type FolderPreview = {
+  photos: number;
+  videos: number;
+  others: number;
+  bytes: number;
+  truncated: boolean;
+  subfolders: Array<{ name: string; photos: number; videos: number }>;
+  samples: string[];
+  taken_from: string | null;
+  taken_to: string | null;
+};
+
 export class ApiError extends Error {
   constructor(public status: number, public body: unknown) {
     super(`HTTP ${status}`);
@@ -285,6 +297,11 @@ export const api = {
   roots: () => req<Root[]>("GET", "/roots"),
   browse: (root: string, path: string) =>
     req<{ dirs: string[] }>("GET", `/fs/browse?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`),
+  folderPreview: (root: string, path: string) =>
+    req<FolderPreview>("GET", `/fs/preview?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`),
+  folderThumb: (root: string, path: string) =>
+    req<{ thumbnail_b64: string }>("GET", `/fs/thumb?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`),
+  analyzeSource: (id: string) => req<{ job_id: string }>("POST", `/sources/${encodeURIComponent(id)}/analyze`),
   createSource: (root_alias: string, sub_path: string) => req<{ id: string }>("POST", "/sources", { root_alias, sub_path }),
   createJob: (source_id: string, preset: string, target: { root_alias: string; sub_path: string }, extra: Record<string, unknown> = {}) =>
     req<Job>("POST", "/jobs", { kind: "organize", source_id, preset, target, ...extra }),
@@ -294,6 +311,7 @@ export const api = {
     req<{ id: string }>("POST", "/previews", { source_id, preset, categories, k: 10 }),
   preview: (id: string) => req<Preview>("GET", `/previews/${id}`),
   rerender: (id: string, thresholds: Record<string, number>) => req<{ items: PreviewItem[] }>("POST", `/previews/${id}/rerender`, { thresholds }),
+  reviewCount: async () => (await req<{ count: number }>("GET", "/reviews?limit=0")).count,
   reviews: (job: string, status = "pending") => req<{ count: number; items: Review[] }>("GET", `/reviews?job_id=${job}&status=${status}`),
   actReview: (id: string, action: "accept" | "correct" | "skip", category?: string) => req<unknown>("POST", `/reviews/${id}`, { action, category }),
   skipRest: (job: string) => req<unknown>("POST", `/jobs/${job}/reviews/skip-rest`),
