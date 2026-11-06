@@ -7,6 +7,7 @@ consequence) hold everywhere by construction.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -34,7 +35,7 @@ def fixes_for(code: str, deployment: str = "desktop", os: str = "windows", **pay
     for i, raw in enumerate(entry["fixes"]):
         f = _pick(raw, deployment, os)
         target = str(f.get("target") or f["type"])
-        fid = target.split("(")[0].strip().replace(" ", "_").replace("-", "_")
+        fid = re.sub(r"[^A-Za-z0-9_]", "_", target.split("(")[0].strip())  # a valid i18n key segment
         fx: dict[str, Any] = {
             "id": fid,
             "fix_id": f"{code}.{fid}",
@@ -45,7 +46,7 @@ def fixes_for(code: str, deployment: str = "desktop", os: str = "windows", **pay
             "label_key": f"fix.{fid}",
         }
         if f["type"] == "choose_alternative":
-            fx["consequence"] = {"key": f"fix.{fid}.consequence"}
+            fx["consequence"] = {"key": f"fix_consequence.{fid}"}  # what the alternative costs (06 §4.3)
         if fid in payloads:
             fx["payload"] = payloads[fid]
         out.append(fx)

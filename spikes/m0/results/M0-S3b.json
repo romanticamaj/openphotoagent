@@ -1,10 +1,25 @@
 {
   "id": "M0-S3b",
-  "status": "pending-hardware",
+  "status": "measured",
   "machine": {
-    "hostname_label": "not-run"
+    "hostname_label": "rtx5070ti-win11",
+    "os": "Windows",
+    "os_release": "10",
+    "arch": "AMD64",
+    "python": "3.10.11",
+    "cpu_count": 24
   },
-  "metrics": {},
+  "metrics": {
+    "caption_first_accuracy": 0.749,
+    "category_first_accuracy": 0.729,
+    "difference_pp": 2.0,
+    "n": 1000,
+    "agreement_between_orders": 0.926,
+    "valid_rate_both": [
+      1.0,
+      1.0
+    ]
+  },
   "pass": null,
-  "notes": "Key-order comparison runs with S3 on the reference machine."
+  "notes": "Criterion is 'record; change only if the difference exceeds 2 pp': 2.0 pp does not exceed it, keep caption-first (03 §3.0). Product zh-Hant prompt, 1000 COCO images, labels derived from COCO annotations and captions, so accuracy is a proxy and the gap is small next to label noise. Detail in M0-S3b-caption_first.json and M0-S3b-category_first.json; speed differs between them because of other GPU load, not key order."
 }

@@ -32,6 +32,6 @@ def render() -> str:
 if __name__ == "__main__":
     text = render()
     if "--check" in sys.argv:
-        raise SystemExit(0 if OUT.read_text() == text else 1)
-    OUT.write_text(text)
+        raise SystemExit(0 if OUT.read_text(encoding="utf-8") == text else 1)
+    OUT.write_text(text, encoding="utf-8")
     print(f"wrote {OUT}")

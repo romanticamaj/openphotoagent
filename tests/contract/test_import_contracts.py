@@ -41,17 +41,17 @@ def _fake_tree(tmp_path: Path, violation: tuple[str, str] | None) -> Path:
     src = tmp_path / "src"
     for p in PKGS:
         (src / p).mkdir(parents=True)
-        (src / p / "__init__.py").write_text("")
+        (src / p / "__init__.py").write_text("", encoding="utf-8")
     if violation:
         importer, imported = violation
-        (src / importer / "bad.py").write_text(f"import {imported}\n")
-    cfg = tomllib.loads((ROOT / "pyproject.toml").read_text())["tool"]["importlinter"]
+        (src / importer / "bad.py").write_text(f"import {imported}\n", encoding="utf-8")
+    cfg = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))["tool"]["importlinter"]
     lines = ["[tool.importlinter]", f"root_packages = {cfg['root_packages']!r}".replace("'", '"')]
     for c in cfg["contracts"]:
         lines.append("[[tool.importlinter.contracts]]")
         for k, v in c.items():
             lines.append(f"{k} = " + (repr(v).replace("'", '"') if isinstance(v, list) else f'"{v}"'))
-    (tmp_path / "pyproject.toml").write_text("\n".join(lines) + "\n")
+    (tmp_path / "pyproject.toml").write_text("\n".join(lines) + "\n", encoding="utf-8")
     return src
 
 

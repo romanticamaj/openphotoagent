@@ -9,8 +9,9 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from opagent_core.vocabularies import VOCAB_DIR as SHARED_VOCAB_DIR
 
-VOCAB_DIR = Path(__file__).resolve().parents[2] / "vocabularies"
+VOCAB_DIR = SHARED_VOCAB_DIR  # package data in opagent_core (ADR-0023)
 
 
 @dataclass(frozen=True)

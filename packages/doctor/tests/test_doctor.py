@@ -10,7 +10,10 @@ from opagent_doctor.probes import read_profile
 from opagent_testing.clock import FakeClock
 
 ROOT = Path(__file__).resolve().parents[3]
-I18N = {lang: json.loads((ROOT / f"packages/i18n/checks.{lang}.json").read_text()) for lang in ("zh-TW", "en")}
+I18N = {
+    lang: json.loads((ROOT / f"packages/i18n/checks.{lang}.json").read_text(encoding="utf-8"))
+    for lang in ("zh-TW", "en")
+}
 
 
 def ctx(profile="rtx5070ti-win11", **env):
@@ -186,3 +189,30 @@ def test_doc_018_feature_mapping():
     f = features(rs)
     assert f["caption.vlm.llamacpp"]["available"] is False
     assert f["embed.onnx"]["available"] is True
+
+
+@pytest.mark.unit
+@pytest.mark.os_windows
+@pytest.mark.tc("DOC-021")
+def test_doc_021_windows_reports_its_memory():
+    """回歸: RAM came only from /proc/meminfo, so Windows reported 0 GB to the recommender and the doctor."""
+    from opagent_doctor.probes import collect_probes, summarize
+
+    assert summarize(collect_probes()).ram_gb > 1
+
+
+@pytest.mark.unit
+@pytest.mark.tc("DOC-022")
+def test_doc_022_nvidia_xml_as_windows_prints_it():
+    """回歸: `<gpu id="...">` did not match `<gpu>`, and under WDDM per-process memory is N/A, so a card with 10.9 GB in
+    use looked free and the VRAM budget was wrong (M0-T2)."""
+    from opagent_doctor.probes import parse_nvidia
+
+    xml = """<nvidia_smi_log><driver_version>591.86</driver_version>
+    <gpu id="00000000:01:00.0"><product_name>NVIDIA GeForce RTX 5070 Ti</product_name>
+    <fb_memory_usage><total>16303 MiB</total><reserved>300 MiB</reserved><used>10900 MiB</used><free>5100 MiB</free></fb_memory_usage>
+    <processes><process_info><used_memory>N/A</used_memory><process_name>app.exe</process_name></process_info></processes>
+    </gpu></nvidia_smi_log>"""
+    [gpu] = parse_nvidia(xml, None)
+    assert gpu.vram_total_gb == pytest.approx(15.92, abs=0.01)
+    assert gpu.vram_used_external_gb == pytest.approx(10.64, abs=0.01)

@@ -91,11 +91,13 @@ flowchart TB
 | 單一實例 | `tauri-plugin-single-instance`：第二次啟動只會把既有視窗帶到前景，並轉交參數或 deep link。另外在 data dir 放 `opagent.lock`（OS 檔案鎖），防止 AppImage 與 deb 兩種安裝同時開同一份資料；`postmaster.pid` 殘留時，確認該 PID 不存在才清除 |
 | Deep link | 註冊 `openphotoagent://`：`openphotoagent://approvals/{id}`（MCP 核准，取代 05 的瀏覽器 `approval_url`）、`openphotoagent://open?asset=…` |
 
+> **ADR-0024 補充**：本文件與 02 中的「0600／0700」都是指 owner-only。POSIX 是該 mode；Windows 是受保護的 DACL，只有目前使用者與 SYSTEM，並在建立檔案時就設定。一律透過 `opagent_secure` 寫入。
+
 ### 1.4 啟動序列與崩潰重啟
 
 ```
 t=0      殼啟動，立即顯示啟動畫面（< 300 ms）
-t≈0.3s   啟動 postgres（首次：initdb --locale-provider=builtin --locale=C.UTF-8 -E UTF8，約 3–5 s【估算】）
+t≈0.3s   啟動 postgres（首次：initdb --locale-provider=builtin --builtin-locale=C.UTF-8 --locale=C -E UTF8，約 3–5 s【估算】）
 t≈1–2s   postgres ready（pg_isready 或連線輪詢）→ 啟動 opagent api → alembic upgrade（升級前自動 pg_dump 備份）
 t≈2–4s   /readyz OK → UI 開始載入資料；同時啟動 opagent worker（以 bootstrap token 自動註冊）
 t≈4–5s   worker hello → UI 的 WorkerStatusDot 變綠；doctor 快速檢查在背景執行
@@ -176,7 +178,7 @@ apps/web（同一份原始碼）
 |------|------|
 | 版本 | **PostgreSQL 17.x + pgvector 0.8.x**（Docker 版同步改用 `pgvector/pgvector:pg17`，桌面與 Docker 同一個大版本）【未驗證：發佈時的最新 minor 版】。PG 大版本**最多每年升級一次**，並寫在 release notes |
 | 二進位來源 | CI 從官方原始碼建置（macOS arm64、Linux x64 用 glibc 2.35 基準），或改用 theseus-rs 預編版（PostgreSQL License）；**pgvector 一律由我們在 CI 逐平台編譯**並跑 smoke test（`CREATE EXTENSION vector`、建 HNSW、查詢）。打包成 `pg` pack（內建在安裝包裡），只保留 `bin/postgres`、`initdb`、`pg_ctl`、`pg_dump`、`pg_restore`、`pg_upgrade`、`lib/`、`share/`（只留 `contrib` 的 `pg_trgm`、`citext`、`btree_gin`；刪掉 docs、i18n 以外的語系檔）【估算：壓縮後 25–40 MB】 |
-| initdb | `--locale-provider=builtin --locale=C.UTF-8 -E UTF8`（PG 17 的內建 provider）。**不依賴 OS 或 ICU 的 collation**，避免 OS 更新後 collation 版本改變、索引失效。中文排序在應用層處理 |
+| initdb | `--locale-provider=builtin --builtin-locale=C.UTF-8 --locale=C -E UTF8`（PG 17 的內建 provider；OS 層的 lc_* 用每個 OS 都有的 `C`，`C.UTF-8` 只有 Linux 有，PG-016、ADR-0020）。`C.UTF-8` 的大小寫與字元類別跟隨 PG 主版本內建的 Unicode 版本；主版本升級（pg_upgrade）後要 `REINDEX` 依賴 `lower()`／`upper()` 的運算式索引（目前是 `person_name_uq`）。**不依賴 OS 或 ICU 的 collation**，避免 OS 更新後 collation 版本改變、索引失效。中文排序在應用層處理 |
 | 資源設定（`desktop` profile） | `shared_buffers=256MB`（RAM ≤ 8 GB 時用 128MB）、`max_connections=30`、`work_mem=16MB`、`maintenance_work_mem=512MB`（建 HNSW 時臨時調高到 min(RAM×0.25, 2GB)）、`effective_cache_size=RAM×0.25`、`max_parallel_maintenance_workers=2`、`huge_pages=off`、`fsync=on`、`synchronous_commit=on`（照片 journal 不能丟）、`autovacuum=on`、`log_destination=stderr` 由殼收集 |
 | 連線 | 見 §1.3。api 連線池 10，worker 不連 DB（02 原則不變），scheduler 與 Procrastinate 共用 api 進程 |
 | 備份 | 每日一次加上每次 migration 前執行 `pg_dump -Fc`，保留 7 份；「設定 → 資料」提供「立即備份 / 還原 / 匯出到資料夾」 |
@@ -260,11 +262,11 @@ VRAM / 記憶體皆為**【估算】**（GGUF 權重 + mmproj + KV，8k context�
 | Python 依賴（FastAPI、pydantic-core、SQLAlchemy、asyncpg、alembic、procrastinate、Pillow、pillow-heif、numpy、blake3、jieba + 繁中字典、OpenCC、tokenizers、huggingface_hub、mcp SDK、structlog）| 35–50 MB | 35–50 MB | 35–50 MB |
 | ONNX Runtime（Win：DirectML 版；Mac：含 CoreML；Linux：CPU）| 15–25 MB | 15–25 MB | 10–15 MB |
 | `pg` pack（PG 17 + pgvector + 必要 contrib） | 25–40 MB | 20–35 MB | 20–35 MB |
-| llama-server（Win/Linux：CPU；Mac：Metal） | 5–15 MB | 5–15 MB | 5–15 MB |
+| llama-server（Win：Vulkan，含 CPU backend，ADR-0025；Linux：CPU；Mac：Metal） | 約 38 MB | 5–15 MB | 5–15 MB |
 | GeoNames（cities1000 + admin1 + 過濾成 zh/en/ja 的 alternateNames） | 8–15 MB | 8–15 MB | 8–15 MB |
 | **合計** | **約 120–190 MB** | **約 115–185 MB** | **約 110–180 MB** |
 
-**【決定】D6**：CI 設 **200 MB 硬上限**（超過就讓 build 失敗），目標 150 MB。若超標，第一個移出的是 GeoNames（改成首次啟動的 data pack）。XMP「寫入原檔」需要的 exiftool 不放進安裝包：XMP **sidecar** 由我們自己的 Python writer 產生（純 XML）；只有「寫入原檔 EXIF」（02 §6.2，預設關閉）才需要下載 `exiftool` pack。
+**【決定】D6**：CI 設 **200 MB 硬上限**（超過就讓 build 失敗），目標 150 MB。Linux 同時檢查 AppImage 與 .deb。超標時的處理順序見 ADR-0022：先移除不會被 import 的檔案與除錯資訊，再讓 AppImage 依賴系統 WebKitGTK（如上表）；GeoNames 只有約 10 MB，移出效果有限。XMP「寫入原檔」需要的 exiftool 不放進安裝包：XMP **sidecar** 由我們自己的 Python writer 產生（純 XML）；只有「寫入原檔 EXIF」（02 §6.2，預設關閉）才需要下載 `exiftool` pack。
 
 ### 4.2 Pack 目錄
 
@@ -398,7 +400,7 @@ jobs:
 | Runner | Target | 產物 | 簽章 |
 |--------|--------|------|------|
 | `windows-latest` | `x86_64-pc-windows-msvc` | `-setup.exe`（NSIS）、`.msi`（只有 stable）、`.nsis.zip` + `.sig` | SignPath（內層 → installer）、updater 簽章 |
-| `macos-14`（arm64） | `aarch64-apple-darwin` | `.dmg`、`.app.tar.gz` + `.sig` | Developer ID + notarize + staple |
+| `macos-15`（arm64） | `aarch64-apple-darwin` | `.dmg`、`.app.tar.gz` + `.sig` | Developer ID + notarize + staple |
 | `ubuntu-22.04` | `x86_64-unknown-linux-gnu` | `.AppImage` + `.sig`、`.deb`、`.rpm` | updater 簽章 |
 | `ubuntu-latest`（彙整 job） | — | 產生 `latest.json`（stable）或更新 `beta.json`（pre-release）、SBOM、attestation、上傳到 Release | — |
 

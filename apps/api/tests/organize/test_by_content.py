@@ -69,7 +69,7 @@ def test_org_002_every_photo_exactly_one_destination(embedded_pg, sandbox_tree, 
         "人物",
         "風景",
         "美食",
-        "寵物",
+        "動物",
         "文件與截圖",
         "旅行",
         "活動",
@@ -174,7 +174,7 @@ def test_rev_003_skip_rest_to_other(embedded_pg, sandbox_tree, tmp_path):
     j = client.get(f"/api/v1/jobs/{j['id']}").json()
     acts = _plan(client, j)["actions"]
     folders = sorted(a["dst_rel"].split("/")[0] for a in acts)
-    assert folders.count("其他") == 11 and folders.count("寵物") == 1
+    assert folders.count("其他") == 11 and folders.count("動物") == 1
 
 
 @pytest.mark.integration
@@ -205,7 +205,7 @@ def test_org_010_inline_correction_feeds_back(embedded_pg, sandbox_tree, tmp_pat
     assert r.status_code == 200 and r.json()["review"]["status"] == "corrected"
     j2 = _job(client, w, src)
     act = next(a for a in _plan(client, j2)["actions"] if a["asset_id"] == aid)
-    assert act["dst_rel"].startswith("寵物/")
+    assert act["dst_rel"].startswith("動物/")
     eng = engine_for(embedded_pg.dsn)
     with eng.begin() as c:
         cat = c.execute(text("select category from search_doc where asset_id = :a"), {"a": aid}).scalar_one()

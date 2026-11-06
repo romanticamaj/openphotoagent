@@ -65,6 +65,7 @@ class SearchIn(BaseModel):
     facets: list[str] = []
     collapse_duplicates: bool = True  # one representative per near-duplicate group, with "+N" (05 §2.1)
     plan: bool = False  # run the rule-based planner on q (05 §2.3): NL dates / tags → filters, rest stays text
+    lang: str = "zh-TW"  # the language of tag_names (IMP-022)
 
 
 # ---- cursors ----
@@ -135,6 +136,17 @@ def query_vector(st: AppState, text_q: str, space: Any, modality: str = "image")
     with st.engine.begin() as c:
         c.execute(worker_task.delete().where(worker_task.c.id == tid, worker_task.c.status == "pending"))
     return None
+
+
+RELATED_MAX = 24
+
+
+def vector_floor(st: AppState, space: Any) -> float | None:
+    """The cosine under which a neighbour is not a match (ADR-0027). It sits in the catalog, per model: scores mean
+    different things in different spaces, and it applies at query time, so tuning it costs no re-embedding."""
+    m = st.registry().models.get(str(space.fingerprint).split("@")[0])
+    floor = ((m.spec.embedding or {}) if m else {}).get("min_cosine")
+    return float(floor) if floor is not None else None
 
 
 def active_space(c: Any) -> Any:
@@ -301,6 +313,8 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
         cspace = caption_space(c)
     qvec = None
     cvec = None
+    weak: list[str] = []
+    capped = False
     if q and body.semantic and cspace is not None:
         cvec = query_vector(st, q, cspace, modality="caption")
         if cvec is None:
@@ -339,7 +353,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
             if qvec is not None and space is not None:
                 # exact scan over the pre-filtered set: an HNSW post-filter would return fewer (SRCH-SEM-004)
                 vq = (
-                    select(search_doc.c.asset_id)
+                    select(search_doc.c.asset_id, text("1 - (asset_embedding.vec <=> CAST(:qv AS vector)) AS cos"))
                     .join(
                         asset_embedding,
                         and_(
@@ -350,7 +364,11 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                     .order_by(text("asset_embedding.vec <=> CAST(:qv AS vector)"), search_doc.c.asset_id)
                     .limit(PER_ROUTE)
                 )
-                routes["image_vector"] = [r[0] for r in c.execute(vq, {"qv": str(qvec)})]
+                near = c.execute(vq, {"qv": str(qvec)}).all()
+                floor = vector_floor(st, space)
+                routes["image_vector"] = [r[0] for r in near if floor is None or r[1] >= floor]
+                weak = [r[0] for r in near if floor is not None and r[1] < floor]
+                capped = len(routes["image_vector"]) == PER_ROUTE
             if cvec is not None and cspace is not None:  # R2: multilingual caption vectors (05 §2, ADR-0014)
                 cq = (
                     select(search_doc.c.asset_id)
@@ -406,8 +424,17 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
             else {}
         )
         facets = _facets(c, None, [*where, match] if q else where, body.facets)
+        # first page only, outside the set: not counted, not faceted, not in a selection (ADR-0027)
+        near_ids = [] if cur else [a for a in weak if a not in scores][:RELATED_MAX]
+        rel_rows = (
+            {r.asset_id: r for r in c.execute(select(search_doc).where(search_doc.c.asset_id.in_(near_ids)))}
+            if near_ids
+            else {}
+        )
         hashes = (
-            dict(c.execute(select(asset.c.id, asset.c.content_hash).where(asset.c.id.in_(page))).all()) if page else {}
+            dict(c.execute(select(asset.c.id, asset.c.content_hash).where(asset.c.id.in_([*page, *near_ids]))).all())
+            if page or near_ids
+            else {}
         )
     items = [
         {
@@ -443,8 +470,13 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
     out: dict[str, Any] = {
         "items": items,
         "facets": facets,
+        "tag_names": tag_names(list(facets.get("tags") or {}), body.lang),
         "next_cursor": _sign({"o": nxt, "s": snapshot, "h": _qhash(body)}) if nxt < total else None,
         "total": total,
+        "total_capped": capped,  # the vector route hit K: `total` is a lower bound
+        "related": [
+            {"asset_id": a, "ch": hashes.get(a), "caption": rel_rows[a].caption} for a in near_ids if a in rel_rows
+        ],
         "fulltext_mode": mode,
         "degraded": degraded,
     }
@@ -453,6 +485,14 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
     if planned is not None:
         out["planner"] = planned  # shown as removable filter chips (05 §2.3)
     return out
+
+
+def tag_names(keys: list[str], lang: str) -> dict[str, str]:
+    """Display names for vocabulary ids; a free tag is already its own name (IMP-022)."""
+    from .labels import tokenizer
+
+    tok = tokenizer()
+    return {k: n for k in keys if (n := tok.term_name(k, lang)) is not None}
 
 
 def _facets(c: Any, ids: list[str] | None, where: list[Any], fields: list[str]) -> dict[str, dict[str, int]]:
@@ -627,27 +667,34 @@ def ingest_embeddings(body: EmbeddingsIn, req: Request) -> dict[str, int]:
     return {"stored": n}
 
 
+def missing_vectors(c: Any) -> dict[str, list[dict[str, str]]]:
+    """Per worker, what has no vector in the active space."""
+    from opagent_db.schema import asset, asset_location, source
+
+    space = active_space(c)
+    have = select(asset_embedding.c.asset_id)
+    if space is not None:
+        have = have.where(asset_embedding.c.space_id == space.id)
+    rows = c.execute(
+        select(asset.c.content_hash, asset_location.c.rel_path, source.c.root_alias, source.c.worker_id)
+        .join(asset_location, asset_location.c.asset_id == asset.c.id)
+        .join(source, source.c.id == asset_location.c.source_id)
+        .where(asset.c.id.not_in(have), asset_location.c.missing.is_(False))
+    ).all()
+    by_worker: dict[str, list[dict[str, str]]] = {}
+    for h, rel, alias, wid in rows:
+        by_worker.setdefault(wid, []).append({"content_hash": h, "rel": rel, "root_alias": alias})
+    return by_worker
+
+
 @router.post("/search-index/reindex", status_code=202)
 def reindex(req: Request) -> dict[str, Any]:
     """Queue embedding for every asset without a vector in the active space (auto_fix ``reindex``, PF-053)."""
     from opagent_core.ids import uuid7
-    from opagent_db.schema import asset, asset_location, source
 
     st = _st(req)
     with st.engine.begin() as c:
-        space = active_space(c)
-        have = select(asset_embedding.c.asset_id)
-        if space is not None:
-            have = have.where(asset_embedding.c.space_id == space.id)
-        rows = c.execute(
-            select(asset.c.content_hash, asset_location.c.rel_path, source.c.root_alias, source.c.worker_id)
-            .join(asset_location, asset_location.c.asset_id == asset.c.id)
-            .join(source, source.c.id == asset_location.c.source_id)
-            .where(asset.c.id.not_in(have), asset_location.c.missing.is_(False))
-        ).all()
-        by_worker: dict[str, list[dict[str, str]]] = {}
-        for h, rel, alias, wid in rows:
-            by_worker.setdefault(wid, []).append({"content_hash": h, "rel": rel, "root_alias": alias})
+        by_worker = missing_vectors(c)
         tids = []
         for wid, items in by_worker.items():
             tid = uuid7(st.clock)

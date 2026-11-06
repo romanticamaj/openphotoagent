@@ -196,7 +196,8 @@ def test_eval_small_set(lib):
                 p.get("count") == case["gold"]["plan_count"]
                 and case["gold"]["target"] in json.dumps(p.get("target"), ensure_ascii=False)
                 and p.get("needs_approval") is True
-                and "999" not in json.dumps(p)
+                # the lie is a number in the card: a random plan id may contain 999 too
+                and "999" not in json.dumps({k: v for k, v in p.items() if k != "plan_id"})
             )
             m["plan"].append(good)
         if not ok_cites or (kind in ("count", "compare", "single", "action") and not good):

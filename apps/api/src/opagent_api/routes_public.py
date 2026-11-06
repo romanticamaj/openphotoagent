@@ -101,16 +101,36 @@ def worker_rpc(st: AppState, worker_id: str, kind: str, payload: dict[str, Any],
     raise HTTPException(504, detail={"code": "WORKER_OFFLINE"})
 
 
-@router.get("/fs/browse")
-def browse(root: str, req: Request, path: str = "") -> dict[str, Any]:
-    st = _st(req)
+def _root_owner(st: AppState, root: str) -> str:
     with st.engine.begin() as c:
         w = c.execute(select(worker.c.id, worker.c.roots)).all()
     owner = next((wid for wid, rs in w if any(r["alias"] == root for r in rs)), None)
     if owner is None:
         raise HTTPException(409, detail={"code": "FS_ROOT_NOT_ALLOWED"})
-    res = worker_rpc(st, owner, "browse", {"root_alias": root, "path": path})
+    return str(owner)
+
+
+@router.get("/fs/browse")
+def browse(root: str, req: Request, path: str = "") -> dict[str, Any]:
+    st = _st(req)
+    res = worker_rpc(st, _root_owner(st, root), "browse", {"root_alias": root, "path": path})
     return {"root": root, "path": path, "dirs": res["dirs"]}
+
+
+@router.get("/fs/preview")
+def folder_preview(root: str, req: Request, path: str = "") -> dict[str, Any]:
+    """What a folder holds, before it is added (ADR-0029). A big folder takes the worker a few seconds to count."""
+    st = _st(req)
+    res = worker_rpc(st, _root_owner(st, root), "folder_preview", {"root_alias": root, "path": path}, timeout_s=30.0)
+    return {"root": root, "path": path, **res}
+
+
+@router.get("/fs/thumb")
+def folder_thumb(root: str, path: str, req: Request) -> dict[str, Any]:
+    """A sample photo of a folder that is not in the library: made on the worker, kept nowhere (ADR-0029)."""
+    st = _st(req)
+    owner = _root_owner(st, root)
+    return dict(worker_rpc(st, owner, "folder_thumb", {"root_alias": root, "path": path}, timeout_s=15.0))
 
 
 @router.post("/sources", status_code=201)
@@ -177,6 +197,12 @@ def start_job(st: AppState, c: Any, body: JobIn, extra: dict[str, Any] | None = 
     s = c.execute(select(source).where(source.c.id == body.source_id)).first()
     if s is None:
         raise HTTPException(404, detail={"code": "NOT_FOUND"})
+    from . import organize
+
+    try:
+        organize.preset(body.preset, body.categories, c)
+    except KeyError:  # found only when the scan ended, it left a job nothing could finish or cancel (ORG-011)
+        raise HTTPException(404, detail={"code": "PRESET_NOT_FOUND", "preset": body.preset}) from None
     from .preflight import enforce
 
     enforce(c, st, "job.start", body.model_dump())  # server-side enforcement (PF-073)

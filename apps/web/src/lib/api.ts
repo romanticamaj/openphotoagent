@@ -1,5 +1,23 @@
 import { endpoint, platform } from "./platform";
 // Thin REST client for /api/v1 (replaced by the OpenAPI-generated ts-client in slice 9/10).
+export type AnalysisStatus = {
+  jobs: Array<{ job_id: string; folder: string; state: "queued" | "scanning" | "analysing"; done: number; total: number; failed: number }>;
+  current: Array<{ asset_id: string; ch: string | null; rel: string }>;
+  recent: Array<{ asset_id: string; ch: string | null; rel: string; caption: string | null; category: string | null; category_name: string | null }>;
+};
+
+export type FolderPreview = {
+  photos: number;
+  videos: number;
+  others: number;
+  bytes: number;
+  truncated: boolean;
+  subfolders: Array<{ name: string; photos: number; videos: number }>;
+  samples: string[];
+  taken_from: string | null;
+  taken_to: string | null;
+};
+
 export class ApiError extends Error {
   constructor(public status: number, public body: unknown) {
     super(`HTTP ${status}`);
@@ -38,7 +56,7 @@ export type McpToken = {
   images_returned: number;
   last_used_at: string | null;
 };
-export type McpSettings = { allow_apply_requests: boolean; faces_enabled: boolean; media_policy: string; exif_free_text: boolean };
+export type McpSettings = { enabled: boolean; allow_apply_requests: boolean; faces_enabled: boolean; media_policy: string; exif_free_text: boolean };
 export type McpClientProposal = { client: string; path: string; exists: boolean; before: unknown; after: { command: string; args: string[] }; command_line: string | null };
 export type Approval = {
   id: string;
@@ -53,7 +71,7 @@ export type Approval = {
   counts: Record<string, number>;
 };
 export type FaceSettings = { enabled: boolean; prompt_dismissed: boolean; workspace_name: string; worker_purge_pending: boolean; space_id: number | null };
-export type PersonRow = { id: string; name: string | null; status: string; face_count: number; asset_count: number };
+export type PersonRow = { id: string; name: string | null; status: string; face_count: number; asset_count: number; cover?: { asset_id: string; ch: string | null } | null };
 export type FaceSuggestion = { face_id: string; person_id: string; person: string | null; score: number | null; asset_id: string };
 export type PurgeReport = { faces: number; embeddings: number; prototypes: number; persons: number; worker_pending: boolean };
 export type TimelineAsset = { id: string; ch?: string | null; w: number | null; h: number | null; thumbhash: string | null; taken_at: string | null; flags: string[] };
@@ -66,6 +84,7 @@ export type Label = {
   model_fingerprint: string;
   caption: string | null;
   tags: string[] | null;
+  tag_names?: Record<string, string>;
 };
 export type AssetInfo = {
   id: string;
@@ -98,7 +117,7 @@ export function mediaUrl(id: string, variant: Variant, ch?: string | null): stri
 export type Recommendation = {
   mode: "standard" | "fast" | "unsupported";
   hardware: { os: string; gpu: string | null; vram_gb: number | null; ram_gb: number };
-  combo: { variants: string[]; packs: string[]; download_bytes: number; download_minutes: number; estimated: boolean };
+  combo: { variants: string[]; packs: string[]; runtime?: string; download_bytes: number; download_minutes: number; estimated: boolean };
   per_1000_minutes: [number, number] | null;
   licenses: string[];
   requires_acceptance: boolean;
@@ -118,10 +137,11 @@ export type Operation = {
 export type SearchBody = {
   q?: string | null;
   plan?: boolean;
-  filters?: { tags_all?: string[]; taken_from?: string; taken_to?: string; category?: string };
+  filters?: { tags_all?: string[]; taken_from?: string; taken_to?: string; category?: string; persons_any?: string[] };
   limit?: number;
   cursor?: string | null;
   facets?: string[];
+  lang?: string;
 };
 export type SearchHit = { asset_id: string; ch?: string | null; score: number; matched_by: string[]; category: string | null; tags: string[]; caption: string | null; taken_at: string | null };
 export type Planner = {
@@ -135,9 +155,13 @@ export type Planner = {
 export type SearchResult = {
   items: SearchHit[];
   facets: Record<string, Record<string, number>>;
+  tag_names?: Record<string, string>;
   next_cursor: string | null;
   total: number;
-  degraded: boolean;
+  total_capped?: boolean;
+  /** near misses, shown apart: outside `total`, facets and selections (ADR-0027) */
+  related?: { asset_id: string; ch: string | null; caption: string | null }[];
+  degraded: string[];
   planner?: Planner;
 };
 
@@ -241,6 +265,9 @@ export type CaptionIndexState = {
   building: { id: number; model_key: string; done: number; total: number; ready: boolean; operation_id: string | null } | null;
 };
 
+/** The vector paths that could not answer; empty when search ran in full (05 §2.6). */
+export const isDegraded = (r?: { degraded: string[] }) => (r?.degraded.length ?? 0) > 0;
+
 export const api = {
   captionIndex: () => req<CaptionIndexState>("GET", "/search/caption-index"),
   buildCaptionIndex: (model_key: string) => req<unknown>("POST", "/search/caption-index", { model_key }),
@@ -279,6 +306,12 @@ export const api = {
   roots: () => req<Root[]>("GET", "/roots"),
   browse: (root: string, path: string) =>
     req<{ dirs: string[] }>("GET", `/fs/browse?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`),
+  folderPreview: (root: string, path: string) =>
+    req<FolderPreview>("GET", `/fs/preview?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`),
+  folderThumb: (root: string, path: string) =>
+    req<{ thumbnail_b64: string }>("GET", `/fs/thumb?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`),
+  analysisStatus: (lang: string) => req<AnalysisStatus>("GET", `/analysis/status?lang=${encodeURIComponent(lang)}`),
+  analyzeSource: (id: string) => req<{ job_id: string }>("POST", `/sources/${encodeURIComponent(id)}/analyze`),
   createSource: (root_alias: string, sub_path: string) => req<{ id: string }>("POST", "/sources", { root_alias, sub_path }),
   createJob: (source_id: string, preset: string, target: { root_alias: string; sub_path: string }, extra: Record<string, unknown> = {}) =>
     req<Job>("POST", "/jobs", { kind: "organize", source_id, preset, target, ...extra }),
@@ -288,6 +321,7 @@ export const api = {
     req<{ id: string }>("POST", "/previews", { source_id, preset, categories, k: 10 }),
   preview: (id: string) => req<Preview>("GET", `/previews/${id}`),
   rerender: (id: string, thresholds: Record<string, number>) => req<{ items: PreviewItem[] }>("POST", `/previews/${id}/rerender`, { thresholds }),
+  reviewCount: async () => (await req<{ count: number }>("GET", "/reviews?limit=0")).count,
   reviews: (job: string, status = "pending") => req<{ count: number; items: Review[] }>("GET", `/reviews?job_id=${job}&status=${status}`),
   actReview: (id: string, action: "accept" | "correct" | "skip", category?: string) => req<unknown>("POST", `/reviews/${id}`, { action, category }),
   skipRest: (job: string) => req<unknown>("POST", `/jobs/${job}/reviews/skip-rest`),
@@ -324,7 +358,7 @@ export const api = {
     ),
   buckets: () => req<{ buckets: Array<{ month: string; count: number }> }>("GET", "/timeline/buckets"),
   bucket: (month: string) => req<{ month: string; assets: TimelineAsset[] }>("GET", `/timeline/buckets/${month}`),
-  asset: (id: string) => req<AssetInfo>("GET", `/assets/${encodeURIComponent(id)}`),
+  asset: (id: string, lang = "zh-TW") => req<AssetInfo>("GET", `/assets/${encodeURIComponent(id)}?lang=${encodeURIComponent(lang)}`),
   correct: (id: string, category: string) => req<unknown>("PATCH", `/assets/${encodeURIComponent(id)}/labels`, { category }),
   preset: (key: string, lang: string) =>
     req<{ key: string; categories: Category[] }>("GET", `/presets/${encodeURIComponent(key)}?lang=${encodeURIComponent(lang)}`),

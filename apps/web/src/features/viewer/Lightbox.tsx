@@ -194,7 +194,7 @@ function fmtExposure(s?: number): string | null {
 export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) {
   const { t, i18n } = useTranslation();
   const qc = useQueryClient();
-  const info = useQuery({ queryKey: ["asset", id], queryFn: () => api.asset(id) });
+  const info = useQuery({ queryKey: ["asset", id, i18n.language], queryFn: () => api.asset(id, i18n.language) });
   const preset = useQuery({ queryKey: ["preset", "by-content-12", i18n.language], queryFn: () => api.preset("by-content-12", i18n.language) });
   const names = new Map((preset.data?.categories ?? []).map((c) => [c.key, c.name]));
   const [pick, setPick] = useState("");
@@ -243,6 +243,14 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
           </p>
         )}
         {a.labels.length === 0 && <p className="text-[var(--text-muted)]">{t("lightbox.ai.none")}</p>}
+        {a.labels[0]?.caption ? <p data-testid="ai-caption" className="mb-2">{a.labels[0].caption}</p> : null}
+        {(a.labels[0]?.tags?.length ?? 0) > 0 ? (
+          <ul aria-label={t("lightbox.ai.tags")} data-testid="ai-tags" className="mb-3 flex flex-wrap gap-1 text-xs">
+            {a.labels[0].tags!.map((g) => (
+              <li key={g} className="rounded-[var(--radius-sm)] bg-[var(--surface-2)] px-2 py-0.5">{a.labels[0].tag_names?.[g] ?? g}</li>
+            ))}
+          </ul>
+        ) : null}
         {a.labels.map((l) => (
           <dl key={l.result_id} className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm" data-testid="ai-label">
             <dt className="text-[var(--text-muted)]">{t("lightbox.ai.category")}</dt>

@@ -22,9 +22,10 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from opagent_core.vocabularies import VOCAB_DIR
 
 TOKENIZER_VERSION = "jieba-zh-hant@1+opencc-s2twp+bigram"
-VOCAB = Path(__file__).resolve().parents[3] / "inference-sdk" / "vocabularies" / "general-photo.yaml"
+VOCAB = VOCAB_DIR / "general-photo.yaml"  # package data in opagent_core (ADR-0023)
 _ZW = re.compile("[​‌‍⁠﻿­]")
 _CJK = re.compile(r"[぀-ヿ㐀-䶿一-鿿豈-﫿]+")
 _WORD = re.compile(r"[0-9a-z]+(?:['._-][0-9a-z]+)*|[぀-ヿ㐀-䶿一-鿿豈-﫿]+")
@@ -66,6 +67,7 @@ class Tokenizer:
     vocab_path: Path = VOCAB
     _jb: Any = None
     _index: dict[str, str] = field(default_factory=dict)
+    _names: dict[str, dict[str, str]] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         import jieba
@@ -75,6 +77,7 @@ class Tokenizer:
         _, t2s = _opencc()
         d = yaml.safe_load(self.vocab_path.read_text(encoding="utf-8")) if self.vocab_path.exists() else {"terms": []}
         for t in d.get("terms", []):
+            self._names[t["id"]] = {"zh": t["zh"], "en": t["en"]}
             for s in [t["zh"], t["en"], *t.get("synonyms", [])]:
                 self._index.setdefault(normalize(s), t["id"])
                 self.custom_words.append(s)
@@ -114,6 +117,11 @@ class Tokenizer:
 
     def tag_key(self, word: str) -> str | None:
         return self._index.get(normalize(word))
+
+    def term_name(self, key: str, lang: str) -> str | None:
+        """What a person calls a vocabulary id; None when the tag is not a vocabulary id."""
+        names = self._names.get(key)
+        return names["zh" if lang.startswith("zh") else "en"] if names else None
 
     # ---- documents / queries ----
     def document(

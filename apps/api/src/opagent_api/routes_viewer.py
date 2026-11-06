@@ -13,8 +13,8 @@ from typing import Any, Literal
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import FileResponse, Response
 from opagent_core.ids import uuid7
-from opagent_db.schema import asset, source, worker_task
-from sqlalchemy import insert, select, text
+from opagent_db.schema import asset, job, job_item, result, source, worker_task
+from sqlalchemy import func, insert, select, text
 
 from .state import DEFAULT_WS, AppState
 
@@ -70,6 +70,111 @@ def scan_source(source_id: str, req: Request) -> dict[str, Any]:
         t = scan_task(st, s, None, [])
         c.execute(insert(worker_task).values(**t))
     return {"task_id": t["id"], "operation_id": t["id"]}
+
+
+@router.post("/sources/{source_id}/analyze", status_code=202)
+def analyze_source(source_id: str, req: Request) -> dict[str, Any]:
+    """Add a folder to the library: scan it, then label it. Labels only, so no file moves (ADR-0029, CORE-SM-005)."""
+    from .preflight import ACTIVE_JOBS
+    from .routes_public import JobIn, Target, start_job
+
+    st = _st(req)
+    with st.engine.begin() as c:
+        s = c.execute(select(source).where(source.c.id == source_id)).first()
+        if s is None:
+            raise HTTPException(404, detail={"code": "NOT_FOUND"})
+        running = c.execute(
+            select(job.c.id).where(
+                job.c.kind == "label", job.c.params["source_id"].astext == source_id, job.c.status.in_(ACTIVE_JOBS)
+            )
+        ).scalar()
+        if running is not None:  # idempotent: one analysis per folder at a time
+            return {"job_id": running, "operation_id": running}
+        body = JobIn(
+            kind="label",
+            source_id=source_id,
+            preset="by-content-12",
+            target=Target(root_alias=s.root_alias, sub_path=""),
+        )
+        jid = start_job(st, c, body)
+    return {"job_id": jid, "operation_id": jid}
+
+
+RECENT_RESULTS = 5
+CURRENT_ITEMS = 4
+
+
+@router.get("/analysis/status")
+def analysis_status(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
+    """What the progress card shows beyond the numbers: each folder, the photos in hand, what the AI just found."""
+    from .organize import preset
+    from .preflight import ACTIVE_JOBS
+
+    field = "zh-TW" if lang.startswith("zh") else "en"
+    names = {c["key"]: c.get(field, c["key"]) for c in preset("by-content-12").categories}
+    with _st(req).engine.connect() as c:
+        rows = c.execute(
+            select(job.c.id, job.c.status, job.c.params)
+            .where(job.c.kind == "label", job.c.status.in_(ACTIVE_JOBS))
+            .order_by(job.c.created_at)
+        ).all()
+        ids = [r.id for r in rows]
+        counts: dict[str, dict[str, int]] = {}
+        for jid, status, n in c.execute(
+            select(job_item.c.job_id, job_item.c.status, func.count())
+            .where(job_item.c.job_id.in_(ids))
+            .group_by(job_item.c.job_id, job_item.c.status)
+        ):
+            counts.setdefault(jid, {})[status] = int(n)
+        srcs = {
+            s.id: "/".join(x for x in (s.root_alias, s.sub_path) if x)
+            for s in c.execute(select(source.c.id, source.c.root_alias, source.c.sub_path))
+        }
+        jobs = []
+        for r in rows:
+            k = counts.get(r.id, {})
+            total = sum(k.values())
+            state = "queued" if r.status == "queued" else "analysing" if total else "scanning"
+            jobs.append(
+                {
+                    "job_id": r.id,
+                    "folder": srcs.get((r.params or {}).get("source_id"), ""),
+                    "state": state,
+                    "done": k.get("done", 0) + k.get("cached", 0),
+                    "total": total,
+                    "failed": k.get("failed", 0),
+                }
+            )
+        current = c.execute(
+            select(job_item.c.asset_id, job_item.c.rel, asset.c.content_hash)
+            .join(asset, asset.c.id == job_item.c.asset_id)
+            .where(job_item.c.job_id.in_(ids), job_item.c.status.in_(("leased", "running")))
+            .order_by(job_item.c.seq)
+            .limit(CURRENT_ITEMS)
+        ).all()
+        recent = c.execute(
+            select(job_item.c.asset_id, job_item.c.rel, asset.c.content_hash, result.c.caption, result.c.category)
+            .join(result, result.c.id == job_item.c.result_id)
+            .join(asset, asset.c.id == job_item.c.asset_id)
+            .where(job_item.c.status == "done")
+            .order_by(result.c.created_at.desc(), result.c.id.desc())
+            .limit(RECENT_RESULTS)
+        ).all()
+    return {
+        "jobs": jobs,
+        "current": [{"asset_id": r.asset_id, "ch": r.content_hash, "rel": r.rel} for r in current],
+        "recent": [
+            {
+                "asset_id": r.asset_id,
+                "ch": r.content_hash,
+                "rel": r.rel,
+                "caption": r.caption,
+                "category": r.category,
+                "category_name": names.get(r.category or ""),
+            }
+            for r in recent
+        ],
+    }
 
 
 @router.get("/timeline/buckets")

@@ -24,7 +24,7 @@ TEXT_MAX = 2000
 EXIF_MAX = 200
 _LIMITS = {"exif": EXIF_MAX}
 
-_INVISIBLE = re.compile("[​-‏‪-‮⁠-⁤⁦-⁩﻿­]")
+_INVISIBLE = re.compile("[\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff\u00ad]")
 _MD_IMAGE = re.compile(r"!\[([^\]]*)\]\(([^)\s]*)[^)]*\)")
 _MD_LINK = re.compile(r"\[([^\]]*)\]\(([^)\s]*)[^)]*\)")
 _URL = re.compile(r"\b(?:h[tx]{2}p)(s?)://", re.IGNORECASE)

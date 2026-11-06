@@ -1,0 +1,94 @@
+{
+  "properties": {
+    "kind": {
+      "enum": [
+        "opagent-preset"
+      ]
+    },
+    "preset": {
+      "properties": {
+        "categories": {
+          "items": {
+            "properties": {
+              "description": {
+                "type": "string"
+              },
+              "examples": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "key": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "key"
+            ],
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "description": {
+          "type": "string"
+        },
+        "key": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "output_rules": {
+          "items": {
+            "properties": {
+              "action": {
+                "enum": [
+                  "copy",
+                  "hardlink",
+                  "move",
+                  "sidecar_json",
+                  "symlink",
+                  "trash",
+                  "xmp"
+                ]
+              },
+              "conflict_policy": {
+                "enum": [
+                  "ask",
+                  "overwrite_if_same",
+                  "rename",
+                  "skip"
+                ]
+              },
+              "path_template": {
+                "type": "string"
+              },
+              "when": {
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "key"
+      ],
+      "type": "object"
+    },
+    "schema_version": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "kind",
+    "preset",
+    "schema_version"
+  ],
+  "type": "object"
+}

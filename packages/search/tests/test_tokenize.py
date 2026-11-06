@@ -47,7 +47,7 @@ def test_srch_tok_006_canonical_tag_key(word):
 @pytest.mark.contract
 @pytest.mark.tc("SRCH-TOK-007")
 def test_srch_tok_007_golden():
-    golden = json.loads((ROOT / "fixtures/golden/tokenize.json").read_text())
+    golden = json.loads((ROOT / "fixtures/golden/tokenize.json").read_text(encoding="utf-8"))
     assert golden["tokenizer"] == TOKENIZER_VERSION
     assert len(golden["cases"]) == 100
     for case in golden["cases"]:

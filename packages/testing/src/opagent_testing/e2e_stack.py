@@ -33,17 +33,26 @@ from .hfserver import HfFile, HfServer
 
 REPO = Path(__file__).resolve().parents[4]
 FIX = REPO / "fixtures" / "photos"
-SIGLIP_REPO = "openphotoagent/siglip2-so400m-patch14-384-onnx"
+SIGLIP_REPO = "onnx-community/siglip2-so400m-patch14-384-ONNX"
 QWEN_REPO = "Qwen/Qwen3-VL-8B-Instruct-GGUF"
 REV = "0123456789abcdef0123456789abcdef01234567"
 # small stand-ins for the pinned weights; sizes are what the recorded server really serves
-SIGLIP = [("vision_model_int8.onnx", 600_000), ("text_model_int8.onnx", 400_000), ("tokenizer.json", 20_000)]
+SIGLIP = [("onnx/vision_model_fp16.onnx", 600_000), ("onnx/text_model_fp16.onnx", 400_000), ("tokenizer.json", 20_000)]
 QWEN = [("Qwen3VL-8B-Instruct-Q4_K_M.gguf", 6_000_000), ("mmproj-Qwen3VL-8B-Instruct-F16.gguf", 1_000_000)]
 DEAD = "http://127.0.0.1:9"  # discard port: connection refused → NET_UNREACHABLE
 
 
 def _files(spec: list[tuple[str, int]], seed0: int) -> list[HfFile]:
     return [HfFile(p, n, seed=seed0 + i) for i, (p, n) in enumerate(spec)]
+
+
+# Raw doctor facts the worker would otherwise read from the machine running the suite. Pages and snapshots must
+# look the same on every host (VIS-005): the e2e home is a scratch dir, its free space says nothing about the app.
+HOST_FACTS: dict[str, Any] = {"disk": {"models_free": 500 * 1024**3}}
+
+
+def pin_host_facts(worker: Any) -> None:
+    worker.doctor_env = {**worker.doctor_env, **HOST_FACTS}
 
 
 class Stack:
@@ -66,7 +75,7 @@ class Stack:
         pins = [
             {
                 "model": "siglip2-so400m-384",
-                "variant": "onnx-int8",
+                "variant": "onnx-fp16",
                 "revision": REV,
                 "files": [{"path": f.path, "size": f.size, "sha256": f.sha256, "lfs_oid": f.sha256} for f in siglip],
             },
@@ -77,7 +86,7 @@ class Stack:
                 "files": [{"path": f.path, "size": f.size, "sha256": f.sha256, "lfs_oid": f.sha256} for f in qwen],
             },
         ]
-        (self.registry / "pins.lock").write_text(json.dumps({"schema_version": 1, "pins": pins}))
+        (self.registry / "pins.lock").write_text(json.dumps({"schema_version": 1, "pins": pins}), encoding="utf-8")
         self.pg = EmbeddedPg(self.home / "pg")
         self.dsn = self.pg.start()
         from opagent_db.schema import create_all
@@ -87,6 +96,7 @@ class Stack:
         self.worker: Any = None
         self._stop = threading.Event()
         self._thread: threading.Thread | None = None
+        self._retired: list[Any] = []
         self.app = self._app()
 
     # ---- app ---------------------------------------------------------------
@@ -298,6 +308,10 @@ class Stack:
             self._thread.join(15)
         self._stop = threading.Event()
         self._thread = None
+        for w in [*self._retired, self.worker]:
+            if w is not None:
+                w.close()
+        self._retired = []
 
     def _wipe_db(self) -> None:
         from opagent_db.schema import engine_for, metadata
@@ -432,7 +446,10 @@ class Stack:
         os.environ["OPAGENT_CLI_PATH"] = str(self.base / "app" / "bin" / "opagent")
         p = mcp_clients.config_path("claude-desktop")
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(json.dumps({"mcpServers": {"other": {"command": "/usr/bin/other-server"}}}, indent=2) + "\n")
+        p.write_text(
+            json.dumps({"mcpServers": {"other": {"command": "/usr/bin/other-server"}}}, indent=2) + "\n",
+            encoding="utf-8",
+        )
         (self.home / "data" / "secrets").mkdir(parents=True, exist_ok=True)
         shutil.rmtree(self.home / "data" / "secrets")
 
@@ -451,7 +468,7 @@ class Stack:
                 shutil.copy2(f, self.photos / "other" / f.name)
         run = Path(self.web_dist).parent / "e2e" / ".run" if self.web_dist else self.base / ".run"
         run.mkdir(parents=True, exist_ok=True)
-        (run / "tree.json").write_text(json.dumps(self.tree()))
+        (run / "tree.json").write_text(json.dumps(self.tree()), encoding="utf-8")
 
     def reset(
         self,
@@ -492,6 +509,7 @@ class Stack:
         )
         # stand-in models are a few MB: do not make the suite depend on the host's spare gigabytes (06 §2.5 reserve)
         self.worker.download_reserve_floor = 0
+        pin_host_facts(self.worker)
         if models == "ready":  # caption text models for R2 (ADR-0014); semantic fakes, cross-lingual keywords
             self.worker.text_embedders = {
                 "qwen3-embedding-0.6b": FakeBackend(vectors="semantic"),
@@ -560,6 +578,7 @@ class Stack:
                 return fail
 
         old = self.worker
+        self._retired.append(old)  # its files stay open until the next reset, like a dying process's handles
         old.client = _Dead()
         self._stop.set()
         self._stop = threading.Event()
@@ -577,6 +596,7 @@ class Stack:
         )
         # stand-in models are a few MB: do not make the suite depend on the host's spare gigabytes (06 §2.5 reserve)
         self.worker.download_reserve_floor = 0
+        pin_host_facts(self.worker)
         self.worker.text_embedders = old.text_embedders
         self.worker.register()
         self._thread = threading.Thread(target=self.worker.run_forever, args=(self._stop,), daemon=True)

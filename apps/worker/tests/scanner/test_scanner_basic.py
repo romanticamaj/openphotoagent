@@ -30,7 +30,7 @@ def test_scan_001_include_exclude_globs(sb, sandbox_tree):
 @pytest.mark.unit
 @pytest.mark.tc("SCAN-003")
 def test_scan_003_blake3_golden():
-    golden = json.loads((ROOT / "fixtures/golden/scanner/SCAN-003.json").read_text())
+    golden = json.loads((ROOT / "fixtures/golden/scanner/SCAN-003.json").read_text(encoding="utf-8"))
     assert len(golden) == 5
     for name, h in golden.items():
         assert content_hash(ROOT / "fixtures/photos/basic" / name) == h

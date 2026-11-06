@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from typing import Any
 
 SERVER_VERSION = "0.3.0"
+MANIFEST_VERSION = "1.0.0"  # the tool manifest (VERSIONING §4): a removed/renamed tool or new required param = major
 SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema"
 
 UNTRUSTED_TEXT: dict[str, Any] = {

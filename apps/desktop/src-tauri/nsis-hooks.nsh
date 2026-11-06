@@ -1,0 +1,16 @@
+; 08 §5: per-user installs go to %LOCALAPPDATA%\Programs. Tauri's default is %LOCALAPPDATA%\OpenPhotoAgent, which is
+; the app's data folder (08 §1.5): the bundled pg\ landed inside the data folder's pg\ and an uninstall could reach it.
+!macro NSIS_HOOK_PREINSTALL
+  ${If} $INSTDIR == "$LOCALAPPDATA\${PRODUCTNAME}"
+    StrCpy $INSTDIR "$LOCALAPPDATA\Programs\${PRODUCTNAME}"
+    SetOutPath $INSTDIR
+  ${EndIf}
+!macroend
+
+; Tauri removes the files it installed; python writes .pyc files next to them, which kept the folders alive.
+!macro NSIS_HOOK_POSTUNINSTALL
+  RMDir /r "$INSTDIR\python"
+  RMDir /r "$INSTDIR\llama"
+  RMDir /r "$INSTDIR\pg"
+  RMDir "$INSTDIR"
+!macroend

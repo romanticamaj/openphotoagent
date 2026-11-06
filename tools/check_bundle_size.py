@@ -28,7 +28,7 @@ def main(argv: list[str]) -> int:
         size = a.stat().st_size
         mb = size / MB
         if size > LIMIT_MB * MB:
-            print(f"FAIL {a.name}: {mb:.1f} MB > {LIMIT_MB} MB (hard limit; first to move out: GeoNames data pack)")
+            print(f"FAIL {a.name}: {mb:.1f} MB > {LIMIT_MB} MB (hard limit; see ADR-0022 for what to cut)")
             worst = max(worst, 1)
         else:
             note = "within target" if mb <= TARGET_MB else "over target"

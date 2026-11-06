@@ -150,3 +150,21 @@ def test_plan_019_stop_words_only_query_is_kept_as_typed(gz, q):
     """回歸：只有停用詞、沒有任何條件的查詢被清成空字串，搜尋變成「全部照片」（VIS-002 search 頁）。"""
     p = P(q, gz)
     assert p["filters"] == {} and p["text"] == q
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-PLAN-020")
+@pytest.mark.parametrize(
+    ("q", "text"),
+    [
+        ("我有幾張滑雪的照片？", "滑雪"),
+        ("我有多少張貓的照片", "貓"),
+        ("幫我找海邊的照片", "海邊"),
+        ("有沒有狗的照片？", "狗"),
+        ("請列出所有衝浪的相片", "衝浪"),
+        ("how many photos of cats do I have?", "cats"),
+    ],
+)
+def test_plan_020_a_question_is_not_the_search_text(gz, q, text):
+    """回歸: 問 AI asked「我有幾張滑雪的照片？」and counted 0: the whole sentence went to full-text search."""
+    assert P(q, gz)["text"] == text

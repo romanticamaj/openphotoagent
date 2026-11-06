@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from opagent_core.rules import Rule, RuleError, compile_when, evaluate, final_label, load_preset, validate_custom
 
-PRESETS = Path(__file__).resolve().parents[4] / "presets/builtin"
+PRESETS = Path(__file__).resolve().parents[4] / "apps/api/src/opagent_api/presets/builtin"
 
 
 def item(**kw):
@@ -106,7 +106,7 @@ def test_core_rule_008_by_content_12_complete():
         "人物",
         "風景",
         "美食",
-        "寵物",
+        "動物",
         "文件與截圖",
         "旅行",
         "活動",

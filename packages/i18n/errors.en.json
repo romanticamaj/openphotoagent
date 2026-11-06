@@ -21,7 +21,7 @@
     "cta": "Label more photos",
     "message": "The golden set needs at least {min} labelled photos and {per_class} per class ({n} so far)",
     "severity": "B",
-    "title": "The golden set needs at least {min} labelled photos and {per_class} per class ({n} so far)"
+    "title": "Not enough labelled photos in the golden set"
   },
   "CHECK_CRASHED": {
     "cta": "Re-run (copy diagnostics)",
@@ -40,6 +40,12 @@
     "message": "The page cursor is invalid or expired",
     "severity": "B",
     "title": "The page cursor is invalid or expired"
+  },
+  "DATA_LAYOUT_TOO_NEW": {
+    "cta": "Restore from a backup · Install the newer version",
+    "message": "This data folder was created by a newer version of the app (layout {found}); this version cannot use it and nothing was changed",
+    "severity": "B",
+    "title": "This data folder was created by a newer version of the app (layout {found})"
   },
   "DB_SCHEMA_TOO_NEW": {
     "cta": "Restore from a backup · Install the newer version",
@@ -65,6 +71,12 @@
     "severity": "W",
     "title": "RAW files cannot be read"
   },
+  "DESK_WEBVIEW_MISSING": {
+    "cta": "Install WebKitGTK 4.1",
+    "message": "WebKitGTK 4.1 ({lib}) is missing, so the Linux desktop app cannot open its window; nothing was changed",
+    "severity": "B",
+    "title": "WebKitGTK 4.1 ({lib}) is missing, so the Linux desktop app cannot open its window"
+  },
   "DISK_INSUFFICIENT_DB": {
     "cta": "Free up space and retry",
     "message": "The disk holding the database is full ({free} left); startup stopped and no data was deleted",
@@ -87,7 +99,7 @@
     "cta": "Manage storage",
     "message": "The thumbnail folder has {free} left and will drop below {pct}% after processing",
     "severity": "W",
-    "title": "The thumbnail folder has {free} left and will drop below {pct}% after processing"
+    "title": "The thumbnail folder has {free} left"
   },
   "DL_CHECKSUM_MISMATCH": {
     "cta": "Retry from another source",
@@ -171,7 +183,7 @@
     "cta": "Retry after closing the other app",
     "message": "“{path}” is in use by another program (retried {n} times)",
     "severity": "W／T",
-    "title": "“{path}” is in use by another program (retried {n} times)"
+    "title": "“{path}” is in use by another program"
   },
   "FS_NOT_WRITABLE": {
     "cta": "Choose another location",
@@ -513,7 +525,7 @@
     "cta": "Check for updates",
     "message": "This file comes from a newer version (format {found}; this version supports up to {supported})",
     "severity": "B",
-    "title": "This file comes from a newer version (format {found}"
+    "title": "This file comes from a newer version (format {found}; this version supports up to {supported})"
   },
   "QUERY_EXPIRED": {
     "cta": "Drop the photo again",
@@ -579,7 +591,7 @@
     "cta": "Reindex ({eta})",
     "message": "The search index was built with {old}, which differs from the current default {new}",
     "severity": "W",
-    "title": "The search index was built with {old}, which differs from the current default {new}"
+    "title": "The search index was built with {old}"
   },
   "SELECTION_EMPTY": {
     "cta": "Broaden the filters",
@@ -633,7 +645,7 @@
     "cta": "Use smaller model (continue anyway)",
     "message": "Not enough VRAM to fit {model} on the GPU; some layers run on the CPU (about {pct}% slower)",
     "severity": "W",
-    "title": "Not enough VRAM to fit {model} on the GPU"
+    "title": "Not enough VRAM to fit the whole model on the GPU"
   },
   "VRAM_SEQUENTIAL": {
     "cta": "Learn about sequential mode",

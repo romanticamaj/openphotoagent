@@ -355,7 +355,7 @@ def test_prv_003_only_the_face_repository_switches_role():
     from pathlib import Path
 
     src = Path(__file__).resolve().parents[2] / "src"
-    hits = [p.name for p in src.rglob("*.py") if "opagent_bio" in p.read_text()]
+    hits = [p.name for p in src.rglob("*.py") if "opagent_bio" in p.read_text(encoding="utf-8")]
     assert hits == ["faces.py"]
 
 
@@ -457,3 +457,63 @@ def test_clu_005_large_pool_uses_the_knn_graph_path(f, monkeypatch):
     run = f.post("/faces/cluster")
     assert run["algo"] == "knn_graph+chinese_whispers" and run["clusters"] == 3
     assert f.sql("select algo from face_cluster_run").scalar() == "knn_graph+chinese_whispers"
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-BKL-001")
+def test_face_bkl_001_backlog_lists_photos_that_never_had_a_face_step(f):
+    """回歸: the face step rides on a job's decode, and a cached photo never reaches it, so turning faces on after
+    organizing left the whole library unscanned for good."""
+
+    def backlog(**params):
+        return f.client.get("/worker-api/v1/faces/backlog", params=params, headers=f.ui).json()
+
+    a = f.add("old/a.jpg")
+    b = f.add("old/b.jpg")
+    assert backlog()["items"] == []  # off by default: nothing is even listed (FACE-GATE-001)
+    f.enable()
+    got = backlog()
+    assert {i["asset_id"] for i in got["items"]} == {a, b}
+    assert {i["rel"] for i in got["items"]} == {"old/a.jpg", "old/b.jpg"}
+    assert all(i["root_alias"] for i in got["items"])
+    first = backlog(limit=1)
+    assert len(first["items"]) == 1 and first["next"] == first["items"][0]["asset_id"]
+    rest = backlog(after=first["next"])
+    assert [i["asset_id"] for i in rest["items"]] == [({a, b} - {first["next"]}).pop()]
+    done, _ = f.photo("old/p1.jpg")  # a photo that went through a job already has its faces
+    assert done not in {i["asset_id"] for i in backlog()["items"]}
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-CLU-010")
+def test_face_clu_010_grouping_runs_when_new_faces_are_waiting(f):
+    """回歸 (seen on the reference machine): 3,082 faces found, 0 people. Nothing but the tests called the clustering."""
+    f.enable()
+    _library(f, people=range(1, 4), per=8)
+
+    def due(n):
+        return f.client.post("/worker-api/v1/faces/cluster-due", json={"min_new": n}, headers=f.ui).json()
+
+    assert due(1000)["ran"] is False
+    r = due(1)
+    assert r["ran"] is True and r["clusters"] == 3
+    assert due(1)["ran"] is False  # nothing new since that run
+    ops = f.get("/operations?status=all&type=face.cluster")
+    assert [o["status"] for o in ops] == ["succeeded"]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-CLU-010")
+def test_face_clu_010_off_means_off(f):
+    r = f.client.post("/worker-api/v1/faces/cluster-due", json={"min_new": 1}, headers=f.ui).json()
+    assert r["ran"] is False
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-CLU-011")
+def test_face_clu_011_a_person_has_a_face_to_show(f):
+    f.enable()
+    _library(f, people=range(1, 3), per=6)
+    f.post("/faces/cluster")
+    for p in f.get("/people")["people"]:
+        assert p["cover"]["asset_id"] and p["cover"]["ch"]

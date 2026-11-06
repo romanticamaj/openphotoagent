@@ -173,6 +173,9 @@
 | 111 | winget、Homebrew、Flathub 發佈設定 | 08 §9.2；09b §7.6 | 評估加產生器 | v0.4 | manifest 由 release metadata 產生，可重現；實際上架需要使用者帳號（BLOCKERS） |
 | 112 | Windows ML 取代 DirectML 的評估 | 08 §3.1；09b §7.6 | 評估 | v0.4 | 評估文件；需要 Windows 實機的項目標 pending-hardware |
 | 113 | 四級隱私政策（full、thumbs、edge-thumbs、results-only），由遠端 Worker 強制執行 | 02 §1.4；09b §8.3 | 完整 | v0.5 | 每一級上傳內容符合 02 §1.4；CP 被竄改時 Worker 仍拒絕上傳 |
+| 114 | 介面凍結與相容性快照（REST、Worker 協定、MCP manifest、pack_api、registry、preset） | VERSIONING §4；09b §9.1 | 完整 | v1.0 | `contracts/` 快照與比對器；破壞性變更讓 CI 失敗，相容的增加需要明確更新快照 |
+| 115 | 從 v0.x 各版升級（資料庫、桌面資料夾） | VERSIONING §4；09b §9.4 | 完整 | v1.0 | 各里程碑的 schema 升級到 head 後與 models 一致、資料保留；layout 遷移前先備份 |
+| 116 | stable 與 beta 更新通道 | 08 §5；09b §9.5 | 完整 | v1.0 | stable 只提供正式版；beta 切回 stable 不降級；簽章錯誤時拒絕 |
 
 ### 1.8 統計
 
@@ -315,7 +318,7 @@
 - [ ] 每一個會被擋住的操作在按下前就顯示原因與至少一個修復 CTA；ESLint `opa/no-bare-disabled` 在 CI 開啟且通過。
 - [ ] 驅動過舊或 GPU pack 失敗時，提供「先用 Vulkan／CPU 繼續」並能完成任務。
 - [ ] 模型下載可暫停、續傳（斷網後從斷點繼續）、取消（≤ 2 s 停止）；sha256 驗證；磁碟不足時下載前就擋下。
-- [ ] 所有內建模型 variant 都已在 `registry/pins.lock` 釘選 commit／size／sha256（INF-REG-013，ADR-0002）。
+- [ ] 所有內建模型 variant 都已在 `opagent_registry/builtin/pins.lock` 釘選 commit／size／sha256（INF-REG-013，ADR-0002）。
 - [ ] 下載在背景進行時，可以同時選資料夾、掃描、產生縮圖；SigLIP2 先下載，以文搜圖最早可用。
 - [ ] 模型可刪除、可搬移目錄（附進度與 ETA）；搬移後可直接載入。
 - [ ] 所有長操作（下載、掃描、縮圖、推論、整理、復原、搬移、pack 安裝）都是 Operation：開始前預估、執行中 ETA（rough／precise／stalled）、經過時間（扣除暫停）、等待原因。

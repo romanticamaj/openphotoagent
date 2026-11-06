@@ -97,6 +97,7 @@ def decide(
     rule_category: str | None = None,
     n_examples: int = 0,
     policy: Policy = Policy(),
+    truncated: bool = False,
 ) -> Outcome:
     """Exactly one outcome per photo; NaN scores count as 0 and set ``flags=("nan_score",)`` (CORE-THR-016)."""
     nan = False
@@ -110,18 +111,24 @@ def decide(
         p, bad = _clean(vlm.p)
         nan |= bad
         vlm = VlmResult(vlm.category, p)
-    out = _decide(emb, vlm, rule_category, n_examples, policy)
+    out = _decide(emb, vlm, rule_category, n_examples, policy, truncated)
     return replace(out, flags=(*out.flags, "nan_score")) if nan else out
 
 
 def _decide(
-    emb: Stage | None, vlm: VlmResult | None, rule_category: str | None, n_examples: int, policy: Policy
+    emb: Stage | None,
+    vlm: VlmResult | None,
+    rule_category: str | None,
+    n_examples: int,
+    policy: Policy,
+    truncated: bool = False,
 ) -> Outcome:
     """Final decision for one photo.
 
     * rule hit wins (confidence 1.0);
-    * VLM present: ``other`` is final; with an embedding stage, agreement -> consensus ``1-(1-pE)(1-pV)``,
-      disagreement -> VLM category at ``0.8·pV``; both then judged by task thresholds (accept/review);
+    * VLM present: ``other`` is final, unless the VLM saw a shortened list (ADR-0030); with an embedding stage,
+      agreement -> consensus ``1-(1-pE)(1-pV)``; disagreement with an embedding that has an opinion (``pE >= review``)
+      -> VLM category at ``0.8·pV``, and with one that has none -> the VLM alone; all judged by task thresholds;
       VLM alone is accepted at ``min_confidence`` (it is the final judge of the cascade);
     * embedding only: route accept -> accepted, else task thresholds.
     """
@@ -129,12 +136,16 @@ def _decide(
         return Outcome("accepted", rule_category, 1.0, "rule")
     if vlm is not None:
         if vlm.category == "other":
+            if truncated and emb is not None and emb.scores:
+                return Outcome("needs_review", _ranked(emb)[0][0], vlm.p, "vlm", "shortlist")
             return Outcome("other", None, vlm.p, "vlm")
         if emb is not None and emb.scores:
             top_cat, p_e = _ranked(emb)[0]
             if top_cat == vlm.category:
                 p = 1 - (1 - p_e) * (1 - vlm.p)
                 return _by_thresholds(vlm.category, p, "consensus", policy)
+            if p_e + EPS < policy.review:  # near-uniform scores are no opinion to disagree with (ADR-0030)
+                return _by_thresholds(vlm.category, vlm.p, "vlm", policy)
             p = vlm.p * 0.8
             if p + EPS >= policy.accept:
                 return Outcome("accepted", vlm.category, p, "vlm")
@@ -191,5 +202,10 @@ def redecide(stages: dict[str, Any], policy: Policy) -> Outcome:
     emb = Stage(stages["emb"]) if stages.get("emb") is not None else None
     vlm = VlmResult(**stages["vlm"]) if stages.get("vlm") is not None else None
     return decide(
-        emb=emb, vlm=vlm, rule_category=stages.get("rule"), n_examples=int(stages.get("n_examples", 0)), policy=policy
+        emb=emb,
+        vlm=vlm,
+        rule_category=stages.get("rule"),
+        n_examples=int(stages.get("n_examples", 0)),
+        policy=policy,
+        truncated=bool(stages.get("truncated")),
     )

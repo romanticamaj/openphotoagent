@@ -76,7 +76,7 @@ ALTER TABLE bio.face_embedding OWNER TO {BIO_ROLE};
 ALTER TABLE bio.person_prototype OWNER TO {BIO_ROLE};
 REVOKE ALL ON SCHEMA bio FROM PUBLIC;
 REVOKE ALL ON SCHEMA bio FROM {API_ROLE};
-"""  # noqa: S608 - module constants only, no input
+"""  # noqa: S608  # nosec B608 - module constants only, no input
 
 
 def install_roles(engine: Any) -> None:
@@ -297,6 +297,34 @@ def face_plan(asset_id: str, req: Request) -> dict[str, Any]:
         return {"run": enabled_for(c, sid)}
 
 
+@worker_router.get("/faces/backlog")
+def backlog(req: Request, after: str = "", limit: int = 32) -> dict[str, Any]:
+    """Photos with no face step yet. It rides on a job's decode, and a cached photo never reaches that, so a library
+    organized before faces were turned on is scanned from here, when the worker is idle. Ordered by asset id: the
+    worker keeps the cursor, so a photo with no faces in it is not listed forever."""
+    with _st(req).engine.begin() as c:
+        s = fsettings(c)
+        if not s.get("enabled"):
+            return {"items": [], "next": after}
+        q = (
+            select(
+                asset_location.c.asset_id, asset_location.c.rel_path, asset_location.c.source_id, source.c.root_alias
+            )
+            .join(source, source.c.id == asset_location.c.source_id)
+            .where(asset_location.c.missing.is_(False), asset_location.c.asset_id > after)
+            .order_by(asset_location.c.asset_id)
+            .limit(limit)
+        )
+        rows = c.execute(q).all()
+        seen = {r for (r,) in c.execute(select(face.c.asset_id).where(face.c.asset_id.in_([r.asset_id for r in rows])))}
+        items = [
+            {"asset_id": r.asset_id, "root_alias": r.root_alias, "rel": r.rel_path}
+            for r in rows
+            if r.asset_id not in seen and enabled_for(c, r.source_id)
+        ]
+    return {"items": items, "next": rows[-1].asset_id if rows else after}
+
+
 @worker_router.post("/faces")
 def ingest(body: FacesIn, req: Request) -> dict[str, Any]:
     st = _st(req)
@@ -467,6 +495,50 @@ def cluster(req: Request) -> dict[str, Any]:
     return run_cluster(_st(req), DEFAULT_WS)
 
 
+class ClusterDueIn(BaseModel):
+    min_new: int = 1
+
+
+CLUSTER_BATCH = 200  # 07 §2.3: a batch run once the unassigned pool has grown by this much
+
+
+@worker_router.post("/faces/cluster-due")
+def cluster_due(body: ClusterDueIn, req: Request) -> dict[str, Any]:
+    """The idle worker asks; faces found since the last run decide. A long run, so it is an Operation (invariant 9)."""
+    from .operations import ensure_operation, set_op_status
+
+    st = _st(req)
+    with st.engine.begin() as c:
+        if not fsettings(c).get("enabled"):
+            return {"ran": False, "new": 0}
+        last = c.execute(select(func.max(face_cluster_run.c.id)).where(face_cluster_run.c.workspace_id == DEFAULT_WS))
+        since = last.scalar() or ""
+        new = c.execute(
+            select(func.count())
+            .select_from(face)
+            .where(
+                face.c.workspace_id == DEFAULT_WS,
+                face.c.quality_tier >= 2,
+                face.c.state == "unassigned",
+                face.c.id > since,
+            )
+        ).scalar_one()
+        if new < body.min_new:
+            return {"ran": False, "new": int(new)}
+        oid = uuid7(st.clock)
+        ensure_operation(c, st.clock, oid, "face.cluster", {"kind": "faces", "id": DEFAULT_WS})
+        set_op_status(c, st.clock, oid, "running")
+    try:
+        out = run_cluster(st, DEFAULT_WS)
+    except Exception:
+        with st.engine.begin() as c:
+            set_op_status(c, st.clock, oid, "failed")
+        raise
+    with st.engine.begin() as c:
+        set_op_status(c, st.clock, oid, "succeeded")
+    return {"ran": True, **out}
+
+
 def run_cluster(st: AppState, ws: str) -> dict[str, Any]:
     import numpy as np
     from sklearn.cluster import HDBSCAN
@@ -630,9 +702,20 @@ def _people(c: Any, ws: str) -> list[dict[str, Any]]:
         .group_by(person.c.id)
         .order_by(func.count(face.c.id).desc(), person.c.id)
     ).all()
+    covers = {
+        r.person_id: {"asset_id": r.asset_id, "ch": r.content_hash}
+        for r in c.execute(
+            select(face.c.person_id, face.c.asset_id, asset.c.content_hash)
+            .join(asset, asset.c.id == face.c.asset_id)
+            .where(face.c.person_id.in_([r.id for r in rows]))
+            .distinct(face.c.person_id)
+            .order_by(face.c.person_id, face.c.quality_tier.desc(), face.c.det_score.desc(), face.c.id)
+        )
+    }
     return [
         {
             "id": r.id,
+            "cover": covers.get(r.id),
             "name": r.display_name,
             "status": r.status,
             "frozen": r.is_frozen,
@@ -1186,23 +1269,98 @@ def purge_workspace(st: AppState, ws: str) -> dict[str, Any]:
                 at=st.clock.now(),
             )
         )
-        report = {
+        report: dict[str, Any] = {
+            "id": uuid7(st.clock),
+            "workspace": ws,
+            "at": st.clock.now().isoformat(),
             "faces": int(n_faces),
             "embeddings": int(emb or 0),
             "prototypes": int(protos or 0),
             "persons": int(n_persons),
             "locations": ["database:bio", "database:face", "worker:faces"],
+            "worker_tasks": [],
         }
+        workers = [r[0] for r in c.execute(text("SELECT id FROM worker")).all()]
+        report["worker_tasks"] = [uuid7(st.clock) for _ in workers]
+        report["sha256"] = report_hash(report)  # SEC-FACE-001: the report itself is tamper-evident
         c.execute(
             insert(audit_log).values(actor="user:local", action="faces.purge", target=ws, outcome="ok", details=report)
         )
-        for (wid,) in c.execute(text("SELECT id FROM worker")).all():  # pending until the worker is back (PRG-003)
+        for wid, tid in zip(workers, report["worker_tasks"], strict=True):  # pending until the worker is back (PRG-003)
             c.execute(
                 insert(worker_task).values(
-                    id=uuid7(st.clock), kind="face_purge", worker_id=wid, lane="control", payload={"workspace_id": ws}
+                    id=tid, kind="face_purge", worker_id=wid, lane="control", payload={"workspace_id": ws}
                 )
             )
     return {**report, "worker_pending": True}
+
+
+def report_hash(report: dict[str, Any]) -> str:
+    import hashlib
+    import json
+
+    body = {k: v for k, v in report.items() if k != "sha256"}
+    return hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+class VerifyIn(BaseModel):
+    report_id: str
+
+
+@router.post("/faces/purge/verify")
+def verify_purge(body: VerifyIn, req: Request) -> dict[str, Any]:
+    """Re-check a deletion report (09b SEC-FACE-001): its hash, that no face datum from before it exists in the
+    database or the ``bio`` schema, and that every worker confirmed destroying its key and face crops."""
+    from datetime import datetime
+
+    st = _st(req)
+    with st.engine.begin() as c:
+        row = c.execute(
+            select(audit_log.c.details).where(
+                audit_log.c.action == "faces.purge", audit_log.c.details["id"].astext == body.report_id
+            )
+        ).first()
+        if row is None:
+            raise HTTPException(404, detail={"code": "NOT_FOUND"})
+        rep = dict(row.details)
+        at = datetime.fromisoformat(rep["at"])
+        ws = rep["workspace"]
+        left = c.execute(
+            select(func.count()).select_from(face).where(face.c.workspace_id == ws, face.c.created_at <= at)
+        ).scalar_one()
+        left += c.execute(
+            select(func.count()).select_from(person).where(person.c.workspace_id == ws, person.c.created_at <= at)
+        ).scalar_one()
+        tasks = c.execute(
+            select(worker_task.c.status, worker_task.c.result).where(
+                worker_task.c.id.in_(rep.get("worker_tasks") or ["-"])
+            )
+        ).all()
+    with bio_session(st) as c:
+        bio_left = (
+            c.execute(
+                text("SELECT count(*) FROM bio.face_embedding WHERE workspace_id = :w AND created_at <= :at"),
+                {"w": ws, "at": at},
+            ).scalar()
+            + c.execute(  # prototypes of people that no longer exist
+                text(
+                    "SELECT count(*) FROM bio.person_prototype pp WHERE pp.workspace_id = :w"
+                    " AND NOT EXISTS (SELECT 1 FROM person p WHERE p.id = pp.person_id)"
+                ),
+                {"w": ws},
+            ).scalar()
+        )
+    worker_ok = len(tasks) == len(rep.get("worker_tasks") or []) > 0 and all(
+        t.status == "done" and bool((t.result or {}).get("key_destroyed")) and (t.result or {}).get("vault_removed")
+        for t in tasks
+    )
+    checks = [
+        {"id": "report_hash", "ok": rep.get("sha256") == report_hash(rep)},
+        {"id": "database", "ok": left == 0, "remaining": int(left)},
+        {"id": "bio_schema", "ok": bio_left == 0, "remaining": int(bio_left or 0)},
+        {"id": "worker", "ok": worker_ok, "workers": len(tasks)},
+    ]
+    return {"report": rep, "verified": all(c["ok"] for c in checks), "checks": checks}
 
 
 @router.post("/faces/maintenance")

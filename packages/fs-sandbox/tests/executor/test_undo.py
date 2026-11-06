@@ -143,7 +143,7 @@ def test_out_undo_008_undo_is_a_phased_pausable_operation(lab):
 def test_out_undo_009_sidecar_delete_or_restore_backup(lab):
     acts = lab.acts(2)
     lab.ex.apply("p0", acts)
-    (lab.t.sorted / "o/1.opagent.json").write_text('{"user": "kept"}')
+    (lab.t.sorted / "o/1.opagent.json").write_text('{"user": "kept"}', encoding="utf-8")
     side = [
         Action(
             f"s{i}",
@@ -158,7 +158,7 @@ def test_out_undo_009_sidecar_delete_or_restore_backup(lab):
         for i in range(2)
     ]
     assert [r.status for r in lab.ex.apply("p1", side).results] == ["done", "done"]
-    assert json.loads((lab.t.sorted / "o/1.opagent.json").read_text())["i"] == 1
+    assert json.loads((lab.t.sorted / "o/1.opagent.json").read_text(encoding="utf-8"))["i"] == 1
     lab.ex.undo("p1")
     assert not (lab.t.sorted / "o/0.opagent.json").exists()
-    assert json.loads((lab.t.sorted / "o/1.opagent.json").read_text()) == {"user": "kept"}
+    assert json.loads((lab.t.sorted / "o/1.opagent.json").read_text(encoding="utf-8")) == {"user": "kept"}

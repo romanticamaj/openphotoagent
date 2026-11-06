@@ -1,10 +1,12 @@
 // <PhotoGrid> (10 §2.2): month buckets with known counts are stacked by TimelineModel (estimated heights until
 // laid out); TanStack Virtual decides which buckets mount, and inside a bucket only the rows near the viewport
 // render (≤ ~400 tiles on a 4K screen). Layout runs in a Web Worker. ThumbHash paints every tile before its image.
+import { Link } from "@tanstack/react-router";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useActivity } from "../activity/ActivityHost";
 import { api, mediaUrl, type TimelineAsset } from "../../lib/api";
 import { placeholder } from "../../lib/thumbhash";
 import type { Layout } from "./layout";
@@ -14,6 +16,25 @@ import { Scrubber } from "./Scrubber";
 import { HEADER_H, TimelineModel, monthLabel, type Bucket } from "./timeline";
 
 export type GridPos = { bucket: number; index: number };
+/** Its own component: the activity query ticks every second, and the grid must not render with it. */
+function EmptyLibrary() {
+  const { t } = useTranslation();
+  const working = useActivity().data?.some((o) => ["scan", "job.label"].includes(o.type)) ?? false;
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
+      <p className="text-base font-semibold">{t(working ? "viewer.arriving" : "viewer.empty")}</p>
+      {working ? null : (
+        <>
+          <p className="max-w-md text-[var(--text-muted)]">{t("viewer.emptyHint")}</p>
+          <Link to="/import" className="rounded-[var(--radius-md)] bg-[var(--accent)] px-4 py-2 font-semibold text-[var(--accent-fg)]">
+            {t("viewer.emptyAction")}
+          </Link>
+        </>
+      )}
+    </div>
+  );
+}
+
 export type GridApi = {
   total: number;
   ordinal: (p: GridPos) => number;
@@ -22,6 +43,9 @@ export type GridApi = {
 
 const DENSITY = { comfortable: 260, standard: 200, compact: 120 } as const;
 const FAST_SCREENS_PER_S = 4;
+// the tiles below come from React state, a frame behind the browser's scroll: a wheel flick moves three screens in that
+// frame. Only ThumbHash backgrounds are painted while scrolling fast, so reaching further ahead is cheap (VIEW-003).
+const FAST_OVERSCAN_ROWS = 30;
 
 function aspect(a: TimelineAsset): number {
   return a.w && a.h ? Math.min(Math.max(a.w / a.h, 0.25), 4) : 1.5;
@@ -50,6 +74,7 @@ export function PhotoGrid({
 
   const buckets = useQuery({ queryKey: ["timeline", "buckets"], queryFn: api.buckets });
   const list: Bucket[] = useMemo(() => buckets.data?.buckets ?? [], [buckets.data]);
+  const hasPhotos = list.length > 0;
   const innerWidth = Math.max(0, width - 72); // scrubber gutter
   const model = useMemo(() => new TimelineModel(list, innerWidth || 1, target), [list, innerWidth, target]);
 
@@ -64,7 +89,7 @@ export function PhotoGrid({
     setWidth(el.clientWidth);
     setViewport(el.clientHeight);
     return () => ro.disconnect();
-  }, []);
+  }, [hasPhotos]); // the empty state has no scroller: measure again when the first photos arrive (IMP-014)
 
   const virt = useVirtualizer({
     count: list.length,
@@ -227,7 +252,7 @@ export function PhotoGrid({
   };
 
   if (buckets.isSuccess && list.length === 0) {
-    return <p className="p-8 text-[var(--text-muted)]">{t("viewer.empty")}</p>;
+    return <EmptyLibrary />;
   }
 
   // global row numbering for aria-rowindex (unlaid buckets count their estimated rows)
@@ -262,7 +287,7 @@ export function PhotoGrid({
             const top = v.start;
             const label = monthLabel(b.month, i18n.language) ?? t("viewer.unknownDate");
             const local = scrollTop - top - HEADER_H;
-            const tiles = l && assets ? visibleTiles(l, local, viewport, 2) : [];
+            const tiles = l && assets ? visibleTiles(l, local, viewport, fast ? FAST_OVERSCAN_ROWS : 2) : [];
             const rowOf = new Map<number, number>();
             l?.rows.forEach((r, ri) => r.tiles.forEach((x) => rowOf.set(x.index, ri)));
             const byRow = new Map<number, typeof tiles>();

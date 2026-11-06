@@ -7,6 +7,10 @@
     "message": "「{path}」不在本機引擎允許的資料夾內",
     "title": "「{path}」不在本機引擎允許的資料夾內"
   },
+  "MCP_APPLY_REQUESTS_DISABLED": {
+    "message": "這個圖庫沒有開放 AI 助手請求套用整理",
+    "title": "這個圖庫沒有開放 AI 助手請求套用整理"
+  },
   "WORKER_OFFLINE": {
     "message": "本機引擎「{name}」已離線 {duration}，需要它的功能暫停",
     "title": "本機引擎「{name}」已離線 {duration}"

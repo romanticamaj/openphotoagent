@@ -1,6 +1,5 @@
 import json
 import os
-import signal
 import sqlite3
 import subprocess
 import sys
@@ -122,7 +121,7 @@ def test_out_jrn_004_wal_survives_kill_9(tmp_path):
     """)
     proc = subprocess.Popen([sys.executable, "-c", code], stdout=subprocess.PIPE, text=True)
     assert proc.stdout.readline().strip() == "ready"
-    os.kill(proc.pid, signal.SIGKILL)
+    proc.kill()  # SIGKILL on POSIX, TerminateProcess on Windows: no handler, no cleanup
     proc.wait()
     con = sqlite3.connect(db)
     assert con.execute("PRAGMA integrity_check").fetchone()[0] == "ok"

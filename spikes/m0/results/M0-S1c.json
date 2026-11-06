@@ -1,10 +1,27 @@
 {
   "id": "M0-S1c",
-  "status": "pending-hardware",
+  "status": "measured",
   "machine": {
-    "hostname_label": "not-run"
+    "hostname_label": "rtx5070ti-win11-user",
+    "os": "Windows",
+    "os_release": "11",
+    "arch": "AMD64",
+    "python": "3.12.13",
+    "cpu_count": 24
   },
-  "metrics": {},
-  "pass": null,
-  "notes": "Windows AF_UNIX: run spikes/m0/S1c on the Windows reference PC."
+  "metrics": {
+    "n_psycopg": 10000,
+    "n_asyncpg": 200,
+    "asyncpg_errors": 200,
+    "psycopg_errors": 0,
+    "psycopg_connects_per_s": 20.247658264213175,
+    "asyncpg_samples": [
+      "0: gaierror: [Errno 11001] getaddrinfo failed",
+      "1: gaierror: [Errno 11001] getaddrinfo failed",
+      "2: gaierror: [Errno 11001] getaddrinfo failed"
+    ],
+    "psycopg_samples": []
+  },
+  "pass": false,
+  "notes": "PG 17.6 on Windows 11, unix_socket_directories on D:, listen_addresses empty, trust auth. asyncpg 0.32 cannot use AF_UNIX on Windows: a drive-letter path is treated as a hostname (getaddrinfo fails) and a /-path raises NotImplementedError from create_unix_connection on both Proactor and Selector loops, so 200 attempts were enough. The product uses psycopg only (packages/db), asyncpg is not a dependency. Machine under load (S3, S4, gate suite)."
 }

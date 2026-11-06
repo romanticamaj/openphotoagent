@@ -10,6 +10,8 @@ export const go = (page: Page, path: string, lang: string) => page.goto(`${path}
 export const ROUTES: Route[] = [
   { name: "onboarding", open: (p, _s, l) => go(p, "/welcome", l).then(() => undefined) },
   { name: "duplicates", open: async (p, _s, l) => void (await go(p, "/duplicates", l), await p.getByRole("heading", { level: 1 }).waitFor()) },
+  { name: "import", open: async (p, _s, l) => void (await go(p, "/import", l), await p.getByRole("heading", { level: 1 }).waitFor()) },
+  { name: "explore", open: async (p, _s, l) => void (await go(p, "/explore", l), await p.getByRole("heading", { level: 1 }).waitFor()) },
   { name: "photos", open: async (p, _s, l) => void (await go(p, "/", l), await p.getByRole("gridcell").first().waitFor()) },
   {
     name: "lightbox",
@@ -48,7 +50,8 @@ export const ROUTES: Route[] = [
     name: "activity",
     open: async (p, _s, l) => {
       await go(p, "/models", l);
-      await p.keyboard.press("ControlOrMeta+j");
+      // the button, not Ctrl+J: right after navigation the shortcut listener may not be attached yet (see OP-012)
+      await p.getByTestId("activity-button").click();
       await p.locator(".activity-center").waitFor();
     },
   },

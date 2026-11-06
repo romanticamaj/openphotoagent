@@ -4,7 +4,6 @@ run/api.json, isolation from the user's Python environment."""
 import json
 import os
 import socket
-import stat
 import subprocess
 import sys
 import time
@@ -13,12 +12,15 @@ from pathlib import Path
 import httpx
 import psycopg
 import pytest
+from opagent_testing import winproc
+from opagent_testing.perms import assert_owner_only
 
 TOKEN = "s" * 64
 
 
 def _launch(dsn, home: Path, port: int, extra_env=None, pre=(), extra_args=()):
-    env = {k: v for k, v in os.environ.items() if not k.startswith("OPAGENT_")}
+    # PG_BIN stays: outside Linux there is no distro path to fall back on, and the shell always knows its own PG
+    env = {k: v for k, v in os.environ.items() if k == "OPAGENT_PG_BIN" or not k.startswith("OPAGENT_")}
     env.update(extra_env or {})
     argv = [
         sys.executable,
@@ -42,13 +44,13 @@ def _launch(dsn, home: Path, port: int, extra_env=None, pre=(), extra_args=()):
     return p
 
 
-def _wait_run(home: Path, p, timeout=30.0):
+def _wait_run(home: Path, p, timeout=120.0):  # first start: every import comes cold off the disk
     f = home / "run" / "api.json"
     t0 = time.monotonic()  # noqa: TID251 - waiting on a real subprocess
     while time.monotonic() - t0 < timeout:  # noqa: TID251
         if f.exists():
             try:
-                return json.loads(f.read_text())
+                return json.loads(f.read_text(encoding="utf-8"))
             except json.JSONDecodeError:
                 pass
         if p.poll() is not None:
@@ -63,12 +65,29 @@ def _free_port() -> int:
         return s.getsockname()[1]
 
 
+def _is_process(pid: int, p) -> bool:
+    if sys.platform == "win32":
+        return pid in [x["ProcessId"] for x in winproc.processes(p.pid)]
+    return pid == p.pid
+
+
+def _readable_by_others(p) -> str:
+    """What another local process can read about ``p``. Windows: the command line. Its environment needs debug
+    rights to read, and is what the test passed to Popen."""
+    if sys.platform == "win32":
+        return " ".join(x["CommandLine"] or "" for x in winproc.processes(p.pid))
+    environ = Path(f"/proc/{p.pid}/environ").read_bytes().decode(errors="ignore")
+    return environ + Path(f"/proc/{p.pid}/cmdline").read_bytes().decode(errors="ignore")
+
+
 def _listening(port: int) -> list[str]:
+    if sys.platform == "win32":
+        return winproc.listening_hosts(port)
     out = []
     for name in ("/proc/net/tcp", "/proc/net/tcp6"):
         if not Path(name).exists():  # kernels without IPv6
             continue
-        for line in Path(name).read_text().splitlines()[1:]:
+        for line in Path(name).read_text(encoding="utf-8").splitlines()[1:]:
             local, state = line.split()[1], line.split()[3]
             addr, p = local.split(":")
             if state == "0A" and int(p, 16) == port:
@@ -93,16 +112,15 @@ def test_desk_012_014_token_on_stdin_and_loopback_only(embedded_pg, tmp_path, st
     stop(p)
     info = _wait_run(home, p)
     port = info["port"]
-    assert stat.S_IMODE((home / "run" / "api.json").stat().st_mode) == 0o600
+    assert_owner_only(home / "run" / "api.json", 0o600)
     # the token reached the API but is in neither the environment nor the command line
-    assert TOKEN not in Path(f"/proc/{p.pid}/environ").read_bytes().decode(errors="ignore")
-    assert TOKEN not in Path(f"/proc/{p.pid}/cmdline").read_bytes().decode(errors="ignore")
+    assert TOKEN not in _readable_by_others(p)
     base = f"http://127.0.0.1:{port}"
     assert httpx.get(f"{base}/api/v1/sources").status_code == 401
     assert httpx.get(f"{base}/api/v1/sources", headers={"Authorization": f"Bearer {TOKEN}"}).status_code == 200
     assert _listening(port) == ["0100007F"]  # 127.0.0.1 only
     logs = (
-        "".join(f.read_text(errors="ignore") for f in (home / "logs").glob("*.log*"))
+        "".join(f.read_text(errors="ignore", encoding="utf-8") for f in (home / "logs").glob("*.log*"))
         if (home / "logs").exists()
         else ""
     )
@@ -122,12 +140,12 @@ def test_desk_010_port_conflicts(embedded_pg, tmp_path, stop):
         p = _launch(embedded_pg.dsn, home, pref)
         stop(p)
         info = _wait_run(home, p)
-        assert info["port"] != pref and info["pid"] == p.pid
+        assert info["port"] != pref and _is_process(info["pid"], p)
         assert httpx.get(f"http://127.0.0.1:{info['port']}/healthz").json()["app"] == "openphotoagent"
         # (b) another OpenPhotoAgent on the same data dir holds the port → do not start a second one
         p2 = _launch(embedded_pg.dsn, home, info["port"])
         assert p2.wait(30) == 3, p2.stdout.read().decode()[-2000:]
-        assert json.loads((home / "run" / "api.json").read_text())["pid"] == p.pid  # unchanged
+        assert json.loads((home / "run" / "api.json").read_text(encoding="utf-8"))["pid"] == info["pid"]  # unchanged
     finally:
         blocker.close()
 
@@ -138,8 +156,8 @@ def test_desk_027_user_python_environment_is_ignored(embedded_pg, tmp_path, stop
     evil = tmp_path / "evil"
     evil.mkdir()
     marker = tmp_path / "pwned"
-    (evil / "json.py").write_text(f"open({str(marker)!r}, 'w').write('x')\nraise SystemExit(9)\n")
-    (evil / "sitecustomize.py").write_text(f"open({str(marker)!r}, 'w').write('x')\n")
+    (evil / "json.py").write_text(f"open({str(marker)!r}, 'w').write('x')\nraise SystemExit(9)\n", encoding="utf-8")
+    (evil / "sitecustomize.py").write_text(f"open({str(marker)!r}, 'w').write('x')\n", encoding="utf-8")
     home = tmp_path / "data"
     p = _launch(
         embedded_pg.dsn, home, _free_port(), extra_env={"PYTHONPATH": str(evil), "PYTHONSTARTUP": str(evil / "json.py")}
@@ -194,7 +212,12 @@ def test_desk_035_port_listens_before_run_file_appears(embedded_pg, tmp_path, st
         f = home / "run" / "api.json"
         while not f.exists():  # tight poll: catch the earliest moment the file is visible
             assert p.poll() is None, p.stdout.read().decode()[-2000:]
-        info = json.loads(f.read_text())
+        while True:
+            try:
+                info = json.loads(f.read_text(encoding="utf-8"))
+                break
+            except PermissionError:  # Windows, just after the rename; the shell's own poll retries the same way
+                continue
         with socket.create_connection(("127.0.0.1", info["port"]), timeout=2):
             pass
         p.terminate()
@@ -217,9 +240,9 @@ def test_desk_015_lan_mode_needs_a_password_then_binds_all_interfaces(embedded_p
         timeout=60,
     )
     assert r.returncode == 0, r.stderr
-    cfg = json.loads((home / "config" / "lan.json").read_text())
+    cfg = json.loads((home / "config" / "lan.json").read_text(encoding="utf-8"))
     assert cfg["password_hash"].startswith("$argon2id$") and "correct horse" not in json.dumps(cfg)
-    assert stat.S_IMODE((home / "config" / "lan.json").stat().st_mode) == 0o600
+    assert_owner_only(home / "config" / "lan.json", 0o600)
     p = _launch(embedded_pg.dsn, home, port, extra_args=["--lan"])
     stop(p)
     _wait_run(home, p)
@@ -291,9 +314,6 @@ def test_desk_011_worker_authenticates_with_the_launch_token_from_stdin(embedded
         out = w.stdout.read().decode()[-2000:] if w.poll() is not None else "never registered"
         assert w.poll() is None and time.monotonic() < deadline, out  # noqa: TID251
         time.sleep(0.2)  # noqa: TID251
-    assert (
-        TOKEN not in Path(f"/proc/{w.pid}/cmdline").read_text()
-        and TOKEN not in Path(f"/proc/{w.pid}/environ").read_text()
-    )
+    assert TOKEN not in _readable_by_others(w)
     w.stdin.close()  # the shell is gone
     w.wait(timeout=10)

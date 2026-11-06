@@ -54,3 +54,4 @@ apps/web/playwright-report/
 
 # rust
 apps/desktop/**/target/
+apps/desktop/src-tauri/gen/

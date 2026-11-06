@@ -24,6 +24,27 @@ import zstandard
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
+PACK_API = 1  # the runtime-pack interface this app speaks (VERSIONING §4; frozen in contracts/pack-api.json)
+# One entry of the signed pack index, as this worker reads it (FRZ-004). Unknown fields are ignored.
+INDEX_ENTRY_SCHEMA = {
+    "type": "object",
+    "required": ["id", "version", "pack_api", "url", "size", "unpacked_size", "files_manifest"],
+    "properties": {
+        "id": {"type": "string"},
+        "version": {"type": "string"},
+        "pack_api": {"type": "integer"},
+        "url": {"type": "string"},
+        "size": {"type": "integer"},
+        "unpacked_size": {"type": "integer"},
+        "files_manifest": {"type": "object"},
+        "parts": {"type": "array", "items": {"type": "object"}},
+        "numerics_epoch": {"type": "integer"},
+    },
+}
+LOCK_ENTRY_SCHEMA = {  # packs.lock.json: pack id → which pack_api values (and optionally which version) to accept
+    "type": "object",
+    "properties": {"pack_api": {"type": "array", "items": {"type": "integer"}}, "version": {"type": "string"}},
+}
 MAX_INFLATION = 1.10  # unpacked size may exceed the declared size by at most 10 % (zip-bomb guard)
 
 
@@ -121,7 +142,7 @@ class PackInstaller:
     def _get(self, url: str) -> bytes:
         if self.fetch:
             return self.fetch(url)
-        with urllib.request.urlopen(url, timeout=60) as r:  # noqa: S310 - index URL comes from settings
+        with urllib.request.urlopen(url, timeout=60) as r:  # noqa: S310  # nosec B310 - index URL from local settings; packs are signature-checked
             return bytes(r.read())
 
     def _index(self, data: bytes | None = None, sig: str | None = None) -> dict[str, Any]:
@@ -135,7 +156,7 @@ class PackInstaller:
         if not cands:
             raise PackError("DL_NOT_FOUND", pack=pid)
         e = cands[-1]
-        allowed = (self.lock.get(pid) or {}).get("pack_api") or [1]
+        allowed = (self.lock.get(pid) or {}).get("pack_api") or [PACK_API]
         if e.get("pack_api") not in allowed:
             raise PackError("PACK_INCOMPATIBLE", pack=pid, v=e["version"], range=allowed)
         return dict(e)
@@ -143,13 +164,13 @@ class PackInstaller:
     # ---- active state ----
     def _active(self) -> dict[str, str]:
         p = self.root / "active.json"
-        return dict(json.loads(p.read_text())) if p.exists() else {}
+        return dict(json.loads(p.read_text(encoding="utf-8"))) if p.exists() else {}
 
     def _set_active(self, pid: str, version: str) -> None:
         act = self._active()
         act[pid] = version
         tmp = self.root / "active.json.tmp"
-        tmp.write_text(json.dumps(act, sort_keys=True))
+        tmp.write_text(json.dumps(act, sort_keys=True), encoding="utf-8")
         os.replace(tmp, self.root / "active.json")
         meta = self.root / pid / version / ".opagent-pack.json"
         if not meta.exists():
@@ -173,7 +194,7 @@ class PackInstaller:
             shutil.rmtree(dest, ignore_errors=True)
             raise
         (dest / ".opagent-pack.json").write_text(
-            json.dumps({k: e[k] for k in ("id", "version", "numerics_epoch", "pack_api") if k in e})
+            json.dumps({k: e[k] for k in ("id", "version", "numerics_epoch", "pack_api") if k in e}), encoding="utf-8"
         )
         return dest
 
@@ -223,7 +244,7 @@ class PackInstaller:
 
     def import_file(self, archive: Path, index_path: Path, sig_path: Path) -> InstallResult:
         """Offline import (08 §4.3, PACK-009): same verification as a download."""
-        index = self._index(index_path.read_bytes(), sig_path.read_text())
+        index = self._index(index_path.read_bytes(), sig_path.read_text(encoding="utf-8"))
         data = archive.read_bytes()
         sha = hashlib.sha256(data).hexdigest()
         e = next((p for p in index["packs"] if p["sha256"] == sha), None)
@@ -254,7 +275,7 @@ class PackInstaller:
         from opagent_core.config_hash import model_fingerprint
 
         ver = self._active()[pid]
-        meta = json.loads((self.root / pid / ver / ".opagent-pack.json").read_text())
+        meta = json.loads((self.root / pid / ver / ".opagent-pack.json").read_text(encoding="utf-8"))
         return model_fingerprint(
             adapter, adapter_version, weights, int(meta.get("numerics_epoch", 0)), pack_version=ver
         )

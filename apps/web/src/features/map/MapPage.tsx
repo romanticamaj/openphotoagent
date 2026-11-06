@@ -2,7 +2,7 @@
 // world-atlas) bundled with this page, so the map works offline and never requests external tiles (MAP-001).
 // Photos with GPS are grid-clustered (cluster.ts); clicking a cluster shows that area's photos (MAP-002).
 import { useQuery } from "@tanstack/react-query";
-import maplibregl from "maplibre-gl";
+import { Map as MapLibreMap, Marker } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -27,14 +27,14 @@ export function MapPage() {
   const { t } = useTranslation();
   const q = useQuery({ queryKey: ["map-points"], queryFn: fetchPoints });
   const box = useRef<HTMLDivElement>(null);
-  const map = useRef<maplibregl.Map | null>(null);
+  const map = useRef<MapLibreMap | null>(null);
   const [zoom, setZoom] = useState(1);
   const [picked, setPicked] = useState<Cluster | null>(null);
   const clusters = useMemo(() => clusterPoints(q.data?.points ?? [], zoom), [q.data, zoom]);
 
   useEffect(() => {
     if (!box.current) return;
-    const m = new maplibregl.Map({
+    const m = new MapLibreMap({
       container: box.current,
       style: {
         version: 8,
@@ -65,7 +65,7 @@ export function MapPage() {
       el.setAttribute("aria-label", t("map.cluster", { n: c.count.toLocaleString() }));
       el.dataset.count = String(c.count);
       el.addEventListener("click", () => setPicked(c));
-      return new maplibregl.Marker({ element: el }).setLngLat([c.lon, c.lat]).addTo(m);
+      return new Marker({ element: el }).setLngLat([c.lon, c.lat]).addTo(m);
     });
     return () => markers.forEach((mk) => mk.remove());
   }, [clusters, t]);

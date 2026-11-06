@@ -15,9 +15,12 @@ from opagent_testing.clock import FakeClock
 from sqlalchemy import text
 
 ROOT = Path(__file__).resolve().parents[4]
-GOLDEN = yaml.safe_load((ROOT / "fixtures/golden/preflight_catalog.yaml").read_text())["rows"]
-I18N = {lang: json.loads((ROOT / f"packages/i18n/errors.{lang}.json").read_text()) for lang in ("zh-TW", "en")}
-EMB8 = "siglip2-so400m-384@onnx-int8"
+GOLDEN = yaml.safe_load((ROOT / "fixtures/golden/preflight_catalog.yaml").read_text(encoding="utf-8"))["rows"]
+I18N = {
+    lang: json.loads((ROOT / f"packages/i18n/errors.{lang}.json").read_text(encoding="utf-8"))
+    for lang in ("zh-TW", "en")
+}
+EMB8 = "siglip2-so400m-384@onnx-fp16"
 EMB16 = "siglip2-so400m-384@onnx-fp16"
 Q5, Q4, Q8 = "qwen3-vl-8b-instruct@q5_k_m", "qwen3-vl-8b-instruct@q4_k_m", "qwen3-vl-8b-instruct@q8_0"
 
@@ -35,7 +38,7 @@ class Env:
             "qwen3-vl-2b-instruct",
             "fixture-nc-vlm",
         ):
-            spec = yaml.safe_load((reg / "models" / f"{m}.yaml").read_text())
+            spec = yaml.safe_load((reg / "models" / f"{m}.yaml").read_text(encoding="utf-8"))
             for v in spec["variants"]:
                 pins.append(
                     {
@@ -45,7 +48,7 @@ class Env:
                         "files": [{"path": f["path"], "size": 1_000_000, "sha256": "b" * 64} for f in v["files"]],
                     }
                 )
-        (reg / "pins.lock").write_text(json.dumps({"schema_version": 1, "pins": pins}))
+        (reg / "pins.lock").write_text(json.dumps({"schema_version": 1, "pins": pins}), encoding="utf-8")
         self.clock = FakeClock()
         self.client = TestClient(create_app(dsn=dsn, clock=self.clock, registry_dir=reg))
         self.dsn, self.roots = dsn, roots
@@ -530,7 +533,10 @@ ARRANGE = {
     "PF-063": a_pack_index("PACK_SIGNATURE_INVALID"),
     "PF-064": a_pack_index("PACK_INCOMPATIBLE"),
     "PF-065": a_locked,
+    # v0.4 row: the worker's doctor reports wsl.gpu as a warning (it only matters to vLLM); job.start blocks on it
+    "PF-018": a_doctor("WSL_GPU_UNAVAILABLE", "wsl.gpu", status="warn"),
 }
+LATER_ROWS = {"PF-018"}  # rows past v0.1 that reuse the same arrangement helpers
 SUBCASES = {
     "PF-066": {
         "DL_REMOTE_CHANGED": last_download_failed("DL_REMOTE_CHANGED"),
@@ -541,7 +547,7 @@ SUBCASES = {
 CASES = [
     pytest.param(r["id"], r["codes"][0], r, marks=pytest.mark.tc(r["id"]), id=f"{r['id']}-{r['codes'][0]}")
     for r in GOLDEN
-    if r["version"].startswith("v0.1") and r["id"] in ARRANGE
+    if (r["version"].startswith("v0.1") or r["id"] in LATER_ROWS) and r["id"] in ARRANGE
 ]
 CASES += [
     pytest.param(pid, code, next(r for r in GOLDEN if r["id"] == pid), marks=pytest.mark.tc(pid), id=f"{pid}-{code}")

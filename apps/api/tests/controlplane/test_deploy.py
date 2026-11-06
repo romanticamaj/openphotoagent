@@ -218,7 +218,8 @@ def test_deploy_001_compose(tmp_path):
     envf = ROOT / "deploy/compose/controlplane.env"
     envf.write_text(
         f"OPAGENT_PUBLIC_URL=http://host.docker.internal:47800\nOPAGENT_JWT_SECRET={'y' * 48}\n"
-        f"OPAGENT_OWNER_EMAIL=owner@example.invalid\nOPAGENT_OWNER_PASSWORD={PW}\n"
+        f"OPAGENT_OWNER_EMAIL=owner@example.invalid\nOPAGENT_OWNER_PASSWORD={PW}\n",
+        encoding="utf-8",
     )
     env = {
         **os.environ,

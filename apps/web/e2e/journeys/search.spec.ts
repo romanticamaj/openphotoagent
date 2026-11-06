@@ -90,7 +90,7 @@ test("[E2E-SEL-002] Shift 範圍選取 → 標籤、類別寫 review；「移到
   await bar.getByRole("button", { name: "加上標籤" }).click();
   await expect(page.getByRole("status").filter({ hasText: "已更新 10 張" })).toBeVisible();
   // category
-  await bar.getByRole("combobox", { name: "類別" }).selectOption({ label: "寵物" });
+  await bar.getByRole("combobox", { name: "類別" }).selectOption({ label: "動物" });
   await bar.getByRole("button", { name: "套用類別" }).click();
   await expect(page.getByRole("status").filter({ hasText: "已更新 10 張" })).toBeVisible();
   for (const id of ids) {

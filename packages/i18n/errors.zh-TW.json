@@ -41,6 +41,12 @@
     "severity": "B",
     "title": "分頁游標無效或已過期"
   },
+  "DATA_LAYOUT_TOO_NEW": {
+    "cta": "用備份還原 · 安裝新版",
+    "message": "資料夾由較新版本的 app 建立（layout {found}），此版本無法使用；資料未被更動",
+    "severity": "B",
+    "title": "資料夾由較新版本的 app 建立（layout {found}）"
+  },
   "DB_SCHEMA_TOO_NEW": {
     "cta": "用備份還原 · 安裝新版",
     "message": "資料庫由較新版本的 app 建立（{found}），此版本無法降級使用；資料未被更動",
@@ -65,6 +71,12 @@
     "severity": "W",
     "title": "無法讀取 RAW"
   },
+  "DESK_WEBVIEW_MISSING": {
+    "cta": "安裝 WebKitGTK 4.1",
+    "message": "系統缺少 WebKitGTK 4.1（{lib}），Linux 桌面版無法開啟視窗；資料未被更動",
+    "severity": "B",
+    "title": "系統缺少 WebKitGTK 4.1（{lib}）"
+  },
   "DISK_INSUFFICIENT_DB": {
     "cta": "釋放空間後重試",
     "message": "資料庫所在磁碟空間不足（剩 {free}），已停止啟動；資料不會被刪除",
@@ -75,13 +87,13 @@
     "cta": "管理已安裝模型（更改目錄／改用較小版本）",
     "message": "模型目錄空間不足：需要 {req}，剩 {free}",
     "severity": "B",
-    "title": "模型目錄空間不足：需要 {req}"
+    "title": "模型目錄空間不足"
   },
   "DISK_INSUFFICIENT_THUMBS": {
     "cta": "更改縮圖位置（只產生小縮圖）",
     "message": "縮圖目錄空間不足：約需 {req}，剩 {free}",
     "severity": "B",
-    "title": "縮圖目錄空間不足：約需 {req}"
+    "title": "縮圖目錄空間不足"
   },
   "DISK_LOW_THUMBS": {
     "cta": "管理儲存空間",
@@ -405,7 +417,7 @@
     "cta": "確認 ID 與資料夾範圍",
     "message": "找不到這個項目（可能不存在，或不在這個權杖的資料夾範圍內）",
     "severity": "B",
-    "title": "找不到這個項目（可能不存在"
+    "title": "找不到這個項目（可能不存在，或不在這個權杖的資料夾範圍內）"
   },
   "OLLAMA_NOT_RUNNING": {
     "cta": "複製「ollama serve」並重試",
@@ -495,7 +507,7 @@
     "cta": "選擇其他檔案",
     "message": "這個整理方式檔案不正確或不安全（{reason}，位置 {pointer}），沒有匯入",
     "severity": "B",
-    "title": "這個整理方式檔案不正確或不安全（{reason}"
+    "title": "這個整理方式檔案不正確或不安全（{reason}，位置 {pointer}）"
   },
   "PRESET_KEY_TAKEN": {
     "cta": "以新名稱匯入",
@@ -513,7 +525,7 @@
     "cta": "檢查更新",
     "message": "這個檔案來自較新的版本（格式 {found}，此版支援到 {supported}）",
     "severity": "B",
-    "title": "這個檔案來自較新的版本（格式 {found}"
+    "title": "這個檔案來自較新的版本（格式 {found}，此版支援到 {supported}）"
   },
   "QUERY_EXPIRED": {
     "cta": "重新拖入照片",

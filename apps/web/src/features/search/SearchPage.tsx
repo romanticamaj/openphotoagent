@@ -6,7 +6,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../../components/Button";
 import { COMPARE_MAX, CompareView } from "./CompareView";
-import { api, mediaUrl, type SearchBody } from "../../lib/api";
+import { Lightbox } from "../viewer/Lightbox";
+import type { GridApi } from "../viewer/PhotoGrid";
+import { api, isDegraded, mediaUrl, type SearchBody, type SearchResult } from "../../lib/api";
 
 type Chip = { kind: "tag"; value: string } | { kind: "year"; value: string } | { kind: "range"; value: string; from: string; to: string };
 
@@ -62,12 +64,64 @@ export function SearchPage({ q }: { q: string }) {
   const count = sel.all ? total : sel.ids.size;
 
   const gridRef = useRef<HTMLDivElement>(null);
+  // the results are a grid like the timeline (10 §5.5): one tab stop, arrows move, Space selects, Enter opens
+  const [active, setActive] = useState(0);
+  const [viewing, setViewing] = useState<number | null>(null);
+  const tiles = () => [...(gridRef.current?.querySelectorAll<HTMLElement>('[role="gridcell"]') ?? [])];
+  const focusTile = (i: number) => {
+    const all = tiles();
+    const j = Math.max(0, Math.min(i, all.length - 1));
+    setActive(j);
+    all[j]?.focus();
+    return j;
+  };
+  const columns = () => {
+    const all = tiles();
+    const top = all[0]?.offsetTop;
+    return Math.max(1, all.filter((el) => el.offsetTop === top).length);
+  };
+  const gridApi: GridApi = useMemo(
+    () => ({
+      total: hits.length,
+      ordinal: (p) => p.index,
+      at: async (i) => {
+        const h = hits[i];
+        if (!h) return null;
+        return {
+          asset: { id: h.asset_id, ch: h.ch, w: null, h: null, thumbhash: null, taken_at: h.taken_at, flags: [] },
+          pos: { bucket: 0, index: i },
+        };
+      },
+    }),
+    [hits],
+  );
   const onKey = (e: React.KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
       e.preventDefault();
       setSel({ all: true, ids: new Set(), anchor: sel.anchor }); // every result, rendered or not (E2E-SEL-001)
+      return;
     }
-    if (e.key === "Escape") setSel({ all: false, ids: new Set(), anchor: null });
+    if (e.key === "Escape") {
+      setSel({ all: false, ids: new Set(), anchor: null });
+      return;
+    }
+    const step = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: columns(), ArrowUp: -columns() }[e.key];
+    if (step !== undefined || e.key === "Home" || e.key === "End") {
+      e.preventDefault();
+      const to = e.key === "Home" ? 0 : e.key === "End" ? hits.length - 1 : active + (step ?? 0);
+      const j = focusTile(to);
+      if (e.shiftKey && hits[j]) clickHit(j, hits[j].asset_id, true); // Shift+arrow extends the selection
+      return;
+    }
+    if (e.key === " " && hits[active]) {
+      e.preventDefault();
+      clickHit(active, hits[active].asset_id, e.shiftKey, !e.shiftKey);
+      return;
+    }
+    if (e.key === "Enter" && hits[active]) {
+      e.preventDefault();
+      setViewing(active);
+    }
   };
   const clickHit = (i: number, id: string, shift: boolean, toggle = false) => {
     if (toggle) {
@@ -103,7 +157,7 @@ export function SearchPage({ q }: { q: string }) {
           {t("search.indexing", { have: index.data.searchable.toLocaleString(i18n.language), total: index.data.total.toLocaleString(i18n.language) })}
         </p>
       )}
-      {first?.degraded && <p role="status">{t("search.degraded")}</p>}
+      {isDegraded(first) && <p role="status">{t("search.degraded")}</p>}
       <ul aria-label={t("search.chips")} className="flex flex-wrap gap-2">
         {chips.map((c) => (
           <li key={`${c.kind}:${c.value}`} className="flex items-center gap-1 rounded-full border border-[var(--border)] px-3 py-0.5 text-sm">
@@ -144,19 +198,23 @@ export function SearchPage({ q }: { q: string }) {
         />
       ) : null}
       {res.isSuccess && hits.length === 0 && <p>{t("search.none")}</p>}
-      <div ref={gridRef} tabIndex={-1} onKeyDown={onKey} role="listbox" aria-label={t("search.results")} aria-multiselectable="true" className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-0.5 outline-none">
+      {(first?.related?.length ?? 0) > 0 && hits.length === 0 && <RelatedPhotos photos={first!.related!} />}
+      <div ref={gridRef} onKeyDown={onKey} role="grid" aria-label={t("search.results")} aria-multiselectable="true" aria-rowcount={-1} className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-0.5 outline-none">
+        <div role="row" className="contents">
         {hits.map((h, i) => {
           const selected = sel.all || sel.ids.has(h.asset_id);
           return (
             <button
               key={h.asset_id}
               type="button"
-              role="option"
+              role="gridcell"
               aria-selected={selected}
+              tabIndex={i === active ? 0 : -1}
               data-testid="search-result"
               data-asset={h.asset_id}
               className="tile relative aspect-square"
               style={{ position: "relative" }}
+              onFocus={() => setActive(i)}
               onClick={(e) => clickHit(i, h.asset_id, e.shiftKey, e.ctrlKey || e.metaKey)}
             >
               <img src={mediaUrl(h.asset_id, "t256", h.ch)} alt={h.caption ?? ""} loading="lazy" onError={(e) => (e.currentTarget.style.visibility = "hidden")} />
@@ -172,7 +230,19 @@ export function SearchPage({ q }: { q: string }) {
             </button>
           );
         })}
+        </div>
       </div>
+      {viewing !== null ? (
+        <Lightbox
+          start={viewing}
+          grid={gridApi}
+          onClose={(id) => {
+            setViewing(null);
+            const i = Math.max(0, hits.findIndex((h) => h.asset_id === id));
+            window.setTimeout(() => focusTile(id ? i : active), 0); // focus goes back to the photo you were on
+          }}
+        />
+      ) : null}
       {res.hasNextPage && (
         <Button variant="ghost" onClick={() => void res.fetchNextPage()}>
           {t("search.loadMore")}
@@ -183,6 +253,20 @@ export function SearchPage({ q }: { q: string }) {
           {toast}
         </div>
       )}
+    </section>
+  );
+}
+
+function RelatedPhotos({ photos }: { photos: NonNullable<SearchResult["related"]> }) {
+  const { t } = useTranslation();
+  return (
+    <section aria-label={t("search.related")} data-testid="search-related" className="space-y-2">
+      <h2 className="text-sm text-[var(--text-muted)]">{t("search.related")}</h2>
+      <div className="grid grid-cols-6 gap-0.5">
+        {photos.map((p) => (
+          <img key={p.asset_id} src={mediaUrl(p.asset_id, "t256", p.ch)} alt={p.caption ?? ""} className="aspect-square w-full rounded-[var(--radius-photo)] object-cover" />
+        ))}
+      </div>
     </section>
   );
 }

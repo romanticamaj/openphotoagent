@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import os
 import shutil
+import sys
 import tempfile
+import uuid
 from collections.abc import Iterator
+from pathlib import Path
 
 import pytest
 
@@ -25,7 +28,13 @@ except ImportError:  # pragma: no cover
 
 @pytest.fixture(scope="session")
 def embedded_pg_cluster() -> Iterator[_pg.PgCluster]:
-    base = tempfile.mkdtemp(prefix="opagent-pg-")
+    if sys.platform == "win32":
+        # mkdtemp's owner-only ACL locks out initdb, which drops to a restricted token on Windows; a plain mkdir
+        # under %TEMP% inherits the usual ACL (first windows-latest run: "could not create directory")
+        base = str(Path(tempfile.gettempdir()) / f"opagent-pg-{uuid.uuid4().hex[:8]}")
+        os.mkdir(base)
+    else:
+        base = tempfile.mkdtemp(prefix="opagent-pg-")
     init = None
     try:
         from opagent_db.schema import create_all  # optional: only when packages/db is installed
@@ -86,10 +95,23 @@ def sandbox_tree(tmp_path):  # type: ignore[no-untyped-def]
     return SandboxTree(tmp_path)
 
 
+PG_FIXTURES = frozenset({"embedded_pg", "embedded_pg_cluster"})
+
+
+@pytest.hookimpl(tryfirst=True)  # before `-m` deselection, so the added marker is what selection sees
+def pytest_itemcollected(item: pytest.Item) -> None:
+    """PG-015: anything that needs the real PostgreSQL is an integration test (09 §2.1), whatever else it is."""
+    names = set(getattr(item, "fixturenames", ()))
+    if names & PG_FIXTURES and not item.get_closest_marker("integration"):
+        item.add_marker(pytest.mark.integration)
+
+
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
     """OS-specific cases (09a §2 `os` column) only run on their OS; the OS matrix in CI covers the rest."""
     import sys
 
+    if os.environ.get("OPAGENT_TC_INVENTORY"):
+        return  # the inventory lists every test on every OS (ADR-0021)
     here = {"win32": "os_windows", "darwin": "os_macos"}.get(sys.platform, "os_linux")
     keep: list[pytest.Item] = []
     drop: list[pytest.Item] = []

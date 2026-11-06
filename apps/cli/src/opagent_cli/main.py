@@ -48,7 +48,7 @@ def cmd_api(a: argparse.Namespace) -> None:
         if lan_hash is None:
             print("LAN_PASSWORD_REQUIRED: set one with `opagent lan-password` first", file=sys.stderr, flush=True)
             raise SystemExit(5)
-    bind_host = "0.0.0.0" if lan_hash else "127.0.0.1"  # noqa: S104 - LAN mode, login enforced
+    bind_host = "0.0.0.0" if lan_hash else "127.0.0.1"  # noqa: S104  # nosec B104 - LAN mode, login enforced
     if not a.token_stdin and getattr(a, "host", None):  # container all-in-one: compose publishes to 127.0.0.1 only
         bind_host = a.host
     sock = _bind_loopback(a.port, bind_host)
@@ -61,6 +61,13 @@ def cmd_api(a: argparse.Namespace) -> None:
         assert sock is not None
     port = int(sock.getsockname()[1])
     if a.token_stdin:
+        from .layout import LayoutTooNew, ensure_layout
+
+        try:
+            ensure_layout(home)  # the data folder first, after a backup of what it touches (MIG-002)
+        except LayoutTooNew as e:
+            print(f"{e.code}: {e}", file=sys.stderr, flush=True)
+            raise SystemExit(6) from None  # the shell shows the problem card with its fixes
         prepare_database(a.dsn, home)
     else:
         create_all(a.dsn)  # dev / tests: schema straight from the models
@@ -73,6 +80,7 @@ def cmd_api(a: argparse.Namespace) -> None:
         data_fp=fp,
         lan_password_hash=lan_hash,
         backups_dir=home / "backups" if a.token_stdin else None,  # Settings → Data on the desktop (08 §2.3)
+        home=home,
     )
     # the socket is bound and listening before run/api.json names it (DESK-035): no check-then-bind race
     write_run_file(home, {"port": port, "pid": os.getpid(), "version": __version__, "data_fp": fp})
@@ -141,17 +149,43 @@ def cmd_controlplane(a: argparse.Namespace) -> None:
 from opagent_core.version import VERSION as __version__  # noqa: E402
 
 
+def _wait_for_pipe_close_windows() -> None:
+    """Polls instead of reading. A pending read on the stdin pipe blocks every process that inherits it inside
+    interpreter start-up, which froze the download child (DESK-053)."""
+    import ctypes
+    import msvcrt
+    from ctypes import wintypes
+
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)  # type: ignore[attr-defined,unused-ignore]
+    peek = kernel32.PeekNamedPipe
+    peek.argtypes = [
+        wintypes.HANDLE,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+        wintypes.LPVOID,
+        wintypes.LPVOID,
+        wintypes.LPVOID,
+    ]
+    handle = msvcrt.get_osfhandle(0)  # type: ignore[attr-defined,unused-ignore]
+    tick = threading.Event()
+    while peek(handle, None, 0, None, None, None):
+        tick.wait(0.2)
+
+
 def watch_parent_pipe() -> None:
     """Orphan protection where the OS has none (macOS, 08 §1.1): the shell keeps our stdin open for its whole
     life; EOF means it is gone, so stop — SIGTERM first for a graceful uvicorn shutdown, then hard exit."""
 
     def wait() -> None:
-        try:
-            while sys.stdin.buffer.read(4096):
+        if os.name == "nt":
+            _wait_for_pipe_close_windows()
+        else:
+            try:
+                while sys.stdin.buffer.read(4096):
+                    pass
+            except (OSError, ValueError):
                 pass
-        except (OSError, ValueError):
-            pass
-        os.kill(os.getpid(), signal.SIGTERM)
+        signal.raise_signal(signal.SIGTERM)  # os.kill would be TerminateProcess on Windows: no graceful stop
         threading.Timer(3.0, lambda: os._exit(0)).start()
 
     threading.Thread(target=wait, name="parent-pipe", daemon=True).start()
@@ -166,7 +200,7 @@ def prepare_database(dsn: str, home: Path) -> None:
     from opagent_db.embedded import find_pg_bin
     from opagent_db.lifecycle import Backups, SchemaTooNew, ensure_database, migrate
 
-    ensure_database(dsn)  # the shell starts a bare postmaster; the app database is created on first start
+    ensure_database(dsn, wait_s=60)  # the shell starts a bare postmaster; the app database is created on first start
     backups = Backups(home / "backups", find_pg_bin(), SystemClock())
     try:
         migrate(dsn, backups)
@@ -211,14 +245,11 @@ def write_run_file(home: Path, info: dict[str, object]) -> None:
     """Atomic, owner-only (0600) — it names the port of a token-protected API."""
     import json
 
+    from opagent_secure import private_dir, write_private
+
     run = Path(home) / "run"
-    run.mkdir(parents=True, exist_ok=True)
-    tmp = run / "api.json.tmp"
-    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w") as f:
-        json.dump(info, f)
-    os.chmod(tmp, 0o600)
-    os.replace(tmp, run / "api.json")
+    private_dir(run)
+    write_private(run / "api.json", json.dumps(info).encode())
 
 
 def lan_file(home: Path) -> Path:
@@ -229,7 +260,7 @@ def read_lan_password_hash(home: Path) -> str | None:
     import json
 
     try:
-        h = json.loads(lan_file(home).read_text()).get("password_hash")
+        h = json.loads(lan_file(home).read_text(encoding="utf-8")).get("password_hash")
     except (OSError, ValueError):
         return None
     return h if isinstance(h, str) and h.startswith("$argon2id$") else None
@@ -240,6 +271,7 @@ def cmd_lan_password(a: argparse.Namespace) -> None:
     import json
 
     from opagent_api.security import hash_password
+    from opagent_secure import write_private
 
     pw = sys.stdin.readline().rstrip("\n")
     if len(pw) < 8:
@@ -248,12 +280,7 @@ def cmd_lan_password(a: argparse.Namespace) -> None:
     home = Path(a.home) if a.home else _home()
     f = lan_file(home)
     f.parent.mkdir(parents=True, exist_ok=True)
-    tmp = f.with_suffix(".tmp")
-    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w") as fh:
-        json.dump({"password_hash": hash_password(pw)}, fh)
-    os.chmod(tmp, 0o600)
-    os.replace(tmp, f)
+    write_private(f, json.dumps({"password_hash": hash_password(pw)}).encode())
 
 
 def cmd_pg_prepare(a: argparse.Namespace) -> None:
@@ -273,7 +300,23 @@ def cmd_pg_prepare(a: argparse.Namespace) -> None:
     except PgError as e:
         print(json.dumps({"code": e.code, "params": e.params}), file=sys.stderr)
         raise SystemExit(6) from e
-    print(json.dumps({"argv": argv, "dsn": pg.dsn, "admin_dsn": pg.dsn_for("postgres"), "data": str(pg.data)}))
+    except subprocess.CalledProcessError as e:  # the shell shows this on its failure page
+        print(f"{Path(e.cmd[0]).name} exited {e.returncode}: {e.stderr}", file=sys.stderr)
+        raise SystemExit(6) from e
+    result = {"argv": argv, "dsn": pg.dsn, "admin_dsn": pg.dsn_for("postgres"), "data": str(pg.data)}
+    print(json.dumps({**result, "pg_ctl": str(pg.bin / "pg_ctl")}))
+
+
+def cmd_pg_run(a: argparse.Namespace) -> None:
+    """Runs the postmaster through pg_ctl for an elevated app (see EmbeddedPg.prepare); stdin EOF stops it."""
+    from opagent_db.embedded import EmbeddedPg
+
+    pg = EmbeddedPg(Path(a.home), desktop=True)
+    pg.port = int((pg.home / "port").read_text(encoding="utf-8"))
+    stop = threading.Event()
+    signal.signal(signal.SIGTERM, lambda *_: stop.set())
+    watch_parent_pipe()
+    raise SystemExit(pg.run_until_stopped(stop))
 
 
 def _remote_home(a: argparse.Namespace) -> Path:
@@ -291,7 +334,7 @@ def cmd_worker_enroll(a: argparse.Namespace) -> None:
     if a.egress_floor:
         if a.egress_floor not in MODES:
             raise SystemExit(f"--egress-floor must be one of {', '.join(MODES)}")
-        (home / "egress-floor").write_text(a.egress_floor)
+        (home / "egress-floor").write_text(a.egress_floor, encoding="utf-8")
     print(json.dumps({"worker_id": cred.worker_id, "server": cred.server}))
 
 
@@ -299,11 +342,14 @@ def _roots_file(home: Path) -> Path:
     return home / "roots.json"
 
 
-def _load_roots(home: Path) -> list[dict[str, str]]:
+def _read_roots_file(f: Path) -> list[dict[str, str]]:
     import json
 
-    f = _roots_file(home)
-    return list(json.loads(f.read_text())) if f.exists() else []
+    return list(json.loads(f.read_text(encoding="utf-8"))) if f.exists() else []
+
+
+def _load_roots(home: Path) -> list[dict[str, str]]:
+    return _read_roots_file(_roots_file(home))
 
 
 def cmd_worker_roots(a: argparse.Namespace) -> None:
@@ -324,7 +370,7 @@ def cmd_worker_roots(a: argparse.Namespace) -> None:
     elif a.action == "remove":
         roots = [r for r in roots if r["alias"] != a.alias]
     if a.action != "list":
-        _roots_file(home).write_text(json.dumps(roots, indent=2))
+        _roots_file(home).write_text(json.dumps(roots, indent=2), encoding="utf-8")
     print(json.dumps(roots, indent=2))
 
 
@@ -335,7 +381,7 @@ def cmd_worker_run(a: argparse.Namespace) -> None:
 
     home = _remote_home(a)
     floor_f = home / "egress-floor"
-    floor = floor_f.read_text().strip() if floor_f.exists() else None
+    floor = floor_f.read_text(encoding="utf-8").strip() if floor_f.exists() else None
     client = RemoteClient(home, egress=EgressFilter(floor=floor, log_path=home / "egress-denied.log"))
     backend = None
     if a.backend == "fake":
@@ -361,7 +407,7 @@ def cmd_worker_run(a: argparse.Namespace) -> None:
 def cmd_worker(a: argparse.Namespace) -> None:
     import httpx
 
-    if not a.api or not a.roots:
+    if not a.api or not (a.roots or a.roots_file):
         raise SystemExit("opagent worker: --api and --roots are required (or use enroll / roots / run)")
     from opagent_worker.agent import WorkerAgent
 
@@ -371,17 +417,23 @@ def cmd_worker(a: argparse.Namespace) -> None:
     if a.token_stdin:
         watch_parent_pipe()
     backend = None
-    if a.backend == "fake":  # v0.1-B: the FakeBackend until the real adapters land (slice 7)
+    if a.backend == "fake":  # tests and `opagent dev`; production is `auto`
         from opagent_inference.fake import FakeBackend
 
         backend = FakeBackend()
+    models_root = Path(a.models_root) if a.models_root else None
     agent = WorkerAgent(
         client,
-        roots=_parse_roots(a.roots),
+        roots=_read_roots_file(Path(a.roots_file)) if a.roots_file else _parse_roots(a.roots),
         home=Path(a.home) if a.home else _home() / "worker",
         backend=backend,
         worker_id=a.worker_id,
+        models_root=models_root,
     )
+    if a.backend == "auto":
+        from opagent_worker.backends import load_local
+
+        agent.backend_factory = lambda: load_local(agent.models_root)
     if a.token_stdin:  # desktop: pause heavy labelling on battery (06 §5, DESK-023)
         from opagent_worker.policy import ResourcePolicy
         from opagent_worker.power import system_power
@@ -391,6 +443,7 @@ def cmd_worker(a: argparse.Namespace) -> None:
     signal.signal(signal.SIGTERM, lambda *_: stop.set())
     while not stop.is_set():
         try:
+            agent.refresh_backends()
             agent.register()
             break
         except httpx.HTTPError:
@@ -425,10 +478,11 @@ def cmd_mcp(a: argparse.Namespace) -> None:
     """stdio MCP server for AI clients (05 §3.1): a thin relay to the running app; no DB, no photos, no worker."""
     from opagent_mcp.credstore import load
 
-    from opagent_cli.mcp_stdio import Relay, serve
+    from opagent_cli.mcp_stdio import Relay, serve, utf8_stdio
 
     home = Path(a.home) if a.home else _home()
     readonly = a.readonly or os.environ.get("OPAGENT_MCP_READONLY") == "1"
+    utf8_stdio()
     serve(Relay(home, load(home, a.profile), server=a.server, readonly=readonly))
 
 
@@ -452,6 +506,32 @@ def cmd_login(a: argparse.Namespace) -> None:
         print(f"no system keyring available: saved to {r['path']} (readable only by you)", file=sys.stderr)
 
 
+def cmd_ops_export_calibration(a: argparse.Namespace) -> None:
+    """ETA calibration rows as JSON, the input of M0-V7. Read-only, straight from the database: the app's API needs
+    the launch token, which only the shell has."""
+    import json
+
+    from opagent_api.operations import export_calibration
+    from opagent_db.embedded import desktop_dsn
+    from opagent_db.schema import engine_for
+
+    dsn = a.dsn or os.environ.get("OPAGENT_DSN")
+    if not dsn:
+        from opagent_cli.paths import app_dirs, current_os
+
+        data = a.home or app_dirs(current_os(), os.environ, str(Path.home()))["data"]
+        pg_home = Path(data) / "pg"
+        try:
+            port = int((pg_home / "port").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            sys.exit(f"no database in {pg_home}: pass --dsn, or start the app once")
+        dsn = desktop_dsn(pg_home, port)
+    eng = engine_for(dsn)
+    with eng.connect() as c:
+        print(json.dumps(export_calibration(c), ensure_ascii=False, indent=2))
+    eng.dispose()
+
+
 def main(argv: list[str] | None = None) -> None:
     ap = argparse.ArgumentParser(prog="opagent")
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -465,7 +545,7 @@ def main(argv: list[str] | None = None) -> None:
     p.set_defaults(fn=cmd_api)
     p = sub.add_parser("controlplane", help="self-hosted multi-user control plane (Docker / NAS)")
     p.add_argument("--dsn")
-    p.add_argument("--host", default="0.0.0.0")  # noqa: S104 - the CP is a network service (behind TLS)
+    p.add_argument("--host", default="0.0.0.0")  # noqa: S104  # nosec B104 - the CP is a network service (behind TLS)
     p.add_argument("--port", type=int, default=47800)
     p.add_argument("--web-dist")
     p.add_argument("--home")
@@ -475,6 +555,9 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--home")
     p.add_argument("--ram-gb", type=float)
     p.set_defaults(fn=cmd_pg_prepare)
+    p = sub.add_parser("pg-run", help="desktop shell: run the embedded database when the app is elevated")
+    p.add_argument("--home", required=True)
+    p.set_defaults(fn=cmd_pg_run)
     p = sub.add_parser("lan-password", help="set the LAN-access password from stdin")
     p.add_argument("--home")
     p.set_defaults(fn=cmd_lan_password)
@@ -503,7 +586,9 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--api")
     p.add_argument("--roots", help="alias=path:mode,...")
     p.add_argument("--worker-id")
-    p.add_argument("--backend", default="fake", choices=["fake", "none"])
+    p.add_argument("--roots-file", help="desktop: the JSON list the shell writes after the folder dialog")
+    p.add_argument("--backend", default="fake", choices=["fake", "none", "auto"])
+    p.add_argument("--models-root", help="where models live (default <home>/models)")
     p.add_argument("--once", action="store_true", help="process what is queued, then exit")
     p.add_argument("--home", help="worker state directory (default <OPAGENT_HOME>/worker)")
     p.add_argument("--token-stdin", action="store_true", help="desktop: read the launch token from stdin")
@@ -519,6 +604,13 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--profile", default="default")
     p.add_argument("--home")
     p.set_defaults(fn=cmd_login)
+    p = sub.add_parser("ops", help="operation records")
+    osub = p.add_subparsers(dest="ops_cmd", required=True)
+    q = osub.add_parser("export-calibration", help="ETA predictions next to real durations, as JSON (M0-V7)")
+    q.add_argument("--dsn", help="database (default: the desktop app's, from the data folder)")
+    q.add_argument("--home", help="data folder")
+    q.set_defaults(fn=cmd_ops_export_calibration)
+
     p = sub.add_parser("dev")
     p.add_argument("--port", type=int, default=47800)
     p.add_argument("--roots", default=os.environ.get("OPAGENT_ROOTS", ""))

@@ -12,5 +12,5 @@
   },
   "metrics": {},
   "pass": null,
-  "notes": "Recorded fixtures/hw/cloud-linux-nogpu.yaml in the cloud; reference-machine profiles pending-hardware; other 09 §3.4 profiles synthesized from docs and marked."
+  "notes": "Recorded fixtures/hw/cloud-linux-nogpu.yaml in the cloud; reference-machine profiles pending-hardware; other 09 §3.4 profiles synthesized from docs and marked. 2026-11-05: rtx5070ti-win11 recorded on reference machine 1 (redacted: GPU uuid, user and host names, process names). rtx4060-laptop and m2-air-16 still synthesized."
 }

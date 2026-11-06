@@ -36,7 +36,7 @@ from .db import offset_minutes, set_job_status, to_aware
 from .operations import ensure_operation, set_op_status
 from .state import DEFAULT_WS
 
-PRESETS_DIR = Path(__file__).resolve().parents[4] / "presets" / "builtin"
+PRESETS_DIR = Path(__file__).resolve().parent / "presets" / "builtin"  # package data (ADR-0023)
 ACTIVE_JOB = ("queued", "running", "paused", "planning", "applying", "cancelling")
 
 
@@ -178,7 +178,10 @@ def finish_scan(st: Any, c: Any, t: Any) -> None:
     c.execute(update(source).where(source.c.id == src_id).values(last_scan_at=st.clock.now()))
     j = c.execute(select(job).where(job.c.id == t.job_id)).first()
     if j is not None:
-        after_scan(st, c, j, t)
+        try:
+            after_scan(st, c, j, t)
+        except KeyError as e:  # an imported preset deleted during the scan (ORG-011)
+            set_job_status(c, j.id, JobStatus.failed, st.clock, error=f"preset {e} no longer exists")
 
 
 def _source_assets(c: Any, src_id: str) -> Any:

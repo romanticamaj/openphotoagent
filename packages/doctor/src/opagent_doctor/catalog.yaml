@@ -26,6 +26,20 @@ DECODE_RAW_MISSING:
     type: download
   severity: warning
   transient: false
+DATA_LAYOUT_TOO_NEW:
+  fixes:
+  - target: data-backups
+    type: open_settings
+  - target: update
+    type: open_docs
+  severity: blocker
+  transient: false
+DESK_WEBVIEW_MISSING:
+  fixes:
+  - target: install_webkitgtk
+    type: copy_command
+  severity: blocker
+  transient: false
 DB_SCHEMA_TOO_NEW:
   fixes:
   - target: data-backups

@@ -164,12 +164,16 @@ def run(files: list[str], workers: int = 4, timeout: int = 300) -> tuple[float, 
     equivalents = set()
     eq_file = ROOT / "mutmut-equivalents.txt"
     if eq_file.exists():
-        equivalents = {ln.strip() for ln in eq_file.read_text().splitlines() if ln.strip() and not ln.startswith("#")}
+        equivalents = {
+            ln.strip()
+            for ln in eq_file.read_text(encoding="utf-8").splitlines()
+            if ln.strip() and not ln.startswith("#")
+        }
     jobs = []
     for f in files:
         prefix = next(p for p in PACKAGES if f.startswith(p))
         pkg_dir, pkg_name, tests = PACKAGES[prefix]
-        src = (ROOT / f).read_text()
+        src = (ROOT / f).read_text(encoding="utf-8")
         for site in _sites(ast.parse(src)):
             m = _mutate(src, site)
             if m is not None and ast.unparse(ast.parse(src)) != m[0]:
@@ -180,7 +184,7 @@ def run(files: list[str], workers: int = 4, timeout: int = 300) -> tuple[float, 
         tmp = Path(tempfile.mkdtemp(prefix="mut-"))
         try:
             shutil.copytree(ROOT / pkg_dir, tmp / pkg_name)
-            (tmp / pkg_name / Path(f).name).write_text(mutated)
+            (tmp / pkg_name / Path(f).name).write_text(mutated, encoding="utf-8")
             env = {
                 **os.environ,
                 "PYTHONPATH": str(tmp),

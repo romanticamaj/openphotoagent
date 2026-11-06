@@ -285,3 +285,14 @@ def test_inj_024_forged_confirmation_card(m):
     assert m.sql("select status from output_plan").scalar() == "draft"
     text = "".join(d["text"] for e, d in ev if e == "token")
     assert "已核准" not in text  # an action turn answers with the card, never with the model's claim
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-SRCH-001")
+def test_ask_srch_001_a_tag_word_does_not_hide_untagged_photos(m):
+    """回歸 (ADR-0027): 「海邊」 became a hard tag filter, so a beach photo nobody tagged could not be found."""
+    untagged = m.add("2025/shore.jpg", caption="海邊的落日")
+    m.index()
+    ev = ask(m, "幫我找海邊的照片", FakeLLM([_cite_first]))
+    photos = next(d for e, d in ev if e == "photos")
+    assert untagged in json.dumps(photos)

@@ -44,7 +44,9 @@ def parse_nvidia(xml: str | None, csv: str | None) -> list[Gpu]:
     if xml:
         m = re.search(r"<driver_version>([^<]+)</driver_version>", xml)
         driver = m.group(1) if m else None
-        blocks = re.findall(r"<gpu>(.*?)</gpu>", xml, flags=re.S)
+        blocks = re.findall(
+            r"<gpu(?:\s[^>]*)?>(.*?)</gpu>", xml, flags=re.S
+        )  # real output: <gpu id="00000000:01:00.0">
     for i in range(max(len(blocks), len(rows))):
         b = blocks[i] if i < len(blocks) else ""
         row = rows[i] if i < len(rows) else {}
@@ -54,6 +56,9 @@ def parse_nvidia(xml: str | None, csv: str | None) -> list[Gpu]:
         if mt:
             total = _mib(mt.group(1))
         ext = sum(int(x) for x in re.findall(r"<used_memory>(\d+) MiB</used_memory>", b)) / 1024
+        fb_used = re.search(r"<fb_memory_usage>.*?<used>([^<]+)</used>", b, flags=re.S)
+        if not ext and fb_used:  # WDDM reports per-process memory as N/A: only the card's total is known
+            ext = _mib(fb_used.group(1))
         names = re.findall(r"<process_name>([^<]+)</process_name>", b)
         procs = tuple(n.rsplit("\\", 1)[-1].rsplit("/", 1)[-1] for n in names)
         gpus.append(
@@ -132,6 +137,28 @@ def parse_apple(sysctl: dict[str, Any] | None, metal: dict[str, Any] | None) -> 
     ]
 
 
+def _windows_ram_mb() -> int:
+    """No /proc on Windows: the recommender saw 0 GB of RAM there."""
+    import ctypes
+
+    class Status(ctypes.Structure):
+        _fields_ = [
+            ("length", ctypes.c_ulong),
+            ("load", ctypes.c_ulong),
+            ("total_phys", ctypes.c_ulonglong),
+            ("avail_phys", ctypes.c_ulonglong),
+            ("total_page", ctypes.c_ulonglong),
+            ("avail_page", ctypes.c_ulonglong),
+            ("total_virtual", ctypes.c_ulonglong),
+            ("avail_virtual", ctypes.c_ulonglong),
+            ("avail_extended", ctypes.c_ulonglong),
+        ]
+
+    s = Status(length=ctypes.sizeof(Status))
+    kernel32 = ctypes.WinDLL("kernel32")  # type: ignore[attr-defined,unused-ignore]
+    return int(s.total_phys // 2**20) if kernel32.GlobalMemoryStatusEx(ctypes.byref(s)) else 0
+
+
 def _ram_gb(p: dict[str, Any]) -> float:
     if p.get("ram_total_mb"):
         return float(p["ram_total_mb"]) / 1024
@@ -187,7 +214,9 @@ def collect_probes() -> dict[str, Any]:
         }
     }
     with contextlib.suppress(OSError):
-        probes["meminfo"] = Path("/proc/meminfo").read_text()
+        probes["meminfo"] = Path("/proc/meminfo").read_text(encoding="utf-8")
+    if os.name == "nt":
+        probes["ram_total_mb"] = _windows_ram_mb()
     smi = shutil.which("nvidia-smi")
     if smi:
         try:

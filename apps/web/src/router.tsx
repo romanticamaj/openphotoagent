@@ -5,8 +5,10 @@ import { ActivityButton, ActivityDrawer, RecoveryCard } from "./features/activit
 import { useTranslation } from "react-i18next";
 import { SearchBar } from "./features/search/SearchBar";
 import { PhotosPage } from "./features/viewer/PhotosPage";
+import { ProgressDock } from "./features/activity/ProgressDock";
 import { api } from "./lib/api";
 import { useServerEvent } from "./lib/events";
+import { navSections } from "./lib/nav";
 import { notificationFor, type OpStatusEvent } from "./lib/notify";
 import { currentWorkspace, platform, setCsrf, setWorkspace } from "./lib/platform";
 
@@ -14,6 +16,8 @@ import { currentWorkspace, platform, setCsrf, setWorkspace } from "./lib/platfor
 // first screen has settled so that moving between pages stays instant
 const PAGES = [
   () => import("./features/organize/OrganizeWizard"),
+  () => import("./features/library/ImportPage"),
+  () => import("./features/library/ExplorePage"),
   () => import("./features/onboarding/Welcome"),
   () => import("./features/system/DoctorPage"),
   () => import("./features/system/SettingsPage"),
@@ -34,6 +38,8 @@ export function prefetchPages(delayMs = 3000) {
   window.setTimeout(() => PAGES.forEach((load) => void load().catch(() => undefined)), delayMs);
 }
 const OrganizeWizard = lazy(() => import("./features/organize/OrganizeWizard").then((m) => ({ default: m.OrganizeWizard })));
+const ImportPage = lazy(() => import("./features/library/ImportPage").then((m) => ({ default: m.ImportPage })));
+const ExplorePage = lazy(() => import("./features/library/ExplorePage").then((m) => ({ default: m.ExplorePage })));
 const Welcome = lazy(() => import("./features/onboarding/Welcome").then((m) => ({ default: m.Welcome })));
 const DoctorPage = lazy(() => import("./features/system/DoctorPage").then((m) => ({ default: m.DoctorPage })));
 const SettingsPage = lazy(() => import("./features/system/SettingsPage").then((m) => ({ default: m.SettingsPage })));
@@ -47,7 +53,6 @@ const ApprovalInbox = lazy(() => import("./features/mcp/ApprovalPage").then((m) 
 const PeoplePage = lazy(() => import("./features/people/PeoplePage").then((m) => ({ default: m.PeoplePage })));
 const FaceReview = lazy(() => import("./features/people/PeoplePage").then((m) => ({ default: m.FaceReview })));
 const FaceSettingsPage = lazy(() => import("./features/people/PeoplePage").then((m) => ({ default: m.FaceSettingsPage })));
-const FaceOptInCard = lazy(() => import("./features/people/PeoplePage").then((m) => ({ default: m.FaceOptInCard })));
 const AskPanel = lazy(() => import("./features/ask/AskPanel").then((m) => ({ default: m.AskPanel })));
 const AssistantSettingsPage = lazy(() => import("./features/ask/AssistantSettingsPage").then((m) => ({ default: m.AssistantSettingsPage })));
 const MapPage = lazy(() => import("./features/map/MapPage").then((m) => ({ default: m.MapPage })));
@@ -140,19 +145,8 @@ function Shell() {
     const n = platform().notify && notificationFor(d as OpStatusEvent);
     if (n) platform().notify!(t(n.key), n.route);
   });
-  // 「人物」 appears only once faces are on (07 §4.1; FACE-GATE-001)
   const faces = useQuery({ queryKey: ["face-settings"], queryFn: api.faceSettings, staleTime: 30_000 });
-  const nav: Array<[string, string]> = [
-    ["/", "nav.photos"],
-    ...(faces.data?.enabled ? ([["/people", "nav.people"]] as Array<[string, string]>) : []),
-    ["/map", "nav.map"],
-    ["/organize", "nav.organize"],
-    ["/review", "nav.review"],
-    ["/duplicates", "nav.duplicates"],
-    ["/models", "nav.models"],
-    ["/system/doctor", "nav.doctor"],
-    ["/settings", "nav.settings"],
-  ];
+  const pending = useQuery({ queryKey: ["reviews", "count"], queryFn: () => api.reviewCount(), refetchInterval: 10_000 });
   return (
     <div className="shell" data-single-user={caps.data ? String(caps.data.single_user) : undefined}>
       <header className="topbar">
@@ -178,17 +172,22 @@ function Shell() {
         <ActivityButton onToggle={() => setActivityOpen(!activity)} />
       </header>
       <nav className="sidenav" aria-label={t("nav.label")}>
-        {nav.map(([to, key]) => (
-          <Link key={to} to={to} activeOptions={{ exact: to === "/" }} activeProps={{ "aria-current": "page" }}>
-            {t(key)}
-          </Link>
+        {navSections(Boolean(faces.data?.enabled)).map((g) => (
+          <div key={g.key} className="sidenav-group">
+            <p aria-hidden="true">{t(g.key)}</p>
+            {g.items.map(({ to, label }) => (
+              <Link key={to} to={to} activeOptions={{ exact: to === "/" }} activeProps={{ "aria-current": "page" }}>
+                {t(label)}
+                {to === "/review" && pending.data ? <span className="nav-badge tnum">{pending.data.toLocaleString()}</span> : null}
+              </Link>
+            ))}
+          </div>
         ))}
       </nav>
       <main className="page" id="main">
         <RecoveryCard onReview={() => setActivityOpen(true)} />
         <Suspense fallback={null}>
           <ApprovalInbox />
-          <FaceOptInCard />
         </Suspense>
         <Suspense fallback={<div aria-busy="true" />}>
           <Outlet />
@@ -200,6 +199,7 @@ function Shell() {
         </Suspense>
       ) : null}
       <ActivityDrawer open={activity} setOpen={setActivityOpen} />
+      <ProgressDock />
     </div>
   );
 }
@@ -261,6 +261,8 @@ const search = createRoute({
     return <SearchPage q={q} />;
   },
 });
+const importRoute = createRoute({ getParentRoute: () => root, path: "/import", component: ImportPage });
+const exploreRoute = createRoute({ getParentRoute: () => root, path: "/explore", component: ExplorePage });
 const organize = createRoute({
   getParentRoute: () => root,
   path: "/organize",
@@ -271,7 +273,7 @@ const organize = createRoute({
   ),
 });
 
-export const router = createRouter({ routeTree: root.addChildren([photos, welcome, organize, plan, reviewRoute, search, duplicatesRoute, modelsRoute, modelRoute, doctorRoute, settingsRoute, integrationsRoute, approvalRoute, peopleRoute, faceReviewRoute, faceSettingsRoute, assistantRoute, mapRoute]) });
+export const router = createRouter({ routeTree: root.addChildren([photos, welcome, importRoute, exploreRoute, organize, plan, reviewRoute, search, duplicatesRoute, modelsRoute, modelRoute, doctorRoute, settingsRoute, integrationsRoute, approvalRoute, peopleRoute, faceReviewRoute, faceSettingsRoute, assistantRoute, mapRoute]) });
 
 declare module "@tanstack/react-router" {
   interface Register {

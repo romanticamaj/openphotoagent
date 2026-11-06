@@ -11,6 +11,7 @@ from opagent_core.state_machine import JobStatus
 from opagent_db.schema import (
     event,
     job,
+    job_item,
     journal_mirror,
     operation,
     output_action,
@@ -26,7 +27,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from . import organize
 from . import queue as q
 from .db import set_job_status, to_aware
-from .operations import ensure_operation, set_op_status
+from .operations import ensure_operation, observe_job, observe_progress, set_op_status
 from .state import AppState
 
 router = APIRouter()
@@ -37,6 +38,7 @@ TASK_OP_TYPES = {
     "download": "model.download",
     "remove": "model.remove",
     "benchmark": "benchmark.run",
+    "embed_assets": "search.reindex",
 }
 LEASE_S = 120
 
@@ -67,6 +69,7 @@ class LeaseIn(BaseModel):
     worker_id: str
     wait_s: float = 0.0
     exclude_kinds: list[str] = []
+    only_kinds: list[str] | None = None  # the worker's side thread for quick reads (IMP-004)
     boot_id: str | None = None  # e.g. "download" while the worker's download slot is busy (06 §2.4)
 
 
@@ -206,7 +209,11 @@ def _recover_jobs(
 
 
 def _lease_one(
-    st: AppState, worker_id: str, exclude: list[str] | None = None, boot: str | None = None
+    st: AppState,
+    worker_id: str,
+    exclude: list[str] | None = None,
+    boot: str | None = None,
+    only: list[str] | None = None,
 ) -> dict[str, Any] | None:
     with st.engine.begin() as c:
         c.execute(
@@ -216,10 +223,11 @@ def _lease_one(
             text(
                 "SELECT id FROM worker_task WHERE status='pending' AND (worker_id IS NULL OR worker_id=:w) "
                 "AND NOT (kind = ANY(CAST(:ex AS text[]))) "
+                "AND (CAST(:only AS text[]) IS NULL OR kind = ANY(CAST(:only AS text[]))) "
                 "ORDER BY (kind = 'face_purge') DESC, (lane = 'interactive') DESC, created_at, id "
                 "LIMIT 1 FOR UPDATE SKIP LOCKED"
             ),
-            {"w": worker_id, "ex": list(exclude or [])},
+            {"w": worker_id, "ex": list(exclude or []), "only": only},
         ).first()
         if row is None:
             return None
@@ -260,7 +268,7 @@ def lease(body: LeaseIn, req: Request) -> Any:
                 raise HTTPException(426, detail={"code": "UPGRADE_REQUIRED"})
     deadline = st.clock.monotonic() + body.wait_s
     while True:
-        task = _lease_one(st, body.worker_id, body.exclude_kinds, body.boot_id)
+        task = _lease_one(st, body.worker_id, body.exclude_kinds, body.boot_id, body.only_kinds)
         if task is not None:
             return task
         if st.clock.monotonic() >= deadline:
@@ -352,7 +360,11 @@ class ResultsIn(BaseModel):
 def results(body: ResultsIn, req: Request) -> dict[str, int]:
     st = _st(req)
     with st.engine.begin() as c:
-        return q.report(c, st.clock, body.worker_id, body.items)
+        out = q.report(c, st.clock, body.worker_id, body.items)
+        ids = [i["job_item_id"] for i in body.items]
+        for jid in c.execute(select(job_item.c.job_id).where(job_item.c.id.in_(ids)).distinct()).scalars():
+            observe_job(c, st.clock, jid)
+        return out
 
 
 @router.post("/release")
@@ -432,6 +444,8 @@ def task_progress(task_id: str, body: ProgressIn, req: Request) -> dict[str, Any
             keep = c.execute(select(operation.c.progress).where(operation.c.id == task_id)).scalar() or {}
             sticky = {k: keep[k] for k in ("auto_resumed",) if k in keep}  # 「已自動繼續」 outlives new progress
             c.execute(update(operation).where(operation.c.id == task_id).values(progress={**body.progress, **sticky}))
+            if op_status not in ("paused", "pausing") and not body.waiting_reason:
+                observe_progress(c, st.clock, task_id, body.progress)
         if body.waiting_reason:
             set_op_status(c, st.clock, task_id, "waiting", body.waiting_reason)
             if body.waiting_reason == "SOURCE_OFFLINE" and t.payload.get("source_id"):

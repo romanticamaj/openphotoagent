@@ -78,6 +78,8 @@ EN = {
     "DECODE_FAILED": "{n} files are damaged or unsupported and were skipped",
     "FFMPEG_MISSING": "ffmpeg is missing; {n} videos will be skipped (no thumbnails)",
     "DB_SCHEMA_TOO_NEW": "The database was created by a newer version of the app ({found}); this version cannot downgrade it and nothing was changed",
+    "DESK_WEBVIEW_MISSING": "WebKitGTK 4.1 ({lib}) is missing, so the Linux desktop app cannot open its window; nothing was changed",
+    "DATA_LAYOUT_TOO_NEW": "This data folder was created by a newer version of the app (layout {found}); this version cannot use it and nothing was changed",
     "DISK_INSUFFICIENT_DB": "The disk holding the database is full ({free} left); startup stopped and no data was deleted",
     "DISK_INSUFFICIENT_MODELS": "Not enough space for models: {req} needed, {free} left",
     "DISK_INSUFFICIENT_THUMBS": "Not enough space for thumbnails: about {req} needed, {free} left",
@@ -140,12 +142,30 @@ def rows() -> list[tuple[str, str, str, str, str]]:
     return out
 
 
+OPEN, CLOSE = "（(「“", "）)」”"
+
+
 def _title(msg: str, seps: str) -> str:
-    for s in seps:
-        i = msg.find(s)
-        if i > 0:
+    """The first clause — never cut inside brackets or quotes (I18N-010)."""
+    depth = 0
+    for i, ch in enumerate(msg):
+        if ch in OPEN:
+            depth += 1
+        elif ch in CLOSE:
+            depth = max(0, depth - 1)
+        elif depth == 0 and ch in seps and i > 0:
             return msg[:i]
     return msg
+
+
+# English titles where the sentence is built differently from the Chinese one: the same variables as the zh title
+EN_TITLE: dict[str, str] = {
+    "BENCH_GOLDEN_TOO_SMALL": "Not enough labelled photos in the golden set",
+    "DISK_LOW_THUMBS": "The thumbnail folder has {free} left",
+    "FS_FILE_LOCKED": "“{path}” is in use by another program",
+    "SEARCH_MODEL_MISMATCH": "The search index was built with {old}",
+    "VRAM_OFFLOAD": "Not enough VRAM to fit the whole model on the GPU",
+}
 
 
 def build() -> dict[str, dict[str, dict[str, str]]]:
@@ -153,13 +173,18 @@ def build() -> dict[str, dict[str, dict[str, str]]]:
     for code, sev, msg_zh, cta_zh, cta_en in rows():
         msg_en = EN[code]
         zh[code] = {"title": _title(msg_zh, "，："), "message": msg_zh, "cta": cta_zh, "severity": sev}
-        en[code] = {"title": _title(msg_en, ";:"), "message": msg_en, "cta": cta_en, "severity": sev}
+        en[code] = {
+            "title": EN_TITLE.get(code) or _title(msg_en, ";:"),
+            "message": msg_en,
+            "cta": cta_en,
+            "severity": sev,
+        }
     return {"zh-TW": zh, "en": en}
 
 
 # 08 §8.3: single-user wording. The overlay holds only the entries whose text changes.
 SOLO = {
-    "zh-TW": [(r"\s*Workspace\s*", "圖庫"), (r"\s*Worker\s*", "本機引擎")],
+    "zh-TW": [(r"\s*Workspace\s*", "圖庫"), (r"工作區", "圖庫"), (r"\s*Worker\s*", "本機引擎")],
     "en": [
         (r"\bWorkspace\b", "Library"),
         (r"\bworkspace\b", "library"),

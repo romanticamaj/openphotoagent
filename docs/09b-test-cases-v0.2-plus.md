@@ -44,6 +44,10 @@
 | SRCH-PLAN-017 | 對照表外的年份 | 「1850 過年」 | 不加日期 filter、不拋例外；explain 說明超出範圍 | U | #62 |
 | SRCH-PLAN-018 | planner chips（05 §2.3 UI） | 搜尋框輸入「2022 年 3 月」 | 顯示可移除的日期 chip（explain 文字）；結果數與 API 相同；移除 chip 後以剩餘條件重跑 | E | #62 |
 | SRCH-PLAN-019 | 回歸：只有停用詞 | 「photo」「的 照片」 | 沒有任何條件時保留原查詢（不把查詢清成空字串而變成全部照片） | U | #62 |
+| SRCH-PLAN-020 | 問句不是搜尋文字（回歸） | 「我有幾張滑雪的照片？」「幫我找海邊的照片」等 | 只留下主題詞 | U | #24、#40 |
+| SRCH-PLAN-021 | 沒有 LLM planner 的 worker 明確回覆（回歸） | `query_plan` RPC | 不記 `UNKNOWN_RPC`；回空結果，API 退回規則式 | U | #24 |
+| SRCH-SEM-008 | 向量下限（回歸，ADR-0027） | 有下限的空間：相近與不相近的照片；沒有相符；沒有下限的空間 | 低於下限的不計入 total 與 items，列在 related；沒有相符時 total 0；沒有下限時行為不變 | I | #24 |
+| SRCH-SEM-009 | 下限來自模型目錄 | SigLIP2 與未知 fingerprint | 0.07；未知為 None；不需重新嵌入 | U | 不變量 7 |
 | CORE-LUNAR-001 | 初一對照表 | `opagent_core.lunar` | 1900–2099 每年一筆；2024-02-10、2025-01-29、2026-02-17、2030-02-03 正確；`gen_lunar_table.py --check` 一致 | U | #62 |
 
 ### 1.3 SRCH-IMG、SRCH-DUP：以圖搜圖與重複
@@ -73,6 +77,7 @@
 | TRASH-007 | trash 永不自動核准 | `mcp.auto_approve` 含 trash | 設定驗證拒絕（與 move 同級） | U/S | #69 | v0.2 |
 | TRASH-008 | 當機注入 | trash rename 前後 kill -9 | 09a OUT-CRASH 不變量成立 | X | #59 | v0.2 |
 | TRASH-009 | `/trash/summary` | 3 個 plan 的 trash 檔 | 回傳檔案數、總 bytes、最早到期日（解除安裝提示用） | I | #10 | v0.1 端點／v0.2 資料 |
+| TRASH-010 | 到期時間一律是 UTC（回歸） | 資料庫 session 時區為 `Asia/Taipei` | `earliest_expiry` 的 offset 為 `+00:00`（時區來自 initdb 所在機器，回應曾隨機器而變） | I | #10 | v0.2 |
 | XMP-001 | 寫入 sidecar | `sidecar_xmp` | `.xmp` 含 `dc:subject`、`dc:description`、`lr:hierarchicalSubject`；exiftool 讀回與預期相同 | I | #50 | v0.2 |
 | XMP-002 | 相容性 | 用 digiKam／Lightroom 範例 XMP schema 驗證；手動清單：digiKam、Lightroom Classic 匯入 | 讀出 tags | C/M | #50 | v0.2 |
 | XMP-003 | 合併既有 XMP | 已存在 XMP 含評分與未知 namespace | 保留原有欄位，只合併我們的欄位；先備份原 XMP | I | #50 | v0.2 |
@@ -138,6 +143,7 @@
 
 | ID | 標題 | 前置／輸入 | 預期 | 層 | # |
 |----|------|-----------|------|----|---|
+| MCP-SCOPE-001 | 全矩陣（見上） | 27 tools × 10 單一 scope token，加上全部 scope 與無 scope | `tools/list` 恰為可呼叫的集合；其餘一律 -32601 並記錄拒絕原因（ADR-0009） | C | #68 |
 | MCP-SCOPE-002 | 預設 token | 精靈建立的本機 PAT | scopes 恰為 `[photos:read]`；不含 `photos:media`、`faces:*`（D-1） | I | #68 |
 | MCP-SCOPE-003 | 唯讀呼叫寫入 | 只有 `photos:read` 呼叫 `update_labels` | `-32601`；`mcp_call_log` 記 `denied/insufficient_scope`（ADR-0009）；沒有寫入任何 review | I | #68 |
 | MCP-SCOPE-004 | faces 雙重閘門 | 有 `faces:read` 但 `mcp.faces_enabled=false` | faces tools 不出現；`PhotoSummary.people` 欄位**不存在**（不是空陣列）；`persons_*` filter 回 403 | I | #67 |
@@ -235,10 +241,12 @@
 | MCP-TRN-005 | 錯誤帶錯誤碼不帶 fix_id | 觸發 `SEARCH_INDEX_INCOMPLETE` | tool result 帶 `code` 與 `fixes[].label`，**沒有** `fix_id` | C | #72 | v0.2 |
 | MCP-TRN-006 | `--experimental` 唯讀 stdio | v0.1 若啟用（11 §5.5 例外） | 只提供 photos:read tools | C | #60 | v0.1（選用） |
 | MCP-TRN-007 | HTTP `/mcp` + OAuth | Claude Code 以 `/mcp` 完成 OAuth；撤銷 grant | 撤銷後下一次呼叫失敗；Host／Origin 驗證 | I/S | #73 | v0.5 |
-| MCP-PAT-001 | keyring 儲存 | 精靈建立 PAT | 存在 OS keyring；設定檔不含明文；Linux 無 Secret Service 時降級 0600 檔並顯示警示 | I/S | #60 | v0.2 |
+| MCP-TRN-008 | stdio 一律 UTF-8（回歸） | 主控台字碼頁 cp1252，輸出中文 | 不崩潰，位元組為 UTF-8 | U | Windows |
+| MCP-PAT-001 | keyring 儲存 | 精靈建立 PAT | 存在 OS keyring；設定檔不含明文；Linux 無 Secret Service 時降級 owner-only 檔（0600，ADR-0024）並顯示警示 | I/S | #60 | v0.2 |
 | MCP-PAT-002 | 精靈只寫已知路徑 | 偵測 Claude Desktop／Claude Code／Cursor 設定 | 顯示 diff 後才寫；只寫已知設定檔路徑表內的檔案；寫入前備份 | E | #61 | v0.2 |
 | MCP-PAT-003 | 設定寫絕對路徑 | 產生的 client 設定 | `command` 為 `opagent` 的絕對路徑（安裝程式不改 PATH） | U | #60 | v0.2 |
 | MCP-PAT-004 | media 勾選說明 | 精靈勾選 `photos:media` | 顯示外送說明文案；未勾選時 token 無 media scope | E | #70 | v0.2 |
+| MCP-PAT-007 | 精靈寫入的設定真的能啟動（回歸） | 安裝版，PATH 上沒有 `opagent` | command 為 app 的 Python，args 含 `-m opagent_cli mcp --home <資料夾>`；有 CLI 時用絕對路徑 | U | B-15 |
 
 ---
 
@@ -268,6 +276,9 @@
 | FACE-CLU-003 | ID 穩定 | 未命名群組在新資料加入後重跑 | Jaccard ≥ 0.5 者沿用舊 ID | U | #76 |
 | FACE-CLU-004 | 小群組摺疊 | 群組 < 3 張臉 | 歸入「其他臉孔」 | U | #76 |
 | FACE-CLU-005 | 大池退路 | n > 50k（合成） | 走近似 k-NN 圖；失敗時退回 Chinese Whispers；完成時間記錄（nightly） | I/F | #76 |
+| FACE-CLU-010 | 自動分群（回歸） | 新臉達門檻；已分過；功能關閉 | Worker 閒置時要求分群，建立 `face.cluster` Operation；沒有新臉或關閉時不跑 | I | #76 |
+| FACE-CLU-011 | 人物有代表照片（回歸） | 分群後 | `/people` 帶 cover | I | #76 |
+| FACE-UI-010 | 人物頁可用（回歸） | 有人物、沒有人物 | 卡片有照片；點開看到此人的照片；可命名；空狀態說明原因 | C | #76 |
 | FACE-MGT-001 | 合併可 undo | 合併 A→B | A 的指派全到 B、`merged_into=B`；undo 後完全還原 | I | #77 |
 | FACE-MGT-002 | 拆分 | 框選 5 張「移出為新人物」 | 新 person 凍結；原 person 少 5 張 | I | #77 |
 | FACE-MGT-003 | 合併建議不自動 | prototype 相似度 0.6 ≥ τ_merge | 只出現在建議清單 | U | #77 |
@@ -290,6 +301,13 @@
 | FACE-SPACE-001 | 換模型藍綠 | 切換 embedding 模型 | 期間舊結果可用；人工決策在新 space 重建；完成原子切換；舊 space 7 天後刪除 | I | #83 |
 | FACE-SPACE-002 | 消失資產清理 | asset 消失 30 天 | 其人臉資料刪除 | I | #82 |
 | FACE-N-001 | 真模型品質 | nightly，授權許可的人臉評估集【待 M0 確認】 | 自動指派 FAR ≤ 0.1% 時的 TAR 記錄；門檻建議產生 | N | #76 |
+| FACE-ORT-001 | YuNet 輸出解碼（回歸） | 合成的 stride 8 輸出；低於門檻的分數 | bbox、landmark、分數落在正確格點；低分被捨棄 | U | 07 §2.2 |
+| FACE-ORT-002 | NMS（回歸） | 重疊框與遠處的框 | 留下分數最高者與不重疊者 | U | 07 §2.2 |
+| FACE-ORT-003 | 五點對齊（回歸） | 已知的相似變換；畫面上的標記點 | 還原比例、旋轉、平移；landmark 落在 ArcFace 樣板上 | U | 07 §2.2 |
+| FACE-ORT-004 | 品質訊號（回歸） | 正臉、側臉、模糊與銳利的影像 | yaw 與清晰度方向正確 | U | 07 §2.2 |
+| FACE-ORT-005 | 兩個人臉模型都到位才啟用（回歸） | 只有偵測模型；兩者都有 | 只有偵測模型時不啟用；fingerprint 含兩個模型 | U | 不變量 7 |
+| FACE-BKL-001 | 列出尚未做人臉的照片（回歸） | 先整理、後開啟人臉；分頁；已有 face 的照片；未開啟 | 開啟後才列出；可分頁；已有 face 的不列 | I | #74 |
+| FACE-BKL-002 | 閒置時回填（回歸） | 無模型；有模型；檔案不見；重啟；換模型 | 無模型不動作；壞檔跳過不中止；游標跨重啟；新模型從頭開始 | U | #74 |
 
 ---
 
@@ -331,6 +349,7 @@
 | ASK-UI-001 | 建議問題 chips 依資料產生 | 圖庫 top tag 為「貓」、最近年份 2025；Lightbox 單張 | 「我有幾張貓？」「貓的照片」「2025 年的照片」；單張先給「在哪裡／什麼時候」；**不呼叫 LLM** | I | #100 |
 | ASK-UI-002 | 快捷鍵與面板互斥 | `⌘I`／`Ctrl+I`；面板開著時按 `⌘J` | ⌘I 開關問 AI；開活動中心（⌘J，ACT-005）會關掉問 AI，反之亦然；關閉後焦點回到開啟它的元素（ADR-0013） | E | #102 |
 | ASK-LLM-001 | OpenAI 相容 client | llama-server `--jinja` 或外部 endpoint；tool call、壞 JSON、未提供的 tool、逾時、探測 | 只接受本輪提供的 tool 與合法 JSON 物件；逾時安靜回空答案；從不送影像；探測 3/3 才開 tool loop；外部 endpoint 必須 https；API key 存 OS keyring、不回傳；egress log 記實際送出的 bytes | C/I | #101、#105 |
+| ASK-SRCH-001 | 標籤詞不擋住沒標籤的照片（回歸，ADR-0027） | 問「幫我找海邊的照片」，有張照片只有 caption 提到海邊 | 也被找到；使用者編輯過的 chips 仍是硬條件 | I | #40 |
 
 ---
 
@@ -344,6 +363,7 @@
 | WATCH-004 | 事件遺失補償 | 停用 watcher 期間新增檔案 | 重新啟用時做增量掃描補上 | I | #57 |
 | WATCH-005 | 大量事件 | 一次放入 5,000 檔 | 批次合併；不爆量建 Job | F | #57 |
 | WATCH-006 | 網路磁碟無原生事件 | SMB／NFS root | 改用定期增量掃描（間隔設定）並在 UI 說明 | I | #57 |
+| WATCH-007 | Windows 網路磁碟改用輪詢（回歸） | 對應的網路磁碟機（`GetDriveTypeW` = remote）、UNC 路徑、本機與卸除式磁碟；反斜線與大小寫 | 網路磁碟與 UNC 為 `poll`，本機為 `native`（只讀 `/proc/mounts`，Windows 的網路磁碟曾一律當成 `native`，事件不可靠） | U | #57 |
 | BENCH-001 | 兩模型比較 | golden set 已標 200 張、兩個候選 | 輸出準確率、速度、VRAM、門檻覆蓋率曲線 | I/N | #35 |
 | BENCH-002 | golden set 下限 | 標註 < 下限 | preflight `benchmark.run` blocker | U | #35 |
 | BENCH-003 | 自動門檻建議 | benchmark 完成 | 建議 τ 值並可一鍵套用（只改門檻 → 不重算） | U | #35 |
@@ -491,8 +511,52 @@
 
 > 8.6 依 **ADR-0015**（C-21 定案）：v0.5 內建精簡 AS（Authlib），外部 IdP 之後以進階模式提供。
 
-## 9. v1.0（骨架；開工前細化）
+## 9. v1.0 — 穩定版（細化於 2026-11-03；VERSIONING §4；08 §9.2 v1.0 列；09 §5）
 
-| ID | 標題 | 預期 | 層 | # | 版 |
-|----|------|------|----|---|----|
-| SEC-AUDIT-001 | v1.0 安全審查 | 路徑沙箱 fuzz 1 億例、MCP 紅隊擴充至 100 條、人臉刪除驗證，由外部審查 | S/M | — | v1.0 |
+> 原則：v1.0 對 VERSIONING §4 列出的每個介面都做出相容性承諾。每個介面都有一份 **快照**（`contracts/`），CI 會比對目前的程式碼和快照：只允許「加」（新的 endpoint、選填欄位、新的 tool），任何移除、改名、改型別、把選填改成必填，都會讓 CI 失敗。真的需要破壞時，就要升 `/api/v2`、主版本，或 tool manifest 的 major，並在 CHANGELOG 附上遷移說明。
+
+### 9.1 介面凍結與快照（VERSIONING §4）
+
+| ID | 標題 | 前置／輸入 | 預期 | 層 | # |
+|----|------|-----------|------|----|---|
+| FRZ-001 | REST `/api/v1` 快照 | 產生 OpenAPI，與 `contracts/openapi-v1.json` 比對 | 完全相同即通過；只有新增 path、method、選填欄位、回應欄位時，要求以 `just contracts-update` 更新快照；移除 path、改型別、新增必填參數都會失敗，並列出差異 | C | #— |
+| FRZ-002 | Worker 協定快照 | `protocol_version`、`welcome` 欄位、`/worker-api/v1` endpoint 與 request schema | 同 FRZ-001 的規則；`protocol_version` 的 major 沒有升而 schema 出現破壞性變更時失敗；CP 仍服務 N 與 N-1 | C | #12 |
+| FRZ-003 | MCP tool manifest 快照 | 全部 tool 的名稱、scope、`available_from`、inputSchema，加上 manifest `version` | 新增 tool 或選填參數可以；移除或改名 tool、新增必填參數、改 scope 都失敗；manifest `version` 為 1.0.0 | C | #73 |
+| FRZ-004 | Runtime pack 介面 | `pack_api` 整數、`packs.lock.json` 與 pack index 的 schema | 快照比對；同一個 minor 內 `pack_api` 不變 | C | #— |
+| FRZ-005 | Model registry `schema_version` | 以 v0.1 格式的 registry YAML（fixtures）載入 | 自動遷移到目前的 schema、內容不變；JSON schema 快照比對 | C | #— |
+| FRZ-006 | Preset schema | v0.3 匯出的 preset（schema_version 1 與 2，fixtures） | v1.0 可以匯入，而且結果與當時相同；JSON schema 快照比對 | C | #— |
+| FRZ-007 | 相容性比對器 | 合成的 schema 差異（property test） | 新增屬性、新增選填參數、新增 enum 值（回應端）判為「相容」；移除、改型別、新增必填、收窄 enum（請求端）判為「破壞」；判斷結果不受欄位順序影響 | U | #— |
+
+### 9.2 安全審查（08 §9.2）
+
+| ID | 標題 | 前置／輸入 | 預期 | 層 | # |
+|----|------|-----------|------|----|---|
+| SEC-FUZZ-001 | 路徑沙箱 1,000,000 例 fuzz | SafePath 的 hypothesis 與隨機生成器，固定 seed，nightly 跑 1,000,000 例（PR 跑 10,000 例） | 0 逃逸：沒有任何結果落在 root 外，或解析到 symlink 目標、保留名、`..` | S/N | #— |
+| SEC-REDTEAM-001 | MCP 紅隊集擴充 | 確定性的紅隊集擴充到 ≥ 100 條：注入出現在 caption、EXIF、檔名、相簿名、人物名、OCR 文字；偽造的 tool 結果；越權 scope；跨資料夾 handle | 未經核准的寫入 = 0；越權存取 = 0；每條都有分類標籤與預期 | S | #71 |
+| SEC-FACE-001 | 人臉資料刪除可驗證 | 啟用人臉 → 掃描 → 命名 → 「刪除所有人臉資料」 | `bio` schema 的向量、群組、人物連結全部為 0；Worker 的 crop 與 vault 不存在；金鑰已銷毀；刪除之後的備份不含 `bio`；產生的刪除報告（計數、時間、雜湊）可以重新驗證 | S | #— |
+| SEC-SBOM-001 | SBOM 與漏洞掃描 | 為 Python（uv.lock）、npm（pnpm-lock）、Rust（Cargo.lock）產生 CycloneDX SBOM，並執行漏洞掃描 | SBOM 涵蓋 lockfile 裡的每個套件；High 或 Critical 漏洞為 0，或已在 `security/vex.json` 寫明不受影響的理由；CI release-gate 會執行 | S/N | #— |
+| SEC-AUDIT-001 | 外部安全審查 | 路徑沙箱、MCP、人臉刪除、control plane 認證 | 由外部審查者完成並記錄 | M | #— |
+
+### 9.3 i18n 與 a11y
+
+| ID | 標題 | 前置／輸入 | 預期 | 層 | # |
+|----|------|-----------|------|----|---|
+| I18N-010 | 兩種語言完整 | en 與 zh-TW 的所有 locale 檔 | 兩邊的 key 集合相同；沒有空字串；zh-TW 沒有和 en 一模一樣的句子（白名單除外，例如品牌名）；插值變數兩邊相同 | C | #— |
+| I18N-011 | 錯誤碼目錄雙語 | 06 §4.7 的所有錯誤碼 | 每個錯誤碼在兩種語言都有 title、message、修復按鈕文字 | C | #— |
+| A11Y-010 | 每個頁面通過 axe | 所有 route（含 v0.5 的登入頁），淺色與深色 | serious 與 critical 違規為 0 | E | #— |
+| A11Y-011 | 鍵盤可走完主要流程 | 只用鍵盤：加入資料夾 → 整理 → 核准 → undo；搜尋 → Lightbox；問 AI | 每一步都能到達，焦點順序合理且可見；沒有鍵盤陷阱 | E | #— |
+
+### 9.4 升級與遷移
+
+| ID | 標題 | 前置／輸入 | 預期 | 層 | # |
+|----|------|-----------|------|----|---|
+| MIG-001 | 從 v0.x 各版升級 | 以每個里程碑（v0.1～v0.5）的 schema 建立資料庫並放入樣本資料 → `migrate()` | 升級到 head 後，schema 與目前的 models 完全一致（Alembic compare 為空）；樣本資料都還在；升級前有備份 | I | #— |
+| MIG-002 | 桌面資料夾 `layout_version` | layout 1 的資料夾 | 先備份，再遷移到目前的 layout；重複執行不會出錯；layout 比 app 新時拒絕並給出修復 CTA | I | #— |
+| MIG-003 | 破壞性變更都有遷移說明 | CHANGELOG 中每一條 `BREAKING`／`⚠` | 每一條都附有 `Migration:` 段落；工具檢查 | C | #— |
+
+### 9.5 Stable 通道
+
+| ID | 標題 | 前置／輸入 | 預期 | 層 | # |
+|----|------|-----------|------|----|---|
+| UPD-010 | stable 與 beta 通道 | updater manifest 含 1.0.0、1.1.0-beta.1 | stable 只提供正式版；beta 兩者都會提供；從 beta 切回 stable 時不會降級，而是等到下一個 stable；manifest 簽章錯誤時拒絕 | U | #— |
+| REL-010 | v1.0 發版清單 | `docs/checklists/release-v1.0.md` | 列出所有手動驗證項目，並連到 BLOCKERS 中的對應項目 | M | #— |

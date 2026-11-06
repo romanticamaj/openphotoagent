@@ -37,11 +37,11 @@ def test_perf_004_scan_throughput_does_not_regress(sandbox_tree, tmp_path):
     assert len(res.entries) == N
     rate = N / secs
     machine = os.environ.get("OPAGENT_PERF_MACHINE") or f"{platform.system()}-{platform.machine()}-{os.cpu_count()}cpu"
-    base = json.loads(BASELINES.read_text()) if BASELINES.exists() else {}
+    base = json.loads(BASELINES.read_text(encoding="utf-8")) if BASELINES.exists() else {}
     print(f"PERF-004 {machine}: {rate:.0f} files/s ({secs:.1f} s for {N})")
     ref = base.get(machine)
     if ref is None:  # first run on this machine records its baseline (commit it from the nightly artefact)
         base[machine] = {"files_per_s": round(rate, 1)}
-        BASELINES.write_text(json.dumps(base, indent=1, sort_keys=True) + "\n")
+        BASELINES.write_text(json.dumps(base, indent=1, sort_keys=True) + "\n", encoding="utf-8")
         return
     assert rate >= ref["files_per_s"] * 0.85, f"scan throughput regressed: {rate:.0f} < 85% of {ref['files_per_s']}"

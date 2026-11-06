@@ -12,8 +12,8 @@
     "pickFolder": "Choose a folder to organize",
     "useThisFolder": "Use this folder",
     "method": "How to organize",
-    "byDate": "By date",
-    "byDateHint": "Year / month folders from the capture date — no model download needed",
+    "byDate": "By date (no AI)",
+    "byDateHint": "Sorts into year and month folders only. Content isn't analysed, so you can't search what's in the photos.",
     "pickMethodFirst": "Choose a method first",
     "noWritableTarget": "No writable output location",
     "output": "Output",
@@ -24,8 +24,8 @@
     "doneTitle": "All done",
     "undo": "Undo",
     "undoneTitle": "Undone",
-    "byContent": "By content (12 built-in categories)",
-    "byContentHint": "Image similarity plus a vision-language model sort photos into 12 categories",
+    "byContent": "By content (AI, 12 built-in categories)",
+    "byContentHint": "AI looks at each photo and sorts it into 12 categories. You can then search by what's in them.",
     "custom": "Custom categories",
     "customHint": "Define your own categories and teach them with a description and example photos",
     "advanced": "Advanced",
@@ -84,7 +84,8 @@
     "moveNeedAck": "Tick the confirmation first",
     "moveNeedText": "Type the confirmation text",
     "close": "Cancel",
-    "summaryTrash": "Move {count} to the trash, keeping one copy of each group. You can undo at any time"
+    "summaryTrash": "Move {count} to the trash, keeping one copy of each group. You can undo at any time",
+    "addFolder": "Add a folder…"
   },
   "eta": {
     "slow": {
@@ -197,7 +198,8 @@
       "job.label": "Organizing",
       "output.apply": "Applying",
       "output.undo": "Undoing",
-      "search.reindex": "Building search index"
+      "search.reindex": "Building search index",
+      "face.cluster": "Grouping faces"
     },
     "open": "Activity",
     "resume": "Resume",
@@ -341,7 +343,10 @@
     "retry_later": "Try again later",
     "confirm_remote_code": "Review and confirm the code",
     "immich": "Open the Immich settings",
-    "retype": "Type it again"
+    "retype": "Type it again",
+    "consequence_label": "If you choose this:",
+    "compose__f_compose_cuda_yml": "Copy the GPU compose command",
+    "worker_run": "Show the start command"
   },
   "nav": {
     "label": "Main navigation",
@@ -356,12 +361,17 @@
     "duplicates": "Duplicates",
     "people": "People",
     "ask": "Ask AI",
-    "map": "Map"
+    "map": "Map",
+    "import": "Import",
+    "groupLibrary": "Library",
+    "groupWork": "Work",
+    "groupSystem": "System",
+    "explore": "Categories"
   },
   "viewer": {
     "title": "Photos",
     "grid": "Photo grid",
-    "empty": "No photos yet. Pick a folder to get started.",
+    "empty": "No photos yet",
     "unknownDate": "Unknown date",
     "dateFromMtime": "From file time",
     "count_one": "{count} photo",
@@ -374,7 +384,10 @@
     "jumpGo": "Go",
     "jumpInvalid": "That date wasn't understood; try e.g. 2019-03",
     "photoAlt": "Photo, {date}",
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "emptyHint": "Pick a folder and see what it holds before you add it. Your originals stay as they are.",
+    "emptyAction": "Import photos",
+    "arriving": "Your photos are on their way…"
   },
   "lightbox": {
     "label": "Photo viewer",
@@ -406,7 +419,8 @@
       "layer": "Decided by",
       "human": "Your correction",
       "none": "Not analysed yet",
-      "advanced": "Advanced details"
+      "advanced": "Advanced details",
+      "tags": "Tags"
     },
     "layer": {
       "embedding": "Image similarity",
@@ -448,7 +462,8 @@
       "vulkan": "Vulkan (compatibility)",
       "cuda": "CUDA",
       "cpu": "CPU",
-      "metal": "Metal"
+      "metal": "Metal",
+      "allInstalled": "The models are already installed. Nothing to download."
     },
     "download": "Start download",
     "pickTitle": "Choose your photo folder",
@@ -481,7 +496,8 @@
     "loadMore": "Load more",
     "none": "No matching photos",
     "indexing": "{have} / {total} photos searchable (text-to-image)",
-    "degraded": "Text-to-image search is unavailable right now; showing text matches only"
+    "degraded": "Text-to-image search is unavailable right now; showing text matches only",
+    "related": "Possibly related"
   },
   "problem": {
     "chosen": "Switched to {what}"
@@ -629,7 +645,10 @@
     "skipWrite": "I'll set it up myself",
     "written": "Wrote {path}",
     "backup": "The previous config is at {path}",
-    "restartClient": "Restart {client}."
+    "restartClient": "Restart {client}.",
+    "enabled": "Enable MCP Server",
+    "test": "Test connection",
+    "testOk": "Connected: this app can search your photos"
   },
   "approval": {
     "title": {
@@ -693,7 +712,11 @@
     "typeName": "Type the library name “{name}” to confirm",
     "typeNameFirst": "Type the library name first",
     "disableAndDelete": "Turn off and delete",
-    "disableOnly": "Turn off only"
+    "disableOnly": "Turn off only",
+    "whoIsThis": "Who is this?",
+    "saveName": "Save name",
+    "nameFirst": "Enter a name first",
+    "grouping": "No people yet. Once analysis finishes, the same faces are grouped together here."
   },
   "ask": {
     "open": "✦ Ask AI",
@@ -788,5 +811,100 @@
     "rateLimited": "Too many attempts. Wait a minute and try again.",
     "workspace": "Workspace",
     "signOut": "Sign out"
+  },
+  "fix_consequence": {
+    "capable_model": "Uses a different model that supports this task; results may differ from your usual model.",
+    "continue_anyway": "Keeps going, but noticeably slower than usual.",
+    "continue_unverified": "The file's integrity cannot be checked; continue only if you trust this source.",
+    "cpu": "Runs on the CPU: much slower, but independent of the GPU driver.",
+    "cpu_build": "Uses the CPU build of the runtime: slower until the pack is repaired.",
+    "cpu_combo": "Runs entirely on the CPU with smaller models: slower and slightly less accurate.",
+    "cpu_ep": "Uses the CPU instead: search vectors and face detection are slower.",
+    "force_rerun": "Runs inference again on photos that already have results; uses GPU time.",
+    "installed_q4": "Uses the smaller variant you already have: slightly lower accuracy.",
+    "keep_skipping": "Videos and RAW files that need ffmpeg stay skipped.",
+    "llamacpp": "Uses llama.cpp instead: broader hardware support, possibly slower.",
+    "llamacpp_vulkan": "Uses llama.cpp with Vulkan: works on this GPU, usually slower than the native runtime.",
+    "local_model": "Runs on this workspace's own worker; nothing is sent to the external service.",
+    "lower_resolution": "Analyses smaller copies of the photos: less detail in captions and tags.",
+    "other_variant": "Uses another variant of the model: speed and accuracy may differ.",
+    "q4_k_m": "Uses the Q4_K_M variant: fits in less VRAM, slightly lower accuracy.",
+    "queue_after": "Starts when the running job finishes.",
+    "reapply_thresholds": "Re-applies the new thresholds to existing results without running inference again.",
+    "skip_conflicts": "Files changed since organizing stay where they are; everything else is undone.",
+    "smaller_model": "Uses a smaller model: needs less memory, slightly lower accuracy.",
+    "smaller_variant": "Uses a smaller variant: less space and memory, slightly lower accuracy.",
+    "t256_only": "Keeps only the smallest thumbnails: less detail in the viewer until there is space.",
+    "vulkan": "Uses the Vulkan runtime: works with this driver, may be slower."
+  },
+  "boot": {
+    "starting": "Starting OpenPhotoAgent…",
+    "failed": "OpenPhotoAgent could not start",
+    "failedHelp": "Your photos and data were not touched. Please include the details below in your report.",
+    "logs": "Log folder",
+    "copy": "Copy diagnostics",
+    "reconnecting": "Reconnecting… everything on screen is still here."
+  },
+  "library": {
+    "importTitle": "Import photos",
+    "importLede": "After you add a folder, its photos appear in the library and AI analyses them in the background. Organizing into folders is a later choice.",
+    "pickTitle": "Choose a folder",
+    "pickHint": "Pick a folder on the left to see what it holds.",
+    "counting": "Counting…",
+    "previewFailed": "Can't show this folder right now. You can still add it.",
+    "empty": "This folder has no photos.",
+    "emptyTryChild": "No photos at this level. Open a subfolder on the left.",
+    "skips": "{n} files that aren't photos will be skipped.",
+    "truncated": "This folder is very large: counts stop at the first 50,000 files.",
+    "safe": "Nothing in this folder will be changed or moved.",
+    "photos": "photos",
+    "videos": "videos",
+    "size": "total size",
+    "dates": "dates taken (sampled)",
+    "sampleAlt": "A sample photo from this folder",
+    "outputFolder": "Output",
+    "addAndAnalyze": "Add to library and analyse",
+    "scanOnly": "Add the photos without AI analysis for now"
+  },
+  "dock": {
+    "label": "Progress",
+    "title": "Working on your photos",
+    "minimize": "Minimize",
+    "close": "Close",
+    "waitingScan": "after the scan",
+    "keepUsing": "Keep using the app. Photos appear as they are ready.",
+    "done": "Analysis finished",
+    "doneCount": "Analysis finished: {n} photos",
+    "seePhotos": "See photos",
+    "organize": "Organize into folders",
+    "stage": {
+      "scan": "Scanning files",
+      "job.label": "AI analysis",
+      "output.apply": "Copying files",
+      "output.undo": "Undoing",
+      "face.cluster": "Grouping faces"
+    },
+    "preparing": "Getting ready…",
+    "now": "Analysing now",
+    "latest": "Just finished",
+    "folders": "Folder progress",
+    "failed": "{n} failed",
+    "state": {
+      "queued": "Queued",
+      "scanning": "Scanning"
+    }
+  },
+  "explore": {
+    "title": "Categories",
+    "categories": "Categories",
+    "tags": "Tags",
+    "photo": "Photo",
+    "analysed": "AI has analysed {n} photos.",
+    "left": "{n} more to go.",
+    "more": "Load more",
+    "none": "No analysis results yet",
+    "noneHint": "Import a folder and AI analyses each photo. The results show up here.",
+    "analyseRest": "Analyse the remaining {n}",
+    "started": "Analysis started. Progress is in the corner."
   }
 }

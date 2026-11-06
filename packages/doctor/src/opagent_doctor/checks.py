@@ -118,7 +118,7 @@ def skip(why: str = "not applicable") -> Out:
 def fx(ftype: str, fid: str, **payload: Any) -> dict[str, Any]:
     d: dict[str, Any] = {"id": fid, "fix_id": fid, "type": ftype, "kind": ftype, "label_key": f"fix.{fid}"}
     if ftype == "choose_alternative":
-        d["consequence"] = {"key": f"fix.{fid}.consequence"}
+        d["consequence"] = {"key": f"fix_consequence.{fid}"}
     if payload:
         d["payload"] = payload
     return d

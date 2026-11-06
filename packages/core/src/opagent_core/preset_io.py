@@ -25,6 +25,49 @@ MAX_BYTES = 256 * 1024
 ACTIONS = frozenset({"copy", "move", "symlink", "hardlink", "sidecar_json", "xmp", "trash"})
 CONFLICTS = frozenset({"rename", "skip", "overwrite_if_same", "ask"})
 KEY = re.compile(r"^[a-z0-9][a-z0-9-]{0,62}$")
+# The exported document as other software may write it (VERSIONING §4; frozen in contracts/preset-schema.json).
+PRESET_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "required": ["kind", "preset", "schema_version"],
+    "properties": {
+        "kind": {"enum": [KIND]},
+        "schema_version": {"type": "integer"},
+        "preset": {
+            "type": "object",
+            "required": ["key"],
+            "properties": {
+                "key": {"type": "string"},
+                "name": {"type": "string"},
+                "description": {"type": "string"},
+                "categories": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "required": ["key"],
+                        "properties": {
+                            "key": {"type": "string"},
+                            "name": {"type": "string"},
+                            "description": {"type": "string"},
+                            "examples": {"type": "array", "items": {"type": "string"}},
+                        },
+                    },
+                },
+                "output_rules": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "path_template": {"type": "string"},
+                            "when": {"type": "string"},
+                            "action": {"enum": sorted(ACTIONS)},
+                            "conflict_policy": {"enum": sorted(CONFLICTS)},
+                        },
+                    },
+                },
+            },
+        },
+    },
+}
 
 
 class PresetError(ValueError):
@@ -52,7 +95,7 @@ def _parse(text: str) -> dict[str, Any]:
     if len(text.encode("utf-8")) > MAX_BYTES:
         raise PresetError("PRESET_TOO_LARGE", max=MAX_BYTES)
     try:
-        d = yaml.load(text, Loader=_NoAliasLoader)  # noqa: S506 - a SafeLoader subclass that also refuses aliases
+        d = yaml.load(text, Loader=_NoAliasLoader)  # noqa: S506  # nosec B506 - a SafeLoader subclass that also refuses aliases
     except PresetError:
         raise
     except yaml.YAMLError as e:

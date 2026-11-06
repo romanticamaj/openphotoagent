@@ -4,7 +4,6 @@ import io
 import json
 import os
 import socket
-import stat
 import subprocess
 import sys
 import threading
@@ -14,6 +13,7 @@ import pytest
 import uvicorn
 from opagent_api.app import create_app
 from opagent_testing.mcp_harness import M
+from opagent_testing.perms import assert_owner_only
 
 
 def _free_port():
@@ -40,7 +40,9 @@ class Live:
         while not self.server.started:
             self.thread.join(0.02)
         (self.home / "run").mkdir(parents=True, exist_ok=True)
-        (self.home / "run" / "api.json").write_text(json.dumps({"port": self.port, "pid": os.getpid()}))
+        (self.home / "run" / "api.json").write_text(
+            json.dumps({"port": self.port, "pid": os.getpid()}), encoding="utf-8"
+        )
 
     def stop(self):
         self.server.should_exit = True
@@ -67,7 +69,7 @@ def _session(home, pat, lines, *extra):
         [sys.executable, "-m", "opagent_cli", "mcp", *extra],
         input="".join(json.dumps(x) + "\n" for x in lines),
         capture_output=True,
-        text=True,
+        encoding="utf-8",
         env=env,
         timeout=60,
     )
@@ -106,7 +108,7 @@ def test_trn_002_stdio_is_a_thin_client():
         "('sqlalchemy','psycopg','opagent_db','opagent_worker','opagent_fs','opagent_inference','PIL','opagent_api')];"
         "print(','.join(bad))"
     )
-    out = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=60)
+    out = subprocess.run([sys.executable, "-c", code], capture_output=True, encoding="utf-8", timeout=60)
     assert out.returncode == 0, out.stderr
     assert out.stdout.strip() == ""
 
@@ -200,7 +202,7 @@ def test_pat_001_keyring_first_file_fallback(tmp_path, monkeypatch):
         keyring.set_keyring(Fail())
         r = credstore.save("opagent_pat_other", tmp_path)
         assert r == {"store": "file", "warning": "KEYRING_UNAVAILABLE", "path": r["path"]}
-        assert stat.S_IMODE(os.stat(r["path"]).st_mode) == 0o600
+        assert_owner_only(r["path"], 0o600)
         assert credstore.load(tmp_path) == "opagent_pat_other"
     finally:
         keyring.set_keyring(prev)
@@ -228,3 +230,16 @@ def test_stdin_loop_handles_garbage():
     out = io.StringIO()
     serve(Relay(Path("/nonexistent"), "opagent_pat_x", server="http://127.0.0.1:9"), io.StringIO("not json\n"), out)
     assert json.loads(out.getvalue())["error"]["code"] == -32700
+
+
+@pytest.mark.unit
+@pytest.mark.tc("MCP-TRN-008")
+def test_trn_008_stdio_is_utf8_whatever_the_code_page():
+    """回歸: on Windows stdout defaulted to cp1252 and the first Chinese caption killed `opagent mcp`."""
+    code = "from opagent_cli.mcp_stdio import utf8_stdio; utf8_stdio(); print('貓')"
+    env = {k: v for k, v in os.environ.items() if k not in ("PYTHONUTF8", "PYTHONIOENCODING")}
+    r = subprocess.run(
+        [sys.executable, "-X", "utf8=0", "-c", code], capture_output=True, env={**env, "PYTHONIOENCODING": "cp1252"}
+    )
+    assert r.returncode == 0, r.stderr
+    assert r.stdout == "貓\n".encode()

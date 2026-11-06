@@ -144,7 +144,7 @@ def test_info_panel_lists_locations_and_preset_categories(embedded_pg, sandbox_t
     assert all(loc["root_alias"] == "photos" and loc["source_id"] == src and not loc["missing"] for loc in locs)
     p = client.get("/api/v1/presets/by-content-12", params={"lang": "zh-TW"}).json()
     cats = {c["key"]: c["name"] for c in p["categories"]}
-    assert len(cats) == 12 and cats["pets"] == "寵物" and cats["other"] == "其他"
+    assert len(cats) == 12 and cats["pets"] == "動物" and cats["other"] == "其他"
     en = client.get("/api/v1/presets/by-content-12", params={"lang": "en"}).json()
-    assert {c["key"]: c["name"] for c in en["categories"]}["pets"] == "Pets"
+    assert {c["key"]: c["name"] for c in en["categories"]}["pets"] == "Animals"
     assert client.get("/api/v1/presets/nope").status_code == 404

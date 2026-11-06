@@ -30,8 +30,20 @@ impl Supervised {
     }
 }
 
+/// A sidecar is a console program: without this, Windows opens a console window for each one.
+pub fn hide_console(cmd: &mut Command) {
+    #[cfg(windows)]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+    }
+    #[cfg(not(windows))]
+    let _ = cmd;
+}
+
 pub fn spawn_supervised(mut cmd: Command) -> io::Result<Supervised> {
     cmd.stdin(Stdio::piped());
+    hide_console(&mut cmd);
     #[cfg(target_os = "linux")]
     {
         use std::os::unix::process::CommandExt;

@@ -1,0 +1,34 @@
+{
+  "id": "M0-S3b-category_first",
+  "status": "measured",
+  "machine": {
+    "hostname_label": "rtx5070ti-win11",
+    "os": "Windows",
+    "os_release": "11",
+    "arch": "AMD64",
+    "python": "3.12.13",
+    "cpu_count": 24
+  },
+  "metrics": {
+    "n": 1000,
+    "key_order": "category_first",
+    "prompt_style": "product",
+    "first_try_valid_rate": 1.0,
+    "after_repair_valid_rate": 1.0,
+    "enum_violation_rate": 0.0,
+    "logprobs_available_rate": 1.0,
+    "category_first_token_logprob_rate": 1.0,
+    "images_per_s": 0.5364526816205272,
+    "wall_s": 1864.0973085998558,
+    "latency_s_p50": 1.8860134498681873,
+    "latency_s_max": 6.850591899827123,
+    "vram_peak_mib": 15280,
+    "http_errors": 0,
+    "finish_length": 0,
+    "failure_samples": [],
+    "accuracy": 0.729,
+    "labelled": 1000
+  },
+  "pass": true,
+  "notes": "server=http://127.0.0.1:8080; logprobs requirement evaluated separately (rate above). Product zh-Hant prompt with the categories listed. llama.cpp b12121 CUDA 13.4, Qwen3VL-8B Q4_K_M + mmproj F16 from NVMe, -c 8192 -ngl 99 --parallel 2, sequential requests, temperature 0, max_tokens 384. COCO val2017 1000 images, labels DERIVED from COCO annotations and captions, 9 of 12 classes, so accuracy is a proxy."
+}

@@ -41,7 +41,7 @@ def _artefacts(d: Path, version: str):
     }
     for target, name in files.items():
         (d / name).write_bytes(b"x")
-        (d / f"{name}.sig").write_text(f"sig-{target}\n")
+        (d / f"{name}.sig").write_text(f"sig-{target}\n", encoding="utf-8")
     return files
 
 
@@ -67,7 +67,7 @@ def test_upd_006_manifest_matches_the_tauri_updater_schema(tmp_path, version, ch
         str(out),
     )
     assert r.returncode == 0, r.stderr
-    m = json.loads(out.read_text())
+    m = json.loads(out.read_text(encoding="utf-8"))
     assert m["version"] == version  # Tauri compares SemVer without the leading v
     assert m["notes"] == "notes" and m["pub_date"] == "2026-11-02T00:00:00Z"
     assert set(m["platforms"]) == set(files)

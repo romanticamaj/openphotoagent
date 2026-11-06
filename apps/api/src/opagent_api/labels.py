@@ -49,6 +49,11 @@ def human_label(c: Any, asset_id: str, job_id: str | None) -> dict[str, Any] | N
 
 def on_result(st: Any, c: Any, job_id: str, asset_id: str, result_id: str, out: dict[str, Any]) -> None:
     """Called for every new model result: review queue for needs_review, search index outbox."""
+    c.execute(  # a question about a replaced result has no answer worth asking for (IMP-024)
+        update(review)
+        .where(review.c.asset_id == asset_id, review.c.status == "pending", review.c.job_id != job_id)
+        .values(status="superseded", resolved_at=st.clock.now())
+    )
     if out.get("decision") == "needs_review" and human_label(c, asset_id, None) is None:
         exists = c.execute(select(review.c.id).where(review.c.asset_id == asset_id, review.c.job_id == job_id)).first()
         if exists is None:

@@ -259,6 +259,8 @@ SELECT * FROM fused ORDER BY score DESC LIMIT :limit OFFSET :offset;
 | 重複 `find_duplicates` | scope / filter | exact：同 content_hash（asset 已去重，看 `asset_location` 多處）；near：`duplicate_group_id`（scan 時的 pHash/embedding 判定）；可觸發 `dedup` 背景任務重新聚類：對每張 HNSW kNN k=10、cosine ≥ 閾值 → union-find |
 | 代表張 | group | 解析度最高 → 檔案最大 → 最早 taken_at；`is_dup_representative` |
 
+> **（ADR-0027 補充）** 向量路徑有每個 embedding 空間的 cosine 下限（模型目錄的 `embedding.min_cosine`）。低於下限的照片不屬於結果集合，只放在回應的 `related`（最多 24 張，不計數、不進 facet 與 selection）；向量路徑達到 K 時 `total_capped` 為 true。
+
 ### 2.3 Query planner（自然語言 → 結構化）
 
 輸出（同時是 REST `/search` 的請求格式，也是 MCP `search_photos` 的參數）：

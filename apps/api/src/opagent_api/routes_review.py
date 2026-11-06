@@ -130,9 +130,11 @@ def apply_correction(
 
 
 @router.get("/assets/{asset_id}")
-def get_asset(asset_id: str, req: Request) -> dict[str, Any]:
+def get_asset(asset_id: str, req: Request, lang: str = "zh-TW") -> dict[str, Any]:
     """Lightbox info panel: every label with its decision layer and model fingerprint (INF-CAS-005)."""
     from opagent_core.decide import Policy
+
+    from .search import tag_names
 
     with _st(req).engine.begin() as c:
         a = c.execute(select(asset).where(asset.c.id == asset_id)).first()
@@ -155,6 +157,7 @@ def get_asset(asset_id: str, req: Request) -> dict[str, Any]:
                     "stage_fingerprint": raw_out.get("stage_fingerprint"),
                     "caption": r.caption,
                     "tags": r.tags,
+                    "tag_names": tag_names([str(t) for t in r.tags or []], lang),
                     "stages": raw_out.get("stages"),
                     "provenance": (r.raw or {}).get("provenance"),
                 }
