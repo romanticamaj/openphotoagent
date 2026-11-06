@@ -5,6 +5,7 @@ describe("navigation (ADR-0029)", () => {
   it("[IMP-013] 圖庫、工作、系統三組，匯入在工作的第一個", () => {
     const s = navSections(false);
     expect(s.map((g) => g.key)).toEqual(["nav.groupLibrary", "nav.groupWork", "nav.groupSystem"]);
+    expect(s[0].items.map((i) => i.to)).toContain("/explore");
     expect(s[1].items[0].to).toBe("/import");
     expect(s[1].items.map((i) => i.to)).toContain("/organize");
   });

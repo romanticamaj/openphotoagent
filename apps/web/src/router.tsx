@@ -17,6 +17,7 @@ import { currentWorkspace, platform, setCsrf, setWorkspace } from "./lib/platfor
 const PAGES = [
   () => import("./features/organize/OrganizeWizard"),
   () => import("./features/library/ImportPage"),
+  () => import("./features/library/ExplorePage"),
   () => import("./features/onboarding/Welcome"),
   () => import("./features/system/DoctorPage"),
   () => import("./features/system/SettingsPage"),
@@ -38,6 +39,7 @@ export function prefetchPages(delayMs = 3000) {
 }
 const OrganizeWizard = lazy(() => import("./features/organize/OrganizeWizard").then((m) => ({ default: m.OrganizeWizard })));
 const ImportPage = lazy(() => import("./features/library/ImportPage").then((m) => ({ default: m.ImportPage })));
+const ExplorePage = lazy(() => import("./features/library/ExplorePage").then((m) => ({ default: m.ExplorePage })));
 const Welcome = lazy(() => import("./features/onboarding/Welcome").then((m) => ({ default: m.Welcome })));
 const DoctorPage = lazy(() => import("./features/system/DoctorPage").then((m) => ({ default: m.DoctorPage })));
 const SettingsPage = lazy(() => import("./features/system/SettingsPage").then((m) => ({ default: m.SettingsPage })));
@@ -260,6 +262,7 @@ const search = createRoute({
   },
 });
 const importRoute = createRoute({ getParentRoute: () => root, path: "/import", component: ImportPage });
+const exploreRoute = createRoute({ getParentRoute: () => root, path: "/explore", component: ExplorePage });
 const organize = createRoute({
   getParentRoute: () => root,
   path: "/organize",
@@ -270,7 +273,7 @@ const organize = createRoute({
   ),
 });
 
-export const router = createRouter({ routeTree: root.addChildren([photos, welcome, importRoute, organize, plan, reviewRoute, search, duplicatesRoute, modelsRoute, modelRoute, doctorRoute, settingsRoute, integrationsRoute, approvalRoute, peopleRoute, faceReviewRoute, faceSettingsRoute, assistantRoute, mapRoute]) });
+export const router = createRouter({ routeTree: root.addChildren([photos, welcome, importRoute, exploreRoute, organize, plan, reviewRoute, search, duplicatesRoute, modelsRoute, modelRoute, doctorRoute, settingsRoute, integrationsRoute, approvalRoute, peopleRoute, faceReviewRoute, faceSettingsRoute, assistantRoute, mapRoute]) });
 
 declare module "@tanstack/react-router" {
   interface Register {

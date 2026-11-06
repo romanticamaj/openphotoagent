@@ -364,7 +364,8 @@
     "import": "Import",
     "groupLibrary": "Library",
     "groupWork": "Work",
-    "groupSystem": "System"
+    "groupSystem": "System",
+    "explore": "Categories"
   },
   "viewer": {
     "title": "Photos",
@@ -847,7 +848,7 @@
     "previewFailed": "Can't show this folder right now. You can still add it.",
     "empty": "This folder has no photos.",
     "emptyTryChild": "No photos at this level. Open a subfolder on the left.",
-    "skips": "{{n}} files that aren't photos will be skipped.",
+    "skips": "{n} files that aren't photos will be skipped.",
     "truncated": "This folder is very large: counts stop at the first 50,000 files.",
     "safe": "Nothing in this folder will be changed or moved.",
     "photos": "photos",
@@ -867,7 +868,7 @@
     "waitingScan": "after the scan",
     "keepUsing": "Keep using the app. Photos appear as they are ready.",
     "done": "Analysis finished",
-    "doneCount": "Analysis finished: {{n}} photos",
+    "doneCount": "Analysis finished: {n} photos",
     "seePhotos": "See photos",
     "organize": "Organize into folders",
     "stage": {
@@ -876,5 +877,16 @@
       "output.apply": "Copying files",
       "output.undo": "Undoing"
     }
+  },
+  "explore": {
+    "title": "Categories",
+    "categories": "Categories",
+    "tags": "Tags",
+    "photo": "Photo",
+    "analysed": "AI has analysed {n} photos.",
+    "left": "{n} more to go.",
+    "more": "Load more",
+    "none": "No analysis results yet",
+    "noneHint": "Import a folder and AI analyses each photo. The results show up here."
   }
 }

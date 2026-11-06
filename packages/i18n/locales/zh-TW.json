@@ -364,7 +364,8 @@
     "import": "匯入",
     "groupLibrary": "圖庫",
     "groupWork": "工作",
-    "groupSystem": "系統"
+    "groupSystem": "系統",
+    "explore": "分類"
   },
   "viewer": {
     "title": "照片",
@@ -847,7 +848,7 @@
     "previewFailed": "暫時看不到這個資料夾的內容，仍然可以加入。",
     "empty": "這個資料夾沒有照片。",
     "emptyTryChild": "這層沒有照片。從左邊打開子資料夾看看。",
-    "skips": "會略過 {{n}} 個非照片檔案。",
+    "skips": "會略過 {n} 個非照片檔案。",
     "truncated": "檔案很多，數字只算到前 50,000 個。",
     "safe": "不會修改或移動這個資料夾裡的任何檔案。",
     "photos": "張照片",
@@ -867,7 +868,7 @@
     "waitingScan": "等掃描完成",
     "keepUsing": "可以繼續使用 app，照片會陸續出現。",
     "done": "分析完成",
-    "doneCount": "分析完成：{{n}} 張照片",
+    "doneCount": "分析完成：{n} 張照片",
     "seePhotos": "看照片",
     "organize": "整理到資料夾",
     "stage": {
@@ -876,5 +877,16 @@
       "output.apply": "複製檔案",
       "output.undo": "復原"
     }
+  },
+  "explore": {
+    "title": "分類",
+    "categories": "分類",
+    "tags": "標籤",
+    "photo": "照片",
+    "analysed": "AI 已分析 {n} 張照片。",
+    "left": "還有 {n} 張沒分析。",
+    "more": "載入更多",
+    "none": "還沒有分析結果",
+    "noneHint": "匯入資料夾後，AI 會分析每張照片，結果會顯示在這裡。"
   }
 }

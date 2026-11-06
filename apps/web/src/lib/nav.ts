@@ -8,6 +8,7 @@ export function navSections(faces: boolean): NavSection[] {
       key: "nav.groupLibrary",
       items: [
         { to: "/", label: "nav.photos" },
+        { to: "/explore", label: "nav.explore" },
         ...(faces ? [{ to: "/people", label: "nav.people" }] : []), // appears only once faces are on (07 §4.1; FACE-GATE-001)
         { to: "/map", label: "nav.map" },
       ],
