@@ -724,6 +724,18 @@
 | ORG-009 | caption 寫入搜尋 | Job 完成 | caption 經 index_outbox 寫入 `search_doc.tsv`，全文可查到 | I | #43 |
 | ORG-010 | 就地修正回饋 | `PATCH /assets/{id}/labels {category: pets}` | 寫 `review(status=corrected)`；下一次整理 final_label 用 pets；`search_doc` 更新 | I | #56、DoD 5.4 |
 | ORG-011 | 未知的 preset（回歸） | 建立時就不存在；掃描中被刪除 | 建立時回 404 `PRESET_NOT_FOUND`，不建 job；掃描中刪除時 job 失敗，不會卡住 | I | — |
+| IMP-001 | 資料夾預覽（ADR-0029） | 含子資料夾、影片、非照片、隱藏資料夾 | 正確的張數、大小、抽樣日期與樣本；超量時標示；路徑逃逸被拒 | U | — |
+| IMP-002 | 樣本縮圖 | 照片；非照片；逃逸路徑 | 256 px JPEG；其餘被拒 | U | — |
+| IMP-003 | 預覽經由 Worker | `/fs/preview`、`/fs/thumb` | 回傳 Worker 結果；未知 root 回 409 | I | — |
+| IMP-004 | 快速工作不排在掃描後 | `only_kinds` | 只租到指定種類 | I | — |
+| IMP-005 | 分析資料夾不產生計畫 | `POST /sources/{id}/analyze` | 掃描並標註；無計畫、無檔案；重複呼叫回同一工作；沒有模型時回 409 且可改掃描 | I | — |
+| IMP-006 | 掃描中照片陸續出現（回歸） | 分頁大小 1 | 每頁送出後資產即增加 | I | — |
+| IMP-007 | 多執行緒保持順序 | 4 執行緒、分頁 2 | cursor 依檔名遞增 | I | — |
+| IMP-010 | 選資料夾時看得到內容（回歸） | 有照片、空、讀取失敗 | 顯示統計與縮圖；空資料夾不能加入；失敗時說明且可加入 | C | — |
+| IMP-011 | 匯入頁 | 成功；模型未就緒 | 開始分析並回照片頁；顯示原因並可只加入照片 | C | — |
+| IMP-012 | 全域進度卡（回歸，不變量 9） | 掃描中、縮小、完成 | 分階段數字與 ETA；完成後提示下一步 | C | — |
+| IMP-013 | 導覽分組 | 人臉開關 | 三組；匯入在工作第一個；人物依開關出現 | U | — |
+| IMP-014 | 匯入旅程（回歸） | 真實 stack | 預覽→加入→分析→照片出現→前往整理；輸出資料夾沒有檔案；空圖庫導向匯入 | E | — |
 | REV-001 | 低信心建立 review | needs_review 結果 | `review(status=pending, reason=low_confidence)`；SSE `review.created`；計數「待確認 N 張」 | I | #49 |
 | REV-002 | 一次一張與數字鍵 | 待確認頁 | `1–9` 選候選類別、`0` 其他、`Enter` 接受建議、`S` 略過；處理後自動下一張 | E | #49、DoD 5.3 |
 | REV-003 | 逃生門 | 剩 40 張時「略過剩下的，全部放進『其他』」 | 40 張 `final_label=other`（`source=review_skip`）；Job 可進 planning | I/E | #49、DoD 5.3 |
