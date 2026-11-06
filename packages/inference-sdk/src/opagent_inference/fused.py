@@ -191,9 +191,10 @@ def category_probability(tokens: list[dict[str, Any]] | None, chosen: str, candi
     acc = ""
     for t in tokens or []:
         if _CATEGORY_VALUE.search(acc):
-            tops = {str(x["token"]).strip(): float(x["logprob"]) for x in t.get("top_logprobs") or []}
+            # a list, not a dict: "food" and " food" are different tokens with very different probabilities
+            tops = [(str(x["token"]).strip(), float(x["logprob"])) for x in t.get("top_logprobs") or []]
             raw = {
-                c: max((math.exp(v) for k, v in tops.items() if len(k) >= 2 and c.startswith(k)), default=MIN_PROB)
+                c: max((math.exp(v) for k, v in tops if len(k) >= 2 and c.startswith(k)), default=MIN_PROB)
                 for c in candidates
             }
             total = sum(raw.values())

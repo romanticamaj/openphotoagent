@@ -86,7 +86,7 @@ export function ProgressDock() {
             <div className="flex justify-between gap-3 text-sm">
               <span>{t(`dock.stage.${o.type}`)}</span>
               <span className="tnum text-[var(--text-muted)]">
-                {total ? `${(done ?? 0).toLocaleString(i18n.language)} / ${total.toLocaleString(i18n.language)}` : t("dock.waitingScan")}
+                {total ? `${(done ?? 0).toLocaleString(i18n.language)} / ${total.toLocaleString(i18n.language)}` : t(ops.some((x) => x.type === "scan") ? "dock.waitingScan" : "dock.preparing")}
               </span>
             </div>
             <div role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(100 * (o.fraction ?? 0))} aria-label={t(`dock.stage.${o.type}`)} className="h-1.5 w-full rounded bg-[var(--surface-2)]">

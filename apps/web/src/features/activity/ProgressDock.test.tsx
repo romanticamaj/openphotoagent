@@ -61,6 +61,14 @@ describe("progress on every page (ADR-0029, invariant 9)", () => {
     expect(screen.getAllByRole("progressbar").length).toBe(2);
   });
 
+  it("[IMP-012] 掃描結束、AI 還沒開始時不說在等掃描", async () => {
+    state.ops = [op("job.label")];
+    ui();
+    const dock = await screen.findByTestId("progress-dock");
+    expect(dock.textContent).toContain("準備中");
+    expect(dock.textContent).not.toContain("等掃描完成");
+  });
+
   it("[IMP-012] 可以縮小成一行", async () => {
     state.ops = [op("scan", 100, 200)];
     ui();

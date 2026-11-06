@@ -877,7 +877,8 @@
       "job.label": "AI 分析",
       "output.apply": "複製檔案",
       "output.undo": "復原"
-    }
+    },
+    "preparing": "準備中…"
   },
   "explore": {
     "title": "分類",

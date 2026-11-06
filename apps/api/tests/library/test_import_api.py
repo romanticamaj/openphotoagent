@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 from opagent_api.app import create_app
-from opagent_db.schema import asset, engine_for, job, output_plan, result, worker_task
+from opagent_db.schema import asset, engine_for, job, output_plan, result, review, worker_task
 from opagent_inference.fake import FakeBackend
 from opagent_testing.clock import FakeClock
 from opagent_worker.agent import WorkerAgent
@@ -191,3 +191,20 @@ def test_imp_007_threads_keep_the_order_a_resume_depends_on(env):
     env.w.run_until_idle()
     assert cursors == sorted(cursors)
     assert len(cursors) == 6
+
+
+@pytest.mark.integration
+@pytest.mark.tc("IMP-024")
+def test_imp_024_a_new_analysis_retires_the_old_question(env):
+    """回歸 (seen on the reference machine): reviews about results that had been replaced stayed in 待確認."""
+    from opagent_api import labels
+
+    src = env.client.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": ""}).json()
+    env.client.post(f"/api/v1/sources/{src['id']}/scan")
+    env.w.run_until_idle()
+    st = env.client.app.state.opa
+    with env.eng.begin() as c:
+        aid = c.execute(select(asset.c.id)).scalars().first()
+        c.execute(insert(review).values(id="old", asset_id=aid, job_id="j1", result_id="r1", status="pending"))
+        labels.on_result(st, c, "j2", aid, "r2", {"decision": "accepted"})
+    assert env.client.get("/api/v1/reviews", params={"limit": 0}).json()["count"] == 0

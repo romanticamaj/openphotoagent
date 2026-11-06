@@ -747,6 +747,7 @@
 | IMP-021 | 看得到 caption 與標籤（回歸） | 分類頁、單張資訊 | 每張顯示 AI 說明；資訊面板有說明與標籤 | C | — |
 | IMP-022 | 標籤顯示名稱（回歸） | 詞彙 id、自由標籤 | `people.child` 顯示「小孩」；自由標籤不變 | U | — |
 | IMP-023 | 補分析舊照片 | 有未分析的照片 | 一鍵對每個來源分析，已分析的走快取 | C | — |
+| IMP-024 | 新分析讓舊的待確認失效（回歸） | 照片有舊的 pending review | 新結果進來時改為 superseded，不再算在待確認 | I | — |
 | REV-001 | 低信心建立 review | needs_review 結果 | `review(status=pending, reason=low_confidence)`；SSE `review.created`；計數「待確認 N 張」 | I | #49 |
 | REV-002 | 一次一張與數字鍵 | 待確認頁 | `1–9` 選候選類別、`0` 其他、`Enter` 接受建議、`S` 略過；處理後自動下一張 | E | #49、DoD 5.3 |
 | REV-003 | 逃生門 | 剩 40 張時「略過剩下的，全部放進『其他』」 | 40 張 `final_label=other`（`source=review_skip`）；Job 可進 planning | I/E | #49、DoD 5.3 |

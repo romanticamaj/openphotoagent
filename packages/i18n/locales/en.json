@@ -877,7 +877,8 @@
       "job.label": "AI analysis",
       "output.apply": "Copying files",
       "output.undo": "Undoing"
-    }
+    },
+    "preparing": "Getting ready…"
   },
   "explore": {
     "title": "Categories",

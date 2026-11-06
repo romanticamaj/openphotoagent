@@ -54,3 +54,13 @@ def test_inf_cas_015_the_word_category_in_a_caption_is_not_the_field():
 def test_inf_cas_016_no_logprobs_means_no_number():
     assert category_probability(None, "food", CATS) is None
     assert category_probability([tok('{"caption":"x"}')], "food", CATS) is None
+
+
+@pytest.mark.unit
+@pytest.mark.tc("INF-CAS-015")
+def test_inf_cas_015_a_spaced_twin_of_the_token_does_not_replace_it():
+    """回歸 (seen on the reference machine): ' architecture' at -18 overwrote 'architecture' at 0, so every answer
+    scored near zero and 156 of 156 photos fell into other."""
+    tops = {"architecture": -0.01, "other": -5.15, " architecture": -18.6, "Architecture": -21.0}
+    t = [tok('{"category":"'), tok("architecture", tops), tok('"}')]
+    assert category_probability(t, "architecture", ["architecture", "other"]) > 0.9
