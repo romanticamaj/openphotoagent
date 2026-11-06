@@ -512,7 +512,7 @@ def cmd_ops_export_calibration(a: argparse.Namespace) -> None:
     import json
 
     from opagent_api.operations import export_calibration
-    from opagent_db.embedded import EmbeddedPg
+    from opagent_db.embedded import desktop_dsn
     from opagent_db.schema import engine_for
 
     dsn = a.dsn or os.environ.get("OPAGENT_DSN")
@@ -525,7 +525,7 @@ def cmd_ops_export_calibration(a: argparse.Namespace) -> None:
             port = int((pg_home / "port").read_text(encoding="utf-8"))
         except (OSError, ValueError):
             sys.exit(f"no database in {pg_home}: pass --dsn, or start the app once")
-        dsn = EmbeddedPg(pg_home, port=port, desktop=True).dsn
+        dsn = desktop_dsn(pg_home, port)
     eng = engine_for(dsn)
     with eng.connect() as c:
         print(json.dumps(export_calibration(c), ensure_ascii=False, indent=2))

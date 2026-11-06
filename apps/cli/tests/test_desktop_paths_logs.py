@@ -66,3 +66,29 @@ def test_eta_028_the_command_looks_in_the_desktop_data_folder(monkeypatch, tmp_p
     with pytest.raises(SystemExit) as e:
         main(["ops", "export-calibration"])
     assert app_dirs(current_os(), os.environ, str(Path.home()))["data"] in str(e.value)
+
+
+@pytest.mark.unit
+@pytest.mark.tc("ETA-028")
+def test_eta_028_reading_needs_no_postgres_binaries(monkeypatch, tmp_path):
+    """回歸 (seen on the installed app): the dsn came from EmbeddedPg, which looks for the server binaries first; the
+    command only connects, and in the install it found none."""
+    import opagent_db.embedded as E
+    import opagent_db.schema as S
+    from opagent_cli.main import main
+
+    (tmp_path / "pg").mkdir()
+    (tmp_path / "pg" / "port").write_text("54321", encoding="utf-8")
+
+    def no_binaries():
+        raise RuntimeError("PostgreSQL binaries not found")
+
+    def stop(dsn):
+        raise SystemExit(dsn)
+
+    monkeypatch.delenv("OPAGENT_DSN", raising=False)
+    monkeypatch.setattr(E, "find_pg_bin", no_binaries)
+    monkeypatch.setattr(S, "engine_for", stop)
+    with pytest.raises(SystemExit) as e:
+        main(["ops", "export-calibration", "--home", str(tmp_path)])
+    assert "54321" in str(e.value) or "port=54321" in str(e.value)

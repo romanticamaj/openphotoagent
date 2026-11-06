@@ -151,6 +151,14 @@ def _total_ram_gb() -> float:
         return 8.0
 
 
+def desktop_dsn(home: Path, port: int, db: str = "opagent", user: str = "opagent", transport: str = "") -> str:
+    """How to reach the desktop database. Connecting needs no server binaries, so this needs no EmbeddedPg."""
+    if (transport or ("tcp" if os.name == "nt" else "socket")) == "tcp":
+        # the password stays in the passfile, off the shell's argv
+        return f"postgresql://{user}@127.0.0.1:{port}/{db}?passfile={quote(str(Path(home) / 'pgpass'), safe='')}"
+    return f"postgresql://{user}@/{db}?host={Path(home) / 'run'}&port={port}"
+
+
 @dataclass
 class EmbeddedPg:
     """One app-owned cluster. ``desktop=True`` is the shipped profile: Unix socket only in a 0700 run dir
@@ -193,10 +201,8 @@ class EmbeddedPg:
         return shutil.disk_usage(self.home).free
 
     def dsn_for(self, db: str) -> str:
-        if self.desktop and self.transport == "tcp":  # the password stays in the passfile, off the shell's argv
-            return f"postgresql://{self.user}@127.0.0.1:{self.port}/{db}?passfile={quote(str(self.passfile), safe='')}"
         if self.desktop:
-            return f"postgresql://{self.user}@/{db}?host={self.run_dir}&port={self.port}"
+            return desktop_dsn(self.home, self.port, db, self.user, self.transport)
         return f"postgresql://{self.user}@127.0.0.1:{self.port}/{db}"
 
     @property
