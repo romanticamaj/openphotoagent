@@ -200,10 +200,10 @@ test("[E2E-L-002] 就地修正：Lightbox 改類別 → toast「已記錄修正�
   await open(page);
   await page.keyboard.press("i");
   const info = page.getByTestId("info-panel");
-  await info.getByLabel("修正類別").selectOption({ label: "寵物" });
+  await info.getByLabel("修正類別").selectOption({ label: "動物" });
   await info.getByRole("button", { name: "儲存修正" }).click();
   await expect(page.getByRole("status").filter({ hasText: "已記錄修正" })).toBeVisible();
-  await expect(info.getByTestId("human-label")).toContainText("寵物");
+  await expect(info.getByTestId("human-label")).toContainText("動物");
   // the next organize plan uses the correction
   const job = await (
     await request.post("/api/v1/jobs", {
@@ -216,7 +216,7 @@ test("[E2E-L-002] 就地修正：Lightbox 改類別 → toast「已記錄修正�
     .toBe("awaiting_approval");
   const plan = await (await request.get(`/api/v1/output-plans/${j.plan_id}`)).json();
   const act = plan.actions.find((a: { asset_id: string }) => a.asset_id === id);
-  expect(act.dst_rel).toMatch(/^寵物\//);
+  expect(act.dst_rel).toMatch(/^動物\//);
 });
 
 test("[E2E-L-003] 在檔案總管顯示：desktop build 呼叫 platform.revealInFileManager；web build 隱藏", async ({ page }) => {

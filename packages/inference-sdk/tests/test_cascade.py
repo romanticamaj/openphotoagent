@@ -47,15 +47,16 @@ def test_inf_cas_002_high_confidence_no_vlm():
 
 @pytest.mark.integration
 @pytest.mark.tc("INF-CAS-003")
-def test_inf_cas_003_low_confidence_goes_to_vlm_with_hints():
+def test_inf_cas_003_low_confidence_goes_to_vlm_with_every_class():
+    """ADR-0030 replaces the top-k list: a banana whose embedding said pets could not be called food."""
     emb, vlm = FakeBackend(scores="low"), FakeBackend(vlm_p=0.9)
-    run(Cascade(emb, vlm), items(4), tax())
+    t = tax()
+    run(Cascade(emb, vlm), items(4), t)
     reqs = vlm.requests("classify")
     assert reqs and sum(len(r.items) for r in reqs) == 4
+    want = [c for c in t.ids if c != "other"]
     for r in reqs:
-        cats = r.variables["categories"]
-        assert cats[-1] == "other" and 3 <= len(cats) - 1 <= 5
-        assert r.variables["hints"] == cats[:-1]
+        assert r.variables["categories"] == [*want, "other"]
 
 
 @pytest.mark.integration
@@ -141,7 +142,7 @@ def test_q_025_description_change_reuses_image_embeddings():
     assert len(emb.calls("embed")) == img_calls  # image embeddings: cache hits
     assert emb.text_calls == text_calls + 1 and emb.texts_embedded[-1] == ["Food. meals, desserts and drinks"]
     vlm_items_after = sum(len(r.items) for r in vlm.requests("classify")) - vlm_items_before
-    affected = [r for r in res if r.stages["route"] == "vlm" and "food" in r.stages["hints"]]
+    affected = [r for r in res if r.stages["route"] == "vlm" and "food" in r.stages["candidates"]]
     assert vlm_items_after == len(affected)
 
 
@@ -182,3 +183,40 @@ def test_inf_cas_011_hint_groups_run_side_by_side(monkeypatch):
     res = run(Cascade(emb, vlm), items(8), tax())
     assert len(res) == 8
     assert 1 < vlm.peak <= vlm.describe().max_batch
+
+
+def _many(n):
+    return tax(
+        classes=[ClassDef(f"c{i:02d}", f"Class {i}", f"about {i}") for i in range(n)] + [ClassDef("other", "Other")]
+    )
+
+
+@pytest.mark.integration
+@pytest.mark.tc("INF-CAS-012")
+def test_inf_cas_012_up_to_the_limit_every_class_is_offered():
+    emb, vlm = FakeBackend(scores="low"), FakeBackend(vlm_p=0.9)
+    res = run(Cascade(emb, vlm), items(3), _many(16))
+    assert all(len(r.variables["categories"]) == 17 for r in vlm.requests("classify"))
+    assert all(r.stages["truncated"] is False for r in res)
+
+
+@pytest.mark.integration
+@pytest.mark.tc("INF-CAS-013")
+def test_inf_cas_013_past_the_limit_the_best_scoring_classes_are_offered():
+    emb, vlm = FakeBackend(scores="low"), FakeBackend(vlm_p=0.9)
+    res = run(Cascade(emb, vlm), items(3), _many(20))
+    for r in vlm.requests("classify"):
+        assert len(r.variables["categories"]) == 17 and r.variables["categories"][-1] == "other"
+    for r in res:
+        assert r.stages["truncated"] is True
+        ranked = sorted(r.stages["emb"], key=lambda k: (-r.stages["emb"][k], k))
+        assert r.stages["candidates"] == sorted(ranked[:16])
+
+
+@pytest.mark.integration
+@pytest.mark.tc("INF-CAS-014")
+def test_inf_cas_014_the_vlm_is_told_what_each_class_means():
+    emb, vlm = FakeBackend(scores="low"), FakeBackend(vlm_p=0.9)
+    run(Cascade(emb, vlm), items(1), _many(2))
+    d = vlm.requests("classify")[0].variables["descriptions"]
+    assert d["c01"] == "Class 1. about 1"

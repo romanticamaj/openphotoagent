@@ -118,6 +118,8 @@
 | CORE-THR-017 | 只重套門檻 = 純函式重算 | 已存 `stages`（各層 top-k），改 thresholds | 結果與「重新推論後判定」一致；不需任何 backend 呼叫 | U | #46 |
 | CORE-THR-018 | accept 是 embedding 快速路徑的最終閘門（ADR-0001） | `p_top1=0.86, margin=0.22`、3 張範例；`thresholds.accept=0.90` | route=accept 但 0.86 < 0.90 → `needs_review`（low_confidence）；不需重新推論 | U | #45、#46 |
 | CORE-THR-019 | conflict 低於 floor 仍交人工（ADR-0001） | E=food 0.9、V=pets 0.6 → p=0.48 | `needs_review`、reason=`conflict`、category=pets（不是 other） | U | #45、#49 |
+| CORE-THR-020 | 接近均勻的 embedding 不算意見（ADR-0030） | E=pets 0.17、V=food 0.97；V=people 0.6 | 前者 `accepted`（vlm）；後者 `needs_review` | U | — |
+| CORE-THR-021 | 候選被截斷時 other 不是定論（ADR-0030） | 截斷、V=other | `needs_review`、reason=`shortlist`；重算結果相同 | U | — |
 
 ### 1.4 CORE-SM：狀態機（02 §4.2 Job、06 §5.3 Operation、02 §3.2 output_plan）
 
@@ -146,7 +148,7 @@
 | CORE-RULE-005 | DSL 語法錯誤 | `when: "category == "` | 驗證錯誤含 JSON pointer 與欄位位置 | U | #39 |
 | CORE-RULE-006 | DSL 沙箱 | `when` 嘗試 `__import__`、屬性存取 `a.__class__`、函式呼叫 | 解析拒絕（DSL 只允許白名單欄位、比較、`in`、`and/or/not`） | S | #39 |
 | CORE-RULE-007 | `by-date` preset 不需模型 | 載入 `opagent_api/presets/builtin/by-date.yaml` | task_configs 為空；模板 `{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}`；plan 產生不呼叫推論 | U | #40 |
-| CORE-RULE-008 | `by-content-12` 完整性 | 載入 preset | 恰 12 類（人物、風景、美食、寵物、文件與截圖、旅行、活動、建築、植物、交通、藝術、其他），每類有 zh-Hant／en 名稱與描述，`other` 為 fallback | C | #41 |
+| CORE-RULE-008 | `by-content-12` 完整性 | 載入 preset | 恰 12 類（人物、風景、美食、動物、文件與截圖、旅行、活動、建築、植物、交通、藝術、其他），每類有 zh-Hant／en 名稱與描述，`other` 為 fallback | C | #41 |
 | CORE-RULE-009 | `custom` preset 驗證 | 類別只有名稱、無描述也無範例 | 驗證錯誤「至少要有描述或 1 張範例照片」；有 3 張範例時通過 | U | #42 |
 | CORE-RULE-010 | final_label 優先 review | result=food、review.corrected=pets | `final_label.category=pets`、`source=review` | U | #56 |
 
@@ -328,7 +330,7 @@
 | Q-022 | kill -9 worker 不產生重複結果 | 推論中 `kill -9` worker（chaos runner） | lease 到期後由新 worker 續做；`result` 無重複；最終計數正確 | X | #3、DoD 5.1 |
 | Q-023 | 10 張預覽分層抽樣 | 1,000 張來源（多資料夾、多月份）、`seed=42` | 10 張涵蓋最多資料夾與月份；同 seed 結果相同 | U | #46 |
 | Q-024 | 預覽只改門檻 / 樣板 | 預覽完成後改 thresholds 或 path_template | 結果 < 200 ms 更新，FakeBackend 呼叫數 0（不跑 GPU） | I/F | #46、DoD 5.3 |
-| Q-025 | 預覽改類別描述 | 改某類 description | 圖像 embedding 命中快取；只重算文字 embedding 與受影響的 VLM 呼叫 | I | #46 |
+| Q-025 | 預覽改類別描述（ADR-0030） | 改某類 description | 圖像 embedding 命中快取；只重算該類文字 embedding；候選含該類的照片重問 VLM（全類別時即全部送 VLM 的照片） | I | #46 |
 | Q-026 | 電池暫停 | FakePower：拔電源 | 10 s 內重型 Operation 為 `paused`、`waiting_reason=PAUSED_ON_BATTERY`；搜尋仍可用；接回 → 自動繼續 | I | #9、DoD 5.2 |
 | Q-027 | GPU 被占用 / 全螢幕 | `hw:game-running-5gb`、FakeFullscreen=true | `PAUSED_GPU_CONTENDED`；GPU 釋放後自動繼續；選「改用 CPU」可繼續 | I | #9、DoD 5.2 |
 | Q-028 | 只在閒置時處理 | `only_when_idle=true`，FakeIdle 秒數 = 5 | `PAUSED_NOT_IDLE`；閒置達門檻後繼續；「現在就處理」覆寫 | I | #32 |
@@ -403,7 +405,7 @@
 |----|------|-----------|------|----|---|
 | INF-CAS-001 | 規則層命中不推論 | 截圖規則命中 | embed 與 VLM 呼叫數 0；`source=rule` | I | #45 |
 | INF-CAS-002 | 高信心不送 VLM | `fb:scores(high)` 100 張 | VLM 呼叫數 0 | I | #45、DoD 5.3 |
-| INF-CAS-003 | 低信心送 VLM | `fb:scores(low)` | VLM 收到 enum = top-k（3–5）+ other，prompt 含 hints | I | #45 |
+| INF-CAS-003 | 低信心送 VLM（ADR-0030） | `fb:scores(low)` | VLM 收到全部類別 + other，不把 embedding 的候選寫進 prompt | I | #45 |
 | INF-CAS-004 | VLM 仍低 → 待確認或其他 | `fb:vlm(p=0.4)` | `needs_review` 或 `other`（依 CORE-THR）；不失敗 | I | #49 |
 | INF-CAS-005 | 每筆記錄決策層與 fingerprint | 任意 Job | 每個 result 有 `source` 與 `model_fingerprint`；Lightbox 資訊面板 API 可讀出 | I | #45、#89、DoD 5.3 |
 | INF-CAS-006 | 無 VLM（快速模式） | 只安裝 SigLIP2 | cascade 停在 embedding；低信心 → needs_review；Job 不失敗 | I | #28 |
@@ -412,6 +414,11 @@
 | INF-CAS-009 | 反例降權 | 有 negative_examples 且與反例更相近 | 該類分數降低（golden） | U | #42 |
 | INF-CAS-010 | 全庫預估命中數 | 自訂類別 + 3 張範例，1,000 張已有 embedding | 只用向量運算（不呼叫 VLM）回傳預估命中數與分布，< 500 ms | I/F | #42、#46 |
 | INF-CAS-011 | 不同 hints 的分組併發（回歸） | 8 張照片各有不同 hints | 同時進行的請求 > 1，且不超過 runtime 的 slot 數 | I | 吞吐量 |
+| INF-CAS-012 | 上限內提供全部類別（ADR-0030） | 16 類 | 17 個選項，`truncated=false` | I | #45 |
+| INF-CAS-013 | 超過上限取分數最高（ADR-0030） | 20 類 | 16 類 + other，依分類表順序，`truncated=true` | I | #45 |
+| INF-CAS-014 | VLM 看得到類別說明（ADR-0030） | 類別有描述 | 請求帶每類的名稱與描述 | I | #45 |
+| INF-CAS-015 | 信心來自 token 機率（ADR-0030） | 有 logprobs | 取 `category` 值首 token，對候選正規化；caption 內的同名文字不算 | U | #45 |
+| INF-CAS-016 | 沒有 logprobs 時退回自評（ADR-0030） | runtime 不支援 | 回 None，由呼叫端改用自評 | U | #45 |
 
 ### 6.5 INF-CAL、INF-VRAM、INF-OOM、INF-RT：校準、資源、降級、runtime 選擇
 

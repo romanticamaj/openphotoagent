@@ -585,8 +585,8 @@ taxonomy:
       examples: [asset_123, asset_456, asset_789]     # 範例圖（建議 3–10 張）
       negative_examples: [asset_999]                  # 可選：容易混淆的反例
     - id: pets
-      name: 寵物
-      description: 主角是貓、狗或其他寵物。
+      name: 動物
+      description: 貓狗等寵物與野生動物。
       examples: [...]
     - id: documents
       name: 文件與截圖
@@ -601,7 +601,7 @@ taxonomy:
 |---|---|---|---|---|
 | **E：Embedding zero-shot / prototype** | SigLIP2 影像向量 vs（類別文字向量 ⊕ 範例圖 prototype）| 相似度、top1-top2 margin | 數百張/秒 | 類別視覺上明確（美食/風景/文件）、超大量 |
 | **V：VLM enum structured output** | VLM 看圖 + 類別名稱與描述 → `category ∈ enum` | category token logprob；自我一致性 | 3–8 張/秒（Qwen3-VL-8B FP8 vLLM，短輸出）| 語義型類別（「旅行 vs 日常」、「工作相關」）|
-| **C：Cascade（預設）** | E 先分 → 高信心直接採用；低信心（或 margin 小）送 V 複核，V 可看到 E 的 top-3 作提示 | 綜合 | 依送審比例（通常 20–40%）| 大多數使用者 |
+| **C：Cascade（預設）** | E 先分 → 高信心直接採用；低信心（或 margin 小）送 V 複核，V 看到全部類別與說明（ADR-0030） | 綜合 | 依送審比例（通常 20–40%）| 大多數使用者 |
 
 **C：Cascade 詳細流程**
 
@@ -619,7 +619,7 @@ taxonomy:
       p_top1 ≥ τ_high 且 margin ≥ m ?  ──是──► 採用（source=embedding）
              │否
    ┌─────────▼──────────┐
-   │ 2. VLM 複核          │  enum = top-k(3–5) 候選 + other；附描述
+   │ 2. VLM 複核          │  enum = 全部類別 + other（超過 16 類取分數最高 16 類）；附描述（ADR-0030）
    │   取 logprob → p_vlm │
    └─────────┬──────────┘
       p_vlm ≥ other_policy.min_confidence ? ──是──► 採用（source=vlm）
@@ -660,7 +660,7 @@ def class_scores(img_vec, txt_vecs, protos, alpha):
 請將照片分到下列其中一類：
 {% for c in classes %}- {{ c.id }}：{{ c.name }}。{{ c.description }}
 {% endfor %}- other：以上皆不符合，或無法確定。
-{% if hints %}（輔助資訊：快速模型的候選為 {{ hints | join(", ") }}，僅供參考。）{% endif %}
+（ADR-0030：不再把快速模型的候選寫進 prompt，以免誤導 VLM。）
 {% if exif.date %}拍攝時間：{{ exif.date }}{% endif %}
 先用一句話說明判斷依據（reason），再給出 category。只輸出 JSON。
 ```

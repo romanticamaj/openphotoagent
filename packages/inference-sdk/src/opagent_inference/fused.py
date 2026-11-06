@@ -7,6 +7,7 @@ or raises :class:`OutputParseError` — never anything else.
 from __future__ import annotations
 
 import json
+import math
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -178,3 +179,24 @@ def parse_fused(
         res.retried = True
         return res
     raise OutputParseError(raw)
+
+
+_CATEGORY_VALUE = re.compile(r'(?<!\\)"category"\s*:\s*"$')
+MIN_PROB = 1e-6  # a candidate absent from top_logprobs (CORE-THR-013)
+
+
+def category_probability(tokens: list[dict[str, Any]] | None, chosen: str, candidates: list[str]) -> float | None:
+    """P(chosen) at the first token of the ``category`` value, normalised over the offered classes (03 §3.3.3).
+    None when the runtime gave no logprobs, or the field cannot be found: the caller falls back to the self-report."""
+    acc = ""
+    for t in tokens or []:
+        if _CATEGORY_VALUE.search(acc):
+            tops = {str(x["token"]).strip(): float(x["logprob"]) for x in t.get("top_logprobs") or []}
+            raw = {
+                c: max((math.exp(v) for k, v in tops.items() if len(k) >= 2 and c.startswith(k)), default=MIN_PROB)
+                for c in candidates
+            }
+            total = sum(raw.values())
+            return raw[chosen] / total if tops and chosen in raw else None
+        acc += str(t.get("token", ""))
+    return None

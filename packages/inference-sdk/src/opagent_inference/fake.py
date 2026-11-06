@@ -150,7 +150,7 @@ class FakeBackend:
             cat = str(
                 self.vlm_category
                 or it.labels.get("category")
-                or (cats[0] if req.variables.get("hints") else cats[h[0] % len(cats)])
+                or (req.variables["hints"][0] if req.variables.get("hints") else cats[h[0] % len(cats)])
             )
             conf = float(
                 self.vlm_p if self.vlm_p is not None else it.labels.get("confidence", 0.5 + (h[1] / 255) * 0.5)

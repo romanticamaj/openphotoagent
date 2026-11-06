@@ -4,8 +4,9 @@ key: by-content-12
 name: { zh-TW: 依內容（內建 12 類）, en: By content (12 built-in categories) }
 task_configs:
   - task_type: classify
-    prompt_template_ref: builtin:fused_v1
-    label_set: builtin-12@1
+    prompt_template_ref: builtin:fused_v2
+    label_set: builtin-12@2
+    vlm_max_candidates: 16
     strategy: cascade            # rules → SigLIP2 → VLM → review (03 §3.3)
     rules:
       - { if: "exif.is_screenshot == true", then: documents }
@@ -13,7 +14,7 @@ categories:
   - { key: people, zh-TW: 人物, en: People, description: { zh-TW: 以人物為主角的照片，包含自拍與合照, en: Photos where people are the main subject, including selfies and group shots } }
   - { key: landscape, zh-TW: 風景, en: Landscape, description: { zh-TW: 山、海、天空、田野等自然景觀, en: "Natural scenery: mountains, sea, sky, fields" } }
   - { key: food, zh-TW: 美食, en: Food, description: { zh-TW: 餐點、飲料、甜點與食材, en: "Meals, drinks, desserts and ingredients" } }
-  - { key: pets, zh-TW: 寵物, en: Pets, description: { zh-TW: 貓、狗等家中寵物, en: Cats, dogs and other pets } }
+  - { key: pets, zh-TW: 動物, en: Animals, description: { zh-TW: 貓狗等寵物與野生動物, en: "Pets, wildlife and other animals" } }
   - { key: documents, zh-TW: 文件與截圖, en: Documents & screenshots, description: { zh-TW: 收據、文件、白板與螢幕截圖, en: "Receipts, documents, whiteboards and screenshots" } }
   - { key: travel, zh-TW: 旅行, en: Travel, description: { zh-TW: 景點、地標與旅途中的照片, en: Sightseeing spots, landmarks and trips } }
   - { key: events, zh-TW: 活動, en: Events, description: { zh-TW: 生日、婚禮、聚會、演唱會與典禮, en: "Birthdays, weddings, parties, concerts and ceremonies" } }

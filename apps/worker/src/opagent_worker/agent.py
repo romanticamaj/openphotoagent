@@ -1359,7 +1359,9 @@ def _taxonomy(tc: dict[str, Any]) -> Any:
     classes = [ClassDef(c["id"], c.get("name") or c["id"], c.get("description") or "") for c in tc.get("classes") or []]
     if not classes:
         classes = [ClassDef(k, k) for k in tc.get("categories") or []]
-    return Taxonomy(classes=classes, rules=list(tc.get("rules") or []))
+    return Taxonomy(
+        classes=classes, rules=list(tc.get("rules") or []), vlm_max_candidates=int(tc.get("vlm_max_candidates") or 16)
+    )
 
 
 def _version() -> str:
