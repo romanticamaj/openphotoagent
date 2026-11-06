@@ -878,7 +878,15 @@
       "output.apply": "Copying files",
       "output.undo": "Undoing"
     },
-    "preparing": "Getting ready…"
+    "preparing": "Getting ready…",
+    "now": "Analysing now",
+    "latest": "Just finished",
+    "folders": "Folder progress",
+    "failed": "{n} failed",
+    "state": {
+      "queued": "Queued",
+      "scanning": "Scanning"
+    }
   },
   "explore": {
     "title": "Categories",

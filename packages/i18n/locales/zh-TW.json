@@ -878,7 +878,15 @@
       "output.apply": "複製檔案",
       "output.undo": "復原"
     },
-    "preparing": "準備中…"
+    "preparing": "準備中…",
+    "now": "正在分析",
+    "latest": "剛完成",
+    "folders": "資料夾進度",
+    "failed": "{n} 張失敗",
+    "state": {
+      "queued": "排隊中",
+      "scanning": "掃描中"
+    }
   },
   "explore": {
     "title": "分類",

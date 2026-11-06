@@ -15,7 +15,10 @@ test("[IMP-014] 匯入：先看資料夾內容，加入後自動分析，完成�
   await expect(page).toHaveURL(/\/$/);
   const dock = page.getByTestId("progress-dock");
   await expect(dock).toBeVisible();
-  if (shots) await page.screenshot({ path: `${shots}/analyzing.png` });
+  if (shots) {
+    await page.waitForTimeout(1800);
+    await page.screenshot({ path: `${shots}/analyzing.png` });
+  }
   await expect(dock).toContainText("分析完成", { timeout: 30_000 });
   await expect(page.getByRole("gridcell").first()).toBeVisible();
   if (shots) await page.screenshot({ path: `${shots}/done.png` });

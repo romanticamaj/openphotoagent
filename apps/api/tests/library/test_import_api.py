@@ -8,11 +8,11 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 from opagent_api.app import create_app
-from opagent_db.schema import asset, engine_for, job, output_plan, result, review, worker_task
+from opagent_db.schema import asset, engine_for, job, job_item, output_plan, result, review, worker_task
 from opagent_inference.fake import FakeBackend
 from opagent_testing.clock import FakeClock
 from opagent_worker.agent import WorkerAgent
-from sqlalchemy import func, insert, select
+from sqlalchemy import func, insert, select, update
 
 FX = Path(__file__).resolve().parents[4] / "fixtures/photos/basic"
 
@@ -208,3 +208,36 @@ def test_imp_024_a_new_analysis_retires_the_old_question(env):
         c.execute(insert(review).values(id="old", asset_id=aid, job_id="j1", result_id="r1", status="pending"))
         labels.on_result(st, c, "j2", aid, "r2", {"decision": "accepted"})
     assert env.client.get("/api/v1/reviews", params={"limit": 0}).json()["count"] == 0
+
+
+@pytest.mark.integration
+@pytest.mark.tc("IMP-030")
+def test_imp_030_what_is_being_analysed_right_now(env):
+    """回歸 (the user could not tell which folder or photo was in progress, or what the AI had just found)."""
+    env.w.embedder = FakeBackend(scores="low")  # so the VLM writes a caption
+    (env.tree.photos / "trip").mkdir()
+    shutil.copyfile(FX / "IMG_0001.jpg", env.tree.photos / "trip" / "x.jpg")
+    src = env.client.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": "trip"}).json()
+    jid = env.client.post(f"/api/v1/sources/{src['id']}/analyze").json()["job_id"]
+
+    def status():
+        return env.client.get("/api/v1/analysis/status", params={"lang": "zh-TW"}).json()
+
+    assert status()["jobs"][0]["state"] == "queued"
+    env.w.run_once()
+    s = status()
+    assert s["jobs"] == [
+        {"job_id": jid, "folder": "photos/trip", "state": "analysing", "done": 0, "total": 1, "failed": 0}
+    ]
+    with env.eng.begin() as c:
+        c.execute(update(job_item).where(job_item.c.job_id == jid).values(status="leased"))
+    assert status()["current"][0]["rel"] == "trip/x.jpg"
+    with env.eng.begin() as c:
+        c.execute(update(job_item).where(job_item.c.job_id == jid).values(status="pending"))
+    while env.w.run_once() or env.w.process_items_once():
+        pass
+    s = status()
+    assert s["jobs"] == [] and s["current"] == []
+    assert s["recent"][0]["rel"] == "trip/x.jpg"
+    assert s["recent"][0]["caption"]
+    assert s["recent"][0]["category_name"]

@@ -2849,6 +2849,49 @@
         "summary": "Protected Resource"
       }
     },
+    "/api/v1/analysis/status": {
+      "get": {
+        "description": "What the progress card shows beyond the numbers: each folder, the photos in hand, what the AI just found.",
+        "operationId": "analysis_status_api_v1_analysis_status_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "lang",
+            "required": false,
+            "schema": {
+              "default": "zh-TW",
+              "title": "Lang",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Analysis Status Api V1 Analysis Status Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Analysis Status"
+      }
+    },
     "/api/v1/approvals": {
       "get": {
         "operationId": "list_approvals_api_v1_approvals_get",

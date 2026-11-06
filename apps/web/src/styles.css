@@ -336,12 +336,49 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  width: min(340px, calc(100vw - 96px));
+  width: min(380px, calc(100vw - 96px));
   padding: 14px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface);
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.3);
+}
+.dock-photo {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.dock-photo img {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-photo);
+  background: var(--surface-2);
+  object-fit: cover;
+}
+.dock-caption {
+  display: -webkit-box;
+  overflow: hidden;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.dock-folders {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 120px;
+  margin: 0;
+  padding: 8px 0 0;
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  list-style: none;
+}
+.dock-folders li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
 }
 .progress-dock-small {
   width: 220px;

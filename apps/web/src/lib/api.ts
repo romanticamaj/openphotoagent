@@ -1,5 +1,11 @@
 import { endpoint, platform } from "./platform";
 // Thin REST client for /api/v1 (replaced by the OpenAPI-generated ts-client in slice 9/10).
+export type AnalysisStatus = {
+  jobs: Array<{ job_id: string; folder: string; state: "queued" | "scanning" | "analysing"; done: number; total: number; failed: number }>;
+  current: Array<{ asset_id: string; ch: string | null; rel: string }>;
+  recent: Array<{ asset_id: string; ch: string | null; rel: string; caption: string | null; category: string | null; category_name: string | null }>;
+};
+
 export type FolderPreview = {
   photos: number;
   videos: number;
@@ -304,6 +310,7 @@ export const api = {
     req<FolderPreview>("GET", `/fs/preview?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`),
   folderThumb: (root: string, path: string) =>
     req<{ thumbnail_b64: string }>("GET", `/fs/thumb?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`),
+  analysisStatus: (lang: string) => req<AnalysisStatus>("GET", `/analysis/status?lang=${encodeURIComponent(lang)}`),
   analyzeSource: (id: string) => req<{ job_id: string }>("POST", `/sources/${encodeURIComponent(id)}/analyze`),
   createSource: (root_alias: string, sub_path: string) => req<{ id: string }>("POST", "/sources", { root_alias, sub_path }),
   createJob: (source_id: string, preset: string, target: { root_alias: string; sub_path: string }, extra: Record<string, unknown> = {}) =>
