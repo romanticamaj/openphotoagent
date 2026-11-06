@@ -1338,7 +1338,7 @@ class WorkerAgent:
     def _do_folder_preview(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         from .folder_preview import folder_preview
 
-        return folder_preview(self.sb, p["root_alias"], p.get("path", ""), self.tz)
+        return folder_preview(self.sb, p["root_alias"], p.get("path", ""), self.tz)  # type: ignore[arg-type]
 
     def _do_folder_thumb(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         from .folder_preview import folder_thumb
