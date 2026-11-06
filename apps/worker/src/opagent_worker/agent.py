@@ -53,6 +53,8 @@ RPC_KINDS = frozenset(
         "face_embed_query",
         "face_purge",
         "fix",
+        "folder_preview",
+        "folder_thumb",
         "hash_sha1",
         "probe_root",
         "remove",
@@ -65,6 +67,10 @@ RPC_KINDS = frozenset(
         "vlm_ask",
     }
 )
+
+
+# quick and read-only: a person is waiting on these, so they do not queue behind a scan (IMP-004)
+QUICK_KINDS = ("browse", "folder_preview", "folder_thumb")
 
 
 class _ScanReporter(NullReporter):
@@ -130,7 +136,8 @@ class WorkerAgent:
         self.cache = HashCache(self.home / "scan-cache.db")
         self.clock = clock or SystemClock()
         self.waiting: dict[str, tuple[dict[str, Any], float]] = {}
-        self.page_size = 1000
+        self.page_size = 100  # small enough that a long scan shows photos early (IMP-006)
+        self.scan_threads = max(1, min(8, (os.cpu_count() or 2) - 2))
         self.crash_after_pages: int | None = None  # test hook: simulate kill -9 after N reported pages
         self.last_scan_skipped_before_cursor = 0
         self._dl_thread: threading.Thread | None = None
@@ -654,6 +661,8 @@ class WorkerAgent:
 
         watch = WatchManager(self)  # watch folders (05 §5): synced with the API every WATCH_SYNC_S
         synced_at: float | None = None
+        if self.channel is None:
+            threading.Thread(target=self._quick_loop, args=(stop,), daemon=True).start()
         try:
             while not stop.is_set():
                 now = self.clock.monotonic()
@@ -670,6 +679,19 @@ class WorkerAgent:
                 self._loop_once(stop)
         finally:
             watch.stop()
+
+    def _quick_loop(self, stop: Any) -> None:
+        """Browsing and folder previews answer while the main loop is inside a scan (IMP-004)."""
+        body = {"worker_id": self.worker_id, "wait_s": 0.5, "boot_id": self.boot_id, "only_kinds": list(QUICK_KINDS)}
+        while not stop.is_set():
+            try:
+                r = self.client.post("/worker-api/v1/lease", json=body)
+                if r.status_code == 200:
+                    self._run_task(r.json())
+                elif r.status_code != 204:
+                    stop.wait(1.0)
+            except Exception:  # the API may be restarting
+                stop.wait(1.0)
 
     def _loop_once(self, stop: Any) -> None:
         try:
@@ -689,22 +711,25 @@ class WorkerAgent:
 
     # ---- task handlers -------------------------------------------------
     def _do_scan(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
-        try:
-            res = self._scan(p, _ScanReporter(self.client, self.clock, task_id) if task_id else None)
-        except RootUnavailable:
-            raise _Waiting("SOURCE_OFFLINE") from None
-        self.last_scan_skipped_before_cursor = res.skipped_before_cursor
-        entries = [self._entry(e) for e in res.entries]
-        if self.remote:
-            self._upload_thumbs(entries)
-        # pages with a resume cursor (SCAN-019)
-        for pages, i in enumerate(range(0, len(entries), self.page_size), start=1):
-            page = entries[i : i + self.page_size]
+        pages = 0
+
+        def send(found: list[Any]) -> None:  # pages with a resume cursor (SCAN-019), as the scan goes (IMP-006)
+            nonlocal pages
+            page = [self._entry(e) for e in found]
+            if self.remote:
+                self._upload_thumbs(page)
             self.client.post(
                 f"/worker-api/v1/tasks/{task_id}/progress", json={"entries": page, "cursor": page[-1]["rel"]}
             ).raise_for_status()
+            pages += 1
             if self.crash_after_pages is not None and pages >= self.crash_after_pages:
                 raise SystemExit(137)
+
+        try:
+            res = self._scan(p, _ScanReporter(self.client, self.clock, task_id) if task_id else None, send)
+        except RootUnavailable:
+            raise _Waiting("SOURCE_OFFLINE") from None
+        self.last_scan_skipped_before_cursor = res.skipped_before_cursor
         return {
             "entries": [],
             "skipped": [{"rel": s.rel, "reason": s.reason} for s in res.skipped],
@@ -752,7 +777,7 @@ class WorkerAgent:
             **e.extra,
         }
 
-    def _scan(self, p: dict[str, Any], reporter: Any = None) -> Any:
+    def _scan(self, p: dict[str, Any], reporter: Any = None, sink: Any = None) -> Any:
         return scan(
             self.sb,
             p["root_alias"],
@@ -765,6 +790,9 @@ class WorkerAgent:
             after=self.egress.resolve(p["cursor"]) if self.egress is not None and p.get("cursor") else p.get("cursor"),
             thumbs_dir=self.home / "thumbs",
             reporter=reporter,
+            sink=sink,
+            page_size=self.page_size,
+            threads=self.scan_threads,
         )
 
     def _do_apply(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
@@ -1306,6 +1334,16 @@ class WorkerAgent:
             if imgs:
                 cdef.examples = [v.tolist() for v in asyncio.run(cas.image_vectors(imgs))]
         return tax
+
+    def _do_folder_preview(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        from .folder_preview import folder_preview
+
+        return folder_preview(self.sb, p["root_alias"], p.get("path", ""), self.tz)
+
+    def _do_folder_thumb(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        from .folder_preview import folder_thumb
+
+        return folder_thumb(self.sb, p["root_alias"], p["path"])
 
     def _do_browse(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         sp = self.sb.resolve(p["root_alias"], p.get("path", ""))

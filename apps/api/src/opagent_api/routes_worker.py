@@ -69,6 +69,7 @@ class LeaseIn(BaseModel):
     worker_id: str
     wait_s: float = 0.0
     exclude_kinds: list[str] = []
+    only_kinds: list[str] | None = None  # the worker's side thread for quick reads (IMP-004)
     boot_id: str | None = None  # e.g. "download" while the worker's download slot is busy (06 §2.4)
 
 
@@ -208,7 +209,11 @@ def _recover_jobs(
 
 
 def _lease_one(
-    st: AppState, worker_id: str, exclude: list[str] | None = None, boot: str | None = None
+    st: AppState,
+    worker_id: str,
+    exclude: list[str] | None = None,
+    boot: str | None = None,
+    only: list[str] | None = None,
 ) -> dict[str, Any] | None:
     with st.engine.begin() as c:
         c.execute(
@@ -218,10 +223,11 @@ def _lease_one(
             text(
                 "SELECT id FROM worker_task WHERE status='pending' AND (worker_id IS NULL OR worker_id=:w) "
                 "AND NOT (kind = ANY(CAST(:ex AS text[]))) "
+                "AND (CAST(:only AS text[]) IS NULL OR kind = ANY(CAST(:only AS text[]))) "
                 "ORDER BY (kind = 'face_purge') DESC, (lane = 'interactive') DESC, created_at, id "
                 "LIMIT 1 FOR UPDATE SKIP LOCKED"
             ),
-            {"w": worker_id, "ex": list(exclude or [])},
+            {"w": worker_id, "ex": list(exclude or []), "only": only},
         ).first()
         if row is None:
             return None
@@ -262,7 +268,7 @@ def lease(body: LeaseIn, req: Request) -> Any:
                 raise HTTPException(426, detail={"code": "UPGRADE_REQUIRED"})
     deadline = st.clock.monotonic() + body.wait_s
     while True:
-        task = _lease_one(st, body.worker_id, body.exclude_kinds, body.boot_id)
+        task = _lease_one(st, body.worker_id, body.exclude_kinds, body.boot_id, body.only_kinds)
         if task is not None:
             return task
         if st.clock.monotonic() >= deadline:

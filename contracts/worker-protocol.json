@@ -1268,6 +1268,20 @@
             "title": "Exclude Kinds",
             "type": "array"
           },
+          "only_kinds": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Only Kinds"
+          },
           "wait_s": {
             "default": 0.0,
             "title": "Wait S",
@@ -3853,6 +3867,8 @@
     "face_embed_query",
     "face_purge",
     "fix",
+    "folder_preview",
+    "folder_thumb",
     "hash_sha1",
     "probe_root",
     "query_plan",

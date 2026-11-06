@@ -13,7 +13,7 @@ from typing import Any, Literal
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import FileResponse, Response
 from opagent_core.ids import uuid7
-from opagent_db.schema import asset, source, worker_task
+from opagent_db.schema import asset, job, source, worker_task
 from sqlalchemy import insert, select, text
 
 from .state import DEFAULT_WS, AppState
@@ -70,6 +70,34 @@ def scan_source(source_id: str, req: Request) -> dict[str, Any]:
         t = scan_task(st, s, None, [])
         c.execute(insert(worker_task).values(**t))
     return {"task_id": t["id"], "operation_id": t["id"]}
+
+
+@router.post("/sources/{source_id}/analyze", status_code=202)
+def analyze_source(source_id: str, req: Request) -> dict[str, Any]:
+    """Add a folder to the library: scan it, then label it. Labels only, so no file moves (ADR-0029, CORE-SM-005)."""
+    from .preflight import ACTIVE_JOBS
+    from .routes_public import JobIn, Target, start_job
+
+    st = _st(req)
+    with st.engine.begin() as c:
+        s = c.execute(select(source).where(source.c.id == source_id)).first()
+        if s is None:
+            raise HTTPException(404, detail={"code": "NOT_FOUND"})
+        running = c.execute(
+            select(job.c.id).where(
+                job.c.kind == "label", job.c.params["source_id"].astext == source_id, job.c.status.in_(ACTIVE_JOBS)
+            )
+        ).scalar()
+        if running is not None:  # idempotent: one analysis per folder at a time
+            return {"job_id": running, "operation_id": running}
+        body = JobIn(
+            kind="label",
+            source_id=source_id,
+            preset="by-content-12",
+            target=Target(root_alias=s.root_alias, sub_path=""),
+        )
+        jid = start_job(st, c, body)
+    return {"job_id": jid, "operation_id": jid}
 
 
 @router.get("/timeline/buckets")

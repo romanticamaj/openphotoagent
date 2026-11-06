@@ -32,7 +32,16 @@ MODES = ("full", "thumbs", "edge-thumbs", "results-only")  # loosest → stricte
 THUMB_LIMIT = {"full": 1024, "thumbs": 512, "edge-thumbs": 0, "results-only": 0}
 VARIANTS = {"t256": 256, "t512": 512, "p1024": 1024}
 # task kinds whose output is an image or a vector: never run under results-only (02 §1.4)
-RESULTS_ONLY_DENIED = {"embed_assets", "embed_text", "embed_captions", "embed_image", "face_embed_query", "thumb_fetch"}
+RESULTS_ONLY_DENIED = {
+    "embed_assets",
+    "embed_text",
+    "embed_captions",
+    "embed_image",
+    "face_embed_query",
+    "thumb_fetch",
+    "folder_preview",
+    "folder_thumb",
+}
 EDGE_DENIED: set[str] = set()
 HASHED = "~h/"
 _log = logging.getLogger("opagent.worker.egress")

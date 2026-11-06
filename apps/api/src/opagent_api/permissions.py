@@ -132,6 +132,7 @@ ROUTES: dict[tuple[str, str], str] = {
     ("POST", "/api/v1/selections/{sid}/organize"): J,
     ("POST", "/api/v1/sources"): SRC,
     ("POST", "/api/v1/sources/{source_id}/scan"): J,
+    ("POST", "/api/v1/sources/{source_id}/analyze"): J,
     ("PUT", "/api/v1/sources/{source_id}/watch"): SRC,
     ("POST", "/api/v1/system/backup"): WSM,
     ("POST", "/api/v1/system/fixes/{rest}"): WSM,
