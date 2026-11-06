@@ -307,6 +307,17 @@
         "title": "CleanupIn",
         "type": "object"
       },
+      "ClusterDueIn": {
+        "properties": {
+          "min_new": {
+            "default": 1,
+            "title": "Min New",
+            "type": "integer"
+          }
+        },
+        "title": "ClusterDueIn",
+        "type": "object"
+      },
       "CodeIn": {
         "properties": {
           "name": {
@@ -3000,6 +3011,47 @@
           }
         },
         "summary": "Backlog"
+      }
+    },
+    "/worker-api/v1/faces/cluster-due": {
+      "post": {
+        "description": "The idle worker asks; faces found since the last run decide. A long run, so it is an Operation (invariant 9).",
+        "operationId": "cluster_due_worker_api_v1_faces_cluster_due_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClusterDueIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Cluster Due Worker Api V1 Faces Cluster Due Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cluster Due"
       }
     },
     "/worker-api/v1/faces/plan": {

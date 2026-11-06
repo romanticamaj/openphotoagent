@@ -495,6 +495,50 @@ def cluster(req: Request) -> dict[str, Any]:
     return run_cluster(_st(req), DEFAULT_WS)
 
 
+class ClusterDueIn(BaseModel):
+    min_new: int = 1
+
+
+CLUSTER_BATCH = 200  # 07 §2.3: a batch run once the unassigned pool has grown by this much
+
+
+@worker_router.post("/faces/cluster-due")
+def cluster_due(body: ClusterDueIn, req: Request) -> dict[str, Any]:
+    """The idle worker asks; faces found since the last run decide. A long run, so it is an Operation (invariant 9)."""
+    from .operations import ensure_operation, set_op_status
+
+    st = _st(req)
+    with st.engine.begin() as c:
+        if not fsettings(c).get("enabled"):
+            return {"ran": False, "new": 0}
+        last = c.execute(select(func.max(face_cluster_run.c.id)).where(face_cluster_run.c.workspace_id == DEFAULT_WS))
+        since = last.scalar() or ""
+        new = c.execute(
+            select(func.count())
+            .select_from(face)
+            .where(
+                face.c.workspace_id == DEFAULT_WS,
+                face.c.quality_tier >= 2,
+                face.c.state == "unassigned",
+                face.c.id > since,
+            )
+        ).scalar_one()
+        if new < body.min_new:
+            return {"ran": False, "new": int(new)}
+        oid = uuid7(st.clock)
+        ensure_operation(c, st.clock, oid, "face.cluster", {"kind": "faces", "id": DEFAULT_WS})
+        set_op_status(c, st.clock, oid, "running")
+    try:
+        out = run_cluster(st, DEFAULT_WS)
+    except Exception:
+        with st.engine.begin() as c:
+            set_op_status(c, st.clock, oid, "failed")
+        raise
+    with st.engine.begin() as c:
+        set_op_status(c, st.clock, oid, "succeeded")
+    return {"ran": True, **out}
+
+
 def run_cluster(st: AppState, ws: str) -> dict[str, Any]:
     import numpy as np
     from sklearn.cluster import HDBSCAN
@@ -658,9 +702,20 @@ def _people(c: Any, ws: str) -> list[dict[str, Any]]:
         .group_by(person.c.id)
         .order_by(func.count(face.c.id).desc(), person.c.id)
     ).all()
+    covers = {
+        r.person_id: {"asset_id": r.asset_id, "ch": r.content_hash}
+        for r in c.execute(
+            select(face.c.person_id, face.c.asset_id, asset.c.content_hash)
+            .join(asset, asset.c.id == face.c.asset_id)
+            .where(face.c.person_id.in_([r.id for r in rows]))
+            .distinct(face.c.person_id)
+            .order_by(face.c.person_id, face.c.quality_tier.desc(), face.c.det_score.desc(), face.c.id)
+        )
+    }
     return [
         {
             "id": r.id,
+            "cover": covers.get(r.id),
             "name": r.display_name,
             "status": r.status,
             "frozen": r.is_frozen,

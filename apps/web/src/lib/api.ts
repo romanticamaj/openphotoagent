@@ -71,7 +71,7 @@ export type Approval = {
   counts: Record<string, number>;
 };
 export type FaceSettings = { enabled: boolean; prompt_dismissed: boolean; workspace_name: string; worker_purge_pending: boolean; space_id: number | null };
-export type PersonRow = { id: string; name: string | null; status: string; face_count: number; asset_count: number };
+export type PersonRow = { id: string; name: string | null; status: string; face_count: number; asset_count: number; cover?: { asset_id: string; ch: string | null } | null };
 export type FaceSuggestion = { face_id: string; person_id: string; person: string | null; score: number | null; asset_id: string };
 export type PurgeReport = { faces: number; embeddings: number; prototypes: number; persons: number; worker_pending: boolean };
 export type TimelineAsset = { id: string; ch?: string | null; w: number | null; h: number | null; thumbhash: string | null; taken_at: string | null; flags: string[] };
@@ -137,7 +137,7 @@ export type Operation = {
 export type SearchBody = {
   q?: string | null;
   plan?: boolean;
-  filters?: { tags_all?: string[]; taken_from?: string; taken_to?: string; category?: string };
+  filters?: { tags_all?: string[]; taken_from?: string; taken_to?: string; category?: string; persons_any?: string[] };
   limit?: number;
   cursor?: string | null;
   facets?: string[];

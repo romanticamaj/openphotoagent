@@ -307,6 +307,17 @@
         "title": "CleanupIn",
         "type": "object"
       },
+      "ClusterDueIn": {
+        "properties": {
+          "min_new": {
+            "default": 1,
+            "title": "Min New",
+            "type": "integer"
+          }
+        },
+        "title": "ClusterDueIn",
+        "type": "object"
+      },
       "CodeIn": {
         "properties": {
           "name": {

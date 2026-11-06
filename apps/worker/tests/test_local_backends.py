@@ -401,3 +401,36 @@ def test_srch_plan_021_a_worker_with_no_planner_says_so(tmp_path):
     a = _agent(tmp_path)
     assert "query_plan" in RPC_KINDS
     assert a._do_query_plan({"q": "貓"}) == {}  # the API falls back to the rule planner (SRCH-PLAN-011)
+
+
+class _Due:
+    def __init__(self):
+        self.calls = []
+
+    def post(self, path, json=None, **kw):
+        self.calls.append((path, json))
+
+        class R:
+            status_code = 200
+
+            def json(_s):
+                return {"ran": False}
+
+        return R()
+
+
+@pytest.mark.unit
+@pytest.mark.tc("FACE-CLU-010")
+def test_face_clu_010_the_idle_worker_asks_for_grouping(tmp_path, sandbox_tree):
+    from opagent_inference.fake_faces import FakeFaceBackend
+    from opagent_worker.agent import WorkerAgent
+
+    client = _Due()
+    a = WorkerAgent(client, roots=sandbox_tree.roots, home=tmp_path / "w", worker_id="w1")
+    a.faces_cluster_once(0)
+    assert client.calls == []  # no face models: nothing to group
+    a.face_backend = FakeFaceBackend()
+    a.faces_cluster_once(32)  # still working through the backlog: only a full batch is worth a run
+    a.faces_cluster_once(0)  # finished: whatever is waiting
+    a.faces_cluster_once(0)  # and not again on every idle tick
+    assert [j["min_new"] for _, j in client.calls] == [200, 1]

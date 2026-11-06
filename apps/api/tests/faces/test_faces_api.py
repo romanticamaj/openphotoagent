@@ -482,3 +482,38 @@ def test_face_bkl_001_backlog_lists_photos_that_never_had_a_face_step(f):
     assert [i["asset_id"] for i in rest["items"]] == [({a, b} - {first["next"]}).pop()]
     done, _ = f.photo("old/p1.jpg")  # a photo that went through a job already has its faces
     assert done not in {i["asset_id"] for i in backlog()["items"]}
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-CLU-010")
+def test_face_clu_010_grouping_runs_when_new_faces_are_waiting(f):
+    """回歸 (seen on the reference machine): 3,082 faces found, 0 people. Nothing but the tests called the clustering."""
+    f.enable()
+    _library(f, people=range(1, 4), per=8)
+
+    def due(n):
+        return f.client.post("/worker-api/v1/faces/cluster-due", json={"min_new": n}, headers=f.ui).json()
+
+    assert due(1000)["ran"] is False
+    r = due(1)
+    assert r["ran"] is True and r["clusters"] == 3
+    assert due(1)["ran"] is False  # nothing new since that run
+    ops = f.get("/operations?status=all&type=face.cluster")
+    assert [o["status"] for o in ops] == ["succeeded"]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-CLU-010")
+def test_face_clu_010_off_means_off(f):
+    r = f.client.post("/worker-api/v1/faces/cluster-due", json={"min_new": 1}, headers=f.ui).json()
+    assert r["ran"] is False
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-CLU-011")
+def test_face_clu_011_a_person_has_a_face_to_show(f):
+    f.enable()
+    _library(f, people=range(1, 3), per=6)
+    f.post("/faces/cluster")
+    for p in f.get("/people")["people"]:
+        assert p["cover"]["asset_id"] and p["cover"]["ch"]

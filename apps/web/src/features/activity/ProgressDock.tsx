@@ -11,7 +11,7 @@ import { etaText } from "../../lib/format";
 import { useActivity } from "./ActivityHost";
 import type { Op } from "./model";
 
-const STAGES = ["scan", "job.label", "output.apply", "output.undo"];
+const STAGES = ["scan", "job.label", "face.cluster", "output.apply", "output.undo"];
 const LIVE = ["running", "queued", "waiting", "paused", "pausing"];
 const REFRESH_MS = 5000;
 const DETAIL_MS = 1500;

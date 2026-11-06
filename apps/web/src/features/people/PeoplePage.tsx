@@ -5,7 +5,7 @@ import { Link, useLocation } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../../components/Button";
-import { api, type PurgeReport } from "../../lib/api";
+import { api, mediaUrl, type PersonRow, type PurgeReport } from "../../lib/api";
 
 export function useFaceSettings() {
   return useQuery({ queryKey: ["face-settings"], queryFn: api.faceSettings, staleTime: 30_000 });
@@ -30,20 +30,70 @@ export function FaceOptInCard() {
   );
 }
 
+/** One person: their photos, and the name that makes them findable. */
+function PersonPanel({ person, onClose }: { person: PersonRow; onClose: () => void }) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const [name, setName] = useState(person.name ?? "");
+  const photos = useQuery({
+    queryKey: ["person-photos", person.id],
+    queryFn: () => api.search({ q: null, filters: { persons_any: [person.id] }, limit: 120 }),
+  });
+  const save = useMutation({
+    mutationFn: () => api.namePerson(person.id, name.trim()),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["people"] }),
+  });
+  return (
+    <section aria-label={person.name ?? t("faces.unnamed")} className="space-y-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4">
+      <form
+        className="flex flex-wrap items-end gap-2"
+        onSubmit={(e) => {
+          e.preventDefault();
+          save.mutate();
+        }}
+      >
+        <label className="flex flex-col gap-1 text-sm">
+          {t("faces.whoIsThis")}
+          <input value={name} onChange={(e) => setName(e.target.value)} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-2 py-1" />
+        </label>
+        <Button type="submit" disabledReason={name.trim() ? null : { code: "NAME_REQUIRED", message: t("faces.nameFirst") }}>
+          {t("faces.saveName")}
+        </Button>
+        <button type="button" className="ml-auto text-sm underline" onClick={onClose}>{t("dock.close")}</button>
+      </form>
+      <div className="explore-grid">
+        {(photos.data?.items ?? []).map((h) => (
+          <figure key={h.asset_id} className="explore-tile m-0">
+            <img src={mediaUrl(h.asset_id, "t256", h.ch)} alt="" loading="lazy" />
+            <figcaption className="explore-caption">{h.caption ?? ""}</figcaption>
+          </figure>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export function PeoplePage() {
   const { t } = useTranslation();
-  const q = useQuery({ queryKey: ["people"], queryFn: api.people });
+  const q = useQuery({ queryKey: ["people"], queryFn: api.people, refetchInterval: 5000 });
+  const [open, setOpen] = useState<string | null>(null);
+  const selected = (q.data?.people ?? []).find((p) => p.id === open);
   return (
     <section className="space-y-4 p-6" aria-labelledby="people-h">
       <header className="flex items-center justify-between">
         <h1 id="people-h" className="text-xl font-semibold">{t("faces.people")}</h1>
         <Link to="/people/review" className="underline">{t("faces.review")}</Link>
       </header>
+      {q.isSuccess && q.data.people.length === 0 ? <p className="text-[var(--text-muted)]">{t("faces.grouping")}</p> : null}
+      {selected ? <PersonPanel key={selected.id} person={selected} onClose={() => setOpen(null)} /> : null}
       <ul className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-3">
         {(q.data?.people ?? []).map((p) => (
-          <li key={p.id} data-testid="person" className="rounded-[var(--radius-md)] border border-[var(--border)] p-3">
-            <p className="font-medium" translate="no">{p.name ?? t("faces.unnamed")}</p>
-            <p className="text-xs text-[var(--text-muted)]">{t("faces.count", { n: p.asset_count })}</p>
+          <li key={p.id} data-testid="person">
+            <button type="button" aria-pressed={open === p.id} onClick={() => setOpen(open === p.id ? null : p.id)} className="person-card">
+              {p.cover ? <img src={mediaUrl(p.cover.asset_id, "t256", p.cover.ch)} alt="" loading="lazy" /> : null}
+              <span className="font-medium" translate="no">{p.name ?? t("faces.unnamed")}</span>
+              <span className="text-xs text-[var(--text-muted)]">{t("faces.count", { n: p.asset_count })}</span>
+            </button>
           </li>
         ))}
       </ul>

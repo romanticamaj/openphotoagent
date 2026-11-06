@@ -36,6 +36,8 @@ class _Abandoned(Exception):
 
 
 WATCH_SYNC_S = 15.0
+CLUSTER_CHECK_S = 60.0
+CLUSTER_TIMEOUT_S = 600.0  # 20,000 faces take minutes (07 §7)
 _log = logging.getLogger("opagent.worker")
 # The only messages the control plane can send (02 §6.3, MU-SEC-004). There is no "run a command" kind; anything
 # else is refused and logged, never looked up dynamically.
@@ -136,6 +138,7 @@ class WorkerAgent:
         self.cache = HashCache(self.home / "scan-cache.db")
         self.clock = clock or SystemClock()
         self.waiting: dict[str, tuple[dict[str, Any], float]] = {}
+        self._cluster_checked = -1e9
         self.page_size = 100  # small enough that a long scan shows photos early (IMP-006)
         self.scan_threads = max(1, min(8, (os.cpu_count() or 2) - 2))
         self.crash_after_pages: int | None = None  # test hook: simulate kill -9 after N reported pages
@@ -381,6 +384,19 @@ class WorkerAgent:
         """Per model: a new one starts over. Inside ``faces/``, so a purge removes it with the rest (07 §6.3)."""
         name = hashlib.sha256(self.face_backend.fingerprint.encode()).hexdigest()[:16]
         return self.home / "faces" / f"backlog-{name}.txt"
+
+    def faces_cluster_once(self, scanned: int) -> None:
+        """Group the faces found so far (07 §2.3): a full batch while the backlog runs, the rest once it is done."""
+        if self.face_backend is None or self.remote:
+            return
+        now = self.clock.monotonic()
+        if not scanned and now - self._cluster_checked < CLUSTER_CHECK_S:
+            return
+        if not scanned:
+            self._cluster_checked = now
+        self.client.post(
+            "/worker-api/v1/faces/cluster-due", json={"min_new": 200 if scanned else 1}, timeout=CLUSTER_TIMEOUT_S
+        )
 
     def faces_backlog_once(self, limit: int = 32) -> int:
         """Photos that never had a face step, one page at a time, when there is nothing else to do."""
@@ -703,7 +719,9 @@ class WorkerAgent:
                 self.flush_outbox()
             if not busy:
                 self.warm_embedder()
-                busy = self.faces_backlog_once() > 0
+                scanned = self.faces_backlog_once()
+                self.faces_cluster_once(scanned)
+                busy = scanned > 0
             if not busy:
                 stop.wait(0.2)
         except Exception:

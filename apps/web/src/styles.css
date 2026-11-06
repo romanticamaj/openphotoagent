@@ -327,6 +327,35 @@ body {
   -webkit-line-clamp: 2;
 }
 
+.person-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 0 0 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  overflow: hidden;
+  cursor: pointer;
+}
+.person-card[aria-pressed="true"] {
+  border-color: var(--accent);
+}
+.person-card img {
+  width: 100%;
+  aspect-ratio: 1;
+  margin-bottom: 6px;
+  background: var(--surface-2);
+  object-fit: cover;
+}
+.person-card span {
+  padding: 0 10px;
+}
+
 /* progress on every page (ADR-0029): clear of the scrubber on the right edge */
 .progress-dock {
   position: fixed;

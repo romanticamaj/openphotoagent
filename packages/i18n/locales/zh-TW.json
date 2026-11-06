@@ -198,7 +198,8 @@
       "job.label": "整理",
       "output.apply": "套用",
       "output.undo": "復原",
-      "search.reindex": "建立搜尋索引"
+      "search.reindex": "建立搜尋索引",
+      "face.cluster": "分組人臉"
     },
     "open": "活動",
     "resume": "繼續",
@@ -711,7 +712,11 @@
     "typeName": "輸入圖庫名稱「{name}」以確認",
     "typeNameFirst": "請先輸入圖庫名稱",
     "disableAndDelete": "停用並刪除",
-    "disableOnly": "只停用"
+    "disableOnly": "只停用",
+    "whoIsThis": "這個人是誰？",
+    "saveName": "儲存名字",
+    "nameFirst": "先輸入名字",
+    "grouping": "還沒有人物。系統正在把相同的臉分在一起，請稍等；照片還在分析時會晚一點出現。"
   },
   "ask": {
     "open": "✦ 問 AI",
@@ -876,7 +881,8 @@
       "scan": "掃描檔案",
       "job.label": "AI 分析",
       "output.apply": "複製檔案",
-      "output.undo": "復原"
+      "output.undo": "復原",
+      "face.cluster": "分組人臉"
     },
     "preparing": "準備中…",
     "now": "正在分析",

@@ -276,6 +276,9 @@
 | FACE-CLU-003 | ID 穩定 | 未命名群組在新資料加入後重跑 | Jaccard ≥ 0.5 者沿用舊 ID | U | #76 |
 | FACE-CLU-004 | 小群組摺疊 | 群組 < 3 張臉 | 歸入「其他臉孔」 | U | #76 |
 | FACE-CLU-005 | 大池退路 | n > 50k（合成） | 走近似 k-NN 圖；失敗時退回 Chinese Whispers；完成時間記錄（nightly） | I/F | #76 |
+| FACE-CLU-010 | 自動分群（回歸） | 新臉達門檻；已分過；功能關閉 | Worker 閒置時要求分群，建立 `face.cluster` Operation；沒有新臉或關閉時不跑 | I | #76 |
+| FACE-CLU-011 | 人物有代表照片（回歸） | 分群後 | `/people` 帶 cover | I | #76 |
+| FACE-UI-010 | 人物頁可用（回歸） | 有人物、沒有人物 | 卡片有照片；點開看到此人的照片；可命名；空狀態說明原因 | C | #76 |
 | FACE-MGT-001 | 合併可 undo | 合併 A→B | A 的指派全到 B、`merged_into=B`；undo 後完全還原 | I | #77 |
 | FACE-MGT-002 | 拆分 | 框選 5 張「移出為新人物」 | 新 person 凍結；原 person 少 5 張 | I | #77 |
 | FACE-MGT-003 | 合併建議不自動 | prototype 相似度 0.6 ≥ τ_merge | 只出現在建議清單 | U | #77 |

@@ -198,7 +198,8 @@
       "job.label": "Organizing",
       "output.apply": "Applying",
       "output.undo": "Undoing",
-      "search.reindex": "Building search index"
+      "search.reindex": "Building search index",
+      "face.cluster": "Grouping faces"
     },
     "open": "Activity",
     "resume": "Resume",
@@ -711,7 +712,11 @@
     "typeName": "Type the library name “{name}” to confirm",
     "typeNameFirst": "Type the library name first",
     "disableAndDelete": "Turn off and delete",
-    "disableOnly": "Turn off only"
+    "disableOnly": "Turn off only",
+    "whoIsThis": "Who is this?",
+    "saveName": "Save name",
+    "nameFirst": "Enter a name first",
+    "grouping": "No people yet. Once analysis finishes, the same faces are grouped together here."
   },
   "ask": {
     "open": "✦ Ask AI",
@@ -876,7 +881,8 @@
       "scan": "Scanning files",
       "job.label": "AI analysis",
       "output.apply": "Copying files",
-      "output.undo": "Undoing"
+      "output.undo": "Undoing",
+      "face.cluster": "Grouping faces"
     },
     "preparing": "Getting ready…",
     "now": "Analysing now",
