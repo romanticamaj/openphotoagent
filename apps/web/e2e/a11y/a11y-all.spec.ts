@@ -14,6 +14,8 @@ test.use({ scenario: { photos: "library", library: true, organize: "by-content-1
 const MAIN: Record<string, string> = {
   "/": "photos",
   "/welcome": "onboarding",
+  "/import": "import",
+  "/explore": "explore",
   "/duplicates": "duplicates",
   "/organize": "organize",
   "/plans/$planId": "plan",
