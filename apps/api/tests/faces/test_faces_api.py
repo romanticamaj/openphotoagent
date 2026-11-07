@@ -517,3 +517,25 @@ def test_face_clu_011_a_person_has_a_face_to_show(f):
     f.post("/faces/cluster")
     for p in f.get("/people")["people"]:
         assert p["cover"]["asset_id"] and p["cover"]["ch"]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-DET-010")
+def test_face_det_010_analysing_a_photo_again_adds_no_faces(f):
+    """回歸 (seen on the reference machine): 1,781 faces stored as 3,868 rows. Three copies of one face are a perfect
+    HDBSCAN cluster, so one library became 439 groups, and every copy filled a k-NN slot of a real neighbour."""
+    f.enable()
+    aid, first = f.photo("2025/1/IMG_0_p1.jpg")
+    faces = [{k: v for k, v in x.items() if k != "person_hint"} for x in f.fb.detect("2025/1/IMG_0_p1.jpg")]
+    r = f.client.post(
+        "/worker-api/v1/faces",
+        json={"worker_id": "w1", "asset_id": aid, "fingerprint": f.fb.fingerprint, "truncated": False, "faces": faces},
+        headers=f.ui,
+    )
+    assert r.status_code == 200, r.text
+    assert sorted(r.json()["face_ids"]) == sorted(first)
+    assert f.sql("select count(*) from face where asset_id=:a", a=aid).scalar() == len(first)
+    from opagent_api.faces import bio_session
+
+    with bio_session(f.client.app.state.opa) as c:
+        assert c.execute(sqlalchemy.text("select count(*) from bio.face_embedding")).scalar() == len(first)

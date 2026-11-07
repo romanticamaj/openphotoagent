@@ -265,6 +265,8 @@
 | FACE-DET-002 | 大合照截斷 | 60 張臉 | 只取 50 並標 `truncated` | U | #75 |
 | FACE-DET-003 | 跳過條件 | category=screenshot | 不跑人臉 | U | #75 |
 | FACE-DET-004 | 只解碼一次 | 同 Job 有 VLM 與 face step | 解碼次數 1（前處理 hook 計數） | I | #75 |
+| FACE-DET-010 | 重新分析不增加臉（回歸） | 同一張照片送兩次 | 回傳既有 ID；`face` 與 `bio.face_embedding` 筆數不變 | I | #75 |
+| FACE-DET-011 | 清除重複的臉（回歸） | 舊資料有同位置的副本，其中一份已確認，另一份有拒絕紀錄 | 每張臉留一份，優先保留人工決定過的；拒絕紀錄移到保留者；分群紀錄清空以便重跑 | I | #75 |
 | FACE-ASN-001 | 自動指派 | s_p1=0.66、s_p2=0.50、鄰居屬 p1 ≥ 2、tier 2 | `face_assignment(kind=auto)` | U | #76 |
 | FACE-ASN-002 | margin 不足 → 建議 | s_p1=0.62、s_p2=0.58 | `kind=suggested`，進 Review | U | #76 |
 | FACE-ASN-003 | 低品質不自動 | tier 1，分數足夠 | 只建議 | U | #76 |

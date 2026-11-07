@@ -338,6 +338,16 @@ def ingest(body: FacesIn, req: Request) -> dict[str, Any]:
         space = s.get("space_id") or _space(c, body.fingerprint)
         if not s.get("space_id"):
             _put(c, DEFAULT_WS, {**s, "space_id": space})
+        # a photo is analysed again and again; the job and the idle backlog can also meet on it, hence the row lock
+        c.execute(select(asset.c.id).where(asset.c.id == body.asset_id).with_for_update())
+        known = c.execute(
+            select(face.c.id).where(
+                face.c.asset_id == body.asset_id, face.c.space_id == space, face.c.source == "detected"
+            )
+        )
+        existing = [r[0] for r in known]
+        if existing:
+            return {"face_ids": existing, "truncated": False}
         kept, truncated = F.cap_faces([f.model_dump() for f in body.faces])
         ids = []
         for f in kept:

@@ -111,3 +111,67 @@ def test_mig_001_fresh_install_and_dev_schema(fresh_db, tmp_path):
             assert compare_metadata(MigrationContext.configure(c), head.metadata) == []
         eng.dispose()
         assert schema_revision(dsn) == SCHEMA_REVISION
+
+
+FACE_ROWS = [
+    "insert into workspace(id, name, settings) values ('default', 'Default', '{}')",
+    "insert into asset(id, workspace_id, content_hash, size_bytes, date_source, width, height, exif) values"
+    " ('a1','default','h1',10,'exif',4000,3000,'{}'), ('a2','default','h2',10,'exif',4000,3000,'{}')",
+    "insert into person(id, workspace_id, origin, status, is_frozen, display_name, created_by) values"
+    " ('named','default','cluster','named',true,'小明','user'), ('soft','default','cluster','unnamed',false,null,'system')",
+    "create table bio.face_embedding_t partition of bio.face_embedding for values in ('default')",
+    "insert into embedding_space(id, model_key, fingerprint, dim, modality)"
+    " values (1,'fake','fake',2,'face')",
+]
+
+
+def _face(fid, asset, box, state="unassigned", person=None):
+    return (
+        "insert into face(id, workspace_id, asset_id, space_id, bbox, det_score, quality, quality_tier, state, person_id)"
+        f" values ('{fid}','default','{asset}',1,ARRAY{box}::float[],0.9,'{{}}',3,'{state}',"
+        f"{repr(person) if person else 'null'})"
+    )
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-DET-011")
+def test_face_det_011_copies_go_and_human_decisions_stay(fresh_db, tmp_path):
+    """回歸: the installs that analysed a photo twice hold copies of its faces; grouping must start over without them."""
+    from opagent_db.schema import create_all
+
+    dsn = fresh_db("copies")
+    create_all(dsn)
+    box, other = [0.1, 0.1, 0.2, 0.2], [0.5, 0.5, 0.2, 0.2]
+    with psycopg.connect(dsn, autocommit=True) as c:
+        c.execute("CREATE TABLE alembic_version (version_num varchar(32) NOT NULL PRIMARY KEY)")
+        c.execute("INSERT INTO alembic_version VALUES ('0002')")
+        for q in FACE_ROWS:
+            c.execute(q)
+        c.execute(_face("f1", "a1", box))
+        c.execute(_face("f2", "a1", box, "confirmed", "named"))  # a later copy, but the one a person decided on
+        c.execute(_face("f3", "a1", box, "auto", "soft"))
+        c.execute(_face("f4", "a1", other))  # someone else in the same photo
+        c.execute(_face("f5", "a2", box))  # the same spot in another photo
+        for fid in ("f1", "f2", "f3", "f4", "f5"):
+            c.execute(
+                "insert into bio.face_embedding(workspace_id, face_id, space_id, vec)"
+                f" values ('default','{fid}',1,'[1,0]')"
+            )
+        c.execute(
+            "insert into face_assignment(id, face_id, person_id, kind, method, actor)"
+            " values ('r1','f1','soft','rejected','review','user')"
+        )
+        c.execute(
+            "insert into face_cluster_run(id, workspace_id, space_id, algo, params, input_faces, clusters, noise)"
+            " values ('run1','default',1,'hdbscan','{}',5,1,0)"
+        )
+    bdir = tmp_path / "backups"
+    bdir.mkdir()
+    migrate(dsn, Backups(bdir, find_pg_bin(), FakeClock()))
+    with psycopg.connect(dsn) as c:
+        assert [r[0] for r in c.execute("select id from face order by id")] == ["f2", "f4", "f5"]
+        assert [r[0] for r in c.execute("select face_id from bio.face_embedding order by 1")] == ["f2", "f4", "f5"]
+        assert c.execute("select state, person_id from face where id = 'f2'").fetchone() == ("confirmed", "named")
+        # "this is not that person" outlives the copy it was said about
+        assert c.execute("select face_id from face_assignment where id = 'r1'").fetchone() == ("f2",)
+        assert c.execute("select count(*) from face_cluster_run").fetchone() == (0,)  # those groups were built on copies
