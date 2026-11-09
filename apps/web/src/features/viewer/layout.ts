@@ -81,3 +81,9 @@ export function visibleTiles(layout: Layout, top: number, viewport: number, over
   for (let r = first; r <= last; r++) out.push(...rows[r].tiles);
   return out;
 }
+
+/** The smallest thumbnail whose long side covers the tile on this screen, at most 512 so decoded images stay in
+ * the memory budget (VIEW-022, VIEW-010). */
+export function thumbVariant(w: number, h: number, dpr: number): "t256" | "t512" {
+  return Math.max(w, h) * dpr <= 256 ? "t256" : "t512";
+}

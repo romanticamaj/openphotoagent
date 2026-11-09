@@ -10,7 +10,7 @@ import { useActivity } from "../activity/ActivityHost";
 import { api, mediaUrl, type TimelineAsset } from "../../lib/api";
 import { placeholder } from "../../lib/thumbhash";
 import type { Layout } from "./layout";
-import { visibleTiles } from "./layout";
+import { thumbVariant, visibleTiles } from "./layout";
 import { layoutAsync } from "./layoutClient";
 import { Scrubber } from "./Scrubber";
 import { HEADER_H, TimelineModel, monthLabel, type Bucket } from "./timeline";
@@ -339,7 +339,7 @@ export function PhotoGrid({
                           >
                             {!fast && (
                               <img
-                                src={mediaUrl(a.id, r.height > 256 ? "t512" : "t256", a.ch)}
+                                src={mediaUrl(a.id, thumbVariant(x.w, r.height, window.devicePixelRatio || 1), a.ch)}
                                 alt=""
                                 decoding="async"
                                 loading="lazy"
