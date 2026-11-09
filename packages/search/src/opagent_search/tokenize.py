@@ -62,6 +62,42 @@ def _jieba() -> Any:
     return jieba
 
 
+# words that frame a question about photos rather than say what is in them (ADR-0032)
+FILLER = {
+    "照片",
+    "相片",
+    "圖",
+    "圖片",
+    "張",
+    "拍",
+    "拍的",
+    "幾張",
+    "有幾張",
+    "多少",
+    "我",
+    "有",
+    "嗎",
+    "呢",
+    "photo",
+    "photos",
+    "picture",
+    "pictures",
+    "image",
+    "images",
+    "pic",
+    "pics",
+}
+
+
+@dataclass(frozen=True)
+class Concept:
+    """One thing the photo must show: a vocabulary term with all its names, or a word the vocabulary does not know."""
+
+    word: str
+    key: str | None
+    forms: tuple[str, ...]
+
+
 @dataclass
 class Tokenizer:
     custom_words: list[str] = field(default_factory=list)
@@ -162,6 +198,22 @@ class Tokenizer:
         latin = re.findall(r"[a-z][a-z0-9'-]*", normalize(text))
         out = list(dict.fromkeys([*names, *latin]))
         return " ".join(out) or None
+
+    def concepts(self, text: str) -> list[Concept]:
+        """The query's concepts (ADR-0032): filler and stop words out; words with the same vocabulary id are one."""
+        out: list[Concept] = []
+        seen: set[str] = set()
+        for w in self.words(text):
+            if normalize(w) in FILLER:
+                continue
+            k = self.tag_key(w)
+            ident = k or normalize(w)
+            if ident in seen:
+                continue
+            seen.add(ident)
+            forms = [normalize(w), *(f for f in self._forms.get(k, []) if f != normalize(w))] if k else [normalize(w)]
+            out.append(Concept(word=w, key=k, forms=tuple(forms)))
+        return out
 
     def query(self, text: str) -> ParsedQuery:
         words = self.words(text)

@@ -50,6 +50,9 @@
 | SRCH-SEM-009 | 下限來自模型目錄 | SigLIP2 與未知 fingerprint | 0.07；未知為 None；不需重新嵌入 | U | 不變量 7 |
 | SRCH-SEM-010 | 影像模型收到的查詢文字（回歸，驗證第 1 輪） | 海邊、貓、小孩在玩水、長頸鹿、red car、夜景 | beach、cat、child、不查、red car、night（ADR-0031） | U | #— |
 | SRCH-SEM-011 | 中文以英文進影像路徑 | 搜「海邊」；搜「長頸鹿」 | 影像向量 RPC 收到 `beach`；「長頸鹿」不呼叫影像向量，`degraded` 不含 image_vector | I | #— |
+| SRCH-CNC-001 | 每個概念都要符合（回歸，驗證第 2 輪） | 「小朋友踢足球的照片」「戴口罩的小女孩」；4 張照片 | 只回傳同時符合的那張；total＝facet 加總（ADR-0005） | I | #— |
+| SRCH-CNC-002 | 沒有照片符合的字詞被說明地略過 | 「小朋友 量子」 | 回傳小朋友的照片，`relaxed` = [量子]，畫面說明 | I | #— |
+| SRCH-CNC-003 | 單一概念不變 | 「足球」「小孩」 | 與之前相同；小朋友算小孩 | I | #— |
 | CORE-LUNAR-001 | 初一對照表 | `opagent_core.lunar` | 1900–2099 每年一筆；2024-02-10、2025-01-29、2026-02-17、2030-02-03 正確；`gen_lunar_table.py --check` 一致 | U | #62 |
 
 ### 1.3 SRCH-IMG、SRCH-DUP：以圖搜圖與重複

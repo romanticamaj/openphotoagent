@@ -210,6 +210,50 @@ def _ft(c: Any, where: list[Any], tsq: str, en: str) -> list[str]:
     return [r[0] for r in c.execute(q, {"q": tsq, "en": en})]
 
 
+MAX_CONCEPTS = 5
+
+
+def _concept_cond(i: int, cpt: Any) -> Any:
+    """A photo shows a concept when its text (caption, tags, any name of the term) or its tag id says so; a Chinese
+    word the vocabulary does not know also matches by its character pairs, for captions segmented differently."""
+    from opagent_search.tokenize import to_tsquery, to_tsquery_alts
+
+    from .labels import tokenizer
+
+    tok = tokenizer()
+    latin = cpt.word.isascii()
+    parts = [
+        _ft_cond(
+            to_tsquery_alts([cpt.forms[0]], {cpt.forms[0]: list(cpt.forms[1:])}), cpt.word if latin else "", f"c{i}"
+        )
+    ]
+    if cpt.key:
+        parts.append(search_doc.c.tags.overlap([cpt.key]))
+    elif not latin:
+        bi = tok.bigrams(cpt.word)
+        if bi:
+            parts.append(_ft_cond(to_tsquery(bi), "", f"cb{i}"))
+    return or_(*parts)
+
+
+def _all_concepts(c: Any, where: list[Any], concepts: list[Any]) -> tuple[list[Any], list[str]]:
+    """The match set of a query with several concepts (ADR-0032): every concept must show. A word the vocabulary does
+    not know and no photo shows is set aside and reported, so 「小朋友 量子」 still answers with the children."""
+    concepts = concepts[:MAX_CONCEPTS]
+    conds = [(cpt, _concept_cond(i, cpt)) for i, cpt in enumerate(concepts)]
+    required = [cond for cpt, cond in conds if cpt.key]
+    relaxed: list[str] = []
+    for cpt, cond in conds:
+        if cpt.key:
+            continue
+        n = c.execute(select(func.count()).select_from(search_doc).where(and_(*where, *required, cond))).scalar_one()
+        if n:
+            required.append(cond)
+        else:
+            relaxed.append(cpt.word)
+    return required, relaxed
+
+
 def _ft_cond(tsq: str, en: str, tag: str) -> Any:
     cond = f"tsv @@ CAST(:q_{tag} AS tsquery)" + (f" OR tsv @@ plainto_tsquery('english', :en_{tag})" if en else "")
     params: list[Any] = [bindparam(f"q_{tag}", tsq)] + ([bindparam(f"en_{tag}", en)] if en else [])
@@ -325,6 +369,8 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
         if qvec is None:
             degraded.append("image_vector")
     routes: dict[str, list[str]] = {}
+    relaxed: list[str] = []
+    concepts: list[Any] = []
     member: list[Any] = []  # ADR-0005: the match set (total, facets, selection) — not just the ranking window
     mode = None
     with st.engine.begin() as c:
@@ -385,6 +431,9 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                     .limit(PER_ROUTE)
                 )
                 routes["caption_vector"] = [r[0] for r in c.execute(cq, {"qv": str(cvec)})]
+            concepts = tokenizer().concepts(q)
+            if len(concepts) > 1:  # every concept must show (ADR-0032): one tag or one vector hit is not enough
+                member, relaxed = _all_concepts(c, where, concepts)
             from opagent_search.fusion import fuse, route_weights
 
             fused = fuse(routes, route_weights(q))
@@ -392,9 +441,25 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
             matched = {f.asset_id: f.matched_by for f in fused}
             ranked = [f.asset_id for f in fused]
             vec_ids = (routes.get("image_vector") or []) + (routes.get("caption_vector") or [])
-            if vec_ids:
-                member.append(search_doc.c.asset_id.in_(vec_ids))
-            match = or_(*member) if member else false()
+            if len(concepts) > 1:
+                match = and_(*member) if member else false()
+                # the image model was asked the whole question (English, or every concept in the vocabulary): what it
+                # finds above the floor shows all of it together, "a dog on the beach" (SRCH-SEM-001, ADR-0032)
+                whole = all(cpt.key or cpt.word.isascii() for cpt in concepts)
+                if whole and vec_ids:
+                    match = or_(match, search_doc.c.asset_id.in_(vec_ids))
+                # the routes rank; only photos showing every concept stay (vectors never add one, ADR-0032)
+                keep = {
+                    r[0]
+                    for r in c.execute(
+                        select(search_doc.c.asset_id).where(search_doc.c.asset_id.in_(ranked or ["-"]), match)
+                    )
+                }
+                ranked = [a for a in ranked if a in keep]
+            else:
+                if vec_ids:
+                    member.append(search_doc.c.asset_id.in_(vec_ids))
+                match = or_(*member) if member else false()
             tail_q = (
                 select(search_doc.c.asset_id)
                 .where(and_(*where), match, search_doc.c.asset_id.notin_(ranked or ["-"]))
@@ -474,6 +539,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
         "tag_names": tag_names(list(facets.get("tags") or {}), body.lang),
         "next_cursor": _sign({"o": nxt, "s": snapshot, "h": _qhash(body)}) if nxt < total else None,
         "total": total,
+        "relaxed": relaxed,  # words no photo shows, left out so the rest still answers (ADR-0032)
         "total_capped": capped,  # the vector route hit K: `total` is a lower bound
         "related": [
             {"asset_id": a, "ch": hashes.get(a), "caption": rel_rows[a].caption} for a in near_ids if a in rel_rows

@@ -504,7 +504,8 @@
     "none": "No matching photos",
     "indexing": "{have} / {total} photos searchable (text-to-image)",
     "degraded": "Text-to-image search is unavailable right now; showing text matches only",
-    "related": "Possibly related"
+    "related": "Possibly related",
+    "relaxed": "No photo shows “{words}”, so those words were left out."
   },
   "problem": {
     "chosen": "Switched to {what}"

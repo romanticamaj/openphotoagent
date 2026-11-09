@@ -504,7 +504,8 @@
     "none": "找不到符合的照片",
     "indexing": "已可搜尋 {have} / {total} 張（以文搜圖）",
     "degraded": "以文搜圖暫時無法使用，只顯示文字結果",
-    "related": "可能相關的照片"
+    "related": "可能相關的照片",
+    "relaxed": "沒有照片符合「{words}」，先不看這幾個字。"
   },
   "problem": {
     "chosen": "已改用 {what}"

@@ -163,6 +163,7 @@ export type SearchResult = {
   total_capped?: boolean;
   /** near misses, shown apart: outside `total`, facets and selections (ADR-0027) */
   related?: { asset_id: string; ch: string | null; caption: string | null }[];
+  relaxed?: string[];
   degraded: string[];
   planner?: Planner;
 };

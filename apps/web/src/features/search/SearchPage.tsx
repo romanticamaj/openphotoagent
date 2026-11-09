@@ -18,7 +18,7 @@ export function SearchPage({ q }: { q: string }) {
   const [tagNames, setTagNames] = useState<Record<string, string>>({});
   // the rule planner runs once per query; its filters become chips and the rest of the words stay the query (05 §2.3)
   const [planned, setPlanned] = useState<{ text: string } | null>(null);
-  const [sel, setSel] = useState<{ all: boolean; ids: Set<string>; anchor: number | null }>({ all: false, ids: new Set(), anchor: null });
+  const [sel, setSel] = useState<{ all: boolean; ids: Set<string>; anchor: number | null; multi?: boolean }>({ all: false, ids: new Set(), anchor: null });
   const [toast, setToast] = useState<string | null>(null);
   const [comparing, setComparing] = useState<string[] | null>(null);
   useEffect(() => {
@@ -62,7 +62,7 @@ export function SearchPage({ q }: { q: string }) {
   const first = res.data?.pages[0];
   const hits = (res.data?.pages ?? []).flatMap((p) => p.items);
   const total = first?.total ?? 0;
-  const count = sel.all ? total : sel.ids.size;
+  const count = sel.all ? total : sel.multi ? sel.ids.size : 0; // one clicked photo is not a batch
 
   const gridRef = useRef<HTMLDivElement>(null);
   // the results are a grid like the timeline (10 §5.5): one tab stop, arrows move, Space selects, Enter opens
@@ -99,7 +99,7 @@ export function SearchPage({ q }: { q: string }) {
   const onKey = (e: React.KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
       e.preventDefault();
-      setSel({ all: true, ids: new Set(), anchor: sel.anchor }); // every result, rendered or not (E2E-SEL-001)
+      setSel({ all: true, ids: new Set(), anchor: sel.anchor, multi: true }); // every result, rendered or not (E2E-SEL-001)
       return;
     }
     if (e.key === "Escape") {
@@ -126,29 +126,31 @@ export function SearchPage({ q }: { q: string }) {
   };
   const clickHit = (i: number, id: string, shift: boolean, toggle = false) => {
     if (toggle) {
-      // ⌘/Ctrl-click adds or removes one photo (10 §4.1)
-      const ids = new Set(sel.all ? [] : sel.ids);
+      // ⌘/Ctrl-click adds or removes one photo (10 §4.1); the photo last opened is not part of it
+      const ids = new Set(sel.all || !sel.multi ? [] : sel.ids);
       if (ids.has(id)) ids.delete(id);
       else ids.add(id);
-      setSel({ all: false, ids, anchor: i });
+      setSel({ all: false, ids, anchor: i, multi: true });
     } else if (shift && sel.anchor !== null) {
       const [a, b] = [Math.min(sel.anchor, i), Math.max(sel.anchor, i)];
-      const ids = new Set(sel.ids);
+      const ids = new Set(sel.multi ? sel.ids : []);
       for (const h of hits.slice(a, b + 1)) ids.add(h.asset_id);
-      setSel({ all: false, ids, anchor: i });
+      setSel({ all: false, ids, anchor: i, multi: true });
     } else if (shift) {
-      const ids = new Set(sel.ids);
+      const ids = new Set(sel.multi ? sel.ids : []);
       ids.add(id);
-      setSel({ all: false, ids, anchor: i });
-    } else if (sel.all || sel.ids.size > 0) {
+      setSel({ all: false, ids, anchor: i, multi: true });
+    } else if (sel.all || sel.multi) {
       // already choosing photos: a click adds or removes one, as in Google Photos (SRCH-UI-011)
       const ids = new Set(sel.all ? [] : sel.ids);
       if (ids.has(id)) ids.delete(id);
       else ids.add(id);
-      setSel({ all: false, ids, anchor: i });
+      setSel({ all: false, ids, anchor: i, multi: true });
     } else {
+      // a plain click opens the photo; it also becomes the current one, outlined (A11Y-005), not a batch to act on
+      setSel({ all: false, ids: new Set([id]), anchor: i, multi: false });
       setActive(i);
-      setViewing(i); // a plain click opens the photo
+      setViewing(i);
     }
   };
   const handle = async () =>
@@ -158,10 +160,16 @@ export function SearchPage({ q }: { q: string }) {
     <section className="space-y-4 p-4" aria-labelledby="search-h">
       <div className="flex items-baseline gap-3">
         <h1 id="search-h" className="text-lg font-semibold">{t("search.results")}</h1>
-        <span data-testid="result-count" className="tnum text-[var(--text-muted)]">
-          {t("search.count", { n: total.toLocaleString(i18n.language) })}
-        </span>
+        {first ? (
+          // no count until the answer is here: 「0 張」 flashed before every result (audit round 2)
+          <span data-testid="result-count" className="tnum text-[var(--text-muted)]">
+            {t("search.count", { n: total.toLocaleString(i18n.language) })}
+          </span>
+        ) : null}
       </div>
+      {first?.relaxed?.length ? (
+        <p role="status" className="text-sm text-[var(--text-muted)]">{t("search.relaxed", { words: first.relaxed.join("、") })}</p>
+      ) : null}
       {index.data && index.data.total > 0 && index.data.searchable < index.data.total && (
         <p data-testid="index-banner" role="status" className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
           {t("search.indexing", { have: index.data.searchable.toLocaleString(i18n.language), total: index.data.total.toLocaleString(i18n.language) })}

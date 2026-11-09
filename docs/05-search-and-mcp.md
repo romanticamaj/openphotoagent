@@ -249,6 +249,8 @@ SELECT * FROM fused ORDER BY score DESC LIMIT :limit OFFSET :offset;
 
 > 實作備註：`base` 很大時改為讓 r1 走 HNSW + `iterative_scan` 並把 filter 直接寫在 r1 的 WHERE（而不是 JOIN 物化集合）；Repository 依 `base` 預估列數二選一（§1.5）。
 
+**多個概念（ADR-0032）**：兩個以上的概念時，結果集合是「每個概念都符合」（全文含同義詞、標籤 id，或中文字對），向量只排序；整句都送進影像模型時，向量命中代表整句。對不到任何照片的詞彙外字詞會被略過，回應帶 `relaxed`。
+
 ### 2.2 以圖搜圖、相似、重複
 
 | 功能 | 輸入 | 做法 |

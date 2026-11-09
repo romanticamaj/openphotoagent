@@ -637,3 +637,41 @@ def test_srch_tok_012_a_new_tokenizer_reindexes_the_text(s):
     assert [x["asset_id"] for x in s.search(q="草地", semantic=False)["items"]] == [aid]
     assert s.sql("select settings->>'search_tokenizer' from workspace").scalar() == TOKENIZER_VERSION
     assert retokenize(s.client.app.state.opa) == 0  # once
+
+
+def _kids_library(s):
+    a = s.add(1, caption="小朋友在操場上踢足球", tags=("people.child", "activity.soccer"))
+    b = s.add(2, caption="小朋友在教室玩積木", tags=("people.child", "object.blocks"))
+    c = s.add(3, caption="空無一人的足球場", tags=("activity.soccer",))
+    d = s.add(4, caption="小女孩戴著口罩看書", tags=("people.child",))
+    s.index()
+    return a, b, c, d
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-CNC-001")
+def test_srch_cnc_001_every_concept_must_match(s):
+    """回歸 (audit round 2): 「小孩在玩水」, 「戴口罩的小女孩」, 「小朋友踢足球」 each returned all 558 child photos:
+    the tag route let people.child alone qualify a photo (ADR-0032)."""
+    a, b, c, d = _kids_library(s)
+    res = s.search(q="小朋友踢足球的照片", semantic=False, facets=["category"])
+    assert [x["asset_id"] for x in res["items"]] == [a] and res["total"] == 1
+    assert sum((res["facets"].get("category") or {}).values()) == res["total"]  # the set is the count (ADR-0005)
+    assert [x["asset_id"] for x in s.search(q="戴口罩的小女孩", semantic=False)["items"]] == [d]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-CNC-002")
+def test_srch_cnc_002_a_word_nothing_has_is_set_aside_and_said(s):
+    a, b, c, d = _kids_library(s)
+    res = s.search(q="小朋友 量子", semantic=False)
+    assert {x["asset_id"] for x in res["items"]} == {a, b, d}
+    assert res["relaxed"] == ["量子"]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-CNC-003")
+def test_srch_cnc_003_one_concept_is_as_before(s):
+    a, b, c, d = _kids_library(s)
+    assert {x["asset_id"] for x in s.search(q="足球", semantic=False)["items"]} == {a, c}
+    assert {x["asset_id"] for x in s.search(q="小孩", semantic=False)["items"]} == {a, b, d}  # 小朋友 is 小孩
