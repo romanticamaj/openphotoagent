@@ -176,3 +176,56 @@ def test_face_det_011_copies_go_and_human_decisions_stay(fresh_db, tmp_path):
         assert c.execute("select count(*) from face_cluster_run").fetchone() == (
             0,
         )  # those groups were built on copies
+
+
+def _result(rid, asset, raw):
+    import json
+
+    return (
+        "insert into result(id, asset_id, task_config_hash, model_fingerprint, task_type, category, confidence, raw)"
+        f" values ('{rid}','{asset}','h','fp','classify','other',0.2,'{json.dumps(raw)}'::jsonb)"
+    )
+
+
+@pytest.mark.integration
+@pytest.mark.tc("INF-CAS-018")
+def test_inf_cas_018_guesses_left_by_a_vlm_timeout_are_removed(fresh_db, tmp_path):
+    """回歸: installs that analysed while the GPU was busy hold the embedding's guess under the real cache key."""
+    from opagent_db.schema import create_all
+
+    dsn = fresh_db("timeouts")
+    create_all(dsn)
+    timed_out = {"provenance": {"error": "RUNTIME_TIMEOUT"}, "output": {"stages": {"route": "vlm", "vlm": None}}}
+    answered = {"provenance": {"error": None}, "output": {"stages": {"route": "vlm", "vlm": {"category": "people"}}}}
+    fast_path = {"provenance": {"error": None}, "output": {"stages": {"route": "accept", "vlm": None}}}
+    with psycopg.connect(dsn, autocommit=True) as c:
+        c.execute("CREATE TABLE alembic_version (version_num varchar(32) NOT NULL PRIMARY KEY)")
+        c.execute("INSERT INTO alembic_version VALUES ('0003')")
+        c.execute("insert into workspace(id, name, settings) values ('default', 'Default', '{}')")
+        for a in ("a1", "a2", "a3"):
+            c.execute(
+                "insert into asset(id, workspace_id, content_hash, size_bytes, date_source, width, height, exif)"
+                f" values ('{a}','default','h{a}',10,'exif',40,30,'{{}}')"
+            )
+        c.execute(_result("r1", "a1", timed_out))
+        c.execute(_result("r2", "a2", answered))
+        c.execute(_result("r3", "a3", fast_path))
+        c.execute("insert into job(id, workspace_id, kind, status, params) values ('j1','default','label','completed','{}')")
+        c.execute(
+            "insert into job_item(id, job_id, asset_id, root_alias, rel, task, status, result_id)"
+            " values ('i1','j1','a1','p','1.jpg','classify','done','r1'), ('i2','j1','a2','p','2.jpg','classify','done','r2')"
+        )
+        c.execute("insert into review(id, asset_id, job_id, result_id, reason) values ('v1','a1','j1','r1','low_confidence')")
+    bdir = tmp_path / "backups"
+    bdir.mkdir()
+    migrate(dsn, Backups(bdir, find_pg_bin(), FakeClock()))
+    with psycopg.connect(dsn) as c:
+        assert [r[0] for r in c.execute("select id from result order by id")] == ["r2", "r3"]
+        assert c.execute("select status, result_id, error_code from job_item where id = 'i1'").fetchone() == (
+            "failed",
+            None,
+            "RUNTIME_TIMEOUT",
+        )
+        assert c.execute("select count(*) from review").fetchone() == (0,)
+        assert c.execute("select count(*) from index_outbox where asset_id = 'a1'").fetchone() == (1,)
+
