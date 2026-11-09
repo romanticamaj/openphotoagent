@@ -559,7 +559,16 @@
       "installed": "已安裝",
       "downloading": "下載中"
     },
-    "back": "回到模型清單"
+    "back": "回到模型清單",
+    "kinds": {
+      "vlm": "看懂照片（說明、分類、標籤）",
+      "embedding": "以文搜圖",
+      "face_detector": "找出人臉",
+      "face_embedder": "辨認人臉",
+      "text_embedding": "以文字描述找照片",
+      "llm": "AI 問照片"
+    },
+    "installedBadge": "已安裝"
   },
   "readiness": {
     "title": "準備狀態",

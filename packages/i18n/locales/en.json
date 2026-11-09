@@ -559,7 +559,16 @@
       "installed": "Installed",
       "downloading": "Downloading"
     },
-    "back": "Back to models"
+    "back": "Back to models",
+    "kinds": {
+      "vlm": "Understands photos (captions, categories, tags)",
+      "embedding": "Search photos by text",
+      "face_detector": "Finds faces",
+      "face_embedder": "Recognises faces",
+      "text_embedding": "Search by description",
+      "llm": "Ask about photos"
+    },
+    "installedBadge": "Installed"
   },
   "readiness": {
     "title": "Readiness",
