@@ -753,6 +753,7 @@
 | IMP-024 | 新分析讓舊的待確認失效（回歸） | 照片有舊的 pending review | 新結果進來時改為 superseded，不再算在待確認 | I | — |
 | IMP-030 | 分析狀態（回歸） | 掃描中、分析中、完成 | 每個資料夾的狀態與數字、處理中的照片、最近的結果 | I | — |
 | IMP-031 | 進度卡顯示細節（回歸，不變量 9） | 多個資料夾同時分析 | 一條整體進度；資料夾清單、目前照片、最新 AI 結果、失敗數 | C | — |
+| IMP-032 | 資料夾預覽的名稱與標籤（回歸，驗證第 1 輪） | 選根資料夾 | 不重複寫「photos / photos」（只有子資料夾才顯示路徑）；統計標籤為「照片」「影片」 | C | #— |
 | REV-001 | 低信心建立 review | needs_review 結果 | `review(status=pending, reason=low_confidence)`；SSE `review.created`；計數「待確認 N 張」 | I | #49 |
 | REV-002 | 一次一張與數字鍵 | 待確認頁 | `1–9` 選候選類別、`0` 其他、`Enter` 接受建議、`S` 略過；處理後自動下一張 | E | #49、DoD 5.3 |
 | REV-003 | 逃生門 | 剩 40 張時「略過剩下的，全部放進『其他』」 | 40 張 `final_label=other`（`source=review_skip`）；Job 可進 planning | I/E | #49、DoD 5.3 |

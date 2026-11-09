@@ -90,4 +90,16 @@ describe("seeing a folder before adding it (ADR-0029)", () => {
     fireEvent.click(screen.getByTestId("use-folder"));
     expect(pick).toHaveBeenCalledWith("photos", "");
   });
+
+  it("[IMP-032] 回歸：根資料夾不重複寫「photos / photos」；統計標籤是「照片」不是「張照片」（驗證第 1 輪）", async () => {
+    state.preview = preview;
+    state.fail = false;
+    ui();
+    fireEvent.click(await screen.findByRole("button", { name: "photos" }));
+    const pane = await screen.findByTestId("folder-preview");
+    await within(pane).findByText("478");
+    expect(pane.textContent).not.toContain("photos / photos");
+    expect(within(pane).queryByText("張照片")).toBeNull();
+    expect(within(pane).getByText("照片")).toBeTruthy();
+  });
 });

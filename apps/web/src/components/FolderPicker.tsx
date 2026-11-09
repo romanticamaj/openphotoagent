@@ -103,7 +103,7 @@ function PreviewPane({ picked, action, onUse }: { picked: Picked; action: string
     <div data-testid="folder-preview" className="folder-preview">
       <div>
         <p className="text-base font-semibold">{crumbs[crumbs.length - 1]}</p>
-        <p className="text-xs text-[var(--text-muted)]" data-testid="current-path">{crumbs.join(" / ")}</p>
+        {crumbs.length > 1 ? <p className="text-xs text-[var(--text-muted)]" data-testid="current-path">{crumbs.join(" / ")}</p> : null}
       </div>
       {q.isPending ? <p role="status" className="text-[var(--text-muted)]">{t("library.counting")}</p> : null}
       {q.isError ? <p role="status" className="text-[var(--text-muted)]">{t("library.previewFailed")}</p> : null}
