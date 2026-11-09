@@ -36,6 +36,7 @@ export function ProblemCard({ problem, onFix, tone = "warning" }: { problem: Pro
     return key && i18n.exists(key) ? { id: `cost-${uid}-${i}`, text: t(key) } : null;
   });
   const title = t(`errors.${problem.code}.title`, { ...params, defaultValue: problem.code });
+  const message = t(`errors.${problem.code}.message`, { ...params, defaultValue: "" }); // said once when it repeats the title (DOC-023)
   return (
     <div role="group" aria-label={title} className="space-y-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4" data-code={problem.code}>
       <p className="font-semibold">
@@ -44,7 +45,7 @@ export function ProblemCard({ problem, onFix, tone = "warning" }: { problem: Pro
         </span>
         {title}
       </p>
-      <p className="text-sm text-[var(--text-muted)]">{t(`errors.${problem.code}.message`, { ...params, defaultValue: "" })}</p>
+      {message && message !== title ? <p className="text-sm text-[var(--text-muted)]">{message}</p> : null}
       <div className="flex flex-wrap gap-2">
         {(problem.fixes ?? []).map((f, i) => {
           const label = fixLabel(problem, f, i, t, (k) => i18n.exists(k));
@@ -65,8 +66,12 @@ export function ProblemCard({ problem, onFix, tone = "warning" }: { problem: Pro
           {costs.map((c, i) =>
             c ? (
               <li key={i}>
-                <span className="font-medium">{fixLabel(problem, (problem.fixes ?? [])[i], i, t, (k) => i18n.exists(k))}</span>
-                {" — "}
+                {c.text.startsWith(fixLabel(problem, (problem.fixes ?? [])[i], i, t, (k) => i18n.exists(k))) ? null : (
+                  <>
+                    <span className="font-medium">{fixLabel(problem, (problem.fixes ?? [])[i], i, t, (k) => i18n.exists(k))}</span>
+                    {" — "}
+                  </>
+                )}
                 <span id={c.id}>{c.text}</span>
               </li>
             ) : null,

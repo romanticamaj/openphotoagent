@@ -216,3 +216,28 @@ def test_doc_022_nvidia_xml_as_windows_prints_it():
     [gpu] = parse_nvidia(xml, None)
     assert gpu.vram_total_gb == pytest.approx(15.92, abs=0.01)
     assert gpu.vram_used_external_gb == pytest.approx(10.64, abs=0.01)
+
+
+@pytest.mark.unit
+@pytest.mark.tc("DOC-024")
+def test_doc_024_who_is_using_the_gpu_in_a_few_words():
+    """回歸 (audit round 1): the warning listed about 30 processes, the Windows shell and every WebView among them."""
+    from opagent_doctor.checks import busy_names
+
+    procs = [
+        "explorer.exe",
+        "chrome.exe",
+        "msedgewebview2.exe",
+        "Spotify.exe",
+        "chrome.exe",
+        "SearchHost.exe",
+        "python.exe",
+        "LINE.exe",
+        "dwm.exe",
+        "Docker Desktop.exe",
+        "ChatGPT.exe",
+        "TextInputHost.exe",
+    ]
+    assert busy_names(procs) == "chrome.exe, Spotify.exe, python.exe, LINE.exe, Docker Desktop.exe 等 6 個程式"
+    assert busy_names(["explorer.exe"]) == ""
+    assert busy_names(["ollama.exe"]) == "ollama.exe"

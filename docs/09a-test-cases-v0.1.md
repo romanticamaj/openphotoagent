@@ -535,6 +535,8 @@
 | DOC-020 | 五類真機 | nightly／release：NVIDIA、AMD（Vulkan）、Intel、Apple Silicon、純 CPU | 報告產生且不崩潰；附在 release notes | N/M | #26、DoD 5.2 |
 | DOC-021 | Windows 回報實體記憶體（回歸） | Windows 上收集探針 | `ram_gb` 大於 0 | U | Windows |
 | DOC-022 | 解析 Windows 版 nvidia-smi XML（回歸） | `<gpu id=…>`、WDDM 下 `used_memory` 為 N/A | 認得 GPU；外部佔用改用 `fb_memory_usage/used` | U | M0-T2 |
+| DOC-023 | 問題只說一次（回歸，驗證第 1 輪） | 內文與標題相同；代價說明以按鈕名稱開頭 | 內文不重印；代價說明前不再加「名稱 —」 | C | #— |
+| DOC-024 | 佔用 GPU 的程式精簡列出（回歸，驗證第 1 輪） | 12 個程式含 Windows 殼層、重複 | 去掉殼層與重複，最多列 5 個，超過時寫「等 N 個程式」（N 為總數）；只有殼層時回空字串 | U | #— |
 
 ### 7.4 DIAG：診斷包
 
