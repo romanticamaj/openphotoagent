@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { justify, thumbVariant, visibleTiles } from "./layout";
+import { justify, justifyDays, thumbVariant, visibleTiles } from "./layout";
 
 const golden = JSON.parse(readFileSync(join(import.meta.dirname, "../../../../../fixtures/golden/justified/cases.json"), "utf8"));
 
@@ -42,5 +42,22 @@ describe("which thumbnail a tile loads", () => {
     expect(thumbVariant(480, 240, 1)).toBe("t512"); // a wide tile in a short row
     expect(thumbVariant(200, 200, 2)).toBe("t512"); // HiDPI
     expect(thumbVariant(600, 300, 2)).toBe("t512"); // the grid stops at 512: decoded images stay in budget (VIEW-010)
+  });
+});
+
+describe("days inside a month", () => {
+  it("[VIEW-023] 回歸：一個月依日期分段，每天有自己的標題（驗證第 1 輪：424 張擠成一塊）", () => {
+    const aspects = [1.5, 1.5, 1.5, 0.75, 1.5, 1.5];
+    const l = justifyDays(aspects, [2, 4], 1000, 200, 2, 28);
+    expect(l.heads).toEqual([
+      { y: 0, first: 0 },
+      { y: expect.any(Number), first: 2 },
+    ]);
+    const firstOfDay2 = l.rows.find((r) => r.tiles[0].index === 2)!;
+    const lastOfDay1 = l.rows.filter((r) => r.tiles[0].index < 2).at(-1)!;
+    expect(l.heads![1].y).toBeGreaterThanOrEqual(lastOfDay1.y + lastOfDay1.height);
+    expect(firstOfDay2.y).toBe(l.heads![1].y + 28); // the label sits right above its photos
+    expect(l.rows.every((r) => r.tiles.every((t) => (t.index < 2) === (r.tiles[0].index < 2)))).toBe(true); // no row mixes days
+    expect(l.height).toBe(Math.max(...l.rows.map((r) => r.y + r.height)));
   });
 });

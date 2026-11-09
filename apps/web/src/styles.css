@@ -356,6 +356,15 @@ body {
   padding: 0 10px;
 }
 
+.day-header {
+  display: flex;
+  align-items: center;
+  padding: 0 2px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .face-crop {
   position: relative;
   display: block;

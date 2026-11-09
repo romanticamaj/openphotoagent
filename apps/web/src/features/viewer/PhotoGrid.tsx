@@ -10,7 +10,7 @@ import { useActivity } from "../activity/ActivityHost";
 import { api, mediaUrl, type TimelineAsset } from "../../lib/api";
 import { placeholder } from "../../lib/thumbhash";
 import type { Layout } from "./layout";
-import { thumbVariant, visibleTiles } from "./layout";
+import { DAY_H, thumbVariant, visibleTiles } from "./layout";
 import { layoutAsync } from "./layoutClient";
 import { Scrubber } from "./Scrubber";
 import { HEADER_H, TimelineModel, monthLabel, type Bucket } from "./timeline";
@@ -136,7 +136,7 @@ export function PhotoGrid({
       if (!data || layouts.current.has(key) || pendingLayout.current.has(key)) return;
       const placeholder: Layout = { rows: [], height: model.height(i) - HEADER_H, width: innerWidth };
       pendingLayout.current.set(key, placeholder);
-      void layoutAsync(data.assets.map(aspect), innerWidth, target).then((l) => {
+      void layoutAsync(data.assets.map(aspect), innerWidth, target, dayGroups(data.assets)).then((l) => {
         pendingLayout.current.delete(key);
         if (!alive.current) return;
         layouts.current.set(key, l);
@@ -308,6 +308,11 @@ export function PhotoGrid({
                   <span role="columnheader">{label}</span>
                   <span className="tnum text-[var(--text-muted)]">{t("viewer.count", { count: b.count })}</span>
                 </div>
+                {(l?.heads ?? []).map((h) => (
+                  <div key={`d${h.first}`} className="day-header" style={{ position: "absolute", top: HEADER_H + h.y, left: 0, height: DAY_H }}>
+                    {dayLabel(assets?.[h.first]?.taken_at ?? null, i18n.language) ?? t("viewer.unknownDate")}
+                  </div>
+                ))}
                 {[...byRow].map(([ri, rowTiles]) => {
                   const r = l!.rows[ri];
                   return (
@@ -363,4 +368,27 @@ export function PhotoGrid({
       )}
     </div>
   );
+}
+
+/** Photos of one calendar day (local time) are one group; the timeline is newest first, so groups follow the list. */
+export function dayGroups(assets: Array<{ taken_at: string | null }>): number[] {
+  const out: number[] = [];
+  let prev: string | null | undefined;
+  for (const a of assets) {
+    const d = a.taken_at ? localDay(a.taken_at) : null;
+    if (out.length && d === prev) out[out.length - 1]++;
+    else out.push(1);
+    prev = d;
+  }
+  return out;
+}
+
+function localDay(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
+
+export function dayLabel(iso: string | null, lang: string): string | null {
+  if (!iso) return null;
+  return new Intl.DateTimeFormat(lang, { month: "long", day: "numeric", weekday: "short" }).format(new Date(iso));
 }
