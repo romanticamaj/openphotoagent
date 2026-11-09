@@ -241,3 +241,21 @@ def test_imp_030_what_is_being_analysed_right_now(env):
     assert s["recent"][0]["rel"] == "trip/x.jpg"
     assert s["recent"][0]["caption"]
     assert s["recent"][0]["category_name"]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("IMP-033")
+def test_imp_033_each_library_folder_says_how_many_photos_and_how_many_analysed(env):
+    """The folders already in the library, with what is left to analyse: 整理 starts from them, 匯入 can analyse
+    them again (audit round 1: both pages opened on the same folder tree)."""
+    src = env.client.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": ""}).json()
+    env.client.post(f"/api/v1/sources/{src['id']}/scan")
+    while env.w.run_once() or env.w.process_items_once():
+        pass
+    row = next(s for s in env.client.get("/api/v1/sources").json() if s["id"] == src["id"])
+    assert row["photos"] == 3 and row["analysed"] == 0
+    env.client.post(f"/api/v1/sources/{src['id']}/analyze")
+    while env.w.run_once() or env.w.process_items_once():
+        pass
+    row = next(s for s in env.client.get("/api/v1/sources").json() if s["id"] == src["id"])
+    assert row["photos"] == 3 and row["analysed"] == 3

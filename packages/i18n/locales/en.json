@@ -85,7 +85,11 @@
     "moveNeedText": "Type the confirmation text",
     "close": "Cancel",
     "summaryTrash": "Move {count} to the trash, keeping one copy of each group. You can undo at any time",
-    "addFolder": "Add a folder…"
+    "addFolder": "Add a folder…",
+    "intro": "Organizing copies photos into an output folder, sorted by category or date. The originals stay as they are, and it can be undone.",
+    "fromLibrary": "Pick a folder in the library",
+    "organizeThis": "Organize this folder",
+    "otherFolder": "Or another folder"
   },
   "eta": {
     "slow": {
@@ -883,14 +887,22 @@
     "skips": "{n} files that aren't photos will be skipped.",
     "truncated": "This folder is very large: counts stop at the first 50,000 files.",
     "safe": "Nothing in this folder will be changed or moved.",
-    "photos": "Photos",
-    "videos": "Videos",
+    "photos": "photos",
+    "videos": "videos",
     "size": "total size",
     "dates": "dates taken (sampled)",
     "sampleAlt": "A sample photo from this folder",
     "outputFolder": "Output",
     "addAndAnalyze": "Add to library and analyse",
-    "scanOnly": "Add the photos without AI analysis for now"
+    "scanOnly": "Add the photos without AI analysis for now",
+    "inLibrary": "Folders in the library",
+    "wholeRoot": "The whole folder",
+    "folderCounts": "{photos} photos · {analysed} analysed",
+    "analysedShare": "Share analysed",
+    "analyse": "Analyse",
+    "analyseRest": "Analyse the rest",
+    "reanalyse": "Analyse again",
+    "orAddNew": "Or add a new folder"
   },
   "dock": {
     "label": "Progress",

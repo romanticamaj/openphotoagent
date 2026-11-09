@@ -165,8 +165,26 @@ def create_source(body: SourceIn, req: Request) -> dict[str, Any]:
 
 @router.get("/sources")
 def list_sources(req: Request) -> list[dict[str, Any]]:
+    """The library's folders, each with its photos and how many have an AI result (IMP-033)."""
+    from opagent_db.schema import asset_location, search_doc
+
     with _st(req).engine.begin() as c:
-        return [dict(r._mapping) for r in c.execute(select(source.c.id, source.c.root_alias, source.c.sub_path))]
+        photos = func.count(func.distinct(asset_location.c.asset_id))
+        analysed = func.count(func.distinct(search_doc.c.asset_id)).filter(search_doc.c.category.is_not(None))
+        rows = c.execute(
+            select(
+                source.c.id, source.c.root_alias, source.c.sub_path, photos.label("photos"), analysed.label("analysed")
+            )
+            .select_from(source)
+            .outerjoin(
+                asset_location,
+                (asset_location.c.source_id == source.c.id) & asset_location.c.missing.is_(False),
+            )
+            .outerjoin(search_doc, search_doc.c.asset_id == asset_location.c.asset_id)
+            .group_by(source.c.id)
+            .order_by(source.c.root_alias, source.c.sub_path)
+        )
+        return [dict(r._mapping) for r in rows]
 
 
 @router.post("/preflight")

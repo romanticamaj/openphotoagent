@@ -356,6 +356,38 @@ body {
   padding: 0 10px;
 }
 
+.library-folders {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 10px;
+}
+.library-folders li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.library-folders li > div {
+  flex: 1;
+}
+.library-folder-action {
+  flex: none;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+.library-folder-action:hover {
+  border-color: var(--accent);
+}
+
 .day-header {
   display: flex;
   align-items: center;

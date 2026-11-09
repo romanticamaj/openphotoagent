@@ -8277,6 +8277,7 @@
     },
     "/api/v1/sources": {
       "get": {
+        "description": "The library's folders, each with its photos and how many have an AI result (IMP-033).",
         "operationId": "list_sources_api_v1_sources_get",
         "responses": {
           "200": {

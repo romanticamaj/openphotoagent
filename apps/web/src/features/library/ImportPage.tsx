@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../../components/Button";
 import { FolderPicker } from "../../components/FolderPicker";
+import { LibraryFolders } from "../../components/LibraryFolders";
 import { ProblemCard, type Problem } from "../../components/ProblemCard";
 import { ApiError, api } from "../../lib/api";
 
@@ -25,6 +26,13 @@ export function ImportPage() {
         if (!problems) throw e;
         setBlocked({ source: s.id, problems });
       }
+    },
+  });
+  // a folder already in the library: analyse what is new, or everything again after a model or setting changed
+  const again = useMutation({
+    mutationFn: async (source: string) => {
+      await api.analyzeSource(source);
+      void nav({ to: "/" });
     },
   });
   const scanOnly = useMutation({
@@ -49,6 +57,15 @@ export function ImportPage() {
           </Button>
         </div>
       ) : null}
+      <section className="space-y-2">
+        <h2 className="font-semibold">{t("library.inLibrary")}</h2>
+        <LibraryFolders
+          action={(s) => t(s.analysed === 0 ? "library.analyse" : s.analysed < s.photos ? "library.analyseRest" : "library.reanalyse")}
+          busy={again.isPending ? again.variables : null}
+          onAct={(s) => again.mutate(s.id)}
+        />
+      </section>
+      <h2 className="font-semibold">{t("library.orAddNew")}</h2>
       <FolderPicker title={t("library.pickTitle")} action={t("library.addAndAnalyze")} onPick={(root, path) => add.mutate({ root, path })} />
     </div>
   );

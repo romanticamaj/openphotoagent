@@ -179,6 +179,7 @@ export type VariantView = {
   installation: { id: string; status: string } | null;
   perf: { basis: string; prior: { items_per_s?: Record<string, [number, number]> } | null };
 };
+export type LibrarySource = { id: string; root_alias: string; sub_path: string; photos: number; analysed: number };
 export type ModelView = {
   id: string;
   display_name: string;
@@ -342,7 +343,7 @@ export const api = {
   operations: (params = "status=all") => req<Operation[]>("GET", `/operations?${params}`),
   preflight: (action: string, params: Record<string, unknown> = {}) =>
     req<{ blockers: Array<{ code: string; params: Record<string, unknown> }>; warnings: unknown[] }>("POST", "/preflight", { action, params }),
-  sources: () => req<Array<{ id: string; root_alias: string; sub_path: string }>>("GET", "/sources"),
+  sources: () => req<LibrarySource[]>("GET", "/sources"),
   scanSource: (id: string) => req<{ task_id: string }>("POST", `/sources/${encodeURIComponent(id)}/scan`),
   search: (body: SearchBody) => req<SearchResult>("POST", "/search", body),
   searchIndex: () => req<{ searchable: number; total: number }>("GET", "/search-index"),

@@ -85,7 +85,11 @@
     "moveNeedText": "請輸入確認字串",
     "close": "取消",
     "summaryTrash": "將移到垃圾桶 {count} 張，保留每組的代表張。可隨時復原",
-    "addFolder": "加入資料夾…"
+    "addFolder": "加入資料夾…",
+    "intro": "整理會把照片「複製」到輸出資料夾，依類別或日期分好。原來的檔案不會動，整理完也能一鍵復原。",
+    "fromLibrary": "選一個已在圖庫的資料夾",
+    "organizeThis": "整理這個資料夾",
+    "otherFolder": "或選其他資料夾"
   },
   "eta": {
     "slow": {
@@ -883,14 +887,22 @@
     "skips": "會略過 {n} 個非照片檔案。",
     "truncated": "檔案很多，數字只算到前 50,000 個。",
     "safe": "不會修改或移動這個資料夾裡的任何檔案。",
-    "photos": "照片",
-    "videos": "影片",
+    "photos": "張照片",
+    "videos": "部影片",
     "size": "總大小",
     "dates": "拍攝日期（抽樣）",
     "sampleAlt": "資料夾裡的照片樣本",
     "outputFolder": "輸出",
     "addAndAnalyze": "加入圖庫並開始分析",
-    "scanOnly": "先只加入照片，不做 AI 分析"
+    "scanOnly": "先只加入照片，不做 AI 分析",
+    "inLibrary": "已在圖庫的資料夾",
+    "wholeRoot": "整個資料夾",
+    "folderCounts": "{photos} 張 · 已分析 {analysed} 張",
+    "analysedShare": "已分析的比例",
+    "analyse": "分析",
+    "analyseRest": "分析剩下的照片",
+    "reanalyse": "重新分析",
+    "orAddNew": "或加入新的資料夾"
   },
   "dock": {
     "label": "進度",

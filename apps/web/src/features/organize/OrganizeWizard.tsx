@@ -9,6 +9,7 @@ import { Button, type DisabledReason } from "../../components/Button";
 import { CompatBadge } from "../../components/CompatBadge";
 import { useServerEvents } from "../../lib/events";
 import { FolderPicker } from "../../components/FolderPicker";
+import { LibraryFolders } from "../../components/LibraryFolders";
 import { ProblemCard, type Problem } from "../../components/ProblemCard";
 import { ApiError, api, mediaUrl, type Category, type Job, type PreviewItem } from "../../lib/api";
 import { formatDuration } from "../../lib/format";
@@ -95,7 +96,23 @@ export function OrganizeWizard() {
   });
 
   if (!folder) {
-    return <FolderPicker onPick={(root, path) => pick.mutate({ root, path })} />;
+    // 整理 starts from what is already in the library (IMP-033); any other folder is one click away
+    return (
+      <div className="mx-auto max-w-5xl space-y-6 p-8">
+        <header className="space-y-1">
+          <h1 className="text-xl font-semibold">{t("organize.pickFolder")}</h1>
+          <p className="text-[var(--text-muted)]">{t("organize.intro")}</p>
+        </header>
+        <section className="space-y-2">
+          <h2 className="font-semibold">{t("organize.fromLibrary")}</h2>
+          <LibraryFolders action={() => t("organize.organizeThis")} onAct={(s) => setFolder({ root: s.root_alias, path: s.sub_path, source: s.id })} />
+        </section>
+        <section className="space-y-2">
+          <h2 className="font-semibold">{t("organize.otherFolder")}</h2>
+          <FolderPicker onPick={(root, path) => pick.mutate({ root, path })} />
+        </section>
+      </div>
+    );
   }
 
   // a running job: progress, waiting reason, pending reviews
