@@ -113,16 +113,16 @@ describe("the words the AI wrote (ADR-0029)", () => {
     expect(onPick).toHaveBeenLastCalledWith(null); // a second click clears it, and the URL follows
   });
 
-  it("[IMP-026] 回歸：分類頁只列有意義的概念，不列「地板」「鏡子」這類泛用標籤（驗證第 1 輪）", async () => {
+  it("[IMP-026] 回歸：分類頁先列概念，不列「地板」「坐姿」這類泛用標籤（驗證第 1 輪）", async () => {
     s.search.mockReset();
     s.search.mockResolvedValue({
-      ...result([hit("a")], { category: { food: 3 }, tags: { 地板: 187, "people.child": 166, 鏡子: 68, "object.blocks": 33 } }),
+      ...result([hit("a")], { category: { food: 3 }, tags: { 地板: 187, "people.child": 166, 坐姿: 68, "object.blocks": 33 } }),
       tag_names: { "people.child": "小孩", "object.blocks": "積木" },
     });
     ui();
     expect(await screen.findByRole("button", { name: /小孩/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /積木/ })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /地板/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: /鏡子/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /坐姿/ })).toBeNull();
   });
 });

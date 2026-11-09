@@ -14,6 +14,9 @@ const TOP_TAGS = 16;
 const PAGE = 120;
 const byCount = (m: Record<string, number> = {}) => Object.entries(m).sort((a, b) => b[1] - a[1]);
 
+// words that describe almost every photo of a room or a pose: also on the vocabulary blacklist, so new analyses drop them
+const GENERIC = new Set(["地板", "木地板", "牆", "牆壁", "天花板", "背景", "坐姿", "穿著", "動作", "線條", "彩色", "手", "人", "互動", "活動", "燈光"]);
+
 export type ExplorePick = Pick;
 
 /** ``initial`` and ``onPick`` keep the choice in the URL (IMP-025): a category can be linked and survives a reload. */
@@ -60,9 +63,11 @@ export function ExplorePage({ initial = null, onPick }: { initial?: Pick; onPick
     [hits],
   );
   const categories = byCount(all.data?.facets.category);
-  // concepts of the vocabulary only (IMP-026): free tags such as 地板 or 鏡子 stay searchable, not browsable
+  // concepts first, then free tags, never the generic ones (IMP-020, IMP-026): those stay searchable
+  const named = (k: string) => all.data?.tag_names?.[k] !== undefined;
   const tags = byCount(all.data?.facets.tags)
-    .filter(([k]) => all.data?.tag_names?.[k] !== undefined)
+    .filter(([k]) => !GENERIC.has(k))
+    .sort((a, b) => Number(named(b[0])) - Number(named(a[0])))
     .slice(0, TOP_TAGS);
   const analysed = categories.reduce((n, [, c]) => n + c, 0);
   const total = (library.data?.buckets ?? []).reduce((n, b) => n + b.count, 0);

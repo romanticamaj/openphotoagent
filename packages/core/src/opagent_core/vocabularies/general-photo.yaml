@@ -118,4 +118,4 @@ terms:
   - { id: event.sports_day, zh: 運動會, en: sports day, group: 活動, synonyms: [] }
   - { id: event.halloween, zh: 萬聖節, en: halloween, group: 活動, synonyms: [] }
   - { id: mood.smile, zh: 笑容, en: smile, group: 氛圍, synonyms: [微笑, 笑臉, 開心] }
-blacklist: [照片, 圖片, 相片, photo, image, picture]
+blacklist: [照片, 圖片, 相片, photo, image, picture, 地板, 木地板, 牆, 牆壁, 天花板, 背景, 坐姿, 穿著, 動作, 線條, 彩色, 手, 人, 互動, 活動, 燈光]
