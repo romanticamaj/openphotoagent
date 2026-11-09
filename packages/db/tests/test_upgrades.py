@@ -210,12 +210,16 @@ def test_inf_cas_018_guesses_left_by_a_vlm_timeout_are_removed(fresh_db, tmp_pat
         c.execute(_result("r1", "a1", timed_out))
         c.execute(_result("r2", "a2", answered))
         c.execute(_result("r3", "a3", fast_path))
-        c.execute("insert into job(id, workspace_id, kind, status, params) values ('j1','default','label','completed','{}')")
+        c.execute(
+            "insert into job(id, workspace_id, kind, status, params) values ('j1','default','label','completed','{}')"
+        )
         c.execute(
             "insert into job_item(id, job_id, asset_id, root_alias, rel, task, status, result_id)"
             " values ('i1','j1','a1','p','1.jpg','classify','done','r1'), ('i2','j1','a2','p','2.jpg','classify','done','r2')"
         )
-        c.execute("insert into review(id, asset_id, job_id, result_id, reason) values ('v1','a1','j1','r1','low_confidence')")
+        c.execute(
+            "insert into review(id, asset_id, job_id, result_id, reason) values ('v1','a1','j1','r1','low_confidence')"
+        )
     bdir = tmp_path / "backups"
     bdir.mkdir()
     migrate(dsn, Backups(bdir, find_pg_bin(), FakeClock()))
@@ -228,4 +232,3 @@ def test_inf_cas_018_guesses_left_by_a_vlm_timeout_are_removed(fresh_db, tmp_pat
         )
         assert c.execute("select count(*) from review").fetchone() == (0,)
         assert c.execute("select count(*) from index_outbox where asset_id = 'a1'").fetchone() == (1,)
-
