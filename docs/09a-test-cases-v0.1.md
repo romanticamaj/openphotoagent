@@ -433,6 +433,7 @@
 | INF-VRAM-002 | 並載判定 | need(vlm)=8.5、small slot=1.5、budget=14.7 | 並載；compat `ok` | U | #14 |
 | INF-VRAM-003 | LRU 卸載與引用計數 | 已載 A（使用中）、B（閒置），需要載入 C | 卸載 B 不卸載 A；large slot 優先於 small slot | U | — |
 | INF-VRAM-004 | 閒置卸載 | `clk` 前進 10 分鐘 large slot 閒置 | 自動 unload，發 `model.unloaded` | U | — |
+| INF-VRAM-005 | worker 真的會卸載閒置的 VLM（回歸，參考機） | 分析結束後 FakeClock 前進 599 秒、再 1 秒 | 599 秒時仍載入；600 秒卸載一次；下一個工作照常自行載入（之前 llama-server 分析完幾小時仍佔 17.6 GB RAM） | U | — |
 | INF-VRAM-005 | 實測回寫 | 載入後 NVML 量到 9.1 GB（估算 8.5） | 寫入 `perf_observation`；下次 compat 用 9.1 且 `source=observed` | I | #15 |
 | INF-VRAM-006 | Mac 統一記憶體 | `hw:m3-16`（recommendedMaxWorkingSetSize=10.7 GB fixture） | budget = 10.7 − 其他 app − 4 GB 保留 → golden；8B Q5 為 blocked、4B Q4 為 ok | U | #13 |
 | INF-VRAM-007 | DXGI／Vulkan provider | `hw:amd-rx7800-win`（DXGI Budget fixture）、`hw:intel-arc-linux`（VK_EXT_memory_budget fixture） | 解析出 total/used/budget；無資料時 compat 用總量並標 `estimated` | U | #26 |

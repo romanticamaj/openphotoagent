@@ -37,6 +37,7 @@ class _Abandoned(Exception):
 
 WATCH_SYNC_S = 15.0
 CLUSTER_CHECK_S = 60.0
+VLM_IDLE_UNLOAD_S = 600.0  # 03 §4: an idle large slot gives the GPU and RAM back after ten minutes (INF-VRAM-005)
 CLUSTER_TIMEOUT_S = 600.0  # 20,000 faces take minutes (07 §7)
 _log = logging.getLogger("opagent.worker")
 # The only messages the control plane can send (02 §6.3, MU-SEC-004). There is no "run a command" kind; anything
@@ -139,6 +140,7 @@ class WorkerAgent:
         self.clock = clock or SystemClock()
         self.waiting: dict[str, tuple[dict[str, Any], float]] = {}
         self._cluster_checked = -1e9
+        self._vlm_used = -1e18
         self.page_size = 100  # small enough that a long scan shows photos early (IMP-006)
         self.scan_threads = max(1, min(8, (os.cpu_count() or 2) - 2))
         self.crash_after_pages: int | None = None  # test hook: simulate kill -9 after N reported pages
@@ -716,11 +718,15 @@ class WorkerAgent:
         try:
             busy = self.run_once(wait_s=0.5, background_downloads=True)
             if self.backend is not None:
-                busy = bool(self.process_items_once()) or busy
+                worked = bool(self.process_items_once())
+                if worked:
+                    self.vlm_used()
+                busy = worked or busy
             self.tick_waiting()
             if self.outbox_size():
                 self.flush_outbox()
             if not busy:
+                self.unload_idle_vlm()
                 self.warm_embedder()
                 scanned = self.faces_backlog_once()
                 self.faces_cluster_once(scanned)
@@ -995,6 +1001,22 @@ class WorkerAgent:
 
         if not getattr(emb, "loaded", True):
             asyncio.run(emb.load(LoadOptions()))
+
+    def vlm_used(self) -> None:
+        self._vlm_used = self.clock.monotonic()
+
+    def unload_idle_vlm(self) -> bool:
+        """Let the VLM go after ten idle minutes: llama-server held 17.6 GB of RAM long after the work ended. The next
+        job loads it again on demand (the cascade and the plain path both call load first)."""
+        b = self.backend
+        if b is None or not getattr(b, "loaded", False):
+            return False
+        if self.clock.monotonic() - self._vlm_used < VLM_IDLE_UNLOAD_S:
+            return False
+        import asyncio
+
+        asyncio.run(b.unload())
+        return True
 
     def warm_embedder(self) -> None:
         """A cold load takes seconds and a search waits 2: idle time is when to pay for it."""

@@ -434,3 +434,25 @@ def test_face_clu_010_the_idle_worker_asks_for_grouping(tmp_path, sandbox_tree):
     a.faces_cluster_once(0)  # finished: whatever is waiting
     a.faces_cluster_once(0)  # and not again on every idle tick
     assert [j["min_new"] for _, j in client.calls] == [200, 1]
+
+
+@pytest.mark.unit
+@pytest.mark.tc("INF-VRAM-005")
+def test_inf_vram_005_the_worker_lets_go_of_an_idle_vlm(tmp_path, sandbox_tree):
+    """回歸 (reference machine): hours after analysis ended, llama-server still held 17.6 GB of RAM and most of the
+    GPU; ResourceManager's idle unload (03 §4, INF-VRAM-004) was never wired into the worker."""
+    from opagent_inference.fake import FakeBackend
+    from opagent_testing.clock import FakeClock
+    from opagent_worker.agent import VLM_IDLE_UNLOAD_S, WorkerAgent
+
+    clk = FakeClock()
+    vlm = FakeBackend()
+    a = WorkerAgent(_Due(), roots=sandbox_tree.roots, home=tmp_path / "w", worker_id="w1", backend=vlm, clock=clk)
+    asyncio.run(vlm.load(LoadOptions()))
+    a.vlm_used()
+    clk.advance(VLM_IDLE_UNLOAD_S - 1)
+    assert a.unload_idle_vlm() is False and vlm.loaded
+    clk.advance(1)
+    assert a.unload_idle_vlm() is True and not vlm.loaded
+    assert a.unload_idle_vlm() is False  # once
+    assert VLM_IDLE_UNLOAD_S == 600  # 03 §4: ten minutes
