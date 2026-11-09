@@ -413,7 +413,7 @@
       "date": "Taken",
       "size": "Dimensions",
       "fileSize": "File size",
-      "locations": "Locations"
+      "locations": "File location"
     },
     "ai": {
       "title": "AI results",
