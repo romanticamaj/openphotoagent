@@ -60,7 +60,10 @@ export function ExplorePage({ initial = null, onPick }: { initial?: Pick; onPick
     [hits],
   );
   const categories = byCount(all.data?.facets.category);
-  const tags = byCount(all.data?.facets.tags).slice(0, TOP_TAGS);
+  // concepts of the vocabulary only (IMP-026): free tags such as 地板 or 鏡子 stay searchable, not browsable
+  const tags = byCount(all.data?.facets.tags)
+    .filter(([k]) => all.data?.tag_names?.[k] !== undefined)
+    .slice(0, TOP_TAGS);
   const analysed = categories.reduce((n, [, c]) => n + c, 0);
   const total = (library.data?.buckets ?? []).reduce((n, b) => n + b.count, 0);
   const left = Math.max(0, total - analysed);
