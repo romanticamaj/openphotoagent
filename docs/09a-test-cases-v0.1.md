@@ -420,6 +420,7 @@
 | INF-CAS-015 | 信心來自 token 機率（ADR-0030） | 有 logprobs | 取 `category` 值首 token，對候選正規化；caption 內的同名文字不算 | U | #45 |
 | INF-CAS-016 | 沒有 logprobs 時退回自評（ADR-0030） | runtime 不支援 | 回 None，由呼叫端改用自評 | U | #45 |
 | INF-CAS-017 | 開頭相同的類別（回歸，驗證第 1 輪） | people 與 pets 都以 token `pe` 開頭，模型產生 `pe`+`ople` | P(people) 取整條路徑（≈0.96），不是第一個 token 平分（0.49） | U | #— |
+| INF-CAS-018 | VLM 逾時要重試，不留猜測（回歸，參考機） | VLM 一律 TIMEOUT；之後恢復 | 不寫入 result（快取鍵下沒有東西可重用），job_item 記 RUNTIME_TIMEOUT 並依退避重試；恢復後再分析得到 VLM 的類別，沒有「其他」 | I | #— |
 
 ### 6.5 INF-CAL、INF-VRAM、INF-OOM、INF-RT：校準、資源、降級、runtime 選擇
 

@@ -628,6 +628,9 @@ class WorkerAgent:
         fp = self.cascade_fingerprint
         reports = []
         for (it, _), r in zip(prepared, results, strict=True):
+            if r.retryable and r.error:  # no guess under the real cache key: the item is asked again (INF-CAS-018)
+                reports.append(self._fail(it, r.error, retryable=True))
+                continue
             o = r.outcome
             reports.append(
                 {

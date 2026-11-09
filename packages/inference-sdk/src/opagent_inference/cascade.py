@@ -66,6 +66,7 @@ class ClassifyResult:
     caption: str | None = None
     tags: list[str] | None = None
     error: str | None = None
+    retryable: bool = False  # the VLM failed for a passing reason (timeout, OOM): ask again, keep nothing (INF-CAS-018)
 
 
 @dataclass
@@ -248,6 +249,7 @@ class Cascade:
         to_vlm = [it for it in pending if routes[it.image.item_id][1].route == "vlm"] if self.vlm else []
         vlm_out: dict[str, tuple[str, float, str | None, list[str] | None, str | None]] = {}
         errors: dict[str, str] = {}
+        transient: set[str] = set()
         vlm_fp = ""
         if to_vlm and self.vlm is not None:
             self.on_stage("vlm")
@@ -286,6 +288,8 @@ class Cascade:
                 except InferenceError as e:
                     for g in group:
                         errors[g.image.item_id] = e.error_code
+                        if e.retryable:
+                            transient.add(g.image.item_id)
                     return
                 by_id = {o.item_id: o for o in outs}
                 for g in group:
@@ -337,5 +341,6 @@ class Cascade:
                 caption=v[2] if v else None,
                 tags=v[3] if v else None,
                 error=errors.get(iid),
+                retryable=iid in transient and v is None,
             )
         return [results[it.image.item_id] for it in items]

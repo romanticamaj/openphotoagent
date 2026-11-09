@@ -311,3 +311,29 @@ def test_desk_023_job_waits_on_battery_and_continues_on_mains(embedded_pg, sandb
     power.on_ac = True  # plugged back in: continues by itself
     _drain(w)
     assert client.get(f"/api/v1/jobs/{j['id']}").json()["status"] == "awaiting_approval"
+
+
+@pytest.mark.integration
+@pytest.mark.tc("INF-CAS-018")
+def test_inf_cas_018_a_vlm_timeout_is_retried_not_kept_as_other(embedded_pg, sandbox_tree, tmp_path):
+    """回歸 (reference machine): with the GPU shared, 107 photos timed out in the VLM; each was stored as the
+    embedding's guess (other, 0.2) under the normal cache key, so analysing again only brought the same answer back."""
+    _photos(sandbox_tree.photos, "t", 4)
+    vlm = FakeBackend(vlm_p=0.9)
+    vlm.inject("TIMEOUT")
+    client, w = _setup(embedded_pg.dsn, sandbox_tree.roots, tmp_path / "w", FakeBackend(scores="low"), vlm)
+    src = _src(client)
+    client.post(f"/api/v1/sources/{src}/analyze")
+    _drain(w)
+    eng = engine_for(embedded_pg.dsn)
+    with eng.begin() as c:
+        assert c.execute(text("select count(*) from result")).scalar_one() == 0  # nothing to reuse
+        codes = {r[0] for r in c.execute(text("select error_code from job_item"))}
+    assert codes == {"RUNTIME_TIMEOUT"}
+    vlm._faults.clear()  # the GPU is free again
+    client.post(f"/api/v1/sources/{src}/analyze")
+    _drain(w)
+    with eng.begin() as c:
+        cats = [r[0] for r in c.execute(text("select category from search_doc"))]
+    eng.dispose()
+    assert len(cats) == 4 and "other" not in cats
