@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { groupOps, type Op } from "./model";
+import { groupOps, type Op, opTypeKey } from "./model";
 import { OperationProgress } from "./OperationProgress";
 
 /** 06 §6.1 Activity Center drawer: operations grouped by worker × lane; failed rows show the problem's fixes. */
@@ -42,7 +42,7 @@ export function ActivityCenter({
           <ul>
             {g.ops.map((op) => (
               <li key={op.id} data-op={op.id}>
-                <span>{t(`activity.type.${op.type}`, { defaultValue: op.type })}</span>
+                <span>{t(`activity.type.${opTypeKey(op)}`, { defaultValue: op.type })}</span>
                 <OperationProgress op={op} variant="compact" />
                 {op.auto_resumed ? <span className="text-xs text-[var(--text-muted)]">{t("activity.autoResumed")}</span> : null}
                 {actions?.(op)}

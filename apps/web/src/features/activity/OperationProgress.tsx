@@ -1,3 +1,4 @@
+import { opTypeKey } from "./model";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { etaText, formatDuration } from "../../lib/format";
@@ -40,7 +41,7 @@ export function OperationProgress({ op, variant = "compact" }: { op: Op; variant
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={pct}
-        aria-label={t(`activity.type.${op.type}`, { defaultValue: op.type })}
+        aria-label={t(`activity.type.${opTypeKey(op)}`, { defaultValue: op.type })}
         className="h-1.5 w-full rounded bg-[var(--surface-2)]"
       >
         <div className="h-full rounded bg-[var(--accent)]" style={{ width: `${pct}%` }} />

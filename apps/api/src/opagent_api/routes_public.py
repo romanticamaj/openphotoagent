@@ -237,7 +237,8 @@ def start_job(st: AppState, c: Any, body: JobIn, extra: dict[str, Any] | None = 
     )
     from .operations import ensure_operation
 
-    ensure_operation(c, st.clock, jid, "job.label", {"kind": "job", "id": jid})  # visible in Activity (OP-001)
+    # visible in Activity (OP-001); job_kind tells 「AI 分析」 from 「整理」 (OP-020)
+    ensure_operation(c, st.clock, jid, "job.label", {"kind": "job", "id": jid, "job_kind": body.kind})
     # never index the output folder when it lives inside the source (SCAN-024)
     inside = body.target.root_alias == s.root_alias and body.target.sub_path.strip("/")
     from .routes_viewer import scan_task

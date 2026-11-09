@@ -675,6 +675,7 @@
 | OP-017 | 等待原因目錄 | 參數化 13 個 code：QUEUED_BEHIND、WAITING_GPU_SLOT、WAITING_MODEL_DOWNLOAD、WAITING_MODEL_LOAD、WORKER_OFFLINE、DISK_INSUFFICIENT_*、NET_UNREACHABLE、PAUSED_BY_USER、PAUSED_ERROR_RATE、PAUSED_ON_BATTERY、PAUSED_GPU_CONTENDED、PAUSED_NOT_IDLE、SOURCE_OFFLINE | 每個都有 zh-TW/en 顯示文字與 CTA；`status=waiting` 或自動 paused 時 `waiting_reason` 必填（schema 驗證） | C/E | #32、DoD 5.2 |
 | OP-018 | 等待中暫停／取消（ADR-0004，回歸） | `waiting` 的 Operation：(a) Worker 持有 lease；(b) 沒有 lease | (a) 暫停 → `pausing`、取消 → `cancelling`，Worker 確認後才到 `paused`／`cancelled`；(b) 直接到 `paused`（`waiting_reason=PAUSED_BY_USER`）／`cancelled`；兩者狀態都真的改變 | I | #32、#47 |
 | OP-019 | 下載後的索引 Operation 會結束（回歸） | 嵌入模型下載完成 | `search.reindex` 不會永遠停在 queued | I | — |
+| OP-020 | 分析資料夾有進度與時間（回歸，驗證第 2 輪） | 分析 3 張 | Operation 有 done/total、進入 running 時寫 started_at、有 ETA；活動中心名稱為「AI 分析」（不是「整理」） | I | #— |
 
 ### 9.2 ETA：估算（FakeClock 驅動，06 §2.3、§5.5）
 

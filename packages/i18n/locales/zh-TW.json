@@ -203,7 +203,8 @@
       "output.apply": "套用",
       "output.undo": "復原",
       "search.reindex": "建立搜尋索引",
-      "face.cluster": "分組人臉"
+      "face.cluster": "分組人臉",
+      "job.analyze": "AI 分析"
     },
     "open": "活動",
     "resume": "繼續",

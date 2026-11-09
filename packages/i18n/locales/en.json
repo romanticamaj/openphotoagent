@@ -199,11 +199,12 @@
     "type": {
       "model.download": "Model download",
       "scan": "Scanning",
-      "job.label": "Organizing",
+      "job.label": "Organize",
       "output.apply": "Applying",
       "output.undo": "Undoing",
       "search.reindex": "Building search index",
-      "face.cluster": "Grouping faces"
+      "face.cluster": "Grouping faces",
+      "job.analyze": "AI analysis"
     },
     "open": "Activity",
     "resume": "Resume",

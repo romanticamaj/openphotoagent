@@ -17,6 +17,12 @@ export type Op = {
   [k: string]: unknown;
 };
 
+/** The name to show: every job is a "job.label" operation, but analysing a folder is not organizing it (OP-020). */
+export function opTypeKey(op: Pick<Op, "type"> & { subject?: unknown }): string {
+  const kind = (op.subject as { job_kind?: string } | undefined)?.job_kind;
+  return op.type === "job.label" && kind === "label" ? "job.analyze" : op.type;
+}
+
 export type Indicator = { state: "idle" | "running" | "paused" | "failed" | "interrupted"; icon: string; token: string; labelKey: string };
 
 const IND: Record<Indicator["state"], Omit<Indicator, "state" | "labelKey">> = {

@@ -50,7 +50,7 @@ def ensure_operation(conn: Any, clock: Any, op_id: str, op_type: str, subject: d
 
 def set_op_status(conn: Any, clock: Any, op_id: str, target: str, waiting_reason: str | None = None) -> None:
     row = conn.execute(
-        select(operation.c.status, operation.c.seq, operation.c.type, operation.c.eta)
+        select(operation.c.status, operation.c.seq, operation.c.type, operation.c.eta, operation.c.started_at)
         .where(operation.c.id == op_id)
         .with_for_update()
     ).first()
@@ -77,6 +77,8 @@ def set_op_status(conn: Any, clock: Any, op_id: str, target: str, waiting_reason
             updated_at=now,
             waiting_reason=waiting_reason,
             finished_at=now if target in ("succeeded", "failed", "cancelled") else None,
+            # the first time it runs (OP-020): Activity's elapsed time and the card's 「已經過」 start here
+            started_at=row.started_at or (now if target == "running" else None),
         )
     )
     conn.execute(
@@ -297,9 +299,12 @@ def observe_job(conn: Any, clock: Any, job_id: str) -> None:
     if not total:
         return
     done = total - n["pending"] - n["leased"] - n["running"]
-    prog = conn.execute(select(operation.c.progress).where(operation.c.id == job_id)).scalar()
-    if prog is None:
+    row = conn.execute(select(operation.c.progress, operation.c.status).where(operation.c.id == job_id)).first()
+    if row is None:
         return
+    prog = row.progress or {}
+    if row.status in ("pending", "queued") and done > 0:  # its items are moving: the job is running (OP-020)
+        set_op_status(conn, clock, job_id, "running")
     now = {"done": done, "total": total, "unit": "items", "fraction": done / total}
     conn.execute(update(operation).where(operation.c.id == job_id).values(progress={**prog, **now}))
     observe_progress(conn, clock, job_id, now)

@@ -7,7 +7,7 @@ import { Button } from "../../components/Button";
 import { ApiError, api } from "../../lib/api";
 import { formatDuration } from "../../lib/format";
 import { ActivityCenter } from "./ActivityCenter";
-import { fromApi, indicatorState, type Op } from "./model";
+import { fromApi, indicatorState, type Op, opTypeKey } from "./model";
 
 export function useActivity() {
   return useQuery({
@@ -139,7 +139,7 @@ export function RecoveryCard({ onReview }: { onReview: () => void }) {
       <ul className="text-sm">
         {ops.map((o) => (
           <li key={o.id}>
-            {t(`activity.type.${o.type}`, { defaultValue: o.type })} · {o.auto_resumed ? t("activity.autoResumed") : t(`activity.status.${o.status}`)}
+            {t(`activity.type.${opTypeKey(o)}`, { defaultValue: o.type })} · {o.auto_resumed ? t("activity.autoResumed") : t(`activity.status.${o.status}`)}
           </li>
         ))}
       </ul>

@@ -259,3 +259,19 @@ def test_imp_033_each_library_folder_says_how_many_photos_and_how_many_analysed(
         pass
     row = next(s for s in env.client.get("/api/v1/sources").json() if s["id"] == src["id"])
     assert row["photos"] == 3 and row["analysed"] == 3
+
+
+@pytest.mark.integration
+@pytest.mark.tc("OP-020")
+def test_op_020_analysing_a_folder_reports_progress_and_time(env):
+    """回歸 (audit round 2): the progress card said 「準備中…」 at 473/492 and showed no ETA: the label job's
+    Operation never got done/total, so the card and Activity had nothing to show (invariant 9)."""
+    src = env.client.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": ""}).json()
+    jid = env.client.post(f"/api/v1/sources/{src['id']}/analyze").json()["job_id"]
+    while env.w.run_once() or env.w.process_items_once():
+        pass
+    ops = env.client.get("/api/v1/operations", params={"status": "all", "type": "job.label"}).json()
+    op = next(o for o in ops if o["id"] == jid)
+    assert op["progress"]["total"] == 3 and op["progress"]["done"] == 3
+    assert op["started_at"] is not None and op["eta"] is not None
+    assert op["subject"]["job_kind"] == "label"  # shown as 「AI 分析」, not 「整理」
