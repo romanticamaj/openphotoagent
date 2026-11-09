@@ -600,3 +600,20 @@ def test_find_013_ignored_people_stay_out_of_it(f):
     assert f.get(f"/people/{p2}/candidates")["items"] == []
     r = f.client.post(f"/api/v1/people/{p1}/review", json={"yes": more, "no": []}, headers=f.ui)
     assert r.status_code == 409 and r.json()["code"] == "FACE_IGNORED"
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-CLU-012")
+def test_face_clu_012_a_group_shows_its_photos_right_away(f):
+    """回歸 (audit round 1): every person's photo grid was empty. Grouping and naming queued the search index update,
+    but only a job's results drained that queue, so a library analysed earlier never learned who is in its photos."""
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p1 = f.sql("select person_id from face where id=:i", i=ids[1][0]).scalar()
+    r = f.client.post("/api/v1/search", json={"q": None, "filters": {"persons_any": [p1]}, "limit": 50}, headers=f.ui)
+    assert r.status_code == 200 and r.json()["total"] == 6
+    more = _small(f, 1, 1, "kid")
+    f.post(f"/people/{p1}/review", {"yes": more, "no": []})
+    r = f.client.post("/api/v1/search", json={"q": None, "filters": {"persons_any": [p1]}, "limit": 50}, headers=f.ui)
+    assert r.json()["total"] == 7

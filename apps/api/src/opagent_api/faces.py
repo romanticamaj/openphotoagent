@@ -378,6 +378,7 @@ def ingest(body: FacesIn, req: Request) -> dict[str, Any]:
             assign_online(st, DEFAULT_WS, space, fid, f["vec"], f["quality_tier"])
     with st.engine.begin() as c:
         c.execute(insert(index_outbox).values(asset_id=body.asset_id))
+        _drain(c)
     return {"face_ids": ids, "truncated": truncated}
 
 
@@ -665,6 +666,7 @@ def run_cluster(st: AppState, ws: str) -> dict[str, Any]:
         )
         for (aid,) in c.execute(select(face.c.asset_id).where(face.c.workspace_id == ws).distinct()).all():
             c.execute(insert(index_outbox).values(asset_id=aid))
+        _drain(c)
     _merge_suggestions(st, ws, space)
     return {"run_id": run_id, "algo": algo, "clusters": len(groups), "noise": noise, "input_faces": len(ids)}
 
@@ -779,6 +781,16 @@ def _reindex(c: Any, pid_or_faces: Any) -> None:
     )
     for (aid,) in c.execute(q).all():
         c.execute(insert(index_outbox).values(asset_id=aid))
+    _drain(c)
+
+
+def _drain(c: Any) -> None:
+    """Who is in a photo is answered by the search index (persons filter, people's photos). Face changes queue the
+    update; draining it here, in the same transaction, is what makes them visible: only a job's results did before
+    (FACE-CLU-012)."""
+    from .labels import drain_index
+
+    drain_index(c)
 
 
 class NameIn(BaseModel):
@@ -1357,6 +1369,7 @@ def purge_workspace(st: AppState, ws: str) -> dict[str, Any]:
             .where(workspace.c.id == ws)
             .values(settings={**cur, "faces": {"enabled": False, "prompt_dismissed": True}})
         )
+        _drain(c)  # after faces are off: the index then records "no face data", not "nobody"
         c.execute(
             insert(face_consent).values(
                 id=uuid7(st.clock),
