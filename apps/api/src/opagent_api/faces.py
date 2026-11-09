@@ -900,7 +900,7 @@ def person_candidates(pid: str, req: Request, limit: int = Query(60, ge=1, le=20
         ).all()
     facts = {r.id: (r.asset_id, r.person_id, r.state) for r in rows}
     meta = {r.id: r for r in rows}
-    ranked = F.person_candidates(pid, best, facts, rejected)[:limit]
+    ranked = F.person_candidates(pid, best, facts, rejected, low=F.CANDIDATE_MIN)[:limit]
     return {
         "references": len(vecs),
         "items": [

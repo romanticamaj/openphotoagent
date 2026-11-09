@@ -745,7 +745,9 @@
       "none": "Not marked; click for yes",
       "yes": "Yes; click again for no",
       "no": "No; click again to clear"
-    }
+    },
+    "more": "{n} more",
+    "openPhoto": "Open photo"
   },
   "ask": {
     "open": "✦ Ask AI",

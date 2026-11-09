@@ -76,6 +76,20 @@ test.describe("big library", () => {
   });
 });
 
+test("[SRCH-UI-011] 回歸：滑鼠點一下結果就打開照片；已經在選取時，點一下是加選（驗證第 2 輪）", async ({ page }) => {
+  await page.goto("/search?q=photo");
+  const hits = page.getByTestId("search-result");
+  await expect(hits.nth(2)).toBeVisible();
+  await hits.nth(1).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await hits.nth(0).click({ modifiers: ["Control"] });
+  await hits.nth(2).click();
+  await expect(page.getByTestId("batch-bar")).toContainText("已選 2 張");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
 test("[E2E-SEL-002] Shift 範圍選取 → 標籤、類別寫 review；「移到資料夾」產生計畫並導到核准頁", async ({ page, request }) => {
   await page.goto("/search?q=photo");
   const hits = page.getByTestId("search-result");

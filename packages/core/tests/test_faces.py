@@ -182,3 +182,14 @@ def test_find_010_candidates_for_a_person():
     }
     out = F.person_candidates("p", scores, facts, rejected={"said_no"})
     assert out == [("near", 0.71), ("soft", 0.6)]
+
+
+@pytest.mark.unit
+@pytest.mark.tc("FACE-FIND-014")
+def test_find_014_candidates_start_at_one_half():
+    """回歸 (audit round 2): from 0.42 about half of the first 20 candidates were someone else. On the reference
+    library two faces in one photo (always two people) pass 0.42 about 6% of the time, 0.5 only 1.76%."""
+    from opagent_core.faces import CANDIDATE_MIN
+
+    facts = {"a": ("a1", None, None), "b": ("a2", None, None)}
+    assert F.person_candidates("p", {"a": 0.52, "b": 0.45}, facts, rejected=set(), low=CANDIDATE_MIN) == [("a", 0.52)]

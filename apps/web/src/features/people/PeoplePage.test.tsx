@@ -13,6 +13,7 @@ vi.mock("../../lib/api", async (orig) => ({
   mediaUrl: (id: string) => `/m/${id}`,
   api: { people: async () => ({ people: s.people, others: 0 }), search: s.search, namePerson: s.name, personCandidates: s.cands, reviewPerson: s.review },
 }));
+vi.mock("../viewer/Lightbox", () => ({ Lightbox: ({ start }: { start: number }) => <div role="dialog" data-start={start} /> }));
 vi.mock("@tanstack/react-router", async (orig) => ({
   ...(await orig<typeof import("@tanstack/react-router")>()),
   Link: ({ to, children }: { to: string; children: React.ReactNode }) => <a href={to}>{children}</a>,
@@ -93,4 +94,27 @@ describe("finding a person (07 §4)", () => {
     fireEvent.click(screen.getByRole("button", { name: "全部都是" }));
     expect(screen.getByTestId("candidate").getAttribute("data-mark")).toBe("yes");
   });
+
+  it("[FACE-UI-014] 回歸：先看到這個人的照片，點了打開；候選一次 12 張，「全部都是」只管眼前這些（驗證第 2 輪）", async () => {
+    s.people = [row];
+    s.search.mockResolvedValue({ items: [{ asset_id: "b1", ch: null, caption: "在操場", category: "people", tags: [], taken_at: null, score: 1, matched_by: [] }], facets: {}, total: 1, next_cursor: null });
+    const c = (i: number) => ({ face_id: `f${i}`, asset_id: `a${i}`, ch: null, bbox: [0.4, 0.3, 0.1, 0.1], score: 0.6, group: null });
+    s.cands.mockResolvedValue({ items: Array.from({ length: 30 }, (_, i) => c(i)), references: 4 });
+    s.review.mockResolvedValue({ confirmed: 12, rejected: 0 });
+    ui();
+    fireEvent.click(await screen.findByRole("button", { name: /未命名/ }));
+    const photo = await screen.findByRole("button", { name: /在操場/ });
+    const firstCand = (await screen.findAllByTestId("candidate"))[0];
+    expect(photo.compareDocumentPosition(firstCand) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy(); // photos first
+    fireEvent.click(photo);
+    expect(await screen.findByRole("dialog")).toBeTruthy();
+    expect(screen.getAllByTestId("candidate")).toHaveLength(12);
+    fireEvent.click(screen.getByRole("button", { name: "全部都是" }));
+    fireEvent.click(screen.getByRole("button", { name: /送出/ }));
+    await waitFor(() => expect(s.review).toHaveBeenCalled());
+    expect(s.review.mock.calls.at(-1)![1].yes).toHaveLength(12);
+    fireEvent.click(screen.getByRole("button", { name: /再看/ }));
+    expect(screen.getAllByTestId("candidate")).toHaveLength(24);
+  });
 });
+

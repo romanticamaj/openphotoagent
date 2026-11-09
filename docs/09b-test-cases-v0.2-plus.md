@@ -287,6 +287,7 @@
 | FACE-UI-011 | 人物頁「可能也是他」 | 3 張候選 | 點一下是、兩下不是、三下取消；「全部都是」；送出呼叫 review 並重新取候選；人臉裁成不變形的正方形 | C | #78 |
 | FACE-UI-012 | 人物排序（回歸，驗證第 1 輪） | 一人臉多照片少、一人照片多；另一人已命名 | 已命名的在前，其餘依卡片上的照片數由多到少 | I | #76 |
 | FACE-UI-013 | 人臉裁切不被其他樣式改寫（回歸，驗證第 2 輪） | styles.css | 沒有 `.person-card img` 這種會套到裁切圖片的規則；`.face-crop img` 重設 aspect-ratio 與 object-fit | C | #76 |
+| FACE-UI-014 | 人物面板先看照片、候選分頁（回歸，驗證第 2 輪） | 1 張照片、30 個候選 | 照片在候選前，點了打開 Lightbox；候選一次 12 張，「全部都是」只標這 12 張，「再看 12 張」 | C | #78 |
 | FACE-MGT-001 | 合併可 undo | 合併 A→B | A 的指派全到 B、`merged_into=B`；undo 後完全還原 | I | #77 |
 | FACE-MGT-002 | 拆分 | 框選 5 張「移出為新人物」 | 新 person 凍結；原 person 少 5 張 | I | #77 |
 | FACE-MGT-003 | 合併建議不自動 | prototype 相似度 0.6 ≥ τ_merge | 只出現在建議清單 | U | #77 |
@@ -300,6 +301,7 @@
 | FACE-FIND-011 | 候選 API | 分群後再加入此人與他人的小臉（tier 1） | `GET /people/{id}/candidates` 列出此人的小臉、不含他人與已屬此人；帶 asset、bbox、分數，依分數排序 | I | #78 |
 | FACE-FIND-012 | 一次確認多張 | `POST /people/{id}/review` 3 是 1 不是 | 是 → confirmed 並歸此人；不是 → rejected；兩者都不再出現在候選；不會自動命名 | I | #78 |
 | FACE-FIND-013 | 忽略的人不會回來（回歸，安全審查） | 被忽略者的臉與此人相似；對被忽略者取候選；確認被忽略者的臉 | 不列入候選；被忽略者沒有候選；確認回 409 `FACE_IGNORED`；讀人物的 GET 需要 `face:read` | I/U | #78 |
+| FACE-FIND-014 | 候選從 0.5 起（回歸，驗證第 2 輪） | 0.52 與 0.45 | 只列 0.52（同照片兩人在 0.42 約 6% 過門檻，0.5 為 1.76%） | U | #78 |
 | FACE-TPL-001 | `{person}` fan-out | 照片有兩人、fanout=true | 複製到兩個人的資料夾；無人時用 fallback | I | #80 |
 | FACE-REV-001 | Review Y/N | 「這是不是 X？」 | `Y`／`N`／`1–9`／`S` 鍵盤連續處理；批次模式依分數由低到高 | E | #81 |
 | FACE-PRG-001 | 一鍵刪除 | 輸入 workspace 名稱確認 → purge | 單一交易：`bio.face_embedding_w*`、`bio.person_prototype_w*` partition 不存在；face／assignment／person／link／cluster_run 清空；`search_doc.person_*` 清空並排重建；`faces/` 縮圖目錄為空；刪除報告（筆數、位置），報告不含生物特徵 | I | #82 |

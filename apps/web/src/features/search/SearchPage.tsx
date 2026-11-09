@@ -136,10 +136,19 @@ export function SearchPage({ q }: { q: string }) {
       const ids = new Set(sel.ids);
       for (const h of hits.slice(a, b + 1)) ids.add(h.asset_id);
       setSel({ all: false, ids, anchor: i });
-    } else {
-      const ids = new Set(shift ? sel.ids : []);
+    } else if (shift) {
+      const ids = new Set(sel.ids);
       ids.add(id);
       setSel({ all: false, ids, anchor: i });
+    } else if (sel.all || sel.ids.size > 0) {
+      // already choosing photos: a click adds or removes one, as in Google Photos (SRCH-UI-011)
+      const ids = new Set(sel.all ? [] : sel.ids);
+      if (ids.has(id)) ids.delete(id);
+      else ids.add(id);
+      setSel({ all: false, ids, anchor: i });
+    } else {
+      setActive(i);
+      setViewing(i); // a plain click opens the photo
     }
   };
   const handle = async () =>

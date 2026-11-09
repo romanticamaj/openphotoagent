@@ -223,6 +223,11 @@ def chinese_whispers(
     return sorted(groups.values(), key=lambda g: sorted(g)[0])
 
 
+# 「可能也是他」 asks a person to look. At 0.5, two faces in one photo (always two people) pass 1.76% of the time on
+# the reference library; at find_low about 6% (FACE-FIND-014)
+CANDIDATE_MIN = 0.5
+
+
 def person_candidates(
     pid: str,
     scores: dict[str, float],

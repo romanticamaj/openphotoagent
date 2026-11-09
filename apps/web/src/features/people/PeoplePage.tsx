@@ -2,10 +2,12 @@
 // review loop 「這是不是 X？」 (least certain first) and Settings › 人臉 with consent and disable-with-delete.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../../components/Button";
 import { FaceCrop } from "../../components/FaceCrop";
+import { Lightbox } from "../viewer/Lightbox";
+import type { GridApi } from "../viewer/PhotoGrid";
 import { api, mediaUrl, type FaceCandidate, type PersonRow, type PurgeReport } from "../../lib/api";
 
 export function useFaceSettings() {
@@ -32,6 +34,7 @@ export function FaceOptInCard() {
 }
 
 type Mark = "none" | "yes" | "no";
+const PAGE = 12;
 const NEXT: Record<Mark, Mark> = { none: "yes", yes: "no", no: "none" };
 
 /** 「可能也是他？」: faces like the confirmed ones, best first. One click 是, another 不是; what is confirmed widens
@@ -41,7 +44,9 @@ function Candidates({ person }: { person: PersonRow }) {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["person-candidates", person.id], queryFn: () => api.personCandidates(person.id) });
   const [marks, setMarks] = useState<Record<string, Mark>>({});
-  const items: FaceCandidate[] = q.data?.items ?? [];
+  const [shown, setShown] = useState(PAGE);
+  const all: FaceCandidate[] = q.data?.items ?? [];
+  const items = all.slice(0, shown); // a page at a time: 「全部都是」 never reaches faces nobody looked at
   const pick = (m: Mark) => Object.keys(marks).filter((k) => marks[k] === m);
   const yes = pick("yes");
   const no = pick("no");
@@ -49,17 +54,18 @@ function Candidates({ person }: { person: PersonRow }) {
     mutationFn: () => api.reviewPerson(person.id, { yes, no }),
     onSuccess: () => {
       setMarks({});
+      setShown(PAGE);
       for (const k of ["person-candidates", "person-photos"]) void qc.invalidateQueries({ queryKey: [k, person.id] });
       void qc.invalidateQueries({ queryKey: ["people"] });
     },
   });
   const who = person.name ?? t("faces.thisPerson");
-  if (q.isSuccess && items.length === 0) return <p className="text-sm text-[var(--text-muted)]">{t("faces.noCandidates")}</p>;
+  if (q.isSuccess && all.length === 0) return <p className="text-sm text-[var(--text-muted)]">{t("faces.noCandidates")}</p>;
   if (!items.length) return null;
   return (
     <section aria-labelledby={`cand-${person.id}`} className="space-y-2">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 id={`cand-${person.id}`} className="font-semibold">{t("faces.candidatesTitle", { name: who, n: items.length })}</h3>
+        <h3 id={`cand-${person.id}`} className="font-semibold">{t("faces.candidatesTitle", { name: who, n: all.length })}</h3>
         <p className="text-xs text-[var(--text-muted)]">{t("faces.candidatesHint")}</p>
       </div>
       <ul className="candidate-grid">
@@ -93,6 +99,11 @@ function Candidates({ person }: { person: PersonRow }) {
         >
           {t("faces.send", { yes: yes.length, no: no.length })}
         </Button>
+        {all.length > shown ? (
+          <button type="button" className="text-sm underline" onClick={() => setShown((n) => n + PAGE)}>
+            {t("faces.more", { n: Math.min(PAGE, all.length - shown) })}
+          </button>
+        ) : null}
       </div>
     </section>
   );
@@ -107,6 +118,20 @@ function PersonPanel({ person, onClose }: { person: PersonRow; onClose: () => vo
     queryKey: ["person-photos", person.id],
     queryFn: () => api.search({ q: null, filters: { persons_any: [person.id] }, limit: 120 }),
   });
+  const hits = photos.data?.items ?? [];
+  const [viewing, setViewing] = useState<number | null>(null);
+  const grid: GridApi = useMemo(
+    () => ({
+      total: hits.length,
+      ordinal: (p) => p.index,
+      at: async (i) => {
+        const h = hits[i];
+        if (!h) return null;
+        return { asset: { id: h.asset_id, ch: h.ch, w: null, h: null, thumbhash: null, taken_at: h.taken_at, flags: [] }, pos: { bucket: 0, index: i } };
+      },
+    }),
+    [hits],
+  );
   const save = useMutation({
     mutationFn: () => api.namePerson(person.id, name.trim()),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["people"] }),
@@ -129,16 +154,17 @@ function PersonPanel({ person, onClose }: { person: PersonRow; onClose: () => vo
         </Button>
         <button type="button" className="ml-auto text-sm underline" onClick={onClose}>{t("dock.close")}</button>
       </form>
-      <Candidates person={person} />
       <h3 className="font-semibold">{t("faces.photos", { n: photos.data?.total ?? 0 })}</h3>
       <div className="explore-grid">
-        {(photos.data?.items ?? []).map((h) => (
-          <figure key={h.asset_id} className="explore-tile m-0">
+        {hits.map((h, i) => (
+          <button key={h.asset_id} type="button" className="explore-tile" aria-label={h.caption ?? t("faces.openPhoto")} onClick={() => setViewing(i)}>
             <img src={mediaUrl(h.asset_id, "t256", h.ch)} alt="" loading="lazy" />
-            <figcaption className="explore-caption">{h.caption ?? ""}</figcaption>
-          </figure>
+            <span className="explore-caption">{h.caption ?? ""}</span>
+          </button>
         ))}
       </div>
+      {viewing !== null ? <Lightbox start={viewing} grid={grid} onClose={() => setViewing(null)} /> : null}
+      <Candidates person={person} />
     </section>
   );
 }
