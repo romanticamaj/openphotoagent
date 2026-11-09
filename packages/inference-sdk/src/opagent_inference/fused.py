@@ -199,6 +199,11 @@ def category_probability(tokens: list[dict[str, Any]] | None, chosen: str, candi
     return None
 
 
+def _p_of(rest: str, tops: list[tuple[str, float]]) -> float:
+    """The best top token that can begin what is left of a class name."""
+    return max((math.exp(v) for k, v in tops if k and rest.startswith(k)), default=MIN_PROB)
+
+
 def _walk(toks: list[dict[str, Any]], chosen: str, candidates: list[str]) -> float | None:
     if chosen not in candidates or not toks or not toks[0].get("top_logprobs"):
         return None
@@ -210,15 +215,10 @@ def _walk(toks: list[dict[str, Any]], chosen: str, candidates: list[str]) -> flo
         gen = str(t.get("token", "")).strip()
         if not tops or not gen:
             break
-
-        def p_of(c: str) -> float:
-            rest = c[len(prefix) :]
-            return max((math.exp(v) for k, v in tops if k and rest.startswith(k)), default=MIN_PROB)
-
-        p_gen = max((math.exp(v) for k, v in tops if k == gen), default=p_of(chosen))
+        p_gen = max((math.exp(v) for k, v in tops if k == gen), default=_p_of(chosen[len(prefix) :], tops))
         for c in list(alive):
             if not c[len(prefix) :].startswith(gen):
-                score[c] = path * p_of(c)  # leaves the generated path here
+                score[c] = path * _p_of(c[len(prefix) :], tops)  # leaves the generated path here
                 alive.remove(c)
         path *= p_gen
         prefix += gen
