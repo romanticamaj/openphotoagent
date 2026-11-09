@@ -78,6 +78,10 @@ def test_inf_cas_017_classes_that_start_alike_are_told_apart():
         tok('"}'),
     ]
     cats = ["people", "pets", "other"]
-    assert category_probability(t, "people", cats) == pytest.approx(0.97 * 0.99 / (0.97 * 0.99 + 0.97 * 0.01 + 0.03), abs=1e-3)
+    assert category_probability(t, "people", cats) == pytest.approx(
+        0.97 * 0.99 / (0.97 * 0.99 + 0.97 * 0.01 + 0.03), abs=1e-3
+    )
     pets = [t[0], t[1], tok("ts", {"ts": math.log(0.9), "ople": math.log(0.1)}), t[3]]
-    assert category_probability(pets, "pets", cats) == pytest.approx(0.97 * 0.9 / (0.97 * 0.9 + 0.97 * 0.1 + 0.03), abs=1e-3)
+    assert category_probability(pets, "pets", cats) == pytest.approx(
+        0.97 * 0.9 / (0.97 * 0.9 + 0.97 * 0.1 + 0.03), abs=1e-3
+    )

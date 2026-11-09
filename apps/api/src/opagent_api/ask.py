@@ -514,15 +514,15 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
     from .search import tag_names
 
     keys = [str(k) for k in (filters.get("tags_any") or []) + (filters.get("tags_all") or [])]
-    names = tag_names(keys, "zh-TW")
-    explain = [_named(e, names) for e in p["planner"]["explain"]]  # 標籤 海灘, not scene.beach
+    tnames = tag_names(keys, "zh-TW")
+    explain = [_named(e, tnames) for e in p["planner"]["explain"]]  # 標籤 海灘, not scene.beach
     yield (
         "filters",
         {
             "applied_filters": filters,
             "text": p["text"],
             "planner_explain": explain,
-            "tag_names": names,
+            "tag_names": tnames,
             "editable": True,
         },
     )

@@ -420,7 +420,8 @@
       "human": "你的修正",
       "none": "尚未分析",
       "advanced": "進階資訊",
-      "tags": "標籤"
+      "tags": "標籤",
+      "history": "之前的分析（{n}）"
     },
     "layer": {
       "embedding": "影像相似度",
@@ -438,7 +439,8 @@
     },
     "correct": "修正類別",
     "correctSave": "儲存修正",
-    "correctionSaved": "已記錄修正"
+    "correctionSaved": "已記錄修正",
+    "people": "照片中的人物"
   },
   "onboarding": {
     "welcome": "歡迎使用 OpenPhotoAgent",
@@ -508,7 +510,7 @@
     "none": "沒有待確認的照片",
     "suggestion": "建議",
     "accept": "接受建議（Enter）",
-    "other": "其他（0）",
+    "other": "其他",
     "skip": "略過（S）",
     "skipRest": "略過剩下的 {n} 張…",
     "skipRestTitle": "略過剩下的照片？",
@@ -716,7 +718,21 @@
     "whoIsThis": "這個人是誰？",
     "saveName": "儲存名字",
     "nameFirst": "先輸入名字",
-    "grouping": "還沒有人物。系統正在把相同的臉分在一起，請稍等；照片還在分析時會晚一點出現。"
+    "grouping": "還沒有人物。系統正在把相同的臉分在一起，請稍等；照片還在分析時會晚一點出現。",
+    "thisPerson": "這個人",
+    "candidatesTitle": "可能也是{name}？（{n}）",
+    "candidatesHint": "點一下標「是」，再點一下標「不是」。送出後會用確認過的臉繼續找。",
+    "noCandidates": "目前沒有其他可能的臉。",
+    "allYes": "全部都是",
+    "send": "送出（{yes} 是、{no} 不是）",
+    "markFirst": "先點選要確認的臉",
+    "similarity": "相似度 {n}%",
+    "photos": "照片（{n}）",
+    "mark": {
+      "none": "未標記，點一下標為是",
+      "yes": "是，再點一下改成不是",
+      "no": "不是，再點一下取消"
+    }
   },
   "ask": {
     "open": "✦ 問 AI",
@@ -770,7 +786,8 @@
       "save": "儲存",
       "saved": "已儲存",
       "cloudNote": "使用外部服務時，問題與照片的文字描述會送出；照片影像不會送出，人名以代稱取代。"
-    }
+    },
+    "seeAll": "在搜尋頁看全部 {n} 張"
   },
   "map": {
     "title": "地圖",

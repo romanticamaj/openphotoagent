@@ -34,6 +34,7 @@ export const ExternalEndpointUnreachable: S = { args: { problem: {"code": "EXTER
 export const FacesDisabled: S = { args: { problem: {"code": "FACES_DISABLED", "params": {}, "fixes": [{"id": "faces", "type": "open_settings", "target": "faces"}]} } };
 export const FacesNotForSource: S = { args: { problem: {"code": "FACES_NOT_FOR_SOURCE", "params": {}, "fixes": [{"id": "faces", "type": "open_settings", "target": "faces"}]} } };
 export const FaceConsentRequired: S = { args: { problem: {"code": "FACE_CONSENT_REQUIRED", "params": {}, "fixes": [{"id": "faces", "type": "open_settings", "target": "faces"}]} } };
+export const FaceIgnored: S = { args: { problem: {"code": "FACE_IGNORED", "params": {}, "fixes": [{"id": "people", "type": "open_settings", "target": "people"}]} } };
 export const FaceScopeRequired: S = { args: { problem: {"code": "FACE_SCOPE_REQUIRED", "params": {}, "fixes": [{"id": "faces", "type": "open_settings", "target": "faces"}]} } };
 export const FfmpegMissing: S = { args: { problem: {"code": "FFMPEG_MISSING", "params": {"n": "‹n›"}, "fixes": [{"id": "ffmpeg", "type": "download", "target": "ffmpeg"}, {"id": "keep_skipping", "type": "choose_alternative", "target": "keep_skipping"}]} } };
 export const FsFileLocked: S = { args: { problem: {"code": "FS_FILE_LOCKED", "params": {"n": "‹n›", "path": "‹path›"}, "fixes": [{"id": "retry", "type": "retry", "target": null}]} } };
