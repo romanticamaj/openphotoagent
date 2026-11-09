@@ -503,6 +503,11 @@ body {
   height: 100%;
   overflow-y: auto;
   background: var(--canvas);
+  /* the scrubber is the scroll bar (10 §2.3): a native one under it hid the labels (audit round 1) */
+  scrollbar-width: none;
+}
+.timeline::-webkit-scrollbar {
+  display: none;
 }
 .bucket-header {
   position: sticky;
