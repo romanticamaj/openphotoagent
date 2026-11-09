@@ -4,7 +4,7 @@ key: by-content-12
 name: { zh-TW: 依內容（內建 12 類）, en: By content (12 built-in categories) }
 task_configs:
   - task_type: classify
-    prompt_template_ref: builtin:fused_v3  # v2 stored near-zero confidence (ADR-0030): those results must not be reused
+    prompt_template_ref: builtin:fused_v4  # v2/v3 stored wrong confidence (ADR-0030; INF-CAS-015, 017): never reused
     label_set: builtin-12@2
     vlm_max_candidates: 16
     strategy: cascade            # rules → SigLIP2 → VLM → review (03 §3.3)

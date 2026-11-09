@@ -419,6 +419,7 @@
 | INF-CAS-014 | VLM 看得到類別說明（ADR-0030） | 類別有描述 | 請求帶每類的名稱與描述 | I | #45 |
 | INF-CAS-015 | 信心來自 token 機率（ADR-0030） | 有 logprobs | 取 `category` 值首 token，對候選正規化；caption 內的同名文字不算 | U | #45 |
 | INF-CAS-016 | 沒有 logprobs 時退回自評（ADR-0030） | runtime 不支援 | 回 None，由呼叫端改用自評 | U | #45 |
+| INF-CAS-017 | 開頭相同的類別（回歸，驗證第 1 輪） | people 與 pets 都以 token `pe` 開頭，模型產生 `pe`+`ople` | P(people) 取整條路徑（≈0.96），不是第一個 token 平分（0.49） | U | #— |
 
 ### 6.5 INF-CAL、INF-VRAM、INF-OOM、INF-RT：校準、資源、降級、runtime 選擇
 

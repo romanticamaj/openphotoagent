@@ -186,18 +186,45 @@ MIN_PROB = 1e-6  # a candidate absent from top_logprobs (CORE-THR-013)
 
 
 def category_probability(tokens: list[dict[str, Any]] | None, chosen: str, candidates: list[str]) -> float | None:
-    """P(chosen) at the first token of the ``category`` value, normalised over the offered classes (03 §3.3.3).
-    None when the runtime gave no logprobs, or the field cannot be found: the caller falls back to the self-report."""
+    """P(chosen) from the tokens of the ``category`` value, normalised over the offered classes (03 §3.3.3).
+    Classes can share leading tokens ("pe" for people and pets): the reading follows the generated tokens until they
+    part, each class scoring the path probability up to where it leaves. None when the runtime gave no logprobs, or
+    the field cannot be found: the caller falls back to the self-report."""
     acc = ""
-    for t in tokens or []:
+    toks = list(tokens or [])
+    for i, t in enumerate(toks):
         if _CATEGORY_VALUE.search(acc):
-            # a list, not a dict: "food" and " food" are different tokens with very different probabilities
-            tops = [(str(x["token"]).strip(), float(x["logprob"])) for x in t.get("top_logprobs") or []]
-            raw = {
-                c: max((math.exp(v) for k, v in tops if len(k) >= 2 and c.startswith(k)), default=MIN_PROB)
-                for c in candidates
-            }
-            total = sum(raw.values())
-            return raw[chosen] / total if tops and chosen in raw else None
+            return _walk(toks[i:], chosen, candidates)
         acc += str(t.get("token", ""))
     return None
+
+
+def _walk(toks: list[dict[str, Any]], chosen: str, candidates: list[str]) -> float | None:
+    if chosen not in candidates or not toks or not toks[0].get("top_logprobs"):
+        return None
+    score: dict[str, float] = {}
+    alive, prefix, path = list(candidates), "", 1.0
+    for t in toks:
+        # a list, not a dict: "food" and " food" are different tokens with very different probabilities
+        tops = [(str(x["token"]).strip(), float(x["logprob"])) for x in t.get("top_logprobs") or []]
+        gen = str(t.get("token", "")).strip()
+        if not tops or not gen:
+            break
+
+        def p_of(c: str) -> float:
+            rest = c[len(prefix) :]
+            return max((math.exp(v) for k, v in tops if k and rest.startswith(k)), default=MIN_PROB)
+
+        p_gen = max((math.exp(v) for k, v in tops if k == gen), default=p_of(chosen))
+        for c in list(alive):
+            if not c[len(prefix) :].startswith(gen):
+                score[c] = path * p_of(c)  # leaves the generated path here
+                alive.remove(c)
+        path *= p_gen
+        prefix += gen
+        if len(alive) <= 1 or not any(len(c) > len(prefix) for c in alive):
+            break
+    for c in alive:
+        score[c] = path
+    total = sum(score.get(c, MIN_PROB) for c in candidates)
+    return score.get(chosen, MIN_PROB) / total if total else None

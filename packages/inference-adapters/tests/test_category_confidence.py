@@ -64,3 +64,20 @@ def test_inf_cas_015_a_spaced_twin_of_the_token_does_not_replace_it():
     tops = {"architecture": -0.01, "other": -5.15, " architecture": -18.6, "Architecture": -21.0}
     t = [tok('{"category":"'), tok("architecture", tops), tok('"}')]
     assert category_probability(t, "architecture", ["architecture", "other"]) > 0.9
+
+
+@pytest.mark.unit
+@pytest.mark.tc("INF-CAS-017")
+def test_inf_cas_017_classes_that_start_alike_are_told_apart():
+    """回歸 (audit round 1): 75 photos of children the VLM called "people" went to 其他. "people" and "pets" both
+    start with the token "pe", so each got its probability and the share of the right one could not pass 0.5."""
+    t = [
+        tok('{"category":"'),
+        tok("pe", {"pe": math.log(0.97), "other": math.log(0.03)}),
+        tok("ople", {"ople": math.log(0.99), "ts": math.log(0.01)}),
+        tok('"}'),
+    ]
+    cats = ["people", "pets", "other"]
+    assert category_probability(t, "people", cats) == pytest.approx(0.97 * 0.99 / (0.97 * 0.99 + 0.97 * 0.01 + 0.03), abs=1e-3)
+    pets = [t[0], t[1], tok("ts", {"ts": math.log(0.9), "ople": math.log(0.1)}), t[3]]
+    assert category_probability(pets, "pets", cats) == pytest.approx(0.97 * 0.9 / (0.97 * 0.9 + 0.97 * 0.1 + 0.03), abs=1e-3)
