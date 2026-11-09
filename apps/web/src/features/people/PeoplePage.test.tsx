@@ -1,17 +1,17 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import i18n from "../../lib/i18n";
 
 beforeAll(async () => {
   await i18n.changeLanguage("zh-TW");
 });
 
-const s = vi.hoisted(() => ({ search: vi.fn(), name: vi.fn(), people: [] as unknown[] }));
+const s = vi.hoisted(() => ({ search: vi.fn(), name: vi.fn(), cands: vi.fn(), review: vi.fn(), people: [] as unknown[] }));
 vi.mock("../../lib/api", async (orig) => ({
   ...(await orig<typeof import("../../lib/api")>()),
   mediaUrl: (id: string) => `/m/${id}`,
-  api: { people: async () => ({ people: s.people, others: 0 }), search: s.search, namePerson: s.name },
+  api: { people: async () => ({ people: s.people, others: 0 }), search: s.search, namePerson: s.name, personCandidates: s.cands, reviewPerson: s.review },
 }));
 vi.mock("@tanstack/react-router", async (orig) => ({
   ...(await orig<typeof import("@tanstack/react-router")>()),
@@ -29,6 +29,10 @@ const ui = () =>
   );
 
 describe("finding a person (07 §4)", () => {
+  beforeEach(() => {
+    s.cands.mockResolvedValue({ items: [], references: 0 });
+  });
+
   it("[FACE-UI-010] 回歸：人物卡片有照片，點開看到這個人的照片", async () => {
     s.people = [row];
     s.search.mockResolvedValue({ items: [{ asset_id: "b1", ch: null, caption: "在操場", category: "people", tags: [], taken_at: null, score: 1, matched_by: [] }], facets: {}, total: 1, next_cursor: null });
@@ -56,5 +60,37 @@ describe("finding a person (07 §4)", () => {
     s.people = [];
     ui();
     await screen.findByText(/正在把相同的臉分在一起/);
+  });
+
+  it("[FACE-UI-011] 可能也是他：點一下是、再點一下不是，送出後再找", async () => {
+    s.people = [row];
+    s.search.mockResolvedValue({ items: [], facets: {}, total: 0, next_cursor: null });
+    const c = (id: string) => ({ face_id: id, asset_id: "a" + id, ch: null, bbox: [0.4, 0.3, 0.1, 0.1], score: 0.6, group: null });
+    s.cands.mockResolvedValue({ items: [c("f1"), c("f2"), c("f3")], references: 4 });
+    s.review.mockResolvedValue({ confirmed: 1, rejected: 1 });
+    ui();
+    fireEvent.click(await screen.findByRole("button", { name: /未命名/ }));
+    const tiles = await screen.findAllByTestId("candidate");
+    expect(tiles).toHaveLength(3);
+    fireEvent.click(tiles[0]);
+    fireEvent.click(tiles[1]);
+    fireEvent.click(tiles[1]);
+    expect(tiles[0].getAttribute("data-mark")).toBe("yes");
+    expect(tiles[1].getAttribute("data-mark")).toBe("no");
+    expect(tiles[2].getAttribute("data-mark")).toBe("none");
+    fireEvent.click(screen.getByRole("button", { name: /送出/ }));
+    await waitFor(() => expect(s.review).toHaveBeenCalledWith("p1", { yes: ["f1"], no: ["f2"] }));
+    await waitFor(() => expect(s.cands.mock.calls.length).toBeGreaterThan(1)); // the search widens with what was confirmed
+  });
+
+  it("[FACE-UI-011] 一鍵把全部標成是", async () => {
+    s.people = [row];
+    s.search.mockResolvedValue({ items: [], facets: {}, total: 0, next_cursor: null });
+    s.cands.mockResolvedValue({ items: [{ face_id: "f9", asset_id: "a9", ch: null, bbox: [0, 0, 0.2, 0.2], score: 0.7, group: null }], references: 1 });
+    ui();
+    fireEvent.click(await screen.findByRole("button", { name: /未命名/ }));
+    await screen.findByTestId("candidate");
+    fireEvent.click(screen.getByRole("button", { name: "全部都是" }));
+    expect(screen.getByTestId("candidate").getAttribute("data-mark")).toBe("yes");
   });
 });

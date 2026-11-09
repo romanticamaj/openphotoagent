@@ -539,3 +539,45 @@ def test_face_det_010_analysing_a_photo_again_adds_no_faces(f):
 
     with bio_session(f.client.app.state.opa) as c:
         assert c.execute(sqlalchemy.text("select count(*) from bio.face_embedding")).scalar() == len(first)
+
+
+def _small(f, person, n, tag):
+    """Faces too small to be assigned automatically (tier 1): the ones a person has to say yes to."""
+    return [
+        f.photo(f"2025/x/{tag}_{i}_p{person}.jpg", plan=[FaceSpec(person=person, min_side=40)])[1][0] for i in range(n)
+    ]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-FIND-011")
+def test_find_011_who_else_might_this_be(f):
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p1 = f.sql("select person_id from face where id=:i", i=ids[1][0]).scalar()
+    more = _small(f, 1, 4, "kid")
+    others = _small(f, 2, 3, "other")
+    out = f.get(f"/people/{p1}/candidates")
+    got = [c["face_id"] for c in out["items"]]
+    assert set(more) <= set(got) and not set(others) & set(got)
+    assert not set(ids[1]) & set(got)  # already theirs
+    c = out["items"][0]
+    assert c["asset_id"] and len(c["bbox"]) == 4 and c["score"] >= 0.42
+    assert [x["score"] for x in out["items"]] == sorted((x["score"] for x in out["items"]), reverse=True)
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-FIND-012")
+def test_find_012_yes_and_no_in_one_go(f):
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p1 = f.sql("select person_id from face where id=:i", i=ids[1][0]).scalar()
+    more = _small(f, 1, 4, "kid")
+    r = f.post(f"/people/{p1}/review", {"yes": more[:3], "no": more[3:]})
+    assert r == {"confirmed": 3, "rejected": 1}
+    assert {f.sql("select state from face where id=:i", i=i).scalar() for i in more[:3]} == {"confirmed"}
+    assert f.sql("select person_id from face where id=:i", i=more[0]).scalar() == p1
+    left = [c["face_id"] for c in f.get(f"/people/{p1}/candidates")["items"]]
+    assert not set(more) & set(left)  # yes: theirs now; no: never asked again
+    assert f.get("/people")["people"][0]["name"] is None  # a yes is a decision, not a name

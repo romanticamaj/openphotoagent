@@ -164,3 +164,21 @@ def test_clu_005_chinese_whispers_on_a_knn_graph():
     groups = F.chinese_whispers(["a", "b", "c", "x", "y", "z", "lonely"], edges, seed=7)
     assert sorted(sorted(g) for g in groups) == [["a", "b", "c"], ["lonely"], ["x", "y", "z"]]
     assert F.chinese_whispers(["a"], {}, seed=1) == [{"a"}]
+
+
+@pytest.mark.unit
+@pytest.mark.tc("FACE-FIND-010")
+def test_find_010_candidates_for_a_person():
+    """Seed → ranked candidates → yes/no (Ente's feedback loop; docs/research/face-search-2026-11.md)."""
+    scores = {"near": 0.71, "mine": 0.9, "said_no": 0.8, "same_photo": 0.77, "theirs": 0.75, "weak": 0.3, "soft": 0.6}
+    facts = {
+        "near": ("a1", None, None),
+        "mine": ("a2", "p", "confirmed"),
+        "said_no": ("a3", None, None),
+        "same_photo": ("a2", None, None),  # the person is already in that photo: someone else
+        "theirs": ("a4", "q", "confirmed"),  # someone decided that is another person
+        "weak": ("a5", None, None),
+        "soft": ("a6", "g", "auto"),  # in an unnamed group: still offered
+    }
+    out = F.person_candidates("p", scores, facts, rejected={"said_no"})
+    assert out == [("near", 0.71), ("soft", 0.6)]

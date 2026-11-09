@@ -5,7 +5,8 @@ import { Link, useLocation } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../../components/Button";
-import { api, mediaUrl, type PersonRow, type PurgeReport } from "../../lib/api";
+import { FaceCrop } from "../../components/FaceCrop";
+import { api, mediaUrl, type FaceCandidate, type PersonRow, type PurgeReport } from "../../lib/api";
 
 export function useFaceSettings() {
   return useQuery({ queryKey: ["face-settings"], queryFn: api.faceSettings, staleTime: 30_000 });
@@ -27,6 +28,73 @@ export function FaceOptInCard() {
         <Button variant="ghost" onClick={() => later.mutate()}>{t("faces.later")}</Button>
       </span>
     </aside>
+  );
+}
+
+type Mark = "none" | "yes" | "no";
+const NEXT: Record<Mark, Mark> = { none: "yes", yes: "no", no: "none" };
+
+/** 「可能也是他？」: faces like the confirmed ones, best first. One click 是, another 不是; what is confirmed widens
+ * the next search (docs/research/face-search-2026-11.md). */
+function Candidates({ person }: { person: PersonRow }) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ["person-candidates", person.id], queryFn: () => api.personCandidates(person.id) });
+  const [marks, setMarks] = useState<Record<string, Mark>>({});
+  const items: FaceCandidate[] = q.data?.items ?? [];
+  const pick = (m: Mark) => Object.keys(marks).filter((k) => marks[k] === m);
+  const yes = pick("yes");
+  const no = pick("no");
+  const send = useMutation({
+    mutationFn: () => api.reviewPerson(person.id, { yes, no }),
+    onSuccess: () => {
+      setMarks({});
+      for (const k of ["person-candidates", "person-photos"]) void qc.invalidateQueries({ queryKey: [k, person.id] });
+      void qc.invalidateQueries({ queryKey: ["people"] });
+    },
+  });
+  const who = person.name ?? t("faces.thisPerson");
+  if (q.isSuccess && items.length === 0) return <p className="text-sm text-[var(--text-muted)]">{t("faces.noCandidates")}</p>;
+  if (!items.length) return null;
+  return (
+    <section aria-labelledby={`cand-${person.id}`} className="space-y-2">
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h3 id={`cand-${person.id}`} className="font-semibold">{t("faces.candidatesTitle", { name: who, n: items.length })}</h3>
+        <p className="text-xs text-[var(--text-muted)]">{t("faces.candidatesHint")}</p>
+      </div>
+      <ul className="candidate-grid">
+        {items.map((c) => {
+          const m = marks[c.face_id] ?? "none";
+          return (
+            <li key={c.face_id}>
+              <button
+                type="button"
+                data-testid="candidate"
+                data-mark={m}
+                aria-label={t(`faces.mark.${m}`)}
+                title={t("faces.similarity", { n: Math.round(c.score * 100) })}
+                className="candidate"
+                onClick={() => setMarks((x) => ({ ...x, [c.face_id]: NEXT[m] }))}
+              >
+                <FaceCrop assetId={c.asset_id} ch={c.ch} bbox={c.bbox} />
+                {m !== "none" ? <span aria-hidden="true" className="candidate-mark">{m === "yes" ? "✓" : "✕"}</span> : null}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="ghost" onClick={() => setMarks(Object.fromEntries(items.map((c) => [c.face_id, "yes" as Mark])))}>
+          {t("faces.allYes")}
+        </Button>
+        <Button
+          onClick={() => send.mutate()}
+          disabledReason={yes.length + no.length ? null : { code: "NOTHING_MARKED", message: t("faces.markFirst") }}
+        >
+          {t("faces.send", { yes: yes.length, no: no.length })}
+        </Button>
+      </div>
+    </section>
   );
 }
 
@@ -61,6 +129,8 @@ function PersonPanel({ person, onClose }: { person: PersonRow; onClose: () => vo
         </Button>
         <button type="button" className="ml-auto text-sm underline" onClick={onClose}>{t("dock.close")}</button>
       </form>
+      <Candidates person={person} />
+      <h3 className="font-semibold">{t("faces.photos", { n: photos.data?.total ?? 0 })}</h3>
       <div className="explore-grid">
         {(photos.data?.items ?? []).map((h) => (
           <figure key={h.asset_id} className="explore-tile m-0">
@@ -90,7 +160,11 @@ export function PeoplePage() {
         {(q.data?.people ?? []).map((p) => (
           <li key={p.id} data-testid="person">
             <button type="button" aria-pressed={open === p.id} onClick={() => setOpen(open === p.id ? null : p.id)} className="person-card">
-              {p.cover ? <img src={mediaUrl(p.cover.asset_id, "t256", p.cover.ch)} alt="" loading="lazy" /> : null}
+              {p.cover?.bbox ? (
+                <FaceCrop assetId={p.cover.asset_id} ch={p.cover.ch} bbox={p.cover.bbox} />
+              ) : p.cover ? (
+                <img src={mediaUrl(p.cover.asset_id, "t256", p.cover.ch)} alt="" loading="lazy" />
+              ) : null}
               <span className="font-medium" translate="no">{p.name ?? t("faces.unnamed")}</span>
               <span className="text-xs text-[var(--text-muted)]">{t("faces.count", { n: p.asset_count })}</span>
             </button>

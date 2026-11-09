@@ -16,7 +16,7 @@ from collections.abc import Iterator
 from datetime import timedelta
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from opagent_core import faces as F
 from opagent_core.ids import uuid7
 from opagent_db.schema import (
@@ -713,9 +713,9 @@ def _people(c: Any, ws: str) -> list[dict[str, Any]]:
         .order_by(func.count(face.c.id).desc(), person.c.id)
     ).all()
     covers = {
-        r.person_id: {"asset_id": r.asset_id, "ch": r.content_hash}
+        r.person_id: {"asset_id": r.asset_id, "ch": r.content_hash, "bbox": list(r.bbox)}
         for r in c.execute(
-            select(face.c.person_id, face.c.asset_id, asset.c.content_hash)
+            select(face.c.person_id, face.c.asset_id, asset.c.content_hash, face.c.bbox)
             .join(asset, asset.c.id == face.c.asset_id)
             .where(face.c.person_id.in_([r.id for r in rows]))
             .distinct(face.c.person_id)
@@ -818,28 +818,103 @@ def confirm(fid: str, body: PersonIn, req: Request) -> dict[str, Any]:
     return {"ok": True}
 
 
+def _reject(c: Any, st: AppState, fid: str, pid: str, method: str = "review") -> None:
+    cur = _current(c, [fid]).get(fid)  # auto, confirmed or a pending suggestion for this person
+    if cur is not None and cur.person_id == pid:
+        _write(c, st, fid, None, "unassigned", method, "user:local")
+    c.execute(
+        insert(face_assignment).values(
+            id=uuid7(st.clock),
+            face_id=fid,
+            person_id=pid,
+            kind="rejected",
+            method=method,
+            actor="user:local",
+            created_at=st.clock.now(),
+        )
+    )
+
+
 @router.post("/faces/{fid}/reject")
 def reject(fid: str, body: PersonIn, req: Request) -> dict[str, Any]:
     """「不是此人」: a cannot-link that online assignment and clustering always respect (FACE-ASN-006)."""
     st = _st(req)
     with st.engine.begin() as c:
-        cur = _current(c, [fid]).get(fid)  # auto, confirmed or a pending suggestion for this person
-        if cur is not None and cur.person_id == body.person_id:
-            _write(c, st, fid, None, "unassigned", "review", "user:local")
-        c.execute(
-            insert(face_assignment).values(
-                id=uuid7(st.clock),
-                face_id=fid,
-                person_id=body.person_id,
-                kind="rejected",
-                method="review",
-                actor="user:local",
-                created_at=st.clock.now(),
-            )
-        )
+        _reject(c, st, fid, body.person_id)
         _freeze(c, st, body.person_id)
         _reindex(c, [fid])
     return {"ok": True}
+
+
+CANDIDATE_REFS = 24  # the newest confirmed faces; one k-NN query each
+CANDIDATE_K = 200
+
+
+@router.get("/people/{pid}/candidates")
+def person_candidates(pid: str, req: Request, limit: int = Query(60, ge=1, le=200)) -> dict[str, Any]:
+    """「可能也是他」: faces like the ones confirmed for this person (before any: the faces of their group), best
+    first. Only confirmed faces widen the search, so look-alike children do not pull it astray (FACE-FIND-003)."""
+    st = _st(req)
+    with st.engine.begin() as c:
+        space = fsettings(c).get("space_id")
+        if space is None:
+            return {"items": [], "references": 0}
+        mine = c.execute(
+            select(face_assignment.c.face_id, face_assignment.c.kind).where(
+                face_assignment.c.person_id == pid, face_assignment.c.superseded_at.is_(None)
+            )
+        ).all()
+        rejected = {f for f, k in mine if k == "rejected"}
+        refs = F.reference_faces([(f, k) for f, k in mine]) or [
+            r[0] for r in c.execute(select(face.c.id).where(face.c.person_id == pid).order_by(face.c.id))
+        ]
+    vecs = _vectors(st, DEFAULT_WS, space, refs[-CANDIDATE_REFS:])
+    best: dict[str, float] = {}
+    for v in vecs.values():
+        for n in _knn(st, DEFAULT_WS, space, v, CANDIDATE_K):
+            best[n.face_id] = max(best.get(n.face_id, -1.0), float(n.s))
+    with st.engine.begin() as c:
+        rows = c.execute(
+            select(face.c.id, face.c.asset_id, face.c.person_id, face.c.state, face.c.bbox, asset.c.content_hash)
+            .join(asset, asset.c.id == face.c.asset_id)
+            .where(face.c.workspace_id == DEFAULT_WS, face.c.id.in_(list(best) or ["-"]) | (face.c.person_id == pid))
+        ).all()
+    facts = {r.id: (r.asset_id, r.person_id, r.state) for r in rows}
+    meta = {r.id: r for r in rows}
+    ranked = F.person_candidates(pid, best, facts, rejected)[:limit]
+    return {
+        "references": len(vecs),
+        "items": [
+            {
+                "face_id": fid,
+                "asset_id": meta[fid].asset_id,
+                "ch": meta[fid].content_hash,
+                "bbox": list(meta[fid].bbox),
+                "score": round(s, 4),
+                "group": meta[fid].person_id,
+            }
+            for fid, s in ranked
+        ],
+    }
+
+
+class ReviewIn(BaseModel):
+    yes: list[str] = Field(default_factory=list, max_length=500)
+    no: list[str] = Field(default_factory=list, max_length=500)
+
+
+@router.post("/people/{pid}/review")
+def person_review(pid: str, body: ReviewIn, req: Request) -> dict[str, Any]:
+    """Several 「是他」 and 「不是」 at once, from the candidates above."""
+    st = _st(req)
+    with st.engine.begin() as c:
+        for fid in body.yes:
+            _write(c, st, fid, pid, "confirmed", "find", "user:local")
+        for fid in body.no:
+            _reject(c, st, fid, pid, "find")
+        _freeze(c, st, pid)
+        _reindex(c, [*body.yes, *body.no])
+    return {"confirmed": len(body.yes), "rejected": len(body.no)}
 
 
 class MergeIn(BaseModel):

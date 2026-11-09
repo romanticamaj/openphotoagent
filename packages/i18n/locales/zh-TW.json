@@ -716,7 +716,21 @@
     "whoIsThis": "這個人是誰？",
     "saveName": "儲存名字",
     "nameFirst": "先輸入名字",
-    "grouping": "還沒有人物。系統正在把相同的臉分在一起，請稍等；照片還在分析時會晚一點出現。"
+    "grouping": "還沒有人物。系統正在把相同的臉分在一起，請稍等；照片還在分析時會晚一點出現。",
+    "thisPerson": "這個人",
+    "candidatesTitle": "可能也是{name}？（{n}）",
+    "candidatesHint": "點一下標「是」，再點一下標「不是」。送出後會用確認過的臉繼續找。",
+    "noCandidates": "目前沒有其他可能的臉。",
+    "allYes": "全部都是",
+    "send": "送出（{yes} 是、{no} 不是）",
+    "markFirst": "先點選要確認的臉",
+    "similarity": "相似度 {n}%",
+    "photos": "照片（{n}）",
+    "mark": {
+      "none": "未標記，點一下標為是",
+      "yes": "是，再點一下改成不是",
+      "no": "不是，再點一下取消"
+    }
   },
   "ask": {
     "open": "✦ 問 AI",

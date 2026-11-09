@@ -716,7 +716,21 @@
     "whoIsThis": "Who is this?",
     "saveName": "Save name",
     "nameFirst": "Enter a name first",
-    "grouping": "No people yet. Once analysis finishes, the same faces are grouped together here."
+    "grouping": "No people yet. Once analysis finishes, the same faces are grouped together here.",
+    "thisPerson": "this person",
+    "candidatesTitle": "Is this also {name}? ({n})",
+    "candidatesHint": "Click once for yes, twice for no. What you confirm widens the next search.",
+    "noCandidates": "No other likely faces right now.",
+    "allYes": "All of them",
+    "send": "Send ({yes} yes, {no} no)",
+    "markFirst": "Mark some faces first",
+    "similarity": "{n}% similar",
+    "photos": "Photos ({n})",
+    "mark": {
+      "none": "Not marked; click for yes",
+      "yes": "Yes; click again for no",
+      "no": "No; click again to clear"
+    }
   },
   "ask": {
     "open": "✦ Ask AI",

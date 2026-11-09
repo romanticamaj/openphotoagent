@@ -2123,6 +2123,28 @@
         "title": "ReviewAction",
         "type": "object"
       },
+      "ReviewIn": {
+        "properties": {
+          "no": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "title": "No",
+            "type": "array"
+          },
+          "yes": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "title": "Yes",
+            "type": "array"
+          }
+        },
+        "title": "ReviewIn",
+        "type": "object"
+      },
       "Scope": {
         "properties": {
           "path": {
@@ -6977,6 +6999,60 @@
         "summary": "Person Detail"
       }
     },
+    "/api/v1/people/{pid}/candidates": {
+      "get": {
+        "description": "「可能也是他」: faces like the ones confirmed for this person (before any: the faces of their group), best\nfirst. Only confirmed faces widen the search, so look-alike children do not pull it astray (FACE-FIND-003).",
+        "operationId": "person_candidates_api_v1_people__pid__candidates_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 60,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Person Candidates Api V1 People  Pid  Candidates Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Person Candidates"
+      }
+    },
     "/api/v1/people/{pid}/flags": {
       "post": {
         "operationId": "flags_api_v1_people__pid__flags_post",
@@ -7179,6 +7255,58 @@
           }
         },
         "summary": "Name Person"
+      }
+    },
+    "/api/v1/people/{pid}/review": {
+      "post": {
+        "description": "Several 「是他」 and 「不是」 at once, from the candidates above.",
+        "operationId": "person_review_api_v1_people__pid__review_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Person Review Api V1 People  Pid  Review Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Person Review"
       }
     },
     "/api/v1/people/{pid}/split": {

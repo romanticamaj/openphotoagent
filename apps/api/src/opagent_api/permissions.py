@@ -115,6 +115,7 @@ ROUTES: dict[tuple[str, str], str] = {
     ("POST", "/api/v1/people/{pid}/ignore"): FW,
     ("POST", "/api/v1/people/{pid}/merge"): FW,
     ("POST", "/api/v1/people/{pid}/name"): FW,
+    ("POST", "/api/v1/people/{pid}/review"): FW,
     ("POST", "/api/v1/people/{pid}/split"): FW,
     ("POST", "/api/v1/preflight"): R,
     ("POST", "/api/v1/presets/import"): SRC,

@@ -120,8 +120,7 @@ FACE_ROWS = [
     "insert into person(id, workspace_id, origin, status, is_frozen, display_name, created_by) values"
     " ('named','default','cluster','named',true,'小明','user'), ('soft','default','cluster','unnamed',false,null,'system')",
     "create table bio.face_embedding_t partition of bio.face_embedding for values in ('default')",
-    "insert into embedding_space(id, model_key, fingerprint, dim, modality)"
-    " values (1,'fake','fake',2,'face')",
+    "insert into embedding_space(id, model_key, fingerprint, dim, modality) values (1,'fake','fake',2,'face')",
 ]
 
 
@@ -174,4 +173,6 @@ def test_face_det_011_copies_go_and_human_decisions_stay(fresh_db, tmp_path):
         assert c.execute("select state, person_id from face where id = 'f2'").fetchone() == ("confirmed", "named")
         # "this is not that person" outlives the copy it was said about
         assert c.execute("select face_id from face_assignment where id = 'r1'").fetchone() == ("f2",)
-        assert c.execute("select count(*) from face_cluster_run").fetchone() == (0,)  # those groups were built on copies
+        assert c.execute("select count(*) from face_cluster_run").fetchone() == (
+            0,
+        )  # those groups were built on copies

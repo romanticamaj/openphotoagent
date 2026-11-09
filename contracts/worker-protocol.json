@@ -2123,6 +2123,28 @@
         "title": "ReviewAction",
         "type": "object"
       },
+      "ReviewIn": {
+        "properties": {
+          "no": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "title": "No",
+            "type": "array"
+          },
+          "yes": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "title": "Yes",
+            "type": "array"
+          }
+        },
+        "title": "ReviewIn",
+        "type": "object"
+      },
       "Scope": {
         "properties": {
           "path": {

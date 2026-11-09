@@ -71,7 +71,8 @@ export type Approval = {
   counts: Record<string, number>;
 };
 export type FaceSettings = { enabled: boolean; prompt_dismissed: boolean; workspace_name: string; worker_purge_pending: boolean; space_id: number | null };
-export type PersonRow = { id: string; name: string | null; status: string; face_count: number; asset_count: number; cover?: { asset_id: string; ch: string | null } | null };
+export type PersonRow = { id: string; name: string | null; status: string; face_count: number; asset_count: number; cover?: { asset_id: string; ch: string | null; bbox?: number[] } | null };
+export type FaceCandidate = { face_id: string; asset_id: string; ch: string | null; bbox: number[]; score: number; group: string | null };
 export type FaceSuggestion = { face_id: string; person_id: string; person: string | null; score: number | null; asset_id: string };
 export type PurgeReport = { faces: number; embeddings: number; prototypes: number; persons: number; worker_pending: boolean };
 export type TimelineAsset = { id: string; ch?: string | null; w: number | null; h: number | null; thumbhash: string | null; taken_at: string | null; flags: string[] };
@@ -283,6 +284,9 @@ export const api = {
   disableFaces: (del: boolean, confirm: string) => req<{ purged: PurgeReport | null }>("POST", "/faces/disable", { delete: del, confirm }),
   people: () => req<{ people: PersonRow[]; others: number }>("GET", "/people"),
   namePerson: (id: string, name: string) => req<unknown>("POST", `/people/${encodeURIComponent(id)}/name`, { name }),
+  personCandidates: (id: string) => req<{ items: FaceCandidate[]; references: number }>("GET", `/people/${encodeURIComponent(id)}/candidates`),
+  reviewPerson: (id: string, body: { yes: string[]; no: string[] }) =>
+    req<{ confirmed: number; rejected: number }>("POST", `/people/${encodeURIComponent(id)}/review`, body),
   faceReview: () => req<FaceSuggestion[]>("GET", "/faces/review"),
   confirmFace: (faceId: string, personId: string) => req<unknown>("POST", `/faces/${encodeURIComponent(faceId)}/confirm`, { person_id: personId }),
   rejectFace: (faceId: string, personId: string) => req<unknown>("POST", `/faces/${encodeURIComponent(faceId)}/reject`, { person_id: personId }),
