@@ -52,7 +52,12 @@ export function MapPage() {
     });
     m.on("zoomend", () => setZoom(m.getZoom()));
     map.current = m;
-    return () => m.remove();
+    const ro = new ResizeObserver(() => m.resize()); // the page lays out after the map starts
+    ro.observe(box.current);
+    return () => {
+      ro.disconnect();
+      m.remove();
+    };
   }, []);
 
   useEffect(() => {
@@ -80,7 +85,9 @@ export function MapPage() {
         {t("map.noLocation", { n: (q.data?.without_location ?? 0).toLocaleString() })}
       </p>
       <div role="region" aria-label={t("map.label")} className="relative min-h-[420px] flex-1 overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)]">
-        <div ref={box} className="absolute inset-0" />
+        {/* inline: maplibre-gl.css gives .maplibregl-map position: relative, which beat the utility class and left the
+            map 0 px tall and clipped (MAP-011) */}
+        <div ref={box} style={{ position: "absolute", inset: 0 }} />
         <span data-testid="map-borders" data-countries={borders.features.length} hidden />
       </div>
       {picked ? (

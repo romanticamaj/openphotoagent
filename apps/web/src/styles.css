@@ -345,7 +345,7 @@ body {
 .person-card[aria-pressed="true"] {
   border-color: var(--accent);
 }
-.person-card img {
+.person-card > img {
   width: 100%;
   aspect-ratio: 1;
   margin-bottom: 6px;
@@ -406,9 +406,13 @@ body {
   background: var(--surface-2);
 }
 .face-crop img {
+  /* the crop is computed for the natural aspect: no rule elsewhere may square or cover it (FACE-UI-013) */
   position: absolute;
   max-width: none;
   height: auto;
+  margin: 0;
+  aspect-ratio: auto;
+  object-fit: fill;
   transition: opacity 0.2s ease;
 }
 .person-card .face-crop {
