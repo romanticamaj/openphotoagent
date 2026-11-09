@@ -15,6 +15,7 @@ type Chip = { kind: "tag"; value: string } | { kind: "year"; value: string } | {
 export function SearchPage({ q }: { q: string }) {
   const { t, i18n } = useTranslation();
   const [chips, setChips] = useState<Chip[]>([]);
+  const [tagNames, setTagNames] = useState<Record<string, string>>({});
   // the rule planner runs once per query; its filters become chips and the rest of the words stay the query (05 §2.3)
   const [planned, setPlanned] = useState<{ text: string } | null>(null);
   const [sel, setSel] = useState<{ all: boolean; ids: Set<string>; anchor: number | null }>({ all: false, ids: new Set(), anchor: null });
@@ -41,7 +42,7 @@ export function SearchPage({ q }: { q: string }) {
   }, [q, chips, planned]);
   const res = useInfiniteQuery({
     queryKey: ["search", body],
-    queryFn: ({ pageParam }) => api.search({ ...body, limit: 100, cursor: pageParam, facets: ["tags", "year"] }),
+    queryFn: ({ pageParam }) => api.search({ ...body, limit: 100, cursor: pageParam, facets: ["tags", "year"], lang: i18n.language }),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.next_cursor,
   });
@@ -161,8 +162,8 @@ export function SearchPage({ q }: { q: string }) {
       <ul aria-label={t("search.chips")} className="flex flex-wrap gap-2">
         {chips.map((c) => (
           <li key={`${c.kind}:${c.value}`} className="flex items-center gap-1 rounded-full border border-[var(--border)] px-3 py-0.5 text-sm">
-            {c.value}
-            <button type="button" aria-label={t("search.remove", { what: c.value })} onClick={() => setChips(chips.filter((x) => x !== c))}>
+            {(c.kind === "tag" && tagNames[c.value]) || c.value}
+            <button type="button" aria-label={t("search.remove", { what: (c.kind === "tag" && tagNames[c.value]) || c.value })} onClick={() => setChips(chips.filter((x) => x !== c))}>
               ×
             </button>
           </li>
@@ -172,7 +173,11 @@ export function SearchPage({ q }: { q: string }) {
         <Facet
           label={t("search.tags")}
           values={first?.facets.tags}
-          onPick={(v) => !chips.some((c) => c.kind === "tag" && c.value === v) && setChips([...chips, { kind: "tag", value: v }])}
+          names={{ ...tagNames, ...first?.tag_names }}
+          onPick={(v) => {
+            if (first?.tag_names?.[v]) setTagNames((x) => ({ ...x, [v]: first.tag_names![v] }));
+            if (!chips.some((c) => c.kind === "tag" && c.value === v)) setChips([...chips, { kind: "tag", value: v }]);
+          }}
         />
         <Facet
           label={t("search.years")}
@@ -218,15 +223,7 @@ export function SearchPage({ q }: { q: string }) {
               onClick={(e) => clickHit(i, h.asset_id, e.shiftKey, e.ctrlKey || e.metaKey)}
             >
               <img src={mediaUrl(h.asset_id, "t256", h.ch)} alt={h.caption ?? ""} loading="lazy" onError={(e) => (e.currentTarget.style.visibility = "hidden")} />
-              <span data-matched={h.matched_by.join(" ")} className="absolute bottom-1 left-1 flex gap-1 text-[10px]">
-                {h.matched_by
-                  .filter((m) => m !== "filter")
-                  .map((m) => (
-                    <span key={m} className="rounded bg-black/60 px-1 text-white">
-                      {t(`search.matched.${m}`, { defaultValue: m })}
-                    </span>
-                  ))}
-              </span>
+              <span data-matched={h.matched_by.join(" ")} hidden />
             </button>
           );
         })}
@@ -271,7 +268,7 @@ function RelatedPhotos({ photos }: { photos: NonNullable<SearchResult["related"]
   );
 }
 
-function Facet({ label, values, onPick }: { label: string; values?: Record<string, number>; onPick: (v: string) => void }) {
+export function Facet({ label, values, names, onPick }: { label: string; values?: Record<string, number>; names?: Record<string, string>; onPick: (v: string) => void }) {
   if (!values || Object.keys(values).length === 0) return null;
   const top = Object.entries(values)
     .sort((a, b) => b[1] - a[1] || b[0].localeCompare(a[0]))
@@ -281,7 +278,7 @@ function Facet({ label, values, onPick }: { label: string; values?: Record<strin
       <span className="text-[var(--text-muted)]">{label}</span>
       {top.map(([v, n]) => (
         <button key={v} type="button" data-value={v} onClick={() => onPick(v)} className="rounded-full border border-[var(--border)] px-2">
-          {v} <span className="tnum text-[var(--text-muted)]">{n}</span>
+          {names?.[v] ?? v} <span className="tnum text-[var(--text-muted)]">{n}</span>
         </button>
       ))}
     </div>
