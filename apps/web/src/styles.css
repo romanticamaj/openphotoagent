@@ -473,15 +473,20 @@ body {
 
 /* progress on every page (ADR-0029): clear of the scrubber on the right edge */
 .progress-dock {
+  /* in the sidebar's empty foot: it covered a quarter of the grid and the Ask input (audit round 2) */
   position: fixed;
-  right: 72px;
-  bottom: 20px;
+  left: 8px;
+  bottom: 8px;
   z-index: 40;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  width: min(380px, calc(100vw - 96px));
-  padding: 14px;
+  width: 184px;
+  max-height: calc(100vh - 420px);
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px;
+  font-size: 13px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface);
@@ -525,8 +530,14 @@ body {
   gap: 12px;
 }
 .progress-dock-small {
-  width: 220px;
+  width: 184px;
   padding: 8px 12px;
+}
+@media (max-width: 720px) {
+  .progress-dock {
+    left: auto;
+    right: 8px;
+  }
 }
 .page {
   overflow: auto;
