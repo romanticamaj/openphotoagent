@@ -4,6 +4,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Map as MapLibreMap, Marker } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import "./worker";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { feature } from "topojson-client";
