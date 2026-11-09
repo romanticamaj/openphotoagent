@@ -510,7 +510,7 @@
     "none": "沒有待確認的照片",
     "suggestion": "建議",
     "accept": "接受建議（Enter）",
-    "other": "其他（0）",
+    "other": "其他",
     "skip": "略過（S）",
     "skipRest": "略過剩下的 {n} 張…",
     "skipRestTitle": "略過剩下的照片？",

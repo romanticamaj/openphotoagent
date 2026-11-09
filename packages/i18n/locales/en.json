@@ -510,7 +510,7 @@
     "none": "Nothing to review",
     "suggestion": "Suggestion",
     "accept": "Accept suggestion (Enter)",
-    "other": "Other (0)",
+    "other": "Other",
     "skip": "Skip (S)",
     "skipRest": "Skip the remaining {n}…",
     "skipRestTitle": "Skip the remaining photos?",

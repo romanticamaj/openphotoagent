@@ -756,6 +756,7 @@
 | REV-003 | 逃生門 | 剩 40 張時「略過剩下的，全部放進『其他』」 | 40 張 `final_label=other`（`source=review_skip`）；Job 可進 planning | I/E | #49、DoD 5.3 |
 | REV-004 | 不覆核也能輸出 | 有 pending review 時直接產生計畫 | 未確認者進「其他」，計畫可核准 | I | #49 |
 | REV-005 | 執行中即可覆核 | Job running 時開啟待確認 | 已產生的 review 可處理；新的即時加入 | E | #49 |
+| REV-010 | 從導覽進待確認（回歸，驗證第 1 輪） | 沒有 job 參數 | 不打 `GET /jobs/`（之前 405）；選項寫「0 其他」不是「0 其他（0）」 | C | #— |
 
 ---
 

@@ -23,7 +23,7 @@ export function ReviewPage({ jobId }: { jobId: string }) {
   const [handled, setHandled] = useState<Set<string>>(() => new Set());
   const list = useQuery({ queryKey: ["reviews", jobId], queryFn: () => api.reviews(jobId), refetchInterval: 1000 });
   const preset = useQuery({ queryKey: ["preset", "by-content-12", i18n.language], queryFn: () => api.preset("by-content-12", i18n.language) });
-  const job = useQuery({ queryKey: ["job", jobId], queryFn: () => api.job(jobId) });
+  const job = useQuery({ queryKey: ["job", jobId], queryFn: () => api.job(jobId), enabled: Boolean(jobId) }); // from the nav badge: every job
   const names = new Map((preset.data?.categories ?? []).map((c) => [c.key, c.name]));
   const custom = (job.data?.params?.categories as Array<{ key: string; name: string }> | undefined) ?? [];
   for (const c of custom) names.set(c.key, c.name);
