@@ -271,7 +271,25 @@ const search = createRoute({
   },
 });
 const importRoute = createRoute({ getParentRoute: () => root, path: "/import", component: ImportPage });
-const exploreRoute = createRoute({ getParentRoute: () => root, path: "/explore", component: ExplorePage });
+const exploreRoute = createRoute({
+  getParentRoute: () => root,
+  path: "/explore",
+  validateSearch: (s: Record<string, unknown>) => ({
+    category: typeof s.category === "string" ? s.category : undefined,
+    tag: typeof s.tag === "string" ? s.tag : undefined,
+  }),
+  component: function Explore() {
+    const { category, tag } = exploreRoute.useSearch();
+    const nav = exploreRoute.useNavigate();
+    const initial = category ? { kind: "category" as const, value: category } : tag ? { kind: "tag" as const, value: tag } : null;
+    return (
+      <ExplorePage
+        initial={initial}
+        onPick={(p) => void nav({ search: { category: p?.kind === "category" ? p.value : undefined, tag: p?.kind === "tag" ? p.value : undefined }, replace: true })}
+      />
+    );
+  },
+});
 const organize = createRoute({
   getParentRoute: () => root,
   path: "/organize",

@@ -98,4 +98,18 @@ describe("the words the AI wrote (ADR-0029)", () => {
     await waitFor(() => expect(s.analyze).toHaveBeenCalledTimes(2));
     expect(s.analyze.mock.calls.map(([id]) => id)).toEqual(["s1", "s2"]);
   });
+
+  it("[IMP-025] 回歸：選的分類在網址裡，可以分享、重新整理後還在（驗證第 1 輪）", async () => {
+    s.search.mockReset();
+    s.search.mockResolvedValue(result([hit("a")], { category: { food: 3 } }));
+    const onPick = vi.fn();
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <ExplorePage initial={{ kind: "category", value: "food" }} onPick={onPick} />
+      </QueryClientProvider>,
+    );
+    await waitFor(() => expect(s.search.mock.calls.some(([b]) => b.filters?.category === "food")).toBe(true));
+    fireEvent.click(await screen.findByRole("button", { name: /美食/, pressed: true }));
+    expect(onPick).toHaveBeenLastCalledWith(null); // a second click clears it, and the URL follows
+  });
 });

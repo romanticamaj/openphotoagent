@@ -14,9 +14,16 @@ const TOP_TAGS = 16;
 const PAGE = 120;
 const byCount = (m: Record<string, number> = {}) => Object.entries(m).sort((a, b) => b[1] - a[1]);
 
-export function ExplorePage() {
+export type ExplorePick = Pick;
+
+/** ``initial`` and ``onPick`` keep the choice in the URL (IMP-025): a category can be linked and survives a reload. */
+export function ExplorePage({ initial = null, onPick }: { initial?: Pick; onPick?: (p: Pick) => void } = {}) {
   const { t, i18n } = useTranslation();
-  const [pick, setPick] = useState<Pick>(null);
+  const [pick, setPickState] = useState<Pick>(initial);
+  const setPick = (p: Pick) => {
+    setPickState(p);
+    onPick?.(p);
+  };
   const [viewing, setViewing] = useState<number | null>(null);
   const preset = useQuery({ queryKey: ["preset", "by-content-12", i18n.language], queryFn: () => api.preset("by-content-12", i18n.language) });
   const names = useMemo(() => new Map((preset.data?.categories ?? []).map((c) => [c.key, c.name])), [preset.data]);
