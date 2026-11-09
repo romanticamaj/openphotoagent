@@ -420,7 +420,8 @@
       "human": "Your correction",
       "none": "Not analysed yet",
       "advanced": "Advanced details",
-      "tags": "Tags"
+      "tags": "Tags",
+      "history": "Earlier analyses ({n})"
     },
     "layer": {
       "embedding": "Image similarity",
@@ -438,7 +439,8 @@
     },
     "correct": "Correct category",
     "correctSave": "Save correction",
-    "correctionSaved": "Correction saved"
+    "correctionSaved": "Correction saved",
+    "people": "People in this photo"
   },
   "onboarding": {
     "welcome": "Welcome to OpenPhotoAgent",

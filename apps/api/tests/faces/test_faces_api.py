@@ -617,3 +617,17 @@ def test_face_clu_012_a_group_shows_its_photos_right_away(f):
     f.post(f"/people/{p1}/review", {"yes": more, "no": []})
     r = f.client.post("/api/v1/search", json={"q": None, "filters": {"persons_any": [p1]}, "limit": 50}, headers=f.ui)
     assert r.json()["total"] == 7
+
+
+@pytest.mark.integration
+@pytest.mark.tc("VIEW-021")
+def test_view_021_who_is_in_this_photo(f):
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    aid = f.sql("select asset_id from face where id=:i", i=ids[1][0]).scalar()
+    p1 = f.sql("select person_id from face where id=:i", i=ids[1][0]).scalar()
+    f.post(f"/people/{p1}/name", {"name": "小明"})
+    assert f.get(f"/assets/{aid}")["people"] == [{"id": p1, "name": "小明"}]
+    f.post(f"/people/{p1}/ignore", {"delete_biometrics": False})
+    assert f.get(f"/assets/{aid}")["people"] == []

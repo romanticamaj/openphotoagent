@@ -245,7 +245,16 @@ const modelRoute = createRoute({
 const doctorRoute = createRoute({ getParentRoute: () => root, path: "/system/doctor", component: DoctorPage });
 const settingsRoute = createRoute({ getParentRoute: () => root, path: "/settings", component: SettingsPage });
 const integrationsRoute = createRoute({ getParentRoute: () => root, path: "/settings/integrations", component: IntegrationsPage });
-const peopleRoute = createRoute({ getParentRoute: () => root, path: "/people", component: PeoplePage });
+const peopleRoute = createRoute({
+  getParentRoute: () => root,
+  path: "/people",
+  // ?person= opens that person (from 「照片中的人物」 in the Lightbox, VIEW-021)
+  validateSearch: (s: Record<string, unknown>) => ({ person: typeof s.person === "string" ? s.person : undefined }),
+  component: function People() {
+    const { person } = peopleRoute.useSearch();
+    return <PeoplePage initial={person} />;
+  },
+});
 const faceReviewRoute = createRoute({ getParentRoute: () => root, path: "/people/review", component: FaceReview });
 const mapRoute = createRoute({ getParentRoute: () => root, path: "/map", component: MapPage });
 const assistantRoute = createRoute({ getParentRoute: () => root, path: "/settings/assistant", component: AssistantSettingsPage });

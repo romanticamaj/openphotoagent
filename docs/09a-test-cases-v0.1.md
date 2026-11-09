@@ -844,6 +844,8 @@
 | VIEW-010 | 記憶體預算 | 10 萬張捲動 3 分鐘 + 開 Lightbox 20 次 | 已解碼影像估算 ≤ 512 MB（CDP heap + ImageBitmap 計數） | F | #85 |
 | VIEW-011 | 資訊面板資料 | 某照片有 EXIF、AI 結果 | 欄位齊全；AI 欄位附模型與 `source`；無 GPS 時不顯示地點（不編造） | U | #89 |
 | VIEW-012 | 不存在的 API 路徑不會回網頁（回歸） | web build 掛在 `/`；`/api/v1/nope`、多層路徑、`/worker-api/…`、`/mcp/…`；用戶端路由含有點的資料夾 | API 路徑回 404，內容不是 index.html；`/review/v1.2/abc` 仍回 index.html（Windows 上 StaticFiles 給的是 `api\\v1\\nope`，曾對每個未知路徑回 200 與 HTML） | I | Windows |
+| VIEW-020 | 資訊面板只列目前的分析（回歸，驗證第 1 輪） | 同一張有 3 筆結果（不同模型或設定） | 只顯示最新一筆的類別與信心；較早的收在預設關閉的「之前的分析（2）」 | C | #— |
+| VIEW-021 | 照片中的人物 | 已分群並命名；之後忽略此人 | `/assets/{id}` 帶 `people`；面板列出名字（未命名顯示「未命名」），點了開啟該人物；人臉功能關閉或被忽略時不列 | C/I | #78 |
 
 ### 12.5 PERF、A11Y、VIS、I18N
 

@@ -2,6 +2,7 @@
 // panel with EXIF and every AI label's model and decision layer, inline correction (→ review), reveal in file
 // manager on desktop only. role="dialog" aria-modal; position is announced through aria-live.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, mediaUrl, type AssetInfo, type TimelineAsset } from "../../lib/api";
@@ -251,7 +252,21 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
             ))}
           </ul>
         ) : null}
-        {a.labels.map((l) => (
+        {(a.people?.length ?? 0) > 0 ? (
+          <div className="mb-3">
+            <h3 className="mb-1 text-sm text-[var(--text-muted)]">{t("lightbox.people")}</h3>
+            <ul data-testid="photo-people" className="flex flex-wrap gap-1 text-sm">
+              {a.people!.map((p) => (
+                <li key={p.id}>
+                  <Link to="/people" search={{ person: p.id }} className="rounded-full bg-[var(--surface-2)] px-2 py-0.5" translate="no">
+                    {p.name ?? t("faces.unnamed")}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {a.labels.slice(0, 1).map((l) => (
           <dl key={l.result_id} className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm" data-testid="ai-label">
             <dt className="text-[var(--text-muted)]">{t("lightbox.ai.category")}</dt>
             <dd>
@@ -277,6 +292,20 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
             </dd>
           </dl>
         ))}
+        {a.labels.length > 1 ? (
+          /* earlier analyses (other models or settings) are history, not three opinions at once */
+          <details data-testid="ai-history" className="mt-2 text-xs text-[var(--text-muted)]">
+            <summary className="cursor-pointer">{t("lightbox.ai.history", { n: a.labels.length - 1 })}</summary>
+            <ul className="mt-1 space-y-0.5">
+              {a.labels.slice(1).map((l) => (
+                <li key={l.result_id}>
+                  {names.get(l.category ?? "") ?? l.category}
+                  {l.confidence !== null ? ` · ${t("common.percent", { n: Math.round(l.confidence * 100) })}` : ""}
+                </li>
+              ))}
+            </ul>
+          </details>
+        ) : null}
         <form
           className="mt-3 flex items-end gap-2"
           onSubmit={(e) => {

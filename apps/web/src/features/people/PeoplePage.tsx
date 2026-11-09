@@ -143,10 +143,10 @@ function PersonPanel({ person, onClose }: { person: PersonRow; onClose: () => vo
   );
 }
 
-export function PeoplePage() {
+export function PeoplePage({ initial }: { initial?: string } = {}) {
   const { t } = useTranslation();
   const q = useQuery({ queryKey: ["people"], queryFn: api.people, refetchInterval: 5000 });
-  const [open, setOpen] = useState<string | null>(null);
+  const [open, setOpen] = useState<string | null>(initial ?? null);
   const selected = (q.data?.people ?? []).find((p) => p.id === open);
   return (
     <section className="space-y-4 p-6" aria-labelledby="people-h">

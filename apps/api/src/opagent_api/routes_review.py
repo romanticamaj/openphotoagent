@@ -170,4 +170,33 @@ def get_asset(asset_id: str, req: Request, lang: str = "zh-TW") -> dict[str, Any
             .order_by(asset_location.c.rel_path)
         ).all()
         d = {k: (v.isoformat() if hasattr(v, "isoformat") else v) for k, v in a._mapping.items()}
-        return {**d, "labels": out, "human_label": human, "locations": [dict(r._mapping) for r in locs]}
+        return {
+            **d,
+            "labels": out,
+            "human_label": human,
+            "locations": [dict(r._mapping) for r in locs],
+            "people": _people_in(c, asset_id),
+        }
+
+
+def _people_in(c: Any, asset_id: str) -> list[dict[str, Any]]:
+    """Who is in the photo (VIEW-021); nothing while faces are off, never someone the person chose to ignore."""
+    from opagent_db.schema import face, person
+
+    from .faces import fsettings
+
+    if not fsettings(c).get("enabled"):
+        return []
+    rows = c.execute(
+        select(person.c.id, person.c.display_name)
+        .join(face, face.c.person_id == person.c.id)
+        .where(
+            face.c.asset_id == asset_id,
+            face.c.state.in_(("auto", "confirmed")),
+            person.c.status != "ignored",
+            person.c.merged_into.is_(None),
+        )
+        .distinct()
+        .order_by(person.c.display_name.nulls_last(), person.c.id)
+    ).all()
+    return [{"id": r.id, "name": r.display_name} for r in rows]

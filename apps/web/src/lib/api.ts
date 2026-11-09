@@ -98,6 +98,7 @@ export type AssetInfo = {
   labels: Label[];
   human_label: { category: string; source: string } | null;
   locations?: Array<{ source_id: string; root_alias: string; rel_path: string; missing: boolean }>;
+  people?: Array<{ id: string; name: string | null }>;
 };
 export type Variant = "t256" | "t512" | "p1024";
 
