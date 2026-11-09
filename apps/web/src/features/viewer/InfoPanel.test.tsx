@@ -64,4 +64,13 @@ describe("the info panel", () => {
     expect(list.textContent).toContain("小明");
     expect(list.textContent).toContain("未命名");
   });
+
+  it("[VIEW-024] 回歸：同一個檔案只列一次（驗證第 2 輪：巢狀資料夾讓路徑印兩次）", async () => {
+    const loc = (sid: string) => ({ source_id: sid, root_alias: "testdata", rel_path: "第8周/0409/a.jpg", missing: false });
+    s.asset.mockResolvedValue({ ...base, labels: [label("r1", "people", 1, "說明")], locations: [loc("s3"), loc("s4")] });
+    ui();
+    await screen.findByText("說明");
+    expect(screen.getAllByText("testdata/第8周/0409/a.jpg")).toHaveLength(1);
+  });
 });
+

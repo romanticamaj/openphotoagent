@@ -107,10 +107,7 @@ export function OrganizeWizard() {
           <h2 className="font-semibold">{t("organize.fromLibrary")}</h2>
           <LibraryFolders action={() => t("organize.organizeThis")} onAct={(s) => setFolder({ root: s.root_alias, path: s.sub_path, source: s.id })} />
         </section>
-        <section className="space-y-2">
-          <h2 className="font-semibold">{t("organize.otherFolder")}</h2>
-          <FolderPicker onPick={(root, path) => pick.mutate({ root, path })} />
-        </section>
+        <FolderPicker title={t("organize.otherFolder")} onPick={(root, path) => pick.mutate({ root, path })} />
       </div>
     );
   }

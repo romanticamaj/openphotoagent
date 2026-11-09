@@ -311,3 +311,14 @@ def test_grd_007_a_count_is_the_search_box_count_and_shows_photos(m):
     assert "6" in text  # 5 「海邊的貓」 + the untagged kite on the sand
     shown = [i["id"] for e, d in ev if e == "photos" for i in d["items"]]
     assert beach in shown and len(shown) <= 6  # the panel draws these next to the number
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-UI-011")
+def test_ask_ui_011_suggestions_are_about_things_not_floors(m):
+    """回歸 (audit round 2): the panel suggested 「我有幾張地板？」, the most common free tag."""
+    for i in range(9):
+        m.add(f"2025/floor{i}.jpg", caption="教室", tags=("地板",))
+    m.index()
+    texts = [x["text"] for x in m.client.get("/api/v1/ask/suggestions", headers=m.ui).json()["suggestions"]]
+    assert not any("地板" in t for t in texts) and "我有幾張貓？" in texts

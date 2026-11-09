@@ -139,8 +139,12 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
             )}
           </>
         )}
-        <button type="button" onClick={() => go(-1)} aria-label={t("lightbox.prev")} className="absolute left-2 rounded-full bg-black/40 px-3 py-2">‹</button>
-        <button type="button" onClick={() => go(1)} aria-label={t("lightbox.next")} className="absolute right-2 rounded-full bg-black/40 px-3 py-2">›</button>
+        {grid.total > 1 ? (
+          <>
+            <button type="button" onClick={() => go(-1)} aria-label={t("lightbox.prev")} className="absolute left-2 rounded-full bg-black/40 px-3 py-2">‹</button>
+            <button type="button" onClick={() => go(1)} aria-label={t("lightbox.next")} className="absolute right-2 rounded-full bg-black/40 px-3 py-2">›</button>
+          </>
+        ) : null}
       </div>
       <nav className="filmstrip" aria-label={t("lightbox.filmstrip")}>
         {film.map((f) => (
@@ -336,7 +340,7 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
         <section aria-labelledby="loc-h">
           <h2 id="loc-h" className="mb-2 font-semibold">{t("lightbox.exif.locations")}</h2>
           <ul className="space-y-1 text-sm">
-            {(a.locations ?? []).map((l) => (
+            {[...new Map((a.locations ?? []).map((l) => [`${l.root_alias}/${l.rel_path}`, l])).values()].map((l) => (
               <li key={`${l.source_id}:${l.rel_path}`} className="flex items-center gap-2">
                 <span className="break-all font-mono text-xs">{`${l.root_alias}/${l.rel_path}`}</span>
                 {p.kind === "desktop" && p.revealInFileManager && (

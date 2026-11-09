@@ -256,7 +256,8 @@ def suggestions(req: Request, photo_id: str | None = None) -> dict[str, Any]:
     with req.app.state.opa.engine.begin() as c:
         tags = c.execute(
             text(
-                "SELECT tag, count(*) AS n FROM search_doc, unnest(tags) AS tag"
+                # concepts of the vocabulary only: the commonest free tag is often 地板 (ASK-UI-011)
+                "SELECT tag, count(*) AS n FROM search_doc, unnest(tags) AS tag WHERE tag LIKE '%.%'"
                 " GROUP BY tag ORDER BY n DESC, tag LIMIT 2"
             )
         ).all()

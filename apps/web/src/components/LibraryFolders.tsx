@@ -7,7 +7,11 @@ import { api, type LibrarySource } from "../lib/api";
 export function LibraryFolders({ action, onAct, busy }: { action: (s: LibrarySource) => string; onAct: (s: LibrarySource) => void; busy?: string | null }) {
   const { t, i18n } = useTranslation();
   const q = useQuery({ queryKey: ["sources"], queryFn: api.sources, refetchInterval: 5000 });
-  const rows = q.data ?? [];
+  // a folder inside another folder of the library is covered by it: listing both counted its photos twice (IMP-034)
+  const all = q.data ?? [];
+  const inside = (a: LibrarySource, b: LibrarySource) =>
+    a.id !== b.id && a.root_alias === b.root_alias && (b.sub_path === "" || a.sub_path.startsWith(`${b.sub_path}/`));
+  const rows = all.filter((s) => !all.some((o) => inside(s, o)));
   if (!rows.length) return null;
   const num = (n: number) => n.toLocaleString(i18n.language);
   return (
