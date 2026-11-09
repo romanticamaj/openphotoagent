@@ -21,6 +21,7 @@ EN = {
     "FACES_NOT_FOR_SOURCE": "Face recognition is not on for this source",
     "FACE_CONSENT_REQUIRED": "Agreeing to how face data is handled is required first",
     "PERSON_NAME_TAKEN": "Another person already has this name",
+    "FACE_IGNORED": "This face belongs to someone you chose to ignore, so it cannot be confirmed",
     "BENCH_GOLDEN_TOO_SMALL": "The golden set needs at least {min} labelled photos and {per_class} per class ({n} so far)",
     "PRESET_INVALID": "This organize preset file is invalid or unsafe ({reason} at {pointer}); nothing was imported",
     "PRESET_TOO_NEW": "This file comes from a newer version (format {found}; this version supports up to {supported})",

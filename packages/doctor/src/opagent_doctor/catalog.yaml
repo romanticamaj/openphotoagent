@@ -674,6 +674,12 @@ FACE_CONSENT_REQUIRED:
     type: open_settings
   severity: blocker
   transient: false
+FACE_IGNORED:
+  fixes:
+  - target: people
+    type: open_settings
+  severity: warning
+  transient: false
 PERSON_NAME_TAKEN:
   fixes:
   - target: people

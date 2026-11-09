@@ -167,6 +167,12 @@
     "severity": "B",
     "title": "開啟人臉辨識前需要同意人臉資料的處理方式"
   },
+  "FACE_IGNORED": {
+    "cta": "到人物頁取消忽略",
+    "message": "這張臉屬於已忽略的人物，不能用來確認",
+    "severity": "W",
+    "title": "這張臉屬於已忽略的人物"
+  },
   "FACE_SCOPE_REQUIRED": {
     "cta": "開啟人臉辨識",
     "message": "人物條件需要先開啟人臉辨識",

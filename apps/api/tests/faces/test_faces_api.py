@@ -581,3 +581,22 @@ def test_find_012_yes_and_no_in_one_go(f):
     left = [c["face_id"] for c in f.get(f"/people/{p1}/candidates")["items"]]
     assert not set(more) & set(left)  # yes: theirs now; no: never asked again
     assert f.get("/people")["people"][0]["name"] is None  # a yes is a decision, not a name
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-FIND-013")
+def test_find_013_ignored_people_stay_out_of_it(f):
+    """回歸 (security review): someone the person chose to ignore must not come back as 「可能也是他」."""
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p1 = f.sql("select person_id from face where id=:i", i=ids[1][0]).scalar()
+    p2 = f.sql("select person_id from face where id=:i", i=ids[2][0]).scalar()
+    more = _small(f, 1, 2, "kid")
+    f.post(f"/people/{p2}/ignore", {"delete_biometrics": False})
+    # p2's faces stay out even when they look like p1, and an ignored person has no candidates at all
+    f.sql("update face set person_id=:p, state='auto' where id = any(:ids)", p=p2, ids=more)
+    assert not set(more) & {c["face_id"] for c in f.get(f"/people/{p1}/candidates")["items"]}
+    assert f.get(f"/people/{p2}/candidates")["items"] == []
+    r = f.client.post(f"/api/v1/people/{p1}/review", json={"yes": more, "no": []}, headers=f.ui)
+    assert r.status_code == 409 and r.json()["code"] == "FACE_IGNORED"

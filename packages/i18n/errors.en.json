@@ -167,6 +167,12 @@
     "severity": "B",
     "title": "Agreeing to how face data is handled is required first"
   },
+  "FACE_IGNORED": {
+    "cta": "Unignore them on People",
+    "message": "This face belongs to someone you chose to ignore, so it cannot be confirmed",
+    "severity": "W",
+    "title": "This face belongs to someone you chose to ignore, so it cannot be confirmed"
+  },
   "FACE_SCOPE_REQUIRED": {
     "cta": "Turn on face recognition",
     "message": "Person filters need face recognition to be on",

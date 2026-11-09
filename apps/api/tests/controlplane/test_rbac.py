@@ -179,3 +179,13 @@ def test_auth_003_single_user_upgrade(embedded_pg):
         from opagent_db.schema import app_user
 
         assert c.execute(select(app_user.c.email)).scalars().all() == ["me@example.invalid"]
+
+
+@pytest.mark.unit
+@pytest.mark.tc("FACE-FIND-013")
+def test_face_find_013_reading_people_needs_face_read():
+    """回歸 (security review): unmapped GETs fall back to ws:read, which is not enough to see faces."""
+    from opagent_api.permissions import required
+
+    for path in ("/api/v1/people", "/api/v1/people/{pid}", "/api/v1/people/{pid}/candidates", "/api/v1/faces/review"):
+        assert required("GET", path) == "face:read", path

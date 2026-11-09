@@ -294,6 +294,7 @@
 | FACE-FIND-010 | 「可能也是他」的候選規則 | 候選含已屬此人、被拒絕、同照片已有此人、已確認為他人、低於門檻、未命名群組 | 只留後兩類以外且 ≥ find_low 的臉，分數由高到低；未命名群組的臉仍列出 | U | #78 |
 | FACE-FIND-011 | 候選 API | 分群後再加入此人與他人的小臉（tier 1） | `GET /people/{id}/candidates` 列出此人的小臉、不含他人與已屬此人；帶 asset、bbox、分數，依分數排序 | I | #78 |
 | FACE-FIND-012 | 一次確認多張 | `POST /people/{id}/review` 3 是 1 不是 | 是 → confirmed 並歸此人；不是 → rejected；兩者都不再出現在候選；不會自動命名 | I | #78 |
+| FACE-FIND-013 | 忽略的人不會回來（回歸，安全審查） | 被忽略者的臉與此人相似；對被忽略者取候選；確認被忽略者的臉 | 不列入候選；被忽略者沒有候選；確認回 409 `FACE_IGNORED`；讀人物的 GET 需要 `face:read` | I/U | #78 |
 | FACE-TPL-001 | `{person}` fan-out | 照片有兩人、fanout=true | 複製到兩個人的資料夾；無人時用 fallback | I | #80 |
 | FACE-REV-001 | Review Y/N | 「這是不是 X？」 | `Y`／`N`／`1–9`／`S` 鍵盤連續處理；批次模式依分數由低到高 | E | #81 |
 | FACE-PRG-001 | 一鍵刪除 | 輸入 workspace 名稱確認 → purge | 單一交易：`bio.face_embedding_w*`、`bio.person_prototype_w*` partition 不存在；face／assignment／person／link／cluster_run 清空；`search_doc.person_*` 清空並排重建；`faces/` 縮圖目錄為空；刪除報告（筆數、位置），報告不含生物特徵 | I | #82 |

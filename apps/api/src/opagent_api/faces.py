@@ -857,7 +857,8 @@ def person_candidates(pid: str, req: Request, limit: int = Query(60, ge=1, le=20
     st = _st(req)
     with st.engine.begin() as c:
         space = fsettings(c).get("space_id")
-        if space is None:
+        who = c.execute(select(person.c.status, person.c.merged_into).where(person.c.id == pid)).first()
+        if space is None or who is None or who.status == "ignored" or who.merged_into is not None:
             return {"items": [], "references": 0}
         mine = c.execute(
             select(face_assignment.c.face_id, face_assignment.c.kind).where(
@@ -877,7 +878,12 @@ def person_candidates(pid: str, req: Request, limit: int = Query(60, ge=1, le=20
         rows = c.execute(
             select(face.c.id, face.c.asset_id, face.c.person_id, face.c.state, face.c.bbox, asset.c.content_hash)
             .join(asset, asset.c.id == face.c.asset_id)
-            .where(face.c.workspace_id == DEFAULT_WS, face.c.id.in_(list(best) or ["-"]) | (face.c.person_id == pid))
+            .outerjoin(person, person.c.id == face.c.person_id)
+            .where(
+                face.c.workspace_id == DEFAULT_WS,
+                face.c.id.in_(list(best) or ["-"]) | (face.c.person_id == pid),
+                person.c.status.is_distinct_from("ignored"),  # someone set aside never comes back this way
+            )
         ).all()
     facts = {r.id: (r.asset_id, r.person_id, r.state) for r in rows}
     meta = {r.id: r for r in rows}
@@ -908,6 +914,13 @@ def person_review(pid: str, body: ReviewIn, req: Request) -> dict[str, Any]:
     """Several 「是他」 and 「不是」 at once, from the candidates above."""
     st = _st(req)
     with st.engine.begin() as c:
+        ignored = c.execute(
+            select(face.c.id)
+            .join(person, person.c.id == face.c.person_id)
+            .where(face.c.id.in_([*body.yes, *body.no] or ["-"]), person.c.status == "ignored")
+        ).first()
+        if ignored is not None or c.execute(select(person.c.status).where(person.c.id == pid)).scalar() == "ignored":
+            raise HTTPException(409, detail={"code": "FACE_IGNORED"})
         for fid in body.yes:
             _write(c, st, fid, pid, "confirmed", "find", "user:local")
         for fid in body.no:
