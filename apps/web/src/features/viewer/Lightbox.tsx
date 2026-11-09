@@ -3,6 +3,7 @@
 // manager on desktop only. role="dialog" aria-modal; position is announced through aria-live.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
+import { FaceCrop } from "../../components/FaceCrop";
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, mediaUrl, type AssetInfo, type TimelineAsset } from "../../lib/api";
@@ -262,8 +263,11 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
             <ul data-testid="photo-people" className="flex flex-wrap gap-1 text-sm">
               {a.people!.map((p) => (
                 <li key={p.id}>
-                  <Link to="/people" search={{ person: p.id }} className="rounded-full bg-[var(--surface-2)] px-2 py-0.5" translate="no">
-                    {p.name ?? t("faces.unnamed")}
+                  <Link to="/people" search={{ person: p.id }} className="person-chip" translate="no">
+                    {a.people_faces?.[p.id] ? (
+                      <FaceCrop assetId={id} ch={a.people_faces[p.id].ch} bbox={a.people_faces[p.id].bbox} className="person-chip-face" />
+                    ) : null}
+                    <span>{p.name ?? t("faces.unnamed")}</span>
                   </Link>
                 </li>
               ))}

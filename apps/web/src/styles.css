@@ -397,6 +397,19 @@ body {
   font-weight: 600;
 }
 
+.person-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px 2px 2px;
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+.person-chip-face {
+  width: 26px;
+  border-radius: 999px;
+}
+
 .face-crop {
   position: relative;
   display: block;

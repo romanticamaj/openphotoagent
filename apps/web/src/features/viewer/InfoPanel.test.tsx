@@ -72,5 +72,12 @@ describe("the info panel", () => {
     await screen.findByText("說明");
     expect(screen.getAllByText("testdata/第8周/0409/a.jpg")).toHaveLength(1);
   });
+
+  it("[VIEW-025] 照片中的人物附上這張照片裡的臉", async () => {
+    s.asset.mockResolvedValue({ ...base, labels: [label("r1", "people", 1, "x")], people: [{ id: "p1", name: null }], people_faces: { p1: { bbox: [0.1, 0.1, 0.2, 0.2], ch: "h" } } });
+    ui();
+    const list = await screen.findByTestId("photo-people");
+    expect(list.querySelector(".face-crop")).toBeTruthy();
+  });
 });
 

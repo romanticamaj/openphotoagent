@@ -653,3 +653,16 @@ def test_face_ui_012_people_in_the_order_people_expect(f):
     people = f.get("/people")["people"]
     assert people[0]["name"] == "小華"  # named first
     assert [p["id"] for p in people[1:3]] == [pid[3], pid[1]]  # then by photos: 6 before 5, whatever the faces
+
+
+@pytest.mark.integration
+@pytest.mark.tc("VIEW-025")
+def test_view_025_the_people_of_a_photo_show_their_faces(f):
+    """回歸 (audit round 2): 「照片中的人物」 showed a bare 「未命名」 with no face to tell who it is."""
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    aid = f.sql("select asset_id from face where id=:i", i=ids[1][0]).scalar()
+    d = f.get(f"/assets/{aid}")
+    (p,) = d["people"]
+    assert len(d["people_faces"][p["id"]]["bbox"]) == 4 and d["people_faces"][p["id"]]["ch"]

@@ -175,20 +175,21 @@ def get_asset(asset_id: str, req: Request, lang: str = "zh-TW") -> dict[str, Any
             "labels": out,
             "human_label": human,
             "locations": [dict(r._mapping) for r in locs],
-            "people": _people_in(c, asset_id),
+            **dict(zip(("people", "people_faces"), _people_in(c, asset_id), strict=True)),
         }
 
 
-def _people_in(c: Any, asset_id: str) -> list[dict[str, Any]]:
+def _people_in(c: Any, asset_id: str) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
     """Who is in the photo (VIEW-021); nothing while faces are off, never someone the person chose to ignore."""
     from opagent_db.schema import face, person
 
     from .faces import fsettings
 
     if not fsettings(c).get("enabled"):
-        return []
+        return [], {}
+    ch = c.execute(select(asset.c.content_hash).where(asset.c.id == asset_id)).scalar()
     rows = c.execute(
-        select(person.c.id, person.c.display_name)
+        select(person.c.id, person.c.display_name, face.c.bbox)
         .join(face, face.c.person_id == person.c.id)
         .where(
             face.c.asset_id == asset_id,
@@ -196,7 +197,11 @@ def _people_in(c: Any, asset_id: str) -> list[dict[str, Any]]:
             person.c.status != "ignored",
             person.c.merged_into.is_(None),
         )
-        .distinct()
-        .order_by(person.c.display_name.nulls_last(), person.c.id)
+        .distinct(person.c.id)
+        .order_by(person.c.id)
     ).all()
-    return [{"id": r.id, "name": r.display_name} for r in rows]
+    rows = sorted(rows, key=lambda r: (r.display_name is None, r.display_name or "", r.id))
+    return [{"id": r.id, "name": r.display_name} for r in rows], {
+        r.id: {"bbox": list(r.bbox), "ch": ch}
+        for r in rows  # the face in this photo, for 「未命名」 (VIEW-025)
+    }
