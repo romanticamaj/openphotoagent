@@ -319,8 +319,9 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
         cvec = query_vector(st, q, cspace, modality="caption")
         if cvec is None:
             degraded.append("caption_vector")
-    if q and body.semantic:
-        qvec = query_vector(st, q, space)
+    vq_text = tokenizer().vector_text(q) if q else None  # None: skipped on purpose, not a fault (ADR-0031)
+    if vq_text and body.semantic:
+        qvec = query_vector(st, vq_text, space)
         if qvec is None:
             degraded.append("image_vector")
     routes: dict[str, list[str]] = {}

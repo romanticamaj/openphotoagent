@@ -147,6 +147,17 @@ class Tokenizer:
         d += self.bigrams(" ".join([caption or "", *(tags or [])]))
         return {"A": a, "B": b, "C": c, "D": d}
 
+    def vector_text(self, text: str) -> str | None:
+        """What the image model is asked (ADR-0031). SigLIP does not separate Chinese queries from noise on real
+        photos, English ones it does: CJK words go through the vocabulary to their English name; words it does not
+        know are left out; when none is known the image route is skipped (None). Latin script is passed as it is."""
+        if not _CJK.search(text):
+            return text.strip() or None
+        names = [n for k in self.query(text).tag_keys if (n := self.term_name(k, "en"))]
+        latin = re.findall(r"[a-z][a-z0-9'-]*", normalize(text))
+        out = list(dict.fromkeys([*names, *latin]))
+        return " ".join(out) or None
+
     def query(self, text: str) -> ParsedQuery:
         words = self.words(text)
         keys = sorted({k for w in [*words, text] if (k := self.tag_key(w))})

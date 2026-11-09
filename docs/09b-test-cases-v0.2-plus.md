@@ -48,6 +48,8 @@
 | SRCH-PLAN-021 | 沒有 LLM planner 的 worker 明確回覆（回歸） | `query_plan` RPC | 不記 `UNKNOWN_RPC`；回空結果，API 退回規則式 | U | #24 |
 | SRCH-SEM-008 | 向量下限（回歸，ADR-0027） | 有下限的空間：相近與不相近的照片；沒有相符；沒有下限的空間 | 低於下限的不計入 total 與 items，列在 related；沒有相符時 total 0；沒有下限時行為不變 | I | #24 |
 | SRCH-SEM-009 | 下限來自模型目錄 | SigLIP2 與未知 fingerprint | 0.07；未知為 None；不需重新嵌入 | U | 不變量 7 |
+| SRCH-SEM-010 | 影像模型收到的查詢文字（回歸，驗證第 1 輪） | 海邊、貓、小孩在玩水、長頸鹿、red car、夜景 | beach、cat、child、不查、red car、night（ADR-0031） | U | #— |
+| SRCH-SEM-011 | 中文以英文進影像路徑 | 搜「海邊」；搜「長頸鹿」 | 影像向量 RPC 收到 `beach`；「長頸鹿」不呼叫影像向量，`degraded` 不含 image_vector | I | #— |
 | CORE-LUNAR-001 | 初一對照表 | `opagent_core.lunar` | 1900–2099 每年一筆；2024-02-10、2025-01-29、2026-02-17、2030-02-03 正確；`gen_lunar_table.py --check` 一致 | U | #62 |
 
 ### 1.3 SRCH-IMG、SRCH-DUP：以圖搜圖與重複

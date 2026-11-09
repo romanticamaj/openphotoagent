@@ -588,3 +588,26 @@ def test_srch_sem_009_the_floor_comes_from_the_catalogue_entry():
     st = SimpleNamespace(registry=load_registry)
     assert vector_floor(st, SimpleNamespace(fingerprint="siglip2-so400m-384@onnx-fp16:21086ca63010")) == 0.07
     assert vector_floor(st, SimpleNamespace(fingerprint="fake-embed")) is None
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-SEM-011")
+def test_srch_sem_011_chinese_reaches_the_image_model_in_english(s, monkeypatch):
+    import opagent_api.search as search_mod
+
+    asked = []
+    real = search_mod.query_vector
+
+    def spy(st, text_q, space, modality="image"):
+        asked.append((modality, text_q))
+        return real(st, text_q, space, modality)
+
+    monkeypatch.setattr(search_mod, "query_vector", spy)
+    s.add(1, caption="沙灘上的狗", groups=["dog", "beach"])
+    s.index()
+    s.search(q="海邊")
+    assert ("image", "beach") in asked
+    asked.clear()
+    res = s.search(q="長頸鹿")
+    assert [t for m, t in asked if m == "image"] == []
+    assert "image_vector" not in res["degraded"]  # skipped on purpose is not a fault

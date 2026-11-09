@@ -195,7 +195,7 @@ flowchart TB
   PL -->|只有 NL 文字| RB[規則式解析<br/>日期・地名・tag 詞典] --> F
   RB -. 可選 .-> LLM[本地 LLM 解析<br/>Worker interactive lane] --> F
   F --> AUTH[權限 filter<br/>workspace ∩ token 範圍 ∩ scope_keys]
-  AUTH --> R1[R1 影像向量<br/>SigLIP2 text→image]
+  AUTH --> R1[R1 影像向量<br/>SigLIP2 text→image<br/>中文經詞彙表轉英文（ADR-0031）]
   AUTH --> R2[R2 caption 文字向量（v1）]
   AUTH --> R3[R3 全文 tsvector<br/>詞 → bigram 降級]
   AUTH --> R4[R4 tag/category 精確命中]

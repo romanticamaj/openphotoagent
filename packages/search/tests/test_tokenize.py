@@ -69,3 +69,22 @@ def test_srch_tok_008_tsquery_never_breaks(s):
     # every lexeme is a quoted literal with quotes/backslashes escaped: the only operators are the ones we add
     lit = re.compile(r"'(?:[^'\\]|''|\\\\)*'")
     assert all(lit.fullmatch(t) for t in q.split(" & ") if t), q
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-SEM-010")
+@pytest.mark.parametrize(
+    ("q", "out"),
+    [
+        ("海邊", "beach"),  # a synonym of scene.beach: its English name, not the synonym list
+        ("貓", "cat"),
+        ("小孩在玩水", "child"),  # only what maps; CJK words raise every photo's cosine (ADR-0031)
+        ("長頸鹿", None),  # nothing maps: the image route stays out, so "nothing found" is possible
+        ("red car", "red car"),  # Latin script as it is
+        ("夜景", "night"),
+    ],
+)
+def test_srch_sem_010_what_the_image_model_is_asked(q, out):
+    """回歸 (audit round 1): SigLIP does not separate Chinese queries (貓: relevant 0.086 best, irrelevant p99 0.076;
+    cat: 0.107 vs 0.051), so 「貓」 returned 27 classroom photos out of 29."""
+    assert Tokenizer().vector_text(q) == out
