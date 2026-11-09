@@ -296,3 +296,18 @@ def test_ask_srch_001_a_tag_word_does_not_hide_untagged_photos(m):
     ev = ask(m, "幫我找海邊的照片", FakeLLM([_cite_first]))
     photos = next(d for e, d in ev if e == "photos")
     assert untagged in json.dumps(photos)
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-GRD-007")
+def test_grd_007_a_count_is_the_search_box_count_and_shows_photos(m):
+    """回歸 (audit round 1): 「我有幾張在海邊拍的照片？」 counted only photos tagged scene.beach (2) and showed none,
+    with 4 beach photos on screen. A count is the same search as the grid, and it shows what it counted."""
+    beach = m.add("2025/kite.jpg", caption="沙灘上有人放風箏", tags=())
+    m.index()
+    ev = ask(m, "我有幾張在海邊拍的照片？", FakeLLM([Reply(text="")]))
+    assert ev[0][1]["intent"] == "count"
+    text = "".join(d["text"] for e, d in ev if e == "token")
+    assert "6" in text  # 5 「海邊的貓」 + the untagged kite on the sand
+    shown = [i["id"] for e, d in ev if e == "photos" for i in d["items"]]
+    assert beach in shown and len(shown) <= 6  # the panel draws these next to the number

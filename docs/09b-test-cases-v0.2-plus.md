@@ -334,6 +334,7 @@
 | ASK-GRD-004 | 找不到就拒答 | 工具結果 total=0，FakeLLM 說「找到 5 張」 | 改用拒答模板 + 放寬建議（逐一移除 filter 的計數） | U | #103 |
 | ASK-GRD-005 | 不補完 metadata | 無 GPS 的照片問「在哪裡」 | 回答「沒有位置資訊」，不呼叫 VLM 猜測（或標「推測」） | U | #103 |
 | ASK-GRD-006 | Markdown 白名單 | FakeLLM 輸出外部圖片與連結 | 前端與後端都移除外部連結與圖片 | U/S | #103 |
+| ASK-GRD-007 | 計數＝搜尋框的結果（回歸，驗證第 1 輪） | 「我有幾張在海邊拍的照片？」；另有一張未標籤、說明寫沙灘 | 標籤只排序不篩掉；問句的填充詞不參與全文；數字含那張；附上最多 6 張被計入的照片 | I | #— |
 | ASK-ACT-001 | 動作只產生計畫 | 「把這些移到京都資料夾」 | 工具集中**沒有** `apply_organize`；產生 `card(kind=plan)`；檔案未變；需 UI 按鈕核准 | I | #104 |
 | ASK-ACT-002 | 確認卡內容來自結構化資料 | FakeLLM 文字描述與 plan 不符 | 確認卡顯示 plan 的實際動作數與目標（不是 LLM 文字） | U/S | #104 |
 | ASK-SSE-001 | 事件序列（檢索型） | 一般檢索問題 | 順序：`turn.started` → `step.started(understand)` → `filters` → `step.completed` → `step.started(tool:search_photos, eta_ms)` → `photos(candidates)` → `step.completed(elapsed_ms)` → `token`* → `citation`* → `turn.completed`；`ping` 每 15 s | C | #102 |
@@ -359,6 +360,7 @@
 | ASK-MEM-002 | 保存與刪除 | `retention_days=0`；一鍵刪除 | 不保存；刪除後 conversation／message／step／citation 皆無 | I | #105 |
 | ASK-UI-001 | 建議問題 chips 依資料產生 | 圖庫 top tag 為「貓」、最近年份 2025；Lightbox 單張 | 「我有幾張貓？」「貓的照片」「2025 年的照片」；單張先給「在哪裡／什麼時候」；**不呼叫 LLM** | I | #100 |
 | ASK-UI-002 | 快捷鍵與面板互斥 | `⌘I`／`Ctrl+I`；面板開著時按 `⌘J` | ⌘I 開關問 AI；開活動中心（⌘J，ACT-005）會關掉問 AI，反之亦然；關閉後焦點回到開啟它的元素（ADR-0013） | E | #102 |
+| ASK-UI-010 | 回答旁看得到照片（回歸，驗證第 1 輪） | 候選 14 張；標籤 chip | 顯示前 8 張縮圖與「在搜尋頁看全部 14 張」（帶查詢文字）；chip 與步驟顯示「標籤 海灘」不是 key | C | #— |
 | ASK-LLM-001 | OpenAI 相容 client | llama-server `--jinja` 或外部 endpoint；tool call、壞 JSON、未提供的 tool、逾時、探測 | 只接受本輪提供的 tool 與合法 JSON 物件；逾時安靜回空答案；從不送影像；探測 3/3 才開 tool loop；外部 endpoint 必須 https；API key 存 OS keyring、不回傳；egress log 記實際送出的 bytes | C/I | #101、#105 |
 | ASK-SRCH-001 | 標籤詞不擋住沒標籤的照片（回歸，ADR-0027） | 問「幫我找海邊的照片」，有張照片只有 caption 提到海邊 | 也被找到；使用者編輯過的 chips 仍是硬條件 | I | #40 |
 

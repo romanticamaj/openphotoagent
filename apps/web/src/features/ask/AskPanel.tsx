@@ -54,14 +54,16 @@ function StepRow({ s }: { s: Step }) {
   );
 }
 
-function chipLabel(t: (k: string, o?: Record<string, unknown>) => string, key: string, v: unknown): string {
+function chipLabel(t: (k: string, o?: Record<string, unknown>) => string, key: string, v: unknown, names: Record<string, string> = {}): string {
   if (key === "taken_at") {
     const r = (v ?? {}) as { from?: string; to?: string };
     return t("ask.chipDate", { from: r.from ?? "", to: r.to ?? "" });
   }
-  if (key === "tags_any" || key === "tags_all") return t("ask.chipTag", { tag: ((v as string[]) ?? []).join("、") });
+  if (key === "tags_any" || key === "tags_all") return t("ask.chipTag", { tag: ((v as string[]) ?? []).map((x) => names[x] ?? x).join("、") });
   return key;
 }
+
+const STRIP = 8;
 
 function Answer({ text, onPhoto }: { text: string; onPhoto?: (id: string) => void }) {
   const { t } = useTranslation();
@@ -89,7 +91,7 @@ function Answer({ text, onPhoto }: { text: string; onPhoto?: (id: string) => voi
   );
 }
 
-function TurnView({ turn, onRerun }: { turn: Turn; onRerun: (filters: Record<string, unknown>, text: string) => void }) {
+export function TurnView({ turn, onRerun }: { turn: Turn; onRerun: (filters: Record<string, unknown>, text: string) => void }) {
   const { t } = useTranslation();
   const [edited, setEdited] = useState<Record<string, unknown> | null>(null);
   const filters = edited ?? turn.filters?.applied ?? {};
@@ -110,11 +112,11 @@ function TurnView({ turn, onRerun }: { turn: Turn; onRerun: (filters: Record<str
             <button
               key={k}
               type="button"
-              aria-label={t("ask.removeChip", { label: chipLabel(t, k, v) })}
+              aria-label={t("ask.removeChip", { label: chipLabel(t, k, v, turn.filters?.names) })}
               onClick={() => setEdited(Object.fromEntries(Object.entries(filters).filter(([x]) => x !== k)))}
               className="rounded-full border border-[var(--border)] px-2 py-0.5 text-xs"
             >
-              {chipLabel(t, k, v)} ×
+              {chipLabel(t, k, v, turn.filters?.names)} ×
             </button>
           ))}
           {edited !== null ? (
@@ -128,6 +130,21 @@ function TurnView({ turn, onRerun }: { turn: Turn; onRerun: (filters: Record<str
         <p data-testid="ask-photos-total" className="text-sm text-[var(--text-muted)]">
           {t("ask.found", { n: turn.photos.total.toLocaleString() })}
         </p>
+      ) : null}
+      {turn.photos && turn.photos.role === "candidates" && turn.photos.items.length > 0 ? (
+        // what the answer is about, next to it: a number alone is hard to trust (ASK-UI-010)
+        <div className="space-y-1">
+          <ul data-testid="ask-photos" aria-label={t("ask.cited")} className="grid grid-cols-4 gap-1">
+            {turn.photos.items.slice(0, STRIP).map((id) => (
+              <li key={id}>
+                <img src={mediaUrl(id, "t256")} alt="" loading="lazy" className="aspect-square w-full rounded-[var(--radius-sm)] object-cover" />
+              </li>
+            ))}
+          </ul>
+          <Link to="/search" search={{ q: turn.filters?.text || turn.question }} className="text-sm text-[var(--accent)] underline">
+            {t("ask.seeAll", { n: turn.photos.total.toLocaleString() })}
+          </Link>
+        </div>
       ) : null}
       {turn.cards.map((c) => (
         <div key={c.payload.plan_id} data-testid="ask-plan-card" className="space-y-1 rounded-[var(--radius-md)] border border-[var(--border)] p-3 text-sm">

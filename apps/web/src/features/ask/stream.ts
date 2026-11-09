@@ -21,7 +21,7 @@ export type Turn = {
   intent: string | null;
   path: string | null;
   steps: Step[];
-  filters: { applied: Record<string, unknown>; text: string; explain: string[] } | null;
+  filters: { applied: Record<string, unknown>; text: string; explain: string[]; names?: Record<string, string> } | null;
   photos: { total: number; items: string[]; role: string } | null;
   text: string;
   cards: PlanCard[];
@@ -79,7 +79,7 @@ export function reduce(s: Turn, e: SseEvent): Turn {
         steps: s.steps.map((x) => (x.id === d.step_id ? { ...x, status: d.status === "ok" ? "ok" : "error", elapsed_ms: d.elapsed_ms, summary: d.summary } : x)),
       };
     case "filters":
-      return { ...s, filters: { applied: d.applied_filters ?? {}, text: d.text ?? "", explain: d.planner_explain ?? [] } };
+      return { ...s, filters: { applied: d.applied_filters ?? {}, text: d.text ?? "", explain: d.planner_explain ?? [], ...(d.tag_names ? { names: d.tag_names } : {}) } };
     case "photos":
       return { ...s, photos: { total: d.total ?? 0, items: (d.items ?? []).map((i: D) => i.id), role: d.role } };
     case "token":

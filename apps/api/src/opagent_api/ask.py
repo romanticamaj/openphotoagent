@@ -349,6 +349,23 @@ def _tool(st: AppState, ctx: Any, turn: str, conv: str | None, name: str, args: 
     return out
 
 
+def _named(line: str, names: dict[str, str]) -> str:
+    for k, n in names.items():
+        line = line.replace(k, n)
+    return line
+
+
+COUNT_SHOWN = 6
+COUNT_FILLER = {"我", "有", "幾張", "多少", "張", "拍", "拍的", "照片", "相片", "嗎", "呢", "總共", "一共"}
+
+
+def _count_words(text_q: str) -> str:
+    """The subject of 「我有幾張在海邊拍的照片？」 is 海邊: the rest would make the full-text match fail."""
+    from .labels import tokenizer
+
+    return " ".join(w for w in tokenizer().words(text_q) if w not in COUNT_FILLER and not G.STAT.fullmatch(w))
+
+
 def _count_label(args: dict[str, Any]) -> str:
     f = args.get("filters") or {}
     parts = []
@@ -494,16 +511,22 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
             filters["taken_at"] = p["filters"]["taken_at"]
         if p["filters"].get("tags_any"):
             filters["tags_any"] = p["filters"]["tags_any"]
+    from .search import tag_names
+
+    keys = [str(k) for k in (filters.get("tags_any") or []) + (filters.get("tags_all") or [])]
+    names = tag_names(keys, "zh-TW")
+    explain = [_named(e, names) for e in p["planner"]["explain"]]  # 標籤 海灘, not scene.beach
     yield (
         "filters",
         {
             "applied_filters": filters,
             "text": p["text"],
-            "planner_explain": p["planner"]["explain"],
+            "planner_explain": explain,
+            "tag_names": names,
             "editable": True,
         },
     )
-    yield "step.completed", completed(sid, t0, "ok", "；".join(p["planner"]["explain"]) or "以文字搜尋")
+    yield "step.completed", completed(sid, t0, "ok", "；".join(explain) or "以文字搜尋")
 
     seen: set[str] = set()
     counts: list[int] = []
@@ -582,7 +605,14 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
     text_q = p["text"] if body.filters is not None else (p["text"] or body.message)
     card: dict[str, Any] | None = None
     if intent == "count":
-        yield from run("count_photos", {"filters": filters, **({"query": text_q} if not filters else {})})
+        # the same search as the grid (ASK-GRD-007): a tag the planner found ranks, it does not hide untagged photos;
+        # the words of the question count unless a filter (a year, a person) is all there is
+        soft = filters if body.filters is not None else {k: v for k, v in filters.items() if k != "tags_any"}
+        words = _count_words(p["text"] or "") if p["filters"] else _count_words(text_q)
+        cargs: dict[str, Any] = {"filters": soft, **({"query": words} if words else {})}
+        yield from run("count_photos", cargs)
+        if counts and counts[-1]:  # what was counted, shown next to the number (the panel draws a "photos" event)
+            yield from run("search_photos", {**cargs, "limit": COUNT_SHOWN})
     elif intent == "action":
         target = re.search(r"(?:到|into )\s*「?([^「」\s，。]+?)(?:資料夾|folder|」|$)", body.message)
         ids = body.context.get("photo_ids") or []

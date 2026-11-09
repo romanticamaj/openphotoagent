@@ -786,7 +786,8 @@
       "save": "Save",
       "saved": "Saved",
       "cloudNote": "With an external service, questions and photo text descriptions are sent; images are not, and names are replaced by placeholders."
-    }
+    },
+    "seeAll": "See all {n} on the search page"
   },
   "map": {
     "title": "Map",
