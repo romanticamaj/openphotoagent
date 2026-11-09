@@ -257,7 +257,8 @@ BUSY_SHOWN = 5
 def busy_names(procs: Any, limit: int = BUSY_SHOWN) -> str:
     """The programs worth closing, each once, at most ``limit`` (DOC-024): about 30 names was a wall of text."""
     names = [n for n in dict.fromkeys(procs) if n.lower() not in SHELL]
-    return ", ".join(names[:limit]) + (f" 等 {len(names)} 個程式" if len(names) > limit else "")  # 「等 N 個」: all of them
+    more = f" 等 {len(names)} 個程式" if len(names) > limit else ""  # 「等 N 個」 counts all of them
+    return ", ".join(names[:limit]) + more
 
 
 def _nvidia(c: Ctx) -> Any:
