@@ -666,3 +666,28 @@ def test_view_025_the_people_of_a_photo_show_their_faces(f):
     d = f.get(f"/assets/{aid}")
     (p,) = d["people"]
     assert len(d["people_faces"][p["id"]]["bbox"]) == 4 and d["people_faces"][p["id"]]["ch"]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-MGT-010")
+def test_mgt_010_the_likeliest_pairs_first_and_no_means_no(f):
+    """回歸 (reference library): 1,101 merge suggestions among 52 groups, none shown anywhere. The page asks about the
+    likeliest few; 「不是同一人」 closes the pair for good."""
+    f.enable()
+    _library(f, people=(1, 2, 3), per=6)
+    f.post("/faces/cluster")
+    ids = [p["id"] for p in f.get("/people")["people"]]
+    with f.eng.begin() as c:
+        for (a, b), sc in zip([(ids[0], ids[1]), (ids[0], ids[2]), (ids[1], ids[2])], (0.6, 0.9, 0.7), strict=True):
+            c.execute(
+                sqlalchemy.text(
+                    "insert into person_link(workspace_id, person_a, person_b, kind, score) values ('default', :a, :b,"
+                    " 'merge_suggestion', :s) on conflict (workspace_id, person_a, person_b, kind) do update set score = :s"
+                ),
+                {"a": a, "b": b, "s": sc},
+            )
+    sug = f.get("/people")["merge_suggestions"]
+    assert [round(s["score"], 2) for s in sug[:3]] == [0.9, 0.7, 0.6]
+    top = sug[0]
+    f.post("/people/merge-suggestions/dismiss", {"a": top["a"], "b": top["b"]})
+    assert (top["a"], top["b"]) not in {(s["a"], s["b"]) for s in f.get("/people")["merge_suggestions"]}

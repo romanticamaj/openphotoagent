@@ -169,6 +169,39 @@ function PersonPanel({ person, onClose }: { person: PersonRow; onClose: () => vo
   );
 }
 
+/** 「可能是同一人？」 one pair at a time, the likeliest first: the same child is often split into several groups. */
+function MergeSuggestion({ people, pair }: { people: PersonRow[]; pair: { a: string; b: string; score: number } }) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const a = people.find((p) => p.id === pair.a);
+  const b = people.find((p) => p.id === pair.b);
+  const done = () => void qc.invalidateQueries({ queryKey: ["people"] });
+  // the smaller group joins the larger one, so a name already given stays
+  const [from, into] = (a?.asset_count ?? 0) >= (b?.asset_count ?? 0) ? [pair.b, pair.a] : [pair.a, pair.b];
+  const merge = useMutation({ mutationFn: () => api.mergePeople(from, into), onSuccess: done });
+  const no = useMutation({ mutationFn: () => api.dismissMerge(pair.a, pair.b), onSuccess: done });
+  if (!a || !b) return null;
+  const face = (p: PersonRow) => (p.cover?.bbox ? <FaceCrop assetId={p.cover.asset_id} ch={p.cover.ch} bbox={p.cover.bbox} /> : null);
+  return (
+    <section data-testid="merge-suggestion" aria-label={t("faces.sameQuestion")} className="merge-card">
+      <div className="merge-faces">
+        {face(a)}
+        {face(b)}
+      </div>
+      <div className="space-y-2">
+        <p className="font-semibold">{t("faces.sameQuestion")}</p>
+        <p className="text-xs text-[var(--text-muted)]">
+          {t("faces.sameCounts", { a: a.asset_count, b: b.asset_count })}
+        </p>
+        <div className="flex gap-2">
+          <Button onClick={() => merge.mutate()}>{t("faces.sameYes")}</Button>
+          <Button variant="ghost" onClick={() => no.mutate()}>{t("faces.sameNo")}</Button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export function PeoplePage({ initial }: { initial?: string } = {}) {
   const { t } = useTranslation();
   const q = useQuery({ queryKey: ["people"], queryFn: api.people, refetchInterval: 5000 });
@@ -182,6 +215,9 @@ export function PeoplePage({ initial }: { initial?: string } = {}) {
       </header>
       {q.isSuccess && q.data.people.length === 0 ? <p className="text-[var(--text-muted)]">{t("faces.grouping")}</p> : null}
       {selected ? <PersonPanel key={selected.id} person={selected} onClose={() => setOpen(null)} /> : null}
+      {!selected && q.data?.merge_suggestions?.[0] ? (
+        <MergeSuggestion key={`${q.data.merge_suggestions[0].a}-${q.data.merge_suggestions[0].b}`} people={q.data.people} pair={q.data.merge_suggestions[0]} />
+      ) : null}
       <ul className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-3">
         {(q.data?.people ?? []).map((p) => (
           <li key={p.id} data-testid="person">

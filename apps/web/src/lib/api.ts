@@ -286,7 +286,9 @@ export const api = {
   enableFaces: (sources: string[] | null = null) => req<FaceSettings>("POST", "/faces/enable", { consent: true, consent_text_version: "faces-v1", sources }),
   dismissFacePrompt: () => req<FaceSettings>("POST", "/faces/prompt/dismiss"),
   disableFaces: (del: boolean, confirm: string) => req<{ purged: PurgeReport | null }>("POST", "/faces/disable", { delete: del, confirm }),
-  people: () => req<{ people: PersonRow[]; others: number }>("GET", "/people"),
+  people: () => req<{ people: PersonRow[]; others: number; merge_suggestions?: Array<{ a: string; b: string; score: number }> }>("GET", "/people"),
+  mergePeople: (from: string, into: string) => req<{ undo_token: string; moved: number }>("POST", `/people/${encodeURIComponent(from)}/merge`, { into }),
+  dismissMerge: (a: string, b: string) => req<unknown>("POST", "/people/merge-suggestions/dismiss", { a, b }),
   namePerson: (id: string, name: string) => req<unknown>("POST", `/people/${encodeURIComponent(id)}/name`, { name }),
   personCandidates: (id: string) => req<{ items: FaceCandidate[]; references: number }>("GET", `/people/${encodeURIComponent(id)}/candidates`),
   reviewPerson: (id: string, body: { yes: string[]; no: string[] }) =>

@@ -744,8 +744,12 @@ def _people(c: Any, ws: str) -> list[dict[str, Any]]:
 def people(req: Request) -> dict[str, Any]:
     with _st(req).engine.begin() as c:
         rows = _people(c, DEFAULT_WS)
+        # the likeliest first, a few at a time: 52 groups gave 1,101 open pairs (FACE-MGT-010)
         sug = c.execute(
-            select(person_link).where(person_link.c.kind == "merge_suggestion", person_link.c.status == "open")
+            select(person_link)
+            .where(person_link.c.kind == "merge_suggestion", person_link.c.status == "open")
+            .order_by(person_link.c.score.desc(), person_link.c.person_a, person_link.c.person_b)
+            .limit(MERGE_SHOWN)
         ).all()
     shown, others = F.fold_small({r["id"]: r["face_count"] for r in rows})
     return {
@@ -945,6 +949,30 @@ def person_review(pid: str, body: ReviewIn, req: Request) -> dict[str, Any]:
 
 class MergeIn(BaseModel):
     into: str
+
+
+MERGE_SHOWN = 12
+
+
+class PairIn(BaseModel):
+    a: str
+    b: str
+
+
+@router.post("/people/merge-suggestions/dismiss")
+def dismiss_merge(body: PairIn, req: Request) -> dict[str, Any]:
+    """「不是同一人」: the pair is closed and never suggested again (FACE-MGT-010)."""
+    with _st(req).engine.begin() as c:
+        c.execute(
+            update(person_link)
+            .where(
+                person_link.c.kind == "merge_suggestion",
+                ((person_link.c.person_a == body.a) & (person_link.c.person_b == body.b))
+                | ((person_link.c.person_a == body.b) & (person_link.c.person_b == body.a)),
+            )
+            .values(status="dismissed")
+        )
+    return {"ok": True}
 
 
 @router.post("/people/{pid}/merge")

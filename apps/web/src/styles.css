@@ -397,6 +397,26 @@ body {
   font-weight: 600;
 }
 
+.merge-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: 520px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+.merge-faces {
+  display: grid;
+  grid-template-columns: 88px 88px;
+  gap: 6px;
+  flex: none;
+}
+.merge-faces .face-crop {
+  border-radius: var(--radius-md);
+}
+
 .person-chip {
   display: inline-flex;
   align-items: center;

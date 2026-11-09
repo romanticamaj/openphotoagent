@@ -118,6 +118,7 @@ ROUTES: dict[tuple[str, str], str] = {
     ("POST", "/api/v1/people/{pid}/flags"): FW,
     ("POST", "/api/v1/people/{pid}/ignore"): FW,
     ("POST", "/api/v1/people/{pid}/merge"): FW,
+    ("POST", "/api/v1/people/merge-suggestions/dismiss"): FW,
     ("POST", "/api/v1/people/{pid}/name"): FW,
     ("POST", "/api/v1/people/{pid}/review"): FW,
     ("POST", "/api/v1/people/{pid}/split"): FW,

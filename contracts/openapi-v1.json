@@ -1580,6 +1580,24 @@
         "title": "OrganizeRule",
         "type": "object"
       },
+      "PairIn": {
+        "properties": {
+          "a": {
+            "title": "A",
+            "type": "string"
+          },
+          "b": {
+            "title": "B",
+            "type": "string"
+          }
+        },
+        "required": [
+          "a",
+          "b"
+        ],
+        "title": "PairIn",
+        "type": "object"
+      },
       "PauseIn": {
         "properties": {
           "mode": {
@@ -6915,6 +6933,47 @@
           }
         },
         "summary": "People"
+      }
+    },
+    "/api/v1/people/merge-suggestions/dismiss": {
+      "post": {
+        "description": "「不是同一人」: the pair is closed and never suggested again (FACE-MGT-010).",
+        "operationId": "dismiss_merge_api_v1_people_merge_suggestions_dismiss_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PairIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Dismiss Merge Api V1 People Merge Suggestions Dismiss Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Dismiss Merge"
       }
     },
     "/api/v1/people/merges/{token}/undo": {

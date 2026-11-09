@@ -7,11 +7,19 @@ beforeAll(async () => {
   await i18n.changeLanguage("zh-TW");
 });
 
-const s = vi.hoisted(() => ({ search: vi.fn(), name: vi.fn(), cands: vi.fn(), review: vi.fn(), people: [] as unknown[] }));
+const s = vi.hoisted(() => ({ search: vi.fn(), name: vi.fn(), cands: vi.fn(), review: vi.fn(), merge: vi.fn(), dismiss: vi.fn(), people: [] as unknown[], merges: [] as unknown[] }));
 vi.mock("../../lib/api", async (orig) => ({
   ...(await orig<typeof import("../../lib/api")>()),
   mediaUrl: (id: string) => `/m/${id}`,
-  api: { people: async () => ({ people: s.people, others: 0 }), search: s.search, namePerson: s.name, personCandidates: s.cands, reviewPerson: s.review },
+  api: {
+    people: async () => ({ people: s.people, others: 0, merge_suggestions: s.merges }),
+    search: s.search,
+    namePerson: s.name,
+    personCandidates: s.cands,
+    reviewPerson: s.review,
+    mergePeople: s.merge,
+    dismissMerge: s.dismiss,
+  },
 }));
 vi.mock("../viewer/Lightbox", () => ({ Lightbox: ({ start }: { start: number }) => <div role="dialog" data-start={start} /> }));
 vi.mock("@tanstack/react-router", async (orig) => ({
@@ -115,6 +123,22 @@ describe("finding a person (07 §4)", () => {
     expect(s.review.mock.calls.at(-1)![1].yes).toHaveLength(12);
     fireEvent.click(screen.getByRole("button", { name: /再看/ }));
     expect(screen.getAllByTestId("candidate")).toHaveLength(24);
+  });
+
+  it("[FACE-MGT-010] 「可能是同一人？」：兩張臉並排，是就合併，不是就不再問", async () => {
+    const p2 = { ...row, id: "p2", cover: { asset_id: "a2", ch: null, bbox: [0, 0, 0.2, 0.2] } };
+    s.people = [{ ...row, cover: { asset_id: "a1", ch: null, bbox: [0, 0, 0.2, 0.2] } }, p2];
+    s.merges = [{ a: "p1", b: "p2", score: 0.9 }];
+    s.merge.mockResolvedValue({ undo_token: "t", moved: 3 });
+    s.dismiss.mockResolvedValue({});
+    ui();
+    const card = await screen.findByTestId("merge-suggestion");
+    expect(card.querySelectorAll(".face-crop")).toHaveLength(2);
+    fireEvent.click(screen.getByRole("button", { name: "是同一人" }));
+    await waitFor(() => expect(s.merge).toHaveBeenCalledWith("p2", "p1"));
+    s.merges = [{ a: "p1", b: "p2", score: 0.9 }];
+    fireEvent.click(await screen.findByRole("button", { name: "不是同一人" }));
+    await waitFor(() => expect(s.dismiss).toHaveBeenCalledWith("p1", "p2"));
   });
 });
 

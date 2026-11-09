@@ -1580,6 +1580,24 @@
         "title": "OrganizeRule",
         "type": "object"
       },
+      "PairIn": {
+        "properties": {
+          "a": {
+            "title": "A",
+            "type": "string"
+          },
+          "b": {
+            "title": "B",
+            "type": "string"
+          }
+        },
+        "required": [
+          "a",
+          "b"
+        ],
+        "title": "PairIn",
+        "type": "object"
+      },
       "PauseIn": {
         "properties": {
           "mode": {

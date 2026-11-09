@@ -749,7 +749,11 @@
       "no": "No; click again to clear"
     },
     "more": "{n} more",
-    "openPhoto": "Open photo"
+    "openPhoto": "Open photo",
+    "sameQuestion": "Are these the same person?",
+    "sameCounts": "{a} and {b} photos",
+    "sameYes": "Same person",
+    "sameNo": "Not the same"
   },
   "ask": {
     "open": "✦ Ask AI",
