@@ -712,7 +712,8 @@ def _people(c: Any, ws: str) -> list[dict[str, Any]]:
         .join(face, face.c.person_id == person.c.id)
         .where(person.c.workspace_id == ws, person.c.merged_into.is_(None), person.c.status != "ignored")
         .group_by(person.c.id)
-        .order_by(func.count(face.c.id).desc(), person.c.id)
+        # named people first, then by the number shown on the card: photos, not faces (FACE-UI-012)
+        .order_by(person.c.display_name.is_(None), func.count(func.distinct(face.c.asset_id)).desc(), person.c.id)
     ).all()
     covers = {
         r.person_id: {"asset_id": r.asset_id, "ch": r.content_hash, "bbox": list(r.bbox)}

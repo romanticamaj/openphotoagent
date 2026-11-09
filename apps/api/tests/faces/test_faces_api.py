@@ -631,3 +631,25 @@ def test_view_021_who_is_in_this_photo(f):
     assert f.get(f"/assets/{aid}")["people"] == [{"id": p1, "name": "小明"}]
     f.post(f"/people/{p1}/ignore", {"delete_biometrics": False})
     assert f.get(f"/assets/{aid}")["people"] == []
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-UI-012")
+def test_face_ui_012_people_in_the_order_people_expect(f):
+    """回歸 (audit round 1): cards showed photo counts but were sorted by face count (… 5, 4, 5 …)."""
+    f.enable()
+    ids = _library(f, people=(1, 2, 3), per=5)
+    f.post("/faces/cluster")
+    pid = {n: f.sql("select person_id from face where id=:i", i=ids[n][0]).scalar() for n in (1, 2, 3)}
+    for i in range(3):  # person 1: three more faces in photos they are already in -> most faces, 5 photos
+        f.sql(
+            "insert into face(id, workspace_id, asset_id, space_id, bbox, det_score, quality, quality_tier, state, person_id) "
+            "select id || :n, workspace_id, asset_id, space_id, bbox, det_score, quality, 3, 'auto', person_id from face where id = :i",
+            n=str(i),
+            i=ids[1][0],
+        )
+    f.photo("2025/3/IMG_9_p3.jpg")  # person 3: a sixth photo, joins them online
+    f.post(f"/people/{pid[2]}/name", {"name": "小華"})
+    people = f.get("/people")["people"]
+    assert people[0]["name"] == "小華"  # named first
+    assert [p["id"] for p in people[1:3]] == [pid[3], pid[1]]  # then by photos: 6 before 5, whatever the faces
