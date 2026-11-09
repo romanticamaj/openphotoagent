@@ -770,6 +770,9 @@
 | SRCH-TOK-005 | 英文詞幹 | 查 `cats`，caption `a cat` | 命中 | I | — |
 | SRCH-TOK-006 | canonical tag key | 「貓」「cat」「ねこ」 | 都映射 `animal.cat` 並命中權重 A | U | #44 |
 | SRCH-TOK-007 | tokenizer golden | `fixtures/golden/tokenize.json` 100 句 | 輸出相同；`search_profile.fts.tokenizer` 記錄版本 | C | — |
+| SRCH-TOK-010 | 同義詞也找說明（回歸，驗證第 1 輪） | 搜「海邊」；說明寫「沙灘上…」、沒有標籤 | 全文以 `(海邊 | 海灘 | 沙灘 | …)` 比對，找得到；只含一個詞的同義詞才加入 | U/I | — |
+| SRCH-TOK-011 | 詞彙表涵蓋家庭相簿（回歸） | 小朋友、幼童、教室、積木、大象、畫畫 | 各自對到詞彙 id；每個寫法只屬於一個 id；單字詞不加進斷詞字典（以免拆開「海邊」這類詞） | U | — |
+| SRCH-TOK-012 | 斷詞版本變了就重建文字索引（回歸） | 記錄的 `search_tokenizer` 是舊版 | 啟動時把每張照片排入索引並分批處理；之後搜得到新斷法的詞；版本寫回，只做一次 | I | — |
 | SRCH-TOK-008 | tsquery 注入 | 查詢含 `& \| ! ( ) : * '` 與 `\` | 一律跳脫；不產生 SQL／tsquery 語法錯誤；Hypothesis 任意字串不拋例外 | P/S | — |
 | SRCH-TOK-009 | 回歸：控制字元 | 查詢含 NUL、BEL 等控制字元 | 移除控制字元後照常搜尋，不回 500（MCP-TOOL 產生輸入時發現） | I | #62 |
 | SRCH-FAC-001 | 關鍵字 + tag + 日期 | 2,000 張 fixture DB；`q=海邊`、`tags_all=[scene.beach]`、`taken_at 2025` | 結果與 SQL 參考查詢相同；facet 計數正確 | I | DoD 5.4 |

@@ -1,5 +1,5 @@
 {
- "tokenizer": "jieba-zh-hant@1+opencc-s2twp+bigram",
+ "tokenizer": "jieba-zh-hant@2+opencc-s2twp+bigram",
  "cases": [
   {
    "text": "海邊的貓",
@@ -21,7 +21,8 @@
    "words": [
     "一隻",
     "柴犬",
-    "草地上",
+    "草地",
+    "上",
     "奔跑"
    ]
   },
@@ -273,7 +274,8 @@
   {
    "text": "籃球比賽",
    "words": [
-    "籃球比賽"
+    "籃球",
+    "比賽"
    ]
   },
   {

@@ -10,6 +10,7 @@ import subprocess
 import sys
 import threading
 from pathlib import Path
+from typing import Any
 
 
 def _home() -> Path:
@@ -86,7 +87,23 @@ def cmd_api(a: argparse.Namespace) -> None:
     write_run_file(home, {"port": port, "pid": os.getpid(), "version": __version__, "data_fp": fp})
     if a.token_stdin:
         watch_parent_pipe()  # from here on, the shell disappearing stops us (start-up exits report their own codes)
+    _retokenize_in_background(app)
     uvicorn.Server(uvicorn.Config(app, log_level="warning")).run(sockets=[sock])
+
+
+def _retokenize_in_background(app: Any) -> None:
+    """A newer search tokenizer re-indexes every photo's text (SRCH-TOK-012), without holding up the start."""
+    import logging
+
+    from opagent_api.labels import retokenize
+
+    def run() -> None:
+        try:
+            retokenize(app.state.opa)
+        except Exception:  # search keeps answering with the old words; the next start tries again
+            logging.getLogger("opagent.search").exception("re-indexing text failed")
+
+    threading.Thread(target=run, name="retokenize", daemon=True).start()
 
 
 def cmd_controlplane(a: argparse.Namespace) -> None:

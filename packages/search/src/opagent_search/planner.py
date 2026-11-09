@@ -229,12 +229,15 @@ def _camera(t: _Text, explain: list[str]) -> str | None:
 
 def _tags(t: _Text, vocabulary: dict[str, str], explain: list[str]) -> list[str]:
     found: list[str] = []
+    free = t.s.lower()  # what no longer word has claimed yet: 海 inside 海邊 is not the sea
     for word in sorted(vocabulary, key=len, reverse=True):
-        if word and word in t.s.lower() and vocabulary[word] not in found:
-            if word.isascii() and not re.search(rf"(?<![a-z]){re.escape(word)}(?![a-z])", t.s.lower()):
+        if word and word in free and vocabulary[word] not in found:
+            if word.isascii() and not re.search(rf"(?<![a-z]){re.escape(word)}(?![a-z])", free):
                 continue
             found.append(vocabulary[word])  # the word stays in text too: full text (R3) still sees it (05 §2.3)
             explain.append(f"「{word}」→ 標籤 {vocabulary[word]}")
+        if word and word in free:
+            free = free.replace(word, " " * len(word))
     return found
 
 

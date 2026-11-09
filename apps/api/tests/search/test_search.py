@@ -611,3 +611,29 @@ def test_srch_sem_011_chinese_reaches_the_image_model_in_english(s, monkeypatch)
     res = s.search(q="長頸鹿")
     assert [t for m, t in asked if m == "image"] == []
     assert "image_vector" not in res["degraded"]  # skipped on purpose is not a fault
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-TOK-010")
+def test_srch_tok_010_beach_photos_by_any_name(s):
+    aid = s.add(1, caption="沙灘上有人放風箏", groups=[])
+    s.add(2, caption="教室裡的積木", groups=[])
+    s.index()
+    assert [x["asset_id"] for x in s.search(q="海邊", semantic=False)["items"]] == [aid]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-TOK-012")
+def test_srch_tok_012_a_new_tokenizer_reindexes_the_text(s):
+    """回歸: TOKENIZER_VERSION said "bump it and reindex", but nothing reindexed, so old photos kept old words."""
+    from opagent_api.labels import retokenize
+    from opagent_search.tokenize import TOKENIZER_VERSION
+
+    aid = s.add(1, caption="一隻柴犬在草地上奔跑", groups=[])
+    s.index()
+    s.sql("update search_doc set tsv = ''::tsvector where asset_id = :a", a=aid)  # as an older tokenizer left it
+    s.sql("update workspace set settings = jsonb_set(coalesce(settings, '{}'), '{search_tokenizer}', '\"old\"')")
+    assert retokenize(s.client.app.state.opa) == 1
+    assert [x["asset_id"] for x in s.search(q="草地", semantic=False)["items"]] == [aid]
+    assert s.sql("select settings->>'search_tokenizer' from workspace").scalar() == TOKENIZER_VERSION
+    assert retokenize(s.client.app.state.opa) == 0  # once

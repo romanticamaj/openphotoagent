@@ -303,3 +303,30 @@ def skip_rest(st: Any, c: Any, job_id: str) -> int:
         c.execute(insert(index_outbox).values(asset_id=r.asset_id))
     emit(c, "review.skipped_rest", {"job_id": job_id, "n": len(res)})
     return len(res)
+
+
+RETOKENIZE_BATCH = 500
+
+
+def retokenize(st: Any) -> int:
+    """When the search tokenizer changed (TOKENIZER_VERSION), every photo's text is indexed again (SRCH-TOK-012).
+    Returns how many photos were queued; the drain runs in batches so a big library does not hold one transaction."""
+    from opagent_db.schema import workspace
+    from opagent_search.tokenize import TOKENIZER_VERSION
+
+    with st.engine.begin() as c:
+        cur = c.execute(select(workspace.c.settings).where(workspace.c.id == "default")).scalar()
+        if cur is None or cur.get("search_tokenizer") == TOKENIZER_VERSION:
+            return 0
+        n = c.execute(select(func.count()).select_from(search_doc)).scalar_one()
+        c.execute(index_outbox.insert().from_select(["asset_id"], select(search_doc.c.asset_id)))
+        c.execute(
+            update(workspace)
+            .where(workspace.c.id == "default")
+            .values(settings={**cur, "search_tokenizer": TOKENIZER_VERSION})
+        )
+    while True:
+        with st.engine.begin() as c:
+            if not drain_index(c, limit=RETOKENIZE_BATCH):
+                break
+    return int(n or 0)

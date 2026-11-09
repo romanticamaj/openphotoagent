@@ -88,3 +88,41 @@ def test_srch_sem_010_what_the_image_model_is_asked(q, out):
     """回歸 (audit round 1): SigLIP does not separate Chinese queries (貓: relevant 0.086 best, irrelevant p99 0.076;
     cat: 0.107 vs 0.051), so 「貓」 returned 27 classroom photos out of 29."""
     assert Tokenizer().vector_text(q) == out
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-010")
+def test_srch_tok_010_a_word_also_finds_its_synonyms_in_captions():
+    """回歸 (audit round 1): 「海邊」 found none of the captions that say 沙灘 or 海灘."""
+    from opagent_search.tokenize import to_tsquery_alts
+
+    pq = Tokenizer().query("海邊")
+    assert {"海灘", "沙灘"} <= set(pq.alts["海邊"])
+    q = to_tsquery_alts(pq.words, pq.alts)
+    assert q.startswith("(") and "'沙灘'" in q and "'海邊'" in q and " | " in q
+    assert to_tsquery_alts(["狗", "草地"], {}) == "'狗' & '草地'"
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-011")
+def test_srch_tok_011_the_vocabulary_covers_a_family_library():
+    """回歸 (audit round 1): 22 terms; 小朋友 (217 photos), 教室, 積木 and 大象 had no id."""
+    import yaml
+    from opagent_core.vocabularies import VOCAB_DIR
+
+    tok = Tokenizer()
+    for word, key in [
+        ("小朋友", "people.child"),
+        ("幼童", "people.child"),
+        ("教室", "scene.classroom"),
+        ("積木", "object.blocks"),
+        ("大象", "animal.elephant"),
+        ("畫畫", "activity.drawing"),
+    ]:
+        assert tok.tag_key(word) == key, word
+    seen: dict[str, str] = {}
+    for t in yaml.safe_load((VOCAB_DIR / "general-photo.yaml").read_text(encoding="utf-8"))["terms"]:
+        assert t["zh"] and t["en"], t["id"]
+        for s in [t["zh"], t["en"], *t.get("synonyms", [])]:
+            key = normalize(s)
+            assert seen.setdefault(key, t["id"]) == t["id"], f"{s} is both {seen[key]} and {t['id']}"

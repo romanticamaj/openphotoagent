@@ -24,7 +24,7 @@ from typing import Any
 import yaml
 from opagent_core.vocabularies import VOCAB_DIR
 
-TOKENIZER_VERSION = "jieba-zh-hant@1+opencc-s2twp+bigram"
+TOKENIZER_VERSION = "jieba-zh-hant@2+opencc-s2twp+bigram"  # @2: family-library vocabulary (SRCH-TOK-011)
 VOCAB = VOCAB_DIR / "general-photo.yaml"  # package data in opagent_core (ADR-0023)
 _ZW = re.compile("[​‌‍⁠﻿­]")
 _CJK = re.compile(r"[぀-ヿ㐀-䶿一-鿿豈-﫿]+")
@@ -52,6 +52,7 @@ class ParsedQuery:
     bigram: list[str] | None
     tag_keys: list[str]
     english: str = ""
+    alts: dict[str, list[str]] = field(default_factory=dict)  # word -> other names of its vocabulary term
 
 
 def _jieba() -> Any:
@@ -68,6 +69,7 @@ class Tokenizer:
     _jb: Any = None
     _index: dict[str, str] = field(default_factory=dict)
     _names: dict[str, dict[str, str]] = field(default_factory=dict)
+    _forms: dict[str, list[str]] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         import jieba
@@ -81,9 +83,12 @@ class Tokenizer:
             for s in [t["zh"], t["en"], *t.get("synonyms", [])]:
                 self._index.setdefault(normalize(s), t["id"])
                 self.custom_words.append(s)
+                if " " not in s.strip():  # one lexeme: a phrase cannot be an OR alternative
+                    self._forms.setdefault(t["id"], []).append(normalize(s))
         for w in self.custom_words:
             nw = normalize(w)
-            if _CJK.fullmatch(nw):
+            # a single character is already a token; as a heavy custom word it would split real words apart
+            if _CJK.fullmatch(nw) and len(nw) > 1:
                 self._jb.add_word(t2s.convert(nw), freq=200000)
 
     # ---- words ----
@@ -162,9 +167,26 @@ class Tokenizer:
         words = self.words(text)
         keys = sorted({k for w in [*words, text] if (k := self.tag_key(w))})
         bi = self.bigrams(text)
+        alts = {w: [f for f in self._forms.get(k, []) if f != normalize(w)] for w in words if (k := self.tag_key(w))}
         return ParsedQuery(
-            words=words, bigram=bi or None, tag_keys=keys, english=" ".join(re.findall(r"[a-z]+", normalize(text)))
+            words=words,
+            bigram=bi or None,
+            tag_keys=keys,
+            english=" ".join(re.findall(r"[a-z]+", normalize(text))),
+            alts={w: a for w, a in alts.items() if a},
         )
+
+
+def to_tsquery_alts(words: list[str], alts: dict[str, list[str]], op: str = "&") -> str:
+    """Like ``to_tsquery``, each word also matching the other names of its vocabulary term: 「海邊」 finds captions
+    that say 沙灘 (SRCH-TOK-010)."""
+    parts = []
+    for w in words:
+        if not w:
+            continue
+        forms = [w, *alts.get(w, [])]
+        parts.append(f"({' | '.join(_lit(f) for f in forms)})" if len(forms) > 1 else _lit(w))
+    return f" {op} ".join(parts)
 
 
 def _lit(t: str) -> str:

@@ -197,7 +197,7 @@ flowchart TB
   F --> AUTH[權限 filter<br/>workspace ∩ token 範圍 ∩ scope_keys]
   AUTH --> R1[R1 影像向量<br/>SigLIP2 text→image<br/>中文經詞彙表轉英文（ADR-0031）]
   AUTH --> R2[R2 caption 文字向量（v1）]
-  AUTH --> R3[R3 全文 tsvector<br/>詞 → bigram 降級]
+  AUTH --> R3[R3 全文 tsvector<br/>詞（含詞彙表同義詞）→ bigram 降級]
   AUTH --> R4[R4 tag/category 精確命中]
   R1 & R2 & R3 & R4 --> RRF[加權 RRF<br/>k=60, top-200/路]
   RRF --> DD[重複折疊<br/>同 duplicate_group 取代表]

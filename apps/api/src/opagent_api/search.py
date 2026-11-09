@@ -277,7 +277,7 @@ def _llm_plan(st: AppState, q: str) -> dict[str, Any] | None:
 
 
 def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
-    from opagent_search.tokenize import to_tsquery
+    from opagent_search.tokenize import to_tsquery, to_tsquery_alts
 
     from .labels import tokenizer
 
@@ -331,9 +331,9 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
         if q:
             pq = tokenizer().query(q)
             if pq.words:
-                hits = _ft(c, where, to_tsquery(pq.words), pq.english)
+                hits = _ft(c, where, to_tsquery_alts(pq.words, pq.alts), pq.english)
                 mode = "words"
-                member.append(_ft_cond(to_tsquery(pq.words), pq.english, "w"))
+                member.append(_ft_cond(to_tsquery_alts(pq.words, pq.alts), pq.english, "w"))
                 if len(hits) < MIN_WORD_HITS and pq.bigram:
                     more = _ft(c, where, to_tsquery(pq.bigram), "")
                     if len(more) > len(hits):
