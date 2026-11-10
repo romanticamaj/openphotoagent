@@ -22,7 +22,7 @@ export type Turn = {
   path: string | null;
   steps: Step[];
   filters: { applied: Record<string, unknown>; text: string; explain: string[]; names?: Record<string, string> } | null;
-  photos: { total: number; items: string[]; role: string } | null;
+  photos: { total: number; items: string[]; role: string; hashes?: Record<string, string | null> } | null;
   text: string;
   cards: PlanCard[];
   notices: Array<{ code: string; text: string; level: string }>;
@@ -81,7 +81,15 @@ export function reduce(s: Turn, e: SseEvent): Turn {
     case "filters":
       return { ...s, filters: { applied: d.applied_filters ?? {}, text: d.text ?? "", explain: d.planner_explain ?? [], ...(d.tag_names ? { names: d.tag_names } : {}) } };
     case "photos":
-      return { ...s, photos: { total: d.total ?? 0, items: (d.items ?? []).map((i: D) => i.id), role: d.role } };
+      return {
+        ...s,
+        photos: {
+          total: d.total ?? 0,
+          items: (d.items ?? []).map((i: D) => i.id),
+          role: d.role,
+          ...((d.items ?? []).some((i: D) => i.ch) ? { hashes: Object.fromEntries((d.items ?? []).map((i: D) => [i.id, i.ch ?? null])) } : {}),
+        },
+      };
     case "token":
       return { ...s, text: s.text + String(d.text ?? "") };
     case "card":

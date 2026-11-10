@@ -32,6 +32,7 @@ export function MapPage() {
   const [zoom, setZoom] = useState(1);
   const [picked, setPicked] = useState<Cluster | null>(null);
   const clusters = useMemo(() => clusterPoints(q.data?.points ?? [], zoom), [q.data, zoom]);
+  const hashOf = useMemo(() => new Map((q.data?.points ?? []).map((p) => [p.id, p.ch ?? null])), [q.data]);
 
   useEffect(() => {
     if (!box.current) return;
@@ -96,7 +97,7 @@ export function MapPage() {
           <ul className="grid grid-cols-[repeat(auto-fill,minmax(96px,1fr))] gap-1">
             {picked.ids.map((id) => (
               <li key={id}>
-                <img src={mediaUrl(id, "t256")} alt={t("map.photo")} className="aspect-square w-full object-cover" />
+                <img src={mediaUrl(id, "t256", hashOf.get(id))} alt={t("map.photo")} className="aspect-square w-full object-cover" />
               </li>
             ))}
           </ul>

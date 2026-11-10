@@ -322,3 +322,25 @@ def test_ask_ui_011_suggestions_are_about_things_not_floors(m):
     m.index()
     texts = [x["text"] for x in m.client.get("/api/v1/ask/suggestions", headers=m.ui).json()["suggestions"]]
     assert not any("地板" in t for t in texts) and "我有幾張貓？" in texts
+
+
+@pytest.mark.integration
+@pytest.mark.tc("MAP-012")
+def test_map_012_points_carry_the_thumbnail_hash(m):
+    """回歸 (audit round 3): 47 of 103 map thumbnails were broken. Without the content hash the desktop app cannot
+    build the local thumbnail URL and falls back to the API path on the page's own origin."""
+    m.sql(
+        "update asset set exif = jsonb_build_object('gps', jsonb_build_object('lat', 25.0, 'lon', 121.5)) where id = :i",
+        i=m.cats[0],
+    )
+    pts = m.client.get("/api/v1/map/points", headers=m.ui).json()["points"]
+    (p,) = [x for x in pts if x["id"] == m.cats[0]]
+    assert p["ch"] == m.sql("select content_hash from asset where id = :i", i=m.cats[0]).scalar()
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-UI-012")
+def test_ask_ui_012_answer_photos_carry_the_thumbnail_hash(m):
+    ev = ask(m, "海邊的貓", FakeLLM([_cite_first]))
+    items = next(d for e, d in ev if e == "photos")["items"]
+    assert items and all(i.get("ch") for i in items)

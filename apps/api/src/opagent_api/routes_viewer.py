@@ -307,10 +307,16 @@ def map_points(req: Request) -> dict[str, Any]:
     with _st(req).engine.connect() as c:
         rows = c.execute(
             text(
-                "SELECT id, (exif->'gps'->>'lat')::float AS lat, (exif->'gps'->>'lon')::float AS lon FROM asset "
+                "SELECT id, content_hash, (exif->'gps'->>'lat')::float AS lat, (exif->'gps'->>'lon')::float AS lon "
+                "FROM asset "
                 "WHERE workspace_id = :ws ORDER BY id"
             ),
             {"ws": DEFAULT_WS},
         ).all()
-    pts = [{"id": r.id, "lat": r.lat, "lon": r.lon} for r in rows if r.lat is not None and r.lon is not None]
+    # ch: the desktop app builds thumbnail URLs from the content hash (MAP-012)
+    pts = [
+        {"id": r.id, "ch": r.content_hash, "lat": r.lat, "lon": r.lon}
+        for r in rows
+        if r.lat is not None and r.lon is not None
+    ]
     return {"points": pts, "without_location": len(rows) - len(pts)}

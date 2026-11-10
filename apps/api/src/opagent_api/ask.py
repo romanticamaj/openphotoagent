@@ -25,6 +25,7 @@ from opagent_assistant.llm import FakeLLM
 from opagent_assistant.loop import Budget, loop_enabled
 from opagent_core.ids import uuid7
 from opagent_db.schema import (
+    asset,
     assistant_egress_log,
     conversation,
     mcp_call_log,
@@ -564,13 +565,17 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
                     vector_hits.append(r["id"])
             seen.update(ids)
             total = int(out.get("total_estimate", out.get("total", len(ids))))
+            with st.engine.begin() as hc:
+                hashes = dict(
+                    hc.execute(select(asset.c.id, asset.c.content_hash).where(asset.c.id.in_(ids or ["-"]))).all()
+                )
             yield (
                 "photos",
                 {
                     "role": "candidates",
                     "selection_id": out.get("selection_id"),
                     "total": total,
-                    "items": [{"id": i} for i in ids],
+                    "items": [{"id": i, "ch": hashes.get(i)} for i in ids],  # thumbnails on desktop (ASK-UI-012)
                 },
             )
             blocks = "\n".join(

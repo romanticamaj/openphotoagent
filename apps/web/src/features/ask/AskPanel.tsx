@@ -65,7 +65,7 @@ function chipLabel(t: (k: string, o?: Record<string, unknown>) => string, key: s
 
 const STRIP = 8;
 
-function Answer({ text, onPhoto }: { text: string; onPhoto?: (id: string) => void }) {
+function Answer({ text, onPhoto, hashes }: { text: string; onPhoto?: (id: string) => void; hashes?: Record<string, string | null> }) {
   const { t } = useTranslation();
   const parts = renderAnswer(text);
   const photos = parts.filter((p) => p.kind === "photo");
@@ -80,7 +80,7 @@ function Answer({ text, onPhoto }: { text: string; onPhoto?: (id: string) => voi
             p.kind === "photo" ? (
               <li key={p.id}>
                 <button type="button" onClick={() => onPhoto?.(p.id)} aria-label={t("ask.openPhoto")} className="block overflow-hidden rounded-[var(--radius-sm)]">
-                  <img src={mediaUrl(p.id, "t512")} alt="" width={72} height={72} className="h-[72px] w-[72px] object-cover" />
+                  <img src={mediaUrl(p.id, "t512", hashes?.[p.id])} alt="" width={72} height={72} className="h-[72px] w-[72px] object-cover" />
                 </button>
               </li>
             ) : null,
@@ -137,7 +137,7 @@ export function TurnView({ turn, onRerun }: { turn: Turn; onRerun: (filters: Rec
           <ul data-testid="ask-photos" aria-label={t("ask.cited")} className="grid grid-cols-4 gap-1">
             {turn.photos.items.slice(0, STRIP).map((id) => (
               <li key={id}>
-                <img src={mediaUrl(id, "t256")} alt="" loading="lazy" className="aspect-square w-full rounded-[var(--radius-sm)] object-cover" />
+                <img src={mediaUrl(id, "t256", turn.photos?.hashes?.[id])} alt="" loading="lazy" className="aspect-square w-full rounded-[var(--radius-sm)] object-cover" />
               </li>
             ))}
           </ul>
@@ -159,7 +159,7 @@ export function TurnView({ turn, onRerun }: { turn: Turn; onRerun: (filters: Rec
           </Link>
         </div>
       ))}
-      {turn.text ? <Answer text={turn.text} /> : null}
+      {turn.text ? <Answer text={turn.text} hashes={turn.photos?.hashes} /> : null}
       {turn.status === "cancelled" ? <p className="text-xs text-[var(--text-muted)]">{t("ask.cancelled")}</p> : null}
       {turn.status === "failed" ? <p role="alert" className="text-xs">{t("ask.failed")}</p> : null}
     </article>
