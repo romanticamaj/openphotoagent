@@ -1018,3 +1018,29 @@ def test_find_026_after_send_the_group_still_searches(f):
     assert out["references"] == 8  # 2 confirmed and the 6 the grouping gave, not 2
     left = {c["face_id"] for c in out["items"]}
     assert set(more[2:]) <= left
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-PRV-009")
+def test_ask_prv_009_no_real_name_reaches_a_cloud_model(f):
+    """回歸 (security review of ADR-0039): in cloud mode the aliases came from a list the client sent and covered only
+    the final prompt; the loop's messages and the tool results could carry real names. Every message to a cloud model
+    is aliased from the server's own named people, and only this machine turns 人物A back into the name."""
+    from opagent_assistant.llm import FakeLLM, Reply
+
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p2 = f.sql("select person_id from face where id=:i", i=ids[2][0]).scalar()
+    f.post(f"/people/{p2}/name", {"name": "王小美"})
+    f.sql(
+        "update workspace set settings = jsonb_set(settings, '{assistant}', coalesce(settings->'assistant', '{}'::jsonb)"
+        ' || \'{"provider": "openai_compat", "cloud_people": true}\')'
+    )
+    llm = FakeLLM([Reply(text="人物A 有照片。")])
+    f.client.app.state.opa.llm = llm
+    r = f.client.post("/api/v1/ask", json={"message": "王小美有幾張照片？"}, headers=f.ui)
+    assert r.status_code == 200
+    sent = "".join(str(m.get("content")) for call in llm.seen for m in call)
+    assert llm.seen and "王小美" not in sent
+    assert "王小美" in r.text  # the answer, on this machine, says the name

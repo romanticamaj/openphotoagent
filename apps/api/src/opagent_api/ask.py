@@ -424,6 +424,41 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
 
         settings = dataclasses.replace(mcp_settings(c), faces_enabled=people_ok)
     ctx = H.Ctx(st=st, tok=AssistantToken(faces_on), settings=settings, proto="2026-07-28", client="builtin-assistant")
+    # every message to a cloud model carries 人物A, not a name, from the server's own named people (ASK-PRV-009);
+    # only this machine turns them back
+    with st.engine.begin() as c:
+        from .faces import person_aliases
+
+        own = list(person_aliases(c)) + list(body.person_names)
+    alias = {n: f"人物{chr(65 + i)}" for i, n in enumerate(sorted(set(own), key=len, reverse=True))} if cloud else {}
+
+    def to_cloud(msgs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        if not alias:
+            return msgs
+        out = []
+        for m in msgs:
+            c = m.get("content")
+            if isinstance(c, str):
+                for n, a in alias.items():
+                    c = c.replace(n, a)
+            out.append({**m, "content": c})
+        return out
+
+    def from_cloud(text: str) -> str:
+        for n, a in alias.items():
+            text = text.replace(a, n)
+        return text
+
+    def ask_llm(msgs: list[dict[str, Any]]) -> Any:
+        import dataclasses as _dc
+
+        r = llm.next(to_cloud(msgs))
+        if alias and r.text:
+            r = _dc.replace(r, text=from_cloud(r.text))
+        if alias and r.args:
+            r = _dc.replace(r, args=json.loads(from_cloud(json.dumps(r.args, ensure_ascii=False))))
+        return r
+
     intent = route(body.message, body.context)
     vram = float(machine(st)["vram_gb"])
     path = (
@@ -676,7 +711,7 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
             {"role": "user", "content": body.message},
         ]
         while not cancelled():
-            r = llm.next(msgs + tool_msgs)
+            r = ask_llm(msgs + tool_msgs)
             if r.tool is None:
                 final = r.text or ""
                 break
@@ -735,19 +770,14 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
     if status != "cancelled" and card is None:
         sid, d, t0 = started("answer", "整理回答")
         yield "step.started", d
-        names = sorted(body.person_names, key=len, reverse=True)
-        alias = {n: f"人物{chr(65 + i)}" for i, n in enumerate(names)} if cloud else {}
-        q = body.message
-        for n, a in alias.items():
-            q = q.replace(n, a)
-        msgs = [{"role": "system", "content": SYSTEM}, {"role": "user", "content": q}, *tool_msgs]
-        raw = final if final is not None else (llm.next(msgs).text or "")  # a template (or the loop) answered
+        msgs = [{"role": "system", "content": SYSTEM}, {"role": "user", "content": body.message}, *tool_msgs]
+        raw = final if final is not None else (ask_llm(msgs).text or "")  # a template (or the loop) answered
         if cloud:  # what actually left this machine in this turn (ASK-PRV-004)
             measured = getattr(llm, "bytes_out", None)
             n = (
                 int(measured) - sent_before
                 if isinstance(measured, int)
-                else len(json.dumps(msgs, ensure_ascii=False).encode())
+                else len(json.dumps(to_cloud(msgs), ensure_ascii=False).encode())
             )
             with st.engine.begin() as c:
                 c.execute(
@@ -755,8 +785,7 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
                         turn_id=turn, endpoint=s.get("endpoint_url") or "", bytes_out=n, images=0
                     )
                 )
-        for n, a in alias.items():  # back to real names, only here on this machine
-            raw = raw.replace(a, n)
+        raw = from_cloud(raw)  # back to real names, only here on this machine
         grounded = G.ground(
             raw,
             seen=seen,

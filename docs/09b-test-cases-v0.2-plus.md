@@ -383,6 +383,7 @@
 | ASK-PRV-006 | 本機模型可以依人物回答（ADR-0039） | 人臉開啟、本機模型、`mcp.faces_enabled` 關 | 「測試B有幾張照片？」回答這個人的張數 | I | #78 |
 | ASK-PRV-007 | 雲端模型依人物回答要另外開（ADR-0039） | 雲端模型、`assistant.cloud_people` 關 | 回答指向「助手設定」，不用人物條件、不說 0 張 | I | #78 |
 | ASK-PRV-008 | 雲端模型開了 cloud_people（ADR-0039） | 雲端模型、`cloud_people` 開 | 回答這個人的張數；人名仍只以代稱送出（ASK-PRV-004） | I | #78 |
+| ASK-PRV-009 | 真名不會送到雲端模型（回歸，安全審查；ADR-0039） | 雲端、cloud_people 開，人物「王小美」 | 送給模型的每則訊息（含工具結果）都沒有真名；本機顯示的回答有真名 | I | #78 |
 | ASK-ACT-001 | 動作只產生計畫 | 「把這些移到京都資料夾」 | 工具集中**沒有** `apply_organize`；產生 `card(kind=plan)`；檔案未變；需 UI 按鈕核准 | I | #104 |
 | ASK-ACT-002 | 確認卡內容來自結構化資料 | FakeLLM 文字描述與 plan 不符 | 確認卡顯示 plan 的實際動作數與目標（不是 LLM 文字） | U/S | #104 |
 | ASK-SSE-001 | 事件序列（檢索型） | 一般檢索問題 | 順序：`turn.started` → `step.started(understand)` → `filters` → `step.completed` → `step.started(tool:search_photos, eta_ms)` → `photos(candidates)` → `step.completed(elapsed_ms)` → `token`* → `citation`* → `turn.completed`；`ping` 每 15 s | C | #102 |
