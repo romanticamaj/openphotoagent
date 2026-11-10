@@ -94,7 +94,8 @@
     "timeLeft": "about {left} left",
     "secs": "{n} s",
     "mins": "{m} min {s} s",
-    "readingFolder": "Reading the folder… · {elapsed} so far"
+    "readingFolder": "Reading the folder… · {elapsed} so far",
+    "elapsed": "{elapsed} so far"
   },
   "eta": {
     "slow": {

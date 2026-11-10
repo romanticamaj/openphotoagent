@@ -94,7 +94,8 @@
     "timeLeft": "約剩 {left}",
     "secs": "{n} 秒",
     "mins": "{m} 分 {s} 秒",
-    "readingFolder": "正在讀取資料夾… · 已經過 {elapsed}"
+    "readingFolder": "正在讀取資料夾… · 已經過 {elapsed}",
+    "elapsed": "已經過 {elapsed}"
   },
   "eta": {
     "slow": {

@@ -8,7 +8,7 @@ beforeAll(async () => {
 });
 
 describe("a running preview", () => {
-  it("[ORG-013] 回歸：預覽進行中說做到哪、經過多久、約剩多久（驗證第 16 輪：60 秒什麼都沒有）", () => {
+  it("[ORG-013][ORG-015] 回歸：預覽進行中說做到哪、經過多久、約剩多久（驗證第 16 輪：60 秒什麼都沒有）", () => {
     const { rerender } = render(<PreviewProgress status="running" progress={{ done: 0, total: 0, elapsed_s: 1 }} hasEstimate={false} />);
     expect(screen.getByRole("status").textContent).toContain("正在讀取資料夾");
     rerender(<PreviewProgress status="running" progress={{ done: 0, total: 10, elapsed_s: 3 }} hasEstimate={false} />);
@@ -18,6 +18,7 @@ describe("a running preview", () => {
     expect(screen.getByRole("status").textContent).toContain("約剩 30 秒"); // 20 s for 4, 6 to go
     rerender(<PreviewProgress status="ready" progress={{ done: 10, total: 10, elapsed_s: 50 }} hasEstimate={false} />);
     expect(screen.getByRole("status").textContent).toContain("正在估算全庫分布");
+    expect(screen.getByRole("status").textContent).toContain("50 秒"); // ORG-015: the wait shows its time too
     rerender(<PreviewProgress status="ready" progress={{ done: 10, total: 10, elapsed_s: 52 }} hasEstimate={true} />);
     expect(screen.queryByRole("status")).toBeNull();
   });

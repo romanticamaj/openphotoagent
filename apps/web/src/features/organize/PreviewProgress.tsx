@@ -16,6 +16,7 @@ export function PreviewProgress({ status, progress, hasEstimate }: { status: str
     return (
       <p role="status" className="text-sm text-[var(--text-muted)]">
         {t("organize.estimating")}
+        {progress ? ` · ${t("organize.elapsed", { elapsed: secs(t, progress.elapsed_s) })}` : ""}
       </p>
     );
   }
