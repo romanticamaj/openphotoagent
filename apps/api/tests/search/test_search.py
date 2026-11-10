@@ -558,9 +558,10 @@ def test_srch_sem_008_weak_vector_hits_are_related_not_results(s, monkeypatch):
         stop.set()
     assert {x["asset_id"] for x in res["items"]} == targets
     assert res["total"] == 3 and not res["total_capped"]
-    assert {x["asset_id"] for x in res["related"]} == others  # shown apart: not counted, not selected
+    assert res["related"] == []  # below the floor is not shown at all (ADR-0027 amended 2026-11-10 by the owner)
+    assert not {x["asset_id"] for x in res["items"]} & others
     assert none["total"] == 0 and none["items"] == []
-    assert none["related"]  # the empty state still has something to offer
+    assert none["related"] == []  # nothing found says so: unrelated photos were not "possibly related"
 
 
 @pytest.mark.integration

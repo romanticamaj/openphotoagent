@@ -138,9 +138,6 @@ def query_vector(st: AppState, text_q: str, space: Any, modality: str = "image")
     return None
 
 
-RELATED_MAX = 24
-
-
 def vector_floor(st: AppState, space: Any) -> float | None:
     """The cosine under which a neighbour is not a match (ADR-0027). It sits in the catalog, per model: scores mean
     different things in different spaces, and it applies at query time, so tuning it costs no re-embedding."""
@@ -357,7 +354,6 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
         cspace = caption_space(c)
     qvec = None
     cvec = None
-    weak: list[str] = []
     capped = False
     if q and body.semantic and cspace is not None:
         cvec = query_vector(st, q, cspace, modality="caption")
@@ -414,7 +410,6 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                 near = c.execute(vq, {"qv": str(qvec)}).all()
                 floor = vector_floor(st, space)
                 routes["image_vector"] = [r[0] for r in near if floor is None or r[1] >= floor]
-                weak = [r[0] for r in near if floor is not None and r[1] < floor]
                 capped = len(routes["image_vector"]) == PER_ROUTE
             if cvec is not None and cspace is not None:  # R2: multilingual caption vectors (05 §2, ADR-0014)
                 cq = (
@@ -490,8 +485,9 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
             else {}
         )
         facets = _facets(c, None, [*where, match] if q else where, body.facets)
-        # first page only, outside the set: not counted, not faceted, not in a selection (ADR-0027)
-        near_ids = [] if cur else [a for a in weak if a not in scores][:RELATED_MAX]
+        # ADR-0027 as amended 2026-11-10 (the owner's decision): photos below the floor are not offered as "possibly
+        # related" any more; 「夜景」 with no night photos showed 24 unrelated ones. The field stays, always empty.
+        near_ids: list[str] = []
         rel_rows = (
             {r.asset_id: r for r in c.execute(select(search_doc).where(search_doc.c.asset_id.in_(near_ids)))}
             if near_ids

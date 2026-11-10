@@ -46,7 +46,7 @@
 | SRCH-PLAN-019 | 回歸：只有停用詞 | 「photo」「的 照片」 | 沒有任何條件時保留原查詢（不把查詢清成空字串而變成全部照片） | U | #62 |
 | SRCH-PLAN-020 | 問句不是搜尋文字（回歸） | 「我有幾張滑雪的照片？」「幫我找海邊的照片」等 | 只留下主題詞 | U | #24、#40 |
 | SRCH-PLAN-021 | 沒有 LLM planner 的 worker 明確回覆（回歸） | `query_plan` RPC | 不記 `UNKNOWN_RPC`；回空結果，API 退回規則式 | U | #24 |
-| SRCH-SEM-008 | 向量下限（回歸，ADR-0027） | 有下限的空間：相近與不相近的照片；沒有相符；沒有下限的空間 | 低於下限的不計入 total 與 items，列在 related；沒有相符時 total 0；沒有下限時行為不變 | I | #24 |
+| SRCH-SEM-008 | 向量下限（回歸，ADR-0027） | 有下限的空間：相近與不相近的照片；沒有相符；沒有下限的空間 | 低於下限的不計入 total 與 items，列在 related；沒有相符時 total 0；沒有下限時行為不變 | I | #24 |（2026-11-10 修訂：`related` 一律為空，沒有結果就說沒有，見 ADR-0027 修訂）
 | SRCH-SEM-009 | 下限來自模型目錄 | SigLIP2 與未知 fingerprint | 0.07；未知為 None；不需重新嵌入 | U | 不變量 7 |
 | SRCH-SEM-010 | 影像模型收到的查詢文字（回歸，驗證第 1 輪） | 海邊、貓、小孩在玩水、長頸鹿、red car、夜景 | beach、cat、child、不查、red car、night（ADR-0031） | U | #— |
 | SRCH-SEM-011 | 中文以英文進影像路徑 | 搜「海邊」；搜「長頸鹿」 | 影像向量 RPC 收到 `beach`；「長頸鹿」不呼叫影像向量，`degraded` 不含 image_vector | I | #— |
