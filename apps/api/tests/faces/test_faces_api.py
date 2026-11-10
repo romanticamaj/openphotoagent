@@ -852,3 +852,45 @@ def test_find_020_candidates_say_which_are_sure(f):
     _small(f, 1, 2, "kid")
     items = f.get(f"/people/{p1}/candidates")["items"]
     assert items and all(x["sure"] is (x["score"] >= 0.6) for x in items)
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-ASN-007")
+def test_asn_007_a_small_face_is_only_suggested_for_a_named_person(f):
+    """ADR-0036: a 24-31 px face is embedded, but only a person's yes puts it anywhere, and only for someone named."""
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p1 = f.sql("select person_id from face where id=:i", i=ids[1][0]).scalar()
+    _, (tiny,) = f.photo("2025/s/tiny_a_p1.jpg", plan=[FaceSpec(person=1, min_side=28)])
+    assert f.sql("select state from face where id=:i", i=tiny).scalar() == "unassigned"
+    f.post(f"/people/{p1}/name", {"name": "小明"})
+    _, (tiny2,) = f.photo("2025/s/tiny_b_p1.jpg", plan=[FaceSpec(person=1, min_side=28)])
+    assert f.sql("select state from face where id=:i", i=tiny2).scalar() == "suggested"
+    assert f.sql("select person_id from face where id=:i", i=tiny2).scalar() is None  # never automatic
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-DET-013")
+def test_det_013_faces_stored_too_small_are_embedded_again(f):
+    """ADR-0036: faces stored as tier 0 at 24-31 px get an embedding from the worker, once."""
+    f.enable()
+    aid, (fid,) = f.photo("2025/s/team_p1.jpg", plan=[FaceSpec(person=1, min_side=28)])
+    # as an older version stored it: tier 0, no embedding
+    f.sql("update face set quality_tier = 0 where id=:i", i=fid)
+    f.sql("delete from bio.face_embedding where face_id=:i", i=fid)
+    r = f.client.get("/worker-api/v1/faces/reembed", params={"limit": 10}, headers=f.ui).json()
+    assert [x["face_id"] for it in r["items"] for x in it["faces"]] == [fid]
+    assert r["items"][0]["asset_id"] == aid and r["items"][0]["rel"]
+    vec = [1.0] + [0.0] * 511
+    ok = f.client.post(f"/worker-api/v1/faces/{fid}/embedding", json={"vec": vec, "quality_tier": 1}, headers=f.ui)
+    assert ok.status_code == 200, ok.text
+    assert f.sql("select quality_tier from face where id=:i", i=fid).scalar() == 1
+    assert f.sql("select count(*) from bio.face_embedding where face_id=:i", i=fid).scalar() == 1
+    assert f.client.get("/worker-api/v1/faces/reembed", params={"limit": 10}, headers=f.ui).json()["items"] == []
+    # no match in the photo any more: tried once, not listed again
+    _, (fid2,) = f.photo("2025/s/team2_p1.jpg", plan=[FaceSpec(person=1, min_side=28)])
+    f.sql("update face set quality_tier = 0 where id=:i", i=fid2)
+    f.sql("delete from bio.face_embedding where face_id=:i", i=fid2)
+    f.client.post(f"/worker-api/v1/faces/{fid2}/embedding", json={"vec": None}, headers=f.ui)
+    assert f.client.get("/worker-api/v1/faces/reembed", params={"limit": 10}, headers=f.ui).json()["items"] == []

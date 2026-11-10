@@ -269,18 +269,21 @@
 | FACE-GATE-003 | 限定 Source | 只對 Source A 開啟 | Source B 的照片不做人臉 | I | #74 |
 | FACE-GATE-004 | 可略過 | onboarding 卡片按「稍後」 | 不再阻擋；設定中可開啟 | E | #74 |
 | FACE-GATE-005 | 預設安裝包不含非可散布權重 | CI 掃描 bundle 與預設組合 | 無 `redistributable=false` 權重；人臉 registry 禁止 remote runtime | C | #75 |
-| FACE-DET-001 | 品質分級 | bbox 最短邊 28／40／90 px、yaw 80°／20°、Laplacian 15 | tier 0（只存 bbox，不做 embedding）、1、3、0、…（golden） | U | #75 |
+| FACE-DET-001 | 品質分級 | bbox 最短邊 20／40／90 px、yaw 80°／20°、Laplacian 15（20 px 原為 28 px，ADR-0036 經使用者同意修改） | tier 0（只存 bbox，不做 embedding）、1、3、0、…（golden） | U | #75 |
 | FACE-DET-002 | 大合照截斷 | 60 張臉 | 只取 50 並標 `truncated` | U | #75 |
 | FACE-DET-003 | 跳過條件 | category=screenshot | 不跑人臉 | U | #75 |
 | FACE-DET-004 | 只解碼一次 | 同 Job 有 VLM 與 face step | 解碼次數 1（前處理 hook 計數） | I | #75 |
 | FACE-DET-010 | 重新分析不增加臉（回歸） | 同一張照片送兩次 | 回傳既有 ID；`face` 與 `bio.face_embedding` 筆數不變 | I | #75 |
 | FACE-DET-011 | 清除重複的臉（回歸） | 舊資料有同位置的副本，其中一份已確認，另一份有拒絕紀錄 | 每張臉留一份，優先保留人工決定過的；拒絕紀錄移到保留者；分群紀錄清空以便重跑 | I | #75 |
+| FACE-DET-012 | 24 px 起做 embedding（回歸，驗證第 10 輪；ADR-0036） | 最短邊 23／24／31／32 px | tier 0／1／1／1；`small_face` 為 24 ≤ 最短邊 < 32 | U | #75 |
+| FACE-DET-013 | 之前存成 tier 0 的小臉補算 embedding（ADR-0036） | tier 0、24～31 px、沒有 embedding 的臉 | `GET /worker-api/v1/faces/reembed` 列出；Worker 回傳向量後成為 tier 1；找不到對應的臉時標記已試過，不再列出 | I | #75 |
 | FACE-ASN-001 | 自動指派 | s_p1=0.66、s_p2=0.50、鄰居屬 p1 ≥ 2、tier 2 | `face_assignment(kind=auto)` | U | #76 |
 | FACE-ASN-002 | margin 不足 → 建議 | s_p1=0.62、s_p2=0.58 | `kind=suggested`，進 Review | U | #76 |
 | FACE-ASN-003 | 低品質不自動 | tier 1，分數足夠 | 只建議 | U | #76 |
 | FACE-ASN-004 | age_variation／confusable | p1 標記 age_variation；或與 p2 為 confusable 且差距 < 0.12 | 只建議；age_variation 的 δ_margin=0.12 | U | #76 |
 | FACE-ASN-005 | 未達建議門檻 | s_p1 < 0.45 | 進未指派池 | U | #76 |
 | FACE-ASN-006 | cannot-link | 該臉曾被標「不是 p1」 | p1 不在候選 | U | #77 |
+| FACE-ASN-007 | 小臉只對已命名的人提出建議（ADR-0036） | 28 px 的臉，像未命名與已命名的人 | 未命名：unassigned；已命名：suggested，從不自動 | I | #78 |
 | FACE-CLU-001 | HDBSCAN 群組 | 未指派池 600 張（6 人各 100） | 產生 6 個 soft person；ARI ≥ 0.9（FakeFaceBackend） | I | #76 |
 | FACE-CLU-002 | 人工決策凍結 | 命名 p1、確認 10 張、拒絕 2 張後再跑分群 | p1 與其 confirmed／rejected 指派完全不變（逐列比對） | I | #76 |
 | FACE-CLU-003 | ID 穩定 | 未命名群組在新資料加入後重跑 | Jaccard ≥ 0.5 者沿用舊 ID | U | #76 |
@@ -323,6 +326,8 @@
 | FACE-FIND-019 | 太小或太糊的臉算看不清（回歸，驗證第 8 輪；ADR-0035） | min_side 與 Laplacian | min_side < 60 或 blur < 40 為看不清；沒量到不算；候選中清楚的排前面 | U/I | #78 |
 | FACE-FIND-020 | 「全部都是」只標把握高的（回歸，驗證第 8～9 輪） | 候選 0.7 與 0.583 | API 帶 `sure`（score ≥ 0.6）；「全部都是」只標清楚且 sure 的，旁邊說還有幾張要一張一張決定 | U/I/C | #78 |
 | FACE-FIND-021 | 糊的門檻 50（回歸，驗證第 9 輪） | Laplacian 47 與 51 | 47 看不清、51 不算 | U | #78 |
+| FACE-FIND-022 | 小臉候選要 0.55 且只給已命名的人（ADR-0036） | 0.53 與 0.57 的小臉 | 0.53 不列；0.57 只在已命名時列 | U | #78 |
+| FACE-FIND-023 | 找這個人：小臉只進「可能」（ADR-0036） | 小臉 0.8 | 不進「確定」，列在「可能」 | U | #78 |
 | FACE-FIND-014 | 候選從 0.5 起（回歸，驗證第 2 輪） | 0.52 與 0.45 | 只列 0.52（同照片兩人在 0.42 約 6% 過門檻，0.5 為 1.76%） | U | #78 |
 | FACE-FIND-015 | 沒人確認過時門檻較高（回歸，驗證第 3 輪：某人 3/12） | 是否已有 confirmed 臉 | 沒有時 0.55，有了 0.5 | U | #78 |
 | FACE-TPL-001 | `{person}` fan-out | 照片有兩人、fanout=true | 複製到兩個人的資料夾；無人時用 fallback | I | #80 |

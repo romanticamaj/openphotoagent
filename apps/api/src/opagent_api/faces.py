@@ -37,7 +37,7 @@ from opagent_db.schema import (
     workspace,
 )
 from pydantic import BaseModel, Field
-from sqlalchemy import and_, delete, func, insert, select, text, update
+from sqlalchemy import and_, delete, func, insert, select, text, true, update
 
 from .approvals import ui_only
 from .state import DEFAULT_WS, AppState
@@ -325,6 +325,100 @@ def backlog(req: Request, after: str = "", limit: int = 32) -> dict[str, Any]:
     return {"items": items, "next": rows[-1].asset_id if rows else after}
 
 
+REEMBED_PAGE = 32
+
+
+@worker_router.get("/faces/reembed")
+def reembed_backlog(req: Request, limit: int = Query(8, ge=1, le=REEMBED_PAGE)) -> dict[str, Any]:
+    """Faces an older version stored as tier 0 that the small-face lane now embeds (24-31 px, not turned away,
+    not blurred; ADR-0036), grouped by photo; each is tried once."""
+    st = _st(req)
+    with st.engine.begin() as c:
+        s = fsettings(c)
+        if not s.get("enabled") or s.get("space_id") is None:
+            return {"items": []}
+        side = face.c.quality["min_side_px"].as_float()
+        yaw = func.abs(face.c.quality["yaw"].as_float())
+        blur = face.c.quality["blur"].as_float()
+        rows = c.execute(
+            select(
+                face.c.id,
+                face.c.bbox,
+                face.c.asset_id,
+                asset_location.c.rel_path,
+                asset_location.c.source_id,
+                source.c.root_alias,
+            )
+            .join(asset_location, asset_location.c.asset_id == face.c.asset_id)
+            .join(source, source.c.id == asset_location.c.source_id)
+            .where(
+                face.c.workspace_id == DEFAULT_WS,
+                face.c.quality_tier == 0,
+                side >= F.SMALL_FACE_MIN,
+                side < F.CLUSTER_MIN_SIDE,
+                yaw <= 75,
+                blur >= 20,
+                face.c.quality["reembed_tried"].as_boolean().is_not(True),
+                asset_location.c.missing.is_(False),
+            )
+            .order_by(face.c.asset_id, face.c.id)
+            .limit(limit * 8)
+        ).all()
+        rows = [r for r in rows if enabled_for(c, r.source_id)]
+    if rows:
+        with bio_session(st) as b:
+            have = {
+                r[0]
+                for r in b.execute(
+                    text("SELECT face_id FROM bio.face_embedding WHERE face_id = ANY(:ids)"),
+                    {"ids": [r.id for r in rows]},
+                )
+            }
+        rows = [r for r in rows if r.id not in have]
+    items: dict[str, dict[str, Any]] = {}
+    for r in rows:
+        it = items.setdefault(
+            r.asset_id, {"asset_id": r.asset_id, "root_alias": r.root_alias, "rel": r.rel_path, "faces": []}
+        )
+        if not any(x["face_id"] == r.id for x in it["faces"]):
+            it["faces"].append({"face_id": r.id, "bbox": list(r.bbox)})
+    return {"items": list(items.values())[:limit]}
+
+
+class EmbeddingIn(BaseModel):
+    vec: list[float] | None = None
+    quality_tier: int | None = None
+
+
+@worker_router.post("/faces/{fid}/embedding")
+def put_embedding(fid: str, body: EmbeddingIn, req: Request) -> dict[str, Any]:
+    """The worker's answer for one face of the re-embed backlog: a vector, or none when the photo no longer shows it."""
+    st = _st(req)
+    with st.engine.begin() as c:
+        row = c.execute(select(face.c.quality, face.c.space_id).where(face.c.id == fid)).first()
+        if row is None:
+            raise HTTPException(404, detail={"code": "NOT_FOUND"})
+        q = {**(row.quality or {}), "reembed_tried": True}
+        tier = max(1, body.quality_tier or 1) if body.vec is not None else 0
+        c.execute(update(face).where(face.c.id == fid).values(quality=q, quality_tier=tier))
+    if body.vec is None:
+        return {"ok": True, "embedded": False}
+    with bio_session(st) as b:
+        b.execute(
+            text(
+                "INSERT INTO bio.face_embedding(workspace_id, face_id, space_id, vec) VALUES (:w,:f,:s,:v)"
+                " ON CONFLICT DO NOTHING"
+            ),
+            {"w": DEFAULT_WS, "f": fid, "s": row.space_id, "v": str(body.vec)},
+        )
+    assign_online(st, DEFAULT_WS, row.space_id, fid, body.vec, tier, small=F.small_face(q.get("min_side_px")))
+    with st.engine.begin() as c:
+        aid = c.execute(select(face.c.asset_id).where(face.c.id == fid)).scalar()
+        c.execute(insert(index_outbox).values(asset_id=aid))
+        _drain(c)
+    return {"ok": True, "embedded": True}
+
+
 @worker_router.post("/faces")
 def ingest(body: FacesIn, req: Request) -> dict[str, Any]:
     st = _st(req)
@@ -375,7 +469,8 @@ def ingest(body: FacesIn, req: Request) -> dict[str, Any]:
                 )
     for fid, f in zip(ids, kept, strict=True):
         if f["vec"] is not None and f["quality_tier"] >= 1:
-            assign_online(st, DEFAULT_WS, space, fid, f["vec"], f["quality_tier"])
+            small = F.small_face((f.get("quality") or {}).get("min_side_px"))
+            assign_online(st, DEFAULT_WS, space, fid, f["vec"], f["quality_tier"], small=small)
     with st.engine.begin() as c:
         c.execute(insert(index_outbox).values(asset_id=body.asset_id))
         _drain(c)
@@ -425,7 +520,9 @@ def _write(c: Any, st: AppState, fid: str, pid: str | None, kind: str, method: s
     )
 
 
-def assign_online(st: AppState, ws: str, space: int, fid: str, vec: list[float], tier: int) -> F.Decision:
+def assign_online(
+    st: AppState, ws: str, space: int, fid: str, vec: list[float], tier: int, small: bool = False
+) -> F.Decision:
     near = _knn(st, ws, space, vec, K, exclude=fid)
     with st.engine.begin() as c:
         owners = dict(
@@ -444,6 +541,8 @@ def assign_online(st: AppState, ws: str, space: int, fid: str, vec: list[float],
                     person.c.id.in_(set(owners.values()) or {"-"}),
                     person.c.merged_into.is_(None),
                     person.c.status != "ignored",
+                    # a small face is only ever suggested for someone named (ADR-0036)
+                    person.c.display_name.is_not(None) if small else true(),
                 )
             ).all()
         }
@@ -681,7 +780,7 @@ def _merge_suggestions(st: AppState, ws: str, space: int) -> None:
         sharp: dict[str, float] = {}
         for fid, pid, q in c.execute(
             select(face.c.id, face.c.person_id, face.c.quality).where(
-                face.c.workspace_id == ws, face.c.person_id.is_not(None)
+                face.c.workspace_id == ws, face.c.person_id.is_not(None), _clusterable()
             )
         ):
             members.setdefault(pid, []).append(fid)
@@ -966,6 +1065,7 @@ def _margins(
                     face.c.person_id != pid,
                     person.c.status.is_distinct_from("ignored"),
                     person.c.merged_into.is_(None),
+                    _clusterable(),
                 )
             ).all()
         )
@@ -1000,6 +1100,12 @@ def _margins(
             rival = max(rival, float(unit(s) @ v))
         out[fid] = float(mine @ v) - rival if groups else 1.0
     return out
+
+
+def _clusterable() -> Any:
+    """Faces big enough for grouping and group centroids: 32 px and up (ADR-0036)."""
+    side = face.c.quality["min_side_px"].as_float()
+    return (side.is_(None)) | (side >= F.CLUSTER_MIN_SIDE)
 
 
 def _measures(q: dict[str, Any] | None) -> dict[str, float | None]:
@@ -1063,8 +1169,18 @@ def person_candidates(pid: str, req: Request, limit: int = Query(60, ge=1, le=20
     facts = {r.id: (r.asset_id, r.person_id, r.state) for r in rows}
     meta = {r.id: r for r in rows}
     margins = _margins(st, c_ws=DEFAULT_WS, space=space, pid=pid, refs=list(vecs.values()), faces=list(best))
+    with st.engine.begin() as c:
+        named = c.execute(select(person.c.display_name).where(person.c.id == pid)).scalar() is not None
+    small = {fid for fid, r in meta.items() if F.small_face(_measures(r.quality)["min_side"])}
     ranked = F.person_candidates(
-        pid, best, facts, rejected, low=F.candidate_floor(confirmed=bool(confirmed)), margins=margins
+        pid,
+        best,
+        facts,
+        rejected,
+        low=F.candidate_floor(confirmed=bool(confirmed)),
+        margins=margins,
+        small=small,
+        named=named,
     )
     # the clear ones first, best first within each; the hard ones last (ADR-0035)
     clear = {fid: not F.hard_to_judge(**_measures(meta[fid].quality)) for fid, _ in ranked}
@@ -1375,12 +1491,14 @@ def find(body: FindIn, req: Request) -> dict[str, Any]:
             if n.face_id not in best or n.s > best[n.face_id][1]:
                 best[n.face_id] = ("", float(n.s))
     with st.engine.begin() as c:
-        owner = dict(
-            c.execute(
-                select(face.c.id, face.c.asset_id).where(face.c.id.in_(list(best) or ["-"]), face.c.workspace_id == ws)
-            ).all()
-        )
-    tiers = F.find_tiers({f: (owner[f], s) for f, (_x, s) in best.items() if f in owner})
+        found = c.execute(
+            select(face.c.id, face.c.asset_id, face.c.quality).where(
+                face.c.id.in_(list(best) or ["-"]), face.c.workspace_id == ws
+            )
+        ).all()
+    owner = {r.id: r.asset_id for r in found}
+    small = {r.id for r in found if F.small_face(_measures(r.quality)["min_side"])}
+    tiers = F.find_tiers({f: (owner[f], s) for f, (_x, s) in best.items() if f in owner}, small=small)
     return {k: [{"asset_id": a, "score": round(s, 4)} for a, s in v] for k, v in tiers.items()}
 
 

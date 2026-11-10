@@ -9,7 +9,7 @@ from opagent_core import faces as F
 @pytest.mark.parametrize(
     ("min_side", "yaw", "lap", "fiqa", "tier"),
     [
-        (28, 10, 100, 0.8, 0),  # too small: bbox only, no embedding
+        (20, 10, 100, 0.8, 0),  # too small: bbox only, no embedding (was 28 px before ADR-0036)
         (40, 10, 100, 0.8, 1),  # small: searchable, never automatic
         (90, 10, 100, 0.8, 3),  # good
         (90, 80, 100, 0.8, 0),  # profile beyond 75°
@@ -268,6 +268,38 @@ def test_face_ui_018_the_cover_is_typical_and_sharp():
     clear = dict.fromkeys(vecs, True)
     sharp = {f"f{i}": 60.0 + i for i in range(8)} | {"f3": 900.0, "odd": 5000.0}
     assert F.typical_face(vecs, clear, sharp) == "f3"  # among the most typical; odd is sharpest but not typical
+
+
+@pytest.mark.unit
+@pytest.mark.tc("FACE-DET-012")
+@pytest.mark.parametrize(("min_side", "tier"), [(23, 0), (24, 1), (31, 1), (32, 1)])
+def test_det_012_faces_from_24_px_are_embedded(min_side, tier):
+    """回歸 (audit round 10, ADR-0036): 7 of 11 faces in a team photo were 23-30 px and never findable. Shrunk faces
+    on the reference library still land nearest their own person 84% of the time at 24 px (94% at 32)."""
+    assert F.quality_tier(min_side=min_side, yaw=10, laplacian=100, fiqa=0.8) == tier
+    assert F.small_face(min_side) is (24 <= min_side < 32)
+
+
+@pytest.mark.unit
+@pytest.mark.tc("FACE-FIND-022")
+def test_find_022_a_small_face_is_offered_only_for_a_named_person_and_closer():
+    facts = {"tiny": ("a1", None, None), "ok": ("a2", None, None)}
+    scores = {"tiny": 0.53, "ok": 0.53}
+    out = F.person_candidates("p", scores, facts, rejected=set(), low=0.5, small={"tiny"}, named=True)
+    assert out == [("ok", 0.53)]  # under 0.55 a small face stays out
+    scores["tiny"] = 0.57
+    assert ("tiny", 0.57) in F.person_candidates(
+        "p", scores, facts, rejected=set(), low=0.5, small={"tiny"}, named=True
+    )
+    assert ("tiny", 0.57) not in F.person_candidates("p", scores, facts, set(), low=0.5, small={"tiny"}, named=False)
+
+
+@pytest.mark.unit
+@pytest.mark.tc("FACE-FIND-023")
+def test_find_023_a_small_face_is_never_sure_in_find_this_person():
+    faces = {"tiny": ("a1", 0.8), "big": ("a2", 0.8)}
+    out = F.find_tiers(faces, small={"tiny"})
+    assert [a for a, _ in out["sure"]] == ["a2"] and [a for a, _ in out["maybe"]] == ["a1"]
 
 
 def _cloud(seed, center, n, spread):

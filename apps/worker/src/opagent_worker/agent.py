@@ -25,6 +25,16 @@ from opagent_fs.safepath import RootConfig, RootUnavailable, Sandbox
 from .scanner import HashCache, scan
 
 
+def _iou(a: list[float], b: list[float]) -> float:
+    """Overlap of two [x, y, w, h] boxes (0..1 coordinates)."""
+    ax2, ay2, bx2, by2 = a[0] + a[2], a[1] + a[3], b[0] + b[2], b[1] + b[3]
+    w = max(0.0, min(ax2, bx2) - max(a[0], b[0]))
+    h = max(0.0, min(ay2, by2) - max(a[1], b[1]))
+    inter = w * h
+    union = a[2] * a[3] + b[2] * b[3] - inter
+    return inter / union if union > 0 else 0.0
+
+
 class _Waiting(Exception):
     def __init__(self, reason: str) -> None:
         super().__init__(reason)
@@ -436,6 +446,35 @@ class WorkerAgent:
         cursor.write_text(str(page["next"]), encoding="utf-8")
         return len(page["items"])
 
+    def faces_reembed_once(self, limit: int = 8) -> int:
+        """Faces stored too small by an older version that the small-face lane embeds now (ADR-0036): detect again,
+        match each stored box by overlap, send its vector, or none when the photo no longer shows it."""
+        if self.face_backend is None or self.remote:
+            return 0
+        from .imaging import open_image, oriented
+
+        r = self.client.get("/worker-api/v1/faces/reembed", params={"limit": limit})
+        r.raise_for_status()
+        items = r.json()["items"]
+        for it in items:
+            try:
+                sp = self.sb.resolve(it["root_alias"], it["rel"])
+                with open_image(sp.real) as im:
+                    found = self.face_backend.detect(it["rel"], oriented(im).convert("RGB"))
+            except Exception:  # a moved or unreadable photo: each face is tried once
+                _log.warning("face re-embed skipped a photo", exc_info=True)
+                found = []
+            for f in it["faces"]:
+                best = max(found, key=lambda d: _iou(d["bbox"], f["bbox"]), default=None)
+                hit = best is not None and _iou(best["bbox"], f["bbox"]) >= 0.5 and best.get("vec") is not None
+                body = (
+                    {"vec": best["vec"], "quality_tier": best["quality_tier"]}
+                    if best is not None and hit
+                    else {"vec": None}
+                )
+                self.client.post(f"/worker-api/v1/faces/{f['face_id']}/embedding", json=body)
+        return len(items)
+
     def _send_faces(self, reports: list[dict[str, Any]]) -> None:
         from opagent_core.faces import should_run
 
@@ -734,7 +773,7 @@ class WorkerAgent:
                 self.warm_embedder()
                 scanned = self.faces_backlog_once()
                 self.faces_cluster_once(scanned)
-                busy = scanned > 0
+                busy = scanned > 0 or self.faces_reembed_once() > 0
             if not busy:
                 stop.wait(0.2)
         except Exception:

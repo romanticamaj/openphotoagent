@@ -32,9 +32,18 @@ SKIP_MEDIA = {"document"}
 
 
 # ---- quality (07 §2.2) -------------------------------------------------------
+SMALL_FACE_MIN = 24  # px: embedded from here (ADR-0036; 84% nearest-person right at 24 px, 94% at 32)
+CLUSTER_MIN_SIDE = 32  # px: under this a face never joins grouping, centroids or merge cards (ADR-0036)
+
+
+def small_face(min_side: float | None) -> bool:
+    """A 24-31 px face: embedded, offered only to a person to confirm, for someone named (ADR-0036)."""
+    return min_side is not None and SMALL_FACE_MIN <= min_side < CLUSTER_MIN_SIDE
+
+
 def quality_tier(*, min_side: float, yaw: float, laplacian: float, fiqa: float) -> int:
     """0 reject (bbox only, no embedding) · 1 low (searchable, never automatic) · 2 ok · 3 good."""
-    if min_side < 32 or abs(yaw) > 75 or laplacian < 20:
+    if min_side < SMALL_FACE_MIN or abs(yaw) > 75 or laplacian < 20:
         return 0
     if min_side < 48 or abs(yaw) > 45 or fiqa < 0.3:
         return 1
@@ -240,17 +249,22 @@ def folder_name(name: str) -> str:
 
 # ---- find this person (07 §2.5) ------------------------------------------------
 def find_tiers(
-    faces: dict[str, tuple[str, float]], t: dict[str, float] = THRESHOLDS
+    faces: dict[str, tuple[str, float]], t: dict[str, float] = THRESHOLDS, small: set[str] | None = None
 ) -> dict[str, list[tuple[str, float]]]:
     """``faces``: face → (asset, best cosine to any reference). An asset scores its best face; 「確定」 ≥ find_high,
-    「可能」 ≥ find_low."""
+    「可能」 ≥ find_low. A small face (ADR-0036) is never 「確定」 on its own."""
+    small = small or set()
     best: dict[str, float] = {}
-    for asset, s in faces.values():
+    sure: dict[str, float] = {}
+    for fid, (asset, s) in faces.items():
         best[asset] = max(s, best.get(asset, -1.0))
+        if fid not in small:
+            sure[asset] = max(s, sure.get(asset, -1.0))
     ranked = sorted(best.items(), key=lambda x: (-x[1], x[0]))
+    yes = {a for a, s in sure.items() if s >= t["find_high"]}
     return {
-        "sure": [(a, s) for a, s in ranked if s >= t["find_high"]],
-        "maybe": [(a, s) for a, s in ranked if t["find_low"] <= s < t["find_high"]],
+        "sure": sorted(((a, sure[a]) for a in yes), key=lambda x: (-x[1], x[0])),
+        "maybe": [(a, s) for a, s in ranked if a not in yes and s >= t["find_low"]],
     }
 
 
@@ -303,6 +317,7 @@ def chinese_whispers(
 # the reference library; at find_low about 6% (FACE-FIND-014)
 CANDIDATE_MIN = 0.5
 CANDIDATE_MIN_UNCONFIRMED = 0.55  # the group's own faces, wrong ones included, are the references (FACE-FIND-015)
+CANDIDATE_MIN_SMALL = 0.55  # a 24-31 px face (ADR-0036)
 
 
 def candidate_floor(*, confirmed: bool) -> float:
@@ -316,6 +331,8 @@ def person_candidates(
     rejected: set[str],
     low: float = THRESHOLDS["find_low"],
     margins: Mapping[str, float] | None = None,
+    small: set[str] | None = None,
+    named: bool = True,
 ) -> list[tuple[str, float]]:
     """Faces that might be ``pid``, best first. ``facts``: face → (asset, person, state), the person's own faces
     included. Left out: faces already theirs, ones said not to be them, ones in a photo they are already in (one
@@ -331,6 +348,8 @@ def person_candidates(
         if p == pid or asset in theirs or (p is not None and state == "confirmed"):
             continue
         if margins is not None and margins.get(fid, 1.0) <= 0:
+            continue
+        if small and fid in small and (not named or s < CANDIDATE_MIN_SMALL):  # ADR-0036
             continue
         out.append((fid, s))
     return sorted(out, key=lambda x: (-x[1], x[0]))

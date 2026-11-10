@@ -519,3 +519,49 @@ def test_srch_r2_006_building_the_index_takes_a_numpy_answer(tmp_path, sandbox_t
     w.text_embedders = {"qwen3-embedding-0.6b": a}
     out = w._do_embed_captions({"model": "qwen3-embedding-0.6b", "items": [{"asset_id": "a1", "text": "一隻貓"}]})
     assert out["dim"] == 4 and out["vectors"]["a1"] == [0.5, 0.5, 0.5, 0.5]
+
+
+class _Reembed:
+    def __init__(self, items):
+        self.items, self.posted = items, []
+
+    def get(self, url, params=None):
+        from types import SimpleNamespace
+
+        body = {"items": self.items}
+        return SimpleNamespace(status_code=200, json=lambda: body, raise_for_status=lambda: None)
+
+    def post(self, url, json=None):
+        from types import SimpleNamespace
+
+        self.posted.append((url, json))
+        return SimpleNamespace(status_code=200, json=lambda: {}, raise_for_status=lambda: None)
+
+
+@pytest.mark.unit
+@pytest.mark.tc("FACE-DET-013")
+def test_det_013_the_worker_embeds_stored_small_faces_again(tmp_path, sandbox_tree):
+    """ADR-0036: detect again, match each stored box by overlap, send its vector; none when it is not there."""
+    from opagent_inference.fake_faces import FakeFaceBackend
+    from opagent_worker.agent import WorkerAgent
+
+    Image.new("RGB", (64, 64), (9, 9, 9)).save(sandbox_tree.photos / "IMG_p1.jpg")
+    fb = FakeFaceBackend()
+    here = fb.detect("IMG_p1.jpg")[0]["bbox"]
+    items = [
+        {
+            "asset_id": "a1",
+            "root_alias": "photos",
+            "rel": "IMG_p1.jpg",
+            "faces": [{"face_id": "f1", "bbox": here}, {"face_id": "f2", "bbox": [0.0, 0.0, 0.05, 0.05]}],
+        },
+        {"asset_id": "a2", "root_alias": "photos", "rel": "gone.jpg", "faces": [{"face_id": "f3", "bbox": here}]},
+    ]
+    client = _Reembed(items)
+    a = WorkerAgent(client, roots=sandbox_tree.roots, home=tmp_path / "w", worker_id="w1")
+    assert a.faces_reembed_once() == 0  # no face models: nothing to do
+    a.face_backend = fb
+    assert a.faces_reembed_once() == 2
+    sent = {u.split("/")[-2]: body for u, body in client.posted}
+    assert sent["f1"]["vec"] and sent["f1"]["quality_tier"] >= 1
+    assert sent["f2"] == {"vec": None} and sent["f3"] == {"vec": None}  # not found / file gone: tried once
