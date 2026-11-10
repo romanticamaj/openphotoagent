@@ -547,6 +547,7 @@
           "enum": [
             "vlm",
             "embedding",
+            "text_embedder",
             "tagger",
             "captioner",
             "face_detector",
