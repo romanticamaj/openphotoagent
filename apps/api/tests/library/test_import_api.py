@@ -275,3 +275,25 @@ def test_op_020_analysing_a_folder_reports_progress_and_time(env):
     assert op["progress"]["total"] == 3 and op["progress"]["done"] == 3
     assert op["started_at"] is not None and op["eta"] is not None
     assert op["subject"]["job_kind"] == "label"  # shown as 「AI 分析」, not 「整理」
+
+
+@pytest.mark.integration
+@pytest.mark.tc("IMP-036")
+def test_imp_036_a_folder_counts_what_its_subfolders_brought_in(env):
+    """回歸 (audit round 19): after 新批次 was added inside photos and analysed, 匯入 still read 「photos 80 張 · 已分析
+    80 張」 and listed nothing for 新批次: the nested folder is folded into its parent (IMP-034), but its photos were
+    counted under its own source only. Each folder also reports its whole tree, each photo once."""
+    root = env.client.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": ""}).json()
+    env.client.post(f"/api/v1/sources/{root['id']}/scan")
+    while env.w.run_once() or env.w.process_items_once():
+        pass
+    (env.tree.photos / "new").mkdir()
+    for i in range(2):
+        shutil.copyfile(FX / f"IMG_{i + 5:04d}.jpg", env.tree.photos / "new" / f"n{i}.jpg")
+    sub = env.client.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": "new"}).json()
+    env.client.post(f"/api/v1/sources/{sub['id']}/analyze")
+    while env.w.run_once() or env.w.process_items_once():
+        pass
+    row = next(s for s in env.client.get("/api/v1/sources").json() if s["id"] == root["id"])
+    assert row["photos"] == 3  # its own scan, as before
+    assert row["tree_photos"] == 5 and row["tree_analysed"] == 2

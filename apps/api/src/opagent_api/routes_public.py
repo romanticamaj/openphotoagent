@@ -184,7 +184,27 @@ def list_sources(req: Request) -> list[dict[str, Any]]:
             .group_by(source.c.id)
             .order_by(source.c.root_alias, source.c.sub_path)
         )
-        return [dict(r._mapping) for r in rows]
+        out = [dict(r._mapping) for r in rows]
+        # a folder's whole tree, each photo once: its subfolders added later are folded into it on 匯入 (IMP-036)
+        for s in out:
+            inner = [
+                o["id"]
+                for o in out
+                if o["root_alias"] == s["root_alias"]
+                and (
+                    s["sub_path"] == ""
+                    or o["sub_path"] == s["sub_path"]
+                    or o["sub_path"].startswith(s["sub_path"] + "/")
+                )
+            ]
+            t = c.execute(
+                select(photos, analysed)
+                .select_from(asset_location)
+                .outerjoin(search_doc, search_doc.c.asset_id == asset_location.c.asset_id)
+                .where(asset_location.c.source_id.in_(inner), asset_location.c.missing.is_(False))
+            ).one()
+            s["tree_photos"], s["tree_analysed"] = int(t[0]), int(t[1])
+        return out
 
 
 @router.post("/preflight")

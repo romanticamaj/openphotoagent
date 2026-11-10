@@ -184,7 +184,7 @@ export type VariantView = {
   installation: { id: string; status: string } | null;
   perf: { basis: string; prior: { items_per_s?: Record<string, [number, number]> } | null };
 };
-export type LibrarySource = { id: string; root_alias: string; sub_path: string; photos: number; analysed: number };
+export type LibrarySource = { id: string; root_alias: string; sub_path: string; photos: number; analysed: number; tree_photos?: number; tree_analysed?: number };
 export type ModelView = {
   id: string;
   display_name: string;

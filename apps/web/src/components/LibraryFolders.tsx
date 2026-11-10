@@ -11,7 +11,10 @@ export function LibraryFolders({ action, onAct, busy }: { action: (s: LibrarySou
   const all = q.data ?? [];
   const inside = (a: LibrarySource, b: LibrarySource) =>
     a.id !== b.id && a.root_alias === b.root_alias && (b.sub_path === "" || a.sub_path.startsWith(`${b.sub_path}/`));
-  const rows = all.filter((s) => !all.some((o) => inside(s, o)));
+  // the whole tree: subfolders added later are folded into their folder's card, counts and all (IMP-036)
+  const rows = all
+    .filter((s) => !all.some((o) => inside(s, o)))
+    .map((s) => ({ ...s, photos: s.tree_photos ?? s.photos, analysed: s.tree_analysed ?? s.analysed }));
   if (!rows.length) return null;
   const num = (n: number) => n.toLocaleString(i18n.language);
   return (

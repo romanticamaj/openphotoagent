@@ -35,6 +35,24 @@ describe("folders already in the library", () => {
     expect(screen.getByRole("button", { name: "重新分析" })).toBeTruthy();
   });
 
+  it("[IMP-036] 回歸：資料夾的張數包含收在裡面的子資料夾（驗證第 19 輪：photos 還寫 80 張）", async () => {
+    st.rows = [
+      { id: "r", root_alias: "photos", sub_path: "", photos: 80, analysed: 80, tree_photos: 120, tree_analysed: 80 },
+      { id: "n", root_alias: "photos", sub_path: "新批次", photos: 40, analysed: 0 },
+    ];
+    const act = vi.fn();
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <LibraryFolders action={(s) => (s.analysed < s.photos ? "分析剩下的照片" : "重新分析")} onAct={act} />
+      </QueryClientProvider>,
+    );
+    const items = await screen.findAllByRole("listitem");
+    expect(items).toHaveLength(1);
+    expect(items[0].textContent).toContain("120");
+    fireEvent.click(screen.getByRole("button", { name: "分析剩下的照片" })); // 40 of 120 are new
+    expect(act).toHaveBeenCalledWith(expect.objectContaining({ id: "r" }));
+  });
+
   it("[IMP-034] 回歸：資料夾裡的子資料夾不另列一次（驗證第 2 輪：第8周 492 旁邊又有 0409 156）", async () => {
     st.rows = [
       ...TWO,
