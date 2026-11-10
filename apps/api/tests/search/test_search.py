@@ -676,3 +676,32 @@ def test_srch_cnc_003_one_concept_is_as_before(s):
     a, b, c, d = _kids_library(s)
     assert {x["asset_id"] for x in s.search(q="足球", semantic=False)["items"]} == {a, c}
     assert {x["asset_id"] for x in s.search(q="小孩", semantic=False)["items"]} == {a, b, d}  # 小朋友 is 小孩
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-CNC-004")
+def test_srch_cnc_004_caption_vectors_answer_for_a_word_no_caption_uses(s, monkeypatch):
+    """回歸 (audit round 3): 「小孩在玩水」 dropped 玩水 (no caption says it) and showed all 561 child photos, while the
+    caption vectors, which read the whole sentence, had found the photos of children in a pool."""
+    import opagent_api.search as S
+
+    pool = s.add(1, caption="小朋友在泳池戲水", tags=("people.child",))
+    room = s.add(2, caption="小朋友在教室", tags=("people.child",))
+    s.index()
+    sid = s.sql(
+        "insert into embedding_space(model_key, fingerprint, dim, modality, status)"
+        " values ('fake-cap', 'caption:fake-cap:x', 2, 'caption', 'active') returning id"
+    ).scalar()
+    for aid, v in ((pool, "[1,0]"), (room, "[0,1]")):
+        s.sql(
+            "insert into asset_embedding(asset_id, space_id, vec) values (:a, :s, CAST(:v AS vector))",
+            a=aid,
+            s=sid,
+            v=v,
+        )
+    monkeypatch.setattr(
+        S, "query_vector", lambda st, t, space, modality="image": [1.0, 0.0] if modality == "caption" else None
+    )
+    monkeypatch.setattr(S, "caption_floor", lambda _st, _sp: 0.5)
+    res = s.search(q="小孩在玩水")
+    assert [x["asset_id"] for x in res["items"]] == [pool] and res["relaxed"] == []

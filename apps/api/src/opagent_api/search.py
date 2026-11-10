@@ -241,7 +241,7 @@ def _concept_cond(i: int, cpt: Any) -> Any:
     return or_(*parts)
 
 
-def _all_concepts(c: Any, where: list[Any], concepts: list[Any]) -> tuple[list[Any], list[str]]:
+def _all_concepts(c: Any, where: list[Any], concepts: list[Any], relax: bool = True) -> tuple[list[Any], list[str]]:
     """The match set of a query with several concepts (ADR-0032): every concept must show. A word the vocabulary does
     not know and no photo shows is set aside and reported, so 「小朋友 量子」 still answers with the children."""
     concepts = concepts[:MAX_CONCEPTS]
@@ -251,7 +251,11 @@ def _all_concepts(c: Any, where: list[Any], concepts: list[Any]) -> tuple[list[A
     for cpt, cond in conds:
         if cpt.key:
             continue
-        n = c.execute(select(func.count()).select_from(search_doc).where(and_(*where, *required, cond))).scalar_one()
+        n = (
+            c.execute(select(func.count()).select_from(search_doc).where(and_(*where, *required, cond))).scalar_one()
+            if relax
+            else 1
+        )
         if n:
             required.append(cond)
         else:
@@ -439,7 +443,8 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                 ]
             concepts = tokenizer().concepts(q)
             if len(concepts) > 1:  # every concept must show (ADR-0032): one tag or one vector hit is not enough
-                member, relaxed = _all_concepts(c, where, concepts)
+                # caption vectors read the whole sentence: when they found something, no word is set aside
+                member, relaxed = _all_concepts(c, where, concepts, relax=not routes.get("caption_vector"))
             from opagent_search.fusion import fuse, route_weights
 
             fused = fuse(routes, route_weights(q))
@@ -454,6 +459,8 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                 whole = all(cpt.key or cpt.word.isascii() for cpt in concepts)
                 if whole and vec_ids:
                     match = or_(match, search_doc.c.asset_id.in_(vec_ids))
+                elif routes.get("caption_vector"):  # the caption model was asked the whole sentence (SRCH-CNC-004)
+                    match = or_(match, search_doc.c.asset_id.in_(routes["caption_vector"]))
                 # the routes rank; only photos showing every concept stay (vectors never add one, ADR-0032)
                 keep = {
                     r[0]
