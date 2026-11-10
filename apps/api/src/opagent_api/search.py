@@ -489,6 +489,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                 routes["caption_vector"] = [
                     r[0] for r in c.execute(cq, {"qv": str(cvec)}) if cfloor is None or r[1] >= cfloor
                 ]
+                capped = capped or len(routes["caption_vector"]) == PER_ROUTE  # a floor too (SRCH-R2-009)
             concepts = tokenizer().concepts(q)
             by_meaning = (
                 _caption_meaning(st, c, where, cspace, concepts[:MAX_CONCEPTS])

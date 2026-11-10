@@ -789,3 +789,31 @@ def test_srch_r2_008_a_known_word_asks_the_caption_model_in_english_too(s, monke
     asked.clear()
     s.search(q="小孩在玩水")  # 玩水 is not in the vocabulary: the words as typed
     assert ("caption", "小孩在玩水") in asked and ("caption", "child") not in asked
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-R2-009")
+def test_srch_r2_009_a_caption_route_at_its_limit_marks_the_total_as_a_floor(s, monkeypatch):
+    """回歸 (audit round 20): 「教室」 read 「250 張」 as if exact: the caption-vector route had stopped at its limit, but
+    total_capped looked only at the image route."""
+    import opagent_api.search as S
+
+    ids = [s.add(i, caption=f"教室 {i}") for i in range(5)]
+    s.index()
+    sid = s.sql(
+        "insert into embedding_space(model_key, fingerprint, dim, modality, status)"
+        " values ('fake-cap', 'caption:fake-cap:x', 2, 'caption', 'active') returning id"
+    ).scalar()
+    for aid in ids:
+        s.sql(
+            "insert into asset_embedding(asset_id, space_id, vec) values (:a, :s, CAST('[1,0]' AS vector))",
+            a=aid,
+            s=sid,
+        )
+    monkeypatch.setattr(S, "PER_ROUTE", 3)
+    monkeypatch.setattr(
+        S, "query_vector", lambda st, t, space, modality="image": [1.0, 0.0] if modality == "caption" else None
+    )
+    monkeypatch.setattr(S, "caption_floor", lambda _st, _sp: 0.5)
+    res = s.search(q="zzz-no-word-matches")
+    assert res["total_capped"] is True
