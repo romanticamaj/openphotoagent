@@ -398,11 +398,15 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
     qvec = None
     cvec = None
     capped = False
+    vq_text = tokenizer().vector_text(q) if q else None  # None: skipped on purpose, not a fault (ADR-0031)
     if q and body.semantic and cspace is not None:
-        cvec = query_vector(st, q, cspace, modality="caption")
+        # every word in the vocabulary: ask with their English names, which the caption model ranks better (海邊 found
+        # 3 photos where beach found 6, SRCH-R2-008); a word it does not know: the words as typed
+        known = tokenizer().concepts(q)
+        cq = vq_text if vq_text and known and all(cpt.key or cpt.word.isascii() for cpt in known) else q
+        cvec = query_vector(st, cq, cspace, modality="caption")
         if cvec is None:
             degraded.append("caption_vector")
-    vq_text = tokenizer().vector_text(q) if q else None  # None: skipped on purpose, not a fault (ADR-0031)
     if vq_text and body.semantic:
         qvec = query_vector(st, vq_text, space)
         if qvec is None:

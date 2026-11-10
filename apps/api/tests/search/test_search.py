@@ -732,3 +732,28 @@ def test_srch_cnc_005_a_word_alone_needs_a_closer_meaning(s, monkeypatch):
     monkeypatch.setattr(S, "caption_floor", lambda _st, _sp: 0.5)
     res = s.search(q="小孩在玩水")
     assert res["relaxed"] == ["玩水"]  # 0.53 is not 玩水: said so, not passed off as a match
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-R2-008")
+def test_srch_r2_008_a_known_word_asks_the_caption_model_in_english_too(s, monkeypatch):
+    """回歸 (audit rounds 4-5): 海邊 found 3 photos where beach found 6: the caption model ranks the surfing photos
+    lower for the Chinese word. A query whose words are all in the vocabulary also asks with their English names."""
+    import opagent_api.search as S
+
+    asked = []
+    monkeypatch.setattr(S, "query_vector", lambda st, t, space, modality="image": asked.append((modality, t)))
+    import opagent_api.routes_caption as RC
+
+    monkeypatch.setattr(
+        RC,
+        "caption_space",
+        lambda c, status="active": type("Sp", (), {"id": 1, "model_key": "m", "fingerprint": "f"})(),
+    )
+    s.add(1, caption="x")
+    s.index()
+    s.search(q="海邊")
+    assert ("caption", "beach") in asked
+    asked.clear()
+    s.search(q="小孩在玩水")  # 玩水 is not in the vocabulary: the words as typed
+    assert ("caption", "小孩在玩水") in asked and ("caption", "child") not in asked
