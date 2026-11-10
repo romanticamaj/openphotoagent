@@ -951,6 +951,15 @@ def _margins(
     return out
 
 
+def _measures(q: dict[str, Any] | None) -> dict[str, float | None]:
+    q = q or {}
+    side, blur = q.get("min_side_px"), q.get("blur")
+    return {
+        "min_side": float(side) if isinstance(side, int | float) else None,
+        "blur": float(blur) if isinstance(blur, int | float) else None,
+    }
+
+
 CANDIDATE_REFS = 24  # the newest confirmed faces; one k-NN query each
 CANDIDATE_K = 200
 
@@ -989,6 +998,7 @@ def person_candidates(pid: str, req: Request, limit: int = Query(60, ge=1, le=20
                 face.c.state,
                 face.c.bbox,
                 face.c.quality_tier,
+                face.c.quality,
                 asset.c.content_hash,
             )
             .join(asset, asset.c.id == face.c.asset_id)
@@ -1004,7 +1014,10 @@ def person_candidates(pid: str, req: Request, limit: int = Query(60, ge=1, le=20
     margins = _margins(st, c_ws=DEFAULT_WS, space=space, pid=pid, refs=list(vecs.values()), faces=list(best))
     ranked = F.person_candidates(
         pid, best, facts, rejected, low=F.candidate_floor(confirmed=bool(confirmed)), margins=margins
-    )[:limit]
+    )
+    # the clear ones first, best first within each; the hard ones last (ADR-0035)
+    clear = {fid: not F.hard_to_judge(**_measures(meta[fid].quality)) for fid, _ in ranked}
+    ranked = sorted(ranked, key=lambda x: not clear[x[0]])[:limit]
     return {
         "references": len(vecs),
         "items": [
@@ -1014,7 +1027,8 @@ def person_candidates(pid: str, req: Request, limit: int = Query(60, ge=1, le=20
                 "ch": meta[fid].content_hash,
                 "bbox": list(meta[fid].bbox),
                 "score": round(s, 4),
-                "tier": meta[fid].quality_tier,  # 1: small or blurry, hard to judge (FACE-FIND-018)
+                "tier": meta[fid].quality_tier,
+                "clear": clear[fid],  # false: too small or soft to judge (FACE-FIND-018, ADR-0035)
                 "group": meta[fid].person_id,
             }
             for fid, s in ranked

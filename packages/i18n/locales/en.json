@@ -774,7 +774,7 @@
     "undoReview": "Undo",
     "moreOf": "More of {name}",
     "groupLabel": "{name} · {n} photos",
-    "blurry": "Blurry"
+    "hardToJudge": "Hard to tell"
   },
   "ask": {
     "open": "✦ Ask AI",

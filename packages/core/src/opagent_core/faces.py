@@ -157,6 +157,16 @@ def merge_suggestions(
     return out
 
 
+HARD_MIN_SIDE = 60.0  # px: ADR-0035, 68 candidates judged on the reference library
+HARD_BLUR = 40.0  # variance of the Laplacian of the aligned crop
+
+
+def hard_to_judge(min_side: float | None, blur: float | None) -> bool:
+    """Too small or too soft for a person to say who it is (ADR-0035). The tier says nothing here: it also drops
+    turned heads, which people recognise fine."""
+    return (min_side is not None and min_side < HARD_MIN_SIDE) or (blur is not None and blur < HARD_BLUR)
+
+
 MERGE_MIN_GROUP = 3
 
 

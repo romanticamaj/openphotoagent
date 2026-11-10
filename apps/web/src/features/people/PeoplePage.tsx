@@ -107,7 +107,7 @@ function Candidates({ person }: { person: PersonRow }) {
                 onClick={() => setMarks((x) => ({ ...x, [c.face_id]: NEXT[m] }))}
               >
                 <FaceCrop assetId={c.asset_id} ch={c.ch} bbox={c.bbox} />
-                {c.tier === 1 ? <span className="candidate-blurry">{t("faces.blurry")}</span> : null}
+                {c.clear === false ? <span className="candidate-hard">{t("faces.hardToJudge")}</span> : null}
                 {m !== "none" ? <span aria-hidden="true" className="candidate-mark">{m === "yes" ? "✓" : "✕"}</span> : null}
               </button>
             </li>
@@ -115,7 +115,11 @@ function Candidates({ person }: { person: PersonRow }) {
         })}
       </ul>
       <div className="flex flex-wrap items-center gap-2">
-        <Button variant="ghost" onClick={() => setMarks(Object.fromEntries(items.map((c) => [c.face_id, "yes" as Mark])))}>
+        {/* only the clear ones: a face too small or soft to judge is never a one-click yes (ADR-0035) */}
+        <Button
+          variant="ghost"
+          onClick={() => setMarks((x) => ({ ...x, ...Object.fromEntries(items.filter((c) => c.clear !== false).map((c) => [c.face_id, "yes" as Mark])) }))}
+        >
           {t("faces.allYes")}
         </Button>
         <Button

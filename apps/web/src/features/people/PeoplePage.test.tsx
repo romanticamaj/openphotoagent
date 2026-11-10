@@ -94,18 +94,21 @@ describe("finding a person (07 §4)", () => {
     await waitFor(() => expect(s.cands.mock.calls.length).toBeGreaterThan(1)); // the search widens with what was confirmed
   });
 
-  it("[FACE-FIND-018] 回歸：模糊的候選標出「模糊」，分數與清晰度留在元素上（驗證第 7 輪）", async () => {
+  it("[FACE-FIND-018] 回歸：看不清的候選標出「看不清」，分數與清晰度留在元素上；「全部都是」不包含它們（驗證第 7～8 輪，ADR-0035）", async () => {
     s.people = [row];
     s.search.mockResolvedValue({ items: [], facets: {}, total: 0, next_cursor: null });
-    const c = (id: string, tier: number) => ({ face_id: id, asset_id: "a" + id, ch: null, bbox: [0, 0, 0.2, 0.2], score: 0.61, tier, group: null });
-    s.cands.mockResolvedValue({ items: [c("f1", 3), c("f2", 1)], references: 4 });
+    const c = (id: string, tier: number, clear: boolean) => ({ face_id: id, asset_id: "a" + id, ch: null, bbox: [0, 0, 0.2, 0.2], score: 0.61, tier, clear, group: null });
+    s.cands.mockResolvedValue({ items: [c("f1", 1, true), c("f2", 3, false)], references: 4 });
     ui();
     fireEvent.click(await screen.findByRole("button", { name: /未命名/ }));
     const tiles = await screen.findAllByTestId("candidate");
-    expect(tiles[0].dataset.tier).toBe("3");
+    expect(tiles[0].dataset.tier).toBe("1");
     expect(tiles[1].dataset.score).toBe("0.61");
-    expect(tiles[0].querySelector(".candidate-blurry")).toBeNull();
-    expect(tiles[1].querySelector(".candidate-blurry")?.textContent).toBe("模糊");
+    expect(tiles[0].querySelector(".candidate-hard")).toBeNull(); // a profile is not blurry
+    expect(tiles[1].querySelector(".candidate-hard")?.textContent).toBe("看不清");
+    fireEvent.click(screen.getByRole("button", { name: "全部都是" }));
+    expect(tiles[0].getAttribute("data-mark")).toBe("yes");
+    expect(tiles[1].getAttribute("data-mark")).toBe("none");
   });
 
   it("[FACE-UI-011] 一鍵把全部標成是", async () => {

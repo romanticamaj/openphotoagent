@@ -217,6 +217,18 @@ def test_find_017_a_candidate_must_look_more_like_them_than_anyone_else():
     assert out == [("near", 0.7), ("nobody", 0.6)]
 
 
+@pytest.mark.unit
+@pytest.mark.tc("FACE-FIND-019")
+def test_find_019_a_face_too_small_or_soft_to_judge():
+    """回歸 (audit round 8, 68 judged candidates): 「can't tell」 went with faces under 60 px or soft (Laplacian
+    under 40): 13 of 30 such, against 2 of 27 「same」. A turned head (the quality tier's yaw) told nothing: 10 of
+    the 「same」 were profiles too (ADR-0035)."""
+    assert F.hard_to_judge(min_side=45, blur=110) is True
+    assert F.hard_to_judge(min_side=120, blur=27) is True
+    assert F.hard_to_judge(min_side=150, blur=160) is False
+    assert F.hard_to_judge(min_side=None, blur=None) is False  # nothing measured: not flagged
+
+
 def _cloud(seed, center, n, spread):
     import random
 

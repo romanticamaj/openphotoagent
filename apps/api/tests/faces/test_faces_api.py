@@ -800,3 +800,18 @@ def test_find_018_a_candidate_says_how_clear_it_is(f):
     _small(f, 1, 2, "kid")
     items = f.get(f"/people/{p1}/candidates")["items"]
     assert items and all(x["tier"] in (1, 2, 3) for x in items)
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-FIND-019")
+def test_find_019_hard_candidates_say_so_and_come_last(f):
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p1 = f.sql("select person_id from face where id=:i", i=ids[1][0]).scalar()
+    small = _small(f, 1, 2, "kid")  # min_side 40
+    items = f.get(f"/people/{p1}/candidates")["items"]
+    by = {x["face_id"]: x for x in items}
+    assert all(by[i]["clear"] is False for i in small if i in by) and any(i in by for i in small)
+    flags = [x["clear"] for x in items]
+    assert flags == sorted(flags, reverse=True)  # the clear ones first

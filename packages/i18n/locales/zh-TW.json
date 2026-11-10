@@ -774,7 +774,7 @@
     "undoReview": "復原",
     "moreOf": "{name} 的其他照片",
     "groupLabel": "{name} · {n} 張照片",
-    "blurry": "模糊"
+    "hardToJudge": "看不清"
   },
   "ask": {
     "open": "✦ 問 AI",
