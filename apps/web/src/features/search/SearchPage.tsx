@@ -10,7 +10,7 @@ import { Lightbox } from "../viewer/Lightbox";
 import type { GridApi } from "../viewer/PhotoGrid";
 import { api, isDegraded, mediaUrl, type SearchBody } from "../../lib/api";
 
-import { bodyFor, chipsFrom, countText, withoutPerson, type Chip } from "./searchPlan";
+import { bodyFor, chipsFrom, countText, onlyByMeaning, withoutPerson, type Chip } from "./searchPlan";
 
 export function SearchPage({ q }: { q: string }) {
   const { t, i18n } = useTranslation();
@@ -228,7 +228,7 @@ export function SearchPage({ q }: { q: string }) {
               <img src={mediaUrl(h.asset_id, "t256", h.ch)} alt={h.caption ?? ""} loading="lazy" onError={(e) => (e.currentTarget.style.visibility = "hidden")} />
               <span data-matched={h.matched_by.join(" ")} className="absolute bottom-1 left-1 text-[10px]">
                 {/* found by how it looks, not by its words: worth knowing (E2E-S-002); text and tag matches need no badge */}
-                {h.matched_by.includes("image_vector") ? <span className="rounded bg-black/55 px-1 text-white/90">{t("search.matched.image_vector")}</span> : null}
+                {onlyByMeaning(h.matched_by) ? <span className="rounded bg-black/55 px-1 text-white/90">{t("search.matched.image_vector")}</span> : null}
               </span>
             </button>
           );

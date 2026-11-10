@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import i18n from "../../lib/i18n";
-import { bodyFor, chipsFrom, countText, withoutPerson } from "./searchPlan";
+import { bodyFor, chipsFrom, countText, onlyByMeaning, withoutPerson } from "./searchPlan";
 
 const planner = (filters: Record<string, unknown>, explain: string[], text = "") => ({
   source: "rules",
@@ -38,5 +38,13 @@ describe("the search a planned query becomes", () => {
     const t = i18n.t.bind(i18n);
     expect(countText(t, 250, true, "zh-TW")).toBe("最相關的 250 張");
     expect(countText(t, 17, false, "zh-TW")).toBe("17 張");
+  });
+
+  it("[SRCH-UI-015] 回歸：「以文搜圖」只標在只靠影像意思找到的照片（驗證第 22 輪：每張都有）", () => {
+    expect(onlyByMeaning(["image_vector"])).toBe(true);
+    expect(onlyByMeaning(["image_vector", "caption_vector"])).toBe(true);
+    expect(onlyByMeaning(["image_vector", "tag"])).toBe(false); // the word matched: nothing to explain
+    expect(onlyByMeaning(["fulltext", "image_vector"])).toBe(false);
+    expect(onlyByMeaning(["tag"])).toBe(false);
   });
 });

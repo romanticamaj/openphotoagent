@@ -53,3 +53,8 @@ type T = (k: string, o?: Record<string, unknown>) => string;
 export function countText(t: T, n: number, capped: boolean, lang: string): string {
   return t(capped ? "search.countCapped" : "search.count", { n: n.toLocaleString(lang) });
 }
+
+/** Found by what the photo shows, not by a word or tag it carries: the only case 「以文搜圖」 explains (SRCH-UI-015). */
+export function onlyByMeaning(matched: string[]): boolean {
+  return matched.includes("image_vector") && !matched.some((m) => m === "fulltext" || m === "tag" || m === "bigram");
+}
