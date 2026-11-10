@@ -233,6 +233,7 @@ export type Review = {
   ch?: string | null;
   job_id: string;
   status: string;
+  reason?: string | null;
   suggested: { category: string; confidence: number; candidates: Array<string | { id?: string; key?: string }> };
   final: { category: string } | null;
 };

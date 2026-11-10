@@ -528,7 +528,12 @@
     "skipRestTitle": "略過剩下的照片？",
     "skipRestBody": "剩下 {n} 張會放到「其他」，之後仍可在照片中修正。",
     "keys": "1–9 選類別 · 0 其他 · Enter 接受 · S 略過",
-    "backToPlan": "回到整理"
+    "backToPlan": "回到整理",
+    "why": {
+      "low_confidence": "AI 對這張的分類把握不夠，請你決定。",
+      "conflict": "兩個模型看法不同，請你決定。",
+      "shortlist": "類別太多，AI 只比對了最像的幾個，請你確認。"
+    }
   },
   "batch": {
     "selected": "已選 {n} 張",

@@ -31,4 +31,13 @@ describe("the review queue", () => {
     expect(other.textContent?.replace(/\s+/g, "")).toBe("0其他");
     expect(s.job).not.toHaveBeenCalled();
   });
+
+  it("[REV-011] 回歸：每張照片說明為什麼要你確認（驗證第 5 輪）", async () => {
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <ReviewPage jobId="" />
+      </QueryClientProvider>,
+    );
+    expect((await screen.findByTestId("review-reason")).textContent).toContain("把握不夠");
+  });
 });

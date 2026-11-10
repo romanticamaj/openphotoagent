@@ -15,6 +15,9 @@ function candidateKeys(r: Review): string[] {
   return [...new Set([...(first && first !== "other" ? [first] : []), ...keys])].slice(0, 9);
 }
 
+// why a photo is asking (decide.py): the model was unsure, the two models disagreed, or the category list was cut
+const REASONS = new Set(["low_confidence", "conflict", "shortlist"]);
+
 export function ReviewPage({ jobId }: { jobId: string }) {
   const { t, i18n } = useTranslation();
   const qc = useQueryClient();
@@ -89,6 +92,11 @@ export function ReviewPage({ jobId }: { jobId: string }) {
         <h1 id="review-h" className="text-lg font-semibold">
           {t("review.title")} <span data-testid="review-remaining" className="tnum text-[var(--text-muted)]">{t("review.remaining", { n: remaining })}</span>
         </h1>
+        {cur ? (
+          <p data-testid="review-reason" className="text-sm">
+            {t(`review.why.${REASONS.has(cur.reason ?? "") ? cur.reason : "low_confidence"}`)}
+          </p>
+        ) : null}
         <p className="text-xs text-[var(--text-muted)]">{t("review.keys")}</p>
         {cur && (
           <ol className="space-y-1">

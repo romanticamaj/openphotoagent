@@ -528,7 +528,12 @@
     "skipRestTitle": "Skip the remaining photos?",
     "skipRestBody": "The remaining {n} go to “Other”; you can still correct them later in Photos.",
     "keys": "1–9 choose · 0 other · Enter accept · S skip",
-    "backToPlan": "Back to organize"
+    "backToPlan": "Back to organize",
+    "why": {
+      "low_confidence": "The AI isn't sure enough about this one. Your call.",
+      "conflict": "The two models disagree on this one. Your call.",
+      "shortlist": "With this many categories the AI compared only the closest few. Please check."
+    }
   },
   "batch": {
     "selected": "{n} selected",
