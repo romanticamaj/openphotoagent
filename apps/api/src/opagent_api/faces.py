@@ -1165,6 +1165,22 @@ def _margins(
     return out
 
 
+def person_aliases(c: Any) -> dict[str, str]:
+    """Names people gave, for the query planner: {name: person id}. Empty while faces are off, so a name stays plain
+    text (07 §3.3)."""
+    if not fsettings(c).get("enabled"):
+        return {}
+    rows = c.execute(
+        select(person.c.display_name, person.c.id).where(
+            person.c.workspace_id == DEFAULT_WS,
+            person.c.display_name.is_not(None),
+            person.c.merged_into.is_(None),
+            person.c.status != "ignored",
+        )
+    ).all()
+    return {r.display_name: r.id for r in rows if r.display_name}
+
+
 def _clusterable() -> Any:
     """Faces big enough for grouping and group centroids: 32 px and up (ADR-0036)."""
     side = face.c.quality["min_side_px"].as_float()

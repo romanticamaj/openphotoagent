@@ -939,3 +939,57 @@ def test_view_032_a_face_nobody_grouped_gets_a_name_from_the_photo(f):
     _, (y,) = f.photo("2025/o/once_b.jpg", plan=[FaceSpec(person=None)])
     assert f.post(f"/faces/{y}/name", {"name": " 阿姨 "})["person_id"] == pid  # the same name: the same person
     assert f.get(f"/assets/{a1}")["people"] == [{"id": pid, "name": "阿姨"}]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-PLAN-022")
+def test_plan_022_a_named_persons_name_finds_their_photos(f):
+    """回歸 (audit round 13, P0): after naming a group 測試A, searching 「測試A」 returned unrelated 以文搜圖 photos and
+    「測試B」 nothing: the search route never told the planner who is named, and dropped persons_all anyway."""
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p1 = f.sql("select person_id from face where id=:i", i=ids[1][0]).scalar()
+    f.post(f"/people/{p1}/name", {"name": "測試A"})
+    mine = {r[0] for r in f.sql("select distinct asset_id from face where person_id=:p", p=p1).all()}
+    for q in ("測試A", "測試a", "測試A的照片"):
+        r = f.client.post("/api/v1/search", json={"q": q, "limit": 50, "plan": True}, headers=f.ui).json()
+        assert {x["asset_id"] for x in r["items"]} == mine, q
+        assert r["total"] == len(mine)
+        assert r["planner"]["filters"]["persons_all"] == [p1] and "persons_all" not in r["planner"]["unapplied"]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-GRD-008")
+def test_ask_grd_008_how_many_photos_of_a_named_person(f):
+    """回歸 (audit round 13): 「測試B有幾張照片？」 answered 「共有 0 張」. The name is now a person filter; with faces open
+    to AI assistants the count is theirs, and without it the answer says where to open them, never 0."""
+    import json
+
+    from opagent_assistant.llm import FakeLLM, Reply
+
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p2 = f.sql("select person_id from face where id=:i", i=ids[2][0]).scalar()
+    f.post(f"/people/{p2}/name", {"name": "測試B"})
+    n = f.sql("select count(distinct asset_id) from face where person_id=:p", p=p2).scalar()
+
+    def answer():
+        f.client.app.state.opa.llm = FakeLLM([Reply(text="共有 0 張。")])
+        r = f.client.post("/api/v1/ask", json={"message": "測試B有幾張照片？"}, headers=f.ui)
+        return "".join(
+            json.loads(line[6:])["text"]
+            for b in r.text.split("\n\n")
+            if "event: token" in b
+            for line in b.splitlines()
+            if line.startswith("data: ")
+        )
+
+    closed = answer()
+    assert "連接 AI 助手" in closed and "0 張" not in closed
+    f.sql(
+        "update workspace set settings = jsonb_set(settings, '{mcp}', coalesce(settings->'mcp', '{}'::jsonb) || '{\"faces_enabled\": true}')"
+    )
+    opened = answer()
+    assert str(n) in opened and "0 張" not in opened

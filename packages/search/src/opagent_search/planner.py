@@ -246,10 +246,10 @@ def _persons(t: _Text, persons: dict[str, str], scopes: set[str] | None, explain
         return []  # without faces:read names stay plain text (SRCH-PLAN-010)
     out: list[str] = []
     for alias in sorted(persons, key=len, reverse=True):
-        if alias in t.s and persons[alias] not in out:
+        if alias.casefold() in t.s.casefold() and persons[alias] not in out:  # 測試a finds 測試A
             t.take_word(alias)
             out.append(persons[alias])
-            explain.append(f"「{alias}」→ 人物 {persons[alias]}")
+            explain.append(f"「{alias}」→ 人物")  # the chip shows the name, never an id
     return out
 
 

@@ -46,6 +46,7 @@
 | SRCH-PLAN-019 | 回歸：只有停用詞 | 「photo」「的 照片」 | 沒有任何條件時保留原查詢（不把查詢清成空字串而變成全部照片） | U | #62 |
 | SRCH-PLAN-020 | 問句不是搜尋文字（回歸） | 「我有幾張滑雪的照片？」「幫我找海邊的照片」等 | 只留下主題詞 | U | #24、#40 |
 | SRCH-PLAN-021 | 沒有 LLM planner 的 worker 明確回覆（回歸） | `query_plan` RPC | 不記 `UNKNOWN_RPC`；回空結果，API 退回規則式 | U | #24 |
+| SRCH-PLAN-022 | 輸入人名就找到這個人（回歸，驗證第 13 輪 P0） | 把一組命名為「測試A」後搜尋「測試A」「測試a」「測試A的照片」 | 結果正好是這個人的照片；計畫的 `persons_all` 有套用（不在 unapplied） | I | #78 |
 | SRCH-SEM-008 | 向量下限（回歸，ADR-0027） | 有下限的空間：相近與不相近的照片；沒有相符；沒有下限的空間 | 低於下限的不計入 total 與 items，列在 related；沒有相符時 total 0；沒有下限時行為不變 | I | #24 |（2026-11-10 修訂：`related` 一律為空，沒有結果就說沒有，見 ADR-0027 修訂）
 | SRCH-SEM-009 | 下限來自模型目錄 | SigLIP2 與未知 fingerprint | 0.07；未知為 None；不需重新嵌入 | U | 不變量 7 |
 | SRCH-SEM-010 | 影像模型收到的查詢文字（回歸，驗證第 1 輪） | 海邊、貓、小孩在玩水、長頸鹿、red car、夜景 | beach、cat、child、不查、red car、night（ADR-0031） | U | #— |
@@ -369,6 +370,7 @@
 | ASK-GRD-005 | 不補完 metadata | 無 GPS 的照片問「在哪裡」 | 回答「沒有位置資訊」，不呼叫 VLM 猜測（或標「推測」） | U | #103 |
 | ASK-GRD-006 | Markdown 白名單 | FakeLLM 輸出外部圖片與連結 | 前端與後端都移除外部連結與圖片 | U/S | #103 |
 | ASK-GRD-007 | 計數＝搜尋框的結果（回歸，驗證第 1 輪） | 「我有幾張在海邊拍的照片？」；另有一張未標籤、說明寫沙灘 | 標籤只排序不篩掉；問句的填充詞不參與全文；數字含那張；附上最多 6 張被計入的照片 | I | #— |
+| ASK-GRD-008 | 問 AI 某人有幾張照片（回歸，驗證第 13 輪） | 「測試B有幾張照片？」 | 回答的張數是這個人的照片數 | I | #78 |
 | ASK-ACT-001 | 動作只產生計畫 | 「把這些移到京都資料夾」 | 工具集中**沒有** `apply_organize`；產生 `card(kind=plan)`；檔案未變；需 UI 按鈕核准 | I | #104 |
 | ASK-ACT-002 | 確認卡內容來自結構化資料 | FakeLLM 文字描述與 plan 不符 | 確認卡顯示 plan 的實際動作數與目標（不是 LLM 文字） | U/S | #104 |
 | ASK-SSE-001 | 事件序列（檢索型） | 一般檢索問題 | 順序：`turn.started` → `step.started(understand)` → `filters` → `step.completed` → `step.started(tool:search_photos, eta_ms)` → `photos(candidates)` → `step.completed(elapsed_ms)` → `token`* → `citation`* → `turn.completed`；`ping` 每 15 s | C | #102 |

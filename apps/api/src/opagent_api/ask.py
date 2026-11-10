@@ -508,9 +508,15 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
         p: dict[str, Any] = {"text": body.text or "", "filters": dict(body.filters), "planner": {"explain": [EDITED]}}
         filters = {k: v for k, v in body.filters.items() if k in ("taken_at", "tags_any", "tags_all")}
     else:
-        p = plan(body.message, today=today)
+        from .faces import person_aliases
+
+        with st.engine.begin() as c:
+            known = person_aliases(c)  # 「測試B有幾張照片？」 counts that person (ASK-GRD-008)
+        p = plan(body.message, today=today, persons=known)
         if "taken_at" in p["filters"]:
             filters["taken_at"] = p["filters"]["taken_at"]
+        if p["filters"].get("persons_all"):
+            filters["persons_all"] = p["filters"]["persons_all"]
         if p["filters"].get("tags_any"):
             filters["tags_any"] = p["filters"]["tags_any"]
     from .search import tag_names
@@ -610,7 +616,12 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
 
     text_q = p["text"] if body.filters is not None else (p["text"] or body.message)
     card: dict[str, Any] | None = None
-    if intent == "count":
+    # a person in the question while faces are not open to AI assistants: say where to open them, never 「0 張」
+    # (ASK-GRD-008; mcp.faces_enabled, 05 §3.2.3)
+    blocked = bool(filters.get("persons_all")) and not ("faces:read" in ctx.tok.scopes and ctx.settings.faces_enabled)
+    if blocked:
+        final = "要依人物回答，AI 助手需要能看人物：請到「連接 AI 助手」開啟「人臉」後再問一次。"
+    elif intent == "count":
         # the same search as the grid (ASK-GRD-007): a tag the planner found ranks, it does not hide untagged photos;
         # the words of the question count unless a filter (a year, a person) is all there is
         soft = filters if body.filters is not None else {k: v for k, v in filters.items() if k != "tags_any"}

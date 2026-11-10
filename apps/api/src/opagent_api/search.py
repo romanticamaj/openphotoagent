@@ -301,7 +301,7 @@ def _ft_cond(tsq: str, en: str, tag: str) -> Any:
 
 
 _CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
-UNINDEXED = ("place", "camera_make", "persons_all")  # planner filters the search index cannot apply yet
+UNINDEXED = ("place", "camera_make")  # planner filters the search index cannot apply yet
 
 
 def _apply_plan(st: AppState, body: SearchIn, q: str) -> tuple[dict[str, Any], SearchIn]:
@@ -310,8 +310,12 @@ def _apply_plan(st: AppState, body: SearchIn, q: str) -> tuple[dict[str, Any], S
     from opagent_geo.gazetteer import Gazetteer
     from opagent_search.planner import plan
 
+    from .faces import person_aliases
+
     tz = ZoneInfo("Asia/Taipei")
-    p = plan(q, today=st.clock.now().astimezone(tz).date(), tz=tz, gazetteer=Gazetteer.default())
+    with st.engine.begin() as c:
+        names = person_aliases(c)  # named people become a filter (SRCH-PLAN-022)
+    p = plan(q, today=st.clock.now().astimezone(tz).date(), tz=tz, gazetteer=Gazetteer.default(), persons=names)
     if p["planner"]["confidence"] < LLM_PLAN_BELOW:
         llm = _llm_plan(st, q)
         if llm is not None:
@@ -320,6 +324,8 @@ def _apply_plan(st: AppState, body: SearchIn, q: str) -> tuple[dict[str, Any], S
     pf = p["filters"]
     if "taken_at" in pf and not (f.taken_from or f.taken_to):
         f.taken_from, f.taken_to = pf["taken_at"]["from"], pf["taken_at"]["to"]
+    if pf.get("persons_all") and not f.persons_all:
+        f.persons_all = list(pf["persons_all"])
     # tag words stay in the query text, where the tag route (R4) ranks by them; as a hard filter they would cut
     # the image-vector route's recall (a photo of a dog that nobody tagged "dog" would vanish)
     flat = {**p["planner"], "filters": pf, "text": p["text"], "unapplied": [k for k in UNINDEXED if k in pf]}
