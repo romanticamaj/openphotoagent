@@ -8,6 +8,14 @@
     ],
     "reasons": []
   },
+  "amd-rx7800-win|qwen3-embedding-0.6b@q8_0": {
+    "level": "ok",
+    "reasons": [],
+    "prep": [
+      "RUNTIME_PACK_MISSING",
+      "MODEL_NOT_INSTALLED"
+    ]
+  },
   "amd-rx7800-win|qwen3-vl-2b-instruct@q4_k_m": {
     "level": "ok",
     "prep": [
@@ -70,6 +78,15 @@
     ],
     "reasons": [
       "RUNTIME_UNSUPPORTED_PLATFORM"
+    ]
+  },
+  "intel-mac|qwen3-embedding-0.6b@q8_0": {
+    "level": "blocked",
+    "reasons": [
+      "RUNTIME_UNSUPPORTED_PLATFORM"
+    ],
+    "prep": [
+      "MODEL_NOT_INSTALLED"
     ]
   },
   "intel-mac|qwen3-vl-2b-instruct@q4_k_m": {
@@ -145,6 +162,13 @@
       "RUNTIME_UNSUPPORTED_PLATFORM"
     ]
   },
+  "m3-16|qwen3-embedding-0.6b@q8_0": {
+    "level": "ok",
+    "reasons": [],
+    "prep": [
+      "MODEL_NOT_INSTALLED"
+    ]
+  },
   "m3-16|qwen3-vl-2b-instruct@q4_k_m": {
     "level": "ok",
     "prep": [
@@ -208,6 +232,13 @@
     ],
     "reasons": [
       "PERF_CPU_ONLY_SLOW"
+    ]
+  },
+  "no-gpu-linux|qwen3-embedding-0.6b@q8_0": {
+    "level": "ok",
+    "reasons": [],
+    "prep": [
+      "MODEL_NOT_INSTALLED"
     ]
   },
   "no-gpu-linux|qwen3-vl-2b-instruct@q4_k_m": {
@@ -278,6 +309,14 @@
     ],
     "reasons": []
   },
+  "rtx4060-laptop|qwen3-embedding-0.6b@q8_0": {
+    "level": "ok",
+    "reasons": [],
+    "prep": [
+      "RUNTIME_PACK_MISSING",
+      "MODEL_NOT_INSTALLED"
+    ]
+  },
   "rtx4060-laptop|qwen3-vl-2b-instruct@q4_k_m": {
     "level": "ok",
     "prep": [
@@ -346,6 +385,14 @@
       "LICENSE_CONSENT_REQUIRED"
     ],
     "reasons": []
+  },
+  "rtx5070ti-win11|qwen3-embedding-0.6b@q8_0": {
+    "level": "ok",
+    "reasons": [],
+    "prep": [
+      "RUNTIME_PACK_MISSING",
+      "MODEL_NOT_INSTALLED"
+    ]
   },
   "rtx5070ti-win11|qwen3-vl-2b-instruct@q4_k_m": {
     "level": "ok",

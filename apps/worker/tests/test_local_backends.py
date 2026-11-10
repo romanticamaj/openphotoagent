@@ -456,3 +456,31 @@ def test_inf_vram_005_the_worker_lets_go_of_an_idle_vlm(tmp_path, sandbox_tree):
     assert a.unload_idle_vlm() is True and not vlm.loaded
     assert a.unload_idle_vlm() is False  # once
     assert VLM_IDLE_UNLOAD_S == 600  # 03 §4: ten minutes
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-R2-006")
+def test_srch_r2_006_caption_vectors_run_on_the_bundled_llama_cpp(tmp_path, sandbox_tree):
+    """Caption vectors were only ever a fake in tests: no model, no adapter, so 「建立索引」 could not run (ADR-0014).
+    Qwen3-Embedding runs in the llama.cpp the app ships; queries carry its instruction, captions go in as they are."""
+    from opagent_adapters.llamacpp_embed import LlamaCppEmbedAdapter
+    from opagent_worker.agent import WorkerAgent
+
+    a = LlamaCppEmbedAdapter(["llama-server"], "q.gguf", query_prefix="Instruct: find\nQuery: ", fingerprint="qe")
+    args = a.args()
+    assert "--embedding" in args and args[args.index("--pooling") + 1] == "last" and "--mmproj" not in args
+    sent = []
+
+    async def fake(texts):
+        sent.append(list(texts))
+        return np.ones((len(texts), 4), dtype=np.float32) / 2
+
+    a._embeddings = fake
+    a.loaded = True
+    assert asyncio.run(a.embed_texts(["一隻貓"])).shape == (1, 4)
+    asyncio.run(a.embed_queries(["貓"]))
+    assert sent == [["一隻貓"], ["Instruct: find\nQuery: 貓"]]
+    w = WorkerAgent(_Due(), roots=sandbox_tree.roots, home=tmp_path / "w", worker_id="w1")
+    w.text_embedders = {"qwen3-embedding-0.6b": a}
+    out = w._do_embed_text({"text": "海邊", "modality": "caption", "model": "qwen3-embedding-0.6b"})
+    assert "vec" in out and sent[-1] == ["Instruct: find\nQuery: 海邊"]  # a search is a query

@@ -11,7 +11,16 @@ SLUG = r"^[a-z0-9][a-z0-9._-]*$"
 HEX40 = re.compile(r"^[0-9a-f]{40}$")
 HEX64 = re.compile(r"^[0-9a-f]{64}$")
 Kind = Literal[
-    "vlm", "embedding", "tagger", "captioner", "face_detector", "face_embedder", "face_quality", "ocr", "reranker"
+    "vlm",
+    "embedding",
+    "text_embedder",
+    "tagger",
+    "captioner",
+    "face_detector",
+    "face_embedder",
+    "face_quality",
+    "ocr",
+    "reranker",
 ]
 Runtime = Literal["vllm", "llama.cpp", "ollama", "transformers", "onnx", "openai-compatible", "mlx"]
 WEIGHT_EXT = (".gguf", ".onnx", ".safetensors")  # invariant 10: no pickle weights

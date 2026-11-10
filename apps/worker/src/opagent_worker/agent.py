@@ -213,6 +213,10 @@ class WorkerAgent:
         faces = getattr(new, "faces", None)
         if fp(faces) != fp(self.face_backend):
             self.face_backend = faces  # the fingerprint travels with each result, so no re-registration
+        texts = getattr(new, "text_embedders", None) or {}
+        for key, emb in texts.items():  # caption text models: build an index once one is on disk (SRCH-R2-006)
+            if fp(self.text_embedders.get(key)) != fp(emb):
+                self.text_embedders[key] = emb
         if fp(new.vlm) == fp(self.backend) and fp(new.embedder) == fp(self.embedder):
             return
         old = self.backend
@@ -1037,7 +1041,9 @@ class WorkerAgent:
         if p.get("fingerprint") and p["fingerprint"] != own:
             return {"error": "MODEL_UNAVAILABLE", "reason": "space mismatch"}
         self._ensure_loaded(emb)
-        res: Any = emb.embed_texts([p["text"]])
+        # a search is a query: text models that tell queries from documents get the query side (SRCH-R2-006)
+        query = getattr(emb, "embed_queries", None) if p.get("modality") == "caption" else None
+        res: Any = query([p["text"]]) if query else emb.embed_texts([p["text"]])
         if inspect.isawaitable(res):
 
             async def _wait(a: Any) -> Any:
@@ -1051,8 +1057,19 @@ class WorkerAgent:
         emb = self.text_embedders.get(p["model"])
         if emb is None:
             raise RuntimeError("MODEL_UNAVAILABLE")
+        import asyncio
+        import inspect
+
+        self._ensure_loaded(emb)
         items = p["items"]
-        vecs = emb.embed_texts([it["text"] for it in items])
+        res: Any = emb.embed_texts([it["text"] for it in items])
+        if inspect.isawaitable(res):
+
+            async def _wait(a: Any) -> Any:
+                return await a
+
+            res = asyncio.run(_wait(res))
+        vecs = res
         return {
             "vectors": {it["asset_id"]: [float(x) for x in v] for it, v in zip(items, vecs, strict=True)},
             "fingerprint": emb.describe().model_fingerprint,

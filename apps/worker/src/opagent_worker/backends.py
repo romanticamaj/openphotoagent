@@ -29,6 +29,7 @@ class LocalBackends:
     vlm: Any = None
     embedder: Any = None
     faces: Any = None
+    text_embedders: dict[str, Any] = field(default_factory=dict)  # caption text models by registry id (ADR-0014)
     problems: list[str] = field(default_factory=list)
 
 
@@ -165,6 +166,20 @@ def load_local(
             tokenizer=siglip_tokenizer(files["tokenizer"]),
             fingerprint=_fingerprint(m, variant),
             max_batch=m.spec.variant(variant).recommended_batch or 8,
+        )
+    for m, variant, files in _installed(models_root, reg, "text_embedder"):
+        exe = find_llama_server(env, packs_root or models_root.parent / "packs")
+        if exe is None or m.id in out.text_embedders:
+            continue
+        from opagent_adapters.llamacpp_embed import LlamaCppEmbedAdapter
+
+        out.text_embedders[m.id] = LlamaCppEmbedAdapter(
+            [str(exe)],
+            str(files["weights"]),
+            query_prefix=str((m.spec.embedding or {}).get("query_prefix", "")),
+            fingerprint=_fingerprint(m, variant),
+            has_gpu=True,
+            extra_args=device_args(exe, env),
         )
     detectors = _installed(models_root, reg, "face_detector")
     face_embedders = _installed(models_root, reg, "face_embedder")
