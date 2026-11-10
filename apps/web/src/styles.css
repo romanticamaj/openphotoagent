@@ -454,7 +454,8 @@ body {
   border-radius: 999px;
   background: var(--surface-2);
 }
-.person-chip-face {
+.person-chip .person-chip-face {
+  /* outranks the 100% width of .face-crop below: the two chips sat on top of each other (FACE-UI-015) */
   flex: none;
   width: 26px;
   border-radius: 999px;

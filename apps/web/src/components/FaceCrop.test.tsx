@@ -20,5 +20,12 @@ describe("a face out of a photo", () => {
     expect(rule.slice(0, rule.indexOf("}"))).toMatch(/aspect-ratio:\s*auto/);
     expect(rule.slice(0, rule.indexOf("}"))).toMatch(/object-fit:\s*fill/);
   });
+
+  it("[FACE-UI-015] 回歸：人物 chip 的頭像不被 .face-crop 的寬度蓋掉（驗證第 5 輪：兩個 chip 疊在一起）", async () => {
+    const { readFileSync } = await import("node:fs");
+    const css = readFileSync(`${process.cwd()}/src/styles.css`, "utf-8");
+    // the chip's face rule must outrank .face-crop { width: 100% }, wherever it sits in the file
+    expect(css).toMatch(/\.person-chip \.person-chip-face\s*\{[^}]*width:\s*26px/);
+  });
 });
 
