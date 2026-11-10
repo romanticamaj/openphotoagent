@@ -894,3 +894,30 @@ def test_det_013_faces_stored_too_small_are_embedded_again(f):
     f.sql("delete from bio.face_embedding where face_id=:i", i=fid2)
     f.client.post(f"/worker-api/v1/faces/{fid2}/embedding", json={"vec": None}, headers=f.ui)
     assert f.client.get("/worker-api/v1/faces/reembed", params={"limit": 10}, headers=f.ui).json()["items"] == []
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-DET-014")
+def test_det_014_a_late_embedding_respects_consent_eligibility_and_decisions(f):
+    """回歸 (security review, ADR-0036): the re-embed answer wrote a vector without checking faces were still on, nor
+    that the face was one the backlog listed, and could move a face a person had decided on."""
+    f.enable()
+    vec = [1.0] + [0.0] * 511
+    post = lambda fid: f.client.post(f"/worker-api/v1/faces/{fid}/embedding", json={"vec": vec}, headers=f.ui)
+    _, (big,) = f.photo("2025/s/big_p1.jpg", plan=[FaceSpec(person=1)])
+    assert post(big).status_code == 409  # not on the backlog: a normal face with its own vector
+    _, (dec,) = f.photo("2025/s/dec_p1.jpg", plan=[FaceSpec(person=1, min_side=28)])
+    f.sql("update face set quality_tier = 0, state = 'confirmed' where id=:i", i=dec)
+    f.sql("delete from bio.face_embedding where face_id=:i", i=dec)
+    listed = [
+        x["face_id"]
+        for it in f.client.get("/worker-api/v1/faces/reembed", headers=f.ui).json()["items"]
+        for x in it["faces"]
+    ]
+    assert dec not in listed and post(dec).status_code == 409  # a person's decision is not reopened
+    _, (off,) = f.photo("2025/s/off_p1.jpg", plan=[FaceSpec(person=1, min_side=28)])
+    f.sql("update face set quality_tier = 0 where id=:i", i=off)
+    f.sql("delete from bio.face_embedding where face_id=:i", i=off)
+    f.sql("update workspace set settings = jsonb_set(settings, '{faces,enabled}', 'false')")
+    assert post(off).status_code == 409
+    assert f.sql("select count(*) from bio.face_embedding where face_id = any(:ids)", ids=[dec, off]).scalar() == 0

@@ -277,6 +277,7 @@
 | FACE-DET-011 | 清除重複的臉（回歸） | 舊資料有同位置的副本，其中一份已確認，另一份有拒絕紀錄 | 每張臉留一份，優先保留人工決定過的；拒絕紀錄移到保留者；分群紀錄清空以便重跑 | I | #75 |
 | FACE-DET-012 | 24 px 起做 embedding（回歸，驗證第 10 輪；ADR-0036） | 最短邊 23／24／31／32 px | tier 0／1／1／1；`small_face` 為 24 ≤ 最短邊 < 32 | U | #75 |
 | FACE-DET-013 | 之前存成 tier 0 的小臉補算 embedding（ADR-0036） | tier 0、24～31 px、沒有 embedding 的臉 | `GET /worker-api/v1/faces/reembed` 列出；Worker 回傳向量後成為 tier 1；找不到對應的臉時標記已試過，不再列出 | I | #75 |
+| FACE-DET-014 | 補算 embedding 也要同意、資格與尊重人工決定（回歸，安全審查；ADR-0036） | 一般的臉、已確認的小臉、人臉功能關閉時 | 都回 409，不寫入向量；backlog 只列 unassigned 的臉 | I | #75 |
 | FACE-ASN-001 | 自動指派 | s_p1=0.66、s_p2=0.50、鄰居屬 p1 ≥ 2、tier 2 | `face_assignment(kind=auto)` | U | #76 |
 | FACE-ASN-002 | margin 不足 → 建議 | s_p1=0.62、s_p2=0.58 | `kind=suggested`，進 Review | U | #76 |
 | FACE-ASN-003 | 低品質不自動 | tier 1，分數足夠 | 只建議 | U | #76 |

@@ -121,6 +121,7 @@ ROUTES: dict[tuple[str, str], str] = {
     ("POST", "/api/v1/people/merge-suggestions/dismiss"): FW,
     ("POST", "/api/v1/people/{pid}/name"): FW,
     ("POST", "/api/v1/people/{pid}/review"): FW,
+    ("POST", "/api/v1/people/{pid}/review/undo"): FW,  # FACE-FIND-016
     ("POST", "/api/v1/people/{pid}/split"): FW,
     ("POST", "/api/v1/preflight"): R,
     ("POST", "/api/v1/presets/import"): SRC,

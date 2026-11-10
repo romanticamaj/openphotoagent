@@ -354,6 +354,7 @@ def reembed_backlog(req: Request, limit: int = Query(8, ge=1, le=REEMBED_PAGE)) 
             .where(
                 face.c.workspace_id == DEFAULT_WS,
                 face.c.quality_tier == 0,
+                face.c.state == "unassigned",  # never reopens a face a person decided on (FACE-DET-014)
                 side >= F.SMALL_FACE_MIN,
                 side < F.CLUSTER_MIN_SIDE,
                 yaw <= 75,
@@ -395,9 +396,28 @@ def put_embedding(fid: str, body: EmbeddingIn, req: Request) -> dict[str, Any]:
     """The worker's answer for one face of the re-embed backlog: a vector, or none when the photo no longer shows it."""
     st = _st(req)
     with st.engine.begin() as c:
-        row = c.execute(select(face.c.quality, face.c.space_id).where(face.c.id == fid)).first()
+        row = c.execute(
+            select(face.c.quality, face.c.space_id, face.c.quality_tier, face.c.state, asset_location.c.source_id)
+            .join(asset_location, asset_location.c.asset_id == face.c.asset_id)
+            .where(face.c.id == fid, face.c.workspace_id == DEFAULT_WS)
+            .with_for_update(of=face)
+        ).first()
         if row is None:
             raise HTTPException(404, detail={"code": "NOT_FOUND"})
+        # the same consent and eligibility as the backlog that listed it (FACE-DET-014)
+        if not fsettings(c).get("enabled") or not enabled_for(c, row.source_id):
+            raise HTTPException(409, detail={"code": "FACES_DISABLED"})
+        m = _measures(row.quality)
+        with bio_session(st) as b:
+            has_vec = b.execute(text("SELECT 1 FROM bio.face_embedding WHERE face_id = :f"), {"f": fid}).first()
+        if (
+            row.quality_tier != 0
+            or row.state != "unassigned"
+            or not F.small_face(m["min_side"])
+            or (row.quality or {}).get("reembed_tried")
+            or has_vec is not None
+        ):
+            raise HTTPException(409, detail={"code": "FACE_NOT_REEMBEDDABLE"})
         q = {**(row.quality or {}), "reembed_tried": True}
         tier = max(1, body.quality_tier or 1) if body.vec is not None else 0
         c.execute(update(face).where(face.c.id == fid).values(quality=q, quality_tier=tier))

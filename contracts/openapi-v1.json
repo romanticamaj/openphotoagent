@@ -446,6 +446,37 @@
         "title": "EgressIn",
         "type": "object"
       },
+      "EmbeddingIn": {
+        "properties": {
+          "quality_tier": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality Tier"
+          },
+          "vec": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vec"
+          }
+        },
+        "title": "EmbeddingIn",
+        "type": "object"
+      },
       "EmbeddingsIn": {
         "properties": {
           "dim": {
@@ -7366,6 +7397,48 @@
           }
         },
         "summary": "Person Review"
+      }
+    },
+    "/api/v1/people/{pid}/review/undo": {
+      "post": {
+        "description": "Take back this person's last 「送出」, once.",
+        "operationId": "undo_review_api_v1_people__pid__review_undo_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pid",
+            "required": true,
+            "schema": {
+              "title": "Pid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Undo Review Api V1 People  Pid  Review Undo Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Undo Review"
       }
     },
     "/api/v1/people/{pid}/split": {

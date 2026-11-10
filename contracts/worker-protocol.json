@@ -446,6 +446,37 @@
         "title": "EgressIn",
         "type": "object"
       },
+      "EmbeddingIn": {
+        "properties": {
+          "quality_tier": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality Tier"
+          },
+          "vec": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "number"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vec"
+          }
+        },
+        "title": "EmbeddingIn",
+        "type": "object"
+      },
       "EmbeddingsIn": {
         "properties": {
           "dim": {
@@ -3136,6 +3167,49 @@
       }
     },
     "/worker-api/v1/faces/reembed": {
+      "get": {
+        "description": "Faces an older version stored as tier 0 that the small-face lane now embeds (24-31 px, not turned away,\nnot blurred; ADR-0036), grouped by photo; each is tried once.",
+        "operationId": "reembed_backlog_worker_api_v1_faces_reembed_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 8,
+              "maximum": 32,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Reembed Backlog Worker Api V1 Faces Reembed Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reembed Backlog"
+      },
       "post": {
         "operationId": "reembed_worker_api_v1_faces_reembed_post",
         "requestBody": {
@@ -3173,6 +3247,58 @@
           }
         },
         "summary": "Reembed"
+      }
+    },
+    "/worker-api/v1/faces/{fid}/embedding": {
+      "post": {
+        "description": "The worker's answer for one face of the re-embed backlog: a vector, or none when the photo no longer shows it.",
+        "operationId": "put_embedding_worker_api_v1_faces__fid__embedding_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "fid",
+            "required": true,
+            "schema": {
+              "title": "Fid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmbeddingIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Put Embedding Worker Api V1 Faces  Fid  Embedding Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Put Embedding"
       }
     },
     "/worker-api/v1/heartbeat": {
