@@ -204,7 +204,8 @@
       "output.undo": "復原",
       "search.reindex": "建立搜尋索引",
       "face.cluster": "分組人臉",
-      "job.analyze": "AI 分析"
+      "job.analyze": "AI 分析",
+      "map.download": "下載街道圖"
     },
     "open": "活動",
     "resume": "繼續",
@@ -840,7 +841,10 @@
     "noLocation": "沒有位置：{n} 張",
     "inArea": "這個範圍有 {n} 張",
     "photo": "照片",
-    "oneSpot": "這 {n} 張都拍在約 {m} 公尺的範圍內，是同一個地方。"
+    "oneSpot": "這 {n} 張都拍在約 {m} 公尺的範圍內，是同一個地方。",
+    "basemapOffer": "現在只有國界。下載台灣街道圖就能看到街道與地名（約 100–300 MB，只下載一次，離線也能用）。",
+    "basemapDownload": "下載台灣街道圖",
+    "basemapDownloading": "正在下載台灣街道圖…完成後地圖會自動換上。"
   },
   "compare": {
     "title": "比較",

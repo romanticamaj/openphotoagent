@@ -204,7 +204,8 @@
       "output.undo": "Undoing",
       "search.reindex": "Building search index",
       "face.cluster": "Grouping faces",
-      "job.analyze": "AI analysis"
+      "job.analyze": "AI analysis",
+      "map.download": "Download street map"
     },
     "open": "Activity",
     "resume": "Resume",
@@ -840,7 +841,10 @@
     "noLocation": "No location: {n}",
     "inArea": "{n} photos in this area",
     "photo": "Photo",
-    "oneSpot": "All {n} were taken within about {m} m: one place."
+    "oneSpot": "All {n} were taken within about {m} m: one place.",
+    "basemapOffer": "Only country borders for now. Download the Taiwan street map for streets and place names (about 100–300 MB, once; works offline).",
+    "basemapDownload": "Download Taiwan street map",
+    "basemapDownloading": "Downloading the Taiwan street map… the map switches when it is ready."
   },
   "compare": {
     "title": "Compare",

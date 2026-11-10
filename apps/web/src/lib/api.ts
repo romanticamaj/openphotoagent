@@ -296,6 +296,8 @@ export const api = {
       "GET",
       `/people/${encodeURIComponent(pid)}`,
     ),
+  basemap: () => req<{ region: string; available: boolean; bytes: number; operation_id: string | null }>("GET", "/map/basemap"),
+  downloadBasemap: () => req<{ operation_id: string }>("POST", "/map/basemap/download", {}),
   undoReview: (pid: string) => req<{ restored: number }>("POST", `/people/${encodeURIComponent(pid)}/review/undo`, {}),
   mergePeople: (from: string, into: string) => req<{ undo_token: string; moved: number }>("POST", `/people/${encodeURIComponent(from)}/merge`, { into }),
   dismissMerge: (a: string, b: string) => req<unknown>("POST", "/people/merge-suggestions/dismiss", { a, b }),

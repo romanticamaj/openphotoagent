@@ -106,6 +106,7 @@ ROUTES: dict[tuple[str, str], str] = {
     ("POST", "/api/v1/models/import"): MDL,
     ("POST", "/api/v1/models/import/scan"): MDL,
     ("POST", "/api/v1/models/{key}/remote-code/confirm"): MDL,
+    ("POST", "/api/v1/map/basemap/download"): MDL,  # ADR-0037
     ("POST", "/api/v1/onboarding/install"): MDL,
     ("POST", "/api/v1/operations/pause-all"): J,
     ("POST", "/api/v1/operations/reorder"): J,

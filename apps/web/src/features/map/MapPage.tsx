@@ -1,7 +1,8 @@
 // Map (10 §2.5): MapLibre in no-tile mode — country borders from Natural Earth 110m (public domain, via
-// world-atlas) bundled with this page, so the map works offline and never requests external tiles (MAP-001).
+// world-atlas) bundled with this page, so the map works offline and never requests external tiles (MAP-001). With the
+// offline street map downloaded (ADR-0037) the style switches to it: streets and place names, still all local.
 // Photos with GPS are grid-clustered (cluster.ts); clicking a cluster shows that area's photos (MAP-002).
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Map as MapLibreMap, Marker } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./worker";
@@ -9,7 +10,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { feature } from "topojson-client";
 import countries110 from "world-atlas/countries-110m.json";
-import { mediaUrl } from "../../lib/api";
+import { api, mediaUrl } from "../../lib/api";
+import { BasemapBanner, basemapSource, basemapStyle, glyphsUrl } from "./basemap";
 import { endpoint } from "../../lib/platform";
 import { clusterPoints, type Cluster, type GeoPoint } from "./cluster";
 import { boundsOf, unwrapRings, spanMeters } from "./geo";
@@ -36,6 +38,14 @@ const borders = feature(countries110 as any, (countries110 as any).objects.count
 export function MapPage() {
   const { t } = useTranslation();
   const q = useQuery({ queryKey: ["map-points"], queryFn: fetchPoints });
+  const qc = useQueryClient();
+  const bm = useQuery({
+    queryKey: ["basemap"],
+    queryFn: api.basemap,
+    refetchInterval: (x) => (x.state.data?.operation_id ? 3000 : false), // while it downloads
+  });
+  const getMap = useMutation({ mutationFn: api.downloadBasemap, onSettled: () => void qc.invalidateQueries({ queryKey: ["basemap"] }) });
+  const streets = Boolean(bm.data?.available);
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -59,7 +69,7 @@ export function MapPage() {
       },
       center: [120, 25],
       zoom: 1,
-      attributionControl: false,
+      attributionControl: { compact: true }, // OpenStreetMap credit when the street map is on (ODbL)
     });
     m.on("zoomend", () => setZoom(m.getZoom()));
     map.current = m;
@@ -71,6 +81,19 @@ export function MapPage() {
     };
   }, []);
 
+  // the street map, once it is here (ADR-0037)
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !streets) return;
+    let live = true;
+    void basemapSource().then((src) => {
+      if (live) m.setStyle(basemapStyle(src, isDark(), glyphsUrl()));
+    });
+    return () => {
+      live = false;
+    };
+  }, [streets]);
+
   // the first view is where the photos are, not the whole world (MAP-013)
   const fitted = useRef(false);
   useEffect(() => {
@@ -78,8 +101,8 @@ export function MapPage() {
     const b = boundsOf(q.data?.points ?? []);
     if (!m || !b || fitted.current) return;
     fitted.current = true;
-    m.fitBounds(b, { padding: 60, maxZoom: 6, duration: 0 }); // borders only (offline, MAP-001): closer is a blank fill
-  }, [q.data]);
+    m.fitBounds(b, { padding: 60, maxZoom: streets ? 14 : 6, duration: 0 }); // borders only: closer is a blank fill
+  }, [q.data, streets]);
 
   useEffect(() => {
     const m = map.current;
@@ -94,18 +117,19 @@ export function MapPage() {
       el.addEventListener("click", () => {
         setPicked(c);
         const [w, so, e, n] = c.bbox;
-        if (c.count > 1 && (e > w || n > so)) m.fitBounds([[w, so], [e, n]], { padding: 80, maxZoom: 9 }); // drill down, coast still in view
+        if (c.count > 1 && (e > w || n > so)) m.fitBounds([[w, so], [e, n]], { padding: 80, maxZoom: streets ? 18 : 9 }); // drill down
       });
       return new Marker({ element: el }).setLngLat([c.lon, c.lat]).addTo(m);
     });
     return () => markers.forEach((mk) => mk.remove());
-  }, [clusters, t]);
+  }, [clusters, t, streets]);
 
   return (
     <section className="flex h-full flex-col gap-3 p-4" aria-labelledby="map-h">
       <h1 id="map-h" className="text-xl font-semibold">
         {t("map.title")}
       </h1>
+      {bm.data ? <BasemapBanner status={bm.data} onDownload={() => getMap.mutate()} /> : null}
       <p data-testid="map-no-location" className="text-sm text-[var(--text-muted)]">
         {t("map.noLocation", { n: (q.data?.without_location ?? 0).toLocaleString() })}
       </p>

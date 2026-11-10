@@ -165,6 +165,17 @@ Timeline (scroll container, 單一捲軸)
 > - **聚類在前端完成**：以純函式網格聚類（`cluster.ts`，MAP-003）處理 `GET /map/points` 的資料。10 萬點以上時改用上表的伺服器端 geohash 聚類，記為 v0.4.x 待辦。
 > - **聚類 marker 是 DOM 按鈕**，帶 `aria-label`「N 張照片」，點擊後顯示該範圍的照片（MAP-002）。
 
+> **（離線街道圖，2026-11-10，ADR-0037）**
+> - **觸發**：使用者在地圖頁按「下載台灣街道圖」。範圍是台灣、澎湖、金門、馬祖，bbox `118.0,21.7,122.2,26.4`，最大縮放 15。
+> - **由 Worker 執行（`basemap` 任務，Operation 類型 `map.download`）**：
+>   1. 下載釘選版本的 go-pmtiles v1.31.2，以 SHA-256 核對後才解壓或執行。
+>   2. 從 Protomaps 最新一份 schema 4 的 planet build，用 `pmtiles extract` 取出這個範圍。
+>   3. 檔頭確認是 PMTiles v3 才裝進資料目錄（`maps/taiwan.pmtiles`）。
+> - **讀取**：API 以 `GET /map/basemap.pmtiles`（支援 Range）提供檔案；前端用 `pmtiles` 協定讀取，帶 launch token，不連外。
+> - **樣式**：`@protomaps/basemaps` 5.7.2，地名用 `zh-Hant`。拉丁字型的 glyph 隨 App 打包（OFL）；中文用系統字型。
+> - **授權**：顯示 © OpenStreetMap（ODbL）。
+> - **沒有下載**：維持上面的無圖磚模式。
+
 ### 2.6 資料夾
 
 - 樹狀（source alias → 相對路徑）+ 右側網格；顯示「已分類/待處理」計數；**輸出資料夾（自動歸檔的結果）** 也在樹中，用類別色點標示 → 讓 killer 功能①「自動分類到資料夾」的結果能被直接「看見」。

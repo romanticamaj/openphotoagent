@@ -1257,6 +1257,30 @@ class WorkerAgent:
         faces = self.face_backend.detect(p.get("name") or "query", pic)
         return {"faces": [{k: v for k, v in f.items() if k != "person_hint"} for f in faces]}
 
+    basemap_io: dict[str, Any] | None = None  # tests inject fetch / get_json / run / pin (ADR-0037)
+
+    def _do_basemap(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """map.download (ADR-0037): the offline street map, into the data folder next to this worker's own."""
+        from . import basemap as B
+
+        if self.remote:  # the map is read by this machine's app only
+            return {"status": "failed", "error_code": "MAP_NO_DATA_DIR", "permanent": True}
+        io = self.basemap_io or {"fetch": B.http_fetch, "get_json": B.http_json, "run": B.run_tool}
+        last = [-1.0]
+
+        def post(d: dict[str, Any]) -> None:  # the stage the Operation shows, at most twice a second
+            now = self.clock.monotonic()
+            if d.get("line") and now - last[0] < 0.5:
+                return
+            last[0] = now
+            self.client.post(f"/worker-api/v1/tasks/{task_id}/progress", json={"progress": d})
+
+        try:
+            got = B.install(self.home.parent, on_progress=post, **io)
+        except B.BasemapError as e:
+            return {"status": "failed", "error_code": e.code, "permanent": e.code == "DL_CHECKSUM_MISMATCH"}
+        return {"status": "succeeded", "build": got.build, "bytes": got.bytes}
+
     def _do_face_purge(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         """Worker side of the one-click purge (07 §6.3): face thumbnails and any vault go, the workspace key is
         destroyed so sealed backups cannot be opened again (FACE-PRG-002). The report holds counts only."""

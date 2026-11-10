@@ -36,6 +36,7 @@ TASK_OP_TYPES = {
     "apply": "output.apply",
     "undo": "output.undo",
     "download": "model.download",
+    "basemap": "map.download",
     "remove": "model.remove",
     "benchmark": "benchmark.run",
     "embed_assets": "search.reindex",

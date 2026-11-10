@@ -1105,3 +1105,25 @@ C 的 token 機率：95 張 ≥ 0.99，10 張 < 0.8，後者幾乎都是「人�
   - 新增 FACE-DET-012、FACE-DET-013、FACE-ASN-007、FACE-FIND-022、FACE-FIND-023。
 - **風險**：實驗用的是縮小後的大臉，沒有 JPEG 損壞或晃動，真實小臉的品質會更差。對策：小臉只出現在需要人工確認的地方，「全部都是」也不會標它們。
 
+## ADR-0037 離線台灣街道圖：Worker 用釘選的 pmtiles 工具從 Protomaps 取出區域（2026-11-10）
+
+- **背景**：
+  - 地圖只有國界，看不到街道和地名。
+  - 103 張照片都在約 180 m 內，放大也分不開。
+  - 使用者同意下載台灣街道圖，並選擇把工具內建在 App 裡由使用者按鈕觸發，而不是由 agent 在開發機上執行外部程式。
+- **決策**：
+  - **觸發與執行**：地圖頁一個按鈕觸發 Worker 的 `basemap` 任務（Operation `map.download`）。
+  - **工具**：go-pmtiles v1.31.2。網址與 SHA-256 取自 GitHub release 的 asset digest，按平台寫死在程式裡；核對通過才解壓、才執行。
+  - **資料**：Protomaps 最新一份 schema 4 的 planet build。用 `pmtiles extract --bbox=118.0,21.7,122.2,26.4 --maxzoom=15` 以 HTTP Range 只取這個範圍，存到資料目錄的 `maps/taiwan.pmtiles`。先寫成 `.part`，確認檔頭是 PMTiles v3 才換上。
+  - **提供與顯示**：API 以 Range 提供這個檔案；前端用 `pmtiles` 協定讀取，帶 launch token。樣式用 `@protomaps/basemaps` 5.7.2 的中文地名；拉丁字型 glyph 隨 App 打包，中文用系統字型。
+  - **錯誤碼**：沿用現有的 `NET_UNREACHABLE`、`DL_CHECKSUM_MISMATCH`、`DL_NOT_FOUND`、`DL_MIRROR_FAILED`。
+  - **前置檢查**：可用空間至少 1.2 GB（`DISK_INSUFFICIENT_MODELS`）。
+- **理由**：
+  - 安裝包上限 200 MB，放不下街道圖。
+  - 下載後完全離線，地圖檢視不會洩漏位置。
+  - 地圖資料不是可執行的檔案；唯一要執行的是工具，而工具有釘選與雜湊核對。
+- **限制**：
+  - 建置清單每天更新，所以地圖資料本身無法事先釘選雜湊；只檢查檔頭。
+  - 下載中途不能暫停（v0.x）。
+  - 只支援本機 Worker；遠端 Worker 會拒絕。
+

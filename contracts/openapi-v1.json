@@ -5595,6 +5595,62 @@
         "summary": "Accept License"
       }
     },
+    "/api/v1/map/basemap": {
+      "get": {
+        "operationId": "basemap_api_v1_map_basemap_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Basemap Api V1 Map Basemap Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Basemap"
+      }
+    },
+    "/api/v1/map/basemap.pmtiles": {
+      "get": {
+        "operationId": "basemap_file_api_v1_map_basemap_pmtiles_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Basemap File"
+      }
+    },
+    "/api/v1/map/basemap/download": {
+      "post": {
+        "operationId": "download_api_v1_map_basemap_download_post",
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Download Api V1 Map Basemap Download Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Download"
+      }
+    },
     "/api/v1/map/points": {
       "get": {
         "description": "Photos with a GPS position (10 §2.5): ``{id, lat, lon}``; the rest are counted as \"no location\".",
