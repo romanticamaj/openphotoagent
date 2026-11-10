@@ -398,6 +398,8 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
 }
 
 /** 「這是誰？」 for the recognisable faces no group took (VIEW-032): one name makes them findable. */
+const NAME_ROWS = 4;
+
 function hoverFace(id: string | null) {
   window.dispatchEvent(new CustomEvent("opa:face-hover", { detail: id })); // the box on the photo lights up (VIEW-033)
 }
@@ -415,6 +417,7 @@ function NameFaces({
   const qc = useQueryClient();
   const [open, setOpen] = useState<string | null>(null);
   const [name, setName] = useState("");
+  const [all, setAll] = useState(false); // four rows first: the rest of the panel stays in view (VIEW-034)
   const save = useMutation({
     mutationFn: () => api.nameFace(open!, name.trim()),
     onSuccess: () => {
@@ -428,7 +431,7 @@ function NameFaces({
   return (
     <div className="mb-3">
     <ul className="name-faces" aria-label={t("lightbox.nameFaces")}>
-      {faces.map((f) => (
+      {(all ? faces : faces.slice(0, NAME_ROWS)).map((f) => (
         <li
           key={f.id}
           data-testid="name-face-row"
@@ -467,6 +470,11 @@ function NameFaces({
         </li>
       ))}
     </ul>
+    {!all && faces.length > NAME_ROWS ? (
+      <button type="button" className="mt-1 text-sm underline" onClick={() => setAll(true)}>
+        {t("lightbox.showMoreFaces", { n: faces.length - NAME_ROWS })}
+      </button>
+    ) : null}
     {small ? (
       <p data-testid="name-faces-small" className="mt-1 text-xs text-[var(--text-muted)]">
         {t("lightbox.nameFacesSmall", { n: small })}

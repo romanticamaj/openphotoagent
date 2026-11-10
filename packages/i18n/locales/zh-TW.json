@@ -463,7 +463,8 @@
     "whoIsThis": "這是誰？",
     "saveFaceName": "儲存",
     "faceNamePlaceholder": "例如：阿姨、小明",
-    "nameFacesSmall": "另有 {n} 張臉太小，認不出是誰。"
+    "nameFacesSmall": "另有 {n} 張臉太小，認不出是誰。",
+    "showMoreFaces": "再顯示 {n} 張"
   },
   "onboarding": {
     "welcome": "歡迎使用 OpenPhotoAgent",
@@ -787,7 +788,8 @@
     "candidateKeys": "鍵盤：Y 是 · N 不是 · S 或 → 略過 · ← 上一張",
     "photosWithMaybe": "照片 {n} 張（{sure} 張確定、{maybe} 張可能）",
     "maybe": "可能",
-    "maybePhoto": "可能有這個人的照片"
+    "maybePhoto": "可能有這個人的照片",
+    "rename": "改名"
   },
   "ask": {
     "open": "✦ 問 AI",

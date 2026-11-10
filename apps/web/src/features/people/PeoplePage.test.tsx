@@ -154,6 +154,31 @@ describe("finding a person (07 §4)", () => {
     expect(screen.getByTestId("person-photos-title").textContent).toBe("照片 3 張（1 張確定、2 張可能）");
   });
 
+  it("[FACE-UI-021] 回歸：照片牆的「可能」只放把握高的（驗證第 13 輪：另一個孩子 0.583 出現在可能裡）", async () => {
+    s.people = [row];
+    s.search.mockResolvedValue({ items: [], facets: {}, total: 0, next_cursor: null });
+    const c = (id: string, asset: string, score: number, sure: boolean) => ({ face_id: id, asset_id: asset, ch: null, bbox: [0, 0, 0.2, 0.2], score, tier: 2, clear: true, sure, group: null });
+    s.cands.mockResolvedValue({ items: [c("f1", "c1", 0.7, true), c("f2", "c2", 0.583, false)], references: 4 });
+    ui();
+    fireEvent.click(await screen.findByRole("button", { name: /未命名/ }));
+    await waitFor(() => expect(screen.getAllByTestId("person-photo")).toHaveLength(1));
+  });
+
+  it("[FACE-UI-022] 回歸：已命名的人，標題是名字，改名要按「改名」（驗證第 13 輪）", async () => {
+    s.people = [{ ...row, name: "測試A", status: "named" }];
+    s.search.mockResolvedValue({ items: [], facets: {}, total: 0, next_cursor: null });
+    s.cands.mockResolvedValue({ items: [], references: 0 });
+    s.name.mockResolvedValue({});
+    ui();
+    fireEvent.click(await screen.findByRole("button", { name: /測試A/ }));
+    expect((await screen.findByRole("heading", { name: "測試A" })).tagName).toBe("H2");
+    expect(screen.queryByLabelText("這個人是誰？")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "改名" }));
+    fireEvent.change(screen.getByLabelText("名字"), { target: { value: "測試C" } });
+    fireEvent.click(screen.getByRole("button", { name: "儲存名字" }));
+    await waitFor(() => expect(s.name).toHaveBeenCalledWith("p1", "測試C"));
+  });
+
   it("[FACE-UI-011] 一鍵把全部標成是", async () => {
     s.people = [row];
     s.search.mockResolvedValue({ items: [], facets: {}, total: 0, next_cursor: null });

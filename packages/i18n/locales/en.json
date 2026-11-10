@@ -463,7 +463,8 @@
     "whoIsThis": "Who is this?",
     "saveFaceName": "Save",
     "faceNamePlaceholder": "e.g. Auntie, Max",
-    "nameFacesSmall": "{n} more faces are too small to tell who they are."
+    "nameFacesSmall": "{n} more faces are too small to tell who they are.",
+    "showMoreFaces": "Show {n} more"
   },
   "onboarding": {
     "welcome": "Welcome to OpenPhotoAgent",
@@ -787,7 +788,8 @@
     "candidateKeys": "Keys: Y yes · N no · S or → skip · ← back",
     "photosWithMaybe": "{n} photos ({sure} confirmed, {maybe} likely)",
     "maybe": "Likely",
-    "maybePhoto": "A photo they are likely in"
+    "maybePhoto": "A photo they are likely in",
+    "rename": "Rename"
   },
   "ask": {
     "open": "✦ Ask AI",

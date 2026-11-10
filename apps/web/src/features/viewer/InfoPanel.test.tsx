@@ -157,6 +157,20 @@ describe("the info panel", () => {
     expect(screen.getByLabelText("名字").getAttribute("placeholder")).toBeTruthy();
   });
 
+  it("[VIEW-034] 回歸：「這是誰？」先列 4 張，其餘收起（驗證第 13 輪：把面板擠到下面）", async () => {
+    s.asset.mockResolvedValue({
+      ...base,
+      labels: [label("r1", "people", 1, "x")],
+      people: [],
+      faces_found: { total: 7, small: 0 },
+      unknown_faces: Array.from({ length: 7 }, (_, i) => ({ id: `u${i}`, bbox: [0.1 * i, 0.1, 0.05, 0.05], small: false })),
+    });
+    ui();
+    expect(await screen.findAllByTestId("name-face-row")).toHaveLength(4);
+    fireEvent.click(screen.getByRole("button", { name: "再顯示 3 張" }));
+    expect(screen.getAllByTestId("name-face-row")).toHaveLength(7);
+  });
+
   it("[VIEW-027] 資料夾沒開人臉辨識時說明，並帶去設定", async () => {
     s.asset.mockResolvedValue({ ...base, labels: [label("r1", "people", 1, "x")], faces_state: "folder_off" });
     ui();

@@ -183,7 +183,7 @@ function PersonPanel({ person, onClose }: { person: PersonRow; onClose: () => vo
     const sure = (photos.data?.items ?? []).map((h) => ({ id: h.asset_id, ch: h.ch, caption: h.caption, taken_at: h.taken_at, maybe: false }));
     const seen = new Set(sure.map((x) => x.id));
     const maybe = (cands.data?.items ?? [])
-      .filter((c) => c.clear !== false && !seen.has(c.asset_id) && Boolean(seen.add(c.asset_id)))
+      .filter((c) => oneClick(c) && !seen.has(c.asset_id) && Boolean(seen.add(c.asset_id))) // only the sure ones (FACE-UI-021)
       .map((c) => ({ id: c.asset_id, ch: c.ch, caption: null as string | null, taken_at: null as string | null, maybe: true }));
     return [...sure, ...maybe];
   }, [photos.data, cands.data]);
@@ -201,12 +201,28 @@ function PersonPanel({ person, onClose }: { person: PersonRow; onClose: () => vo
     }),
     [shown],
   );
+  const [renaming, setRenaming] = useState(false);
   const save = useMutation({
     mutationFn: () => api.namePerson(person.id, name.trim()),
-    onSuccess: () => void qc.invalidateQueries({ queryKey: ["people"] }),
+    onSuccess: () => {
+      setRenaming(false);
+      void qc.invalidateQueries({ queryKey: ["people"] });
+    },
   });
   return (
     <section aria-label={person.name ?? t("faces.unnamed")} className="space-y-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4">
+      {person.name && !renaming ? (
+        // a named person: their name is the heading; renaming is a deliberate step (FACE-UI-022)
+        <div className="flex flex-wrap items-center gap-3">
+          <h2 className="text-lg font-semibold" translate="no">
+            {person.name}
+          </h2>
+          <button type="button" className="text-sm underline" onClick={() => setRenaming(true)}>
+            {t("faces.rename")}
+          </button>
+          <button type="button" className="ml-auto text-sm underline" onClick={onClose}>{t("dock.close")}</button>
+        </div>
+      ) : (
       <form
         className="flex flex-wrap items-end gap-2"
         onSubmit={(e) => {
@@ -215,7 +231,7 @@ function PersonPanel({ person, onClose }: { person: PersonRow; onClose: () => vo
         }}
       >
         <label className="flex flex-col gap-1 text-sm">
-          {t("faces.whoIsThis")}
+          {person.name ? t("lightbox.faceName") : t("faces.whoIsThis")}
           <input value={name} onChange={(e) => setName(e.target.value)} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-2 py-1" />
         </label>
         <Button type="submit" disabledReason={name.trim() ? null : { code: "NAME_REQUIRED", message: t("faces.nameFirst") }}>
@@ -223,6 +239,7 @@ function PersonPanel({ person, onClose }: { person: PersonRow; onClose: () => vo
         </Button>
         <button type="button" className="ml-auto text-sm underline" onClick={onClose}>{t("dock.close")}</button>
       </form>
+      )}
       <h3 data-testid="person-photos-title" className="font-semibold">
         {nMaybe
           ? t("faces.photosWithMaybe", { n: shown.length, sure: shown.length - nMaybe, maybe: nMaybe })
