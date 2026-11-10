@@ -673,6 +673,9 @@ def run_cluster(st: AppState, ws: str) -> dict[str, Any]:
 
 def _merge_suggestions(st: AppState, ws: str, space: int) -> None:
     with st.engine.begin() as c:
+        # person_link has no cascade: links about groups a re-grouping deleted go here (FACE-MGT-011)
+        gone = ~person_link.c.person_a.in_(select(person.c.id)) | ~person_link.c.person_b.in_(select(person.c.id))
+        c.execute(delete(person_link).where(person_link.c.workspace_id == ws, gone))
         members: dict[str, list[str]] = {}
         for fid, pid in c.execute(
             select(face.c.id, face.c.person_id).where(face.c.workspace_id == ws, face.c.person_id.is_not(None))
@@ -745,9 +748,15 @@ def people(req: Request) -> dict[str, Any]:
     with _st(req).engine.begin() as c:
         rows = _people(c, DEFAULT_WS)
         # the likeliest first, a few at a time: 52 groups gave 1,101 open pairs (FACE-MGT-010)
+        live = select(person.c.id).where(person.c.merged_into.is_(None), person.c.status != "ignored")
         sug = c.execute(
             select(person_link)
-            .where(person_link.c.kind == "merge_suggestion", person_link.c.status == "open")
+            .where(
+                person_link.c.kind == "merge_suggestion",
+                person_link.c.status == "open",
+                person_link.c.person_a.in_(live),  # never about a group that is gone (FACE-MGT-011)
+                person_link.c.person_b.in_(live),
+            )
             .order_by(person_link.c.score.desc(), person_link.c.person_a, person_link.c.person_b)
             .limit(MERGE_SHOWN)
         ).all()

@@ -691,3 +691,27 @@ def test_mgt_010_the_likeliest_pairs_first_and_no_means_no(f):
     top = sug[0]
     f.post("/people/merge-suggestions/dismiss", {"a": top["a"], "b": top["b"]})
     assert (top["a"], top["b"]) not in {(s["a"], s["b"]) for s in f.get("/people")["merge_suggestions"]}
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-MGT-011")
+def test_mgt_011_suggestions_about_people_that_are_gone_are_not_shown(f):
+    """回歸 (audit round 3): the 「這兩組是同一個人嗎？」 card never appeared: the top pairs named groups a re-grouping
+    had deleted (person_link has no cascade), so the page found nobody to show."""
+    f.enable()
+    _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    ids = [p["id"] for p in f.get("/people")["people"]]
+    with f.eng.begin() as c:
+        c.execute(
+            sqlalchemy.text(
+                "insert into person_link(workspace_id, person_a, person_b, kind, score) values"
+                " ('default', 'gone-1', 'gone-2', 'merge_suggestion', 0.99), ('default', :a, :b, 'merge_suggestion', 0.7)"
+                " on conflict (workspace_id, person_a, person_b, kind) do update set score = excluded.score"
+            ),
+            {"a": ids[0], "b": ids[1]},
+        )
+    sug = f.get("/people")["merge_suggestions"]
+    assert [(s["a"], s["b"]) for s in sug] == [(ids[0], ids[1])]
+    f.post("/faces/cluster")
+    assert f.sql("select count(*) from person_link where person_a = 'gone-1'").scalar() == 0
