@@ -10,7 +10,7 @@ import { Lightbox } from "../viewer/Lightbox";
 import type { GridApi } from "../viewer/PhotoGrid";
 import { api, isDegraded, mediaUrl, type SearchBody } from "../../lib/api";
 
-type Chip = { kind: "tag"; value: string } | { kind: "year"; value: string } | { kind: "range"; value: string; from: string; to: string };
+import { bodyFor, chipsFrom, type Chip } from "./searchPlan";
 
 export function SearchPage({ q }: { q: string }) {
   const { t, i18n } = useTranslation();
@@ -27,19 +27,7 @@ export function SearchPage({ q }: { q: string }) {
     setSel({ all: false, ids: new Set(), anchor: null });
   }, [q]);
 
-  const body: SearchBody = useMemo(() => {
-    const tags = chips.filter((c) => c.kind === "tag").map((c) => c.value);
-    const year = chips.find((c) => c.kind === "year")?.value;
-    const range = chips.find((c): c is Extract<Chip, { kind: "range" }> => c.kind === "range");
-    if (!planned && q) return { q, plan: true, filters: {} };
-    return {
-      q: (planned ? planned.text : q) || null,
-      filters: {
-        ...(tags.length ? { tags_all: tags } : {}),
-        ...(range ? { taken_from: range.from, taken_to: range.to } : year ? { taken_from: `${year}-01-01`, taken_to: `${year}-12-31` } : {}),
-      },
-    };
-  }, [q, chips, planned]);
+  const body: SearchBody = useMemo(() => bodyFor(q, chips, planned), [q, chips, planned]);
   const res = useInfiniteQuery({
     queryKey: ["search", body],
     queryFn: ({ pageParam }) => api.search({ ...body, limit: 100, cursor: pageParam, facets: ["tags", "year"], lang: i18n.language }),
@@ -49,13 +37,7 @@ export function SearchPage({ q }: { q: string }) {
   const plannerOut = res.data?.pages[0]?.planner;
   useEffect(() => {
     if (planned || !plannerOut) return;
-    const next: Chip[] = [];
-    const at = plannerOut.filters.taken_at;
-    if (at) {
-      const label = plannerOut.explain.find((e) => /→/.test(e) && /\d{4}/.test(e)) ?? `${at.from} – ${at.to}`;
-      next.push({ kind: "range", value: label, from: at.from, to: at.to });
-    }
-    setChips(next);
+    setChips(chipsFrom(plannerOut));
     setPlanned({ text: plannerOut.text });
   }, [plannerOut, planned]);
   const index = useQuery({ queryKey: ["search-index"], queryFn: api.searchIndex, refetchInterval: 5000 });
@@ -179,7 +161,7 @@ export function SearchPage({ q }: { q: string }) {
       <ul aria-label={t("search.chips")} className="flex flex-wrap gap-2">
         {chips.map((c) => (
           <li key={`${c.kind}:${c.value}`} className="flex items-center gap-1 rounded-full border border-[var(--border)] px-3 py-0.5 text-sm">
-            {(c.kind === "tag" && tagNames[c.value]) || c.value}
+            {c.kind === "person" ? t("search.personChip", { name: c.value }) : (c.kind === "tag" && tagNames[c.value]) || c.value}
             <button type="button" aria-label={t("search.remove", { what: (c.kind === "tag" && tagNames[c.value]) || c.value })} onClick={() => setChips(chips.filter((x) => x !== c))}>
               ×
             </button>

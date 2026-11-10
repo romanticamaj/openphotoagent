@@ -1,0 +1,28 @@
+import { describe, expect, it } from "vitest";
+import { bodyFor, chipsFrom } from "./searchPlan";
+
+const planner = (filters: Record<string, unknown>, explain: string[], text = "") => ({
+  source: "rules",
+  confidence: 0.6,
+  explain,
+  text,
+  filters,
+  unapplied: [],
+});
+
+describe("the search a planned query becomes", () => {
+  it("[SRCH-UI-012] 回歸：輸入人名後，人物條件留在搜尋裡並成為可移除的標籤（驗證第 14 輪：「測試A」顯示整個圖庫）", () => {
+    const chips = chipsFrom(planner({ persons_all: ["p1"] }, ["「測試A」→ 人物"], ""));
+    expect(chips).toEqual([{ kind: "person", value: "測試A", id: "p1" }]);
+    expect(bodyFor("測試A", chips, { text: "" })).toEqual({ q: null, filters: { persons_all: ["p1"] } });
+    const withWords = chipsFrom(planner({ persons_all: ["p1"] }, ["「測試A」→ 人物"], "足球"));
+    expect(bodyFor("測試A 足球", withWords, { text: "足球" })).toEqual({ q: "足球", filters: { persons_all: ["p1"] } });
+    expect(bodyFor("測試A", [], { text: "" })).toEqual({ q: null, filters: {} }); // the chip removed: the filter goes too
+  });
+
+  it("[SRCH-UI-012] 日期標籤照舊；還沒規劃時先請伺服器規劃", () => {
+    const chips = chipsFrom(planner({ taken_at: { from: "2025-01-01", to: "2025-12-31" } }, ["「去年」→ 2025"], "海邊"));
+    expect(chips[0]).toMatchObject({ kind: "range", from: "2025-01-01", to: "2025-12-31" });
+    expect(bodyFor("去年 海邊", [], null)).toEqual({ q: "去年 海邊", plan: true, filters: {} });
+  });
+});

@@ -524,7 +524,8 @@
     "indexing": "{have} / {total} photos searchable (text-to-image)",
     "degraded": "Text-to-image search is unavailable right now; showing text matches only",
     "related": "Possibly related",
-    "relaxed": "No photo shows “{words}”. Below are photos that match the rest."
+    "relaxed": "No photo shows “{words}”. Below are photos that match the rest.",
+    "personChip": "Person: {name}"
   },
   "problem": {
     "chosen": "Switched to {what}"
