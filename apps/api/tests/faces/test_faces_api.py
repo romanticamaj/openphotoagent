@@ -771,3 +771,18 @@ def test_view_028_a_photo_says_its_faces_belong_to_nobody_yet(f):
     f.post("/faces/cluster")
     a = f.get(f"/assets/{aid}")
     assert a["people"] == [] and a["faces_found"] == {"total": 2, "small": 1}
+
+
+@pytest.mark.integration
+@pytest.mark.tc("VIEW-029")
+def test_view_029_the_faces_of_nobody_are_marked_too(f):
+    """回歸 (audit round 7): 「找到 11 張臉」 with no box on the photo; nobody could see which faces it meant."""
+    f.enable()
+    aid, _ = f.photo(
+        "2025/t/team2.jpg",
+        plan=[FaceSpec(person=None, min_side=12, bbox=(0.1, 0.1, 0.05, 0.05)), FaceSpec(person=None)],
+    )
+    f.post("/faces/cluster")
+    got = sorted(f.get(f"/assets/{aid}")["unknown_faces"], key=lambda x: x["small"])
+    assert [x["small"] for x in got] == [False, True]
+    assert got[1]["bbox"] == pytest.approx([0.1, 0.1, 0.05, 0.05])

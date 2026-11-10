@@ -271,10 +271,17 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
         ) : null}
         {(a.people?.length ?? 0) === 0 && (a.faces_found?.total ?? 0) > 0 ? (
           <p data-testid="faces-nobody" className="mb-3 text-sm text-[var(--text-muted)]">
-            {t(a.faces_found!.small ? "lightbox.facesNobodySmall" : "lightbox.facesNobody", {
-              n: a.faces_found!.total,
-              small: a.faces_found!.small,
-            })}
+            {t(
+              a.faces_found!.small === a.faces_found!.total
+                ? "lightbox.facesNobodyAllSmall"
+                : a.faces_found!.small
+                  ? "lightbox.facesNobodySmall"
+                  : "lightbox.facesNobody",
+              {
+                n: a.faces_found!.total,
+                small: a.faces_found!.small,
+              },
+            )}
           </p>
         ) : null}
         {(a.people?.length ?? 0) > 0 ? (
@@ -389,5 +396,6 @@ function PhotoFaces({ id, photo }: { id: string; photo: { w: number; h: number }
     const f = info.data?.people_faces?.[p.id];
     return f ? [{ id: p.id, name: p.name, bbox: f.bbox }] : [];
   });
-  return people.length ? <FaceBoxes photo={photo} people={people} /> : null;
+  const unknown = info.data?.unknown_faces ?? [];
+  return people.length || unknown.length ? <FaceBoxes photo={photo} people={people} unknown={unknown} /> : null;
 }

@@ -88,6 +88,14 @@ describe("the info panel", () => {
     expect(p.textContent).toContain("9");
   });
 
+  it("[VIEW-029] 臉全都太小時不說「其餘的人」", async () => {
+    s.asset.mockResolvedValue({ ...base, labels: [label("r1", "people", 1, "x")], people: [], faces_found: { total: 38, small: 38 } });
+    ui();
+    const p = await screen.findByTestId("faces-nobody");
+    expect(p.textContent).toContain("38");
+    expect(p.textContent).not.toContain("其餘");
+  });
+
   it("[VIEW-027] 資料夾沒開人臉辨識時說明，並帶去設定", async () => {
     s.asset.mockResolvedValue({ ...base, labels: [label("r1", "people", 1, "x")], faces_state: "folder_off" });
     ui();

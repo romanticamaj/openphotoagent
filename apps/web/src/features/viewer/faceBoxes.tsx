@@ -16,7 +16,15 @@ export function faceBoxStyle(bbox: number[], stage: Size, photo: Size): { left: 
   return { left: ox + x * dw, top: oy + y * dh, width: w * dw, height: h * dh };
 }
 
-export function FaceBoxes({ photo, people }: { photo: Size; people: Array<{ id: string; name: string | null; bbox: number[] }> }) {
+export function FaceBoxes({
+  photo,
+  people,
+  unknown = [],
+}: {
+  photo: Size;
+  people: Array<{ id: string; name: string | null; bbox: number[] }>;
+  unknown?: Array<{ bbox: number[]; small: boolean }>; // faces of nobody yet: marked, not linked (VIEW-029)
+}) {
   const { t } = useTranslation();
   const box = useRef<HTMLDivElement>(null);
   const [stage, setStage] = useState<Size | null>(null);
@@ -31,6 +39,16 @@ export function FaceBoxes({ photo, people }: { photo: Size; people: Array<{ id: 
   }, []);
   return (
     <div ref={box} className="face-boxes" data-testid="face-boxes">
+      {stage
+        ? unknown.map((u, i) => (
+            <span
+              key={`u${i}`}
+              aria-hidden="true"
+              className={u.small ? "face-box-unknown is-small" : "face-box-unknown"}
+              style={faceBoxStyle(u.bbox, stage, photo)}
+            />
+          ))
+        : null}
       {stage
         ? people.map((p) => (
             <Link key={p.id} to="/people" search={{ person: p.id }} className="face-box" style={faceBoxStyle(p.bbox, stage, photo)} translate="no">

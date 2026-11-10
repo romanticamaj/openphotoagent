@@ -178,6 +178,7 @@ def get_asset(asset_id: str, req: Request, lang: str = "zh-TW") -> dict[str, Any
             **dict(zip(("people", "people_faces"), _people_in(c, asset_id), strict=True)),
             "faces_state": _faces_state(c, [r.source_id for r in locs]),
             "faces_found": _faces_found(c, asset_id),
+            "unknown_faces": _unknown_faces(c, asset_id),
         }
 
 
@@ -192,6 +193,19 @@ def _faces_found(c: Any, asset_id: str) -> dict[str, int]:
         .where(face.c.asset_id == asset_id, (face.c.person_id.is_(None)) | (person.c.status == "ignored"))
     ).all()
     return {"total": len(rows), "small": sum(1 for (t,) in rows if t == 0)}
+
+
+def _unknown_faces(c: Any, asset_id: str) -> list[dict[str, Any]]:
+    """Where those faces are, so the photo can mark them (VIEW-029)."""
+    from opagent_db.schema import face, person
+
+    rows = c.execute(
+        select(face.c.bbox, face.c.quality_tier)
+        .select_from(face.outerjoin(person, person.c.id == face.c.person_id))
+        .where(face.c.asset_id == asset_id, (face.c.person_id.is_(None)) | (person.c.status == "ignored"))
+        .order_by(face.c.id)
+    ).all()
+    return [{"bbox": list(r.bbox), "small": r.quality_tier == 0} for r in rows]
 
 
 def _faces_state(c: Any, sources: list[str]) -> str:

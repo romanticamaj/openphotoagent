@@ -453,7 +453,8 @@
     "facesFolderOff": "這個資料夾沒有開啟人臉辨識，所以這張不會標出人物。",
     "facesSettings": "人臉設定",
     "facesNobody": "找到 {n} 張臉，這些人在圖庫裡出現的次數還不夠，所以還沒分成人物。",
-    "facesNobodySmall": "找到 {n} 張臉，其中 {small} 張太小認不出；其餘的人出現次數還不夠，所以還沒分成人物。"
+    "facesNobodySmall": "找到 {n} 張臉，其中 {small} 張太小認不出；其餘的人出現次數還不夠，所以還沒分成人物。",
+    "facesNobodyAllSmall": "找到 {n} 張臉，但都太小，認不出是誰。"
   },
   "onboarding": {
     "welcome": "歡迎使用 OpenPhotoAgent",
@@ -513,7 +514,7 @@
     "indexing": "已可搜尋 {have} / {total} 張（以文搜圖）",
     "degraded": "以文搜圖暫時無法使用，只顯示文字結果",
     "related": "可能相關的照片",
-    "relaxed": "沒有照片符合「{words}」，先不看這幾個字。"
+    "relaxed": "沒有照片拍到「{words}」，下面是符合其他條件的照片。"
   },
   "problem": {
     "chosen": "已改用 {what}"

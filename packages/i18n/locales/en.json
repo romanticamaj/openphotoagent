@@ -453,7 +453,8 @@
     "facesFolderOff": "Face recognition is not on for this folder, so no people are marked here.",
     "facesSettings": "Face settings",
     "facesNobody": "{n} faces found. These people appear too rarely in the library to be grouped yet.",
-    "facesNobodySmall": "{n} faces found; {small} are too small to recognise, and the others appear too rarely to be grouped yet."
+    "facesNobodySmall": "{n} faces found; {small} are too small to recognise, and the others appear too rarely to be grouped yet.",
+    "facesNobodyAllSmall": "{n} faces found, all too small to tell who they are."
   },
   "onboarding": {
     "welcome": "Welcome to OpenPhotoAgent",
@@ -513,7 +514,7 @@
     "indexing": "{have} / {total} photos searchable (text-to-image)",
     "degraded": "Text-to-image search is unavailable right now; showing text matches only",
     "related": "Possibly related",
-    "relaxed": "No photo shows “{words}”, so those words were left out."
+    "relaxed": "No photo shows “{words}”. Below are photos that match the rest."
   },
   "problem": {
     "chosen": "Switched to {what}"
