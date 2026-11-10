@@ -286,7 +286,11 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
             )}
           </details>
         ) : null}
-        <NameFaces assetId={id} faces={(a.unknown_faces ?? []).filter((u) => !u.small && u.id)} />
+        <NameFaces
+          assetId={id}
+          faces={(a.unknown_faces ?? []).filter((u) => !u.small && u.id)}
+          small={(a.unknown_faces ?? []).filter((u) => u.small).length}
+        />
         {(a.people?.length ?? 0) > 0 ? (
           <div className="mb-3">
             <h3 className="mb-1 text-sm text-[var(--text-muted)]">{t("lightbox.people")}</h3>
@@ -394,7 +398,19 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
 }
 
 /** 「這是誰？」 for the recognisable faces no group took (VIEW-032): one name makes them findable. */
-function NameFaces({ assetId, faces }: { assetId: string; faces: Array<{ id?: string; bbox: number[]; ch?: string | null }> }) {
+function hoverFace(id: string | null) {
+  window.dispatchEvent(new CustomEvent("opa:face-hover", { detail: id })); // the box on the photo lights up (VIEW-033)
+}
+
+function NameFaces({
+  assetId,
+  faces,
+  small,
+}: {
+  assetId: string;
+  faces: Array<{ id?: string; bbox: number[]; ch?: string | null }>;
+  small: number;
+}) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [open, setOpen] = useState<string | null>(null);
@@ -410,13 +426,22 @@ function NameFaces({ assetId, faces }: { assetId: string; faces: Array<{ id?: st
   });
   if (!faces.length) return null;
   return (
-    <ul className="mb-3 flex flex-wrap gap-2" aria-label={t("lightbox.nameFaces")}>
+    <div className="mb-3">
+    <ul className="name-faces" aria-label={t("lightbox.nameFaces")}>
       {faces.map((f) => (
-        <li key={f.id} className="flex items-center gap-2">
-          <FaceCrop assetId={assetId} ch={f.ch ?? null} bbox={f.bbox} className="person-chip-face" />
+        <li
+          key={f.id}
+          data-testid="name-face-row"
+          className="name-face-row"
+          onMouseEnter={() => hoverFace(f.id ?? null)}
+          onMouseLeave={() => hoverFace(null)}
+          onFocus={() => hoverFace(f.id ?? null)}
+          onBlur={() => hoverFace(null)}
+        >
+          <FaceCrop assetId={assetId} ch={f.ch ?? null} bbox={f.bbox} className="name-face-crop" />
           {open === f.id ? (
             <form
-              className="flex items-center gap-1"
+              className="name-face-form"
               onSubmit={(e) => {
                 e.preventDefault();
                 if (name.trim()) save.mutate();
@@ -424,23 +449,30 @@ function NameFaces({ assetId, faces }: { assetId: string; faces: Array<{ id?: st
             >
               <input
                 aria-label={t("lightbox.faceName")}
+                placeholder={t("lightbox.faceNamePlaceholder")}
                 autoFocus
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="w-28 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-2 py-0.5 text-sm"
+                className="min-w-0 flex-1 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-2 py-1 text-sm"
               />
-              <button type="submit" className="text-sm underline">
+              <button type="submit" className="whitespace-nowrap text-sm underline">
                 {t("lightbox.saveFaceName")}
               </button>
             </form>
           ) : (
-            <button type="button" className="text-sm underline" onClick={() => setOpen(f.id ?? null)}>
+            <button type="button" className="whitespace-nowrap text-sm underline" onClick={() => setOpen(f.id ?? null)}>
               {t("lightbox.whoIsThis")}
             </button>
           )}
         </li>
       ))}
     </ul>
+    {small ? (
+      <p data-testid="name-faces-small" className="mt-1 text-xs text-[var(--text-muted)]">
+        {t("lightbox.nameFacesSmall", { n: small })}
+      </p>
+    ) : null}
+    </div>
   );
 }
 

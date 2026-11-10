@@ -133,6 +133,30 @@ describe("the info panel", () => {
     await waitFor(() => expect(s.nameFace).toHaveBeenCalledWith("fx", "阿姨"));
   });
 
+  it("[VIEW-033] 回歸：命名列一臉一列、按鈕不折行、欄位有提示，並說還有幾張太小（驗證第 12 輪）", async () => {
+    s.asset.mockResolvedValue({
+      ...base,
+      labels: [label("r1", "people", 1, "x")],
+      people: [],
+      faces_found: { total: 3, small: 1 },
+      unknown_faces: [
+        { id: "fa", bbox: [0.1, 0.1, 0.2, 0.2], small: false },
+        { id: "fb", bbox: [0.4, 0.1, 0.2, 0.2], small: false },
+        { id: "fc", bbox: [0.7, 0.1, 0.02, 0.02], small: true },
+      ],
+    });
+    const seen: string[] = [];
+    window.addEventListener("opa:face-hover", (e) => seen.push((e as CustomEvent).detail ?? ""));
+    ui();
+    const rows = await screen.findAllByTestId("name-face-row");
+    expect(rows).toHaveLength(2);
+    expect(screen.getByTestId("name-faces-small").textContent).toContain("1");
+    fireEvent.mouseEnter(rows[1]);
+    expect(seen.at(-1)).toBe("fb");
+    fireEvent.click(screen.getAllByRole("button", { name: "這是誰？" })[0]);
+    expect(screen.getByLabelText("名字").getAttribute("placeholder")).toBeTruthy();
+  });
+
   it("[VIEW-027] 資料夾沒開人臉辨識時說明，並帶去設定", async () => {
     s.asset.mockResolvedValue({ ...base, labels: [label("r1", "people", 1, "x")], faces_state: "folder_off" });
     ui();

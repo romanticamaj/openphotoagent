@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "../../lib/i18n";
-import { BasemapBanner, basemapStyle } from "./basemap";
+import { BasemapBanner, basemapOfferDismissed, basemapStyle, dismissBasemapOffer } from "./basemap";
 
 beforeAll(async () => {
   await i18n.changeLanguage("zh-TW");
@@ -29,5 +29,16 @@ describe("offline street map (ADR-0037)", () => {
     expect(screen.getByTestId("basemap-banner").textContent).toContain("正在下載");
     rerender(<BasemapBanner status={{ region: "taiwan", available: true, bytes: 9, operation_id: null }} onDownload={go} />);
     expect(container.querySelector("[data-testid=basemap-banner]")).toBeNull();
+  });
+
+  it("[MAP-018] 回歸：「不用了」收起提示並記住；說的是國界與海岸線（驗證第 12 輪）", () => {
+    const go = vi.fn();
+    const no = vi.fn();
+    render(<BasemapBanner status={{ region: "taiwan", available: false, bytes: 0, operation_id: null }} onDownload={go} onDismiss={no} />);
+    expect(screen.getByTestId("basemap-banner").textContent).toContain("國界與海岸線");
+    fireEvent.click(screen.getByRole("button", { name: "不用了" }));
+    expect(no).toHaveBeenCalled();
+    dismissBasemapOffer();
+    expect(basemapOfferDismissed()).toBe(true);
   });
 });

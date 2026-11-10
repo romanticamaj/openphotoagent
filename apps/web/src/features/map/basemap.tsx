@@ -42,8 +42,35 @@ export function glyphsUrl(): string {
   return `${window.location.origin}/map-fonts/{fontstack}/{range}.pbf`;
 }
 
+const DISMISS_KEY = "opa.basemap.offer.dismissed";
+
+/** 「不用了」 is remembered on this computer only (MAP-018); storage may be unavailable, so every access is guarded. */
+export function basemapOfferDismissed(): boolean {
+  try {
+    return window.localStorage.getItem(DISMISS_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function dismissBasemapOffer(): void {
+  try {
+    window.localStorage.setItem(DISMISS_KEY, "1");
+  } catch {
+    /* not remembered: it comes back next time */
+  }
+}
+
 /** No street map yet: one button (the worker downloads and extracts it); while it runs, say so. */
-export function BasemapBanner({ status, onDownload }: { status: BasemapStatus; onDownload: () => void }) {
+export function BasemapBanner({
+  status,
+  onDownload,
+  onDismiss,
+}: {
+  status: BasemapStatus;
+  onDownload: () => void;
+  onDismiss?: () => void;
+}) {
   const { t } = useTranslation();
   if (status.available) return null;
   return (
@@ -54,6 +81,11 @@ export function BasemapBanner({ status, onDownload }: { status: BasemapStatus; o
         <>
           <span>{t("map.basemapOffer")}</span>
           <Button onClick={onDownload}>{t("map.basemapDownload")}</Button>
+          {onDismiss ? (
+            <button type="button" className="text-sm underline" onClick={onDismiss}>
+              {t("map.basemapNoThanks")}
+            </button>
+          ) : null}
         </>
       )}
     </div>

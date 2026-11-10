@@ -32,4 +32,15 @@ describe("faces marked on the photo", () => {
     expect(container.querySelectorAll(".face-box-unknown")).toHaveLength(2);
     expect(container.querySelectorAll(".face-box-unknown.is-small")).toHaveLength(1);
   });
+
+  it("[VIEW-033] 回歸：滑過命名列時照片上那張臉亮起來（驗證第 12 輪）", async () => {
+    const { act } = await import("@testing-library/react");
+    const { container } = render(
+      <FaceBoxes photo={{ w: 4, h: 3 }} people={[]} unknown={[{ id: "u1", bbox: [0.5, 0.5, 0.1, 0.1], small: false }, { id: "u2", bbox: [0.1, 0.1, 0.1, 0.1], small: false }]} />,
+    );
+    act(() => void window.dispatchEvent(new CustomEvent("opa:face-hover", { detail: "u2" })));
+    expect(container.querySelectorAll(".face-box-unknown.is-hovered")).toHaveLength(1);
+    act(() => void window.dispatchEvent(new CustomEvent("opa:face-hover", { detail: null })));
+    expect(container.querySelectorAll(".face-box-unknown.is-hovered")).toHaveLength(0);
+  });
 });

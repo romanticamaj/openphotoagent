@@ -11,7 +11,7 @@ import { useTranslation } from "react-i18next";
 import { feature } from "topojson-client";
 import countries110 from "world-atlas/countries-110m.json";
 import { api, mediaUrl } from "../../lib/api";
-import { BasemapBanner, basemapSource, basemapStyle, glyphsUrl } from "./basemap";
+import { BasemapBanner, basemapOfferDismissed, basemapSource, basemapStyle, dismissBasemapOffer, glyphsUrl } from "./basemap";
 import { endpoint } from "../../lib/platform";
 import { clusterPoints, type Cluster, type GeoPoint } from "./cluster";
 import { boundsOf, unwrapRings, spanMeters } from "./geo";
@@ -46,6 +46,7 @@ export function MapPage() {
   });
   const getMap = useMutation({ mutationFn: api.downloadBasemap, onSettled: () => void qc.invalidateQueries({ queryKey: ["basemap"] }) });
   const streets = Boolean(bm.data?.available);
+  const [offerOff, setOfferOff] = useState(basemapOfferDismissed);
   const box = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
   const [zoom, setZoom] = useState(1);
@@ -129,7 +130,16 @@ export function MapPage() {
       <h1 id="map-h" className="text-xl font-semibold">
         {t("map.title")}
       </h1>
-      {bm.data ? <BasemapBanner status={bm.data} onDownload={() => getMap.mutate()} /> : null}
+      {bm.data && (!offerOff || bm.data.operation_id) ? (
+        <BasemapBanner
+          status={bm.data}
+          onDownload={() => getMap.mutate()}
+          onDismiss={() => {
+            dismissBasemapOffer();
+            setOfferOff(true);
+          }}
+        />
+      ) : null}
       <p data-testid="map-no-location" className="text-sm text-[var(--text-muted)]">
         {t("map.noLocation", { n: (q.data?.without_location ?? 0).toLocaleString() })}
       </p>

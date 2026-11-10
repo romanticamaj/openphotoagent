@@ -2,6 +2,16 @@
 // centred in the stage, so a normalised box maps onto the drawn rectangle, not onto the stage.
 import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+
+function useHoveredFace(): string | null {
+  const [id, setId] = useState<string | null>(null);
+  useEffect(() => {
+    const h = (e: Event) => setId(((e as CustomEvent).detail as string | null) ?? null);
+    window.addEventListener("opa:face-hover", h);
+    return () => window.removeEventListener("opa:face-hover", h);
+  }, []);
+  return id;
+}
 import { useTranslation } from "react-i18next";
 
 type Size = { w: number; h: number };
@@ -23,8 +33,9 @@ export function FaceBoxes({
 }: {
   photo: Size;
   people: Array<{ id: string; name: string | null; bbox: number[] }>;
-  unknown?: Array<{ bbox: number[]; small: boolean }>; // faces of nobody yet: marked, not linked (VIEW-029)
+  unknown?: Array<{ id?: string; bbox: number[]; small: boolean }>; // faces of nobody yet: marked, not linked (VIEW-029)
 }) {
+  const hovered = useHoveredFace(); // the row being named in the info panel (VIEW-033)
   const { t } = useTranslation();
   const box = useRef<HTMLDivElement>(null);
   const [stage, setStage] = useState<Size | null>(null);
@@ -44,7 +55,7 @@ export function FaceBoxes({
             <span
               key={`u${i}`}
               aria-hidden="true"
-              className={u.small ? "face-box-unknown is-small" : "face-box-unknown"}
+              className={`face-box-unknown${u.small ? " is-small" : ""}${u.id && u.id === hovered ? " is-hovered" : ""}`}
               style={faceBoxStyle(u.bbox, stage, photo)}
             />
           ))

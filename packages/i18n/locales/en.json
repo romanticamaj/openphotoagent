@@ -461,7 +461,9 @@
     "nameFaces": "Name these faces",
     "faceName": "Name",
     "whoIsThis": "Who is this?",
-    "saveFaceName": "Save"
+    "saveFaceName": "Save",
+    "faceNamePlaceholder": "e.g. Auntie, Max",
+    "nameFacesSmall": "{n} more faces are too small to tell who they are."
   },
   "onboarding": {
     "welcome": "Welcome to OpenPhotoAgent",
@@ -847,9 +849,10 @@
     "inArea": "{n} photos in this area",
     "photo": "Photo",
     "oneSpot": "All {n} were taken within about {m} m: one place.",
-    "basemapOffer": "Only country borders for now. Download the Taiwan street map for streets and place names (about 100–300 MB, once; works offline).",
+    "basemapOffer": "Borders and coastlines only for now. Download the Taiwan street map for streets and place names (about 100–300 MB, once; works offline).",
     "basemapDownload": "Download Taiwan street map",
-    "basemapDownloading": "Downloading the Taiwan street map… the map switches when it is ready."
+    "basemapDownloading": "Downloading the Taiwan street map… the map switches when it is ready.",
+    "basemapNoThanks": "No thanks"
   },
   "compare": {
     "title": "Compare",

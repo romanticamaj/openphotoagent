@@ -894,3 +894,10 @@ body {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* naming faces from the photo: one row each, the field takes the row (VIEW-033) */
+.name-faces { display: grid; gap: 6px; list-style: none; padding: 0; margin: 0; }
+.name-face-row { display: flex; align-items: center; gap: 10px; min-height: 40px; }
+.name-face-row .name-face-crop { flex: none; width: 36px; height: 36px; border-radius: 999px; }
+.name-face-form { display: flex; flex: 1; align-items: center; gap: 8px; min-width: 0; }
+.face-box-unknown.is-hovered { border: 2px solid var(--accent); box-shadow: 0 0 0 1px rgb(0 0 0 / 0.5); }
