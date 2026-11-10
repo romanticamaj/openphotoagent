@@ -2611,6 +2611,17 @@
             ],
             "title": "Api Key"
           },
+          "cloud_people": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cloud People"
+          },
           "endpoint_url": {
             "anyOf": [
               {

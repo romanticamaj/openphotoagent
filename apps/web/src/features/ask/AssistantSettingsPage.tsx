@@ -12,13 +12,15 @@ export function AssistantSettingsPage() {
   const [draft, setDraft] = useState<Partial<AssistantSettings>>({});
   const [saved, setSaved] = useState(false);
   useEffect(() => {
-    if (q.data) setDraft({ provider: q.data.provider, endpoint_url: q.data.endpoint_url, retention_days: q.data.retention_days });
+    if (q.data)
+      setDraft({ provider: q.data.provider, endpoint_url: q.data.endpoint_url, retention_days: q.data.retention_days, cloud_people: q.data.cloud_people ?? false });
   }, [q.data]);
   const save = async () => {
     await api.putAssistantSettings({
       provider: draft.provider,
       endpoint_url: draft.provider === "openai_compat" ? (draft.endpoint_url ?? "") : null,
       retention_days: draft.retention_days,
+      cloud_people: draft.provider === "openai_compat" ? Boolean(draft.cloud_people) : false,
     });
     await qc.invalidateQueries({ queryKey: ["assistant-settings"] });
     setSaved(true);
@@ -53,6 +55,15 @@ export function AssistantSettingsPage() {
           <p role="note" className="rounded-[var(--radius-sm)] border border-[var(--border)] p-2 text-sm">
             {t("ask.settings.cloudNote")}
           </p>
+          {/* named people in cloud answers: its own choice, off by default; names leave as 人物A (ADR-0039) */}
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={Boolean(draft.cloud_people)}
+              onChange={(e) => setDraft({ ...draft, cloud_people: e.target.checked })}
+            />
+            <span>{t("ask.settings.cloudPeople")}</span>
+          </label>
         </>
       ) : null}
       <label className="flex flex-col gap-1">

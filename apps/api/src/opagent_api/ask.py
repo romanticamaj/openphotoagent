@@ -98,6 +98,7 @@ def _settings(st: AppState) -> dict[str, Any]:
         "media_policy": "none",
         "retention_days": 90,
         "has_api_key": False,
+        "cloud_people": False,
         **(s.get("assistant") or {}),
     }
 
@@ -136,6 +137,7 @@ class SettingsIn(BaseModel):
     api_key: str | None = Field(default=None, max_length=500)  # kept in the OS keyring, never in the database
     media_policy: str | None = Field(default=None, pattern="^(none|thumb_256)$")
     retention_days: int | None = Field(default=None, ge=0, le=3650)
+    cloud_people: bool | None = None  # a cloud model may answer about named people (ADR-0039; names go as 人物A)
 
 
 def machine(st: AppState) -> dict[str, Any]:
@@ -415,7 +417,12 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
         llm.cloud = True  # type: ignore[attr-defined]
     with st.engine.begin() as c:
         faces_on = bool(fsettings(c).get("enabled"))
-        settings = mcp_settings(c)
+        # ADR-0039: the built-in assistant answers about the user's people when face recognition is on and its model
+        # runs here; a cloud model needs assistant.cloud_people. mcp.faces_enabled is for MCP clients only.
+        people_ok = faces_on and (not cloud or bool(s.get("cloud_people")))
+        import dataclasses
+
+        settings = dataclasses.replace(mcp_settings(c), faces_enabled=people_ok)
     ctx = H.Ctx(st=st, tok=AssistantToken(faces_on), settings=settings, proto="2026-07-28", client="builtin-assistant")
     intent = route(body.message, body.context)
     vram = float(machine(st)["vram_gb"])
@@ -627,7 +634,11 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
         bool(filters.get("persons_all")) and not ("faces:read" in ctx.tok.scopes and ctx.settings.faces_enabled)
     )
     if blocked:
-        final = "要依人物回答，AI 助手需要能看人物：請到「連接 AI 助手」開啟「人臉」後再問一次。"
+        final = (
+            "雲端模式要依人物回答，請到「助手設定」勾選「雲端也可以依人物回答」（只送出代稱）後再問一次。"
+            if cloud
+            else "要依人物回答，請先在「設定 › 人臉」開啟人臉辨識。"
+        )
     elif intent == "count":
         # the same search as the grid (ASK-GRD-007): a tag the planner found ranks, it does not hide untagged photos;
         # the words of the question count unless a filter (a year, a person) is all there is

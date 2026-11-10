@@ -259,6 +259,7 @@ export type Me = { id: string; email: string; roles: Record<string, string>; csr
 export type Workspace = { id: string; name: string };
 
 export type AssistantSettings = {
+  cloud_people?: boolean;
   provider: "local" | "openai_compat";
   endpoint_url: string | null;
   media_policy: string;

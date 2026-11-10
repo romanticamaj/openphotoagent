@@ -441,6 +441,8 @@ sequenceDiagram
 | `faces:media`（審查補充，07 §5.1，v0.2） | face:read + media | 人臉裁切縮圖（`person://{id}/cover`、`face://{id}/thumb`） | 否；受 `mcp_face_media_policy` 限制（預設 `none`） |
 
 > （ADR-0009）tool registry 以 `available_from` 標註每個 tool 的上市版本；尚未上市的 tool 視同不存在。token 已有 scope、只是 workspace 開關（`mcp.allow_apply_requests`、`mcp.faces_enabled`）沒開時，tool 不出現在清單，呼叫時回 tool error 說明要在 app 哪裡開啟。
+
+> （ADR-0039，2026-11-11）`mcp.faces_enabled` 只管 MCP 呼叫端。內建「問 AI」的人物資料規則見 10 §8.9：本機模型只要啟用人臉辨識即可；雲端模型需 `assistant.cloud_people`。
 >
 > （回寫 W-3，09 §9，已採納）**`tools/list` 一律依 token scope 過濾**：token 不具備某 tool 所需 scope 時，該 tool 不出現在 `tools/list`，直接呼叫回 `-32601`（Method not found 語意的 tool not found），不洩漏 tool 的存在；適用全部 tools，不只 faces 類（MCP-SCOPE-001）。
 >

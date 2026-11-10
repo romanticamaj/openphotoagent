@@ -960,10 +960,11 @@ def test_plan_022_a_named_persons_name_finds_their_photos(f):
 
 
 @pytest.mark.integration
-@pytest.mark.tc("ASK-GRD-008")
+@pytest.mark.tc("ASK-GRD-008", "ASK-PRV-006", "ASK-PRV-007", "ASK-PRV-008")
 def test_ask_grd_008_how_many_photos_of_a_named_person(f):
-    """回歸 (audit round 13): 「測試B有幾張照片？」 answered 「共有 0 張」. The name is now a person filter; with faces open
-    to AI assistants the count is theirs, and without it the answer says where to open them, never 0."""
+    """回歸 (audit round 13): 「測試B有幾張照片？」 answered 「共有 0 張」. The name is a person filter; the count is
+    theirs, and where people may not be used (a cloud model without assistant.cloud_people, ADR-0039) the answer says
+    where to allow it, never 0."""
     import json
 
     from opagent_assistant.llm import FakeLLM, Reply
@@ -986,12 +987,19 @@ def test_ask_grd_008_how_many_photos_of_a_named_person(f):
             if line.startswith("data: ")
         )
 
-    closed = answer()
-    assert "連接 AI 助手" in closed and "0 張" not in closed
+    local = answer()  # ASK-PRV-006: a local model, faces on, mcp.faces_enabled off: the user's own people work
+    assert str(n) in local and "0 張" not in local
     f.sql(
-        "update workspace set settings = jsonb_set(settings, '{mcp}', coalesce(settings->'mcp', '{}'::jsonb) || '{\"faces_enabled\": true}')"
+        "update workspace set settings = jsonb_set(settings, '{assistant}',"
+        " coalesce(settings->'assistant', '{}'::jsonb) || '{\"provider\": \"openai_compat\"}')"
     )
-    opened = answer()
+    closed = answer()  # ASK-PRV-007: a cloud model needs its own switch
+    assert "助手設定" in closed and "0 張" not in closed
+    f.sql(
+        "update workspace set settings = jsonb_set(settings, '{assistant}',"
+        " settings->'assistant' || '{\"cloud_people\": true}')"
+    )
+    opened = answer()  # ASK-PRV-008: allowed, names still leave only as aliases (ASK-PRV-004)
     assert str(n) in opened and "0 張" not in opened
 
 

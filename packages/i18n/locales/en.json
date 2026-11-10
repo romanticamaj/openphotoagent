@@ -844,7 +844,8 @@
       "retention": "Keep conversations for (days, 0 = never)",
       "save": "Save",
       "saved": "Saved",
-      "cloudNote": "With an external service, questions and photo text descriptions are sent; images are not, and names are replaced by placeholders."
+      "cloudNote": "With an external service, questions and photo text descriptions are sent; images are not, and names are replaced by placeholders.",
+      "cloudPeople": "Let the cloud model answer about named people (names go only as aliases such as “Person A”; face images and features never leave)"
     },
     "seeAll": "See all {n} on the search page"
   },
