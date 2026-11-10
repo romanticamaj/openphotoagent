@@ -121,3 +121,18 @@ def test_eta_021_the_state_survives_json():
     a = run([(0.0, 0.0), (5.0, 0.1), (10.0, 0.2)])
     b = json.loads(json.dumps(a))
     assert live_eta(a, 15.0, 0.3, "items") == live_eta(b, 15.0, 0.3, "items")
+
+
+@pytest.mark.unit
+@pytest.mark.tc("ETA-029")
+def test_eta_029_an_estimate_seeded_at_the_start_is_rough_by_the_second_report():
+    """回歸 (audit round 19): a real 133 s run of 40 photos never left 「estimating」: the first report only set the
+    baseline, and two samples are needed. Seeded at the operation's start (0 done), the second report gives a time."""
+    from opagent_core.eta import seed_eta
+
+    eta = seed_eta(None, 100.0)
+    eta = live_eta(eta, 110.0, 4 / 40, "items")
+    assert eta["samples"] == 1 and eta["active_s"] == pytest.approx(10.0)
+    eta = live_eta(eta, 120.0, 8 / 40, "items")
+    assert eta["state"] in ("rough", "precise") and eta["p50_s"] == pytest.approx(80.0, rel=0.2)
+    assert seed_eta(eta, 500.0)["_pt"] == eta["_pt"]  # an estimate already running is left alone

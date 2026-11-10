@@ -43,6 +43,16 @@ afterEach(() => {
 });
 
 describe("progress on every page (ADR-0029, invariant 9)", () => {
+  it("[ETA-031] 回歸：分析中顯示經過時間，還沒算出剩餘時間時說正在估算（驗證第 19 輪：兩分鐘都沒有時間）", async () => {
+    const started = new Date(Date.now() - 42_000).toISOString();
+    state.ops = [op("job.label", 16, 40, { started_at: started, eta: { state: "estimating", samples: 1 }, subject: { job_kind: "label" } })];
+    ui();
+    const dock = await screen.findByTestId("progress-dock");
+    await waitFor(() => expect(dock.textContent).toContain("已經過"));
+    expect(dock.textContent).toContain("42 秒");
+    expect(dock.textContent).toContain("估算剩餘時間中");
+  });
+
   it("[IMP-012] 沒有工作時不佔畫面", async () => {
     ui();
     await act(async () => {

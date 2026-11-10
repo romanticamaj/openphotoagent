@@ -1011,7 +1011,9 @@
     "state": {
       "queued": "Queued",
       "scanning": "Scanning"
-    }
+    },
+    "elapsed": "{elapsed} so far",
+    "estimating": "estimating the time left…"
   },
   "explore": {
     "title": "Categories",

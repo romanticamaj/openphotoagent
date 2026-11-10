@@ -50,11 +50,13 @@ CLUSTER_CHECK_S = 60.0
 VLM_IDLE_UNLOAD_S = 600.0  # 03 §4: an idle large slot gives the GPU and RAM back after ten minutes (INF-VRAM-005)
 CLUSTER_TIMEOUT_S = 600.0  # 20,000 faces take minutes (07 §7)
 _log = logging.getLogger("opagent.worker")
+REPORT_EVERY = 4  # photos per results report within a leased batch (ETA-030)
 # The only messages the control plane can send (02 §6.3, MU-SEC-004). There is no "run a command" kind; anything
 # else is refused and logged, never looked up dynamically.
 RPC_KINDS = frozenset(
     {
         "apply",
+        "basemap",  # ADR-0037: payload ignored; a pinned, hash-checked tool with fixed arguments; local workers only
         "benchmark",
         "browse",
         "download",
@@ -388,12 +390,14 @@ class WorkerAgent:
             return 0
         r.raise_for_status()
         items = r.json()["items"]
-        reports = self._infer(items)
         from opagent_fs.crash import crash_point
 
-        crash_point("worker_after_infer")  # chaos: die after inference, before reporting (Q-022)
-        self._send_results(reports)
-        self._send_faces(reports)
+        # a few photos at a time within the batch: progress and the time left move while the VLM works (ETA-030)
+        for i in range(0, len(items), REPORT_EVERY):
+            reports = self._infer(items[i : i + REPORT_EVERY])
+            crash_point("worker_after_infer")  # chaos: die after inference, before reporting (Q-022)
+            self._send_results(reports)
+            self._send_faces(reports)
         return len(items)
 
     def _backlog_cursor(self) -> Path:

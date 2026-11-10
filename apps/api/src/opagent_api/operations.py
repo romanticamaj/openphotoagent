@@ -299,12 +299,23 @@ def observe_job(conn: Any, clock: Any, job_id: str) -> None:
     if not total:
         return
     done = total - n["pending"] - n["leased"] - n["running"]
-    row = conn.execute(select(operation.c.progress, operation.c.status).where(operation.c.id == job_id)).first()
+    row = conn.execute(
+        select(operation.c.progress, operation.c.status, operation.c.eta, operation.c.started_at).where(
+            operation.c.id == job_id
+        )
+    ).first()
     if row is None:
         return
     prog = row.progress or {}
     if row.status in ("pending", "queued") and done > 0:  # its items are moving: the job is running (OP-020)
         set_op_status(conn, clock, job_id, "running")
+    started = row.started_at or conn.execute(select(operation.c.started_at).where(operation.c.id == job_id)).scalar()
+    if started is not None:  # the rate counts from the start, not from the first report (ETA-029)
+        from opagent_core.eta import seed_eta
+
+        conn.execute(
+            update(operation).where(operation.c.id == job_id).values(eta=seed_eta(row.eta, started.timestamp()))
+        )
     now = {"done": done, "total": total, "unit": "items", "fraction": done / total}
     conn.execute(update(operation).where(operation.c.id == job_id).values(progress={**prog, **now}))
     observe_progress(conn, clock, job_id, now)

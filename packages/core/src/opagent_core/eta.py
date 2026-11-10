@@ -321,6 +321,15 @@ def suspend_eta(eta: dict[str, Any], t: float) -> dict[str, Any]:
     return {**eta, "active_s": eta_active_s(eta, t), "_t": None, "_pt": None}
 
 
+def seed_eta(prev: dict[str, Any] | None, t_start: float) -> dict[str, Any]:
+    """The baseline at the operation's start (0 done), so the first report is already a rate sample (ETA-029); an
+    estimate that is already running is left as it is."""
+    prev = dict(prev or {})
+    if prev.get("_pt") is not None or prev.get("samples"):
+        return prev
+    return {**prev, "_pt": t_start, "_pf": 0.0, "_t": t_start, "active_s": 0.0, "state": "estimating", "samples": 0}
+
+
 def live_eta(prev: dict[str, Any] | None, t: float, fraction: float | None, unit: str = "items") -> dict[str, Any]:
     """One progress report in, the next ``operation.eta`` out. The state is plain JSON kept on the operation, so it
     survives a restart and needs no process holding it. Keys with a leading underscore are working state."""

@@ -7,7 +7,7 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, mediaUrl, type AnalysisStatus } from "../../lib/api";
-import { etaText } from "../../lib/format";
+import { etaText, formatDuration } from "../../lib/format";
 import { useActivity } from "./ActivityHost";
 import type { Op } from "./model";
 
@@ -19,7 +19,7 @@ const DONE_MARK = "✓ ";
 
 type Progress = { done?: number; total?: number };
 const progressOf = (o: Op) => (o.progress ?? {}) as Progress;
-type Stage = { type: string; done: number; total: number; eta: Op["eta"] };
+type Stage = { type: string; done: number; total: number; eta: Op["eta"]; started?: string | null };
 
 /** Several folders can be in the same stage: one bar for the stage, the folders listed underneath. */
 function stagesOf(ops: Op[]): Stage[] {
@@ -27,12 +27,22 @@ function stagesOf(ops: Op[]): Stage[] {
     const list = ops.filter((o) => o.type === type);
     if (!list.length) return [];
     const sum = (f: (p: Progress) => number | undefined) => list.reduce((n, o) => n + (f(progressOf(o)) ?? 0), 0);
-    return [{ type, done: sum((p) => p.done), total: sum((p) => p.total), eta: list.find((o) => o.status === "running" && o.eta)?.eta ?? null }];
+    const run = list.find((o) => o.status === "running");
+    return [
+      {
+        type,
+        done: sum((p) => p.done),
+        total: sum((p) => p.total),
+        eta: list.find((o) => o.status === "running" && o.eta)?.eta ?? null,
+        started: (run as { started_at?: string | null } | undefined)?.started_at ?? null,
+      },
+    ];
   });
 }
 
 export function ProgressDock() {
   const { t, i18n } = useTranslation();
+  const now = useNow();
   const qc = useQueryClient();
   const ops = (useActivity().data ?? []).filter((o) => STAGES.includes(o.type) && LIVE.includes(o.status));
   const stages = stagesOf(ops);
@@ -102,6 +112,9 @@ export function ProgressDock() {
       </div>
       {stages.map((s) => {
         const eta = s.eta ? etaText(s.eta, i18n.language) : null;
+        // how long it has been, and the time left once there is one (ETA-031, invariant 9)
+        const elapsed = s.started ? formatDuration(Math.max(0, now - Date.parse(s.started)), i18n.language) : null;
+        const timing = [elapsed ? t("dock.elapsed", { elapsed }) : null, eta ?? (s.total && s.done < s.total ? t("dock.estimating") : null)].filter(Boolean).join(" · ");
         return (
           <div key={s.type} className="space-y-1">
             <div className="flex justify-between gap-3 text-sm">
@@ -113,7 +126,7 @@ export function ProgressDock() {
             <div role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pctOf(s)} aria-label={t(`dock.stage.${s.type}`)} className="h-1.5 w-full rounded bg-[var(--surface-2)]">
               <div className="h-full rounded bg-[var(--accent)]" style={{ width: `${pctOf(s)}%` }} />
             </div>
-            {eta ? <p className="tnum text-xs text-[var(--text-muted)]">{eta}</p> : null}
+            {timing ? <p className="tnum text-xs text-[var(--text-muted)]">{timing}</p> : null}
           </div>
         );
       })}
@@ -168,4 +181,13 @@ function Detail({ status }: { status: AnalysisStatus }) {
       ) : null}
     </>
   );
+}
+
+function useNow(): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const h = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(h);
+  }, []);
+  return now;
 }

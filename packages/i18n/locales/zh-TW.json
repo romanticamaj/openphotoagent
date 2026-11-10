@@ -1011,7 +1011,9 @@
     "state": {
       "queued": "排隊中",
       "scanning": "掃描中"
-    }
+    },
+    "elapsed": "已經過 {elapsed}",
+    "estimating": "估算剩餘時間中…"
   },
   "explore": {
     "title": "分類",
