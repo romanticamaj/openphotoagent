@@ -913,3 +913,32 @@ body {
   color: #fff;
   font-size: 11px;
 }
+
+/* the sidebar column: the nav scrolls in its own space, the progress card sits under it, in the flow (ACT-010) */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+}
+.sidebar .sidenav {
+  flex: 1;
+  min-height: 0;
+  border-right: 0;
+}
+.sidebar .progress-dock {
+  position: static;
+  width: auto;
+  margin: 8px;
+  max-height: 50%;
+}
+@media (max-width: 720px) {
+  .sidebar .progress-dock {
+    position: fixed;
+    left: auto;
+    right: 8px;
+    bottom: 8px;
+    width: 184px;
+  }
+}

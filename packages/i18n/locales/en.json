@@ -1003,7 +1003,7 @@
       "output.undo": "Undoing",
       "face.cluster": "Grouping faces"
     },
-    "preparing": "Getting ready…",
+    "preparing": "Getting ready: loading the AI model…",
     "now": "Analysing now",
     "latest": "Just finished",
     "folders": "Folder progress",

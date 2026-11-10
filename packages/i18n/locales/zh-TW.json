@@ -1003,7 +1003,7 @@
       "output.undo": "復原",
       "face.cluster": "分組人臉"
     },
-    "preparing": "準備中…",
+    "preparing": "準備中：載入 AI 模型…",
     "now": "正在分析",
     "latest": "剛完成",
     "folders": "資料夾進度",

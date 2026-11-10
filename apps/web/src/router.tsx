@@ -171,6 +171,8 @@ function Shell() {
         </button>
         <ActivityButton onToggle={() => setActivityOpen(!activity)} />
       </header>
+      {/* the nav and the progress card share the sidebar column: the card never covers 設定 (ACT-010) */}
+      <div className="sidebar">
       <nav className="sidenav" aria-label={t("nav.label")}>
         {navSections(Boolean(faces.data?.enabled)).map((g) => (
           <div key={g.key} className="sidenav-group">
@@ -184,6 +186,8 @@ function Shell() {
           </div>
         ))}
       </nav>
+      <ProgressDock />
+      </div>
       <main className="page" id="main">
         <RecoveryCard onReview={() => setActivityOpen(true)} />
         <Suspense fallback={null}>
@@ -199,7 +203,6 @@ function Shell() {
         </Suspense>
       ) : null}
       <ActivityDrawer open={activity} setOpen={setActivityOpen} />
-      <ProgressDock />
     </div>
   );
 }
