@@ -10,7 +10,7 @@ languages: [en, zh-Hant, zh-Hans, ja]
 license: { spdx: Apache-2.0, weights: Apache-2.0, commercial_use: true, redistributable: true, requires_acceptance: false, url: "https://huggingface.co/Qwen/Qwen3-Embedding-0.6B" }
 source: { hf_repo: Qwen/Qwen3-Embedding-0.6B, revision: main }
 structured_output: none
-embedding: { dim: 1024, normalize: true, similarity: cosine, multilingual: true, query_prefix: "Instruct: Given a photo search query, retrieve photo captions that match the query\nQuery: " }
+embedding: { min_cosine: 0.5, dim: 1024, normalize: true, similarity: cosine, multilingual: true, query_prefix: "Instruct: Given a photo search query, retrieve photo captions that match the query\nQuery: " }
 tiers: [all]
 variants:
   - id: q8_0
