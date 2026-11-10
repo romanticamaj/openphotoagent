@@ -148,5 +148,20 @@ describe("finding a person (07 §4)", () => {
     const card = await screen.findByTestId("merge-suggestion");
     expect(card.querySelectorAll(".face-crop")).toHaveLength(2);
   });
+
+  it("[FACE-MGT-012] 「稍後再說」換下一對，不改任何東西", async () => {
+    const face = (id: string) => ({ ...row, id, cover: { asset_id: `a${id}`, ch: null, bbox: [0, 0, 0.2, 0.2] } });
+    s.people = [face("p1"), face("p2"), face("p3")];
+    s.merges = [{ a: "p1", b: "p2", score: 0.9 }, { a: "p1", b: "p3", score: 0.8 }];
+    s.merge.mockReset();
+    s.dismiss.mockReset();
+    ui();
+    const first = await screen.findByTestId("merge-suggestion");
+    expect(first.querySelectorAll("img")[1].getAttribute("src")).toContain("ap2");
+    fireEvent.click(screen.getByRole("button", { name: "稍後再說" }));
+    await waitFor(() => expect(screen.getByTestId("merge-suggestion").querySelectorAll("img")[1].getAttribute("src")).toContain("ap3"));
+    expect(s.merge).not.toHaveBeenCalled();
+    expect(s.dismiss).not.toHaveBeenCalled();
+  });
 });
 

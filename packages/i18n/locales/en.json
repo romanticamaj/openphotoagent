@@ -757,7 +757,8 @@
     "sameQuestion": "Are these the same person?",
     "sameCounts": "{a} and {b} photos",
     "sameYes": "Same person",
-    "sameNo": "Not the same"
+    "sameNo": "Not the same",
+    "sameLater": "Later"
   },
   "ask": {
     "open": "✦ Ask AI",

@@ -170,7 +170,7 @@ function PersonPanel({ person, onClose }: { person: PersonRow; onClose: () => vo
 }
 
 /** 「可能是同一人？」 one pair at a time, the likeliest first: the same child is often split into several groups. */
-function MergeSuggestion({ people, pair }: { people: PersonRow[]; pair: { a: string; b: string; score: number } }) {
+function MergeSuggestion({ people, pair, onSkip }: { people: PersonRow[]; pair: { a: string; b: string; score: number }; onSkip: () => void }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const a = people.find((p) => p.id === pair.a);
@@ -196,6 +196,7 @@ function MergeSuggestion({ people, pair }: { people: PersonRow[]; pair: { a: str
         <div className="flex gap-2">
           <Button onClick={() => merge.mutate()}>{t("faces.sameYes")}</Button>
           <Button variant="ghost" onClick={() => no.mutate()}>{t("faces.sameNo")}</Button>
+          <button type="button" className="text-sm underline" onClick={onSkip}>{t("faces.sameLater")}</button>
         </div>
       </div>
     </section>
@@ -209,7 +210,8 @@ export function PeoplePage({ initial }: { initial?: string } = {}) {
   const selected = (q.data?.people ?? []).find((p) => p.id === open);
   // the first pair whose two groups are on the wall (small groups are folded away)
   const onWall = new Set((q.data?.people ?? []).map((p) => p.id));
-  const pair = (q.data?.merge_suggestions ?? []).find((x) => onWall.has(x.a) && onWall.has(x.b));
+  const [later, setLater] = useState<Set<string>>(() => new Set()); // 「稍後再說」: this visit only, nothing written
+  const pair = (q.data?.merge_suggestions ?? []).find((x) => onWall.has(x.a) && onWall.has(x.b) && !later.has(`${x.a}|${x.b}`));
   return (
     <section className="space-y-4 p-6" aria-labelledby="people-h">
       <header className="flex items-center justify-between">
@@ -218,7 +220,14 @@ export function PeoplePage({ initial }: { initial?: string } = {}) {
       </header>
       {q.isSuccess && q.data.people.length === 0 ? <p className="text-[var(--text-muted)]">{t("faces.grouping")}</p> : null}
       {selected ? <PersonPanel key={selected.id} person={selected} onClose={() => setOpen(null)} /> : null}
-      {!selected && pair ? <MergeSuggestion key={`${pair.a}-${pair.b}`} people={q.data!.people} pair={pair} /> : null}
+      {!selected && pair ? (
+        <MergeSuggestion
+          key={`${pair.a}-${pair.b}`}
+          people={q.data!.people}
+          pair={pair}
+          onSkip={() => setLater((x) => new Set(x).add(`${pair.a}|${pair.b}`))}
+        />
+      ) : null}
       <ul className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-3">
         {(q.data?.people ?? []).map((p) => (
           <li key={p.id} data-testid="person">

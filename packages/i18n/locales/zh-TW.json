@@ -757,7 +757,8 @@
     "sameQuestion": "這兩組是同一個人嗎？",
     "sameCounts": "{a} 張和 {b} 張照片",
     "sameYes": "是同一人",
-    "sameNo": "不是同一人"
+    "sameNo": "不是同一人",
+    "sameLater": "稍後再說"
   },
   "ask": {
     "open": "✦ 問 AI",
