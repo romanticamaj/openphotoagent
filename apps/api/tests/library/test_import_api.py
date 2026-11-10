@@ -297,3 +297,25 @@ def test_imp_036_a_folder_counts_what_its_subfolders_brought_in(env):
     row = next(s for s in env.client.get("/api/v1/sources").json() if s["id"] == root["id"])
     assert row["photos"] == 3  # its own scan, as before
     assert row["tree_photos"] == 5 and row["tree_analysed"] == 2
+
+
+@pytest.mark.integration
+@pytest.mark.tc("OP-022")
+def test_op_022_progress_counts_the_photos_this_run_analyses(env):
+    """回歸 (audit round 21): 「分析剩下的照片」 on a folder of 200 with 40 new started at 160/200 and ended 「分析完成：
+    200 張照片」. Photos already analysed come from the cache; progress counts the ones this run does."""
+    src = env.client.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": ""}).json()
+    env.client.post(f"/api/v1/sources/{src['id']}/analyze")
+    while env.w.run_once() or env.w.process_items_once():
+        pass
+    for i in range(2):
+        shutil.copyfile(FX / f"IMG_{i + 7:04d}.jpg", env.tree.photos / f"m{i}.jpg")
+    jid = env.client.post(f"/api/v1/sources/{src['id']}/analyze").json()["job_id"]
+    while env.w.run_once() or env.w.process_items_once():
+        pass
+    op = next(
+        o
+        for o in env.client.get("/api/v1/operations", params={"status": "all", "type": "job.label"}).json()
+        if o["id"] == jid
+    )
+    assert op["progress"]["total"] == 2 and op["progress"]["done"] == 2

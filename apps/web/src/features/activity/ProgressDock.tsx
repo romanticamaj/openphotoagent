@@ -120,12 +120,16 @@ export function ProgressDock() {
             <div className="flex justify-between gap-3 text-sm">
               <span className="shrink-0 whitespace-nowrap">{t(`dock.stage.${s.type}`)}</span>
               <span className="tnum text-[var(--text-muted)]">
-                {s.total ? `${num(s.done)} / ${num(s.total)}` : t(stages.some((x) => x.type === "scan") ? "dock.waitingScan" : "dock.preparing")}
+                {s.total ? `${num(s.done)} / ${num(s.total)}` : null}
               </span>
             </div>
             <div role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pctOf(s)} aria-label={t(`dock.stage.${s.type}`)} className="h-1.5 w-full rounded bg-[var(--surface-2)]">
               <div className="h-full rounded bg-[var(--accent)]" style={{ width: `${pctOf(s)}%` }} />
             </div>
+            {!s.total ? (
+              // its own line: beside the stage name it squeezed both (ACT-011)
+              <p className="text-xs text-[var(--text-muted)]">{t(stages.some((x) => x.type === "scan") ? "dock.waitingScan" : "dock.preparing")}</p>
+            ) : null}
             {timing ? <p className="tnum text-xs text-[var(--text-muted)]">{timing}</p> : null}
           </div>
         );

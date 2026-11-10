@@ -73,7 +73,7 @@ function roughDuration(mins: number, zh: boolean): string {
 }
 
 /** What the user reads for an ETA (06 §5.5.6). null: this state has no number to show. */
-export function etaText(eta: { state?: string; p50_s?: number; since_s?: number }, locale: string): string | null {
+export function etaText(eta: { state?: string; p50_s?: number; since_s?: number; samples?: number }, locale: string): string | null {
   const zh = locale.startsWith("zh");
   const s = eta.p50_s;
   if (eta.state === "stalled") {
@@ -86,6 +86,13 @@ export function etaText(eta: { state?: string; p50_s?: number; since_s?: number 
     return zh ? `剩 ${clock}` : `${clock} left`;
   }
   if (eta.state !== "rough") return null;
-  if (s < 60) return zh ? "不到 1 分鐘" : "Less than a minute";
+  if (s < 60) {
+    // with enough samples, seconds in steps of 10 (ETA-032): 「不到 1 分鐘」 stood still for a whole minute
+    if ((eta.samples ?? 0) >= 3) {
+      const n = Math.max(10, Math.round(s / 10) * 10);
+      return zh ? `約 ${n} 秒` : `About ${n} s`;
+    }
+    return zh ? "不到 1 分鐘" : "Less than a minute";
+  }
   return roughDuration(roundedMinutes(s), zh);
 }

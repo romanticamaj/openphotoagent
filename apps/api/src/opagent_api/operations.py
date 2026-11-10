@@ -295,8 +295,9 @@ def observe_job(conn: Any, clock: Any, job_id: str) -> None:
     from .queue import counters
 
     n = counters(conn, job_id)
-    total = n["total"]
-    if not total:
+    # the photos this run analyses: those taken from the cache were done before (OP-022)
+    total = n["total"] - n["cached"]
+    if total <= 0:
         return
     done = total - n["pending"] - n["leased"] - n["running"]
     row = conn.execute(
