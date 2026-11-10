@@ -11,15 +11,17 @@ export function ActivityCenter({
   onToggle,
   onFix,
   actions,
+  recent = [],
 }: {
   open: boolean;
   ops: Op[];
+  recent?: Array<Pick<Op, "id" | "type" | "status"> & { subject?: unknown; finished_at?: string | null }>;
   onClose: () => void;
   onToggle?: () => void;
   onFix?: (op: Op, fixId: string) => void;
   actions?: (op: Op) => ReactNode;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "j") {
@@ -61,6 +63,23 @@ export function ActivityCenter({
           </ul>
         </section>
       ))}
+      {recent.length > 0 ? (
+        // what just finished stays visible: the drawer went blank the moment a job ended (ACT-008)
+        <section aria-labelledby="recent-h" className="space-y-1">
+          <h3 id="recent-h" className="text-xs text-[var(--text-muted)]">{t("activity.recent")}</h3>
+          <ul aria-labelledby="recent-h" className="space-y-1 text-sm">
+            {recent.map((op) => (
+              <li key={op.id} className="flex justify-between gap-2">
+                <span>{t(`activity.type.${opTypeKey(op)}`, { defaultValue: op.type })}</span>
+                <span className="tnum text-xs text-[var(--text-muted)]">
+                  {t(`activity.status.${op.status}`, { defaultValue: op.status })}
+                  {op.finished_at ? ` · ${new Date(op.finished_at).toLocaleTimeString(i18n.language, { hour: "2-digit", minute: "2-digit" })}` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </aside>
   );
 }

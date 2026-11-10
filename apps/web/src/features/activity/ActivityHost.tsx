@@ -39,11 +39,25 @@ export function ActivityDrawer({ open, setOpen }: { open: boolean; setOpen: (v: 
   const refresh = () => void qc.invalidateQueries({ queryKey: ["operations"] });
   const resume = useMutation({ mutationFn: (id: string) => api.resumeOp(id), onSuccess: refresh });
   const cancel = useMutation({ mutationFn: (id: string) => api.cancelOp(id), onSuccess: refresh });
+  const DAY_MS = 24 * 3600 * 1000;
+  const recent = useQuery({
+    queryKey: ["operations", "recent"],
+    queryFn: async () =>
+      (await api.operations("status=all&limit=40"))
+        .filter((o) => ["succeeded", "failed", "cancelled"].includes(String(o.status)))
+        .filter((o) => {
+          const f = (o as { finished_at?: string | null }).finished_at;
+          return f && Date.now() - new Date(f).getTime() < DAY_MS;
+        })
+        .slice(0, 10),
+    enabled: open,
+  });
   return (
     <>
       <ActivityCenter
         open={open}
         ops={ops}
+        recent={(recent.data ?? []) as never}
         onClose={() => setOpen(false)}
         onToggle={() => setOpen(!open)}
         actions={(op) => (

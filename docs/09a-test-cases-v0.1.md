@@ -722,6 +722,7 @@
 | ACT-005 | 鍵盤 | `⌘J`／`Ctrl+J` 開關抽屜；`Alt+↑/↓` 排序 | 可用且 focus 管理正確 | A | #90 |
 | ACT-006 | OperationProgress 四變體 | inline、compact、card、full × 每個 eta.state | 視覺快照 light/dark；full 變體 stepper 顯示 skipped 為灰色虛線 | V | #30 |
 | ACT-007 | 經過時間本地累加 | running，SSE 停止 5 s | 經過時間每秒前進；paused 時停止 | U | #31 |
+| ACT-008 | 最近完成（回歸，驗證第 3 輪） | 一個完成的分析、一個失敗的下載，沒有進行中的 | 仍說「目前沒有進行中的工作」，並列「最近完成」：名稱（AI 分析）、狀態、完成時間；最多 10 筆、24 小時內 | C | #— |
 
 ## 10. ORG、REV — 整理流程與待確認（killer ①；03 §10、04 §3.7、08 §8.1）
 

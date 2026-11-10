@@ -226,7 +226,8 @@
       "model_load": "Load model",
       "infer": "Infer",
       "postprocess": "Post-process"
-    }
+    },
+    "recent": "Recently finished"
   },
   "fix": {
     "hf_token": "Add Hugging Face token",

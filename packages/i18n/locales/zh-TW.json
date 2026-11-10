@@ -226,7 +226,8 @@
       "model_load": "載入模型",
       "infer": "推論",
       "postprocess": "整理結果"
-    }
+    },
+    "recent": "最近完成"
   },
   "fix": {
     "hf_token": "新增 Hugging Face token",
