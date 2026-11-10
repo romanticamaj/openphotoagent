@@ -140,5 +140,13 @@ describe("finding a person (07 §4)", () => {
     fireEvent.click(await screen.findByRole("button", { name: "不是同一人" }));
     await waitFor(() => expect(s.dismiss).toHaveBeenCalledWith("p1", "p2"));
   });
+
+  it("[FACE-MGT-011] 卡片挑兩組都在牆上的那一對", async () => {
+    s.people = [{ ...row, cover: { asset_id: "a1", ch: null, bbox: [0, 0, 0.2, 0.2] } }, { ...row, id: "p2", cover: { asset_id: "a2", ch: null, bbox: [0, 0, 0.2, 0.2] } }];
+    s.merges = [{ a: "p1", b: "folded", score: 0.95 }, { a: "p1", b: "p2", score: 0.8 }];
+    ui();
+    const card = await screen.findByTestId("merge-suggestion");
+    expect(card.querySelectorAll(".face-crop")).toHaveLength(2);
+  });
 });
 

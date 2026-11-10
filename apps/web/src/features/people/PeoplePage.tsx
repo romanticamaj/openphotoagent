@@ -207,6 +207,9 @@ export function PeoplePage({ initial }: { initial?: string } = {}) {
   const q = useQuery({ queryKey: ["people"], queryFn: api.people, refetchInterval: 5000 });
   const [open, setOpen] = useState<string | null>(initial ?? null);
   const selected = (q.data?.people ?? []).find((p) => p.id === open);
+  // the first pair whose two groups are on the wall (small groups are folded away)
+  const onWall = new Set((q.data?.people ?? []).map((p) => p.id));
+  const pair = (q.data?.merge_suggestions ?? []).find((x) => onWall.has(x.a) && onWall.has(x.b));
   return (
     <section className="space-y-4 p-6" aria-labelledby="people-h">
       <header className="flex items-center justify-between">
@@ -215,9 +218,7 @@ export function PeoplePage({ initial }: { initial?: string } = {}) {
       </header>
       {q.isSuccess && q.data.people.length === 0 ? <p className="text-[var(--text-muted)]">{t("faces.grouping")}</p> : null}
       {selected ? <PersonPanel key={selected.id} person={selected} onClose={() => setOpen(null)} /> : null}
-      {!selected && q.data?.merge_suggestions?.[0] ? (
-        <MergeSuggestion key={`${q.data.merge_suggestions[0].a}-${q.data.merge_suggestions[0].b}`} people={q.data.people} pair={q.data.merge_suggestions[0]} />
-      ) : null}
+      {!selected && pair ? <MergeSuggestion key={`${pair.a}-${pair.b}`} people={q.data!.people} pair={pair} /> : null}
       <ul className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-3">
         {(q.data?.people ?? []).map((p) => (
           <li key={p.id} data-testid="person">

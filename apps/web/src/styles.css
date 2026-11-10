@@ -418,6 +418,9 @@ body {
 }
 
 .person-chip {
+  /* 「未命名」 wrapped one character per line in a narrow panel (audit round 3) */
+  white-space: nowrap;
+  flex: none;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -426,6 +429,7 @@ body {
   background: var(--surface-2);
 }
 .person-chip-face {
+  flex: none;
   width: 26px;
   border-radius: 999px;
 }
