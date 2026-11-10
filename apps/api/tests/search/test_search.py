@@ -735,6 +735,38 @@ def test_srch_cnc_005_a_word_alone_needs_a_closer_meaning(s, monkeypatch):
 
 
 @pytest.mark.integration
+@pytest.mark.tc("SRCH-CNC-006")
+def test_srch_cnc_006_one_unknown_word_is_held_to_the_word_floor(s, monkeypatch):
+    """回歸 (audit round 6): 「玩沙」 showed 6 photos of clay and floor play, 「小孩在玩水」 one child with a water bottle.
+    A query of one word the vocabulary does not know went to the caption vectors at the route's 0.5; and the word
+    floor 0.56 still let 玩水 stand for a water bottle. On the reference library, 17 such words: wrong photos 14 at
+    0.5, 1 at 0.56, 0 at 0.58; captions that say the word are found by their text anyway."""
+    import opagent_api.search as S
+
+    clay = s.add(1, caption="小女孩專注玩黏土", tags=("people.child",))
+    bottle = s.add(2, caption="幾個小朋友拿著水瓶互動", tags=("people.child",))
+    s.index()
+    sid = s.sql(
+        "insert into embedding_space(model_key, fingerprint, dim, modality, status)"
+        " values ('fake-cap', 'caption:fake-cap:x', 2, 'caption', 'active') returning id"
+    ).scalar()
+    for aid, v in ((clay, "[0.545,0.8384]"), (bottle, "[0.57,0.8216]")):
+        s.sql(
+            "insert into asset_embedding(asset_id, space_id, vec) values (:a, :s, CAST(:v AS vector))",
+            a=aid,
+            s=sid,
+            v=v,
+        )
+    monkeypatch.setattr(
+        S, "query_vector", lambda st, t, space, modality="image": [1.0, 0.0] if modality == "caption" else None
+    )
+    monkeypatch.setattr(S, "caption_floor", lambda _st, _sp: 0.5)
+    assert s.search(q="玩沙")["total"] == 0
+    res = s.search(q="小孩在玩水")
+    assert res["relaxed"] == ["玩水"]  # said so: the water bottle is shown as a child photo, not as 玩水
+
+
+@pytest.mark.integration
 @pytest.mark.tc("SRCH-R2-008")
 def test_srch_r2_008_a_known_word_asks_the_caption_model_in_english_too(s, monkeypatch):
     """回歸 (audit rounds 4-5): 海邊 found 3 photos where beach found 6: the caption model ranks the surfing photos

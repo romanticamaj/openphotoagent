@@ -218,7 +218,7 @@ def _ft(c: Any, where: list[Any], tsq: str, en: str) -> list[str]:
 MAX_CONCEPTS = 5
 # standing in for a concept, a caption meaning must be closer than the route's floor: on the reference library
 # 0.5 + 0.06 lets in 0.05% of irrelevant photos against 1.65% at 0.5 (「小孩在玩水」 had 8 hits, none in water)
-MEANING_MARGIN = 0.06
+MEANING_MARGIN = 0.08  # 17 words on the reference library: wrong photos 14 at +0, 1 at +0.06, 0 at +0.08
 
 
 def _concept_cond(i: int, cpt: Any, meaning: list[str] | None = None) -> Any:
@@ -473,6 +473,9 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                     .limit(PER_ROUTE)
                 )
                 cfloor = caption_floor(st, cspace)
+                one = tokenizer().concepts(q)
+                if cfloor is not None and len(one) == 1 and not one[0].key and not one[0].word.isascii():
+                    cfloor += MEANING_MARGIN  # the query is one word the vocabulary does not know (SRCH-CNC-006)
                 routes["caption_vector"] = [
                     r[0] for r in c.execute(cq, {"qv": str(cvec)}) if cfloor is None or r[1] >= cfloor
                 ]
