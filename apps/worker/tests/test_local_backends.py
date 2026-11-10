@@ -484,3 +484,17 @@ def test_srch_r2_006_caption_vectors_run_on_the_bundled_llama_cpp(tmp_path, sand
     w.text_embedders = {"qwen3-embedding-0.6b": a}
     out = w._do_embed_text({"text": "海邊", "modality": "caption", "model": "qwen3-embedding-0.6b"})
     assert "vec" in out and sent[-1] == ["Instruct: find\nQuery: 海邊"]  # a search is a query
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-R2-006")
+def test_srch_r2_006_an_installed_text_model_becomes_a_caption_embedder(tmp_path):
+    from opagent_adapters.llamacpp_embed import LlamaCppEmbedAdapter
+
+    files = install(tmp_path, "qwen3-embedding-0.6b", "q8_0")
+    exe = tmp_path / "llama-server.exe"
+    exe.write_bytes(b"")
+    got = load_local(tmp_path, env={"OPAGENT_LLAMA_SERVER": str(exe)})
+    emb = got.text_embedders["qwen3-embedding-0.6b"]
+    assert isinstance(emb, LlamaCppEmbedAdapter) and str(files["weights"]) in emb.args()
+    assert emb.query_prefix.startswith("Instruct:") and got.vlm is None  # not mistaken for the VLM

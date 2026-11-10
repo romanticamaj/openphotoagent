@@ -169,11 +169,11 @@ def load_local(
         )
     for m, variant, files in _installed(models_root, reg, "text_embedder"):
         exe = find_llama_server(env, packs_root or models_root.parent / "packs")
-        if exe is None or m.id in out.text_embedders:
+        if exe is None or m.spec.id in out.text_embedders:
             continue
         from opagent_adapters.llamacpp_embed import LlamaCppEmbedAdapter
 
-        out.text_embedders[m.id] = LlamaCppEmbedAdapter(
+        out.text_embedders[m.spec.id] = LlamaCppEmbedAdapter(
             [str(exe)],
             str(files["weights"]),
             query_prefix=str((m.spec.embedding or {}).get("query_prefix", "")),
