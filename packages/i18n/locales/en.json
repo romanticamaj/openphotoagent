@@ -833,7 +833,8 @@
     "cluster": "{n} photos",
     "noLocation": "No location: {n}",
     "inArea": "{n} photos in this area",
-    "photo": "Photo"
+    "photo": "Photo",
+    "oneSpot": "All {n} were taken within about {m} m: one place."
   },
   "compare": {
     "title": "Compare",

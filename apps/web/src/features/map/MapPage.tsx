@@ -12,7 +12,7 @@ import countries110 from "world-atlas/countries-110m.json";
 import { mediaUrl } from "../../lib/api";
 import { endpoint } from "../../lib/platform";
 import { clusterPoints, type Cluster, type GeoPoint } from "./cluster";
-import { boundsOf, unwrapRings } from "./geo";
+import { boundsOf, unwrapRings, spanMeters } from "./geo";
 
 const DARK = { sea: "#0d0f12", land: "#2c3138", border: "#5c6570" };
 const LIGHT = { sea: "#dfe7ee", land: "#f7f5f0", border: "#9aa4ad" };
@@ -117,7 +117,11 @@ export function MapPage() {
       </div>
       {picked ? (
         <div data-testid="map-selection" className="space-y-2">
-          <p className="text-sm">{t("map.inArea", { n: picked.count.toLocaleString() })}</p>
+          <p className="text-sm">
+            {picked.count > 1 && spanMeters(picked.bbox) < 1000
+              ? t("map.oneSpot", { n: picked.count.toLocaleString(), m: Math.max(10, Math.round(spanMeters(picked.bbox) / 10) * 10) })
+              : t("map.inArea", { n: picked.count.toLocaleString() })}
+          </p>
           <ul className="grid grid-cols-[repeat(auto-fill,minmax(96px,1fr))] gap-1">
             {picked.ids.map((id) => (
               <li key={id}>

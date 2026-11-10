@@ -32,3 +32,13 @@ export function boundsOf(points: Array<{ lat: number; lon: number }>): [[number,
     [Math.max(...lons), Math.max(...lats)],
   ];
 }
+
+/** The longer side of a cluster's box in metres (MAP-014): photos within a few hundred metres are one place, and the
+ * borders-only map cannot split them further. */
+export function spanMeters([w, s, e, n]: [number, number, number, number]): number {
+  const R = 6_371_000;
+  const rad = Math.PI / 180;
+  const ns = (n - s) * rad * R;
+  const ew = (e - w) * rad * R * Math.cos(((n + s) / 2) * rad);
+  return Math.max(ns, ew);
+}

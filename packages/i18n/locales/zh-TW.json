@@ -833,7 +833,8 @@
     "cluster": "{n} 張照片",
     "noLocation": "沒有位置：{n} 張",
     "inArea": "這個範圍有 {n} 張",
-    "photo": "照片"
+    "photo": "照片",
+    "oneSpot": "這 {n} 張都拍在約 {m} 公尺的範圍內，是同一個地方。"
   },
   "compare": {
     "title": "比較",
