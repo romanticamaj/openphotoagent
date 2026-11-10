@@ -142,6 +142,18 @@ describe("finding a person (07 §4)", () => {
     expect(screen.getByTestId("candidate-keys").textContent).toContain("Y");
   });
 
+  it("[FACE-UI-020] 回歸：點開一個人，列出他所有的照片：確定的加上可能的，可能的標出來（使用者回報）", async () => {
+    s.people = [row];
+    s.search.mockResolvedValue({ items: [{ asset_id: "b1", ch: null, caption: "在操場", category: "people", tags: [], taken_at: null, score: 1, matched_by: [] }], facets: {}, total: 1, next_cursor: null });
+    const c = (id: string, asset: string) => ({ face_id: id, asset_id: asset, ch: null, bbox: [0, 0, 0.2, 0.2], score: 0.62, tier: 2, clear: true, sure: true, group: null });
+    s.cands.mockResolvedValue({ items: [c("f1", "c1"), c("f2", "c2"), c("f3", "b1")], references: 4 });
+    ui();
+    fireEvent.click(await screen.findByRole("button", { name: /未命名/ }));
+    await waitFor(() => expect(screen.getAllByTestId("person-photo")).toHaveLength(3)); // b1 once, plus c1 and c2
+    expect(screen.getAllByTestId("person-photo").filter((x) => x.dataset.maybe === "true")).toHaveLength(2);
+    expect(screen.getByTestId("person-photos-title").textContent).toBe("照片 3 張（1 張確定、2 張可能）");
+  });
+
   it("[FACE-UI-011] 一鍵把全部標成是", async () => {
     s.people = [row];
     s.search.mockResolvedValue({ items: [], facets: {}, total: 0, next_cursor: null });

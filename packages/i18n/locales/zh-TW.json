@@ -784,7 +784,10 @@
     "groupLabel": "{name} · {n} 張照片",
     "hardToJudge": "看不清",
     "allYesHint": "另有 {n} 張沒把握，請一張一張決定",
-    "candidateKeys": "鍵盤：Y 是 · N 不是 · S 或 → 略過 · ← 上一張"
+    "candidateKeys": "鍵盤：Y 是 · N 不是 · S 或 → 略過 · ← 上一張",
+    "photosWithMaybe": "照片 {n} 張（{sure} 張確定、{maybe} 張可能）",
+    "maybe": "可能",
+    "maybePhoto": "可能有這個人的照片"
   },
   "ask": {
     "open": "✦ 問 AI",

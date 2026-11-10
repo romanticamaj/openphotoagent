@@ -901,3 +901,15 @@ body {
 .name-face-row .name-face-crop { flex: none; width: 36px; height: 36px; border-radius: 999px; }
 .name-face-form { display: flex; flex: 1; align-items: center; gap: 8px; min-width: 0; }
 .face-box-unknown.is-hovered { border: 2px solid var(--accent); box-shadow: 0 0 0 1px rgb(0 0 0 / 0.5); }
+
+/* a person's photo that a likely face puts them in, not yet confirmed (FACE-UI-020) */
+.photo-maybe {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.6);
+  color: #fff;
+  font-size: 11px;
+}

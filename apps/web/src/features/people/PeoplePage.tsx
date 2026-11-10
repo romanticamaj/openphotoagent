@@ -176,19 +176,30 @@ function PersonPanel({ person, onClose }: { person: PersonRow; onClose: () => vo
     queryKey: ["person-photos", person.id],
     queryFn: () => api.search({ q: null, filters: { persons_any: [person.id] }, limit: 120 }),
   });
-  const hits = photos.data?.items ?? [];
+  // the photos the group holds, then the ones its likely faces are in (FACE-UI-020): most of a child's faces are in
+  // no group yet, and the person page is where people look for 「all of them」
+  const cands = useQuery({ queryKey: ["person-candidates", person.id], queryFn: () => api.personCandidates(person.id) });
+  const shown = useMemo(() => {
+    const sure = (photos.data?.items ?? []).map((h) => ({ id: h.asset_id, ch: h.ch, caption: h.caption, taken_at: h.taken_at, maybe: false }));
+    const seen = new Set(sure.map((x) => x.id));
+    const maybe = (cands.data?.items ?? [])
+      .filter((c) => c.clear !== false && !seen.has(c.asset_id) && Boolean(seen.add(c.asset_id)))
+      .map((c) => ({ id: c.asset_id, ch: c.ch, caption: null as string | null, taken_at: null as string | null, maybe: true }));
+    return [...sure, ...maybe];
+  }, [photos.data, cands.data]);
+  const nMaybe = shown.filter((x) => x.maybe).length;
   const [viewing, setViewing] = useState<number | null>(null);
   const grid: GridApi = useMemo(
     () => ({
-      total: hits.length,
+      total: shown.length,
       ordinal: (p) => p.index,
       at: async (i) => {
-        const h = hits[i];
+        const h = shown[i];
         if (!h) return null;
-        return { asset: { id: h.asset_id, ch: h.ch, w: null, h: null, thumbhash: null, taken_at: h.taken_at, flags: [] }, pos: { bucket: 0, index: i } };
+        return { asset: { id: h.id, ch: h.ch, w: null, h: null, thumbhash: null, taken_at: h.taken_at, flags: [] }, pos: { bucket: 0, index: i } };
       },
     }),
-    [hits],
+    [shown],
   );
   const save = useMutation({
     mutationFn: () => api.namePerson(person.id, name.trim()),
@@ -212,11 +223,24 @@ function PersonPanel({ person, onClose }: { person: PersonRow; onClose: () => vo
         </Button>
         <button type="button" className="ml-auto text-sm underline" onClick={onClose}>{t("dock.close")}</button>
       </form>
-      <h3 className="font-semibold">{t("faces.photos", { n: photos.data?.total ?? 0 })}</h3>
+      <h3 data-testid="person-photos-title" className="font-semibold">
+        {nMaybe
+          ? t("faces.photosWithMaybe", { n: shown.length, sure: shown.length - nMaybe, maybe: nMaybe })
+          : t("faces.photos", { n: photos.data?.total ?? 0 })}
+      </h3>
       <div className="explore-grid photo-wall">
-        {hits.map((h, i) => (
-          <button key={h.asset_id} type="button" className="explore-tile" aria-label={h.caption ?? t("faces.openPhoto")} onClick={() => setViewing(i)}>
-            <img src={mediaUrl(h.asset_id, "t256", h.ch)} alt="" loading="lazy" />
+        {shown.map((h, i) => (
+          <button
+            key={h.id}
+            type="button"
+            data-testid="person-photo"
+            data-maybe={h.maybe ? "true" : undefined}
+            className="explore-tile"
+            aria-label={h.maybe ? t("faces.maybePhoto") : (h.caption ?? t("faces.openPhoto"))}
+            onClick={() => setViewing(i)}
+          >
+            <img src={mediaUrl(h.id, "t256", h.ch)} alt="" loading="lazy" />
+            {h.maybe ? <span className="photo-maybe">{t("faces.maybe")}</span> : null}
             <span className="explore-caption">{h.caption ?? ""}</span>
           </button>
         ))}

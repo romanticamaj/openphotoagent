@@ -784,7 +784,10 @@
     "groupLabel": "{name} · {n} photos",
     "hardToJudge": "Hard to tell",
     "allYesHint": "{n} more are less certain: decide them one at a time",
-    "candidateKeys": "Keys: Y yes · N no · S or → skip · ← back"
+    "candidateKeys": "Keys: Y yes · N no · S or → skip · ← back",
+    "photosWithMaybe": "{n} photos ({sure} confirmed, {maybe} likely)",
+    "maybe": "Likely",
+    "maybePhoto": "A photo they are likely in"
   },
   "ask": {
     "open": "✦ Ask AI",
