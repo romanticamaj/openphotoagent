@@ -65,9 +65,10 @@ class SearchIn(BaseModel):
     facets: list[str] = []
     collapse_duplicates: bool = True  # one representative per near-duplicate group, with "+N" (05 §2.1)
     plan: bool = False  # run the rule-based planner on q (05 §2.3): NL dates / tags → filters, rest stays text
-    # a named person's name in q becomes a face filter (SRCH-PLAN-022); MCP and 問 AI callers set it only with
-    # faces:read on a workspace that opened faces to AI assistants (MCP-SCOPE-010)
-    plan_persons: bool = True
+    # a named person's name in q becomes a face filter (SRCH-PLAN-022). Set by the server only, never trusted from a
+    # client: the app's own search sets it, MCP and 問 AI only with faces:read on a workspace that opened faces to AI
+    # assistants (MCP-SCOPE-010). Off by default, so a new caller fails closed.
+    plan_persons: bool = False
     lang: str = "zh-TW"  # the language of tag_names (IMP-022)
 
 
@@ -648,7 +649,8 @@ def _facets(c: Any, ids: list[str] | None, where: list[Any], fields: list[str]) 
 
 @router.post("/search")
 def search(body: SearchIn, req: Request) -> dict[str, Any]:
-    return run_search(_st(req), body)
+    # the app's own search: names resolve, behind the same faces gate as a persons_* filter (07 §3.3)
+    return run_search(_st(req), body.model_copy(update={"plan_persons": True}))
 
 
 MAX_UPLOAD = 30 * 1024 * 1024

@@ -102,3 +102,23 @@ def test_scope_010_a_name_in_the_query_is_not_a_face_filter_without_faces_read(m
     m.settings(faces_enabled=True)
     faces = m.token(["photos:read", "faces:read"])
     assert m.ok(faces, "search_photos", {"query": "爸爸"})["total_estimate"] == 7
+
+
+@pytest.mark.integration
+@pytest.mark.tc("MCP-SCOPE-011")
+def test_scope_011_a_stored_cursor_or_selection_rechecks_faces(m):
+    """回歸 (security review): a cursor or a selection replays a stored search; once faces are closed to AI assistants
+    it must not keep resolving names or person filters."""
+    m.client.post(f"/api/v1/people/{m.ids['dad']}/name", json={"name": "爸爸"}, headers=m.ui)
+    m.index()
+    m.settings(faces_enabled=True)
+    pat = m.token(["photos:read", "faces:read", "collections:write"])
+    first = m.ok(pat, "search_photos", {"query": "爸爸", "limit": 2})
+    assert first["total_estimate"] == 7 and first["next_cursor"]
+    sel = m.ok(pat, "find_photos_of_person", {"person_ids": [m.ids["mom"]]})["selection_id"]
+    m.settings(faces_enabled=False)
+    nxt = m.call(pat, "search_photos", {"query": "爸爸", "cursor": first["next_cursor"]})["result"]
+    # refused (search again under today's rules) or answered with the name as text: never the person's photos
+    assert nxt["isError"] or nxt["structuredContent"]["total_estimate"] == 0
+    r = m.call(pat, "create_collection", {"name": "x", "selection_id": sel})["result"]
+    assert r["isError"] and r["structuredContent"]["code"] == "MCP_INSUFFICIENT_SCOPE"

@@ -317,6 +317,18 @@ def _unindexed(args: dict[str, Any]) -> list[str]:
     return [k for k in keys if f.get(k) not in (None, {}, [])]
 
 
+def _regate(ctx: Ctx, body: dict[str, Any]) -> dict[str, Any]:
+    """A stored search (cursor, selection) replayed under today's token and settings (MCP-SCOPE-011): person
+    filters need faces:read on a workspace that opened faces to AI assistants, and names resolve only then."""
+    allowed = "faces:read" in ctx.tok.scopes and bool(ctx.settings.faces_enabled)
+    f = body.get("filters") or {}
+    if not allowed and any(f.get(k) for k in ("persons_all", "persons_any", "persons_none")):
+        raise ToolError(
+            "MCP_INSUFFICIENT_SCOPE", "人物條件需要 faces:read，且人臉功能需在 app 內開啟", scope="faces:read"
+        )
+    return {**body, "plan_persons": allowed}
+
+
 def search_photos(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
     from .search import SearchIn, run_search
 
@@ -332,7 +344,7 @@ def search_photos(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
             )
         except HandleError as e:
             raise ToolError("CURSOR_INVALID", str(e)) from None
-        body, inner = data["b"], data["c"]
+        body, inner = _regate(ctx, data["b"]), data["c"]
     sort = args.get("sort") or "relevance"
     req = SearchIn(**{**body, "limit": int(args.get("limit") or 20), "cursor": inner})
     r = run_search(st, req)
@@ -380,7 +392,7 @@ def resolve_selection(ctx: Ctx, sel: str, limit: int) -> list[str]:
         data = ctx.signer().open("sel", sel, token_id=ctx.tok.id, scope_key=ctx.tok.scope_key, now=ctx.st.clock.now())
     except HandleError as e:
         raise ToolError("SELECTION_INVALID", str(e)) from None
-    body = data["q"]
+    body = _regate(ctx, data["q"])
     with ctx.st.engine.begin() as c:
         body = {**body, "filters": {**body["filters"], "within": within_scopes(ctx, c)}}
     ids: list[str] = []

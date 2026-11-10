@@ -162,6 +162,7 @@
 | MCP-SCOPE-008 | 撤銷即時生效 | 撤銷 PAT 後下一次呼叫 | `MCP_TOKEN_INVALID` | I | #68 |
 | MCP-SCOPE-009 | launch token 不能用於 MCP | stdio 以 launch token 取代 PAT | 401 | S | #60 |
 | MCP-SCOPE-010 | 查詢裡的人名沒有 faces:read 時不變成人臉篩選（回歸，安全審查） | 有名字的人物；只有 photos:read 的 token；有 faces:read 且開放人臉的 token | 前者當成文字（0 張）；後者找到這個人的 7 張 | I | #78 |
+| MCP-SCOPE-011 | 存下的 cursor／selection 重放時重新檢查人臉權限（回歸，安全審查） | 開放人臉時取得 cursor 與 selection，之後關閉 | cursor 的人名回到文字（0 張）；用 selection 建集合回 `MCP_INSUFFICIENT_SCOPE` | I | #78 |
 
 ### 3.3 MCP-FOLD、MCP-MEDIA：資料夾範圍與 media policy
 

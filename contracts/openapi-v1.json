@@ -2274,7 +2274,7 @@
             "type": "boolean"
           },
           "plan_persons": {
-            "default": true,
+            "default": false,
             "title": "Plan Persons",
             "type": "boolean"
           },
