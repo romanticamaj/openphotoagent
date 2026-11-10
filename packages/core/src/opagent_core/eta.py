@@ -327,7 +327,16 @@ def seed_eta(prev: dict[str, Any] | None, t_start: float) -> dict[str, Any]:
     prev = dict(prev or {})
     if prev.get("_pt") is not None or prev.get("samples"):
         return prev
-    return {**prev, "_pt": t_start, "_pf": 0.0, "_t": t_start, "active_s": 0.0, "state": "estimating", "samples": 0}
+    return {
+        **prev,
+        "_pt": t_start,
+        "_pf": 0.0,
+        "_t": t_start,
+        "active_s": 0.0,
+        "state": "estimating",
+        "samples": 0,
+        "_seeded": True,  # the first sample also holds the scan and the model loading (ETA-033)
+    }
 
 
 def live_eta(prev: dict[str, Any] | None, t: float, fraction: float | None, unit: str = "items") -> dict[str, Any]:
@@ -357,6 +366,11 @@ def live_eta(prev: dict[str, Any] | None, t: float, fraction: float | None, unit
 
     rate = Ewma(RATE_TAU[kind])
     rate.mean, rate.var = prev.get("_mean"), prev.get("_var", 0.0)
+    if prev.get("_seeded") and prev.get("samples", 0) == 1:
+        # the second sample is the first with photos flowing: it replaces the start-up one (ETA-033)
+        rate.mean, rate.var = None, 0.0
+        prev = {k: v for k, v in prev.items() if k != "_seeded"}
+        base.pop("_seeded", None)
     mean = rate.add(df / dt, dt)
     iv = dt if prev.get("_iv") is None else 0.8 * prev["_iv"] + 0.2 * dt
     out = {**base, "_pt": t, "_pf": fraction, "_mean": mean, "_var": rate.var, "_iv": iv}

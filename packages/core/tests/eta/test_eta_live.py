@@ -136,3 +136,16 @@ def test_eta_029_an_estimate_seeded_at_the_start_is_rough_by_the_second_report()
     eta = live_eta(eta, 120.0, 8 / 40, "items")
     assert eta["state"] in ("rough", "precise") and eta["p50_s"] == pytest.approx(80.0, rel=0.2)
     assert seed_eta(eta, 500.0)["_pt"] == eta["_pt"]  # an estimate already running is left alone
+
+
+@pytest.mark.unit
+@pytest.mark.tc("ETA-033")
+def test_eta_033_the_start_up_time_leaves_the_rate_once_photos_flow():
+    """回歸 (audit round 22): the first time left, 「約 2 分鐘」, was about twice the real 62 s: the sample seeded at the
+    operation's start held the scan and the model loading. Once a second real sample is in, the rate is the photos'."""
+    from opagent_core.eta import seed_eta
+
+    eta = seed_eta(None, 100.0)
+    eta = live_eta(eta, 125.0, 8 / 40, "items")  # 25 s for 8, of which ~13 s was loading
+    eta = live_eta(eta, 131.0, 12 / 40, "items")  # then 4 photos in 6 s
+    assert eta["p50_s"] == pytest.approx((28 / 40) / ((4 / 40) / 6.0), rel=0.15)  # about 42 s, not about 85
