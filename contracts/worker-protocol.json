@@ -4110,6 +4110,7 @@
   "x-protocol-version": "1.0",
   "x-rpc-kinds": [
     "apply",
+    "basemap",
     "benchmark",
     "browse",
     "download",
