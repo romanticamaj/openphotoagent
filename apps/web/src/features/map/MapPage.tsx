@@ -14,7 +14,7 @@ import { endpoint } from "../../lib/platform";
 import { clusterPoints, type Cluster, type GeoPoint } from "./cluster";
 import { boundsOf, unwrapRings } from "./geo";
 
-const DARK = { sea: "#121417", land: "#24282d", border: "#454c55" };
+const DARK = { sea: "#0d0f12", land: "#2c3138", border: "#5c6570" };
 const LIGHT = { sea: "#dfe7ee", land: "#f7f5f0", border: "#9aa4ad" };
 
 function isDark(): boolean {
@@ -78,7 +78,7 @@ export function MapPage() {
     const b = boundsOf(q.data?.points ?? []);
     if (!m || !b || fitted.current) return;
     fitted.current = true;
-    m.fitBounds(b, { padding: 60, maxZoom: 12, duration: 0 });
+    m.fitBounds(b, { padding: 60, maxZoom: 6, duration: 0 }); // borders only (offline, MAP-001): closer is a blank fill
   }, [q.data]);
 
   useEffect(() => {
@@ -94,7 +94,7 @@ export function MapPage() {
       el.addEventListener("click", () => {
         setPicked(c);
         const [w, so, e, n] = c.bbox;
-        if (c.count > 1 && (e > w || n > so)) m.fitBounds([[w, so], [e, n]], { padding: 80, maxZoom: 15 }); // drill down
+        if (c.count > 1 && (e > w || n > so)) m.fitBounds([[w, so], [e, n]], { padding: 80, maxZoom: 9 }); // drill down, coast still in view
       });
       return new Marker({ element: el }).setLngLat([c.lon, c.lat]).addTo(m);
     });
