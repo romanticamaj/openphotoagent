@@ -498,3 +498,24 @@ def test_srch_r2_006_an_installed_text_model_becomes_a_caption_embedder(tmp_path
     emb = got.text_embedders["qwen3-embedding-0.6b"]
     assert isinstance(emb, LlamaCppEmbedAdapter) and str(files["weights"]) in emb.args()
     assert emb.query_prefix.startswith("Instruct:") and got.vlm is None  # not mistaken for the VLM
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-R2-006")
+def test_srch_r2_006_building_the_index_takes_a_numpy_answer(tmp_path, sandbox_tree):
+    """回歸 (reference machine): every embed_captions task failed with "truth value of an array is ambiguous": a real
+    model answers with a numpy array, the fake in the tests with a list."""
+    from opagent_adapters.llamacpp_embed import LlamaCppEmbedAdapter
+    from opagent_worker.agent import WorkerAgent
+
+    a = LlamaCppEmbedAdapter(["llama-server"], "q.gguf", fingerprint="qe")
+
+    async def fake(texts):
+        return np.ones((len(texts), 4), dtype=np.float32) / 2
+
+    a._embeddings = fake
+    a.loaded = True
+    w = WorkerAgent(_Due(), roots=sandbox_tree.roots, home=tmp_path / "w", worker_id="w1")
+    w.text_embedders = {"qwen3-embedding-0.6b": a}
+    out = w._do_embed_captions({"model": "qwen3-embedding-0.6b", "items": [{"asset_id": "a1", "text": "一隻貓"}]})
+    assert out["dim"] == 4 and out["vectors"]["a1"] == [0.5, 0.5, 0.5, 0.5]

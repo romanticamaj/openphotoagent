@@ -1073,7 +1073,7 @@ class WorkerAgent:
         return {
             "vectors": {it["asset_id"]: [float(x) for x in v] for it, v in zip(items, vecs, strict=True)},
             "fingerprint": emb.describe().model_fingerprint,
-            "dim": len(vecs[0]) if vecs else 0,
+            "dim": len(vecs[0]) if len(vecs) else 0,  # numpy: no truth value (SRCH-R2-006)
         }
 
     def _do_hash_sha1(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
