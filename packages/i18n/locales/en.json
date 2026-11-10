@@ -760,7 +760,9 @@
     "sameCounts": "{a} and {b} photos",
     "sameYes": "Same person",
     "sameNo": "Not the same",
-    "sameLater": "Later"
+    "sameLater": "Later",
+    "reviewSent": "Sent: {yes} yes, {no} no.",
+    "undoReview": "Undo"
   },
   "ask": {
     "open": "✦ Ask AI",

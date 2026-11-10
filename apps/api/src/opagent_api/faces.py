@@ -844,10 +844,12 @@ def confirm(fid: str, body: PersonIn, req: Request) -> dict[str, Any]:
     return {"ok": True}
 
 
-def _reject(c: Any, st: AppState, fid: str, pid: str, method: str = "review") -> None:
+def _reject(c: Any, st: AppState, fid: str, pid: str, method: str = "review", **kw: Any) -> None:
     cur = _current(c, [fid]).get(fid)  # auto, confirmed or a pending suggestion for this person
+    replaced = None
     if cur is not None and cur.person_id == pid:
         _write(c, st, fid, None, "unassigned", method, "user:local")
+        replaced = cur.id  # so an undo can bring the suggestion back
     c.execute(
         insert(face_assignment).values(
             id=uuid7(st.clock),
@@ -857,6 +859,8 @@ def _reject(c: Any, st: AppState, fid: str, pid: str, method: str = "review") ->
             method=method,
             actor="user:local",
             created_at=st.clock.now(),
+            replaces=replaced,
+            **kw,
         )
     )
 
@@ -948,13 +952,42 @@ def person_review(pid: str, body: ReviewIn, req: Request) -> dict[str, Any]:
         ).first()
         if ignored is not None or c.execute(select(person.c.status).where(person.c.id == pid)).scalar() == "ignored":
             raise HTTPException(409, detail={"code": "FACE_IGNORED"})
+        token = "rv_" + secrets.token_hex(8)  # 「復原」 takes the whole review back (FACE-FIND-014)
         for fid in body.yes:
-            _write(c, st, fid, pid, "confirmed", "find", "user:local")
+            _write(c, st, fid, pid, "confirmed", "find", "user:local", undo_of=token)
         for fid in body.no:
-            _reject(c, st, fid, pid, "find")
+            _reject(c, st, fid, pid, "find", undo_of=token)
+        c.execute(
+            insert(audit_log).values(actor="user:local", action="person.review", target=pid, details={"token": token})
+        )
         _freeze(c, st, pid)
         _reindex(c, [*body.yes, *body.no])
     return {"confirmed": len(body.yes), "rejected": len(body.no)}
+
+
+@router.post("/people/{pid}/review/undo")
+def undo_review(pid: str, req: Request) -> dict[str, Any]:
+    """Take back this person's last 「送出」, once."""
+    st = _st(req)
+    with st.engine.begin() as c:
+        last = c.execute(
+            select(audit_log.c.id, audit_log.c.details)
+            .where(audit_log.c.action == "person.review", audit_log.c.target == pid)
+            .order_by(audit_log.c.id.desc())
+            .limit(1)
+        ).first()
+        rows = (
+            c.execute(select(face_assignment).where(face_assignment.c.undo_of == last.details["token"])).all()
+            if last is not None and not last.details.get("undone")
+            else []
+        )
+        if last is None or not rows:
+            raise HTTPException(404, detail={"code": "NOT_FOUND"})
+        _restore(c, rows)
+        c.execute(update(audit_log).where(audit_log.c.id == last.id).values(details={**last.details, "undone": True}))
+        _freeze(c, st, pid)
+        _reindex(c, [r.face_id for r in rows])
+    return {"restored": len(rows)}
 
 
 class MergeIn(BaseModel):
@@ -1016,6 +1049,29 @@ def merge(pid: str, body: MergeIn, req: Request) -> dict[str, Any]:
     return {"undo_token": token, "moved": len(fs)}
 
 
+def _restore(c: Any, rows: Any) -> None:
+    """Drop the assignments a merge or a review wrote and bring back what each one replaced."""
+    for r in rows:
+        prev = (
+            c.execute(select(face_assignment).where(face_assignment.c.id == r.replaces)).first() if r.replaces else None
+        )
+        c.execute(delete(face_assignment).where(face_assignment.c.id == r.id))
+        if r.kind == "rejected" and prev is None:
+            continue  # this 「不是」 only added a cannot-link
+        if prev is not None:
+            c.execute(update(face_assignment).where(face_assignment.c.id == prev.id).values(superseded_at=None))
+        state = prev.kind if prev is not None and prev.kind in ("auto", "confirmed", "suggested") else "unassigned"
+        c.execute(
+            update(face)
+            .where(face.c.id == r.face_id)
+            .values(
+                person_id=prev.person_id if prev is not None and state in ("auto", "confirmed") else None,
+                state=state,
+                confidence=prev.confidence if prev is not None else None,
+            )
+        )
+
+
 @router.post("/people/merges/{token}/undo")
 def undo_merge(token: str, req: Request) -> dict[str, Any]:
     st = _st(req)
@@ -1028,25 +1084,7 @@ def undo_merge(token: str, req: Request) -> dict[str, Any]:
                 audit_log.c.action == "person.merge", audit_log.c.details["token"].astext == token
             )
         ).scalar()
-        for r in rows:
-            prev = (
-                c.execute(select(face_assignment).where(face_assignment.c.id == r.replaces)).first()
-                if r.replaces
-                else None
-            )
-            c.execute(delete(face_assignment).where(face_assignment.c.id == r.id))
-            if prev is not None:
-                c.execute(update(face_assignment).where(face_assignment.c.id == prev.id).values(superseded_at=None))
-                state = prev.kind if prev.kind in ("auto", "confirmed", "suggested") else "unassigned"
-                c.execute(
-                    update(face)
-                    .where(face.c.id == r.face_id)
-                    .values(
-                        person_id=prev.person_id if state in ("auto", "confirmed") else None,
-                        state=state,
-                        confidence=prev.confidence,
-                    )
-                )
+        _restore(c, rows)
         c.execute(update(person).where(person.c.id == a).values(merged_into=None))
         _reindex(c, [r.face_id for r in rows])
     return {"restored": len(rows)}

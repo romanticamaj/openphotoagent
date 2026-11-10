@@ -727,3 +727,23 @@ def test_view_027_a_photo_says_when_its_folder_is_not_checked_for_faces(f):
     assert f.get(f"/assets/{aid}")["faces_state"] == "on"
     f.sql("update workspace set settings = jsonb_set(settings, '{faces,sources}', '[\"elsewhere\"]')")
     assert f.get(f"/assets/{aid}")["faces_state"] == "folder_off"
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-FIND-014")
+def test_find_014_the_last_review_can_be_taken_back(f):
+    """回歸 (audit round 5): 「全部都是」 then 送出 moved a dozen faces to a person with no way back."""
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p1 = f.sql("select person_id from face where id=:i", i=ids[1][0]).scalar()
+    more = _small(f, 1, 4, "kid")
+    before = {i: f.sql("select person_id, state from face where id=:i", i=i).one() for i in more}
+    f.post(f"/people/{p1}/review", {"yes": more[:3], "no": more[3:]})
+    r = f.post(f"/people/{p1}/review/undo", {})
+    assert r == {"restored": 4}
+    assert {i: f.sql("select person_id, state from face where id=:i", i=i).one() for i in more} == before
+    got = {c["face_id"] for c in f.get(f"/people/{p1}/candidates")["items"]}
+    assert set(more) <= got  # the 「不是」 is gone too: they are asked again
+    r = f.client.post(f"/api/v1/people/{p1}/review/undo", json={}, headers=f.ui)
+    assert r.status_code == 404  # only once

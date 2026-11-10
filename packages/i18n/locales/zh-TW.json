@@ -760,7 +760,9 @@
     "sameCounts": "{a} 張和 {b} 張照片",
     "sameYes": "是同一人",
     "sameNo": "不是同一人",
-    "sameLater": "稍後再說"
+    "sameLater": "稍後再說",
+    "reviewSent": "已送出：{yes} 張是、{no} 張不是。",
+    "undoReview": "復原"
   },
   "ask": {
     "open": "✦ 問 AI",

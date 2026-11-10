@@ -7,7 +7,7 @@ beforeAll(async () => {
   await i18n.changeLanguage("zh-TW");
 });
 
-const s = vi.hoisted(() => ({ search: vi.fn(), name: vi.fn(), cands: vi.fn(), review: vi.fn(), merge: vi.fn(), dismiss: vi.fn(), people: [] as unknown[], merges: [] as unknown[] }));
+const s = vi.hoisted(() => ({ search: vi.fn(), name: vi.fn(), cands: vi.fn(), review: vi.fn(), undoReview: vi.fn(), merge: vi.fn(), dismiss: vi.fn(), people: [] as unknown[], merges: [] as unknown[] }));
 vi.mock("../../lib/api", async (orig) => ({
   ...(await orig<typeof import("../../lib/api")>()),
   mediaUrl: (id: string) => `/m/${id}`,
@@ -17,6 +17,7 @@ vi.mock("../../lib/api", async (orig) => ({
     namePerson: s.name,
     personCandidates: s.cands,
     reviewPerson: s.review,
+    undoReview: s.undoReview,
     mergePeople: s.merge,
     dismissMerge: s.dismiss,
   },
@@ -123,6 +124,23 @@ describe("finding a person (07 §4)", () => {
     expect(s.review.mock.calls.at(-1)![1].yes).toHaveLength(12);
     fireEvent.click(screen.getByRole("button", { name: /再看/ }));
     expect(screen.getAllByTestId("candidate")).toHaveLength(24);
+  });
+
+  it("[FACE-FIND-014] 回歸：送出後可以復原（驗證第 5 輪）", async () => {
+    s.people = [row];
+    s.search.mockResolvedValue({ items: [], facets: {}, total: 0, next_cursor: null });
+    s.cands.mockResolvedValue({ items: [{ face_id: "f9", asset_id: "a9", ch: null, bbox: [0, 0, 0.2, 0.2], score: 0.7, group: null }], references: 1 });
+    s.review.mockResolvedValue({ confirmed: 1, rejected: 0 });
+    s.undoReview.mockResolvedValue({ restored: 1 });
+    ui();
+    fireEvent.click(await screen.findByRole("button", { name: /未命名/ }));
+    await screen.findByTestId("candidate");
+    fireEvent.click(screen.getByRole("button", { name: "全部都是" }));
+    fireEvent.click(screen.getByRole("button", { name: /送出/ }));
+    expect((await screen.findByTestId("review-done")).textContent).toContain("1");
+    fireEvent.click(screen.getByRole("button", { name: "復原" }));
+    await waitFor(() => expect(s.undoReview).toHaveBeenCalledWith("p1"));
+    await waitFor(() => expect(screen.queryByTestId("review-done")).toBeNull());
   });
 
   it("[FACE-MGT-010] 「可能是同一人？」：兩張臉並排，是就合併，不是就不再問", async () => {

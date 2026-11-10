@@ -50,20 +50,42 @@ function Candidates({ person }: { person: PersonRow }) {
   const pick = (m: Mark) => Object.keys(marks).filter((k) => marks[k] === m);
   const yes = pick("yes");
   const no = pick("no");
+  const [done, setDone] = useState<{ yes: number; no: number } | null>(null);
+  const refresh = () => {
+    for (const k of ["person-candidates", "person-photos"]) void qc.invalidateQueries({ queryKey: [k, person.id] });
+    void qc.invalidateQueries({ queryKey: ["people"] });
+  };
   const send = useMutation({
     mutationFn: () => api.reviewPerson(person.id, { yes, no }),
-    onSuccess: () => {
+    onSuccess: (r) => {
       setMarks({});
       setShown(PAGE);
-      for (const k of ["person-candidates", "person-photos"]) void qc.invalidateQueries({ queryKey: [k, person.id] });
-      void qc.invalidateQueries({ queryKey: ["people"] });
+      setDone({ yes: r.confirmed, no: r.rejected });
+      refresh();
+    },
+  });
+  const undo = useMutation({
+    mutationFn: () => api.undoReview(person.id),
+    onSuccess: () => {
+      setDone(null);
+      refresh();
     },
   });
   const who = person.name ?? t("faces.thisPerson");
-  if (q.isSuccess && all.length === 0) return <p className="text-sm text-[var(--text-muted)]">{t("faces.noCandidates")}</p>;
-  if (!items.length) return null;
+  // after 「送出」: what was sent, and a way back (FACE-FIND-014)
+  const doneNote = done ? (
+    <p data-testid="review-done" role="status" className="flex flex-wrap items-center gap-2 text-sm">
+      {t("faces.reviewSent", { yes: done.yes, no: done.no })}
+      <button type="button" className="underline" onClick={() => undo.mutate()}>
+        {t("faces.undoReview")}
+      </button>
+    </p>
+  ) : null;
+  if (q.isSuccess && all.length === 0) return doneNote ?? <p className="text-sm text-[var(--text-muted)]">{t("faces.noCandidates")}</p>;
+  if (!items.length) return doneNote;
   return (
     <section aria-labelledby={`cand-${person.id}`} className="space-y-2">
+      {doneNote}
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 id={`cand-${person.id}`} className="font-semibold">{t("faces.candidatesTitle", { name: who, n: all.length })}</h3>
         <p className="text-xs text-[var(--text-muted)]">{t("faces.candidatesHint")}</p>
