@@ -236,6 +236,14 @@
     "recent": "最近完成",
     "group": {
       "control": "系統工作"
+    },
+    "inFolder": "{name}（{folder}）",
+    "noThanks": "不用了",
+    "resumeMeans": {
+      "job.analyze": "「全部繼續」會繼續分析剩下的照片，不會動任何檔案。",
+      "job.label": "「全部繼續」會繼續分析；要動檔案前，仍會先給你看計畫。",
+      "model.download": "「全部繼續」會從中斷的地方接著下載。",
+      "default": "「全部繼續」會從中斷的地方接著做。"
     }
   },
   "fix": {

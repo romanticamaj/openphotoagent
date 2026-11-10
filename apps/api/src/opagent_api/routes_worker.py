@@ -200,10 +200,23 @@ def _recover_jobs(
             )
         }
     for jid in sorted(jobs):
-        status = c.execute(select(job.c.status).where(job.c.id == jid)).scalar()
-        if status != "running":
+        jr = c.execute(select(job.c.status, job.c.kind, job.c.params).where(job.c.id == jid)).first()
+        if jr is None or jr.status != "running":
             continue
-        ensure_operation(c, st.clock, jid, "job.label", {"kind": "job", "id": jid})
+        if jr.kind == "preview":  # its samples go with it: nothing to resume, nothing to warn about (OP-021)
+            set_job_status(c, jid, JobStatus.cancelling, clock=st.clock)
+            set_job_status(c, jid, JobStatus.cancelled, clock=st.clock, finished_at=st.clock.now())
+            continue
+        from opagent_db.schema import source as _src
+
+        where = c.execute(
+            select(_src.c.root_alias, _src.c.sub_path).where(_src.c.id == (jr.params or {}).get("source_id"))
+        ).first()
+        folder = ((where.sub_path or where.root_alias).rstrip("/").rsplit("/", 1)[-1]) if where else ""
+        # what it was, for the 「上次有工作被中斷」 card: 「AI 分析（第19周）」, not 「整理」 (OP-021)
+        subject = {"kind": "job", "id": jid, "job_kind": str(jr.kind), "folder": folder}
+        ensure_operation(c, st.clock, jid, "job.label", subject)
+        c.execute(update(operation).where(operation.c.id == jid).values(subject=subject))
         set_op_status(c, st.clock, jid, "running")
         set_op_status(c, st.clock, jid, "interrupted")
         set_job_status(c, jid, JobStatus.paused, clock=st.clock)

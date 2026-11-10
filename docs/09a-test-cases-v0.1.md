@@ -677,6 +677,7 @@
 | OP-018 | 等待中暫停／取消（ADR-0004，回歸） | `waiting` 的 Operation：(a) Worker 持有 lease；(b) 沒有 lease | (a) 暫停 → `pausing`、取消 → `cancelling`，Worker 確認後才到 `paused`／`cancelled`；(b) 直接到 `paused`（`waiting_reason=PAUSED_BY_USER`）／`cancelled`；兩者狀態都真的改變 | I | #32、#47 |
 | OP-019 | 下載後的索引 Operation 會結束（回歸） | 嵌入模型下載完成 | `search.reindex` 不會永遠停在 queued | I | — |
 | OP-020 | 分析資料夾有進度與時間（回歸，驗證第 2 輪） | 分析 3 張 | Operation 有 done/total、進入 running 時寫 started_at、有 ETA；活動中心名稱為「AI 分析」（不是「整理」） | I | #— |
+| OP-021 | 預覽不是可繼續的工作；中斷的工作說是什麼（回歸，驗證第 17 輪） | 重新啟動時有進行中的預覽與整理 | 預覽被取消、不出現在中斷提示；整理的 Operation subject 帶 job_kind 與資料夾 | I | #— |
 
 ### 9.2 ETA：估算（FakeClock 驅動，06 §2.3、§5.5）
 
@@ -723,6 +724,7 @@
 | ACT-006 | OperationProgress 四變體 | inline、compact、card、full × 每個 eta.state | 視覺快照 light/dark；full 變體 stepper 顯示 skipped 為灰色虛線 | V | #30 |
 | ACT-007 | 經過時間本地累加 | running，SSE 停止 5 s | 經過時間每秒前進；paused 時停止 | U | #31 |
 | ACT-008 | 最近完成（回歸，驗證第 3 輪） | 一個完成的分析、一個失敗的下載，沒有進行中的 | 仍說「目前沒有進行中的工作」，並列「最近完成」：名稱（AI 分析）、狀態、完成時間；最多 10 筆、24 小時內 | C | #— |
+| ACT-009 | 中斷提示說清楚是什麼、按了會怎樣、可以不用（回歸，驗證第 17 輪） | 一個中斷的 AI 分析 | 列「AI 分析（第19周）」與「會繼續分析剩下的照片，不會動任何檔案」；「不用了」取消它 | C | #— |
 
 ## 10. ORG、REV — 整理流程與待確認（killer ①；03 §10、04 §3.7、08 §8.1）
 

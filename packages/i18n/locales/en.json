@@ -236,6 +236,14 @@
     "recent": "Recently finished",
     "group": {
       "control": "System"
+    },
+    "inFolder": "{name} ({folder})",
+    "noThanks": "No thanks",
+    "resumeMeans": {
+      "job.analyze": "“Resume all” analyses the remaining photos; no file is touched.",
+      "job.label": "“Resume all” keeps analysing; you still see the plan before any file moves.",
+      "model.download": "“Resume all” continues the download where it stopped.",
+      "default": "“Resume all” continues where it stopped."
     }
   },
   "fix": {

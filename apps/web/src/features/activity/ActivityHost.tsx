@@ -137,6 +137,15 @@ export function RecoveryCard({ onReview }: { onReview: () => void }) {
   const qc = useQueryClient();
   const [dismissed, setDismissed] = useState(false);
   const ops = (useActivity().data ?? []).filter((o) => o.status === "interrupted" || o.auto_resumed);
+  const drop = useMutation({
+    mutationFn: async () => {
+      for (const o of ops.filter((x) => x.status === "interrupted")) await api.cancelOp(o.id);
+    },
+    onSuccess: () => {
+      setDismissed(true);
+      void qc.invalidateQueries({ queryKey: ["operations"] });
+    },
+  });
   const resumeAll = useMutation({
     mutationFn: async () => {
       for (const o of ops.filter((x) => x.status === "interrupted")) await api.resumeOp(o.id);
@@ -151,11 +160,20 @@ export function RecoveryCard({ onReview }: { onReview: () => void }) {
     <section data-testid="recovery-card" aria-labelledby="recovery-h" className="m-4 space-y-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4">
       <h2 id="recovery-h" className="font-semibold">{t("activity.recoveryTitle", { n: ops.length })}</h2>
       <ul className="text-sm">
-        {ops.map((o) => (
-          <li key={o.id}>
-            {t(`activity.type.${opTypeKey(o)}`, { defaultValue: o.type })} · {o.auto_resumed ? t("activity.autoResumed") : t(`activity.status.${o.status}`)}
-          </li>
-        ))}
+        {ops.map((o) => {
+          // what it was and where, and what 「全部繼續」 does to it (ACT-009)
+          const key = opTypeKey(o);
+          const folder = (o.subject as { folder?: string } | undefined)?.folder;
+          const name = t(`activity.type.${key}`, { defaultValue: o.type });
+          return (
+            <li key={o.id}>
+              {folder ? t("activity.inFolder", { name, folder }) : name} · {o.auto_resumed ? t("activity.autoResumed") : t(`activity.status.${o.status}`)}
+              {o.status === "interrupted" ? (
+                <span className="block text-xs text-[var(--text-muted)]">{t(`activity.resumeMeans.${key}`, { defaultValue: t("activity.resumeMeans.default") })}</span>
+              ) : null}
+            </li>
+          );
+        })}
       </ul>
       <div className="flex gap-2">
         <Button disabledReason={resumeAll.isPending ? { code: "BUSY", message: t("common.working") } : null} onClick={() => resumeAll.mutate()}>
@@ -163,6 +181,9 @@ export function RecoveryCard({ onReview }: { onReview: () => void }) {
         </Button>
         <Button variant="ghost" onClick={onReview}>
           {t("activity.review")}
+        </Button>
+        <Button variant="ghost" onClick={() => drop.mutate()}>
+          {t("activity.noThanks")}
         </Button>
       </div>
     </section>
