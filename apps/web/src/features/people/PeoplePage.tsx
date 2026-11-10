@@ -215,6 +215,10 @@ function MergeSuggestion({ people, pair, onSkip }: { people: PersonRow[]; pair: 
         <p className="text-xs text-[var(--text-muted)]">
           {t("faces.sameCounts", { a: a.asset_count, b: b.asset_count })}
         </p>
+        <div data-testid="merge-more" className="merge-more">
+          <MoreFaces person={a} skip={a.cover?.asset_id} />
+          <MoreFaces person={b} skip={b.cover?.asset_id} />
+        </div>
         <div className="flex gap-2">
           <Button onClick={() => merge.mutate()}>{t("faces.sameYes")}</Button>
           <Button variant="ghost" onClick={() => no.mutate()}>{t("faces.sameNo")}</Button>
@@ -222,6 +226,30 @@ function MergeSuggestion({ people, pair, onSkip }: { people: PersonRow[]; pair: 
         </div>
       </div>
     </section>
+  );
+}
+
+const MORE = 5;
+
+/** A few more faces of one group, from different photos and clearest first: one cover is too little to decide on
+ * (FACE-MGT-013). */
+function MoreFaces({ person, skip }: { person: PersonRow; skip?: string }) {
+  const { t } = useTranslation();
+  const q = useQuery({ queryKey: ["person", person.id], queryFn: () => api.person(person.id), staleTime: 60_000 });
+  const seen = new Set(skip ? [skip] : []);
+  const picks = [...(q.data?.faces ?? [])]
+    .sort((x, y) => y.tier - x.tier)
+    .filter((f) => !seen.has(f.asset_id) && Boolean(seen.add(f.asset_id)))
+    .slice(0, MORE);
+  if (!picks.length) return null;
+  return (
+    <ul className="merge-more-row" aria-label={t("faces.moreOf", { name: person.name ?? t("faces.unnamed") })}>
+      {picks.map((f) => (
+        <li key={f.id}>
+          <FaceCrop assetId={f.asset_id} ch={f.ch} bbox={f.bbox} />
+        </li>
+      ))}
+    </ul>
   );
 }
 

@@ -762,7 +762,8 @@
     "sameNo": "Not the same",
     "sameLater": "Later",
     "reviewSent": "Sent: {yes} yes, {no} no.",
-    "undoReview": "Undo"
+    "undoReview": "Undo",
+    "moreOf": "More of {name}"
   },
   "ask": {
     "open": "✦ Ask AI",

@@ -288,6 +288,11 @@ export const api = {
   dismissFacePrompt: () => req<FaceSettings>("POST", "/faces/prompt/dismiss"),
   disableFaces: (del: boolean, confirm: string) => req<{ purged: PurgeReport | null }>("POST", "/faces/disable", { delete: del, confirm }),
   people: () => req<{ people: PersonRow[]; others: number; merge_suggestions?: Array<{ a: string; b: string; score: number }> }>("GET", "/people"),
+  person: (pid: string) =>
+    req<PersonRow & { faces: Array<{ id: string; asset_id: string; ch: string | null; state: string; tier: number; bbox: number[] }> }>(
+      "GET",
+      `/people/${encodeURIComponent(pid)}`,
+    ),
   undoReview: (pid: string) => req<{ restored: number }>("POST", `/people/${encodeURIComponent(pid)}/review/undo`, {}),
   mergePeople: (from: string, into: string) => req<{ undo_token: string; moved: number }>("POST", `/people/${encodeURIComponent(from)}/merge`, { into }),
   dismissMerge: (a: string, b: string) => req<unknown>("POST", "/people/merge-suggestions/dismiss", { a, b }),

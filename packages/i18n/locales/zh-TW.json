@@ -762,7 +762,8 @@
     "sameNo": "不是同一人",
     "sameLater": "稍後再說",
     "reviewSent": "已送出：{yes} 張是、{no} 張不是。",
-    "undoReview": "復原"
+    "undoReview": "復原",
+    "moreOf": "{name} 的其他照片"
   },
   "ask": {
     "open": "✦ 問 AI",

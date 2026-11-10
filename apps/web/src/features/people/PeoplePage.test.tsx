@@ -7,7 +7,7 @@ beforeAll(async () => {
   await i18n.changeLanguage("zh-TW");
 });
 
-const s = vi.hoisted(() => ({ search: vi.fn(), name: vi.fn(), cands: vi.fn(), review: vi.fn(), undoReview: vi.fn(), merge: vi.fn(), dismiss: vi.fn(), people: [] as unknown[], merges: [] as unknown[] }));
+const s = vi.hoisted(() => ({ detail: vi.fn(), search: vi.fn(), name: vi.fn(), cands: vi.fn(), review: vi.fn(), undoReview: vi.fn(), merge: vi.fn(), dismiss: vi.fn(), people: [] as unknown[], merges: [] as unknown[] }));
 vi.mock("../../lib/api", async (orig) => ({
   ...(await orig<typeof import("../../lib/api")>()),
   mediaUrl: (id: string) => `/m/${id}`,
@@ -20,6 +20,7 @@ vi.mock("../../lib/api", async (orig) => ({
     undoReview: s.undoReview,
     mergePeople: s.merge,
     dismissMerge: s.dismiss,
+    person: s.detail,
   },
 }));
 vi.mock("../viewer/Lightbox", () => ({ Lightbox: ({ start }: { start: number }) => <div role="dialog" data-start={start} /> }));
@@ -157,6 +158,18 @@ describe("finding a person (07 §4)", () => {
     s.merges = [{ a: "p1", b: "p2", score: 0.9 }];
     fireEvent.click(await screen.findByRole("button", { name: "不是同一人" }));
     await waitFor(() => expect(s.dismiss).toHaveBeenCalledWith("p1", "p2"));
+  });
+
+  it("[FACE-MGT-013] 回歸：合併前看得到兩組各自的幾張臉（驗證第 5 輪）", async () => {
+    const fc = (p: string, i: number) => ({ id: `${p}f${i}`, asset_id: `${p}a${i}`, ch: null, state: "auto", tier: 2, bbox: [0, 0, 0.2, 0.2] });
+    s.detail.mockImplementation(async (id: string) => ({ id, faces: Array.from({ length: 9 }, (_, i) => fc(id, i)) }));
+    s.people = [{ ...row, cover: { asset_id: "a1", ch: null, bbox: [0, 0, 0.2, 0.2] } }, { ...row, id: "p2", cover: { asset_id: "a2", ch: null, bbox: [0, 0, 0.2, 0.2] } }];
+    s.merges = [{ a: "p1", b: "p2", score: 0.9 }];
+    ui();
+    const card = await screen.findByTestId("merge-suggestion");
+    await waitFor(() => expect(card.querySelectorAll("[data-testid=merge-more] .face-crop")).toHaveLength(10)); // 5 a side
+    expect(s.detail).toHaveBeenCalledWith("p1");
+    expect(s.detail).toHaveBeenCalledWith("p2");
   });
 
   it("[FACE-MGT-011] 卡片挑兩組都在牆上的那一對", async () => {

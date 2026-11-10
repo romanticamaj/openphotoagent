@@ -775,11 +775,26 @@ def person_detail(pid: str, req: Request) -> dict[str, Any]:
         if p is None:
             raise HTTPException(404, detail={"code": "NOT_FOUND"})
         fs = c.execute(
-            select(face.c.id, face.c.asset_id, face.c.state, face.c.quality_tier)
+            select(face.c.id, face.c.asset_id, face.c.state, face.c.quality_tier, face.c.bbox, asset.c.content_hash)
+            .join(asset, asset.c.id == face.c.asset_id)
             .where(face.c.person_id == pid)
             .order_by(face.c.id)
         ).all()
-    return {**p, "faces": [{"id": f.id, "asset_id": f.asset_id, "state": f.state, "tier": f.quality_tier} for f in fs]}
+    # bbox and ch: the merge card shows a few of the faces (FACE-MGT-013)
+    return {
+        **p,
+        "faces": [
+            {
+                "id": f.id,
+                "asset_id": f.asset_id,
+                "state": f.state,
+                "tier": f.quality_tier,
+                "bbox": list(f.bbox),
+                "ch": f.content_hash,
+            }
+            for f in fs
+        ],
+    }
 
 
 def _freeze(c: Any, st: AppState, pid: str) -> None:

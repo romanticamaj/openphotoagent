@@ -747,3 +747,15 @@ def test_find_014_the_last_review_can_be_taken_back(f):
     assert set(more) <= got  # the 「不是」 is gone too: they are asked again
     r = f.client.post(f"/api/v1/people/{p1}/review/undo", json={}, headers=f.ui)
     assert r.status_code == 404  # only once
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-MGT-013")
+def test_mgt_013_a_person_lists_faces_to_compare(f):
+    """回歸 (audit round 5): 「可能是同一人？」 showed one face per group, too little to decide on."""
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p1 = f.sql("select person_id from face where id=:i", i=ids[1][0]).scalar()
+    fs = f.get(f"/people/{p1}")["faces"]
+    assert len(fs) == 6 and all(len(x["bbox"]) == 4 and x["ch"] for x in fs)
