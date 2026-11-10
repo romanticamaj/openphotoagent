@@ -910,7 +910,9 @@
     "analyse": "Analyse",
     "analyseRest": "Analyse the rest",
     "reanalyse": "Analyse again",
-    "orAddNew": "Or add a new folder"
+    "orAddNew": "Or add a new folder",
+    "upToDate": "Everything in “{name}” is analysed; only new or changed photos are checked.",
+    "analysing": "Analysing “{name}”; progress is at the bottom left."
   },
   "dock": {
     "label": "Progress",

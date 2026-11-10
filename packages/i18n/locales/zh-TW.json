@@ -910,7 +910,9 @@
     "analyse": "分析",
     "analyseRest": "分析剩下的照片",
     "reanalyse": "重新分析",
-    "orAddNew": "或加入新的資料夾"
+    "orAddNew": "或加入新的資料夾",
+    "upToDate": "「{name}」的照片都已分析過；只會補上新增或有變動的照片。",
+    "analysing": "已開始分析「{name}」，進度在左下角。"
   },
   "dock": {
     "label": "進度",

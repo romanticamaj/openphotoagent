@@ -8,7 +8,7 @@ import { Button } from "../../components/Button";
 import { FolderPicker } from "../../components/FolderPicker";
 import { LibraryFolders } from "../../components/LibraryFolders";
 import { ProblemCard, type Problem } from "../../components/ProblemCard";
-import { ApiError, api } from "../../lib/api";
+import { ApiError, api, type LibrarySource } from "../../lib/api";
 
 export function ImportPage() {
   const { t } = useTranslation();
@@ -29,10 +29,13 @@ export function ImportPage() {
     },
   });
   // a folder already in the library: analyse what is new, or everything again after a model or setting changed
+  // stays here and says what happens: it used to jump to the timeline even when nothing was left (IMP-035)
+  const [said, setSaid] = useState<string | null>(null);
   const again = useMutation({
-    mutationFn: async (source: string) => {
-      await api.analyzeSource(source);
-      void nav({ to: "/" });
+    mutationFn: async (s: LibrarySource) => {
+      await api.analyzeSource(s.id);
+      const name = s.sub_path ? s.sub_path.split("/").at(-1)! : s.root_alias;
+      setSaid(t(s.analysed >= s.photos ? "library.upToDate" : "library.analysing", { name }));
     },
   });
   const scanOnly = useMutation({
@@ -61,9 +64,14 @@ export function ImportPage() {
         <h2 className="font-semibold">{t("library.inLibrary")}</h2>
         <LibraryFolders
           action={(s) => t(s.analysed === 0 ? "library.analyse" : s.analysed < s.photos ? "library.analyseRest" : "library.reanalyse")}
-          busy={again.isPending ? again.variables : null}
-          onAct={(s) => again.mutate(s.id)}
+          busy={again.isPending ? again.variables?.id : null}
+          onAct={(s) => again.mutate(s)}
         />
+        {said ? (
+          <p role="status" className="text-sm text-[var(--text-muted)]">
+            {said}
+          </p>
+        ) : null}
       </section>
       <h2 className="font-semibold">{t("library.orAddNew")}</h2>
       <FolderPicker title={t("library.pickTitle")} action={t("library.addAndAnalyze")} onPick={(root, path) => add.mutate({ root, path })} />

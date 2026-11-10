@@ -12,6 +12,12 @@ vi.mock("@tanstack/react-router", async (orig) => ({
   ...(await orig<typeof import("@tanstack/react-router")>()),
   useNavigate: () => s.nav,
 }));
+vi.mock("../../components/LibraryFolders", () => ({
+  LibraryFolders: ({ onAct, action }: { onAct: (x: unknown) => void; action: (x: { analysed: number; photos: number }) => string }) => {
+    const done = { id: "s9", root_alias: "t", sub_path: "第19周", photos: 73, analysed: 73 };
+    return <button onClick={() => onAct(done)}>{action(done)}</button>;
+  },
+}));
 vi.mock("../../components/FolderPicker", () => ({
   FolderPicker: ({ onPick, action }: { onPick: (r: string, p: string) => void; action: string }) => <button onClick={() => onPick("photos", "trip")}>{action}</button>,
 }));
@@ -61,4 +67,15 @@ describe("匯入 (ADR-0029)", () => {
     await waitFor(() => expect(s.nav).toHaveBeenCalledWith({ to: "/" }));
     expect(s.scan).toHaveBeenCalledWith("src1");
   });
+
+  it("[IMP-035] 回歸：重新分析留在這頁，說明照片已是最新（驗證第 3 輪：瞬間結束又跳走）", async () => {
+    s.analyze.mockResolvedValue({ job_id: "j", operation_id: "j" });
+    ui();
+    fireEvent.click(screen.getByRole("button", { name: "重新分析" }));
+    await waitFor(() => expect(s.analyze).toHaveBeenCalledWith("s9"));
+    expect((await screen.findByRole("status")).textContent).toContain("第19周");
+    expect(screen.getByRole("status").textContent).toContain("都已分析過");
+    expect(s.nav).not.toHaveBeenCalled();
+  });
 });
+
