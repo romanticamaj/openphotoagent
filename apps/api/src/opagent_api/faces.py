@@ -895,6 +895,62 @@ def reject(fid: str, body: PersonIn, req: Request) -> dict[str, Any]:
     return {"ok": True}
 
 
+def _margins(
+    st: AppState, *, c_ws: str, space: int, pid: str, refs: list[list[float]], faces: list[str]
+) -> dict[str, float]:
+    """For each face: cosine to this person's reference centroid minus cosine to the closest other group's centroid,
+    a face's own group without it (ADR-0034)."""
+    import numpy as np
+
+    if not refs or not faces:
+        return {}
+    with st.engine.begin() as c:
+        owner = dict(
+            c.execute(
+                select(face.c.id, face.c.person_id)
+                .outerjoin(person, person.c.id == face.c.person_id)
+                .where(
+                    face.c.workspace_id == c_ws,
+                    face.c.person_id.is_not(None),
+                    face.c.person_id != pid,
+                    person.c.status.is_distinct_from("ignored"),
+                    person.c.merged_into.is_(None),
+                )
+            ).all()
+        )
+    vecs = _vectors(st, c_ws, space, list({*owner, *faces}))
+    if not vecs:
+        return {}
+
+    def unit(v: Any) -> Any:
+        n = float(np.linalg.norm(v))
+        return v / n if n else v
+
+    sums: dict[str, Any] = {}
+    counts: dict[str, int] = {}
+    for fid, g in owner.items():
+        if fid in vecs:
+            sums[g] = sums.get(g, 0) + unit(np.asarray(vecs[fid], dtype=np.float64))
+            counts[g] = counts.get(g, 0) + 1
+    groups = list(sums)
+    mine = unit(np.mean([unit(np.asarray(v, dtype=np.float64)) for v in refs], axis=0))
+    out: dict[str, float] = {}
+    for fid in faces:
+        if fid not in vecs:
+            continue
+        v = unit(np.asarray(vecs[fid], dtype=np.float64))
+        rival = -1.0
+        for g in groups:
+            s, n = sums[g], counts[g]
+            if owner.get(fid) == g:  # its own group, without it
+                if n < 2:
+                    continue
+                s, n = s - v, n - 1
+            rival = max(rival, float(unit(s) @ v))
+        out[fid] = float(mine @ v) - rival if groups else 1.0
+    return out
+
+
 CANDIDATE_REFS = 24  # the newest confirmed faces; one k-NN query each
 CANDIDATE_K = 200
 
@@ -937,7 +993,10 @@ def person_candidates(pid: str, req: Request, limit: int = Query(60, ge=1, le=20
         ).all()
     facts = {r.id: (r.asset_id, r.person_id, r.state) for r in rows}
     meta = {r.id: r for r in rows}
-    ranked = F.person_candidates(pid, best, facts, rejected, low=F.candidate_floor(confirmed=bool(confirmed)))[:limit]
+    margins = _margins(st, c_ws=DEFAULT_WS, space=space, pid=pid, refs=list(vecs.values()), faces=list(best))
+    ranked = F.person_candidates(
+        pid, best, facts, rejected, low=F.candidate_floor(confirmed=bool(confirmed)), margins=margins
+    )[:limit]
     return {
         "references": len(vecs),
         "items": [
@@ -971,7 +1030,7 @@ def person_review(pid: str, body: ReviewIn, req: Request) -> dict[str, Any]:
         ).first()
         if ignored is not None or c.execute(select(person.c.status).where(person.c.id == pid)).scalar() == "ignored":
             raise HTTPException(409, detail={"code": "FACE_IGNORED"})
-        token = "rv_" + secrets.token_hex(8)  # 「復原」 takes the whole review back (FACE-FIND-014)
+        token = "rv_" + secrets.token_hex(8)  # 「復原」 takes the whole review back (FACE-FIND-016)
         for fid in body.yes:
             _write(c, st, fid, pid, "confirmed", "find", "user:local", undo_of=token)
         for fid in body.no:

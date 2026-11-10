@@ -127,7 +127,7 @@ describe("finding a person (07 §4)", () => {
     expect(screen.getAllByTestId("candidate")).toHaveLength(24);
   });
 
-  it("[FACE-FIND-014] 回歸：送出後可以復原（驗證第 5 輪）", async () => {
+  it("[FACE-FIND-016] 回歸：送出後可以復原（驗證第 5 輪）", async () => {
     s.people = [row];
     s.search.mockResolvedValue({ items: [], facets: {}, total: 0, next_cursor: null });
     s.cands.mockResolvedValue({ items: [{ face_id: "f9", asset_id: "a9", ch: null, bbox: [0, 0, 0.2, 0.2], score: 0.7, group: null }], references: 1 });

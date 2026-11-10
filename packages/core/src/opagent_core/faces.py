@@ -276,10 +276,13 @@ def person_candidates(
     facts: dict[str, tuple[str, str | None, str]],
     rejected: set[str],
     low: float = THRESHOLDS["find_low"],
+    margins: Mapping[str, float] | None = None,
 ) -> list[tuple[str, float]]:
     """Faces that might be ``pid``, best first. ``facts``: face → (asset, person, state), the person's own faces
     included. Left out: faces already theirs, ones said not to be them, ones in a photo they are already in (one
-    person, one face per photo), and ones someone confirmed as another person. Unnamed groups are still offered."""
+    person, one face per photo), and ones someone confirmed as another person. Unnamed groups are still offered.
+    ``margins``: likeness to this person minus likeness to the closest other group; a face at or under 0 looks
+    more like someone else and is left out (ADR-0034)."""
     theirs = {a for a, p, s in facts.values() if p == pid and s in ("auto", "confirmed")}
     out = []
     for fid, s in scores.items():
@@ -287,6 +290,8 @@ def person_candidates(
             continue
         asset, p, state = facts[fid]
         if p == pid or asset in theirs or (p is not None and state == "confirmed"):
+            continue
+        if margins is not None and margins.get(fid, 1.0) <= 0:
             continue
         out.append((fid, s))
     return sorted(out, key=lambda x: (-x[1], x[0]))

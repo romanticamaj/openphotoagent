@@ -730,8 +730,8 @@ def test_view_027_a_photo_says_when_its_folder_is_not_checked_for_faces(f):
 
 
 @pytest.mark.integration
-@pytest.mark.tc("FACE-FIND-014")
-def test_find_014_the_last_review_can_be_taken_back(f):
+@pytest.mark.tc("FACE-FIND-016")
+def test_find_016_the_last_review_can_be_taken_back(f):
     """回歸 (audit round 5): 「全部都是」 then 送出 moved a dozen faces to a person with no way back."""
     f.enable()
     ids = _library(f, people=(1, 2), per=6)

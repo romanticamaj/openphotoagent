@@ -72,7 +72,7 @@ function Candidates({ person }: { person: PersonRow }) {
     },
   });
   const who = person.name ?? t("faces.thisPerson");
-  // after 「送出」: what was sent, and a way back (FACE-FIND-014)
+  // after 「送出」: what was sent, and a way back (FACE-FIND-016)
   const doneNote = done ? (
     <p data-testid="review-done" role="status" className="flex flex-wrap items-center gap-2 text-sm">
       {t("faces.reviewSent", { yes: done.yes, no: done.no })}

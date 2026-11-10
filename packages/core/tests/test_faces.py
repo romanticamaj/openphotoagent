@@ -204,6 +204,19 @@ def test_find_015_a_group_nobody_confirmed_asks_for_more_likeness():
     assert F.candidate_floor(confirmed=True) == F.CANDIDATE_MIN == 0.5
 
 
+@pytest.mark.unit
+@pytest.mark.tc("FACE-FIND-017")
+def test_find_017_a_candidate_must_look_more_like_them_than_anyone_else():
+    """回歸 (audit rounds 5-6): one person's candidates were about 3 of 12 right. Held out on the reference library,
+    faces of other groups passed the 0.5 floor 664 times against 89 true ones (precision 0.12); asking that a face be
+    closer to this person than to any other group kept 88 of 91 true and let 2 others in (0.98, ADR-0034)."""
+    facts = {"near": ("a1", None, None), "split": ("a2", "g", "auto"), "nobody": ("a3", None, None)}
+    scores = {"near": 0.7, "split": 0.72, "nobody": 0.6}
+    margins = {"near": 0.05, "split": -0.02}  # split: closer to its own group g; nobody: no group to compare with
+    out = F.person_candidates("p", scores, facts, rejected=set(), margins=margins)
+    assert out == [("near", 0.7), ("nobody", 0.6)]
+
+
 def _cloud(seed, center, n, spread):
     import random
 
