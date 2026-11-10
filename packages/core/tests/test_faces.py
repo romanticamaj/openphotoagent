@@ -202,3 +202,34 @@ def test_find_015_a_group_nobody_confirmed_asks_for_more_likeness():
     are the group's own faces, wrong ones included, so the bar is higher until a person has said yes."""
     assert F.candidate_floor(confirmed=False) == 0.55
     assert F.candidate_floor(confirmed=True) == F.CANDIDATE_MIN == 0.5
+
+
+def _cloud(seed, center, n, spread):
+    import random
+
+    rnd = random.Random(seed)
+    out = []
+    for _ in range(n):
+        v = [c + rnd.gauss(0, spread) for c in center]
+        s = sum(x * x for x in v) ** 0.5
+        out.append([x / s for x in v])
+    return out
+
+
+@pytest.mark.unit
+@pytest.mark.tc("FACE-MGT-014")
+def test_mgt_014_merge_cards_only_for_groups_as_alike_as_one_group():
+    """回歸 (audit round 6): 4 of 5 「可能是同一人？」 cards paired a boy with a girl. Children's centroids sit close
+    (0.70-0.83 for different children, 0.76 for halves of one), so the card needs the cross similarity of two groups to
+    be about as high as inside each (ADR-0033)."""
+    dim = 16
+    a_c = [1.0] + [0.0] * (dim - 1)
+    b_c = [0.8, 0.6] + [0.0] * (dim - 2)  # centroids 0.8 apart: alike, but two tight groups of their own
+    one = _cloud(1, a_c, 12, 0.08)
+    groups = {"A1": one[:6], "A2": one[6:], "B": _cloud(2, b_c, 8, 0.08), "tiny": one[:2]}
+    got = F.cohesive_merges(groups)
+    pairs = {(a, b) for a, b, _ in got}
+    assert ("A1", "A2") in pairs  # one person split in two
+    assert not {p for p in pairs if "B" in p}  # alike centroids, still two people
+    assert not {p for p in pairs if "tiny" in p}  # under three faces: too little to judge
+    assert all(r >= F.THRESHOLDS["merge_ratio"] for _, _, r in got)

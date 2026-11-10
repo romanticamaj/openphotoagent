@@ -20,6 +20,7 @@ THRESHOLDS: dict[str, float] = {  # AuraFace starting values; per embedding spac
     "margin": 0.08,
     "margin_hard": 0.12,  # age_variation / confusable
     "merge": 0.55,
+    "merge_ratio": 0.92,  # ADR-0033: cross-mean / min(intra-mean); one person split >= 0.959, two children <= 0.892
     "find_high": 0.55,
     "find_low": 0.42,
 }
@@ -154,6 +155,42 @@ def merge_suggestions(
             if best >= tau:
                 out.append((a, b, round(best, 6)))
     return out
+
+
+MERGE_MIN_GROUP = 3
+
+
+def cohesive_merges(
+    groups: Mapping[str, Sequence[Sequence[float]]],
+    tau: float = THRESHOLDS["merge"],
+    ratio: float = THRESHOLDS["merge_ratio"],
+    min_group: int = MERGE_MIN_GROUP,
+) -> list[tuple[str, str, float]]:
+    """Pairs of groups worth a 「可能是同一人？」 card (ADR-0033): centroids within ``tau`` and the two groups about
+    as alike across as each is inside. Vectors are unit length; only per-group sums and counts are needed:
+    cross-mean = Σa·Σb / (na·nb), intra-mean = (|Σa|² - na) / (na(na-1)). Best ratio first; never merges."""
+    stats = {}
+    for g, vs in groups.items():
+        n = len(vs)
+        if n < min_group:
+            continue
+        s = [sum(col) for col in zip(*vs, strict=True)]
+        sq = sum(x * x for x in s)
+        stats[g] = (s, n, math.sqrt(sq), (sq - n) / (n * (n - 1)))
+    out = []
+    ids = sorted(stats)
+    for i, a in enumerate(ids):
+        sa, na, la, ia = stats[a]
+        for b in ids[i + 1 :]:
+            sb, nb, lb, ib = stats[b]
+            dot = sum(x * y for x, y in zip(sa, sb, strict=True))
+            if not la or not lb or dot / (la * lb) < tau:
+                continue
+            inner = min(ia, ib)
+            r = (dot / (na * nb)) / inner if inner > 0 else 0.0
+            if r >= ratio:
+                out.append((a, b, round(r, 6)))
+    return sorted(out, key=lambda x: (-x[2], x[0], x[1]))
 
 
 def folder_name(name: str) -> str:

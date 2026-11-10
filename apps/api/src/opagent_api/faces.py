@@ -682,15 +682,19 @@ def _merge_suggestions(st: AppState, ws: str, space: int) -> None:
         ):
             members.setdefault(pid, []).append(fid)
     vecs = _vectors(st, ws, space, [f for fs in members.values() for f in fs])
-    protos = {}
-    for pid, fs in members.items():
-        vs = [vecs[f] for f in fs if f in vecs]
-        if vs:
-            protos[pid] = [[sum(col) / len(vs) for col in zip(*vs, strict=True)]]
+    groups = {pid: [vecs[f] for f in fs if f in vecs] for pid, fs in members.items()}
     from sqlalchemy.dialects.postgresql import insert as pg_insert
 
     with st.engine.begin() as c:
-        for a, b, sc in F.merge_suggestions(protos):
+        # open cards are recomputed every time; an answered pair (dismissed) stays answered (ADR-0033)
+        c.execute(
+            delete(person_link).where(
+                person_link.c.workspace_id == ws,
+                person_link.c.kind == "merge_suggestion",
+                person_link.c.status == "open",
+            )
+        )
+        for a, b, sc in F.cohesive_merges(groups):
             c.execute(
                 pg_insert(person_link)
                 .values(workspace_id=ws, person_a=a, person_b=b, kind="merge_suggestion", score=sc)
