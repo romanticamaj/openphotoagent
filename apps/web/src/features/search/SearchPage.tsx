@@ -10,10 +10,11 @@ import { Lightbox } from "../viewer/Lightbox";
 import type { GridApi } from "../viewer/PhotoGrid";
 import { api, isDegraded, mediaUrl, type SearchBody } from "../../lib/api";
 
-import { bodyFor, chipsFrom, type Chip } from "./searchPlan";
+import { bodyFor, chipsFrom, withoutPerson, type Chip } from "./searchPlan";
 
 export function SearchPage({ q }: { q: string }) {
   const { t, i18n } = useTranslation();
+  const nav = useNavigate();
   const [chips, setChips] = useState<Chip[]>([]);
   const [tagNames, setTagNames] = useState<Record<string, string>>({});
   // the rule planner runs once per query; its filters become chips and the rest of the words stay the query (05 §2.3)
@@ -162,7 +163,11 @@ export function SearchPage({ q }: { q: string }) {
         {chips.map((c) => (
           <li key={`${c.kind}:${c.value}`} className="flex items-center gap-1 rounded-full border border-[var(--border)] px-3 py-0.5 text-sm">
             {c.kind === "person" ? t("search.personChip", { name: c.value }) : (c.kind === "tag" && tagNames[c.value]) || c.value}
-            <button type="button" aria-label={t("search.remove", { what: (c.kind === "tag" && tagNames[c.value]) || c.value })} onClick={() => setChips(chips.filter((x) => x !== c))}>
+            <button type="button" aria-label={t("search.remove", { what: (c.kind === "tag" && tagNames[c.value]) || c.value })} onClick={() =>
+                c.kind === "person"
+                  ? void nav({ to: "/search", search: { q: withoutPerson(q, c.value) } }) // the box follows (SRCH-UI-013)
+                  : setChips(chips.filter((x) => x !== c))
+              }>
               ×
             </button>
           </li>

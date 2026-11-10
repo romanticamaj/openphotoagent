@@ -60,6 +60,7 @@ function chipLabel(t: (k: string, o?: Record<string, unknown>) => string, key: s
     return t("ask.chipDate", { from: r.from ?? "", to: r.to ?? "" });
   }
   if (key === "tags_any" || key === "tags_all") return t("ask.chipTag", { tag: ((v as string[]) ?? []).map((x) => names[x] ?? x).join("、") });
+  if (key === "persons_all" || key === "persons_any") return t("ask.chipPerson", { names: ((v as string[]) ?? []).map((x) => names[x] ?? "?").join("、") });
   return key;
 }
 

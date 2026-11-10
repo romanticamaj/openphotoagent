@@ -45,4 +45,10 @@ describe("ask chips", () => {
     expect(screen.queryByText(/scene\.beach/)).toBeNull();
     expect(screen.getByText(/標籤 海灘/)).toBeTruthy();
   });
+
+  it("[ASK-UI-014] 回歸：人物 chip 顯示名字，不是 persons_all（驗證第 15 輪）", () => {
+    render(<TurnView turn={turn({ filters: { applied: { persons_all: ["p9"] }, text: "", explain: [], names: { p9: "測試B" } } })} onRerun={() => {}} />);
+    expect(screen.queryByText(/persons_all/)).toBeNull();
+    expect(screen.getByText(/人物：測試B/)).toBeTruthy();
+  });
 });

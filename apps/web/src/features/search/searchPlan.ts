@@ -24,6 +24,13 @@ export function chipsFrom(p: Planner): Chip[] {
   return out;
 }
 
+/** The query without a person's name: removing the 「人物」 chip takes the name out of the box too (SRCH-UI-013). */
+export function withoutPerson(q: string, name: string): string {
+  const i = q.toLowerCase().indexOf(name.toLowerCase());
+  const s = i < 0 ? q : q.slice(0, i) + " " + q.slice(i + name.length);
+  return s.replace(/\s+/g, " ").trim();
+}
+
 export function bodyFor(q: string, chips: Chip[], planned: { text: string } | null): SearchBody {
   if (!planned && q) return { q, plan: true, filters: {} };
   const tags = chips.filter((c) => c.kind === "tag").map((c) => c.value);

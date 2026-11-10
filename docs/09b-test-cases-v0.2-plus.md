@@ -384,6 +384,8 @@
 | ASK-PRV-007 | 雲端模型依人物回答要另外開（ADR-0039） | 雲端模型、`assistant.cloud_people` 關 | 回答指向「助手設定」，不用人物條件、不說 0 張 | I | #78 |
 | ASK-PRV-008 | 雲端模型開了 cloud_people（ADR-0039） | 雲端模型、`cloud_people` 開 | 回答這個人的張數；人名仍只以代稱送出（ASK-PRV-004） | I | #78 |
 | ASK-PRV-009 | 真名不會送到雲端模型（回歸，安全審查；ADR-0039） | 雲端、cloud_people 開，人物「王小美」 | 送給模型的每則訊息（含工具結果）都沒有真名；本機顯示的回答有真名 | I | #78 |
+| ASK-PRV-010 | 名字的每種寫法都替換，否則不送（回歸，安全審查） | 名字含零寬字元；JSON 跳脫 | 送出的內容沒有任何寫法的名字；替換不掉就不送 | I | #78 |
+| ASK-PRV-011 | 大小寫與全形也擋（回歸，安全審查） | 人物 Amy，問「AMY 的照片」「Ａｍｙ 在海邊」 | 送出的內容正規化後沒有 amy；工具結果先替換再截斷 | I | #78 |
 | ASK-ACT-001 | 動作只產生計畫 | 「把這些移到京都資料夾」 | 工具集中**沒有** `apply_organize`；產生 `card(kind=plan)`；檔案未變；需 UI 按鈕核准 | I | #104 |
 | ASK-ACT-002 | 確認卡內容來自結構化資料 | FakeLLM 文字描述與 plan 不符 | 確認卡顯示 plan 的實際動作數與目標（不是 LLM 文字） | U/S | #104 |
 | ASK-SSE-001 | 事件序列（檢索型） | 一般檢索問題 | 順序：`turn.started` → `step.started(understand)` → `filters` → `step.completed` → `step.started(tool:search_photos, eta_ms)` → `photos(candidates)` → `step.completed(elapsed_ms)` → `token`* → `citation`* → `turn.completed`；`ping` 每 15 s | C | #102 |
@@ -413,6 +415,7 @@
 | ASK-UI-011 | 建議問題講的是東西（回歸，驗證第 2 輪） | 最多的自由標籤是「地板」 | 建議只取詞彙表概念（貓），不出現「我有幾張地板？」 | I | #— |
 | ASK-UI-012 | 回答旁的縮圖帶雜湊（回歸） | 問 AI 找到照片 | `photos` 事件每張帶 `ch`，縮圖在桌面版可載入 | I | #— |
 | ASK-UI-013 | 助手設定的「雲端也可以依人物回答」（ADR-0039） | 外部服務 | 勾選框預設關閉，儲存時送出 `cloud_people` | C | #78 |
+| ASK-UI-014 | 問 AI 的人物 chip 顯示名字（回歸，驗證第 15 輪） | 套用了 persons_all | chip 寫「人物：測試B」，不出現 persons_all | C | #78 |
 | ASK-LLM-001 | OpenAI 相容 client | llama-server `--jinja` 或外部 endpoint；tool call、壞 JSON、未提供的 tool、逾時、探測 | 只接受本輪提供的 tool 與合法 JSON 物件；逾時安靜回空答案；從不送影像；探測 3/3 才開 tool loop；外部 endpoint 必須 https；API key 存 OS keyring、不回傳；egress log 記實際送出的 bytes | C/I | #101、#105 |
 | ASK-SRCH-001 | 標籤詞不擋住沒標籤的照片（回歸，ADR-0027） | 問「幫我找海邊的照片」，有張照片只有 caption 提到海邊 | 也被找到；使用者編輯過的 chips 仍是硬條件 | I | #40 |
 

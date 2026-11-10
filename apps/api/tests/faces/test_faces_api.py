@@ -1071,3 +1071,30 @@ def test_ask_prv_010_every_form_of_a_name_is_aliased_or_the_call_is_refused(f):
     for call in llm.seen:
         for form in (json.dumps(call, ensure_ascii=False), json.dumps(call)):
             assert "小美" not in form and "\u5c0f\u7f8e" not in form
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-PRV-011")
+def test_ask_prv_011_a_name_in_another_case_or_width_never_reaches_a_cloud_model(f):
+    """回歸 (security review of ASK-PRV-010): 「AMY」 or full-width 「Ａｍｙ」 for a person named Amy slipped past an exact
+    replacement. The check runs on the normalised payload (NFKC, case-folded, format characters gone)."""
+    import unicodedata
+
+    from opagent_assistant.llm import FakeLLM, Reply
+
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p2 = f.sql("select person_id from face where id=:i", i=ids[2][0]).scalar()
+    f.post(f"/people/{p2}/name", {"name": "Amy"})
+    f.sql(
+        "update workspace set settings = jsonb_set(settings, '{assistant}', coalesce(settings->'assistant', '{}'::jsonb)"
+        ' || \'{"provider": "openai_compat", "cloud_people": true}\')'
+    )
+    for q in ("AMY 的照片", "Ａｍｙ 在海邊"):
+        llm = FakeLLM([Reply(text="好的")])
+        f.client.app.state.opa.llm = llm
+        f.client.post("/api/v1/ask", json={"message": q}, headers=f.ui)
+        for call in llm.seen:
+            blob = unicodedata.normalize("NFKC", "".join(str(m.get("content")) for m in call)).casefold()
+            assert "amy" not in blob, q

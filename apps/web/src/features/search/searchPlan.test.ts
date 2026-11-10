@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bodyFor, chipsFrom } from "./searchPlan";
+import { bodyFor, chipsFrom, withoutPerson } from "./searchPlan";
 
 const planner = (filters: Record<string, unknown>, explain: string[], text = "") => ({
   source: "rules",
@@ -18,6 +18,12 @@ describe("the search a planned query becomes", () => {
     const withWords = chipsFrom(planner({ persons_all: ["p1"] }, ["「測試A」→ 人物"], "足球"));
     expect(bodyFor("測試A 足球", withWords, { text: "足球" })).toEqual({ q: "足球", filters: { persons_all: ["p1"] } });
     expect(bodyFor("測試A", [], { text: "" })).toEqual({ q: null, filters: {} }); // the chip removed: the filter goes too
+  });
+
+  it("[SRCH-UI-013] 回歸：拿掉人物標籤時，搜尋框也拿掉那個名字（驗證第 15 輪：框裡還寫著「測試A 足球」）", () => {
+    expect(withoutPerson("測試A 足球", "測試A")).toBe("足球");
+    expect(withoutPerson("測試a的照片", "測試A")).toBe("的照片");
+    expect(withoutPerson("測試A", "測試A")).toBe("");
   });
 
   it("[SRCH-UI-012] 日期標籤照舊；還沒規劃時先請伺服器規劃", () => {

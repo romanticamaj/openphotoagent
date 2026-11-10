@@ -435,20 +435,35 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
 
         own = list(person_aliases(c)) + list(body.person_names)
     alias = {n: f"人物{chr(65 + i)}" for i, n in enumerate(sorted(set(own), key=len, reverse=True))} if cloud else {}
-    # every form a name takes on the way out: as stored, NFKC, as the UntrustedText sanitiser leaves it, and each of
-    # those JSON-escaped (ASK-PRV-010)
-    forms: dict[str, str] = {}
-    if alias:
-        import unicodedata
+    # every form a name takes on the way out (ASK-PRV-010/011): text bound for a cloud model is normalised (NFKC,
+    # format characters such as zero-width marks removed), then each name, as stored, NFKC and as the UntrustedText
+    # sanitiser leaves it, is replaced case-insensitively; what still holds a name after that is not sent
+    import re as _re
+    import unicodedata
 
+    def _norm(x: str) -> str:
+        x = unicodedata.normalize("NFKC", x)
+        return "".join(ch for ch in x if unicodedata.category(ch) != "Cf")
+
+    pats: list[tuple[Any, str]] = []
+    needles: set[str] = set()
+    if alias:
         from opagent_mcp.sanitize import untrusted
 
         for name, a in alias.items():
-            for v in {name, unicodedata.normalize("NFKC", name), (untrusted(name, "user") or {}).get("text") or name}:
-                if v:
-                    forms[v] = a
-                    forms[json.dumps(v)[1:-1]] = a  # backslash-u escapes, as json.dumps(ensure_ascii=True) writes
-    order = sorted(forms, key=len, reverse=True)
+            for v in {name, (untrusted(name, "user") or {}).get("text") or name}:
+                nv = _norm(v)
+                if nv:
+                    pats.append((_re.compile(_re.escape(nv), _re.IGNORECASE), a))
+                    needles.add(nv.casefold())
+        pats.sort(key=lambda x: -len(x[0].pattern))
+
+    def cloud_text(c: str) -> str:
+        """The text as a cloud model may see it: normalised, every name an alias."""
+        c = _norm(c)
+        for rx, a in pats:
+            c = rx.sub(a, c)
+        return c
 
     def to_cloud(msgs: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if not alias:
@@ -456,14 +471,15 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
         out = []
         for m in msgs:
             c = m.get("content")
-            if isinstance(c, str):
-                for v in order:
-                    c = c.replace(v, forms[v])
-            out.append({**m, "content": c})
-        blob = json.dumps(out, ensure_ascii=False) + json.dumps(out)
-        if any(v in blob for v in order if len(v) > 1):
+            out.append({**m, "content": cloud_text(c) if isinstance(c, str) else c})
+        blob = _norm(json.dumps(out, ensure_ascii=False)).casefold()
+        if any(n in blob for n in needles):
             raise _NameLeak()  # fail closed: a name that could not be aliased never leaves (ASK-PRV-010)
         return out
+
+    def clip(js: str, n: int = 4000) -> str:
+        """A tool result for the model: aliased first, then cut, so no half name is left at the cut (ASK-PRV-011)."""
+        return (cloud_text(js) if alias else js)[:n]
 
     def from_cloud(text: str) -> str:
         for name, a in alias.items():
@@ -595,6 +611,12 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
 
     keys = [str(k) for k in (filters.get("tags_any") or []) + (filters.get("tags_all") or [])]
     tnames = tag_names(keys, "zh-TW")
+    if filters.get("persons_all"):  # the chip says 「人物：測試B」, never an id (ASK-UI-014)
+        from .faces import person_aliases
+
+        with st.engine.begin() as c:
+            by_id = {v: k for k, v in person_aliases(c).items()}
+        tnames = {**tnames, **{p: by_id[p] for p in filters["persons_all"] if p in by_id}}
     explain = [_named(e, tnames) for e in p["planner"]["explain"]]  # 標籤 海灘, not scene.beach
     yield (
         "filters",
@@ -672,16 +694,18 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
             verified_yes.extend(r["id"] for r in out.get("results") or [] if r.get("verdict") in ("yes", "unsure"))
             if out.get("status") == "queued":  # the VLM is busy: keep the candidates, unverified
                 verified_yes.extend(vector_hits[:12])
-            tool_msgs.append({"role": "tool", "name": name, "content": json.dumps(out, ensure_ascii=False)[:4000]})
+            tool_msgs.append({"role": "tool", "name": name, "content": clip(json.dumps(out, ensure_ascii=False))})
             summary = "完成"
         elif name == "count_photos":
             counts.append(int(out["count"]))
             count_labels.append(_count_label(args))
-            tool_msgs.append({"role": "tool", "name": name, "content": json.dumps(out)})
+            tool_msgs.append(
+                {"role": "tool", "name": name, "content": clip(json.dumps(out, ensure_ascii=False), 100_000)}
+            )
             summary = f"{out['count']:,} 張"
         else:
             tool_msgs.append(
-                {"role": "tool", "name": name, "content": json.dumps(out, ensure_ascii=False, default=str)[:4000]}
+                {"role": "tool", "name": name, "content": clip(json.dumps(out, ensure_ascii=False, default=str))}
             )
             summary = "完成"
         yield "step.completed", completed(sid, t0, "ok", summary, name)
