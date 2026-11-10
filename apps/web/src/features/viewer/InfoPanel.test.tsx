@@ -79,5 +79,11 @@ describe("the info panel", () => {
     const list = await screen.findByTestId("photo-people");
     expect(list.querySelector(".face-crop")).toBeTruthy();
   });
+
+  it("[VIEW-027] 資料夾沒開人臉辨識時說明，並帶去設定", async () => {
+    s.asset.mockResolvedValue({ ...base, labels: [label("r1", "people", 1, "x")], faces_state: "folder_off" });
+    ui();
+    expect((await screen.findByTestId("faces-folder-off")).textContent).toContain("沒有開啟人臉辨識");
+  });
 });
 

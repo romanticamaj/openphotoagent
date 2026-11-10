@@ -449,7 +449,9 @@
     "correct": "Correct category",
     "correctSave": "Save correction",
     "correctionSaved": "Correction saved",
-    "people": "People in this photo"
+    "people": "People in this photo",
+    "facesFolderOff": "Face recognition is not on for this folder, so no people are marked here.",
+    "facesSettings": "Face settings"
   },
   "onboarding": {
     "welcome": "Welcome to OpenPhotoAgent",

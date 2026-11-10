@@ -100,6 +100,7 @@ export type AssetInfo = {
   locations?: Array<{ source_id: string; root_alias: string; rel_path: string; missing: boolean }>;
   people?: Array<{ id: string; name: string | null }>;
   people_faces?: Record<string, { bbox: number[]; ch: string | null }>;
+  faces_state?: "off" | "folder_off" | "on";
 };
 export type Variant = "t256" | "t512" | "p1024";
 

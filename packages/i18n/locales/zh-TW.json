@@ -449,7 +449,9 @@
     "correct": "修正類別",
     "correctSave": "儲存修正",
     "correctionSaved": "已記錄修正",
-    "people": "照片中的人物"
+    "people": "照片中的人物",
+    "facesFolderOff": "這個資料夾沒有開啟人臉辨識，所以這張不會標出人物。",
+    "facesSettings": "人臉設定"
   },
   "onboarding": {
     "welcome": "歡迎使用 OpenPhotoAgent",

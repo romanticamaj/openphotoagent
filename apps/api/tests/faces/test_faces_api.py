@@ -715,3 +715,15 @@ def test_mgt_011_suggestions_about_people_that_are_gone_are_not_shown(f):
     assert [(s["a"], s["b"]) for s in sug] == [(ids[0], ids[1])]
     f.post("/faces/cluster")
     assert f.sql("select count(*) from person_link where person_a = 'gone-1'").scalar() == 0
+
+
+@pytest.mark.integration
+@pytest.mark.tc("VIEW-027")
+def test_view_027_a_photo_says_when_its_folder_is_not_checked_for_faces(f):
+    """回歸 (audit round 5): group photos of the 「photos」 folder had no boxes and no people, with nothing saying that
+    faces were turned on for the family folders only."""
+    f.enable()
+    aid, _ = f.photo("2025/1/IMG_0_p1.jpg")
+    assert f.get(f"/assets/{aid}")["faces_state"] == "on"
+    f.sql("update workspace set settings = jsonb_set(settings, '{faces,sources}', '[\"elsewhere\"]')")
+    assert f.get(f"/assets/{aid}")["faces_state"] == "folder_off"

@@ -263,6 +263,12 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
             ))}
           </ul>
         ) : null}
+        {a.faces_state === "folder_off" ? (
+          <p data-testid="faces-folder-off" className="mb-3 text-sm text-[var(--text-muted)]">
+            {t("lightbox.facesFolderOff")}{" "}
+            <Link to="/settings/faces" className="underline">{t("lightbox.facesSettings")}</Link>
+          </p>
+        ) : null}
         {(a.people?.length ?? 0) > 0 ? (
           <div className="mb-3">
             <h3 className="mb-1 text-sm text-[var(--text-muted)]">{t("lightbox.people")}</h3>

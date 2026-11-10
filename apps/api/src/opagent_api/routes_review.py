@@ -176,7 +176,17 @@ def get_asset(asset_id: str, req: Request, lang: str = "zh-TW") -> dict[str, Any
             "human_label": human,
             "locations": [dict(r._mapping) for r in locs],
             **dict(zip(("people", "people_faces"), _people_in(c, asset_id), strict=True)),
+            "faces_state": _faces_state(c, [r.source_id for r in locs]),
         }
+
+
+def _faces_state(c: Any, sources: list[str]) -> str:
+    """off: faces are off; folder_off: on, but not for this photo's folder; on (VIEW-027)."""
+    from .faces import enabled_for, fsettings
+
+    if not fsettings(c).get("enabled"):
+        return "off"
+    return "on" if any(enabled_for(c, sid) for sid in sources) else "folder_off"
 
 
 def _people_in(c: Any, asset_id: str) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
