@@ -12,6 +12,15 @@ import countries110 from "world-atlas/countries-110m.json";
 import { mediaUrl } from "../../lib/api";
 import { endpoint } from "../../lib/platform";
 import { clusterPoints, type Cluster, type GeoPoint } from "./cluster";
+import { boundsOf, unwrapRings } from "./geo";
+
+const DARK = { sea: "#121417", land: "#24282d", border: "#454c55" };
+const LIGHT = { sea: "#dfe7ee", land: "#f7f5f0", border: "#9aa4ad" };
+
+function isDark(): boolean {
+  const t = document.documentElement.dataset.theme;
+  return t ? t === "dark" : !window.matchMedia?.("(prefers-color-scheme: light)").matches;
+}
 
 type Points = { points: GeoPoint[]; without_location: number };
 
@@ -36,15 +45,16 @@ export function MapPage() {
 
   useEffect(() => {
     if (!box.current) return;
+    const palette = isDark() ? DARK : LIGHT; // a light basemap sat in the dark app (audit round 3)
     const m = new MapLibreMap({
       container: box.current,
       style: {
         version: 8,
-        sources: { countries: { type: "geojson", data: borders } },
+        sources: { countries: { type: "geojson", data: unwrapRings(borders) } },
         layers: [
-          { id: "bg", type: "background", paint: { "background-color": "#dfe7ee" } },
-          { id: "land", type: "fill", source: "countries", paint: { "fill-color": "#f7f5f0" } },
-          { id: "border", type: "line", source: "countries", paint: { "line-color": "#9aa4ad", "line-width": 0.6 } },
+          { id: "bg", type: "background", paint: { "background-color": palette.sea } },
+          { id: "land", type: "fill", source: "countries", paint: { "fill-color": palette.land } },
+          { id: "border", type: "line", source: "countries", paint: { "line-color": palette.border, "line-width": 0.6 } },
         ],
       },
       center: [120, 25],
@@ -61,6 +71,16 @@ export function MapPage() {
     };
   }, []);
 
+  // the first view is where the photos are, not the whole world (MAP-013)
+  const fitted = useRef(false);
+  useEffect(() => {
+    const m = map.current;
+    const b = boundsOf(q.data?.points ?? []);
+    if (!m || !b || fitted.current) return;
+    fitted.current = true;
+    m.fitBounds(b, { padding: 60, maxZoom: 12, duration: 0 });
+  }, [q.data]);
+
   useEffect(() => {
     const m = map.current;
     if (!m) return;
@@ -71,7 +91,11 @@ export function MapPage() {
       el.textContent = c.count.toLocaleString();
       el.setAttribute("aria-label", t("map.cluster", { n: c.count.toLocaleString() }));
       el.dataset.count = String(c.count);
-      el.addEventListener("click", () => setPicked(c));
+      el.addEventListener("click", () => {
+        setPicked(c);
+        const [w, so, e, n] = c.bbox;
+        if (c.count > 1 && (e > w || n > so)) m.fitBounds([[w, so], [e, n]], { padding: 80, maxZoom: 15 }); // drill down
+      });
       return new Marker({ element: el }).setLngLat([c.lon, c.lat]).addTo(m);
     });
     return () => markers.forEach((mk) => mk.remove());
