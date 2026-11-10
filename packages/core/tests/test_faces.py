@@ -229,6 +229,18 @@ def test_find_019_a_face_too_small_or_soft_to_judge():
     assert F.hard_to_judge(min_side=None, blur=None) is False  # nothing measured: not flagged
 
 
+@pytest.mark.unit
+@pytest.mark.tc("FACE-UI-017")
+def test_face_ui_017_the_cover_is_the_most_typical_clear_face():
+    """回歸 (audit round 8): a group's cover (the sharpest face) looked like someone other than its members, so nobody
+    could tell who the group was. The cover is the clear face closest to the group's centroid."""
+    vecs = {"odd": [0.0, 1.0], "a": [1.0, 0.05], "b": [0.98, 0.2], "c": [0.99, 0.1], "soft": [1.0, 0.0]}
+    clear = {"odd": True, "a": True, "b": True, "c": True, "soft": False}
+    assert F.typical_face(vecs, clear) == "b"  # nearest the centroid (odd pulls it up a little); never odd itself
+    assert F.typical_face({"x": [1.0, 0.0]}, {"x": False}) == "x"  # nothing clear: still a cover
+    assert F.typical_face({}, {}) is None
+
+
 def _cloud(seed, center, n, spread):
     import random
 

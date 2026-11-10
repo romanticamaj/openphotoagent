@@ -815,3 +815,28 @@ def test_find_019_hard_candidates_say_so_and_come_last(f):
     assert all(by[i]["clear"] is False for i in small if i in by) and any(i in by for i in small)
     flags = [x["clear"] for x in items]
     assert flags == sorted(flags, reverse=True)  # the clear ones first
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-UI-017")
+def test_face_ui_017_grouping_picks_each_cover(f):
+    f.enable()
+    _library(f, people=range(1, 3), per=6)
+    f.post("/faces/cluster")
+    for p in f.get("/people")["people"]:
+        cf = f.sql("select cover_face_id from person where id=:i", i=p["id"]).scalar()
+        assert cf is not None
+        assert f.sql("select person_id from face where id=:i", i=cf).scalar() == p["id"]
+        assert p["cover"]["asset_id"] == f.sql("select asset_id from face where id=:i", i=cf).scalar()
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-UI-017")
+def test_face_ui_017_a_library_grouped_before_gets_its_covers(f):
+    """A library grouped by an older version has no cover_face_id; the people page fills them in once."""
+    f.enable()
+    _library(f, people=range(1, 3), per=6)
+    f.post("/faces/cluster")
+    f.sql("update person set cover_face_id = null")
+    f.get("/people")
+    assert f.sql("select count(*) from person where cover_face_id is null and merged_into is null").scalar() == 0

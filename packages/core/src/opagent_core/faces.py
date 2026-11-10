@@ -167,6 +167,22 @@ def hard_to_judge(min_side: float | None, blur: float | None) -> bool:
     return (min_side is not None and min_side < HARD_MIN_SIDE) or (blur is not None and blur < HARD_BLUR)
 
 
+def typical_face(vecs: Mapping[str, Sequence[float]], clear: Mapping[str, bool]) -> str | None:
+    """The face that looks most like the group: the clear one closest to the centroid (FACE-UI-017); when none is
+    clear, the closest of all."""
+    if not vecs:
+        return None
+    n = len(next(iter(vecs.values())))
+    cen = [sum(v[i] for v in vecs.values()) for i in range(n)]
+
+    def cos(v: Sequence[float]) -> float:
+        nv = math.sqrt(sum(x * x for x in v)) or 1.0
+        return sum(a * b for a, b in zip(v, cen, strict=True)) / nv
+
+    pool = [f for f in vecs if clear.get(f)] or list(vecs)
+    return max(sorted(pool), key=lambda f: cos(vecs[f]))
+
+
 MERGE_MIN_GROUP = 3
 
 

@@ -677,12 +677,17 @@ def _merge_suggestions(st: AppState, ws: str, space: int) -> None:
         gone = ~person_link.c.person_a.in_(select(person.c.id)) | ~person_link.c.person_b.in_(select(person.c.id))
         c.execute(delete(person_link).where(person_link.c.workspace_id == ws, gone))
         members: dict[str, list[str]] = {}
-        for fid, pid in c.execute(
-            select(face.c.id, face.c.person_id).where(face.c.workspace_id == ws, face.c.person_id.is_not(None))
+        clear: dict[str, bool] = {}
+        for fid, pid, q in c.execute(
+            select(face.c.id, face.c.person_id, face.c.quality).where(
+                face.c.workspace_id == ws, face.c.person_id.is_not(None)
+            )
         ):
             members.setdefault(pid, []).append(fid)
+            clear[fid] = not F.hard_to_judge(**_measures(q))
     vecs = _vectors(st, ws, space, [f for fs in members.values() for f in fs])
     groups = {pid: [vecs[f] for f in fs if f in vecs] for pid, fs in members.items()}
+    covers = {pid: F.typical_face({f: vecs[f] for f in fs if f in vecs}, clear) for pid, fs in members.items()}
     from sqlalchemy.dialects.postgresql import insert as pg_insert
 
     with st.engine.begin() as c:
@@ -694,6 +699,9 @@ def _merge_suggestions(st: AppState, ws: str, space: int) -> None:
                 person_link.c.status == "open",
             )
         )
+        for pid, cf in covers.items():  # the face that looks most like the group (FACE-UI-017)
+            if cf is not None:
+                c.execute(update(person).where(person.c.id == pid).values(cover_face_id=cf))
         for a, b, sc in F.cohesive_merges(groups):
             c.execute(
                 pg_insert(person_link)
@@ -727,9 +735,17 @@ def _people(c: Any, ws: str) -> list[dict[str, Any]]:
         for r in c.execute(
             select(face.c.person_id, face.c.asset_id, asset.c.content_hash, face.c.bbox)
             .join(asset, asset.c.id == face.c.asset_id)
+            .join(person, person.c.id == face.c.person_id)
             .where(face.c.person_id.in_([r.id for r in rows]))
             .distinct(face.c.person_id)
-            .order_by(face.c.person_id, face.c.quality_tier.desc(), face.c.det_score.desc(), face.c.id)
+            # the group's most typical face when grouping chose one and it is still theirs (FACE-UI-017)
+            .order_by(
+                face.c.person_id,
+                (face.c.id == person.c.cover_face_id).desc(),
+                face.c.quality_tier.desc(),
+                face.c.det_score.desc(),
+                face.c.id,
+            )
         )
     }
     return [
@@ -747,8 +763,39 @@ def _people(c: Any, ws: str) -> list[dict[str, Any]]:
     ]
 
 
+def _fill_covers(st: AppState, ws: str) -> None:
+    """Groups with no cover chosen yet (a library grouped by an older version): the most typical face of each
+    (FACE-UI-017). Once; the next grouping keeps them current."""
+    with st.engine.begin() as c:
+        space = fsettings(c).get("space_id")
+        missing = [
+            r[0]
+            for r in c.execute(
+                select(person.c.id).where(
+                    person.c.workspace_id == ws, person.c.cover_face_id.is_(None), person.c.merged_into.is_(None)
+                )
+            )
+        ]
+        if space is None or not missing:
+            return
+        members: dict[str, list[str]] = {}
+        clear: dict[str, bool] = {}
+        for fid, pid, q in c.execute(
+            select(face.c.id, face.c.person_id, face.c.quality).where(face.c.person_id.in_(missing))
+        ):
+            members.setdefault(pid, []).append(fid)
+            clear[fid] = not F.hard_to_judge(**_measures(q))
+    vecs = _vectors(st, ws, space, [f for fs in members.values() for f in fs])
+    with st.engine.begin() as c:
+        for pid, fs in members.items():
+            cf = F.typical_face({f: vecs[f] for f in fs if f in vecs}, clear)
+            if cf is not None:
+                c.execute(update(person).where(person.c.id == pid).values(cover_face_id=cf))
+
+
 @router.get("/people")
 def people(req: Request) -> dict[str, Any]:
+    _fill_covers(_st(req), DEFAULT_WS)
     with _st(req).engine.begin() as c:
         rows = _people(c, DEFAULT_WS)
         # the likeliest first, a few at a time: 52 groups gave 1,101 open pairs (FACE-MGT-010)
