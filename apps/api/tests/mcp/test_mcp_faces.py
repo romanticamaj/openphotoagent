@@ -87,3 +87,18 @@ def test_mcp_people_tools(m):
     assert [r["id"] for r in sel["results"]] == [m.both]
     res = m.ok(pat, "search_photos", {"query": "合照", "filters": {"persons_any": [m.ids["mom"]]}})
     assert [r["id"] for r in res["results"]] == [m.both]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("MCP-SCOPE-010")
+def test_scope_010_a_name_in_the_query_is_not_a_face_filter_without_faces_read(m):
+    """回歸 (security review of SRCH-PLAN-022): planning a query that names a person turned the name into a face filter
+    for any MCP caller; only a token with faces:read on a workspace that opened faces to AI assistants gets that."""
+    m.client.post(f"/api/v1/people/{m.ids['dad']}/name", json={"name": "爸爸"}, headers=m.ui)
+    m.index()
+    plain = m.token(["photos:read"])
+    r = m.ok(plain, "search_photos", {"query": "爸爸"})
+    assert r["total_estimate"] == 0  # the name is plain text: no caption says 爸爸
+    m.settings(faces_enabled=True)
+    faces = m.token(["photos:read", "faces:read"])
+    assert m.ok(faces, "search_photos", {"query": "爸爸"})["total_estimate"] == 7

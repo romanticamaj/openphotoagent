@@ -993,3 +993,20 @@ def test_ask_grd_008_how_many_photos_of_a_named_person(f):
     )
     opened = answer()
     assert str(n) in opened and "0 張" not in opened
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-FIND-026")
+def test_find_026_after_send_the_group_still_searches(f):
+    """回歸 (audit round 13, ADR-0038): references = the confirmed faces and the group's clustering faces."""
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p1 = f.sql("select person_id from face where id=:i", i=ids[1][0]).scalar()
+    more = _small(f, 1, 4, "kid")
+    assert f.get(f"/people/{p1}/candidates")["references"] == 6
+    f.post(f"/people/{p1}/review", {"yes": more[:2], "no": []})
+    out = f.get(f"/people/{p1}/candidates")
+    assert out["references"] == 8  # 2 confirmed and the 6 the grouping gave, not 2
+    left = {c["face_id"] for c in out["items"]}
+    assert set(more[2:]) <= left

@@ -65,6 +65,9 @@ class SearchIn(BaseModel):
     facets: list[str] = []
     collapse_duplicates: bool = True  # one representative per near-duplicate group, with "+N" (05 §2.1)
     plan: bool = False  # run the rule-based planner on q (05 §2.3): NL dates / tags → filters, rest stays text
+    # a named person's name in q becomes a face filter (SRCH-PLAN-022); MCP and 問 AI callers set it only with
+    # faces:read on a workspace that opened faces to AI assistants (MCP-SCOPE-010)
+    plan_persons: bool = True
     lang: str = "zh-TW"  # the language of tag_names (IMP-022)
 
 
@@ -314,7 +317,7 @@ def _apply_plan(st: AppState, body: SearchIn, q: str) -> tuple[dict[str, Any], S
 
     tz = ZoneInfo("Asia/Taipei")
     with st.engine.begin() as c:
-        names = person_aliases(c)  # named people become a filter (SRCH-PLAN-022)
+        names = person_aliases(c) if body.plan_persons else {}  # named people become a filter (SRCH-PLAN-022)
     p = plan(q, today=st.clock.now().astimezone(tz).date(), tz=tz, gazetteer=Gazetteer.default(), persons=names)
     if p["planner"]["confidence"] < LLM_PLAN_BELOW:
         llm = _llm_plan(st, q)

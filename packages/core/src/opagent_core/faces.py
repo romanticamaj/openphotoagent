@@ -268,6 +268,23 @@ def find_tiers(
     }
 
 
+REFERENCE_CAP = 24
+
+
+def candidate_references(
+    rows: Iterable[tuple[str, str, str | None, str | None]], cap: int = REFERENCE_CAP
+) -> list[str]:
+    """``rows``: (face, kind, method, method of the assignment it replaced), newest first. The confirmed faces, then the
+    seed the grouping gave (``cluster``, or a ``merge`` of a ``cluster`` face), at most ``cap`` (ADR-0038). Online
+    auto-assignments are never references: that is the snowball FACE-FIND-003 keeps out."""
+    rows = list(rows)
+    confirmed = [f for f, kind, _m, _p in rows if kind == "confirmed"]
+    seed = [
+        f for f, kind, m, prev in rows if kind == "auto" and (m == "cluster" or (m == "merge" and prev == "cluster"))
+    ]
+    return (confirmed + seed)[:cap]
+
+
 def reference_faces(assignments: Iterable[tuple[str, str]]) -> list[str]:
     """Only faces a person confirmed grow the reference set; automatic ones never do (no drift; FACE-FIND-003)."""
     return [f for f, kind in assignments if kind == "confirmed"]
@@ -333,6 +350,7 @@ def person_candidates(
     margins: Mapping[str, float] | None = None,
     small: set[str] | None = None,
     named: bool = True,
+    seed_only: set[str] | None = None,
 ) -> list[tuple[str, float]]:
     """Faces that might be ``pid``, best first. ``facts``: face → (asset, person, state), the person's own faces
     included. Left out: faces already theirs, ones said not to be them, ones in a photo they are already in (one
@@ -350,6 +368,8 @@ def person_candidates(
         if margins is not None and margins.get(fid, 1.0) <= 0:
             continue
         if small and fid in small and (not named or s < CANDIDATE_MIN_SMALL):  # ADR-0036
+            continue
+        if seed_only and fid in seed_only and s < CANDIDATE_MIN_UNCONFIRMED:  # reached only through the seed (ADR-0038)
             continue
         out.append((fid, s))
     return sorted(out, key=lambda x: (-x[1], x[0]))

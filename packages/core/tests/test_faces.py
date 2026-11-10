@@ -302,6 +302,38 @@ def test_find_023_a_small_face_is_never_sure_in_find_this_person():
     assert [a for a, _ in out["sure"]] == ["a2"] and [a for a, _ in out["maybe"]] == ["a1"]
 
 
+@pytest.mark.unit
+@pytest.mark.tc("FACE-FIND-024")
+def test_find_024_references_are_the_confirmed_faces_then_the_seed():
+    """回歸 (audit round 13, ADR-0038): after 6 yes the references fell from the group's 29 faces to those 6 and no new
+    candidate came. The group's clustering faces stay references; online auto-assignments never are."""
+    rows = [
+        ("c1", "confirmed", "find", None),
+        ("s1", "auto", "cluster", None),
+        ("o1", "auto", "online_knn", None),
+        ("c2", "confirmed", "review", None),
+        ("s2", "auto", "cluster", None),
+    ]
+    assert F.candidate_references(rows) == ["c1", "c2", "s1", "s2"]
+    many = [(f"c{i}", "confirmed", "find", None) for i in range(30)] + [("s", "auto", "cluster", None)]
+    assert F.candidate_references(many) == [f"c{i}" for i in range(24)]  # 24 at most, confirmed first
+
+
+@pytest.mark.unit
+@pytest.mark.tc("FACE-FIND-025")
+def test_find_025_a_merged_seed_face_stays_a_seed():
+    rows = [("m1", "auto", "merge", "cluster"), ("m2", "auto", "merge", "online_knn")]
+    assert F.candidate_references(rows) == ["m1"]
+
+
+@pytest.mark.unit
+@pytest.mark.tc("FACE-FIND-027")
+def test_find_027_a_face_reached_only_through_the_seed_needs_more_likeness():
+    facts = {"a": ("a1", None, None), "b": ("a2", None, None)}
+    out = F.person_candidates("p", {"a": 0.52, "b": 0.52}, facts, rejected=set(), low=0.5, seed_only={"b"})
+    assert out == [("a", 0.52)]
+
+
 def _cloud(seed, center, n, spread):
     import random
 

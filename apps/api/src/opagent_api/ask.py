@@ -504,6 +504,7 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
     yield "step.started", d
     today = date.fromisoformat(body.today) if body.today else st.clock.now().date()
     filters: dict[str, Any] = {}
+    names_seen = False  # a person named while faces are not open to AI assistants (MCP-SCOPE-010)
     if body.filters is not None:  # the user edited the chips: run exactly those (ASK-SSE-004)
         p: dict[str, Any] = {"text": body.text or "", "filters": dict(body.filters), "planner": {"explain": [EDITED]}}
         filters = {k: v for k, v in body.filters.items() if k in ("taken_at", "tags_any", "tags_all")}
@@ -512,6 +513,10 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
 
         with st.engine.begin() as c:
             known = person_aliases(c)  # 「測試B有幾張照片？」 counts that person (ASK-GRD-008)
+        if not ("faces:read" in ctx.tok.scopes and ctx.settings.faces_enabled):
+            # the name is recognised only to say where to open faces; no person filter reaches a tool (MCP-SCOPE-010)
+            names_seen = bool(plan(body.message, today=today, persons=known)["filters"].get("persons_all"))
+            known = {}
         p = plan(body.message, today=today, persons=known)
         if "taken_at" in p["filters"]:
             filters["taken_at"] = p["filters"]["taken_at"]
@@ -618,7 +623,9 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
     card: dict[str, Any] | None = None
     # a person in the question while faces are not open to AI assistants: say where to open them, never 「0 張」
     # (ASK-GRD-008; mcp.faces_enabled, 05 §3.2.3)
-    blocked = bool(filters.get("persons_all")) and not ("faces:read" in ctx.tok.scopes and ctx.settings.faces_enabled)
+    blocked = names_seen or (
+        bool(filters.get("persons_all")) and not ("faces:read" in ctx.tok.scopes and ctx.settings.faces_enabled)
+    )
     if blocked:
         final = "要依人物回答，AI 助手需要能看人物：請到「連接 AI 助手」開啟「人臉」後再問一次。"
     elif intent == "count":

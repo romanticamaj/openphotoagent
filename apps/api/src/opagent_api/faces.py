@@ -1210,21 +1210,27 @@ def person_candidates(pid: str, req: Request, limit: int = Query(60, ge=1, le=20
         who = c.execute(select(person.c.status, person.c.merged_into).where(person.c.id == pid)).first()
         if space is None or who is None or who.status == "ignored" or who.merged_into is not None:
             return {"items": [], "references": 0}
+        prev = face_assignment.alias("prev")
         mine = c.execute(
-            select(face_assignment.c.face_id, face_assignment.c.kind).where(
-                face_assignment.c.person_id == pid, face_assignment.c.superseded_at.is_(None)
-            )
+            select(face_assignment.c.face_id, face_assignment.c.kind, face_assignment.c.method, prev.c.method)
+            .outerjoin(prev, prev.c.id == face_assignment.c.replaces)
+            .where(face_assignment.c.person_id == pid, face_assignment.c.superseded_at.is_(None))
+            .order_by(face_assignment.c.created_at.desc(), face_assignment.c.id.desc())
         ).all()
-        rejected = {f for f, k in mine if k == "rejected"}
-        confirmed = F.reference_faces([(f, k) for f, k in mine])
-        refs = confirmed or [
-            r[0] for r in c.execute(select(face.c.id).where(face.c.person_id == pid).order_by(face.c.id))
-        ]
-    vecs = _vectors(st, DEFAULT_WS, space, refs[-CANDIDATE_REFS:])
+        rejected = {r[0] for r in mine if r[1] == "rejected"}
+        confirmed = F.reference_faces([(r[0], r[1]) for r in mine])
+        # the confirmed faces, then the faces the grouping gave (ADR-0038): never online auto-assignments
+        refs = F.candidate_references([(r[0], r[1], r[2], r[3]) for r in mine], cap=CANDIDATE_REFS)
+    vecs = _vectors(st, DEFAULT_WS, space, refs)
+    sure_refs = set(confirmed)
     best: dict[str, float] = {}
-    for v in vecs.values():
+    via_confirmed: dict[str, float] = {}
+    for rid, v in vecs.items():
         for n in _knn(st, DEFAULT_WS, space, v, CANDIDATE_K):
             best[n.face_id] = max(best.get(n.face_id, -1.0), float(n.s))
+            if rid in sure_refs:
+                via_confirmed[n.face_id] = max(via_confirmed.get(n.face_id, -1.0), float(n.s))
+    seed_only = {f for f in best if via_confirmed.get(f, -1.0) < F.CANDIDATE_MIN}
     with st.engine.begin() as c:
         rows = c.execute(
             select(
@@ -1260,6 +1266,7 @@ def person_candidates(pid: str, req: Request, limit: int = Query(60, ge=1, le=20
         margins=margins,
         small=small,
         named=named,
+        seed_only=seed_only if confirmed else None,
     )
     # the clear ones first, best first within each; the hard ones last (ADR-0035)
     clear = {fid: not F.hard_to_judge(**_measures(meta[fid].quality)) for fid, _ in ranked}

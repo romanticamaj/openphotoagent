@@ -294,6 +294,7 @@ def _search_body(ctx: Ctx, c: Any, args: dict[str, Any]) -> dict[str, Any]:
     return {
         "q": query,
         "plan": bool(args.get("parse_query", True)) and bool(query),
+        "plan_persons": "faces:read" in ctx.tok.scopes and bool(ctx.settings.faces_enabled),  # MCP-SCOPE-010
         "filters": {
             "tags_all": tag_keys(f.get("tags_all")),
             "tags_any": tag_keys(f.get("tags_any")),
