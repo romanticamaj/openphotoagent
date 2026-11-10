@@ -319,3 +319,20 @@ def test_op_022_progress_counts_the_photos_this_run_analyses(env):
         if o["id"] == jid
     )
     assert op["progress"]["total"] == 2 and op["progress"]["done"] == 2
+
+
+@pytest.mark.integration
+@pytest.mark.tc("OP-023")
+def test_op_023_the_folder_line_counts_this_run_too(env):
+    """回歸 (audit round 22): the card's top read 0–40/40 while its folder line read 200–240/240."""
+    src = env.client.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": ""}).json()
+    env.client.post(f"/api/v1/sources/{src['id']}/analyze")
+    while env.w.run_once() or env.w.process_items_once():
+        pass
+    for i in range(2):
+        shutil.copyfile(FX / f"IMG_{i + 9:04d}.jpg", env.tree.photos / f"q{i}.jpg")
+    env.client.post(f"/api/v1/sources/{src['id']}/analyze")
+    while env.w.run_once():  # the scan only: the new photos wait for the AI
+        pass
+    s = env.client.get("/api/v1/analysis/status").json()
+    assert [(j["done"], j["total"]) for j in s["jobs"]] == [(0, 2)]

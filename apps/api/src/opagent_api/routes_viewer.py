@@ -133,14 +133,15 @@ def analysis_status(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
         jobs = []
         for r in rows:
             k = counts.get(r.id, {})
-            total = sum(k.values())
-            state = "queued" if r.status == "queued" else "analysing" if total else "scanning"
+            # this run's photos, like the card's top line: the cached ones were analysed before (OP-023)
+            total = sum(k.values()) - k.get("cached", 0)
+            state = "queued" if r.status == "queued" else "analysing" if sum(k.values()) else "scanning"
             jobs.append(
                 {
                     "job_id": r.id,
                     "folder": srcs.get((r.params or {}).get("source_id"), ""),
                     "state": state,
-                    "done": k.get("done", 0) + k.get("cached", 0),
+                    "done": k.get("done", 0),
                     "total": total,
                     "failed": k.get("failed", 0),
                 }
