@@ -539,7 +539,8 @@
     "degraded": "以文搜圖暫時無法使用，只顯示文字結果",
     "related": "可能相關的照片",
     "relaxed": "沒有照片拍到「{words}」，下面是符合其他條件的照片。",
-    "personChip": "人物：{name}"
+    "personChip": "人物：{name}",
+    "countCapped": "最相關的 {n} 張"
   },
   "problem": {
     "chosen": "已改用 {what}"

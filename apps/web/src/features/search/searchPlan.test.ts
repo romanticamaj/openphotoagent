@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { bodyFor, chipsFrom, withoutPerson } from "./searchPlan";
+import i18n from "../../lib/i18n";
+import { bodyFor, chipsFrom, countText, withoutPerson } from "./searchPlan";
 
 const planner = (filters: Record<string, unknown>, explain: string[], text = "") => ({
   source: "rules",
@@ -30,5 +31,12 @@ describe("the search a planned query becomes", () => {
     const chips = chipsFrom(planner({ taken_at: { from: "2025-01-01", to: "2025-12-31" } }, ["「去年」→ 2025"], "海邊"));
     expect(chips[0]).toMatchObject({ kind: "range", from: "2025-01-01", to: "2025-12-31" });
     expect(bodyFor("去年 海邊", [], null)).toEqual({ q: "去年 海邊", plan: true, filters: {} });
+  });
+
+  it("[SRCH-UI-014] 回歸：結果被截在前 250 張時，說是「最相關的 250 張」（驗證第 18 輪：看起來像剛好 250 張）", async () => {
+    await i18n.changeLanguage("zh-TW");
+    const t = i18n.t.bind(i18n);
+    expect(countText(t, 250, true, "zh-TW")).toBe("最相關的 250 張");
+    expect(countText(t, 17, false, "zh-TW")).toBe("17 張");
   });
 });

@@ -46,3 +46,10 @@ export function bodyFor(q: string, chips: Chip[], planned: { text: string } | nu
     },
   };
 }
+
+type T = (k: string, o?: Record<string, unknown>) => string;
+
+/** 「17 張」, or 「最相關的 250 張」 when the image route stopped at its limit and the count is a floor (SRCH-UI-014). */
+export function countText(t: T, n: number, capped: boolean, lang: string): string {
+  return t(capped ? "search.countCapped" : "search.count", { n: n.toLocaleString(lang) });
+}

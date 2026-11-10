@@ -539,7 +539,8 @@
     "degraded": "Text-to-image search is unavailable right now; showing text matches only",
     "related": "Possibly related",
     "relaxed": "No photo shows “{words}”. Below are photos that match the rest.",
-    "personChip": "Person: {name}"
+    "personChip": "Person: {name}",
+    "countCapped": "the {n} most relevant"
   },
   "problem": {
     "chosen": "Switched to {what}"

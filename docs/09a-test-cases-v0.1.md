@@ -806,6 +806,7 @@
 | SRCH-UI-011 | 點一下結果就打開照片（回歸，驗證第 2 輪） | 搜尋結果；已在選取中 | 單擊打開 Lightbox；已在選取時單擊是加選或取消 | E | #— |
 | SRCH-UI-012 | 人名成為可移除的「人物」標籤（回歸，驗證第 14 輪 P0） | 搜尋「測試A」「測試A 足球」 | 後續搜尋帶 `persons_all`；標籤「人物：測試A」可移除，移除後條件也拿掉 | C | #78 |
 | SRCH-UI-013 | 拿掉人物標籤時搜尋框同步（回歸，驗證第 15 輪） | 「測試A 足球」拿掉「人物：測試A」 | 搜尋框變成「足球」，結果是全部的足球照片 | C | #78 |
+| SRCH-UI-014 | 結果被截斷時說清楚（回歸，驗證第 18 輪） | `total_capped` 為 true 的 250 張 | 顯示「最相關的 250 張」；沒截斷照常顯示張數 | C | #— |
 | SRCH-SEM-001 | 以文搜圖 | `fb:vectors(deterministic)`：查詢向量與 `img:semantic` 中「狗 + 海灘」最近 | top-5 含全部 3 張目標；nightly 真 SigLIP2 英文查詢 `a dog on the beach` 的 recall@10 ≥ 0.8（**待 M0 確認**） | I/N | #64 |
 | SRCH-SEM-002 | Worker 離線降級 | 停止 worker | 文字搜尋照常；回應 `notice=degraded_search`；UI 顯示 | I | #64 |
 | SRCH-SEM-003 | 索引進度 | 30,000 張中 12,300 有向量 | UI「已可搜尋 12,300 / 30,000 張」；`SEARCH_INDEX_INCOMPLETE` warning | I/E | DoD 5.4 |
