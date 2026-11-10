@@ -216,6 +216,9 @@ def _ft(c: Any, where: list[Any], tsq: str, en: str) -> list[str]:
 
 
 MAX_CONCEPTS = 5
+# standing in for a concept, a caption meaning must be closer than the route's floor: on the reference library
+# 0.5 + 0.06 lets in 0.05% of irrelevant photos against 1.65% at 0.5 (「小孩在玩水」 had 8 hits, none in water)
+MEANING_MARGIN = 0.06
 
 
 def _concept_cond(i: int, cpt: Any, meaning: list[str] | None = None) -> Any:
@@ -249,6 +252,7 @@ def _caption_meaning(st: AppState, c: Any, where: list[Any], cspace: Any, concep
     floor = caption_floor(st, cspace)
     if floor is None:
         return {}
+    floor += MEANING_MARGIN  # a word alone is vaguer than a sentence (SRCH-CNC-005)
     out: dict[str, list[str]] = {}
     for cpt in concepts:
         if cpt.key:

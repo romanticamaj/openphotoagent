@@ -705,3 +705,30 @@ def test_srch_cnc_004_caption_vectors_answer_for_a_word_no_caption_uses(s, monke
     monkeypatch.setattr(S, "caption_floor", lambda _st, _sp: 0.5)
     res = s.search(q="小孩在玩水")
     assert [x["asset_id"] for x in res["items"]] == [pool] and res["relaxed"] == []
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-CNC-005")
+def test_srch_cnc_005_a_word_alone_needs_a_closer_meaning(s, monkeypatch):
+    """回歸 (audit round 4): 「小孩在玩水」 returned 8 photos, none in water; 「玩沙」 6, none with sand. A single word is a
+    vaguer query than a sentence: standing in for a concept it needs 0.56 on the reference library, not the route's
+    0.5 (irrelevant photos let in: 1.65% at 0.5, 0.05% at 0.56)."""
+    import opagent_api.search as S
+
+    near = s.add(1, caption="小朋友拿著水瓶", tags=("people.child",))
+    s.index()
+    sid = s.sql(
+        "insert into embedding_space(model_key, fingerprint, dim, modality, status)"
+        " values ('fake-cap', 'caption:fake-cap:x', 2, 'caption', 'active') returning id"
+    ).scalar()
+    s.sql(
+        "insert into asset_embedding(asset_id, space_id, vec) values (:a, :s, CAST('[0.53,0.848]' AS vector))",
+        a=near,
+        s=sid,
+    )
+    monkeypatch.setattr(
+        S, "query_vector", lambda st, t, space, modality="image": [1.0, 0.0] if modality == "caption" else None
+    )
+    monkeypatch.setattr(S, "caption_floor", lambda _st, _sp: 0.5)
+    res = s.search(q="小孩在玩水")
+    assert res["relaxed"] == ["玩水"]  # 0.53 is not 玩水: said so, not passed off as a match
