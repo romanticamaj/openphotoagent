@@ -270,7 +270,9 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
           </p>
         ) : null}
         {(a.people?.length ?? 0) === 0 && (a.faces_found?.total ?? 0) > 0 ? (
-          <p data-testid="faces-nobody" className="mb-3 text-sm text-[var(--text-muted)]">
+          <details data-testid="faces-nobody" className="mb-3 text-sm text-[var(--text-muted)]">
+            {/* one short line; why, for whoever asks (VIEW-031) */}
+            <summary className="cursor-pointer">{t("lightbox.facesNobodyShort", { n: a.faces_found!.total })}</summary>
             {t(
               a.faces_found!.small === a.faces_found!.total
                 ? "lightbox.facesNobodyAllSmall"
@@ -282,7 +284,7 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
                 small: a.faces_found!.small,
               },
             )}
-          </p>
+          </details>
         ) : null}
         {(a.people?.length ?? 0) > 0 ? (
           <div className="mb-3">

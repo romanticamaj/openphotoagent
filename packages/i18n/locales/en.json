@@ -455,7 +455,8 @@
     "facesSettings": "Face settings",
     "facesNobody": "{n} faces found. These people appear too rarely in the library to be grouped yet.",
     "facesNobodySmall": "{n} faces found; {small} are too small to recognise, and the others appear too rarely to be grouped yet.",
-    "facesNobodyAllSmall": "{n} faces found, all too small to tell who they are."
+    "facesNobodyAllSmall": "{n} faces found, all too small to tell who they are.",
+    "facesNobodyShort": "{n} faces not grouped yet · Why?"
   },
   "onboarding": {
     "welcome": "Welcome to OpenPhotoAgent",

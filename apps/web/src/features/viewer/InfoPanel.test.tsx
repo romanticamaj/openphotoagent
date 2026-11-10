@@ -106,6 +106,14 @@ describe("the info panel", () => {
     expect(screen.getByTestId("ai-category").closest("details")).toBeNull();
   });
 
+  it("[VIEW-031] 回歸：臉的說明是一行數字，原因收在「為什麼？」裡（驗證第 9 輪：一長串灰字）", async () => {
+    s.asset.mockResolvedValue({ ...base, labels: [label("r1", "people", 1, "x")], people: [], faces_found: { total: 11, small: 8 } });
+    ui();
+    const note = await screen.findByTestId("faces-nobody");
+    expect(note.tagName).toBe("DETAILS");
+    expect(note.querySelector("summary")?.textContent).toBe("11 張臉還沒分成人物 · 為什麼？");
+  });
+
   it("[VIEW-027] 資料夾沒開人臉辨識時說明，並帶去設定", async () => {
     s.asset.mockResolvedValue({ ...base, labels: [label("r1", "people", 1, "x")], faces_state: "folder_off" });
     ui();
