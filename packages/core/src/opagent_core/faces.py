@@ -226,6 +226,11 @@ def chinese_whispers(
 # 「可能也是他」 asks a person to look. At 0.5, two faces in one photo (always two people) pass 1.76% of the time on
 # the reference library; at find_low about 6% (FACE-FIND-014)
 CANDIDATE_MIN = 0.5
+CANDIDATE_MIN_UNCONFIRMED = 0.55  # the group's own faces, wrong ones included, are the references (FACE-FIND-015)
+
+
+def candidate_floor(*, confirmed: bool) -> float:
+    return CANDIDATE_MIN if confirmed else CANDIDATE_MIN_UNCONFIRMED
 
 
 def person_candidates(

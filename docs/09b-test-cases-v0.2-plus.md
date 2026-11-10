@@ -307,6 +307,7 @@
 | FACE-FIND-012 | 一次確認多張 | `POST /people/{id}/review` 3 是 1 不是 | 是 → confirmed 並歸此人；不是 → rejected；兩者都不再出現在候選；不會自動命名 | I | #78 |
 | FACE-FIND-013 | 忽略的人不會回來（回歸，安全審查） | 被忽略者的臉與此人相似；對被忽略者取候選；確認被忽略者的臉 | 不列入候選；被忽略者沒有候選；確認回 409 `FACE_IGNORED`；讀人物的 GET 需要 `face:read` | I/U | #78 |
 | FACE-FIND-014 | 候選從 0.5 起（回歸，驗證第 2 輪） | 0.52 與 0.45 | 只列 0.52（同照片兩人在 0.42 約 6% 過門檻，0.5 為 1.76%） | U | #78 |
+| FACE-FIND-015 | 沒人確認過時門檻較高（回歸，驗證第 3 輪：某人 3/12） | 是否已有 confirmed 臉 | 沒有時 0.55，有了 0.5 | U | #78 |
 | FACE-TPL-001 | `{person}` fan-out | 照片有兩人、fanout=true | 複製到兩個人的資料夾；無人時用 fallback | I | #80 |
 | FACE-REV-001 | Review Y/N | 「這是不是 X？」 | `Y`／`N`／`1–9`／`S` 鍵盤連續處理；批次模式依分數由低到高 | E | #81 |
 | FACE-PRG-001 | 一鍵刪除 | 輸入 workspace 名稱確認 → purge | 單一交易：`bio.face_embedding_w*`、`bio.person_prototype_w*` partition 不存在；face／assignment／person／link／cluster_run 清空；`search_doc.person_*` 清空並排重建；`faces/` 縮圖目錄為空；刪除報告（筆數、位置），報告不含生物特徵 | I | #82 |

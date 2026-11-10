@@ -193,3 +193,12 @@ def test_find_014_candidates_start_at_one_half():
 
     facts = {"a": ("a1", None, None), "b": ("a2", None, None)}
     assert F.person_candidates("p", {"a": 0.52, "b": 0.45}, facts, rejected=set(), low=CANDIDATE_MIN) == [("a", 0.52)]
+
+
+@pytest.mark.unit
+@pytest.mark.tc("FACE-FIND-015")
+def test_find_015_a_group_nobody_confirmed_asks_for_more_likeness():
+    """回歸 (audit round 3): one person's candidates were 3 of 12 right. Before anyone confirms a face the references
+    are the group's own faces, wrong ones included, so the bar is higher until a person has said yes."""
+    assert F.candidate_floor(confirmed=False) == 0.55
+    assert F.candidate_floor(confirmed=True) == F.CANDIDATE_MIN == 0.5

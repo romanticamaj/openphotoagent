@@ -892,7 +892,8 @@ def person_candidates(pid: str, req: Request, limit: int = Query(60, ge=1, le=20
             )
         ).all()
         rejected = {f for f, k in mine if k == "rejected"}
-        refs = F.reference_faces([(f, k) for f, k in mine]) or [
+        confirmed = F.reference_faces([(f, k) for f, k in mine])
+        refs = confirmed or [
             r[0] for r in c.execute(select(face.c.id).where(face.c.person_id == pid).order_by(face.c.id))
         ]
     vecs = _vectors(st, DEFAULT_WS, space, refs[-CANDIDATE_REFS:])
@@ -913,7 +914,7 @@ def person_candidates(pid: str, req: Request, limit: int = Query(60, ge=1, le=20
         ).all()
     facts = {r.id: (r.asset_id, r.person_id, r.state) for r in rows}
     meta = {r.id: r for r in rows}
-    ranked = F.person_candidates(pid, best, facts, rejected, low=F.CANDIDATE_MIN)[:limit]
+    ranked = F.person_candidates(pid, best, facts, rejected, low=F.candidate_floor(confirmed=bool(confirmed)))[:limit]
     return {
         "references": len(vecs),
         "items": [
