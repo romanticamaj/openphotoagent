@@ -773,7 +773,8 @@
     "reviewSent": "已送出：{yes} 張是、{no} 張不是。",
     "undoReview": "復原",
     "moreOf": "{name} 的其他照片",
-    "groupLabel": "{name} · {n} 張照片"
+    "groupLabel": "{name} · {n} 張照片",
+    "blurry": "模糊"
   },
   "ask": {
     "open": "✦ 問 AI",

@@ -99,12 +99,15 @@ function Candidates({ person }: { person: PersonRow }) {
                 type="button"
                 data-testid="candidate"
                 data-mark={m}
+                data-score={c.score}
+                data-tier={c.tier}
                 aria-label={t(`faces.mark.${m}`)}
                 title={t("faces.similarity", { n: Math.round(c.score * 100) })}
                 className="candidate"
                 onClick={() => setMarks((x) => ({ ...x, [c.face_id]: NEXT[m] }))}
               >
                 <FaceCrop assetId={c.asset_id} ch={c.ch} bbox={c.bbox} />
+                {c.tier === 1 ? <span className="candidate-blurry">{t("faces.blurry")}</span> : null}
                 {m !== "none" ? <span aria-hidden="true" className="candidate-mark">{m === "yes" ? "✓" : "✕"}</span> : null}
               </button>
             </li>

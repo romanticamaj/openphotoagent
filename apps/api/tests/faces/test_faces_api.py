@@ -786,3 +786,17 @@ def test_view_029_the_faces_of_nobody_are_marked_too(f):
     got = sorted(f.get(f"/assets/{aid}")["unknown_faces"], key=lambda x: x["small"])
     assert [x["small"] for x in got] == [False, True]
     assert got[1]["bbox"] == pytest.approx([0.1, 0.1, 0.05, 0.05])
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-FIND-018")
+def test_find_018_a_candidate_says_how_clear_it_is(f):
+    """回歸 (audit round 7): about 1 in 4 candidates was wrong, mostly blurry crops; each one now carries its quality
+    tier so the page can say which are hard to judge."""
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p1 = f.sql("select person_id from face where id=:i", i=ids[1][0]).scalar()
+    _small(f, 1, 2, "kid")
+    items = f.get(f"/people/{p1}/candidates")["items"]
+    assert items and all(x["tier"] in (1, 2, 3) for x in items)

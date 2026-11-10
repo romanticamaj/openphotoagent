@@ -94,6 +94,20 @@ describe("finding a person (07 §4)", () => {
     await waitFor(() => expect(s.cands.mock.calls.length).toBeGreaterThan(1)); // the search widens with what was confirmed
   });
 
+  it("[FACE-FIND-018] 回歸：模糊的候選標出「模糊」，分數與清晰度留在元素上（驗證第 7 輪）", async () => {
+    s.people = [row];
+    s.search.mockResolvedValue({ items: [], facets: {}, total: 0, next_cursor: null });
+    const c = (id: string, tier: number) => ({ face_id: id, asset_id: "a" + id, ch: null, bbox: [0, 0, 0.2, 0.2], score: 0.61, tier, group: null });
+    s.cands.mockResolvedValue({ items: [c("f1", 3), c("f2", 1)], references: 4 });
+    ui();
+    fireEvent.click(await screen.findByRole("button", { name: /未命名/ }));
+    const tiles = await screen.findAllByTestId("candidate");
+    expect(tiles[0].dataset.tier).toBe("3");
+    expect(tiles[1].dataset.score).toBe("0.61");
+    expect(tiles[0].querySelector(".candidate-blurry")).toBeNull();
+    expect(tiles[1].querySelector(".candidate-blurry")?.textContent).toBe("模糊");
+  });
+
   it("[FACE-UI-011] 一鍵把全部標成是", async () => {
     s.people = [row];
     s.search.mockResolvedValue({ items: [], facets: {}, total: 0, next_cursor: null });

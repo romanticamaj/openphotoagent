@@ -773,7 +773,8 @@
     "reviewSent": "Sent: {yes} yes, {no} no.",
     "undoReview": "Undo",
     "moreOf": "More of {name}",
-    "groupLabel": "{name} · {n} photos"
+    "groupLabel": "{name} · {n} photos",
+    "blurry": "Blurry"
   },
   "ask": {
     "open": "✦ Ask AI",

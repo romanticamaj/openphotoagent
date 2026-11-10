@@ -982,7 +982,15 @@ def person_candidates(pid: str, req: Request, limit: int = Query(60, ge=1, le=20
             best[n.face_id] = max(best.get(n.face_id, -1.0), float(n.s))
     with st.engine.begin() as c:
         rows = c.execute(
-            select(face.c.id, face.c.asset_id, face.c.person_id, face.c.state, face.c.bbox, asset.c.content_hash)
+            select(
+                face.c.id,
+                face.c.asset_id,
+                face.c.person_id,
+                face.c.state,
+                face.c.bbox,
+                face.c.quality_tier,
+                asset.c.content_hash,
+            )
             .join(asset, asset.c.id == face.c.asset_id)
             .outerjoin(person, person.c.id == face.c.person_id)
             .where(
@@ -1006,6 +1014,7 @@ def person_candidates(pid: str, req: Request, limit: int = Query(60, ge=1, le=20
                 "ch": meta[fid].content_hash,
                 "bbox": list(meta[fid].bbox),
                 "score": round(s, 4),
+                "tier": meta[fid].quality_tier,  # 1: small or blurry, hard to judge (FACE-FIND-018)
                 "group": meta[fid].person_id,
             }
             for fid, s in ranked
