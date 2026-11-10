@@ -10,10 +10,16 @@ const TWO = [
   { id: "s1", root_alias: "photos", sub_path: "", photos: 80, analysed: 80 },
   { id: "s2", root_alias: "testdata", sub_path: "第19周", photos: 73, analysed: 40 },
 ];
-const st = vi.hoisted(() => ({ rows: [] as unknown[] }));
+const st = vi.hoisted(() => ({ rows: [] as unknown[], disk: null as null | { photos: number } }));
 vi.mock("../lib/api", async (orig) => ({
   ...(await orig<typeof import("../lib/api")>()),
-  api: { sources: async () => st.rows },
+  api: {
+    sources: async () => st.rows,
+    folderPreview: async () => {
+      if (!st.disk) throw new Error("no preview");
+      return st.disk;
+    },
+  },
 }));
 
 import { LibraryFolders } from "./LibraryFolders";
@@ -51,6 +57,21 @@ describe("folders already in the library", () => {
     expect(items[0].textContent).toContain("120");
     fireEvent.click(screen.getByRole("button", { name: "分析剩下的照片" })); // 40 of 120 are new
     expect(act).toHaveBeenCalledWith(expect.objectContaining({ id: "r" }));
+  });
+
+  it("[IMP-037] 回歸：資料夾裡有還沒加入的新照片時，卡片說有幾張，按鈕是分析剩下的（驗證第 20 輪）", async () => {
+    st.rows = [{ id: "r", root_alias: "photos", sub_path: "", photos: 80, analysed: 80, tree_photos: 120, tree_analysed: 120 }];
+    st.disk = { photos: 160 };
+    const act = vi.fn();
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <LibraryFolders action={(s) => (s.analysed < s.photos ? "分析剩下的照片" : "重新分析")} onAct={act} />
+      </QueryClientProvider>,
+    );
+    expect((await screen.findByTestId("folder-new")).textContent).toContain("40");
+    fireEvent.click(screen.getByRole("button", { name: "分析剩下的照片" }));
+    expect(act).toHaveBeenCalledWith(expect.objectContaining({ id: "r" }));
+    st.disk = null;
   });
 
   it("[IMP-034] 回歸：資料夾裡的子資料夾不另列一次（驗證第 2 輪：第8周 492 旁邊又有 0409 156）", async () => {

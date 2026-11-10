@@ -19,11 +19,42 @@ export function LibraryFolders({ action, onAct, busy }: { action: (s: LibrarySou
   const num = (n: number) => n.toLocaleString(i18n.language);
   return (
     <ul className="library-folders" aria-label={t("library.inLibrary")}>
-      {rows.map((s) => {
-        const name = s.sub_path ? s.sub_path.split("/").at(-1)! : s.root_alias;
-        const pct = s.photos ? Math.round((100 * s.analysed) / s.photos) : 0;
-        return (
-          <li key={s.id}>
+      {rows.map((s) => (
+        <FolderRow key={s.id} s={s} action={action} onAct={onAct} busy={busy} num={num} />
+      ))}
+    </ul>
+  );
+}
+
+/** One folder: its library counts, and photos on disk that are not in the library yet (IMP-037), counted by the
+ * worker's folder preview (the API never reads files, invariant 1). */
+function FolderRow({
+  s: lib,
+  action,
+  onAct,
+  busy,
+  num,
+}: {
+  s: LibrarySource;
+  action: (s: LibrarySource) => string;
+  onAct: (s: LibrarySource) => void;
+  busy?: string | null;
+  num: (n: number) => string;
+}) {
+  const { t } = useTranslation();
+  const disk = useQuery({
+    queryKey: ["folder-preview", lib.root_alias, lib.sub_path],
+    queryFn: () => api.folderPreview(lib.root_alias, lib.sub_path),
+    staleTime: 60_000,
+    retry: false,
+  });
+  const fresh = Math.max(0, (disk.data?.photos ?? 0) - lib.photos);
+  // new files count as photos still to analyse, so the caller offers 「分析剩下的照片」
+  const s = fresh ? { ...lib, photos: lib.photos + fresh } : lib;
+  const name = s.sub_path ? s.sub_path.split("/").at(-1)! : s.root_alias;
+  const pct = s.photos ? Math.round((100 * s.analysed) / s.photos) : 0;
+  return (
+          <li>
             <div className="min-w-0">
               <p className="break-words font-medium">{name}</p>
               <p className="break-words text-xs text-[var(--text-muted)]">{s.sub_path ? `${s.root_alias} / ${s.sub_path}` : t("library.wholeRoot")}</p>
@@ -32,12 +63,14 @@ export function LibraryFolders({ action, onAct, busy }: { action: (s: LibrarySou
                 <div className="h-full rounded bg-[var(--accent)]" style={{ width: `${pct}%` }} />
               </div>
             </div>
-            <button type="button" className="library-folder-action" onClick={() => onAct(s)} aria-busy={busy === s.id}>
+            {fresh ? (
+              <p data-testid="folder-new" className="text-xs font-medium text-[var(--accent)]">
+                {t("library.newOnDisk", { n: num(fresh) })}
+              </p>
+            ) : null}
+            <button type="button" className="library-folder-action" onClick={() => onAct(lib)} aria-busy={busy === s.id}>
               {action(s)}
             </button>
           </li>
-        );
-      })}
-    </ul>
   );
 }

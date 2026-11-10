@@ -983,7 +983,8 @@
     "reanalyse": "Analyse again",
     "orAddNew": "Or add a new folder",
     "upToDate": "Everything in “{name}” is analysed; only new or changed photos are checked.",
-    "analysing": "Analysing “{name}”; progress is at the bottom left."
+    "analysing": "Analysing “{name}”; progress is at the bottom left.",
+    "newOnDisk": "{n} new photos not added yet"
   },
   "dock": {
     "label": "Progress",
