@@ -451,7 +451,9 @@
     "correctionSaved": "Correction saved",
     "people": "People in this photo",
     "facesFolderOff": "Face recognition is not on for this folder, so no people are marked here.",
-    "facesSettings": "Face settings"
+    "facesSettings": "Face settings",
+    "facesNobody": "{n} faces found. These people appear too rarely in the library to be grouped yet.",
+    "facesNobodySmall": "{n} faces found; {small} are too small to recognise, and the others appear too rarely to be grouped yet."
   },
   "onboarding": {
     "welcome": "Welcome to OpenPhotoAgent",

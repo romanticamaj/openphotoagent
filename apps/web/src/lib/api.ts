@@ -101,6 +101,7 @@ export type AssetInfo = {
   people?: Array<{ id: string; name: string | null }>;
   people_faces?: Record<string, { bbox: number[]; ch: string | null }>;
   faces_state?: "off" | "folder_off" | "on";
+  faces_found?: { total: number; small: number };
 };
 export type Variant = "t256" | "t512" | "p1024";
 

@@ -177,7 +177,21 @@ def get_asset(asset_id: str, req: Request, lang: str = "zh-TW") -> dict[str, Any
             "locations": [dict(r._mapping) for r in locs],
             **dict(zip(("people", "people_faces"), _people_in(c, asset_id), strict=True)),
             "faces_state": _faces_state(c, [r.source_id for r in locs]),
+            "faces_found": _faces_found(c, asset_id),
         }
+
+
+def _faces_found(c: Any, asset_id: str) -> dict[str, int]:
+    """Faces in this photo that belong to no one shown: too small to recognise (tier 0), or of someone seen too
+    rarely to form a person (VIEW-028)."""
+    from opagent_db.schema import face, person
+
+    rows = c.execute(
+        select(face.c.quality_tier)
+        .select_from(face.outerjoin(person, person.c.id == face.c.person_id))
+        .where(face.c.asset_id == asset_id, (face.c.person_id.is_(None)) | (person.c.status == "ignored"))
+    ).all()
+    return {"total": len(rows), "small": sum(1 for (t,) in rows if t == 0)}
 
 
 def _faces_state(c: Any, sources: list[str]) -> str:

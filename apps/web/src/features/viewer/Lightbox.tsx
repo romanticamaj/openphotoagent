@@ -269,6 +269,14 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
             <Link to="/settings/faces" className="underline">{t("lightbox.facesSettings")}</Link>
           </p>
         ) : null}
+        {(a.people?.length ?? 0) === 0 && (a.faces_found?.total ?? 0) > 0 ? (
+          <p data-testid="faces-nobody" className="mb-3 text-sm text-[var(--text-muted)]">
+            {t(a.faces_found!.small ? "lightbox.facesNobodySmall" : "lightbox.facesNobody", {
+              n: a.faces_found!.total,
+              small: a.faces_found!.small,
+            })}
+          </p>
+        ) : null}
         {(a.people?.length ?? 0) > 0 ? (
           <div className="mb-3">
             <h3 className="mb-1 text-sm text-[var(--text-muted)]">{t("lightbox.people")}</h3>

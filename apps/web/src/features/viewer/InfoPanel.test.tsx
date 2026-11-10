@@ -80,6 +80,14 @@ describe("the info panel", () => {
     expect(list.querySelector(".face-crop")).toBeTruthy();
   });
 
+  it("[VIEW-028] 有臉但還沒有人物時說明原因", async () => {
+    s.asset.mockResolvedValue({ ...base, labels: [label("r1", "people", 1, "x")], people: [], faces_found: { total: 12, small: 9 } });
+    ui();
+    const p = await screen.findByTestId("faces-nobody");
+    expect(p.textContent).toContain("12");
+    expect(p.textContent).toContain("9");
+  });
+
   it("[VIEW-027] 資料夾沒開人臉辨識時說明，並帶去設定", async () => {
     s.asset.mockResolvedValue({ ...base, labels: [label("r1", "people", 1, "x")], faces_state: "folder_off" });
     ui();

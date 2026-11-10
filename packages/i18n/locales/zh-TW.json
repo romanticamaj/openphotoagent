@@ -451,7 +451,9 @@
     "correctionSaved": "已記錄修正",
     "people": "照片中的人物",
     "facesFolderOff": "這個資料夾沒有開啟人臉辨識，所以這張不會標出人物。",
-    "facesSettings": "人臉設定"
+    "facesSettings": "人臉設定",
+    "facesNobody": "找到 {n} 張臉，這些人在圖庫裡出現的次數還不夠，所以還沒分成人物。",
+    "facesNobodySmall": "找到 {n} 張臉，其中 {small} 張太小認不出；其餘的人出現次數還不夠，所以還沒分成人物。"
   },
   "onboarding": {
     "welcome": "歡迎使用 OpenPhotoAgent",

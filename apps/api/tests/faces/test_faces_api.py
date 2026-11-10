@@ -759,3 +759,15 @@ def test_mgt_013_a_person_lists_faces_to_compare(f):
     p1 = f.sql("select person_id from face where id=:i", i=ids[1][0]).scalar()
     fs = f.get(f"/people/{p1}")["faces"]
     assert len(fs) == 6 and all(len(x["bbox"]) == 4 and x["ch"] for x in fs)
+
+
+@pytest.mark.integration
+@pytest.mark.tc("VIEW-028")
+def test_view_028_a_photo_says_its_faces_belong_to_nobody_yet(f):
+    """回歸 (audit round 6): a team photo in 「photos」 had 12 faces found, all too small or of people seen only once,
+    and the info panel said nothing about people at all."""
+    f.enable()
+    aid, _ = f.photo("2025/t/team.jpg", plan=[FaceSpec(person=None, min_side=12), FaceSpec(person=None)])
+    f.post("/faces/cluster")
+    a = f.get(f"/assets/{aid}")
+    assert a["people"] == [] and a["faces_found"] == {"total": 2, "small": 1}
