@@ -241,6 +241,35 @@ def test_face_ui_017_the_cover_is_the_most_typical_clear_face():
     assert F.typical_face({}, {}) is None
 
 
+@pytest.mark.unit
+@pytest.mark.tc("FACE-FIND-020")
+def test_find_020_one_click_yes_only_for_the_sure_ones():
+    """回歸 (audit rounds 8-9): 「全部都是」 marked a different child (0.583). Of 68 judged candidates every 「same」 at
+    0.6 or more was right; the only 「different」 was under it. Below 0.6 a person says yes one face at a time."""
+    assert F.CANDIDATE_SURE == 0.6
+    assert F.sure_candidate(0.61) is True and F.sure_candidate(0.583) is False
+
+
+@pytest.mark.unit
+@pytest.mark.tc("FACE-FIND-021")
+def test_find_021_a_soft_crop_under_50_is_hard_to_judge():
+    """回歸 (audit round 9): a blurry tile went unlabelled. At a Laplacian floor of 50, 4 more 「can't tell」 of round 8
+    are flagged (48.7, 47.1, 45.4, 47.2) and no more 「same」 (the next is 50.3)."""
+    assert F.hard_to_judge(min_side=120, blur=47) is True
+    assert F.hard_to_judge(min_side=120, blur=51) is False
+
+
+@pytest.mark.unit
+@pytest.mark.tc("FACE-UI-018")
+def test_face_ui_018_the_cover_is_typical_and_sharp():
+    """回歸 (audit round 9): the most typical face was often a soft one, and the people wall looked less crisp. Of the
+    five most typical clear faces the sharpest is the cover."""
+    vecs = {f"f{i}": [1.0, 0.01 * i] for i in range(8)} | {"odd": [0.0, 1.0]}
+    clear = dict.fromkeys(vecs, True)
+    sharp = {f"f{i}": 60.0 + i for i in range(8)} | {"f3": 900.0, "odd": 5000.0}
+    assert F.typical_face(vecs, clear, sharp) == "f3"  # among the most typical; odd is sharpest but not typical
+
+
 def _cloud(seed, center, n, spread):
     import random
 

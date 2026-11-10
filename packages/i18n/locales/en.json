@@ -774,7 +774,8 @@
     "undoReview": "Undo",
     "moreOf": "More of {name}",
     "groupLabel": "{name} · {n} photos",
-    "hardToJudge": "Hard to tell"
+    "hardToJudge": "Hard to tell",
+    "allYesHint": "{n} more are less certain: decide them one at a time"
   },
   "ask": {
     "open": "✦ Ask AI",

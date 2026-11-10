@@ -111,6 +111,20 @@ describe("finding a person (07 §4)", () => {
     expect(tiles[1].getAttribute("data-mark")).toBe("none");
   });
 
+  it("[FACE-FIND-020] 回歸：「全部都是」只標把握高的，其餘一張一張決定（驗證第 9 輪）", async () => {
+    s.people = [row];
+    s.search.mockResolvedValue({ items: [], facets: {}, total: 0, next_cursor: null });
+    const c = (id: string, score: number, sure: boolean) => ({ face_id: id, asset_id: "a" + id, ch: null, bbox: [0, 0, 0.2, 0.2], score, tier: 2, clear: true, sure, group: null });
+    s.cands.mockResolvedValue({ items: [c("f1", 0.7, true), c("f2", 0.583, false)], references: 4 });
+    ui();
+    fireEvent.click(await screen.findByRole("button", { name: /未命名/ }));
+    const tiles = await screen.findAllByTestId("candidate");
+    fireEvent.click(screen.getByRole("button", { name: "全部都是" }));
+    expect(tiles[0].getAttribute("data-mark")).toBe("yes");
+    expect(tiles[1].getAttribute("data-mark")).toBe("none");
+    expect(screen.getByTestId("all-yes-hint").textContent).toContain("1");
+  });
+
   it("[FACE-UI-011] 一鍵把全部標成是", async () => {
     s.people = [row];
     s.search.mockResolvedValue({ items: [], facets: {}, total: 0, next_cursor: null });

@@ -158,7 +158,12 @@ def merge_suggestions(
 
 
 HARD_MIN_SIDE = 60.0  # px: ADR-0035, 68 candidates judged on the reference library
-HARD_BLUR = 40.0  # variance of the Laplacian of the aligned crop
+HARD_BLUR = 50.0  # variance of the Laplacian of the aligned crop (40 -> 50: FACE-FIND-021)
+CANDIDATE_SURE = 0.6  # 「全部都是」 only from here (FACE-FIND-020)
+
+
+def sure_candidate(score: float) -> bool:
+    return score >= CANDIDATE_SURE
 
 
 def hard_to_judge(min_side: float | None, blur: float | None) -> bool:
@@ -167,9 +172,14 @@ def hard_to_judge(min_side: float | None, blur: float | None) -> bool:
     return (min_side is not None and min_side < HARD_MIN_SIDE) or (blur is not None and blur < HARD_BLUR)
 
 
-def typical_face(vecs: Mapping[str, Sequence[float]], clear: Mapping[str, bool]) -> str | None:
-    """The face that looks most like the group: the clear one closest to the centroid (FACE-UI-017); when none is
-    clear, the closest of all."""
+TYPICAL_SHORTLIST = 5
+
+
+def typical_face(
+    vecs: Mapping[str, Sequence[float]], clear: Mapping[str, bool], sharp: Mapping[str, float] | None = None
+) -> str | None:
+    """The face that looks most like the group: of the clear ones closest to the centroid (FACE-UI-017), the
+    sharpest of the first five (FACE-UI-018); when none is clear, the closest of all."""
     if not vecs:
         return None
     n = len(next(iter(vecs.values())))
@@ -180,7 +190,10 @@ def typical_face(vecs: Mapping[str, Sequence[float]], clear: Mapping[str, bool])
         return sum(a * b for a, b in zip(v, cen, strict=True)) / nv
 
     pool = [f for f in vecs if clear.get(f)] or list(vecs)
-    return max(sorted(pool), key=lambda f: cos(vecs[f]))
+    near = sorted(sorted(pool), key=lambda f: -cos(vecs[f]))[:TYPICAL_SHORTLIST]
+    if not sharp:
+        return near[0]
+    return max(near, key=lambda f: sharp.get(f, 0.0))
 
 
 MERGE_MIN_GROUP = 3

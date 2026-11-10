@@ -678,6 +678,7 @@ def _merge_suggestions(st: AppState, ws: str, space: int) -> None:
         c.execute(delete(person_link).where(person_link.c.workspace_id == ws, gone))
         members: dict[str, list[str]] = {}
         clear: dict[str, bool] = {}
+        sharp: dict[str, float] = {}
         for fid, pid, q in c.execute(
             select(face.c.id, face.c.person_id, face.c.quality).where(
                 face.c.workspace_id == ws, face.c.person_id.is_not(None)
@@ -685,9 +686,10 @@ def _merge_suggestions(st: AppState, ws: str, space: int) -> None:
         ):
             members.setdefault(pid, []).append(fid)
             clear[fid] = not F.hard_to_judge(**_measures(q))
+            sharp[fid] = _measures(q)["blur"] or 0.0
     vecs = _vectors(st, ws, space, [f for fs in members.values() for f in fs])
     groups = {pid: [vecs[f] for f in fs if f in vecs] for pid, fs in members.items()}
-    covers = {pid: F.typical_face({f: vecs[f] for f in fs if f in vecs}, clear) for pid, fs in members.items()}
+    covers = {pid: F.typical_face({f: vecs[f] for f in fs if f in vecs}, clear, sharp) for pid, fs in members.items()}
     from sqlalchemy.dialects.postgresql import insert as pg_insert
 
     with st.engine.begin() as c:
@@ -780,15 +782,17 @@ def _fill_covers(st: AppState, ws: str) -> None:
             return
         members: dict[str, list[str]] = {}
         clear: dict[str, bool] = {}
+        sharp: dict[str, float] = {}
         for fid, pid, q in c.execute(
             select(face.c.id, face.c.person_id, face.c.quality).where(face.c.person_id.in_(missing))
         ):
             members.setdefault(pid, []).append(fid)
             clear[fid] = not F.hard_to_judge(**_measures(q))
+            sharp[fid] = _measures(q)["blur"] or 0.0
     vecs = _vectors(st, ws, space, [f for fs in members.values() for f in fs])
     with st.engine.begin() as c:
         for pid, fs in members.items():
-            cf = F.typical_face({f: vecs[f] for f in fs if f in vecs}, clear)
+            cf = F.typical_face({f: vecs[f] for f in fs if f in vecs}, clear, sharp)
             if cf is not None:
                 c.execute(update(person).where(person.c.id == pid).values(cover_face_id=cf))
 
@@ -1076,6 +1080,7 @@ def person_candidates(pid: str, req: Request, limit: int = Query(60, ge=1, le=20
                 "score": round(s, 4),
                 "tier": meta[fid].quality_tier,
                 "clear": clear[fid],  # false: too small or soft to judge (FACE-FIND-018, ADR-0035)
+                "sure": F.sure_candidate(s),  # 「全部都是」 only marks these (FACE-FIND-020)
                 "group": meta[fid].person_id,
             }
             for fid, s in ranked

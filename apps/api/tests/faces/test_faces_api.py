@@ -840,3 +840,15 @@ def test_face_ui_017_a_library_grouped_before_gets_its_covers(f):
     f.sql("update person set cover_face_id = null")
     f.get("/people")
     assert f.sql("select count(*) from person where cover_face_id is null and merged_into is null").scalar() == 0
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-FIND-020")
+def test_find_020_candidates_say_which_are_sure(f):
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p1 = f.sql("select person_id from face where id=:i", i=ids[1][0]).scalar()
+    _small(f, 1, 2, "kid")
+    items = f.get(f"/people/{p1}/candidates")["items"]
+    assert items and all(x["sure"] is (x["score"] >= 0.6) for x in items)

@@ -774,7 +774,8 @@
     "undoReview": "復原",
     "moreOf": "{name} 的其他照片",
     "groupLabel": "{name} · {n} 張照片",
-    "hardToJudge": "看不清"
+    "hardToJudge": "看不清",
+    "allYesHint": "另有 {n} 張沒把握，請一張一張決定"
   },
   "ask": {
     "open": "✦ 問 AI",

@@ -34,6 +34,8 @@ export function FaceOptInCard() {
 }
 
 type Mark = "none" | "yes" | "no";
+// 「全部都是」 marks only clear, sure candidates; the rest are decided one at a time (ADR-0035, FACE-FIND-020)
+const oneClick = (c: FaceCandidate) => c.clear !== false && c.sure !== false;
 const PAGE = 12;
 const NEXT: Record<Mark, Mark> = { none: "yes", yes: "no", no: "none" };
 
@@ -118,10 +120,15 @@ function Candidates({ person }: { person: PersonRow }) {
         {/* only the clear ones: a face too small or soft to judge is never a one-click yes (ADR-0035) */}
         <Button
           variant="ghost"
-          onClick={() => setMarks((x) => ({ ...x, ...Object.fromEntries(items.filter((c) => c.clear !== false).map((c) => [c.face_id, "yes" as Mark])) }))}
+          onClick={() => setMarks((x) => ({ ...x, ...Object.fromEntries(items.filter(oneClick).map((c) => [c.face_id, "yes" as Mark])) }))}
         >
           {t("faces.allYes")}
         </Button>
+        {items.some((c) => !oneClick(c)) ? (
+          <span data-testid="all-yes-hint" className="text-xs text-[var(--text-muted)]">
+            {t("faces.allYesHint", { n: items.filter((c) => !oneClick(c)).length })}
+          </span>
+        ) : null}
         <Button
           onClick={() => send.mutate()}
           disabledReason={yes.length + no.length ? null : { code: "NOTHING_MARKED", message: t("faces.markFirst") }}
