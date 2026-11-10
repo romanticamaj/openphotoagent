@@ -85,7 +85,11 @@
     "moveNeedText": "請輸入確認字串",
     "close": "取消",
     "summaryTrash": "將移到垃圾桶 {count} 張，保留每組的代表張。可隨時復原",
-    "addFolder": "加入資料夾…"
+    "addFolder": "加入資料夾…",
+    "intro": "整理會把照片「複製」到輸出資料夾，依類別或日期分好。原來的檔案不會動，整理完也能一鍵復原。",
+    "fromLibrary": "選一個已在圖庫的資料夾",
+    "organizeThis": "整理這個資料夾",
+    "otherFolder": "或選其他資料夾"
   },
   "eta": {
     "slow": {
@@ -199,7 +203,9 @@
       "output.apply": "套用",
       "output.undo": "復原",
       "search.reindex": "建立搜尋索引",
-      "face.cluster": "分組人臉"
+      "face.cluster": "分組人臉",
+      "job.analyze": "AI 分析",
+      "map.download": "下載街道圖"
     },
     "open": "活動",
     "resume": "繼續",
@@ -221,6 +227,10 @@
       "model_load": "載入模型",
       "infer": "推論",
       "postprocess": "整理結果"
+    },
+    "recent": "最近完成",
+    "group": {
+      "control": "系統工作"
     }
   },
   "fix": {
@@ -409,7 +419,7 @@
       "date": "拍攝時間",
       "size": "尺寸",
       "fileSize": "檔案大小",
-      "locations": "位置"
+      "locations": "檔案位置"
     },
     "ai": {
       "title": "AI 結果",
@@ -421,7 +431,8 @@
       "none": "尚未分析",
       "advanced": "進階資訊",
       "tags": "標籤",
-      "history": "之前的分析（{n}）"
+      "history": "之前的分析（{n}）",
+      "details": "判斷細節"
     },
     "layer": {
       "embedding": "影像相似度",
@@ -440,7 +451,19 @@
     "correct": "修正類別",
     "correctSave": "儲存修正",
     "correctionSaved": "已記錄修正",
-    "people": "照片中的人物"
+    "people": "照片中的人物",
+    "facesFolderOff": "這個資料夾沒有開啟人臉辨識，所以這張不會標出人物。",
+    "facesSettings": "人臉設定",
+    "facesNobody": "找到 {n} 張臉，這些人在圖庫裡出現的次數還不夠，所以還沒分成人物。",
+    "facesNobodySmall": "找到 {n} 張臉，其中 {small} 張太小認不出；其餘的人出現次數還不夠，所以還沒分成人物。",
+    "facesNobodyAllSmall": "找到 {n} 張臉，但都太小，認不出是誰。",
+    "facesNobodyShort": "{n} 張臉還沒分成人物 · 為什麼？",
+    "nameFaces": "替這些臉命名",
+    "faceName": "名字",
+    "whoIsThis": "這是誰？",
+    "saveFaceName": "儲存",
+    "faceNamePlaceholder": "例如：阿姨、小明",
+    "nameFacesSmall": "另有 {n} 張臉太小，認不出是誰。"
   },
   "onboarding": {
     "welcome": "歡迎使用 OpenPhotoAgent",
@@ -499,7 +522,8 @@
     "none": "找不到符合的照片",
     "indexing": "已可搜尋 {have} / {total} 張（以文搜圖）",
     "degraded": "以文搜圖暫時無法使用，只顯示文字結果",
-    "related": "可能相關的照片"
+    "related": "可能相關的照片",
+    "relaxed": "沒有照片拍到「{words}」，下面是符合其他條件的照片。"
   },
   "problem": {
     "chosen": "已改用 {what}"
@@ -516,7 +540,12 @@
     "skipRestTitle": "略過剩下的照片？",
     "skipRestBody": "剩下 {n} 張會放到「其他」，之後仍可在照片中修正。",
     "keys": "1–9 選類別 · 0 其他 · Enter 接受 · S 略過",
-    "backToPlan": "回到整理"
+    "backToPlan": "回到整理",
+    "why": {
+      "low_confidence": "AI 對這張的分類把握不夠，請你決定。",
+      "conflict": "兩個模型看法不同，請你決定。",
+      "shortlist": "類別太多，AI 只比對了最像的幾個，請你確認。"
+    }
   },
   "batch": {
     "selected": "已選 {n} 張",
@@ -559,7 +588,16 @@
       "installed": "已安裝",
       "downloading": "下載中"
     },
-    "back": "回到模型清單"
+    "back": "回到模型清單",
+    "kinds": {
+      "vlm": "看懂照片（說明、分類、標籤）",
+      "embedding": "以文搜圖",
+      "face_detector": "找出人臉",
+      "face_embedder": "辨認人臉",
+      "text_embedding": "以文字描述找照片",
+      "llm": "AI 問照片"
+    },
+    "installedBadge": "已安裝"
   },
   "readiness": {
     "title": "準備狀態",
@@ -732,7 +770,24 @@
       "none": "未標記，點一下標為是",
       "yes": "是，再點一下改成不是",
       "no": "不是，再點一下取消"
-    }
+    },
+    "more": "再看 {n} 張",
+    "openPhoto": "打開照片",
+    "sameQuestion": "這兩組是同一個人嗎？",
+    "sameCounts": "{a} 張和 {b} 張照片",
+    "sameYes": "是同一人",
+    "sameNo": "不是同一人",
+    "sameLater": "稍後再說",
+    "reviewSent": "已送出：{yes} 張是、{no} 張不是。",
+    "undoReview": "復原",
+    "moreOf": "{name} 的其他照片",
+    "groupLabel": "{name} · {n} 張照片",
+    "hardToJudge": "看不清",
+    "allYesHint": "另有 {n} 張沒把握，請一張一張決定",
+    "candidateKeys": "鍵盤：Y 是 · N 不是 · S 或 → 略過 · ← 上一張",
+    "photosWithMaybe": "照片 {n} 張（{sure} 張確定、{maybe} 張可能）",
+    "maybe": "可能",
+    "maybePhoto": "可能有這個人的照片"
   },
   "ask": {
     "open": "✦ 問 AI",
@@ -795,7 +850,12 @@
     "cluster": "{n} 張照片",
     "noLocation": "沒有位置：{n} 張",
     "inArea": "這個範圍有 {n} 張",
-    "photo": "照片"
+    "photo": "照片",
+    "oneSpot": "這 {n} 張都拍在約 {m} 公尺的範圍內，是同一個地方。",
+    "basemapOffer": "現在只有國界與海岸線。下載台灣街道圖就能看到街道與地名（約 100–300 MB，只下載一次，離線也能用）。",
+    "basemapDownload": "下載台灣街道圖",
+    "basemapDownloading": "正在下載台灣街道圖…完成後地圖會自動換上。",
+    "basemapNoThanks": "不用了"
   },
   "compare": {
     "title": "比較",
@@ -881,7 +941,17 @@
     "sampleAlt": "資料夾裡的照片樣本",
     "outputFolder": "輸出",
     "addAndAnalyze": "加入圖庫並開始分析",
-    "scanOnly": "先只加入照片，不做 AI 分析"
+    "scanOnly": "先只加入照片，不做 AI 分析",
+    "inLibrary": "已在圖庫的資料夾",
+    "wholeRoot": "整個資料夾",
+    "folderCounts": "{photos} 張 · 已分析 {analysed} 張",
+    "analysedShare": "已分析的比例",
+    "analyse": "分析",
+    "analyseRest": "分析剩下的照片",
+    "reanalyse": "重新分析",
+    "orAddNew": "或加入新的資料夾",
+    "upToDate": "「{name}」的照片都已分析過；只會補上新增或有變動的照片。",
+    "analysing": "已開始分析「{name}」，進度在左下角。"
   },
   "dock": {
     "label": "進度",
