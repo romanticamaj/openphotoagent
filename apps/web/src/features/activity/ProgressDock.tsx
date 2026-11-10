@@ -118,7 +118,7 @@ export function ProgressDock() {
         return (
           <div key={s.type} className="space-y-1">
             <div className="flex justify-between gap-3 text-sm">
-              <span>{t(`dock.stage.${s.type}`)}</span>
+              <span className="shrink-0 whitespace-nowrap">{t(`dock.stage.${s.type}`)}</span>
               <span className="tnum text-[var(--text-muted)]">
                 {s.total ? `${num(s.done)} / ${num(s.total)}` : t(stages.some((x) => x.type === "scan") ? "dock.waitingScan" : "dock.preparing")}
               </span>

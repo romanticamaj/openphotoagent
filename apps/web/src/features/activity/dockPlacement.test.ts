@@ -11,3 +11,10 @@ describe("where the progress card sits", () => {
     expect(router).toMatch(/<div className="sidebar">[\s\S]*<nav className="sidenav"[\s\S]*<ProgressDock \/>[\s\S]*<\/div>\s*<main/);
   });
 });
+
+describe("the stage name on the progress card", () => {
+  it("[ACT-011] 回歸：「AI 分析」不在旁邊文字變長時斷成兩行（驗證第 20 輪：「AI 分 / 析」）", () => {
+    const dock = readFileSync(`${process.cwd()}/src/features/activity/ProgressDock.tsx`, "utf-8");
+    expect(dock).toMatch(/<span className="shrink-0 whitespace-nowrap">\{t\(`dock\.stage\.\$\{s\.type\}`\)\}<\/span>/);
+  });
+});
