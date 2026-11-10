@@ -1044,3 +1044,30 @@ def test_ask_prv_009_no_real_name_reaches_a_cloud_model(f):
     sent = "".join(str(m.get("content")) for call in llm.seen for m in call)
     assert llm.seen and "王小美" not in sent
     assert "王小美" in r.text  # the answer, on this machine, says the name
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-PRV-010")
+def test_ask_prv_010_every_form_of_a_name_is_aliased_or_the_call_is_refused(f):
+    """回歸 (security review of ASK-PRV-009): tool output carries a name as the sanitiser made it (zero-width marks
+    gone) or JSON-escaped (backslash-u escapes); a replacement on the stored form missed those. Every form is aliased, and a
+    payload that still holds one is not sent."""
+    import json
+
+    from opagent_assistant.llm import FakeLLM, Reply
+
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p2 = f.sql("select person_id from face where id=:i", i=ids[2][0]).scalar()
+    f.post(f"/people/{p2}/name", {"name": "王​小美"})
+    f.sql(
+        "update workspace set settings = jsonb_set(settings, '{assistant}', coalesce(settings->'assistant', '{}'::jsonb)"
+        ' || \'{"provider": "openai_compat", "cloud_people": true}\')'
+    )
+    llm = FakeLLM([Reply(text="人物A 有照片。")])
+    f.client.app.state.opa.llm = llm
+    f.client.post("/api/v1/ask", json={"message": "王小美的照片"}, headers=f.ui)
+    for call in llm.seen:
+        for form in (json.dumps(call, ensure_ascii=False), json.dumps(call)):
+            assert "小美" not in form and "\u5c0f\u7f8e" not in form
