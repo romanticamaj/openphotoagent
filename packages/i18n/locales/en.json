@@ -227,7 +227,10 @@
       "infer": "Infer",
       "postprocess": "Post-process"
     },
-    "recent": "Recently finished"
+    "recent": "Recently finished",
+    "group": {
+      "control": "System"
+    }
   },
   "fix": {
     "hf_token": "Add Hugging Face token",

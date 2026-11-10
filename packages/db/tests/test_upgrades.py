@@ -232,3 +232,32 @@ def test_inf_cas_018_guesses_left_by_a_vlm_timeout_are_removed(fresh_db, tmp_pat
         )
         assert c.execute("select count(*) from review").fetchone() == (0,)
         assert c.execute("select count(*) from index_outbox where asset_id = 'a1'").fetchone() == (1,)
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-R2-007")
+def test_r2_007_a_build_left_running_by_an_older_version_is_closed(fresh_db, tmp_path):
+    from opagent_db.schema import create_all
+
+    dsn = fresh_db("zombie")
+    create_all(dsn)
+    with psycopg.connect(dsn, autocommit=True) as c:
+        c.execute("CREATE TABLE alembic_version (version_num varchar(32) NOT NULL PRIMARY KEY)")
+        c.execute("INSERT INTO alembic_version VALUES ('0004')")
+        c.execute("insert into workspace(id, name, settings) values ('default', 'Default', '{}')")
+        c.execute(
+            "insert into embedding_space(id, model_key, fingerprint, dim, modality, status, thresholds) values"
+            " (152, 'q', 'caption:q:pending:1', 0, 'caption', 'retired', '{\"operation_id\": \"reindex:caption:152\"}'),"
+            " (153, 'q', 'caption:q:fp', 4, 'caption', 'building', '{\"operation_id\": \"reindex:caption:153\"}')"
+        )
+        for oid in ("reindex:caption:152", "reindex:caption:153"):
+            c.execute(
+                "insert into operation(id, type, status, subject, seq, updated_at, created_at)"
+                f" values ('{oid}', 'search.reindex', 'running', '{{}}', 1, now(), now())"
+            )
+    bdir = tmp_path / "backups"
+    bdir.mkdir()
+    migrate(dsn, Backups(bdir, find_pg_bin(), FakeClock()))
+    with psycopg.connect(dsn) as c:
+        st = dict(c.execute("select id, status from operation").fetchall())
+    assert st == {"reindex:caption:152": "cancelled", "reindex:caption:153": "running"}

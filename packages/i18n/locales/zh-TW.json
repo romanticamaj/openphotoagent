@@ -227,7 +227,10 @@
       "infer": "推論",
       "postprocess": "整理結果"
     },
-    "recent": "最近完成"
+    "recent": "最近完成",
+    "group": {
+      "control": "系統工作"
+    }
   },
   "fix": {
     "hf_token": "新增 Hugging Face token",

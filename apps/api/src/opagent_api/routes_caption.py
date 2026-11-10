@@ -51,6 +51,9 @@ def build_index(body: IndexIn, req: Request) -> dict[str, Any]:
         if old is not None:  # one build at a time: a newer request replaces an unfinished one
             c.execute(delete(asset_embedding).where(asset_embedding.c.space_id == old.id))
             c.execute(update(embedding_space).where(embedding_space.c.id == old.id).values(status="retired"))
+            if (old.thresholds or {}).get("operation_id"):  # closed, not left running (SRCH-R2-007)
+                set_op_status(c, st.clock, old.thresholds["operation_id"], "cancelling")  # running -> cancelled
+                set_op_status(c, st.clock, old.thresholds["operation_id"], "cancelled")
         sid = c.execute(
             insert(embedding_space)
             .values(
@@ -99,6 +102,23 @@ def _finish(st: AppState, c: Any, sid: int) -> None:
     set_op_status(c, st.clock, sp.thresholds["operation_id"], "succeeded")
     if caption_space(c, "active") is None:  # the first caption index needs no switch
         c.execute(update(embedding_space).where(embedding_space.c.id == sid).values(status="active"))
+
+
+def on_captions_failed(st: AppState, c: Any, t: Any, res: dict[str, Any]) -> None:
+    """A batch the worker could not embed fails the build: it said 「建立搜尋索引 進行中」 forever (SRCH-R2-007)."""
+    sid = int(t.payload["space_id"])
+    sp = c.execute(select(embedding_space).where(embedding_space.c.id == sid).with_for_update()).first()
+    if sp is None or sp.status != "building":
+        return
+    c.execute(delete(asset_embedding).where(asset_embedding.c.space_id == sid))
+    c.execute(update(embedding_space).where(embedding_space.c.id == sid).values(status="retired"))
+    op = (sp.thresholds or {}).get("operation_id")
+    if op:
+        from opagent_db.schema import operation
+
+        set_op_status(c, st.clock, op, "failed")
+        code = str(res.get("error") or "MODEL_UNAVAILABLE")[:64]
+        c.execute(update(operation).where(operation.c.id == op).values(result={"error_code": code}))
 
 
 def on_captions_embedded(st: AppState, c: Any, t: Any, res: dict[str, Any]) -> None:

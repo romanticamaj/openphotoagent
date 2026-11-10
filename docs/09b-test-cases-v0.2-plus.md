@@ -448,6 +448,7 @@
 | SRCH-R2-003 | 藍綠 reindex | 換 text embedding 模型 | 新 space 在背景建立（Operation，帶 ETA）；完成前搜尋仍用舊 space；切換是原子的；切換後舊 space 才刪除 | I | #110 |
 | SRCH-R2-005 | caption 向量也有下限 | 下限設成沒有照片達得到 | 「海邊的貓」沒有任何結果是經 caption_vector 命中；下限取自文字模型目錄的 `min_cosine`，未設定時行為不變 | I | #— |
 | SRCH-R2-006 | caption 向量跑在內建的 llama.cpp | Qwen3-Embedding（`--embedding --pooling last`） | 參數為向量模式、沒有 mmproj；照片說明原樣、查詢加上指令前綴；worker 的查詢 RPC 走查詢路徑；建索引時非同步結果有等待；模型目錄有 `text_embedder` 類別與釘選 | U | #— |
+| SRCH-R2-007 | 建索引失敗要說（回歸，驗證第 4 輪：卡在「進行中 1 秒」） | worker 沒有該模型；或建到一半被新的取代 | 空間停用、Operation 失敗並帶錯誤碼；被取代的 Operation 取消；migration 0005 關閉舊版留下的；活動中心群組不顯示「control」 | I | #— |
 | SRCH-R2-004 | reindex UI | 模型頁 | 顯示進度、預估時間與「切換」按鈕；完成前按鈕帶原因 disabled（不變量 8） | E | #110 |
 
 ### 7.6 發佈管道與評估（#111、#112）

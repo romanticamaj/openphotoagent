@@ -118,3 +118,21 @@ def test_r2_005_caption_vectors_have_a_floor_too(env, monkeypatch):
     monkeypatch.setattr(S, "caption_floor", lambda _st, _space: 1.01)  # nothing is that close
     res = m.http.post("/api/v1/search", json={"q": "海邊的貓", "limit": 10, "semantic": True}).json()
     assert not any("caption_vector" in x["matched_by"] for x in res["items"])
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-R2-007")
+def test_r2_007_a_failed_index_build_says_so(env):
+    """回歸 (audit round 4): a build whose worker tasks all failed stayed 「建立搜尋索引 進行中 1 秒」 forever, the
+    activity icon spinning; a replaced build's operation was never closed either."""
+    m = env
+    first = m.http.post("/api/v1/search/caption-index", json={"model_key": "no-such-model"}).json()
+    s = wait_index(m, lambda s: s.get("building") is None)
+    assert s["active"] is None
+    op = m.http.get(f"/api/v1/operations/{first['operation_id']}").json()
+    assert op["status"] == "failed" and op["error"]
+    # a build replaced before it finished is closed, not left running
+    a = m.http.post("/api/v1/search/caption-index", json={"model_key": QWEN}).json()
+    b = m.http.post("/api/v1/search/caption-index", json={"model_key": E5}).json()
+    assert m.http.get(f"/api/v1/operations/{a['operation_id']}").json()["status"] in ("cancelled", "succeeded")
+    assert b["operation_id"] != a["operation_id"]

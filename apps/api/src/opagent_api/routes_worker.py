@@ -507,6 +507,10 @@ def complete(task_id: str, body: CompleteIn, req: Request) -> dict[str, str]:
                 )
         if handler and body.ok:
             handler(st, c, t, body.result)
+        elif t.kind == "embed_captions":
+            from .routes_caption import on_captions_failed
+
+            on_captions_failed(st, c, t, body.result)
         elif handler and t.job_id and t.kind == "scan":
             set_job_status(c, t.job_id, JobStatus.failed, error=str(body.result.get("error")))
     return {"status": "ok"}

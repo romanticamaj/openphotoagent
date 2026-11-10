@@ -40,7 +40,7 @@ export function ActivityCenter({
       {ops.length === 0 ? <p className="text-[var(--text-muted)]">{t("activity.empty")}</p> : null}
       {groupOps(ops).map((g) => (
         <section key={g.key} aria-label={g.key}>
-          <h3 className="text-xs text-[var(--text-muted)]">{g.key}</h3>
+          <h3 className="text-xs text-[var(--text-muted)]">{t(`activity.group.${g.key}`, { defaultValue: g.key })}</h3>
           <ul>
             {g.ops.map((op) => (
               <li key={op.id} data-op={op.id}>

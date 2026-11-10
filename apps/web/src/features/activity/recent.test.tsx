@@ -17,4 +17,11 @@ describe("what just happened", () => {
     expect(list.textContent).toContain("AI 分析");
     expect(list.querySelectorAll("li")).toHaveLength(2);
   });
+
+  it("[ACT-008] 群組標題不顯示「control」這種內部代號", () => {
+    const op = { id: "o3", type: "search.reindex", status: "running", lane: "control", worker: null };
+    render(<ActivityCenter open ops={[op] as never} onClose={() => {}} />);
+    expect(screen.queryByText("control")).toBeNull();
+  });
 });
+
