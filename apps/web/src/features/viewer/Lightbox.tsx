@@ -4,6 +4,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { FaceCrop } from "../../components/FaceCrop";
+import { FaceBoxes } from "./faceBoxes";
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, mediaUrl, type AssetInfo, type TimelineAsset } from "../../lib/api";
@@ -25,6 +26,7 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [showInfo, setShowInfo] = useState(false);
+  const [natural, setNatural] = useState<{ w: number; h: number } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const dialog = useRef<HTMLDivElement>(null);
   const opener = useRef<Element | null>(document.activeElement);
@@ -125,7 +127,10 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
               src={mediaUrl(asset.id, "t512", asset.ch)}
               alt=""
               data-variant="t512"
-              onLoad={() => setStage((s) => s ?? "t512")}
+              onLoad={(e) => {
+                setStage((s) => s ?? "t512");
+                setNatural({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight });
+              }}
               style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`, width: "100%", height: "100%" }}
             />
             {stage !== null && (
@@ -140,6 +145,7 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
             )}
           </>
         )}
+        {asset && showInfo && natural && scale === 1 ? <PhotoFaces id={asset.id} photo={natural} /> : null}
         {grid.total > 1 ? (
           <>
             <button type="button" onClick={() => go(-1)} aria-label={t("lightbox.prev")} className="absolute left-2 rounded-full bg-black/40 px-3 py-2">‹</button>
@@ -359,4 +365,15 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
       )}
     </aside>
   );
+}
+
+/** With the info panel open, the faces of the photo are marked where they are (VIEW-026). */
+function PhotoFaces({ id, photo }: { id: string; photo: { w: number; h: number } }) {
+  const { i18n } = useTranslation();
+  const info = useQuery({ queryKey: ["asset", id, i18n.language], queryFn: () => api.asset(id, i18n.language) });
+  const people = (info.data?.people ?? []).flatMap((p) => {
+    const f = info.data?.people_faces?.[p.id];
+    return f ? [{ id: p.id, name: p.name, bbox: f.bbox }] : [];
+  });
+  return people.length ? <FaceBoxes photo={photo} people={people} /> : null;
 }
