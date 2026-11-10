@@ -739,6 +739,7 @@
 | ORG-009 | caption 寫入搜尋 | Job 完成 | caption 經 index_outbox 寫入 `search_doc.tsv`，全文可查到 | I | #43 |
 | ORG-010 | 就地修正回饋 | `PATCH /assets/{id}/labels {category: pets}` | 寫 `review(status=corrected)`；下一次整理 final_label 用 pets；`search_doc` 更新 | I | #56、DoD 5.4 |
 | ORG-011 | 未知的 preset（回歸） | 建立時就不存在；掃描中被刪除 | 建立時回 404 `PRESET_NOT_FOUND`，不建 job；掃描中刪除時 job 失敗，不會卡住 | I | — |
+| ORG-012 | 全庫預估先算已知的結果（回歸，驗證第 16 輪：樣本都是人物、預估卻是其他 73） | 資料夾的照片已用同一設定與模型分析過 | 這些照片照實際類別計入；其餘才用快速路徑推估；`basis.known` 為已知張數 | I | #— |
 | IMP-001 | 資料夾預覽（ADR-0029） | 含子資料夾、影片、非照片、隱藏資料夾 | 正確的張數、大小、抽樣日期與樣本；超量時標示；路徑逃逸被拒 | U | — |
 | IMP-002 | 樣本縮圖 | 照片；非照片；逃逸路徑 | 256 px JPEG；其餘被拒 | U | — |
 | IMP-003 | 預覽經由 Worker | `/fs/preview`、`/fs/thumb` | 回傳 Worker 結果；未知 root 回 409 | I | — |
