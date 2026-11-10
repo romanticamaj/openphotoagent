@@ -604,7 +604,18 @@
       "text_embedding": "Search by description",
       "llm": "Ask about photos"
     },
-    "installedBadge": "Installed"
+    "installedBadge": "Installed",
+    "names": {
+      "qwen3-vl-8b-instruct": "Qwen3-VL 8B (captions and categories)",
+      "qwen3-vl-4b-instruct": "Qwen3-VL 4B (captions and categories)",
+      "qwen3-vl-2b-instruct": "Qwen3-VL 2B (captions and categories)",
+      "siglip2-so400m-384": "SigLIP 2 (search by description)",
+      "qwen3-embedding-0.6b": "Qwen3 Embedding (caption search)",
+      "yunet-2023mar": "YuNet (finds faces)",
+      "auraface-v1": "AuraFace (recognises faces)",
+      "sface-2021dec": "SFace (recognises faces)",
+      "insightface-buffalo-l": "InsightFace (recognises faces)"
+    }
   },
   "readiness": {
     "title": "Readiness",

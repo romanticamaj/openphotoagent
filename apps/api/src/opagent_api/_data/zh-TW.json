@@ -604,7 +604,18 @@
       "text_embedding": "以文字描述找照片",
       "llm": "AI 問照片"
     },
-    "installedBadge": "已安裝"
+    "installedBadge": "已安裝",
+    "names": {
+      "qwen3-vl-8b-instruct": "Qwen3-VL 8B（看圖說明與分類）",
+      "qwen3-vl-4b-instruct": "Qwen3-VL 4B（看圖說明與分類）",
+      "qwen3-vl-2b-instruct": "Qwen3-VL 2B（看圖說明與分類）",
+      "siglip2-so400m-384": "SigLIP 2（以文搜圖）",
+      "qwen3-embedding-0.6b": "Qwen3 Embedding（說明文字搜尋）",
+      "yunet-2023mar": "YuNet（找出人臉）",
+      "auraface-v1": "AuraFace（辨識人臉）",
+      "sface-2021dec": "SFace（辨識人臉）",
+      "insightface-buffalo-l": "InsightFace（辨識人臉）"
+    }
   },
   "readiness": {
     "title": "準備狀態",

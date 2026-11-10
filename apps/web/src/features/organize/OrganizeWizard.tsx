@@ -14,6 +14,7 @@ import { ProblemCard, type Problem } from "../../components/ProblemCard";
 import { ApiError, api, mediaUrl, type Category, type Job, type PreviewItem } from "../../lib/api";
 import { formatDuration } from "../../lib/format";
 import { PreviewProgress } from "./PreviewProgress";
+import { modelName } from "./modelName";
 
 type Method = "by-date" | "by-content-12" | "custom";
 
@@ -295,8 +296,8 @@ export function ReadinessChecklist({
       <ul>
         {models.map((m) => (
           <li key={m.key} data-testid={`model-${m.key}`} className="flex items-center gap-3 text-sm">
-            <span>
-              {t("readiness.model")}: {m.key}
+            <span title={m.key}>
+              {t("readiness.model")}: {modelName(t, m.key)}
             </span>
             <CompatBadge compat={m.compat} />
           </li>
