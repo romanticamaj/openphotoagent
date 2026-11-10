@@ -103,3 +103,18 @@ def test_r2_003_blue_green_reindex(env):
     assert m.sql("select status from embedding_space where id = :s", s=old["id"]).scalar() == "retired"
     op = m.sql("select type, status from operation where type = 'search.reindex' order by created_at desc").first()
     assert op.type == "search.reindex" and op.status == "succeeded"
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-R2-005")
+def test_r2_005_caption_vectors_have_a_floor_too(env, monkeypatch):
+    """The caption route added its 200 nearest photos to every result with no floor (flagged in ADR-0027, ADR-0031):
+    turning the index on would have brought back "every query matches the library". It reads its model's floor."""
+    import opagent_api.search as S
+
+    m = env
+    m.http.post("/api/v1/search/caption-index", json={"model_key": QWEN})
+    wait_index(m, lambda s: (s.get("active") or {}).get("model_key") == QWEN)
+    monkeypatch.setattr(S, "caption_floor", lambda _st, _space: 1.01)  # nothing is that close
+    res = m.http.post("/api/v1/search", json={"q": "海邊的貓", "limit": 10, "semantic": True}).json()
+    assert not any("caption_vector" in x["matched_by"] for x in res["items"])

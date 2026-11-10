@@ -442,6 +442,7 @@
 | SRCH-R2-001 | caption 向量進入檢索 | 標註完成的照片；假的多語 text embedder | caption 向量存在 `caption:<model>` space；搜尋時 R2 路以權重 0.8 加入 RRF；結果的 `matched_by` 含 `caption_vector` | I | #110 |
 | SRCH-R2-002 | 跨語言 | 英文 caption「a cat on the beach」，以中文「海邊的貓」查詢 | R2 路命中，即使全文與 tag 都沒有命中 | I | #110 |
 | SRCH-R2-003 | 藍綠 reindex | 換 text embedding 模型 | 新 space 在背景建立（Operation，帶 ETA）；完成前搜尋仍用舊 space；切換是原子的；切換後舊 space 才刪除 | I | #110 |
+| SRCH-R2-005 | caption 向量也有下限 | 下限設成沒有照片達得到 | 「海邊的貓」沒有任何結果是經 caption_vector 命中；下限取自文字模型目錄的 `min_cosine`，未設定時行為不變 | I | #— |
 | SRCH-R2-004 | reindex UI | 模型頁 | 顯示進度、預估時間與「切換」按鈕；完成前按鈕帶原因 disabled（不變量 8） | E | #110 |
 
 ### 7.6 發佈管道與評估（#111、#112）

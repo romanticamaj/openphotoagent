@@ -146,6 +146,14 @@ def vector_floor(st: AppState, space: Any) -> float | None:
     return float(floor) if floor is not None else None
 
 
+def caption_floor(st: AppState, space: Any) -> float | None:
+    """The caption route's floor, from its text model in the catalog (SRCH-R2-005). None keeps today's behaviour, as
+    for an image space without one (ADR-0027)."""
+    m = st.registry().models.get(str(space.model_key))
+    floor = ((m.spec.embedding or {}) if m else {}).get("min_cosine")
+    return float(floor) if floor is not None else None
+
+
 def active_space(c: Any) -> Any:
     return c.execute(
         select(embedding_space)
@@ -413,7 +421,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                 capped = len(routes["image_vector"]) == PER_ROUTE
             if cvec is not None and cspace is not None:  # R2: multilingual caption vectors (05 §2, ADR-0014)
                 cq = (
-                    select(search_doc.c.asset_id)
+                    select(search_doc.c.asset_id, text("1 - (asset_embedding.vec <=> CAST(:qv AS vector)) AS cos"))
                     .join(
                         asset_embedding,
                         and_(
@@ -425,7 +433,10 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                     .order_by(text("asset_embedding.vec <=> CAST(:qv AS vector)"), search_doc.c.asset_id)
                     .limit(PER_ROUTE)
                 )
-                routes["caption_vector"] = [r[0] for r in c.execute(cq, {"qv": str(cvec)})]
+                cfloor = caption_floor(st, cspace)
+                routes["caption_vector"] = [
+                    r[0] for r in c.execute(cq, {"qv": str(cvec)}) if cfloor is None or r[1] >= cfloor
+                ]
             concepts = tokenizer().concepts(q)
             if len(concepts) > 1:  # every concept must show (ADR-0032): one tag or one vector hit is not enough
                 member, relaxed = _all_concepts(c, where, concepts)
