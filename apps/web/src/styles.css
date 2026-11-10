@@ -856,3 +856,22 @@ body {
 .face-box-unknown.is-small {
   border-color: rgb(255 255 255 / 0.4);
 }
+
+/* a person's photos are a photo wall, not a table: the caption shows over the photo on hover or focus (FACE-UI-016) */
+.photo-wall .explore-tile {
+  position: relative;
+}
+.photo-wall .explore-caption {
+  position: absolute;
+  inset: auto 0 0 0;
+  min-height: 0;
+  padding: 18px 8px 6px;
+  background: linear-gradient(to top, rgb(0 0 0 / 0.72), transparent);
+  color: #fff;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.photo-wall .explore-tile:hover .explore-caption,
+.photo-wall .explore-tile:focus-visible .explore-caption {
+  opacity: 1;
+}

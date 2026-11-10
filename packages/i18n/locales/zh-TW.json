@@ -430,7 +430,8 @@
       "none": "尚未分析",
       "advanced": "進階資訊",
       "tags": "標籤",
-      "history": "之前的分析（{n}）"
+      "history": "之前的分析（{n}）",
+      "details": "判斷細節"
     },
     "layer": {
       "embedding": "影像相似度",

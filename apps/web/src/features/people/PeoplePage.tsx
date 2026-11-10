@@ -177,7 +177,7 @@ function PersonPanel({ person, onClose }: { person: PersonRow; onClose: () => vo
         <button type="button" className="ml-auto text-sm underline" onClick={onClose}>{t("dock.close")}</button>
       </form>
       <h3 className="font-semibold">{t("faces.photos", { n: photos.data?.total ?? 0 })}</h3>
-      <div className="explore-grid">
+      <div className="explore-grid photo-wall">
         {hits.map((h, i) => (
           <button key={h.asset_id} type="button" className="explore-tile" aria-label={h.caption ?? t("faces.openPhoto")} onClick={() => setViewing(i)}>
             <img src={mediaUrl(h.asset_id, "t256", h.ch)} alt="" loading="lazy" />

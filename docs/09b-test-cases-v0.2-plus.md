@@ -295,6 +295,7 @@
 | FACE-UI-013 | 人臉裁切不被其他樣式改寫（回歸，驗證第 2 輪） | styles.css | 沒有 `.person-card img` 這種會套到裁切圖片的規則；`.face-crop img` 重設 aspect-ratio 與 object-fit | C | #76 |
 | FACE-UI-014 | 人物面板先看照片、候選分頁（回歸，驗證第 2 輪） | 1 張照片、30 個候選 | 照片在候選前，點了打開 Lightbox；候選一次 12 張，「全部都是」只標這 12 張，「再看 12 張」 | C | #78 |
 | FACE-UI-015 | 人物 chip 不重疊（回歸，驗證第 5 輪） | styles.css | `.person-chip .person-chip-face` 的寬度壓過 `.face-crop` | C | #78 |
+| FACE-UI-016 | 人物頁的照片不印說明列（回歸，驗證第 7 輪：像表格） | 人物頁照片牆 | 說明文字只在滑過或聚焦時疊在照片上，仍是按鈕的可及名稱 | C | #78 |
 | FACE-MGT-001 | 合併可 undo | 合併 A→B | A 的指派全到 B、`merged_into=B`；undo 後完全還原 | I | #77 |
 | FACE-MGT-002 | 拆分 | 框選 5 張「移出為新人物」 | 新 person 凍結；原 person 少 5 張 | I | #77 |
 | FACE-MGT-003 | 合併建議不自動 | prototype 相似度 0.6 ≥ τ_merge | 只出現在建議清單 | U | #77 |

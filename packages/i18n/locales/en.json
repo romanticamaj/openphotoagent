@@ -430,7 +430,8 @@
       "none": "Not analysed yet",
       "advanced": "Advanced details",
       "tags": "Tags",
-      "history": "Earlier analyses ({n})"
+      "history": "Earlier analyses ({n})",
+      "details": "How the AI decided"
     },
     "layer": {
       "embedding": "Image similarity",

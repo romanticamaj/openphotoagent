@@ -27,5 +27,14 @@ describe("a face out of a photo", () => {
     // the chip's face rule must outrank .face-crop { width: 100% }, wherever it sits in the file
     expect(css).toMatch(/\.person-chip \.person-chip-face\s*\{[^}]*width:\s*26px/);
   });
+
+  it("[FACE-UI-016] 回歸：人物頁的照片不在每張下面印說明，滑過或聚焦才顯示（驗證第 7 輪：像表格）", async () => {
+    const { readFileSync } = await import("node:fs");
+    const css = readFileSync(`${process.cwd()}/src/styles.css`, "utf-8");
+    expect(css).toMatch(/\.photo-wall \.explore-caption\s*\{[^}]*position:\s*absolute[^}]*opacity:\s*0/);
+    expect(css).toMatch(/\.photo-wall \.explore-tile:(hover|focus-visible)[^{]*\.explore-caption[^{]*\{[^}]*opacity:\s*1/);
+    const page = readFileSync(`${process.cwd()}/src/features/people/PeoplePage.tsx`, "utf-8");
+    expect(page).toMatch(/className="explore-grid photo-wall"/);
+  });
 });
 

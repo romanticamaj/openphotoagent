@@ -302,30 +302,32 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
           </div>
         ) : null}
         {a.labels.slice(0, 1).map((l) => (
-          <dl key={l.result_id} className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm" data-testid="ai-label">
-            <dt className="text-[var(--text-muted)]">{t("lightbox.ai.category")}</dt>
-            <dd>
-              {names.get(l.category ?? "") ?? l.category} · {t(`lightbox.decision.${l.decision}`, { defaultValue: l.decision })}
-            </dd>
-            {l.confidence !== null && (
-              <>
-                <dt className="text-[var(--text-muted)]">{t("lightbox.ai.confidence")}</dt>
-                <dd className="tnum">{t("common.percent", { n: Math.round(l.confidence * 100) })}</dd>
-              </>
-            )}
-            <dt className="text-[var(--text-muted)]">{t("lightbox.ai.layer")}</dt>
-            <dd data-testid="ai-layer">{t(`lightbox.layer.${l.source}`, { defaultValue: l.source })}</dd>
-            <dt className="text-[var(--text-muted)]">{t("lightbox.ai.model")}</dt>
-            <dd>
-              {/* the raw fingerprint is an advanced detail (08 §8.3), collapsed by default */}
-              <details>
-                <summary className="cursor-pointer text-xs">{t("lightbox.ai.advanced")}</summary>
-                <span className="break-all font-mono text-xs" data-testid="ai-model" translate="no">
+          <div key={l.result_id} className="text-sm" data-testid="ai-label">
+            <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+              <dt className="text-[var(--text-muted)]">{t("lightbox.ai.category")}</dt>
+              <dd data-testid="ai-category">
+                {names.get(l.category ?? "") ?? l.category} · {t(`lightbox.decision.${l.decision}`, { defaultValue: l.decision })}
+              </dd>
+            </dl>
+            {/* how the AI decided is for the curious, collapsed (VIEW-030; the fingerprint is 08 §8.3's advanced detail) */}
+            <details className="mt-1 text-xs text-[var(--text-muted)]">
+              <summary className="cursor-pointer">{t("lightbox.ai.details")}</summary>
+              <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
+                {l.confidence !== null && (
+                  <>
+                    <dt>{t("lightbox.ai.confidence")}</dt>
+                    <dd className="tnum">{t("common.percent", { n: Math.round(l.confidence * 100) })}</dd>
+                  </>
+                )}
+                <dt>{t("lightbox.ai.layer")}</dt>
+                <dd data-testid="ai-layer">{t(`lightbox.layer.${l.source}`, { defaultValue: l.source })}</dd>
+                <dt>{t("lightbox.ai.model")}</dt>
+                <dd className="break-all font-mono" data-testid="ai-model" translate="no">
                   {l.model_fingerprint}
-                </span>
-              </details>
-            </dd>
-          </dl>
+                </dd>
+              </dl>
+            </details>
+          </div>
         ))}
         {a.labels.length > 1 ? (
           /* earlier analyses (other models or settings) are history, not three opinions at once */

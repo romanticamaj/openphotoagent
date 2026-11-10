@@ -96,6 +96,16 @@ describe("the info panel", () => {
     expect(p.textContent).not.toContain("其餘");
   });
 
+  it("[VIEW-030] 回歸：信心、判斷依據與模型收在「判斷細節」裡，分類一眼看得到（驗證第 7 輪：像開發者畫面）", async () => {
+    s.asset.mockResolvedValue({ ...base, labels: [label("r1", "people", 0.92, "x")] });
+    ui();
+    const layer = await screen.findByTestId("ai-layer");
+    expect(layer.closest("details")).not.toBeNull();
+    expect(screen.getByText("92%").closest("details")).not.toBeNull();
+    expect(screen.getByTestId("ai-label").querySelector("details")).not.toBeNull();
+    expect(screen.getByTestId("ai-category").closest("details")).toBeNull();
+  });
+
   it("[VIEW-027] 資料夾沒開人臉辨識時說明，並帶去設定", async () => {
     s.asset.mockResolvedValue({ ...base, labels: [label("r1", "people", 1, "x")], faces_state: "folder_off" });
     ui();
