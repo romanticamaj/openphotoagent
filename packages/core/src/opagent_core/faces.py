@@ -175,6 +175,16 @@ def sure_candidate(score: float) -> bool:
     return score >= CANDIDATE_SURE
 
 
+def faint_candidate(score: float) -> bool:
+    """Under 0.55: shown as 「不太像」, after the likelier ones (FACE-FIND-028)."""
+    return score < CANDIDATE_MIN_UNCONFIRMED
+
+
+def candidate_order(rows: Iterable[tuple[str, float, bool]]) -> list[str]:
+    """(face, score, clear) → the order the candidates are shown: likely, then faint, then hard to judge; best first."""
+    return [f for f, s, clear in sorted(rows, key=lambda r: (not r[2], faint_candidate(r[1]), -r[1], r[0]))]
+
+
 def hard_to_judge(min_side: float | None, blur: float | None) -> bool:
     """Too small or too soft for a person to say who it is (ADR-0035). The tier says nothing here: it also drops
     turned heads, which people recognise fine."""

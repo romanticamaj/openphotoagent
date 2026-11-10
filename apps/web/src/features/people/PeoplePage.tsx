@@ -131,7 +131,11 @@ function Candidates({ person }: { person: PersonRow }) {
                 onClick={() => setMarks((x) => ({ ...x, [c.face_id]: NEXT[m] }))}
               >
                 <FaceCrop assetId={c.asset_id} ch={c.ch} bbox={c.bbox} />
-                {c.clear === false ? <span className="candidate-hard">{t("faces.hardToJudge")}</span> : null}
+                {c.clear === false ? (
+                  <span className="candidate-hard">{t("faces.hardToJudge")}</span>
+                ) : c.faint ? (
+                  <span className="candidate-hard candidate-faint">{t("faces.faint")}</span>
+                ) : null}
                 {m !== "none" ? <span aria-hidden="true" className="candidate-mark">{m === "yes" ? "✓" : "✕"}</span> : null}
               </button>
             </li>

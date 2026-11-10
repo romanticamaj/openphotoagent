@@ -179,6 +179,18 @@ describe("finding a person (07 §4)", () => {
     await waitFor(() => expect(s.name).toHaveBeenCalledWith("p1", "測試C"));
   });
 
+  it("[FACE-FIND-028] 回歸：分數低的候選標「不太像」（驗證第 14 輪）", async () => {
+    s.people = [row];
+    s.search.mockResolvedValue({ items: [], facets: {}, total: 0, next_cursor: null });
+    const c = (id: string, score: number, faint: boolean) => ({ face_id: id, asset_id: "a" + id, ch: null, bbox: [0, 0, 0.2, 0.2], score, tier: 2, clear: true, sure: score >= 0.6, faint, group: null });
+    s.cands.mockResolvedValue({ items: [c("f1", 0.62, false), c("f2", 0.504, true)], references: 4 });
+    ui();
+    fireEvent.click(await screen.findByRole("button", { name: /未命名/ }));
+    const tiles = await screen.findAllByTestId("candidate");
+    expect(tiles[0].querySelector(".candidate-faint")).toBeNull();
+    expect(tiles[1].querySelector(".candidate-faint")?.textContent).toBe("不太像");
+  });
+
   it("[FACE-UI-011] 一鍵把全部標成是", async () => {
     s.people = [row];
     s.search.mockResolvedValue({ items: [], facets: {}, total: 0, next_cursor: null });

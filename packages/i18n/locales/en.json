@@ -790,7 +790,8 @@
     "photosWithMaybe": "{n} photos ({sure} confirmed, {maybe} likely)",
     "maybe": "Likely",
     "maybePhoto": "A photo they are likely in",
-    "rename": "Rename"
+    "rename": "Rename",
+    "faint": "Less alike"
   },
   "ask": {
     "open": "✦ Ask AI",

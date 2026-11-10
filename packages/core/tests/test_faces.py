@@ -334,6 +334,16 @@ def test_find_027_a_face_reached_only_through_the_seed_needs_more_likeness():
     assert out == [("a", 0.52)]
 
 
+@pytest.mark.unit
+@pytest.mark.tc("FACE-FIND-028")
+def test_find_028_faint_candidates_come_after_the_likely_ones():
+    """回歸 (audit round 14): the first new candidate after a send was a different child at 0.504, shown first. Under
+    0.55 a candidate is 「不太像」 and comes after the likelier ones; the hard-to-judge ones stay last."""
+    rows = [("faint", 0.51, True), ("blur", 0.7, False), ("good", 0.58, True), ("best", 0.66, True)]
+    assert F.candidate_order(rows) == ["best", "good", "faint", "blur"]
+    assert F.faint_candidate(0.504) is True and F.faint_candidate(0.55) is False
+
+
 def _cloud(seed, center, n, spread):
     import random
 

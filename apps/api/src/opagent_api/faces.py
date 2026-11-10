@@ -1270,7 +1270,9 @@ def person_candidates(pid: str, req: Request, limit: int = Query(60, ge=1, le=20
     )
     # the clear ones first, best first within each; the hard ones last (ADR-0035)
     clear = {fid: not F.hard_to_judge(**_measures(meta[fid].quality)) for fid, _ in ranked}
-    ranked = sorted(ranked, key=lambda x: not clear[x[0]])[:limit]
+    order = F.candidate_order([(fid, s, clear[fid]) for fid, s in ranked])  # likely, faint, hard (FACE-FIND-028)
+    score = dict(ranked)
+    ranked = [(fid, score[fid]) for fid in order][:limit]
     return {
         "references": len(vecs),
         "items": [
@@ -1283,6 +1285,7 @@ def person_candidates(pid: str, req: Request, limit: int = Query(60, ge=1, le=20
                 "tier": meta[fid].quality_tier,
                 "clear": clear[fid],  # false: too small or soft to judge (FACE-FIND-018, ADR-0035)
                 "sure": F.sure_candidate(s),  # 「全部都是」 only marks these (FACE-FIND-020)
+                "faint": F.faint_candidate(s),  # 「不太像」 (FACE-FIND-028)
                 "group": meta[fid].person_id,
             }
             for fid, s in ranked
