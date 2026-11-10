@@ -81,6 +81,7 @@ ROUTES: dict[tuple[str, str], str] = {
     ("POST", "/api/v1/faces/space-migrations"): FA,
     ("POST", "/api/v1/faces/space-migrations/{mid}/complete"): FA,
     ("POST", "/api/v1/faces/{fid}/confirm"): FW,
+    ("POST", "/api/v1/faces/{fid}/name"): FW,  # VIEW-032
     ("POST", "/api/v1/faces/{fid}/reject"): FW,
     ("POST", "/api/v1/golden-sets"): J,
     ("POST", "/api/v1/import/label-studio"): RV,

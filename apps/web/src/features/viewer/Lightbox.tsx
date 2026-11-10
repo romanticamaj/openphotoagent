@@ -286,6 +286,7 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
             )}
           </details>
         ) : null}
+        <NameFaces assetId={id} faces={(a.unknown_faces ?? []).filter((u) => !u.small && u.id)} />
         {(a.people?.length ?? 0) > 0 ? (
           <div className="mb-3">
             <h3 className="mb-1 text-sm text-[var(--text-muted)]">{t("lightbox.people")}</h3>
@@ -389,6 +390,57 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
         </section>
       )}
     </aside>
+  );
+}
+
+/** 「這是誰？」 for the recognisable faces no group took (VIEW-032): one name makes them findable. */
+function NameFaces({ assetId, faces }: { assetId: string; faces: Array<{ id?: string; bbox: number[]; ch?: string | null }> }) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const [open, setOpen] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const save = useMutation({
+    mutationFn: () => api.nameFace(open!, name.trim()),
+    onSuccess: () => {
+      setOpen(null);
+      setName("");
+      void qc.invalidateQueries({ queryKey: ["asset", assetId] });
+      void qc.invalidateQueries({ queryKey: ["people"] });
+    },
+  });
+  if (!faces.length) return null;
+  return (
+    <ul className="mb-3 flex flex-wrap gap-2" aria-label={t("lightbox.nameFaces")}>
+      {faces.map((f) => (
+        <li key={f.id} className="flex items-center gap-2">
+          <FaceCrop assetId={assetId} ch={f.ch ?? null} bbox={f.bbox} className="person-chip-face" />
+          {open === f.id ? (
+            <form
+              className="flex items-center gap-1"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (name.trim()) save.mutate();
+              }}
+            >
+              <input
+                aria-label={t("lightbox.faceName")}
+                autoFocus
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-28 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] px-2 py-0.5 text-sm"
+              />
+              <button type="submit" className="text-sm underline">
+                {t("lightbox.saveFaceName")}
+              </button>
+            </form>
+          ) : (
+            <button type="button" className="text-sm underline" onClick={() => setOpen(f.id ?? null)}>
+              {t("lightbox.whoIsThis")}
+            </button>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }
 

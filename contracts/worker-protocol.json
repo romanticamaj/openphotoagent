@@ -680,6 +680,21 @@
         "title": "FaceIn",
         "type": "object"
       },
+      "FaceNameIn": {
+        "properties": {
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "FaceNameIn",
+        "type": "object"
+      },
       "FacesIn": {
         "properties": {
           "asset_id": {

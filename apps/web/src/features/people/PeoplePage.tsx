@@ -49,6 +49,24 @@ function Candidates({ person }: { person: PersonRow }) {
   const [shown, setShown] = useState(PAGE);
   const all: FaceCandidate[] = q.data?.items ?? [];
   const items = all.slice(0, shown); // a page at a time: 「全部都是」 never reaches faces nobody looked at
+  const [at, setAt] = useState(0); // the tile the keys act on (FACE-UI-019)
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement | null)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || e.metaKey || e.ctrlKey || e.altKey || !items.length) return;
+      const k = e.key.toLowerCase();
+      const cur = items[Math.min(at, items.length - 1)];
+      if (k === "y" || k === "n") {
+        setMarks((x) => ({ ...x, [cur.face_id]: k === "y" ? "yes" : "no" }));
+        setAt((i) => Math.min(i + 1, items.length - 1));
+      } else if (k === "s" || e.key === "ArrowRight") setAt((i) => Math.min(i + 1, items.length - 1));
+      else if (e.key === "ArrowLeft") setAt((i) => Math.max(i - 1, 0));
+      else return;
+      e.preventDefault();
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  });
   const pick = (m: Mark) => Object.keys(marks).filter((k) => marks[k] === m);
   const yes = pick("yes");
   const no = pick("no");
@@ -91,6 +109,9 @@ function Candidates({ person }: { person: PersonRow }) {
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 id={`cand-${person.id}`} className="font-semibold">{t("faces.candidatesTitle", { name: who, n: all.length })}</h3>
         <p className="text-xs text-[var(--text-muted)]">{t("faces.candidatesHint")}</p>
+        <p data-testid="candidate-keys" className="w-full text-xs text-[var(--text-muted)]">
+          {t("faces.candidateKeys")}
+        </p>
       </div>
       <ul className="candidate-grid">
         {items.map((c) => {
@@ -101,6 +122,7 @@ function Candidates({ person }: { person: PersonRow }) {
                 type="button"
                 data-testid="candidate"
                 data-mark={m}
+                data-current={items.indexOf(c) === at ? "true" : undefined}
                 data-score={c.score}
                 data-tier={c.tier}
                 aria-label={t(`faces.mark.${m}`)}

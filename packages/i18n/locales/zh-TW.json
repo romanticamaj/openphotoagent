@@ -457,7 +457,11 @@
     "facesNobody": "找到 {n} 張臉，這些人在圖庫裡出現的次數還不夠，所以還沒分成人物。",
     "facesNobodySmall": "找到 {n} 張臉，其中 {small} 張太小認不出；其餘的人出現次數還不夠，所以還沒分成人物。",
     "facesNobodyAllSmall": "找到 {n} 張臉，但都太小，認不出是誰。",
-    "facesNobodyShort": "{n} 張臉還沒分成人物 · 為什麼？"
+    "facesNobodyShort": "{n} 張臉還沒分成人物 · 為什麼？",
+    "nameFaces": "替這些臉命名",
+    "faceName": "名字",
+    "whoIsThis": "這是誰？",
+    "saveFaceName": "儲存"
   },
   "onboarding": {
     "welcome": "歡迎使用 OpenPhotoAgent",
@@ -777,7 +781,8 @@
     "moreOf": "{name} 的其他照片",
     "groupLabel": "{name} · {n} 張照片",
     "hardToJudge": "看不清",
-    "allYesHint": "另有 {n} 張沒把握，請一張一張決定"
+    "allYesHint": "另有 {n} 張沒把握，請一張一張決定",
+    "candidateKeys": "鍵盤：Y 是 · N 不是 · S 或 → 略過 · ← 上一張"
   },
   "ask": {
     "open": "✦ 問 AI",

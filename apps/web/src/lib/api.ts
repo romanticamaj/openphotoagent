@@ -102,7 +102,7 @@ export type AssetInfo = {
   people_faces?: Record<string, { bbox: number[]; ch: string | null }>;
   faces_state?: "off" | "folder_off" | "on";
   faces_found?: { total: number; small: number };
-  unknown_faces?: Array<{ bbox: number[]; small: boolean }>;
+  unknown_faces?: Array<{ id?: string; bbox: number[]; small: boolean; ch?: string | null }>;
 };
 export type Variant = "t256" | "t512" | "p1024";
 
@@ -298,6 +298,8 @@ export const api = {
     ),
   basemap: () => req<{ region: string; available: boolean; bytes: number; operation_id: string | null }>("GET", "/map/basemap"),
   downloadBasemap: () => req<{ operation_id: string }>("POST", "/map/basemap/download", {}),
+  nameFace: (fid: string, name: string) =>
+    req<{ person_id: string; name: string }>("POST", `/faces/${encodeURIComponent(fid)}/name`, { name }),
   undoReview: (pid: string) => req<{ restored: number }>("POST", `/people/${encodeURIComponent(pid)}/review/undo`, {}),
   mergePeople: (from: string, into: string) => req<{ undo_token: string; moved: number }>("POST", `/people/${encodeURIComponent(from)}/merge`, { into }),
   dismissMerge: (a: string, b: string) => req<unknown>("POST", "/people/merge-suggestions/dismiss", { a, b }),

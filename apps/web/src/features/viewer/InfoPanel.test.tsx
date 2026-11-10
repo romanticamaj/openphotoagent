@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "../../lib/i18n";
 
@@ -7,13 +7,14 @@ beforeAll(async () => {
   await i18n.changeLanguage("zh-TW");
 });
 
-const s = vi.hoisted(() => ({ asset: vi.fn() }));
+const s = vi.hoisted(() => ({ asset: vi.fn(), nameFace: vi.fn() }));
 vi.mock("../../lib/api", async (orig) => ({
   ...(await orig<typeof import("../../lib/api")>()),
   api: {
     asset: s.asset,
     preset: async () => ({ categories: [{ key: "people", name: "人物" }, { key: "other", name: "其他" }] }),
     correct: vi.fn(),
+    nameFace: s.nameFace,
   },
 }));
 vi.mock("@tanstack/react-router", async (orig) => ({
@@ -112,6 +113,24 @@ describe("the info panel", () => {
     const note = await screen.findByTestId("faces-nobody");
     expect(note.tagName).toBe("DETAILS");
     expect(note.querySelector("summary")?.textContent).toBe("11 張臉還沒分成人物 · 為什麼？");
+  });
+
+  it("[VIEW-032] 回歸：還沒分成人物的臉可以直接在這裡命名（驗證第 11 輪）", async () => {
+    s.asset.mockResolvedValue({
+      ...base,
+      labels: [label("r1", "people", 1, "x")],
+      people: [],
+      faces_found: { total: 2, small: 1 },
+      unknown_faces: [{ id: "fx", bbox: [0.1, 0.1, 0.2, 0.2], small: false }, { id: "fy", bbox: [0.5, 0.5, 0.02, 0.02], small: true }],
+    });
+    s.nameFace.mockResolvedValue({ person_id: "p9" });
+    ui();
+    const named = await screen.findAllByRole("button", { name: "這是誰？" });
+    expect(named).toHaveLength(1); // a face too small to recognise is not offered
+    fireEvent.click(named[0]);
+    fireEvent.change(screen.getByLabelText("名字"), { target: { value: "阿姨" } });
+    fireEvent.click(screen.getByRole("button", { name: "儲存" }));
+    await waitFor(() => expect(s.nameFace).toHaveBeenCalledWith("fx", "阿姨"));
   });
 
   it("[VIEW-027] 資料夾沒開人臉辨識時說明，並帶去設定", async () => {

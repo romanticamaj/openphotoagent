@@ -888,3 +888,9 @@ body {
   color: #fff;
   font-size: 11px;
 }
+
+/* the candidate the keys act on (FACE-UI-019) */
+.candidate[data-current="true"] {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

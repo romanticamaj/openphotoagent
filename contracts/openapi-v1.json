@@ -680,6 +680,21 @@
         "title": "FaceIn",
         "type": "object"
       },
+      "FaceNameIn": {
+        "properties": {
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "FaceNameIn",
+        "type": "object"
+      },
       "FacesIn": {
         "properties": {
           "asset_id": {
@@ -4621,6 +4636,58 @@
           }
         },
         "summary": "Confirm"
+      }
+    },
+    "/api/v1/faces/{fid}/name": {
+      "post": {
+        "description": "「這是誰？」 on a face no group took (seen once or twice, VIEW-032): the person with that name, or a new one,\nand this face confirmed as them.",
+        "operationId": "name_face_api_v1_faces__fid__name_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "fid",
+            "required": true,
+            "schema": {
+              "title": "Fid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FaceNameIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Name Face Api V1 Faces  Fid  Name Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Name Face"
       }
     },
     "/api/v1/faces/{fid}/reject": {

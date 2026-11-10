@@ -125,6 +125,23 @@ describe("finding a person (07 §4)", () => {
     expect(screen.getByTestId("all-yes-hint").textContent).toContain("1");
   });
 
+  it("[FACE-UI-019] 回歸：用鍵盤一張一張決定：Y 是、N 不是、S 略過，自動跳到下一張（驗證第 11 輪）", async () => {
+    s.people = [row];
+    s.search.mockResolvedValue({ items: [], facets: {}, total: 0, next_cursor: null });
+    const c = (id: string) => ({ face_id: id, asset_id: "a" + id, ch: null, bbox: [0, 0, 0.2, 0.2], score: 0.55, tier: 2, clear: true, sure: false, group: null });
+    s.cands.mockResolvedValue({ items: [c("f1"), c("f2"), c("f3"), c("f4")], references: 4 });
+    ui();
+    fireEvent.click(await screen.findByRole("button", { name: /未命名/ }));
+    const tiles = await screen.findAllByTestId("candidate");
+    expect(tiles[0].getAttribute("data-current")).toBe("true");
+    fireEvent.keyDown(window, { key: "y" });
+    fireEvent.keyDown(window, { key: "n" });
+    fireEvent.keyDown(window, { key: "s" });
+    fireEvent.keyDown(window, { key: "y" });
+    expect(tiles.map((x) => x.getAttribute("data-mark"))).toEqual(["yes", "no", "none", "yes"]);
+    expect(screen.getByTestId("candidate-keys").textContent).toContain("Y");
+  });
+
   it("[FACE-UI-011] 一鍵把全部標成是", async () => {
     s.people = [row];
     s.search.mockResolvedValue({ items: [], facets: {}, total: 0, next_cursor: null });

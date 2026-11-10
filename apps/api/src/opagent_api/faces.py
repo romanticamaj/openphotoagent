@@ -1023,6 +1023,49 @@ class PersonIn(BaseModel):
     person_id: str
 
 
+class FaceNameIn(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+
+
+@router.post("/faces/{fid}/name")
+def name_face(fid: str, body: FaceNameIn, req: Request) -> dict[str, Any]:
+    """「這是誰？」 on a face no group took (seen once or twice, VIEW-032): the person with that name, or a new one,
+    and this face confirmed as them."""
+    st = _st(req)
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(422, detail={"code": "NAME_REQUIRED"})
+    with st.engine.begin() as c:
+        if c.execute(select(face.c.id).where(face.c.id == fid, face.c.workspace_id == DEFAULT_WS)).first() is None:
+            raise HTTPException(404, detail={"code": "NOT_FOUND"})
+        pid = c.execute(
+            select(person.c.id).where(
+                person.c.workspace_id == DEFAULT_WS,
+                person.c.display_name == name,
+                person.c.merged_into.is_(None),
+                person.c.status != "ignored",
+            )
+        ).scalar()
+        if pid is None:
+            pid = uuid7(st.clock)
+            c.execute(
+                insert(person).values(
+                    id=pid,
+                    workspace_id=DEFAULT_WS,
+                    origin="named_face",
+                    status="named",
+                    display_name=name,
+                    is_frozen=True,
+                    created_by="user:local",
+                    created_at=st.clock.now(),
+                )
+            )
+        _write(c, st, fid, pid, "confirmed", "name", "user:local")
+        _freeze(c, st, pid)
+        _reindex(c, [fid])
+    return {"person_id": pid, "name": name}
+
+
 @router.post("/faces/{fid}/confirm")
 def confirm(fid: str, body: PersonIn, req: Request) -> dict[str, Any]:
     st = _st(req)

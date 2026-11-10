@@ -921,3 +921,21 @@ def test_det_014_a_late_embedding_respects_consent_eligibility_and_decisions(f):
     f.sql("update workspace set settings = jsonb_set(settings, '{faces,enabled}', 'false')")
     assert post(off).status_code == 409
     assert f.sql("select count(*) from bio.face_embedding where face_id = any(:ids)", ids=[dec, off]).scalar() == 0
+
+
+@pytest.mark.integration
+@pytest.mark.tc("VIEW-032")
+def test_view_032_a_face_nobody_grouped_gets_a_name_from_the_photo(f):
+    """回歸 (audit round 11): someone seen once or twice is never grouped, and there was no way to say who they are."""
+    f.enable()
+    a1, (x,) = f.photo("2025/o/once_a.jpg", plan=[FaceSpec(person=None)])
+    f.post("/faces/cluster")
+    ids = [u["id"] for u in f.get(f"/assets/{a1}")["unknown_faces"]]
+    assert ids == [x]
+    r = f.post(f"/faces/{x}/name", {"name": "阿姨"})
+    pid = r["person_id"]
+    assert f.sql("select display_name from person where id=:i", i=pid).scalar() == "阿姨"
+    assert f.sql("select state, person_id from face where id=:i", i=x).one() == ("confirmed", pid)
+    _, (y,) = f.photo("2025/o/once_b.jpg", plan=[FaceSpec(person=None)])
+    assert f.post(f"/faces/{y}/name", {"name": " 阿姨 "})["person_id"] == pid  # the same name: the same person
+    assert f.get(f"/assets/{a1}")["people"] == [{"id": pid, "name": "阿姨"}]
