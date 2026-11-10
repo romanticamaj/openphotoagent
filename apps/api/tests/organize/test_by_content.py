@@ -362,3 +362,18 @@ def test_org_012_the_estimate_counts_what_is_already_known(embedded_pg, sandbox_
     est = client.get(f"/api/v1/previews/{pv['id']}").json()["estimate"]
     assert est["basis"]["known"] == 8 and sum(est["distribution"].values()) == 8
     assert {k: v for k, v in est["distribution"].items() if v} == dict(cats)
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ORG-013")
+def test_org_013_a_running_preview_says_how_far_it_is(embedded_pg, sandbox_tree, tmp_path):
+    """回歸 (audit round 16): the preview ran about 60 s with nothing on screen; its time only showed at the end."""
+    _photos(sandbox_tree.photos, "q", 6)
+    client, w = _setup(embedded_pg.dsn, sandbox_tree.roots, tmp_path / "w", FakeBackend(scores="low"), FakeBackend())
+    pv = client.post("/api/v1/previews", json={"source_id": _src(client), "k": 4}).json()
+    got = client.get(f"/api/v1/previews/{pv['id']}").json()
+    assert got["status"] == "running"
+    assert got["progress"]["done"] == 0 and got["progress"]["elapsed_s"] >= 0  # total is 0 while the folder is read
+    _drain(w)
+    got = client.get(f"/api/v1/previews/{pv['id']}").json()
+    assert got["progress"]["done"] == got["progress"]["total"] == 4

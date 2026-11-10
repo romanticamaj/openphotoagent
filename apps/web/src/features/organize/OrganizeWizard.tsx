@@ -13,6 +13,7 @@ import { LibraryFolders } from "../../components/LibraryFolders";
 import { ProblemCard, type Problem } from "../../components/ProblemCard";
 import { ApiError, api, mediaUrl, type Category, type Job, type PreviewItem } from "../../lib/api";
 import { formatDuration } from "../../lib/format";
+import { PreviewProgress } from "./PreviewProgress";
 
 type Method = "by-date" | "by-content-12" | "custom";
 
@@ -183,6 +184,9 @@ export function OrganizeWizard() {
         />
       )}
 
+      {previewId && method !== "by-date" && preview.data ? (
+        <PreviewProgress status={preview.data.status} progress={preview.data.progress} hasEstimate={Boolean(preview.data.estimate)} />
+      ) : null}
       {previewId && method !== "by-date" && (
         <PreviewPanel
           previewId={previewId}

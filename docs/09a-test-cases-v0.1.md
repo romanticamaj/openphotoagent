@@ -740,6 +740,7 @@
 | ORG-010 | 就地修正回饋 | `PATCH /assets/{id}/labels {category: pets}` | 寫 `review(status=corrected)`；下一次整理 final_label 用 pets；`search_doc` 更新 | I | #56、DoD 5.4 |
 | ORG-011 | 未知的 preset（回歸） | 建立時就不存在；掃描中被刪除 | 建立時回 404 `PRESET_NOT_FOUND`，不建 job；掃描中刪除時 job 失敗，不會卡住 | I | — |
 | ORG-012 | 全庫預估先算已知的結果（回歸，驗證第 16 輪：樣本都是人物、預估卻是其他 73） | 資料夾的照片已用同一設定與模型分析過 | 這些照片照實際類別計入；其餘才用快速路徑推估；`basis.known` 為已知張數 | I | #— |
+| ORG-013 | 預覽進行中顯示進度（回歸，驗證第 16 輪；不變量 9） | 4 張樣本的預覽 | `/previews/{id}` 帶 `progress {done, total, elapsed_s}`；畫面顯示「正在分析樣本 N／M 張 · 已經過 X · 約剩 Y」，樣本完成後顯示正在估算全庫分布 | I/C | #— |
 | IMP-001 | 資料夾預覽（ADR-0029） | 含子資料夾、影片、非照片、隱藏資料夾 | 正確的張數、大小、抽樣日期與樣本；超量時標示；路徑逃逸被拒 | U | — |
 | IMP-002 | 樣本縮圖 | 照片；非照片；逃逸路徑 | 256 px JPEG；其餘被拒 | U | — |
 | IMP-003 | 預覽經由 Worker | `/fs/preview`、`/fs/thumb` | 回傳 Worker 結果；未知 root 回 409 | I | — |

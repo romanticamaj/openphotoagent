@@ -532,9 +532,20 @@ def get_preview(preview_id: str, req: Request) -> dict[str, Any]:
             raise HTTPException(404, detail={"code": "NOT_FOUND"})
         ready = bool(j.params.get("preview_ready"))
         items = _preview_items(c, j, None, None) if ready else []
+        from opagent_db.schema import job_item
+
+        n_total = c.execute(select(func.count()).where(job_item.c.job_id == preview_id)).scalar_one()
+        n_done = c.execute(
+            select(func.count()).where(
+                job_item.c.job_id == preview_id, job_item.c.status.in_(("done", "cached", "failed", "skipped"))
+            )
+        ).scalar_one()
+        elapsed = (_st(req).clock.now() - j.created_at).total_seconds() if j.created_at else 0.0
     return {
         "id": preview_id,
         "status": "ready" if ready else "running",
+        # how far the samples are, for the wizard while it waits (ORG-013, invariant 9)
+        "progress": {"done": int(n_done), "total": int(n_total), "elapsed_s": round(max(0.0, elapsed), 1)},
         "items": items,
         "estimate": j.params.get("estimate"),  # library-wide forecast (ORG-007); null until the worker reports
     }

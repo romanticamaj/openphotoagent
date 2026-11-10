@@ -223,6 +223,7 @@ export type Plan = {
 };
 export type PreviewItem = { asset_id: string; ch?: string | null; rel: string; category_key: string; decision: string; confidence: number; source: string; dst_rel: string };
 export type Preview = {
+  progress?: { done: number; total: number; elapsed_s: number };
   id: string;
   status: "running" | "ready";
   items: PreviewItem[];

@@ -89,7 +89,12 @@
     "intro": "整理會把照片「複製」到輸出資料夾，依類別或日期分好。原來的檔案不會動，整理完也能一鍵復原。",
     "fromLibrary": "選一個已在圖庫的資料夾",
     "organizeThis": "整理這個資料夾",
-    "otherFolder": "或選其他資料夾"
+    "otherFolder": "或選其他資料夾",
+    "samplingProgress": "正在分析樣本 {done}／{total} 張 · 已經過 {elapsed}",
+    "timeLeft": "約剩 {left}",
+    "secs": "{n} 秒",
+    "mins": "{m} 分 {s} 秒",
+    "readingFolder": "正在讀取資料夾… · 已經過 {elapsed}"
   },
   "eta": {
     "slow": {

@@ -89,7 +89,12 @@
     "intro": "Organizing copies photos into an output folder, sorted by category or date. The originals stay as they are, and it can be undone.",
     "fromLibrary": "Pick a folder in the library",
     "organizeThis": "Organize this folder",
-    "otherFolder": "Or another folder"
+    "otherFolder": "Or another folder",
+    "samplingProgress": "Analysing samples {done}/{total} · {elapsed} so far",
+    "timeLeft": "about {left} left",
+    "secs": "{n} s",
+    "mins": "{m} min {s} s",
+    "readingFolder": "Reading the folder… · {elapsed} so far"
   },
   "eta": {
     "slow": {
