@@ -770,7 +770,8 @@
     "sameLater": "Later",
     "reviewSent": "Sent: {yes} yes, {no} no.",
     "undoReview": "Undo",
-    "moreOf": "More of {name}"
+    "moreOf": "More of {name}",
+    "groupLabel": "{name} · {n} photos"
   },
   "ask": {
     "open": "✦ Ask AI",

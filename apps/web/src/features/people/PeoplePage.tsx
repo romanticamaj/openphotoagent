@@ -242,14 +242,20 @@ function MoreFaces({ person, skip }: { person: PersonRow; skip?: string }) {
     .filter((f) => !seen.has(f.asset_id) && Boolean(seen.add(f.asset_id)))
     .slice(0, MORE);
   if (!picks.length) return null;
+  const name = person.name ?? t("faces.unnamed");
   return (
-    <ul className="merge-more-row" aria-label={t("faces.moreOf", { name: person.name ?? t("faces.unnamed") })}>
-      {picks.map((f) => (
-        <li key={f.id}>
-          <FaceCrop assetId={f.asset_id} ch={f.ch} bbox={f.bbox} />
-        </li>
-      ))}
-    </ul>
+    <div className="merge-more-group">
+      <p data-testid="merge-row-label" className="text-xs text-[var(--text-muted)]">
+        {t("faces.groupLabel", { name, n: person.asset_count })}
+      </p>
+      <ul className="merge-more-row" aria-label={t("faces.moreOf", { name })}>
+        {picks.map((f) => (
+          <li key={f.id}>
+            <FaceCrop assetId={f.asset_id} ch={f.ch} bbox={f.bbox} />
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 

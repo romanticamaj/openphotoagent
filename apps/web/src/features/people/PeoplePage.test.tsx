@@ -172,6 +172,22 @@ describe("finding a person (07 §4)", () => {
     expect(s.detail).toHaveBeenCalledWith("p2");
   });
 
+  it("[FACE-MGT-015] 回歸：合併卡片的兩排臉各自標出是哪一組（驗證第 6 輪）", async () => {
+    const fc = (p: string, i: number) => ({ id: `${p}f${i}`, asset_id: `${p}a${i}`, ch: null, state: "auto", tier: 2, bbox: [0, 0, 0.2, 0.2] });
+    s.detail.mockImplementation(async (id: string) => ({ id, faces: Array.from({ length: 3 }, (_, i) => fc(id, i)) }));
+    s.people = [
+      { ...row, name: "小明", asset_count: 9, cover: { asset_id: "a1", ch: null, bbox: [0, 0, 0.2, 0.2] } },
+      { ...row, id: "p2", asset_count: 4, cover: { asset_id: "a2", ch: null, bbox: [0, 0, 0.2, 0.2] } },
+    ];
+    s.merges = [{ a: "p1", b: "p2", score: 0.95 }];
+    ui();
+    await waitFor(() => expect(screen.getAllByTestId("merge-row-label")).toHaveLength(2));
+    const labels = screen.getAllByTestId("merge-row-label").map((x) => x.textContent ?? "");
+    expect(labels[0]).toContain("小明");
+    expect(labels[0]).toContain("9");
+    expect(labels[1]).toContain("4");
+  });
+
   it("[FACE-MGT-011] 卡片挑兩組都在牆上的那一對", async () => {
     s.people = [{ ...row, cover: { asset_id: "a1", ch: null, bbox: [0, 0, 0.2, 0.2] } }, { ...row, id: "p2", cover: { asset_id: "a2", ch: null, bbox: [0, 0, 0.2, 0.2] } }];
     s.merges = [{ a: "p1", b: "folded", score: 0.95 }, { a: "p1", b: "p2", score: 0.8 }];

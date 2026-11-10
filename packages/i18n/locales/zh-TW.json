@@ -770,7 +770,8 @@
     "sameLater": "稍後再說",
     "reviewSent": "已送出：{yes} 張是、{no} 張不是。",
     "undoReview": "復原",
-    "moreOf": "{name} 的其他照片"
+    "moreOf": "{name} 的其他照片",
+    "groupLabel": "{name} · {n} 張照片"
   },
   "ask": {
     "open": "✦ 問 AI",
