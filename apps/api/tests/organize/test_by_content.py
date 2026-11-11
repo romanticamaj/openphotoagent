@@ -377,3 +377,26 @@ def test_org_013_a_running_preview_says_how_far_it_is(embedded_pg, sandbox_tree,
     _drain(w)
     got = client.get(f"/api/v1/previews/{pv['id']}").json()
     assert got["progress"]["done"] == got["progress"]["total"] == 4
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ORG-016")
+def test_org_016_the_estimate_reads_only_photos_not_yet_known(embedded_pg, sandbox_tree, tmp_path):
+    """回歸 (audit round 23): 「正在估算全庫分布…」 sat over 60 s for a folder already analysed: the worker decoded and
+    embedded every photo again, though their categories count as they are (ORG-012)."""
+    _photos(sandbox_tree.photos, "k", 6)
+    client, w = _setup(
+        embedded_pg.dsn, sandbox_tree.roots, tmp_path / "w", FakeBackend(scores="low"), FakeBackend(vlm_p=0.95)
+    )
+    src = _src(client)
+    _job(client, w, src)  # every photo analysed
+    (sandbox_tree.photos / "n").mkdir()
+    for i in range(2):  # two new photos, not copies of the first six
+        shutil.copyfile(FX / f"IMG_{i + 10:04d}.jpg", sandbox_tree.photos / "n" / f"{i}.jpg")
+    client.post(f"/api/v1/sources/{src}/scan")
+    _drain(w)
+    pv = client.post("/api/v1/previews", json={"source_id": src, "k": 4}).json()
+    _drain(w)
+    est = client.get(f"/api/v1/previews/{pv['id']}").json()["estimate"]
+    # the preview's own samples may have analysed a new one: the worker reads only what is still unknown, never the 6
+    assert est["basis"]["embedded"] <= 2 and sum(est["distribution"].values()) == 8

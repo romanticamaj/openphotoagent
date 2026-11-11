@@ -368,7 +368,14 @@ def _queue_estimate(st: Any, c: Any, j: Any) -> None:
     if tc.get("strategy") != "cascade":
         return
     s = c.execute(select(source).where(source.c.id == j.params["source_id"])).first()
-    rows = list(_source_assets(c, s.id))
+    every = list(_source_assets(c, s.id))
+    # photos with a result for this config and model count as they are (ORG-012): the worker reads only the rest
+    # (ORG-016: a folder already analysed sat over 60 s while every photo was decoded and embedded again)
+    known = _known_ids(c, j, [r.asset_id for r in every])
+    rows = [r for r in every if r.asset_id not in known]
+    if not rows:  # every photo known: nothing for the worker to read
+        finish_estimate(st, c, j.id, {"counts": {}, "routed_to_vlm": 0, "n_embedded": 0, "total": len(every)})
+        return
     step = max(1, len(rows) // ESTIMATE_CAP + (1 if len(rows) % ESTIMATE_CAP else 0)) if len(rows) > ESTIMATE_CAP else 1
     sample = rows[::step][:ESTIMATE_CAP]
     c.execute(
@@ -380,7 +387,7 @@ def _queue_estimate(st: Any, c: Any, j: Any) -> None:
             payload={
                 "job_id": j.id,
                 "root_alias": s.root_alias,
-                "total": len(rows),
+                "total": len(every),
                 "task_config": tc,
                 "items": [{"rel": r.rel_path, "content_hash": r.content_hash} for r in sample],
             },
@@ -511,6 +518,23 @@ def _p50(rng: list[float] | None, default: float) -> float:
     if not rng or len(rng) != 2:
         return default
     return float((rng[0] * rng[1]) ** 0.5)  # geometric middle of the [p10, p90] prior
+
+
+def _known_ids(c: Any, j: Any, ids: list[str]) -> set[str]:
+    """The photos among ``ids`` that already have a result for this job's config and model."""
+    tc, fp = (j.params or {}).get("task_config"), (j.params or {}).get("fingerprint")
+    if not tc or not fp or not ids:
+        return set()
+    return {
+        r[0]
+        for r in c.execute(
+            select(result.c.asset_id).where(
+                result.c.asset_id.in_(ids),
+                result.c.task_config_hash == config_hash(tc),
+                result.c.model_fingerprint == fp,
+            )
+        )
+    }
 
 
 def _known_categories(c: Any, j: Any) -> dict[str, int]:
