@@ -51,10 +51,12 @@ export function MapPage() {
   const map = useRef<MapLibreMap | null>(null);
   const [zoom, setZoom] = useState(1);
   const [picked, setPicked] = useState<Cluster | null>(null);
-  const pickedAt = useRef(0);
+  const pickedAt = useRef(0); // the closest zoom since the pick: the map zooms in after it, then the person may zoom out
   // the note described a group no longer shown once the map is zoomed out past it (MAP-022)
   useEffect(() => {
-    if (picked && selectionStale(pickedAt.current, zoom)) setPicked(null);
+    if (!picked) return;
+    if (zoom > pickedAt.current) pickedAt.current = zoom; // still flying in: the zoom before it was the old one (MAP-002)
+    else if (selectionStale(pickedAt.current, zoom)) setPicked(null);
   }, [zoom, picked]);
   const clusters = useMemo(() => clusterPoints(q.data?.points ?? [], zoom), [q.data, zoom]);
   const hashOf = useMemo(() => new Map((q.data?.points ?? []).map((p) => [p.id, p.ch ?? null])), [q.data]);
@@ -129,7 +131,6 @@ export function MapPage() {
         const [w, so, e, n] = c.bbox;
         if (c.count > 1 && (e > w || n > so)) {
           const fit = { padding: 80, maxZoom: streets ? 18 : 9 };
-          pickedAt.current = Math.max(pickedAt.current, m.cameraForBounds([[w, so], [e, n]], fit)?.zoom ?? 0); // where it lands
           m.fitBounds([[w, so], [e, n]], fit); // drill down
         }
       });

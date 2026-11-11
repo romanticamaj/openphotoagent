@@ -353,8 +353,8 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
           }}
         >
           <label className="text-sm">
-            <span className="sr-only">{t("lightbox.correct")}</span>
-            <select value={pick} onChange={(e) => setPick(e.target.value)} className="facet-chip cursor-pointer text-xs">
+            {/* the name on the control itself: a hidden span was measured as clipped text (I18N-004) */}
+            <select aria-label={t("lightbox.correct")} value={pick} onChange={(e) => setPick(e.target.value)} className="facet-chip cursor-pointer text-xs">
               <option value="">{t("lightbox.correctShort")}</option>
               {(preset.data?.categories ?? []).map((c) => (
                 <option key={c.key} value={c.key}>
@@ -376,8 +376,11 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
             .filter(([, v]) => v)
             .map(([k, v]) => (
               <div key={k} className="info-fact">
-                <InfoIcon kind={FACT_ICONS[rows.findIndex((r) => r[0] === k)]} />
-                <dt className="sr-only">{k}</dt>
+                {/* icon and a quiet label: a hidden label was measured as clipped (I18N-004) and is read by E2E-L-001 */}
+                <dt className="flex items-center gap-2 text-[var(--text-muted)]">
+                  <InfoIcon kind={FACT_ICONS[rows.findIndex((r) => r[0] === k)]} />
+                  {k}
+                </dt>
                 <dd className="tnum">{v}</dd>
               </div>
             ))}

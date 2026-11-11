@@ -944,8 +944,8 @@ body {
 }
 
 /* info panel: one icon per fact (audit round 26) */
-.info-facts { display: grid; gap: 0.4rem; }
-.info-fact { display: flex; align-items: center; gap: 0.6rem; }
+.info-facts { display: grid; grid-template-columns: auto 1fr; gap: 0.4rem 0.9rem; }
+.info-fact { display: contents; }
 .icon-button { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: var(--radius-sm); color: var(--text-muted); }
 .icon-button:hover { background: var(--surface-2); color: var(--text); }
 .icon-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
