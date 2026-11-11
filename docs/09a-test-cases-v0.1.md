@@ -834,6 +834,7 @@
 | SRCH-SEM-006 | review 修正後重索引 | 修正 tag 後 | 1 s 內（outbox）搜尋反映新 tag | I | #56 |
 | SRCH-SEM-007 | 較不相關的相似照片收在最後（回歸，驗證第 26 輪） | 只靠圖像向量找到、比最高分低 0.06 以上的照片 | 排在最後；回應 `weak`（張數）與 `weak_from`；畫面先收起，「顯示較不相關的 N 張」才顯示；靠文字或標籤找到的不算 | I/C | #— |
 | SRCH-SEM-007 | 空的 `degraded` 不顯示降級提示（回歸） | API 回傳 `degraded: []` 與 `["image_vector"]` | 只有後者顯示提示 | U | #24 |
+| SRCH-SEM-008 | 跨頁時才收起較不相關的照片（回歸，驗證第 27 輪） | `weak_from` 186，已載入 100 張 | 不收起，照常「載入更多」；載到 186 張時按鈕顯示並載入下一頁；超過才在 186 處收起 | C | #— |
 
 ---
 
@@ -876,6 +877,7 @@
 | E2E-L-001 | Lightbox 完整 | 點網格照片 → 縮放、平移 → ←/→ → filmstrip → `I` 資訊面板 | 先低解析再換高解析；前後預載（網路面板觀察）；資訊面板含 EXIF、AI 結果、模型名稱與 cascade 層 | E | #87、#88、#89、DoD 5.4 |
 | E2E-L-002 | 就地修正 | Lightbox 改類別 | toast「已記錄修正」；下一次整理計畫使用修正值 | E | #56、DoD 5.4 |
 | E2E-L-003 | 在檔案總管顯示 | desktop build（mock platform） | 呼叫 `platform.revealInFileManager(alias, rel)`；web build 隱藏按鈕 | E | #92 |
+| DESK-062 | 桌面版提供「在檔案總管中顯示」（回歸，驗證第 27 輪） | root alias + 相對路徑 | 只解析到 root 內存在的檔案（`..`、絕對路徑、NUL、連結逃逸都拒絕）；殼注入 `revealInFileManager`，Windows 以 explorer /select 開啟 | U | #92 |
 | E2E-SEL-001 | ⌘A 選全部結果 | 搜尋結果 3,214 張（只渲染一部分）→ ⌘A | 批次列顯示「已選 3,214 張」；送出的 selection 為 query handle 而非 ID 清單 | E | #91、DoD 5.4 |
 | E2E-SEL-002 | 批次動作 → 計畫 | Shift 範圍選 37 張 → 標籤、類別、「移到資料夾」 | 前兩者寫 review；後者產生 output plan 並導到核准頁 | E | #55、DoD 5.4 |
 

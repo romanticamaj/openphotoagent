@@ -142,7 +142,7 @@ export function SearchPage({ q }: { q: string }) {
     sel.all ? api.createSelection({ query: body }) : api.createSelection({ asset_ids: [...sel.ids] });
 
   const soft = first ? softView(t, first.soft, total, chips) : null;
-  const weak = first ? weakTail(t, first.weak_from, first.weak ?? 0, showWeak) : null;
+  const weak = first ? weakTail(t, first.weak_from, first.weak ?? 0, showWeak, hits.length) : null;
   const shownHits = weak ? hits.slice(0, weak.from) : hits;
   return (
     <section className="space-y-4 p-4" aria-labelledby="search-h">
@@ -267,7 +267,14 @@ export function SearchPage({ q }: { q: string }) {
         />
       ) : null}
       {weak ? (
-        <Button variant="ghost" data-testid="weak-more" onClick={() => setShowWeak(true)}>
+        <Button
+          variant="ghost"
+          data-testid="weak-more"
+          onClick={() => {
+            setShowWeak(true);
+            if (weak.fetch) void res.fetchNextPage();
+          }}
+        >
           {weak.more}
         </Button>
       ) : null}

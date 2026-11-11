@@ -47,6 +47,27 @@ fn same_path(a: &str, b: &str) -> bool {
     }
 }
 
+/// The file a photo is, for 「在檔案總管中顯示」: alias + relative path, inside that root after resolving links
+/// (invariant 2).
+pub fn resolve(roots: &[Root], alias: &str, rel: &str) -> Option<std::path::PathBuf> {
+    use std::path::Component;
+    let root = roots.iter().find(|r| r.alias == alias)?;
+    if rel.is_empty()
+        || rel.contains('\0')
+        || rel.contains('\\')
+        || (cfg!(windows) && rel.contains(':'))
+    {
+        return None; // the API's paths are '/'-separated and relative; a drive or backslash is not one
+    }
+    let rp = Path::new(rel);
+    if rp.components().any(|c| !matches!(c, Component::Normal(_))) {
+        return None; // '..', '.', a root or a prefix
+    }
+    let base = std::fs::canonicalize(&root.path).ok()?;
+    let full = std::fs::canonicalize(base.join(rp)).ok()?; // follows links: where it really is
+    full.starts_with(&base).then_some(full)
+}
+
 /// Registers `path` and answers its alias. The same folder twice keeps one root: asking for write access upgrades it.
 pub fn add(roots: &mut Vec<Root>, path: &Path, mode: &str) -> String {
     let text = path.to_string_lossy().to_string();
@@ -121,6 +142,35 @@ mod tests {
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
         d
+    }
+
+    #[test]
+    fn desk_062_reveal_resolves_only_inside_a_root() {
+        // 回歸 (audit round 27): 「在檔案總管中顯示」 never showed; the shell had no reveal. It resolves a photo as
+        // root alias + relative path (invariant 2) and refuses anything that leaves the root.
+        let d = tmp("reveal");
+        std::fs::create_dir_all(d.join("trip")).unwrap();
+        std::fs::write(d.join("trip/a.jpg"), b"x").unwrap();
+        std::fs::write(d.parent().unwrap().join("opa-outside.jpg"), b"x").unwrap();
+        let r = vec![Root {
+            alias: "photos".into(),
+            path: d.to_string_lossy().into(),
+            mode: "ro".into(),
+        }];
+        let got = resolve(&r, "photos", "trip/a.jpg").expect("inside");
+        assert!(got.ends_with("a.jpg"));
+        for bad in [
+            "../opa-outside.jpg",
+            "trip/../../opa-outside.jpg",
+            "/etc/passwd",
+            "C:\\x.jpg",
+            "",
+            "trip/\0a",
+        ] {
+            assert!(resolve(&r, "photos", bad).is_none(), "{bad}");
+        }
+        assert!(resolve(&r, "nope", "trip/a.jpg").is_none());
+        assert!(resolve(&r, "photos", "trip/missing.jpg").is_none());
     }
 
     #[test]

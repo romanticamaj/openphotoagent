@@ -951,7 +951,8 @@ body {
 .icon-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 /* search facets: one sideways-scrolling row of soft chips (audit round 26) */
-.facet-row { display: flex; gap: 1.25rem; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
+.facet-row { display: flex; gap: 1.25rem; overflow-x: auto; scrollbar-width: none; mask-image: linear-gradient(to right, #000 92%, transparent); }
+.facet-row::-webkit-scrollbar { display: none; } /* a grey bar under the chips (audit round 27); wheel, touch and Tab still scroll */
 .facet-chip { white-space: nowrap; border-radius: 9999px; background: var(--surface-2); padding: 0.125rem 0.6rem; transition: background-color 120ms ease; }
 .facet-chip:hover { background: var(--border); }
 .facet-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }

@@ -97,9 +97,17 @@ export function chipLabel(t: T, c: Chip, tagNames: Record<string, string>): stri
   return (c.kind === "tag" && tagNames[c.value]) || c.value;
 }
 
-/** Weak look-alikes come last and stay folded until asked for (ADR-0040, SRCH-SEM-007). */
-export function weakTail(t: T, from: number | null | undefined, n: number, shown: boolean): { from: number; more: string } | null {
-  if (shown || !n || !from) return null;
-  return { from, more: t("search.weakMore", { n: n.toLocaleString() }) };
+/** Weak look-alikes come last and stay folded until asked for (ADR-0040, SRCH-SEM-007). Only once the photos
+ * before them are loaded (SRCH-SEM-008): the fold sat after page one, over strong photos still to come. `fetch`: they
+ * are the next page, so the button loads it. */
+export function weakTail(
+  t: T,
+  from: number | null | undefined,
+  n: number,
+  shown: boolean,
+  loaded: number,
+): { from: number; more: string; fetch: boolean } | null {
+  if (shown || !n || !from || loaded < from) return null;
+  return { from, more: t("search.weakMore", { n: n.toLocaleString() }), fetch: loaded === from };
 }
 

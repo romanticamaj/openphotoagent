@@ -383,6 +383,7 @@ fn platform_script(thumbs: &Path) -> String {
   }},
   status: () => window.__TAURI_INTERNALS__.invoke("shell_status"),
   addRoot: (mode) => window.__TAURI_INTERNALS__.invoke("add_root", {{ mode }}),
+  revealInFileManager: (rootAlias, relPath) => window.__TAURI_INTERNALS__.invoke("reveal_in_file_manager", {{ rootAlias, relPath }}),
 }};"#
     )
 }
@@ -484,6 +485,35 @@ fn add_root(
     Ok(Some(alias))
 }
 
+/// 「在檔案總管中顯示」 (E2E-L-003, DESK-062): the photo selected in the OS file manager. Only a file inside a root.
+#[tauri::command]
+fn reveal_in_file_manager(
+    shell: tauri::State<'_, Arc<Shell>>,
+    root_alias: String,
+    rel_path: String,
+) -> Result<(), String> {
+    let list = roots::load(&shell.roots_file());
+    let path = roots::resolve(&list, &root_alias, &rel_path).ok_or("not a photo in a root")?;
+    #[cfg(windows)]
+    let r = {
+        use std::os::windows::process::CommandExt;
+        let mut arg = std::ffi::OsString::from("/select,\"");
+        arg.push(path.as_os_str());
+        arg.push("\"");
+        std::process::Command::new("explorer").raw_arg(arg).spawn()
+    };
+    #[cfg(target_os = "macos")]
+    let r = std::process::Command::new("open")
+        .arg("-R")
+        .arg(&path)
+        .spawn();
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let r = std::process::Command::new("xdg-open")
+        .arg(path.parent().unwrap_or(&path))
+        .spawn();
+    r.map(|_| ()).map_err(|e| e.to_string())
+}
+
 fn main() {
     let home = data_home();
     let _ = std::fs::create_dir_all(&home);
@@ -520,7 +550,8 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             backend_info,
             shell_status,
-            add_root
+            add_root,
+            reveal_in_file_manager
         ])
         .setup(move |app| {
             let resources = paths::plain(&app.path().resource_dir()?);

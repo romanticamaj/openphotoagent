@@ -99,10 +99,19 @@ describe("results cut at a route's limit (SRCH-UI-016)", () => {
 describe("weak look-alikes (SRCH-SEM-007)", () => {
   const t = i18n.getFixedT("zh-TW");
   it("[SRCH-SEM-007] 回歸：較不相關的照片先收起，按一下才顯示（驗證第 26 輪：最後 35 張大多不是踢球）", () => {
-    expect(weakTail(t, 160, 73, false)).toEqual({ from: 160, more: "顯示較不相關的 73 張" });
-    expect(weakTail(t, 160, 73, true)).toBeNull(); // shown
-    expect(weakTail(t, undefined, 0, false)).toBeNull();
-    expect(weakTail(t, 0, 5, false)).toBeNull(); // nothing strong: show them, the list is not hidden whole
+    expect(weakTail(t, 160, 73, false, 233)).toEqual({ from: 160, more: "顯示較不相關的 73 張", fetch: false });
+    expect(weakTail(t, 160, 73, true, 233)).toBeNull(); // shown
+    expect(weakTail(t, undefined, 0, false, 233)).toBeNull();
+    expect(weakTail(t, 0, 5, false, 5)).toBeNull(); // nothing strong: show them, the list is not hidden whole
+  });
+});
+
+describe("weak look-alikes across pages (SRCH-SEM-008)", () => {
+  const t = i18n.getFixedT("zh-TW");
+  it("[SRCH-SEM-008] 回歸：較不相關的照片還沒載入前不收起，照常「載入更多」（驗證第 27 輪：第 2 頁的好照片被收進按鈕）", () => {
+    expect(weakTail(t, 186, 14, false, 100)).toBeNull(); // the strong ones are still coming
+    expect(weakTail(t, 186, 14, false, 186)).toEqual({ from: 186, more: "顯示較不相關的 14 張", fetch: true }); // next page is them
+    expect(weakTail(t, 186, 14, false, 200)).toEqual({ from: 186, more: "顯示較不相關的 14 張", fetch: false });
   });
 });
 
