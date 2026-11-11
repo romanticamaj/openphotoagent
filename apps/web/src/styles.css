@@ -957,3 +957,7 @@ body {
 .facet-chip:hover { background: var(--border); }
 .facet-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
+/* 「問這張」: one rounded field with a send button (audit round 27) */
+.ask-photo-field { display: flex; align-items: center; gap: 0.25rem; border: 1px solid var(--border); border-radius: 9999px; background: var(--bg); padding: 0.2rem 0.25rem 0.2rem 0.75rem; }
+.ask-photo-field:focus-within { border-color: var(--accent); }
+

@@ -308,13 +308,15 @@ export function AskPhoto({ assetId }: { assetId: string }) {
       <ul className="flex flex-wrap gap-2">
         {(sugg.data?.suggestions ?? []).map((x) => (
           <li key={x.text}>
-            <button type="button" onClick={() => go(x.text)} className="rounded-full border border-[var(--border)] px-2 py-0.5 text-xs">
+            <button type="button" onClick={() => go(x.text)} className="facet-chip text-xs">
               {x.text}
             </button>
           </li>
         ))}
       </ul>
+      {/* a rounded field that says what it is for, with a send button: an empty box looked like a form (audit round 27) */}
       <form
+        className="ask-photo-field"
         onSubmit={(e) => {
           e.preventDefault();
           go(q);
@@ -322,10 +324,16 @@ export function AskPhoto({ assetId }: { assetId: string }) {
       >
         <input
           aria-label={t("ask.photo.input")}
+          placeholder={`${t("ask.photo.input")}…`}
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          className="w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-sm"
+          className="min-w-0 flex-1 bg-transparent px-1 text-sm outline-none"
         />
+        <button type="submit" aria-label={t("ask.send")} title={t("ask.send")} className="icon-button">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M5 12h14M13 6l6 6-6 6" />
+          </svg>
+        </button>
       </form>
       {last?.text ? <Answer text={last.text} /> : null}
     </section>
