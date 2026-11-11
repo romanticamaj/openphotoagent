@@ -424,6 +424,7 @@ def test_ask_ret_002_a_yes_or_no_question_is_answered_yes(m):
     """回歸 (audit round 31): 「有沒有…的照片？」 answered only 「找到 224 張」, never 「有」."""
     ev = ask(m, "有沒有海邊的貓的照片？", FakeLLM())
     text = "".join(d["text"] for e, d in ev if e == "token")
-    assert text.startswith("有，") and "5" in text and "[[photo:" in text
+    # the photo strip below shows them: citing them as well drew each thumbnail twice (audit round 32)
+    assert text.startswith("有，") and "5" in text and "[[photo:" not in text
     ev = ask(m, "有沒有長頸鹿的照片？", FakeLLM())
     assert "".join(d["text"] for e, d in ev if e == "token").startswith("找不到")

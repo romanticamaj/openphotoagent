@@ -642,7 +642,6 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
     yield "step.completed", completed(sid, t0, "ok", "；".join(explain) or "以文字搜尋")
 
     seen: set[str] = set()
-    ordered_seen: list[str] = []  # the search's order, for the photos a yes answer cites
     counts: list[int] = []
     count_labels: list[str] = []
     hits_text: list[str] = []
@@ -676,7 +675,6 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
                 if how & {"image_vector", "caption_vector"}:
                     vector_hits.append(r["id"])
             seen.update(ids)
-            ordered_seen.extend(ids)
             total = int(out.get("total_estimate", out.get("total", len(ids))))
             # the folded look-alikes are not finds: 224 where the search page showed 162 (ASK-RET-001, ADR-0040)
             total = max(0, total - int(out.get("weak") or 0))
@@ -875,9 +873,9 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
         if not answer and counts:
             answer = f"共有 {counts[0]:,} 張。"
         if not answer and total and intent == "retrieval" and YES_NO.search(body.message):
-            # 「有沒有…？」 is answered yes first, with a few of them (ASK-RET-002)
-            some = " ".join(f"[[photo:{i}]]" for i in list(dict.fromkeys(ordered_seen))[:3])
-            answer = f"有，找到 {total:,} 張，例如：{some}"
+            # 「有沒有…？」 is answered yes first (ASK-RET-002); the photo strip shows them, so no citations: each
+            # thumbnail was drawn twice (audit round 32)
+            answer = f"有，找到 {total:,} 張，如下。"
         for chunk in re.findall(r".{1,24}", answer, re.S):
             yield "token", {"text": chunk}
         for i, m in enumerate(G.CITE.finditer(answer)):
