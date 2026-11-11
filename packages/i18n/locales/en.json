@@ -567,7 +567,8 @@
     "weakCount": "{n} less related",
     "busy": "Searching…",
     "busyLabel": "Searching",
-    "relaxedMeaning": "No photo says “{words}” outright. Below are photos with a similar meaning."
+    "relaxedMeaning": "No photo says “{words}” outright. Below are photos with a similar meaning.",
+    "copies": "{n} more copies of this photo"
   },
   "problem": {
     "chosen": "Switched to {what}"

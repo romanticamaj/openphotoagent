@@ -169,7 +169,7 @@ export type SearchBody = {
   facets?: string[];
   lang?: string;
 };
-export type SearchHit = { asset_id: string; ch?: string | null; rot?: number; score: number; matched_by: string[]; category: string | null; tags: string[]; caption: string | null; taken_at: string | null };
+export type SearchHit = { asset_id: string; ch?: string | null; rot?: number; score: number; matched_by: string[]; category: string | null; tags: string[]; caption: string | null; taken_at: string | null; /** copies folded into this one (05 §2.1) */ duplicates?: number };
 export type Planner = {
   source: string;
   confidence: number;

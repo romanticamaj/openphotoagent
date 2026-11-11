@@ -1071,3 +1071,17 @@ body {
   font-size: 0.8125rem;
   text-align: center;
 }
+
+/* copies folded into a search result (SRCH-UI-024) */
+.tile-copies {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 3;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.6);
+  color: #fff;
+  font-size: 0.75rem;
+}
+

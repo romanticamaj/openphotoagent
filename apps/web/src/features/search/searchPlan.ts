@@ -165,9 +165,13 @@ export function withoutWords(q: string, words: string[]): string {
 }
 
 /** A result's name for a screen reader: its caption, or 「照片」, and the day (SRCH-UI-022). */
-export function tileLabel(t: (k: string, o?: Record<string, unknown>) => string, h: { caption?: string | null; taken_at?: string | null }): string {
+export function tileLabel(
+  t: (k: string, o?: Record<string, unknown>) => string,
+  h: { caption?: string | null; taken_at?: string | null; duplicates?: number },
+): string {
   const date = h.taken_at?.slice(0, 10) ?? t("viewer.unknownDate");
   const caption = h.caption?.trim().replace(/[。．.！!？?]+$/u, ""); // 「。，」 read badly (SRCH-UI-023)
-  return caption ? `${caption}，${date}` : t("viewer.photoAlt", { date });
+  const name = caption ? `${caption}，${date}` : t("viewer.photoAlt", { date });
+  return h.duplicates ? `${name}，${t("search.copies", { n: h.duplicates })}` : name; // copies folded in (SRCH-UI-024)
 }
 

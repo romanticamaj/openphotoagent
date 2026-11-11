@@ -267,6 +267,12 @@ export function SearchPage({ q }: { q: string }) {
               onClick={(e) => clickHit(i, h.asset_id, e.shiftKey, e.ctrlKey || e.metaKey)}
             >
               <img src={mediaUrl(h.asset_id, "t256", h.ch)} alt="" loading="lazy" style={turnStyle(h.rot)} onError={(e) => (e.currentTarget.style.visibility = "hidden")} />
+              {h.duplicates ? (
+                // copies of this photo, folded into it (SRCH-UI-024): they were hidden without a word
+                <span className="tile-copies tnum" aria-hidden="true" title={t("search.copies", { n: h.duplicates })}>
+                  +{h.duplicates.toLocaleString(i18n.language)}
+                </span>
+              ) : null}
               <span data-matched={h.matched_by.join(" ")} className="absolute bottom-1 left-1 text-[10px]">
                 {/* found by how it looks, not by its words: worth knowing (E2E-S-002); text and tag matches need no badge */}
                 {onlyByMeaning(h.matched_by) ? <span className="rounded bg-black/55 px-1 text-white/90">{t("search.matched.image_vector")}</span> : null}

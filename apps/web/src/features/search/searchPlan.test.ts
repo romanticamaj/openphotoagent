@@ -199,3 +199,11 @@ describe("a caption and its day read as one phrase (audit round 50)", () => {
   });
 });
 
+describe("copies folded into one tile (audit round 52)", () => {
+  const t = ((k: string, o?: Record<string, unknown>) => (k === "viewer.photoAlt" ? `照片，${o?.date}` : k === "search.copies" ? `另有 ${o?.n} 張相同的照片` : k)) as never;
+  it("[SRCH-UI-024] 回歸：收起的重複照片在名稱裡說出另有幾張（驗證第 52 輪：沒有「+N」）", () => {
+    expect(tileLabel(t, { caption: "拼貼", taken_at: "2024-07-01T00:00:00Z", duplicates: 9 })).toBe("拼貼，2024-07-01，另有 9 張相同的照片");
+    expect(tileLabel(t, { caption: "拼貼", taken_at: "2024-07-01T00:00:00Z" })).toBe("拼貼，2024-07-01");
+  });
+});
+
