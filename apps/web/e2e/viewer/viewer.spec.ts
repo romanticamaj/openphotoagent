@@ -241,3 +241,21 @@ test("[E2E-L-003] 在檔案總管顯示：desktop build 呼叫 platform.revealIn
   await page.getByRole("button", { name: "在檔案總管中顯示" }).first().click();
   expect(await page.evaluate(() => (window as unknown as { __reveal: unknown }).__reveal)).toEqual([["photos", rel]]);
 });
+
+test("[VIEW-043] 回歸：Ctrl+A 選取整個圖庫、不反白頁面文字；Shift+方向鍵延伸選取（驗證第 52 輪）", async ({ page }) => {
+  await page.goto("/");
+  await firstTile(page).focus();
+  await page.keyboard.press("ControlOrMeta+a");
+  const bar = page.getByTestId("timeline-batch");
+  await expect(bar).toContainText("已選 30 張"); // 20 dated + 10 without EXIF: the whole library, not the months on screen
+  expect(await page.evaluate(() => window.getSelection()?.toString() ?? "")).toBe("");
+  await grid(page).getByRole("gridcell").nth(1).click(); // taken back out
+  await expect(bar).toContainText("已選 29 張");
+  await page.keyboard.press("Escape");
+  await expect(bar).toHaveCount(0);
+  await firstTile(page).click({ modifiers: ["ControlOrMeta"] });
+  await page.keyboard.press("Shift+ArrowRight");
+  await page.keyboard.press("Shift+ArrowRight");
+  await expect(bar).toContainText("已選 3 張");
+  await expect(grid(page).getByRole("gridcell").nth(2)).toBeFocused();
+});

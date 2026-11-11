@@ -2382,6 +2382,14 @@
             ],
             "title": "Asset Ids"
           },
+          "exclude": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 200000,
+            "title": "Exclude",
+            "type": "array"
+          },
           "query": {
             "anyOf": [
               {

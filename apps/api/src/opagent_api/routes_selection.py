@@ -27,6 +27,8 @@ def _st(req: Request) -> AppState:
 class SelectionIn(BaseModel):
     query: dict[str, Any] | None = None
     asset_ids: list[str] | None = None
+    # with a query: photos taken back out after 「全選」/Ctrl+A (COL-021)
+    exclude: list[str] = Field(default_factory=list, max_length=MAX_SELECTION)
 
 
 def _resolve_query(st: AppState, query: dict[str, Any]) -> list[str]:
@@ -57,6 +59,9 @@ def create_selection(body: SelectionIn, req: Request) -> dict[str, Any]:
     if body.query is None and not body.asset_ids:
         raise HTTPException(422, detail={"code": "SELECTION_EMPTY"})
     ids = _resolve_query(st, body.query) if body.query is not None else list(dict.fromkeys(body.asset_ids or []))
+    if body.exclude:
+        out = set(body.exclude)
+        ids = [i for i in ids if i not in out]
     sid = uuid7(st.clock)
     with st.engine.begin() as c:
         c.execute(insert(selection).values(id=sid, query=body.query, asset_ids=ids, count=len(ids)))

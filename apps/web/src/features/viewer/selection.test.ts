@@ -19,3 +19,19 @@ describe("choosing photos on the timeline (audit round 50)", () => {
     expect([...pick({ ids: new Set(["x"]), anchor: "x" }, "e", "range", order).ids].sort()).toEqual(["e", "x"]);
   });
 });
+
+describe("Ctrl+A on the timeline (audit round 52)", () => {
+  it("[VIEW-042] 回歸：Ctrl+A 選取整個圖庫；之後點一張是取消那一張；張數是全部減去取消的", async () => {
+    const { all, chosen, countOf } = await import("./selection");
+    let s = all();
+    expect(chosen(s, "a")).toBe(true);
+    expect(countOf(s, 30)).toBe(30);
+    s = pick(s, "b", "toggle", order);
+    expect(chosen(s, "b")).toBe(false);
+    expect(countOf(s, 30)).toBe(29);
+    s = pick(s, "b", "toggle", order);
+    expect(chosen(s, "b")).toBe(true);
+    expect(countOf(NONE, 30)).toBe(0);
+    expect(countOf(pick(NONE, "a", "toggle", order), 30)).toBe(1);
+  });
+});

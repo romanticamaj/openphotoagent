@@ -69,15 +69,20 @@ export function PhotoGrid({
   density = "standard",
   onOpen,
   focusAsset,
-  selected,
+  chosen,
+  choosing: anyChosen = false,
   onPick,
+  onPickAll,
 }: {
   density?: keyof typeof DENSITY;
   onOpen: (pos: GridPos, api: GridApi) => void;
   focusAsset?: string | null;
-  /** photos chosen on the timeline (VIEW-038); with `onPick`, Ctrl/⌘-click, Shift-click and Space choose */
-  selected?: ReadonlySet<string>;
+  /** photos chosen on the timeline (VIEW-038); with `onPick`, Ctrl/⌘-click, Shift-click, Space and Shift+arrows choose */
+  chosen?: (id: string) => boolean;
+  choosing?: boolean;
   onPick?: (id: string, how: "toggle" | "range", order: string[]) => void;
+  /** Ctrl/⌘+A: the whole library (VIEW-042), not the page's text */
+  onPickAll?: () => void;
 }) {
   const { t, i18n } = useTranslation();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -178,7 +183,7 @@ export function PhotoGrid({
   const assetsOf = (i: number) => bucketData[i]?.data?.assets;
   /** the loaded photos in timeline order: what a Shift-click range spans */
   const loadedOrder = () => list.flatMap((_, i) => (assetsOf(i) ?? []).map((a) => a.id));
-  const choosing = Boolean(onPick && selected && selected.size > 0);
+  const choosing = Boolean(onPick && anyChosen);
   const pick = (id: string | undefined, how: "toggle" | "range") => id && onPick?.(id, how, loadedOrder());
 
   const gridApi: GridApi = useMemo(
@@ -216,6 +221,7 @@ export function PhotoGrid({
     }
   }, [focusAsset]);
 
+  let moved: string | undefined; // the photo the last moveFocus went to (Shift+arrow, VIEW-043)
   const moveFocus = (dir: "left" | "right" | "up" | "down") => {
     const l = layoutOf(focus.bucket);
     const assets = assetsOf(focus.bucket);
@@ -248,6 +254,7 @@ export function PhotoGrid({
     index = Math.max(0, index);
     setFocus({ bucket, index });
     const id = assetsOf(bucket)?.[index]?.id;
+    moved = id;
     if (bucket !== focus.bucket) virt.scrollToIndex(bucket, { align: "start" });
     requestAnimationFrame(() => {
       const el = document.querySelector<HTMLElement>(`[data-asset="${id}"]`);
@@ -258,11 +265,25 @@ export function PhotoGrid({
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     const el = scrollRef.current!;
+    // Shift+arrow extends the choice to the photo it moves to, as in Finder (VIEW-043)
+    const arrow = (dir: "left" | "right" | "up" | "down") => {
+      const from = assetsOf(focus.bucket)?.[focus.index]?.id;
+      moved = undefined;
+      moveFocus(dir);
+      if (!e.shiftKey || !onPick || !moved || moved === from) return;
+      if (!choosing && from) pick(from, "toggle");
+      onPick(moved, "range", loadedOrder());
+    };
+    if ((e.key === "a" || e.key === "A") && (e.ctrlKey || e.metaKey) && onPickAll) {
+      e.preventDefault(); // not the page's text (audit round 52)
+      onPickAll();
+      return;
+    }
     const keys: Record<string, () => void> = {
-      ArrowLeft: () => moveFocus("left"),
-      ArrowRight: () => moveFocus("right"),
-      ArrowUp: () => moveFocus("up"),
-      ArrowDown: () => moveFocus("down"),
+      ArrowLeft: () => arrow("left"),
+      ArrowRight: () => arrow("right"),
+      ArrowUp: () => arrow("up"),
+      ArrowDown: () => arrow("down"),
       // the focused tile may scroll out and unmount: keep keyboard focus on the grid container itself
       PageUp: () => (el.focus({ preventScroll: true }), el.scrollBy({ top: -el.clientHeight })),
       PageDown: () => (el.focus({ preventScroll: true }), el.scrollBy({ top: el.clientHeight })),
@@ -364,7 +385,7 @@ export function PhotoGrid({
                             key={a.id}
                             role="gridcell"
                             className={choosing ? "tile choosing" : "tile"}
-                            aria-selected={onPick ? Boolean(selected?.has(a.id)) : undefined}
+                            aria-selected={onPick ? Boolean(chosen?.(a.id)) : undefined}
                             data-asset={a.id}
                             tabIndex={isFocus ? 0 : -1}
                             aria-label={t("viewer.photoAlt", { date: a.taken_at?.slice(0, 10) ?? t("viewer.unknownDate") })}

@@ -69,3 +69,18 @@ def test_batch_move_to_folder_produces_a_plan_for_approval(lib):
     while w.run_once():
         pass
     assert len(list((tree.sorted / "picked").iterdir())) == 3
+
+
+@pytest.mark.integration
+@pytest.mark.tc("COL-021")
+def test_col_021_everything_but_the_photos_taken_back_out(lib):
+    """Ctrl+A on the timeline (audit round 52): the whole library as a query, minus the photos un-ticked after it."""
+    client, _, _ = lib
+    ids = [a["asset_id"] for a in client.post("/api/v1/search", json={"limit": 10}).json()["items"]]
+    r = client.post("/api/v1/selections", json={"query": {"collapse_duplicates": False}, "exclude": ids[:2]})
+    assert r.status_code == 201, r.text
+    assert r.json()["count"] == 4
+    sid = r.json()["id"]
+    alb = client.post("/api/v1/albums", json={"name": "全部"}).json()["id"]
+    added = client.post(f"/api/v1/selections/{sid}/album", json={"album_id": alb}).json()["added"]
+    assert len(added) == 4 and not set(ids[:2]) & set(added)
