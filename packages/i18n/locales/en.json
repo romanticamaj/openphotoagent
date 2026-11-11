@@ -624,7 +624,8 @@
       "face_detector": "Finds faces",
       "face_embedder": "Recognises faces",
       "text_embedding": "Search by description",
-      "llm": "Ask about photos"
+      "llm": "Ask about photos",
+      "text_embedder": "Search by description"
     },
     "installedBadge": "Installed",
     "names": {
@@ -919,7 +920,9 @@
     "building": "Building a new index: {model}",
     "progress": "Build progress",
     "switch": "Switch to the new index",
-    "notReady": "The new index is still being built; search keeps using the current one until you switch"
+    "notReady": "The new index is still being built; search keeps using the current one until you switch",
+    "missing": "{n} newly analysed photos are not in it yet",
+    "update": "Update"
   },
   "auth": {
     "title": "Sign in to OpenPhotoAgent",

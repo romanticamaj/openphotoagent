@@ -295,7 +295,7 @@ export type AssistantSettings = {
 export type AskSuggestion = { kind: string; text: string };
 
 export type CaptionIndexState = {
-  active: { id: number; model_key: string; count: number } | null;
+  active: { id: number; model_key: string; count: number; missing?: number } | null;
   building: { id: number; model_key: string; done: number; total: number; ready: boolean; operation_id: string | null } | null;
 };
 
@@ -306,6 +306,7 @@ export const api = {
   captionIndex: () => req<CaptionIndexState>("GET", "/search/caption-index"),
   buildCaptionIndex: (model_key: string) => req<unknown>("POST", "/search/caption-index", { model_key }),
   switchCaptionIndex: () => req<CaptionIndexState>("POST", "/search/caption-index/switch"),
+  topupCaptionIndex: () => req<{ queued: number }>("POST", "/search/caption-index/topup"),
   assistantSettings: () => req<AssistantSettings>("GET", "/assistant-settings"),
   putAssistantSettings: (patch: Partial<AssistantSettings>) => req<AssistantSettings>("PATCH", "/assistant-settings", patch),
   askSuggestions: (photoId?: string) =>

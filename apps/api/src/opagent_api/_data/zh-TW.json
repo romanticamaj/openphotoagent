@@ -624,7 +624,8 @@
       "face_detector": "找出人臉",
       "face_embedder": "辨認人臉",
       "text_embedding": "以文字描述找照片",
-      "llm": "AI 問照片"
+      "llm": "AI 問照片",
+      "text_embedder": "以文字描述找照片"
     },
     "installedBadge": "已安裝",
     "names": {
@@ -919,7 +920,9 @@
     "building": "正在建立新索引：{model}",
     "progress": "建立進度",
     "switch": "切換到新索引",
-    "notReady": "新索引還在建立中，完成後才能切換；切換前搜尋會繼續使用目前的索引"
+    "notReady": "新索引還在建立中，完成後才能切換；切換前搜尋會繼續使用目前的索引",
+    "missing": "有 {n} 張新分析的照片還沒加入",
+    "update": "更新"
   },
   "auth": {
     "title": "登入 OpenPhotoAgent",

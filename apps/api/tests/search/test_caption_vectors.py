@@ -136,3 +136,23 @@ def test_r2_007_a_failed_index_build_says_so(env):
     b = m.http.post("/api/v1/search/caption-index", json={"model_key": E5}).json()
     assert m.http.get(f"/api/v1/operations/{a['operation_id']}").json()["status"] in ("cancelled", "succeeded")
     assert b["operation_id"] != a["operation_id"]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-R2-013")
+def test_r2_013_photos_analysed_later_join_the_index(env):
+    """回歸 (audit round 41): the index said 645 of 845: the 200 photos analysed after it was built were never added,
+    and nothing said so. The status counts what is missing, and a top-up adds only those, to the index in use."""
+    m = env
+    m.http.post("/api/v1/search/caption-index", json={"model_key": QWEN})
+    wait_index(m, lambda s: (s.get("active") or {}).get("count") == 5)
+    for i in range(2):
+        m.add(f"t/bird{i}.jpg", caption=f"a bird in the sky {i}")
+    m.index()
+    s = m.http.get("/api/v1/search/caption-index").json()
+    assert s["active"]["missing"] == 2 and s["building"] is None
+    r = m.http.post("/api/v1/search/caption-index/topup")
+    assert r.status_code == 202 and r.json()["queued"] == 2
+    assert m.http.post("/api/v1/search/caption-index/topup").json()["queued"] == 0  # once
+    s = wait_index(m, lambda s: s["active"]["count"] == 7)
+    assert s["active"]["missing"] == 0 and s["active"]["model_key"] == QWEN

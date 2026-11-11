@@ -145,6 +145,7 @@ ROUTES: dict[tuple[str, str], str] = {
     ("POST", "/api/v1/search/by-image"): R,
     ("POST", "/api/v1/search/caption-index"): SRC,
     ("POST", "/api/v1/search/caption-index/switch"): SRC,
+    ("POST", "/api/v1/search/caption-index/topup"): SRC,
     ("POST", "/api/v1/selections"): R,
     ("POST", "/api/v1/selections/{sid}/labels"): RV,
     ("POST", "/api/v1/selections/{sid}/organize"): J,

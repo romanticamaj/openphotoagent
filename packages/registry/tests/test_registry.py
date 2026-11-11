@@ -189,3 +189,22 @@ def test_inf_reg_013_release_requires_all_pinned():
         if not r.builtin:
             for p in r.platforms:
                 assert p.sha256 and HEX64.match(p.sha256), f"{r.id} {p.os}-{p.arch} has no sha256"
+
+
+@pytest.mark.unit
+@pytest.mark.tc("MDL-019")
+def test_mdl_019_every_kind_has_a_name_people_read():
+    """回歸 (audit round 41): the text model's row read 「text_embedder」: the label was keyed text_embedding."""
+    import json
+    from pathlib import Path
+
+    import yaml
+
+    root = Path(__file__).resolve().parents[3]
+    kinds = {
+        yaml.safe_load(p.read_text(encoding="utf-8"))["kind"]
+        for p in (root / "packages/registry/src/opagent_registry/builtin/models").glob("*.yaml")
+    }
+    for lang in ("zh-TW", "en"):
+        names = json.loads((root / f"packages/i18n/locales/{lang}.json").read_text(encoding="utf-8"))["models"]["kinds"]
+        assert kinds <= set(names), (lang, sorted(kinds - set(names)))

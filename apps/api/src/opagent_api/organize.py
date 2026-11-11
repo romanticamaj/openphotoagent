@@ -348,6 +348,9 @@ def maybe_finish(st: Any, c: Any, job_id: str) -> None:
         for s in (JobStatus.planning, JobStatus.awaiting_approval):
             set_job_status(c, job_id, s, clock=st.clock)
         set_job_status(c, job_id, JobStatus.completed, clock=st.clock, finished_at=st.clock.now())
+        from .routes_caption import topup
+
+        topup(st, c)  # the new captions join the meaning index in use (SRCH-R2-013)
         return
     if j.kind == "preview":
         if j.params.get("preview_ready"):

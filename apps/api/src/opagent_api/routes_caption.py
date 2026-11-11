@@ -97,6 +97,60 @@ def build_index(body: IndexIn, req: Request) -> dict[str, Any]:
     return {"space_id": sid, "operation_id": op, "total": len(rows)}
 
 
+def _unindexed(c: Any, sid: int) -> Any:
+    """Photos with a caption and no vector in this space."""
+    have = select(asset_embedding.c.asset_id).where(asset_embedding.c.space_id == sid)
+    return (
+        select(search_doc.c.asset_id, search_doc.c.caption)
+        .where(search_doc.c.caption.is_not(None), search_doc.c.caption != "", search_doc.c.asset_id.notin_(have))
+        .order_by(search_doc.c.asset_id)
+    )
+
+
+def topup(st: AppState, c: Any) -> int:
+    """Add the photos analysed since the index in use was built (SRCH-R2-013): 645 of 845 were in it, and nothing
+    said so. Only those, into that index; once at a time (a top-up already queued is not queued again)."""
+    act = caption_space(c, "active")
+    if act is None or caption_space(c, "building") is not None:
+        return 0  # no index yet, or a full build is on its way
+    pending = c.execute(
+        select(func.count())
+        .select_from(worker_task)
+        .where(
+            worker_task.c.kind == "embed_captions",
+            worker_task.c.status.in_(("pending", "leased")),
+            worker_task.c.payload["space_id"].astext == str(act.id),
+        )
+    ).scalar_one()
+    if pending:
+        return 0
+    rows = c.execute(_unindexed(c, act.id)).all()
+    w = c.execute(select(worker.c.id).order_by(worker.c.last_heartbeat_at.desc().nulls_last()).limit(1)).scalar()
+    for i in range(0, len(rows), BATCH):
+        c.execute(
+            insert(worker_task).values(
+                id=uuid7(st.clock),
+                kind="embed_captions",
+                worker_id=w,
+                payload={
+                    "space_id": act.id,
+                    "model": act.model_key,
+                    "topup": True,
+                    "items": [{"asset_id": r.asset_id, "text": r.caption[:2000]} for r in rows[i : i + BATCH]],
+                },
+            )
+        )
+    return len(rows)
+
+
+@router.post("/search/caption-index/topup", status_code=202)
+def topup_index(req: Request) -> dict[str, Any]:
+    ui_only(req)
+    st = _st(req)
+    with st.engine.begin() as c:
+        return {"queued": topup(st, c)}
+
+
 def _finish(st: AppState, c: Any, sid: int) -> None:
     sp = c.execute(select(embedding_space).where(embedding_space.c.id == sid)).one()
     set_op_status(c, st.clock, sp.thresholds["operation_id"], "succeeded")
@@ -124,7 +178,8 @@ def on_captions_failed(st: AppState, c: Any, t: Any, res: dict[str, Any]) -> Non
 def on_captions_embedded(st: AppState, c: Any, t: Any, res: dict[str, Any]) -> None:
     sid = int(t.payload["space_id"])
     sp = c.execute(select(embedding_space).where(embedding_space.c.id == sid).with_for_update()).first()
-    if sp is None or sp.status != "building":
+    topping = bool(t.payload.get("topup")) and sp is not None and sp.status == "active"
+    if sp is None or (sp.status != "building" and not topping):
         return  # replaced meanwhile
     vecs = res.get("vectors") or {}
     for aid, vec in vecs.items():
@@ -135,6 +190,8 @@ def on_captions_embedded(st: AppState, c: Any, t: Any, res: dict[str, Any]) -> N
             ),
             {"a": aid, "s": sid, "v": str([float(x) for x in vec])},
         )
+    if topping:
+        return  # into the index in use: its build counts stay as they were
     th = dict(sp.thresholds or {})
     th["done"] = int(th.get("done", 0)) + len(t.payload["items"])
     c.execute(
@@ -165,7 +222,13 @@ def status(req: Request) -> dict[str, Any]:
         act, bld = caption_space(c, "active"), caption_space(c, "building")
         out: dict[str, Any] = {"active": None, "building": None}
         if act is not None:
-            out["active"] = {"id": act.id, "model_key": act.model_key, "count": _count(c, act.id)}
+            missing = c.execute(select(func.count()).select_from(_unindexed(c, act.id).subquery())).scalar_one()
+            out["active"] = {
+                "id": act.id,
+                "model_key": act.model_key,
+                "count": _count(c, act.id),
+                "missing": int(missing),  # analysed since it was built (SRCH-R2-013)
+            }
         if bld is not None:
             th = bld.thresholds or {}
             total, done = int(th.get("total", 0)), int(th.get("done", 0))

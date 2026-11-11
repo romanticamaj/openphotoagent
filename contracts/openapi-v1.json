@@ -8788,6 +8788,26 @@
         "summary": "Switch"
       }
     },
+    "/api/v1/search/caption-index/topup": {
+      "post": {
+        "operationId": "topup_index_api_v1_search_caption_index_topup_post",
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Topup Index Api V1 Search Caption Index Topup Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Topup Index"
+      }
+    },
     "/api/v1/selections": {
       "post": {
         "operationId": "create_selection_api_v1_selections_post",
