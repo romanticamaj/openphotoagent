@@ -10,7 +10,7 @@ import { Lightbox } from "../viewer/Lightbox";
 import type { GridApi } from "../viewer/PhotoGrid";
 import { api, isDegraded, mediaUrl, type SearchBody } from "../../lib/api";
 
-import { bodyFor, cappedNote, chipLabel, chipsFrom, countText, onlyByMeaning, softView, weakTail, withoutPerson, type Chip } from "./searchPlan";
+import { bodyFor, cappedNote, chipLabel, chipsFrom, countText, onlyByMeaning, softView, weakNeedsMore, weakTail, withoutPerson, type Chip } from "./searchPlan";
 
 export function SearchPage({ q }: { q: string }) {
   const { t, i18n } = useTranslation();
@@ -144,6 +144,10 @@ export function SearchPage({ q }: { q: string }) {
   const soft = first ? softView(t, first.soft, total, chips) : null;
   const weak = first ? weakTail(t, first.weak_from, first.weak ?? 0, showWeak, hits.length) : null;
   const shownHits = weak ? hits.slice(0, weak.from) : hits;
+  const loadWeak = weakNeedsMore(showWeak && Boolean(first?.weak), hits.length, total, Boolean(res.hasNextPage), res.isFetchingNextPage);
+  useEffect(() => {
+    if (loadWeak) void res.fetchNextPage(); // all the folded ones, not one more page (SRCH-SEM-009)
+  }, [loadWeak, res]);
   return (
     <section className="space-y-4 p-4" aria-labelledby="search-h">
       <div className="flex items-baseline gap-3">
@@ -270,10 +274,7 @@ export function SearchPage({ q }: { q: string }) {
         <Button
           variant="ghost"
           data-testid="weak-more"
-          onClick={() => {
-            setShowWeak(true);
-            if (weak.fetch) void res.fetchNextPage();
-          }}
+          onClick={() => setShowWeak(true)}
         >
           {weak.more}
         </Button>

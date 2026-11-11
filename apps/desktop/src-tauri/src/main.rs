@@ -494,6 +494,7 @@ fn reveal_in_file_manager(
 ) -> Result<(), String> {
     let list = roots::load(&shell.roots_file());
     let path = roots::resolve(&list, &root_alias, &rel_path).ok_or("not a photo in a root")?;
+    let path = roots::plain_path(&path); // Explorer selects nothing for a \\?\ path (DESK-063)
     #[cfg(windows)]
     let r = {
         use std::os::windows::process::CommandExt;

@@ -68,6 +68,19 @@ pub fn resolve(roots: &[Root], alias: &str, rel: &str) -> Option<std::path::Path
     full.starts_with(&base).then_some(full)
 }
 
+/// A path the OS file manager takes (DESK-063): canonicalize answers `\\?\C:\...` on Windows, which
+/// `explorer /select,` does not.
+pub fn plain_path(p: &Path) -> std::path::PathBuf {
+    let s = p.to_string_lossy();
+    if let Some(rest) = s.strip_prefix(r"\\?\UNC\") {
+        return std::path::PathBuf::from(format!(r"\\{rest}"));
+    }
+    if let Some(rest) = s.strip_prefix(r"\\?\") {
+        return std::path::PathBuf::from(rest);
+    }
+    p.to_path_buf()
+}
+
 /// Registers `path` and answers its alias. The same folder twice keeps one root: asking for write access upgrades it.
 pub fn add(roots: &mut Vec<Root>, path: &Path, mode: &str) -> String {
     let text = path.to_string_lossy().to_string();
@@ -171,6 +184,21 @@ mod tests {
         }
         assert!(resolve(&r, "nope", "trip/a.jpg").is_none());
         assert!(resolve(&r, "photos", "trip/missing.jpg").is_none());
+    }
+
+    #[test]
+    fn desk_063_the_file_manager_gets_a_plain_path() {
+        // 回歸 (audit round 28): Explorer opened the folder without selecting the photo: canonicalize gives
+        // `\\?\C:\...`, which `explorer /select,` does not take.
+        assert_eq!(
+            plain_path(Path::new(r"\\?\C:\t\photos\a.jpg")),
+            PathBuf::from(r"C:\t\photos\a.jpg")
+        );
+        assert_eq!(
+            plain_path(Path::new(r"\\?\UNC\nas\pics\a.jpg")),
+            PathBuf::from(r"\\nas\pics\a.jpg")
+        );
+        assert_eq!(plain_path(Path::new("/m/a.jpg")), PathBuf::from("/m/a.jpg"));
     }
 
     #[test]

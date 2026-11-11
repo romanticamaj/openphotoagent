@@ -111,3 +111,8 @@ export function weakTail(
   return { from, more: t("search.weakMore", { n: n.toLocaleString() }), fetch: loaded === from };
 }
 
+/** Once asked, the weak look-alikes all show: keep loading pages until they are in (SRCH-SEM-009). */
+export function weakNeedsMore(shown: boolean, loaded: number, total: number, hasNext: boolean, fetching: boolean): boolean {
+  return shown && hasNext && !fetching && loaded < total;
+}
+

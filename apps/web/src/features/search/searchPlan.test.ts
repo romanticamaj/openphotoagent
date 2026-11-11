@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import i18n from "../../lib/i18n";
-import { bodyFor, cappedNote, chipLabel, chipsFrom, countText, onlyByMeaning, softView, weakTail, withoutPerson } from "./searchPlan";
+import { bodyFor, cappedNote, chipLabel, chipsFrom, countText, onlyByMeaning, softView, weakNeedsMore, weakTail, withoutPerson } from "./searchPlan";
 
 const planner = (filters: Record<string, unknown>, explain: string[], text = "") => ({
   source: "rules",
@@ -112,6 +112,15 @@ describe("weak look-alikes across pages (SRCH-SEM-008)", () => {
     expect(weakTail(t, 186, 14, false, 100)).toBeNull(); // the strong ones are still coming
     expect(weakTail(t, 186, 14, false, 186)).toEqual({ from: 186, more: "顯示較不相關的 14 張", fetch: true }); // next page is them
     expect(weakTail(t, 186, 14, false, 200)).toEqual({ from: 186, more: "顯示較不相關的 14 張", fetch: false });
+  });
+});
+
+describe("showing the weak look-alikes (SRCH-SEM-009)", () => {
+  it("[SRCH-SEM-009] 回歸：按「顯示較不相關的 27 張」就載完 27 張，不必再按「載入更多」（驗證第 28 輪：只出現 13 張）", () => {
+    expect(weakNeedsMore(true, 213, 227, true, false)).toBe(true);
+    expect(weakNeedsMore(true, 213, 227, true, true)).toBe(false); // one page at a time
+    expect(weakNeedsMore(true, 227, 227, false, false)).toBe(false);
+    expect(weakNeedsMore(false, 100, 227, true, false)).toBe(false); // not asked: 「載入更多」 as usual
   });
 });
 
