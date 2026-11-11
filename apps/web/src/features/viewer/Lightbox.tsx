@@ -337,17 +337,18 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
             </ul>
           </details>
         ) : null}
+        {/* a small 「修改…」 chip beside the category, not a form in the middle of the panel (audit round 27) */}
         <form
-          className="mt-3 flex items-end gap-2"
+          className="mt-2 flex items-center gap-2"
           onSubmit={(e) => {
             e.preventDefault();
             if (pick) save.mutate();
           }}
         >
-          <label className="flex flex-col gap-1 text-sm">
-            <span>{t("lightbox.correct")}</span>
-            <select value={pick} onChange={(e) => setPick(e.target.value)} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-2 py-1">
-              <option value="">—</option>
+          <label className="text-sm">
+            <span className="sr-only">{t("lightbox.correct")}</span>
+            <select value={pick} onChange={(e) => setPick(e.target.value)} className="facet-chip cursor-pointer text-xs">
+              <option value="">{t("lightbox.correctShort")}</option>
               {(preset.data?.categories ?? []).map((c) => (
                 <option key={c.key} value={c.key}>
                   {c.name}
@@ -356,7 +357,7 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
             </select>
           </label>
           {pick ? (
-            <button type="submit" className="rounded-[var(--radius-md)] bg-[var(--accent)] px-3 py-1 text-[var(--accent-fg)]">{t("lightbox.correctSave")}</button>
+            <button type="submit" className="rounded-full bg-[var(--accent)] px-3 py-0.5 text-xs text-[var(--accent-fg)]">{t("lightbox.correctSave")}</button>
           ) : null}
         </form>
       </section>

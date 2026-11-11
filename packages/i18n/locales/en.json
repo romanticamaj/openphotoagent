@@ -478,7 +478,8 @@
     "saveFaceName": "Save",
     "faceNamePlaceholder": "e.g. Auntie, Max",
     "nameFacesSmall": "{n} more faces are too small to tell who they are.",
-    "showMoreFaces": "Show {n} more"
+    "showMoreFaces": "Show {n} more",
+    "correctShort": "Wrong category? Change…"
   },
   "onboarding": {
     "welcome": "Welcome to OpenPhotoAgent",
