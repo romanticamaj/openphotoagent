@@ -70,24 +70,23 @@ export function AddToAlbum({ assetIds }: { assetIds: string[] }) {
     },
   });
   return (
-    <div className="relative">
+    <div
+      className="relative"
+      onKeyDown={(e) => {
+        // the whole control, not only the menu: opened with the mouse, focus is still on its button (COL-011)
+        if (e.key !== "Escape" || !open) return;
+        e.stopPropagation(); // the menu closes, the Lightbox stays (COL-009)
+        setOpen(false);
+        opener.current?.focus();
+      }}
+    >
       <button ref={opener} type="button" aria-haspopup="menu" aria-expanded={open} aria-label={t("albums.addTo")} title={t("albums.addTo")} onClick={() => setOpen((o) => !o)} className="icon-button">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
           <path d="M4 7h11M4 12h11M4 17h7M18 14v6M15 17h6" />
         </svg>
       </button>
       {open ? (
-        <div
-          className="album-menu"
-          role="menu"
-          aria-label={t("albums.addTo")}
-          onKeyDown={(e) => {
-            if (e.key !== "Escape") return;
-            e.stopPropagation(); // the menu closes, the Lightbox stays (COL-009)
-            setOpen(false);
-            opener.current?.focus();
-          }}
-        >
+        <div className="album-menu" role="menu" aria-label={t("albums.addTo")}>
           {(list.data?.albums ?? [])
             .filter((a) => a.kind === "album")
             .map((a) => (

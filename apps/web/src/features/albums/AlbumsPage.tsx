@@ -2,11 +2,14 @@
 // Lightbox. Albums are database sets: deleting one keeps its photos (COL-004).
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, mediaUrl } from "../../lib/api";
 import { Lightbox } from "../viewer/Lightbox";
 import type { GridApi } from "../viewer/PhotoGrid";
+
+const UNDO_MS = 8000;
+const STAR = "★"; // a symbol, not words to translate
 
 export function AlbumsPage() {
   const { t } = useTranslation();
@@ -38,7 +41,14 @@ export function AlbumsPage() {
           <button type="submit" className="rounded-full bg-[var(--accent)] px-3 py-1 text-sm text-[var(--accent-fg)]">{t("albums.create")}</button>
         </form>
       </div>
-      <ul className="album-grid" data-testid="album-list">
+      {list.isSuccess && albums.length <= 1 && !albums[0]?.count ? (
+        // nothing yet: one explanation, not a bare 收藏 card beside a note (audit round 34)
+        <div data-testid="albums-empty" className="album-empty">
+          <span aria-hidden="true" className="text-3xl">{STAR}</span>
+          <p>{t("albums.empty")}</p>
+        </div>
+      ) : null}
+      <ul className="album-grid" data-testid="album-list" hidden={list.isSuccess && albums.length <= 1 && !albums[0]?.count}>
         {albums.map((a) => (
           <li key={a.id}>
             <Link to="/albums/$albumId" params={{ albumId: a.id }} className="album-card">
@@ -51,8 +61,6 @@ export function AlbumsPage() {
           </li>
         ))}
       </ul>
-      {/* under the cards: above them it read as a caption for 收藏 (audit round 33) */}
-      {list.isSuccess && albums.length <= 1 && !albums[0]?.count ? <p className="text-sm text-[var(--text-muted)]">{t("albums.empty")}</p> : null}
     </section>
   );
 }
@@ -66,6 +74,11 @@ export function AlbumPage({ albumId }: { albumId: string }) {
   const [renaming, setRenaming] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [removed, setRemoved] = useState<string | null>(null); // the last photo taken out, for 「復原」
+  useEffect(() => {
+    if (!removed) return;
+    const h = window.setTimeout(() => setRemoved(null), UNDO_MS); // offered for a while, then gone (audit round 34)
+    return () => window.clearTimeout(h);
+  }, [removed]);
   const photos = useMemo(() => q.data?.photos ?? [], [q.data]);
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: ["album", albumId] });

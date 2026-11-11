@@ -37,7 +37,7 @@ vi.mock("@tanstack/react-router", async (orig) => ({
   useNavigate: () => vi.fn(),
 }));
 
-import { AddToAlbum, FavoriteButton, typingIn } from "./AlbumButtons";
+import { AddToAlbum, FavoriteButton, typingIn, useFavorite } from "./AlbumButtons";
 import { AlbumPage } from "./AlbumsPage";
 
 const wrap = (el: React.ReactNode) => render(<QueryClientProvider client={new QueryClient()}>{el}</QueryClientProvider>);
@@ -121,6 +121,59 @@ describe("album page and menu (audit round 33)", () => {
     expect(screen.getByRole("alertdialog").textContent).toContain("照片不會被刪除");
     fireEvent.click(screen.getByRole("button", { name: "確定刪除" }));
     await waitFor(() => expect(s.deleteAlbum).toHaveBeenCalledWith("b1"));
+  });
+});
+
+describe("keys in the Lightbox (audit round 34)", () => {
+  it("[COL-011] 回歸：選單用滑鼠打開時，Esc 也只關選單", async () => {
+    s.albums.mockResolvedValue({ albums: [] });
+    const outer = vi.fn();
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <div onKeyDown={outer}>
+          <AddToAlbum assetIds={["a1"]} />
+        </div>
+      </QueryClientProvider>,
+    );
+    const opener = screen.getByRole("button", { name: "加入相簿" });
+    fireEvent.click(opener);
+    await screen.findByRole("menu");
+    fireEvent.keyDown(opener, { key: "Escape" }); // focus is still on the button it was opened with
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(outer).not.toHaveBeenCalled();
+  });
+
+  it("[COL-012] 回歸：F 在換照片後仍然有效（驗證第 34 輪：只有第一次有效）", async () => {
+    s.setFavorite.mockReset();
+    s.setFavorite.mockResolvedValue({ favorite: true });
+    s.fav = false;
+    function Probe({ id }: { id: string }) {
+      const f = useFavorite(id);
+      return (
+        <button type="button" aria-disabled={!f.ready} onClick={f.toggle}>
+          {id}
+        </button>
+      );
+    }
+    const qc = new QueryClient();
+    const { rerender } = render(
+      <QueryClientProvider client={qc}>
+        <Probe id="a1" />
+      </QueryClientProvider>,
+    );
+    const b1 = await screen.findByRole("button", { name: "a1" });
+    await waitFor(() => expect(b1.getAttribute("aria-disabled")).toBe("false"));
+    fireEvent.click(b1);
+    await waitFor(() => expect(s.setFavorite).toHaveBeenCalledWith("a1", true));
+    rerender(
+      <QueryClientProvider client={qc}>
+        <Probe id="a2" />
+      </QueryClientProvider>,
+    );
+    const b2 = await screen.findByRole("button", { name: "a2" });
+    await waitFor(() => expect(b2.getAttribute("aria-disabled")).toBe("false"));
+    fireEvent.click(b2);
+    await waitFor(() => expect(s.setFavorite).toHaveBeenCalledWith("a2", expect.any(Boolean)));
   });
 });
 

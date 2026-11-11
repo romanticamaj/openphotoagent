@@ -975,4 +975,5 @@ body {
 .album-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 2px; }
 .album-tile { position: relative; aspect-ratio: 1; overflow: hidden; border-radius: var(--radius-photo); background: var(--surface-2); }
 .album-tile:hover .album-remove, .album-remove:focus-visible { opacity: 1; }
+.album-empty { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; padding: 3rem 1rem; border: 1px dashed var(--border); border-radius: var(--radius-md); color: var(--text-muted); text-align: center; }
 
