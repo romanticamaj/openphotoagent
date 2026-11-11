@@ -45,11 +45,17 @@ export function CaptionIndex() {
       {b ? (
         <div className="space-y-2">
           <p className="text-sm">{t("captionIndex.building", { model: b.model_key })}</p>
-          <progress max={Math.max(1, b.total)} value={b.done} aria-label={t("captionIndex.progress")} className="w-full" />
-          <p className="tnum text-xs text-[var(--text-muted)]">
-            {b.done.toLocaleString()} / {b.total.toLocaleString()}
-          </p>
-          {op ? <OperationProgress op={op as unknown as Op} /> : null}
+          {/* one bar: the Operation's once it is in (time left included), a plain one until then (SRCH-R2-012) */}
+          {op ? (
+            <OperationProgress op={op as unknown as Op} />
+          ) : (
+            <>
+              <progress max={Math.max(1, b.total)} value={b.done} aria-label={t("captionIndex.progress")} className="w-full" />
+              <p className="tnum text-xs text-[var(--text-muted)]">
+                {b.done.toLocaleString()} / {b.total.toLocaleString()}
+              </p>
+            </>
+          )}
           <Button
             variant="ghost"
             disabledReason={b.ready ? null : { code: "REINDEX_NOT_READY", message: t("captionIndex.notReady") }}
