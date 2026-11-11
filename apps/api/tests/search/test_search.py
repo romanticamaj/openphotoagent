@@ -1008,3 +1008,18 @@ def test_srch_cnc_015_the_vectors_are_not_asked_the_implied_scene(s, monkeypatch
     s.search(q="在海邊衝浪")
     texts = [t for m, t in asked if m in ("image", "caption")]
     assert texts and not any("beach" in t or "海邊" in t or "sea" in t.split() for t in texts), texts
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-SEM-010")
+def test_srch_sem_010_photos_shown_first_are_never_the_weak_ones():
+    """回歸 (audit round 39): 「小孩踢球很開心」 folded the 11 happy photos as 「較不相關」. They came in through the
+    expression (no route had them, so nothing was recorded as finding them) and an empty set passed 「the image model
+    alone」. Weak means found by the image model alone, far under the best, and not among the photos shown first."""
+    from opagent_api.search import weak_ids
+
+    cos = {"a": 0.30, "b": 0.29, "happy": 0.10, "far": 0.12}
+    matched = {"a": ["image_vector"], "b": ["image_vector", "tag"], "far": ["image_vector"]}
+    ranked = ["happy", "a", "b", "far"]
+    assert weak_ids(ranked, matched, cos, first={"happy"}) == ["far"]
+    assert weak_ids(["a"], {"a": ["image_vector"]}, {"a": 0.3}, first=set()) == []  # the best is not weak

@@ -221,8 +221,26 @@ def _ft(c: Any, where: list[Any], tsq: str, en: str) -> list[str]:
 
 
 MAX_CONCEPTS = 5
+
+
 # standing in for a concept, a caption meaning must be closer than the route's floor: on the reference library
 # 0.5 + 0.06 lets in 0.05% of irrelevant photos against 1.65% at 0.5 (「小孩在玩水」 had 8 hits, none in water)
+def weak_ids(
+    ranked: list[str], matched: dict[str, list[str]], image_cos: dict[str, float], first: set[str]
+) -> list[str]:
+    """The weak look-alikes (ADR-0040): found by the image model alone — that and nothing else, SRCH-SEM-010 — far
+    under the best image match, and not among the photos shown first (an expression's)."""
+    best = max((image_cos[a] for a in ranked if "image_vector" in matched.get(a, []) and a in image_cos), default=None)
+    if best is None:
+        return []
+    weak = [
+        a
+        for a in ranked
+        if a not in first and matched.get(a) == ["image_vector"] and image_cos.get(a, best) < best - WEAK_GAP
+    ]
+    return [] if len(weak) == len(ranked) else weak  # nothing strong: the list is not folded away whole
+
+
 # image-only matches this far under the query's best are 2-30% relevant on the reference library (ADR-0040)
 WEAK_GAP = 0.06
 # a tag the VLM seldom gives small, moving faces: beside other concepts it ranks, never filters (SRCH-CNC-007)
@@ -449,6 +467,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
     concepts: list[Any] = []
     soft_out: list[dict[str, Any]] = []
     image_cos: dict[str, float] = {}
+    shown_first: set[str] = set()  # the photos an expression put first: never weak (SRCH-SEM-010)
     weak: list[str] = []
     member: list[Any] = []  # ADR-0005: the match set (total, facets, selection) — not just the ranking window
     mode = None
@@ -581,6 +600,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                     )
                 ]
                 first = set(lit)
+                shown_first = first
                 ranked = (
                     [a for a in ranked if a in first]
                     + [a for a in lit if a not in set(ranked)]
@@ -598,16 +618,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                 ]
             if image_cos and not n_tail:
                 # found by the image model alone and far under the best: last, and folded away (ADR-0040)
-                best = max((image_cos[a] for a in routes.get("image_vector") or []), default=None)
-                weak = [
-                    a
-                    for a in ranked
-                    if best is not None
-                    and set(matched.get(a, [])) <= {"image_vector"}
-                    and image_cos.get(a, best) < best - WEAK_GAP
-                ]
-                if len(weak) == len(ranked):
-                    weak = []  # nothing strong: the list is not folded away whole
+                weak = weak_ids(ranked, matched, image_cos, shown_first)
                 ranked = [a for a in ranked if a not in set(weak)] + weak
             if (len(concepts) > 1 or soft) and len(ranked) + n_tail < PER_ROUTE:
                 # every concept required: fewer than a route's limit is the whole answer, not the top of a longer
