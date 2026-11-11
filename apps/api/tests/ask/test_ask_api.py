@@ -397,3 +397,33 @@ def test_ask_one_004_a_question_typed_in_this_photo_is_about_it(m, monkeypatch):
         ev = ask(m, q, FakeLLM(), context={"photo_ids": [m.cats[0]], "scope": "photo"})
         assert ev[0][1]["intent"] == "single", q
     assert [t for _, t in asked] == ["這隻貓是什麼顏色？", "背景有幾隻大象？", "牠在做什麼？"]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-RET-001")
+def test_ask_ret_001_the_count_leaves_out_the_weak_look_alikes(m, monkeypatch):
+    """回歸 (audit round 31): 「有沒有小孩在畫畫的照片？」 said 224, the search page 162 and 62 less related: the folded
+    look-alikes (ADR-0040) were counted as finds."""
+    import opagent_api.search as S
+
+    real = S.run_search
+
+    def with_weak(st, body):
+        r = real(st, body)
+        return {**r, "weak": 2, "weak_from": max(0, r["total"] - 2)} if r["total"] > 2 else r
+
+    monkeypatch.setattr(S, "run_search", with_weak)
+    ev = ask(m, "海邊的貓", FakeLLM())
+    photos = next(d for e, d in ev if e == "photos")
+    assert photos["total"] == 3  # 5 found, 2 of them weak
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-RET-002")
+def test_ask_ret_002_a_yes_or_no_question_is_answered_yes(m):
+    """回歸 (audit round 31): 「有沒有…的照片？」 answered only 「找到 224 張」, never 「有」."""
+    ev = ask(m, "有沒有海邊的貓的照片？", FakeLLM())
+    text = "".join(d["text"] for e, d in ev if e == "token")
+    assert text.startswith("有，") and "5" in text and "[[photo:" in text
+    ev = ask(m, "有沒有長頸鹿的照片？", FakeLLM())
+    assert "".join(d["text"] for e, d in ev if e == "token").startswith("找不到")

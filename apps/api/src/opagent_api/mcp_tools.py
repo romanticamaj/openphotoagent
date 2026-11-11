@@ -375,6 +375,7 @@ def search_photos(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
     return {
         "results": results,
         "total_estimate": int(r["total"]),
+        "weak": int(r.get("weak") or 0),  # the folded look-alikes at the end (ADR-0040)
         "next_cursor": nxt,
         "selection_id": sel,
         "applied_filters": {k: v for k, v in (body["filters"] or {}).items() if v and k not in ("within", "scope")},

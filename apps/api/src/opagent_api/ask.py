@@ -48,6 +48,7 @@ NEVER_OFFERED = {"apply_organize", "undo_organize"}  # 10 §8.3: the assistant c
 ACTION = re.compile(r"整理|移到|移動到|複製到|搬到|加到|標上|copy|move", re.IGNORECASE)
 COMPLEX = re.compile(r"比較|每月|每年|誰|趨勢|哪一年|which year|compare", re.IGNORECASE)
 SINGLE = re.compile(r"這張|this photo")
+YES_NO = re.compile(r"有沒有|有嗎|是否有|any\b|are there|is there", re.IGNORECASE)
 EDITED = "使用你編輯的條件"
 WHERE = re.compile(r"哪裡|在哪|where", re.IGNORECASE)
 WHEN = re.compile(r"什麼時候|何時|哪一天|幾月|when", re.IGNORECASE)
@@ -641,6 +642,7 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
     yield "step.completed", completed(sid, t0, "ok", "；".join(explain) or "以文字搜尋")
 
     seen: set[str] = set()
+    ordered_seen: list[str] = []  # the search's order, for the photos a yes answer cites
     counts: list[int] = []
     count_labels: list[str] = []
     hits_text: list[str] = []
@@ -674,7 +676,10 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
                 if how & {"image_vector", "caption_vector"}:
                     vector_hits.append(r["id"])
             seen.update(ids)
+            ordered_seen.extend(ids)
             total = int(out.get("total_estimate", out.get("total", len(ids))))
+            # the folded look-alikes are not finds: 224 where the search page showed 162 (ASK-RET-001, ADR-0040)
+            total = max(0, total - int(out.get("weak") or 0))
             with st.engine.begin() as hc:
                 hashes = dict(
                     hc.execute(select(asset.c.id, asset.c.content_hash).where(asset.c.id.in_(ids or ["-"]))).all()
@@ -869,6 +874,10 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
             answer = (answer.rstrip() + f"（依工具計數：{facts}）").strip()
         if not answer and counts:
             answer = f"共有 {counts[0]:,} 張。"
+        if not answer and total and intent == "retrieval" and YES_NO.search(body.message):
+            # 「有沒有…？」 is answered yes first, with a few of them (ASK-RET-002)
+            some = " ".join(f"[[photo:{i}]]" for i in list(dict.fromkeys(ordered_seen))[:3])
+            answer = f"有，找到 {total:,} 張，例如：{some}"
         for chunk in re.findall(r".{1,24}", answer, re.S):
             yield "token", {"text": chunk}
         for i, m in enumerate(G.CITE.finditer(answer)):
