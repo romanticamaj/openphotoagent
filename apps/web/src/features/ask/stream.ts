@@ -151,3 +151,18 @@ export async function streamAsk(body: Record<string, unknown>, on: (e: SseEvent)
     out.events.forEach(on);
   }
 }
+
+/** What 「問這張」 says besides the answer (ASK-ONE-003): the step it is on, or that no answer came. */
+export function photoStatus(turn: Turn | undefined, lang: string): string | null {
+  if (!turn) return null;
+  const zh = lang.startsWith("zh");
+  if (turn.status === "streaming") {
+    const step = [...turn.steps].reverse().find((s) => s.status === "running");
+    return `${step?.label ?? (zh ? "思考中" : "Thinking")}…`;
+  }
+  if (turn.text.trim()) return null;
+  if (turn.status === "failed") return zh ? "出了點問題，請再問一次。" : "Something went wrong. Ask again.";
+  if (turn.status === "completed") return zh ? "沒有得到回答，請再問一次。" : "No answer came. Ask again.";
+  return null;
+}
+

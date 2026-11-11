@@ -14,6 +14,7 @@ import hashlib
 import io
 import json
 import posixpath
+from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
@@ -1350,6 +1351,8 @@ def list_collections(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
 
 
 VLM_WAIT_S = 5.0
+# how long a caller waits for the VLM; 問 AI waits longer than an MCP client, which can poll the job (ASK-ONE-001)
+VLM_WAIT: ContextVar[float | None] = ContextVar("vlm_wait", default=None)
 
 
 def _vlm(ctx: Ctx, mode: str, ids: list[str], text_: str) -> dict[str, Any] | None:
@@ -1382,7 +1385,7 @@ def _vlm(ctx: Ctx, mode: str, ids: list[str], text_: str) -> dict[str, Any] | No
             )
         )
     self_tid = tid
-    wait = float(getattr(ctx.st, "vlm_wait_s", VLM_WAIT_S))
+    wait = VLM_WAIT.get() or float(getattr(ctx.st, "vlm_wait_s", VLM_WAIT_S))
     deadline = time.monotonic() + wait  # noqa: TID251 - waits on a real worker over the wire
     while time.monotonic() < deadline:  # noqa: TID251
         with ctx.st.engine.begin() as c:

@@ -344,3 +344,35 @@ def test_ask_ui_012_answer_photos_carry_the_thumbnail_hash(m):
     ev = ask(m, "海邊的貓", FakeLLM([_cite_first]))
     items = next(d for e, d in ev if e == "photos")["items"]
     assert items and all(i.get("ch") for i in items)
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-ONE-001")
+def test_ask_one_001_this_photo_waits_for_the_model_and_answers(m, monkeypatch):
+    """回歸 (audit round 29): 「問這張」 showed nothing. The VLM answered in 7-19 s; the tool waited 5 s, reported
+    "queued", and the turn ended with no text. A question about one photo waits for the model."""
+    import opagent_api.mcp_tools as H
+
+    waited = []
+
+    def vlm(ctx, mode, ids, text_):
+        waited.append(H.VLM_WAIT.get())
+        return {"answer": "一頭小象正視鏡頭，背景有其他象群。", "model": "qwen3-vl", "latency_ms": 12000}
+
+    monkeypatch.setattr(H, "_vlm", vlm)
+    ev = ask(m, "這張照片裡有什麼？", FakeLLM(), context={"photo_ids": [m.cats[0]]})
+    text = "".join(d["text"] for e, d in ev if e == "token")
+    assert waited and (waited[0] or 0) >= 30
+    assert "小象" in text
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-ONE-002")
+def test_ask_one_002_a_model_still_busy_is_said(m, monkeypatch):
+    """回歸 (audit round 29): when the model has not answered in time, say so; an empty turn looked broken."""
+    import opagent_api.mcp_tools as H
+
+    monkeypatch.setattr(H, "_vlm", lambda ctx, mode, ids, text_: {"queued": True, "task_id": "t1"})
+    ev = ask(m, "這張照片裡有什麼？", FakeLLM(), context={"photo_ids": [m.cats[0]]})
+    text = "".join(d["text"] for e, d in ev if e == "token")
+    assert "還在看這張照片" in text

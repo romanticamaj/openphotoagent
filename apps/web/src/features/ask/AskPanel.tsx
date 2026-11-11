@@ -7,7 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, mediaUrl } from "../../lib/api";
-import { initialTurn, reduce, renderAnswer, seconds, streamAsk, type Step, type Turn } from "./stream";
+import { initialTurn, photoStatus, reduce, renderAnswer, seconds, streamAsk, type Step, type Turn } from "./stream";
 
 const SLOW_OK = "opa.ask.slowLocal";
 
@@ -292,7 +292,7 @@ export function AskPanel({ open, onClose }: { open: boolean; onClose: () => void
 
 /** Lightbox: ask about this one photo (10 §9.1). Metadata answers first; nothing is guessed. */
 export function AskPhoto({ assetId }: { assetId: string }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const sugg = useQuery({ queryKey: ["ask-suggestions", assetId], queryFn: () => api.askSuggestions(assetId) });
   const { turns, busy, run } = useAsk();
   const [q, setQ] = useState("");
@@ -335,6 +335,11 @@ export function AskPhoto({ assetId }: { assetId: string }) {
           </svg>
         </button>
       </form>
+      {photoStatus(last, i18n.language) ? (
+        <p role="status" data-testid="ask-photo-status" className="text-sm text-[var(--text-muted)]">
+          {photoStatus(last, i18n.language)}
+        </p>
+      ) : null}
       {last?.text ? <Answer text={last.text} /> : null}
     </section>
   );
