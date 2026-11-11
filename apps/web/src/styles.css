@@ -961,3 +961,16 @@ body {
 .ask-photo-field { display: flex; align-items: center; gap: 0.25rem; border: 1px solid var(--border); border-radius: 9999px; background: var(--bg); padding: 0.2rem 0.25rem 0.2rem 0.75rem; }
 .ask-photo-field:focus-within { border-color: var(--accent); }
 
+/* albums (ADR-0041) */
+.album-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1rem; }
+.album-card { display: block; border-radius: var(--radius-md); padding: 0.25rem; transition: background-color 120ms ease; }
+.album-card:hover { background: var(--surface-2); }
+.album-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.album-cover { aspect-ratio: 1; border-radius: var(--radius-md); overflow: hidden; background: var(--surface-2); display: flex; align-items: center; justify-content: center; font-size: 2rem; color: var(--text-muted); margin-bottom: 0.4rem; }
+.album-cover img { width: 100%; height: 100%; object-fit: cover; }
+.album-menu { position: absolute; right: 0; top: 100%; z-index: 30; min-width: 220px; display: flex; flex-direction: column; gap: 0.15rem; padding: 0.4rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); box-shadow: 0 8px 24px rgb(0 0 0 / 0.25); }
+.album-menu [role="menuitem"] { display: flex; justify-content: space-between; gap: 0.75rem; text-align: left; padding: 0.3rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.875rem; }
+.album-menu [role="menuitem"]:hover, .album-menu [role="menuitem"]:focus-visible { background: var(--surface-2); }
+.album-remove { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border-radius: 9999px; background: rgb(0 0 0 / 0.55); color: #fff; opacity: 0; transition: opacity 120ms ease; }
+.tile:hover .album-remove, .album-remove:focus-visible { opacity: 1; }
+

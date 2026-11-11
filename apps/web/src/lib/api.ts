@@ -87,7 +87,12 @@ export type Label = {
   tags: string[] | null;
   tag_names?: Record<string, string>;
 };
+export type Album = { id: string; name: string; kind: "favorites" | "album"; count: number; cover: { asset_id: string; ch: string | null } | null };
+export type AlbumDetail = { id: string; name: string; kind: "favorites" | "album"; photos: Array<{ asset_id: string; ch: string | null; taken_at: string | null }> };
 export type AssetInfo = {
+  /** ★ and the albums it is in (ADR-0041) */
+  favorite?: boolean;
+  albums?: Array<{ id: string; name: string }>;
   id: string;
   width: number | null;
   height: number | null;
@@ -342,6 +347,14 @@ export const api = {
     req<FolderPreview>("GET", `/fs/preview?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`),
   folderThumb: (root: string, path: string) =>
     req<{ thumbnail_b64: string }>("GET", `/fs/thumb?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`),
+  albums: () => req<{ albums: Album[] }>("GET", "/albums"),
+  album: (id: string) => req<AlbumDetail>("GET", `/albums/${encodeURIComponent(id)}`),
+  createAlbum: (name: string) => req<{ id: string; name: string }>("POST", "/albums", { name }),
+  renameAlbum: (id: string, name: string) => req<{ id: string; name: string }>("PATCH", `/albums/${encodeURIComponent(id)}`, { name }),
+  deleteAlbum: (id: string) => req<unknown>("DELETE", `/albums/${encodeURIComponent(id)}`),
+  addToAlbum: (id: string, asset_ids: string[]) => req<{ count: number }>("POST", `/albums/${encodeURIComponent(id)}/photos`, { asset_ids }),
+  removeFromAlbum: (id: string, assetId: string) => req<{ count: number }>("DELETE", `/albums/${encodeURIComponent(id)}/photos/${encodeURIComponent(assetId)}`),
+  setFavorite: (assetId: string, on: boolean) => req<{ favorite: boolean }>(on ? "PUT" : "DELETE", `/assets/${encodeURIComponent(assetId)}/favorite`),
   analysisStatus: (lang: string) => req<AnalysisStatus>("GET", `/analysis/status?lang=${encodeURIComponent(lang)}`),
   analyzeSource: (id: string) => req<{ job_id: string }>("POST", `/sources/${encodeURIComponent(id)}/analyze`),
   createSource: (root_alias: string, sub_path: string) => req<{ id: string }>("POST", "/sources", { root_alias, sub_path }),

@@ -14,6 +14,20 @@
         "title": "AcceptIn",
         "type": "object"
       },
+      "AlbumIn": {
+        "properties": {
+          "name": {
+            "maxLength": 200,
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "title": "AlbumIn",
+        "type": "object"
+      },
       "ApplyIn": {
         "properties": {
           "candidate": {
@@ -1666,6 +1680,24 @@
           "person_id"
         ],
         "title": "PersonIn",
+        "type": "object"
+      },
+      "PhotosIn": {
+        "properties": {
+          "asset_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "minItems": 1,
+            "title": "Asset Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "asset_ids"
+        ],
+        "title": "PhotosIn",
         "type": "object"
       },
       "PlanIn": {

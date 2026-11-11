@@ -17,6 +17,7 @@ from . import (
     immich,
     labelstudio,
     mcp_server,
+    routes_albums,
     routes_basemap,
     routes_bench,
     routes_caption,
@@ -173,6 +174,7 @@ def create_app(
     app.include_router(routes_doctor.router, prefix="/api/v1")
     app.include_router(routes_viewer.router, prefix="/api/v1")
     app.include_router(routes_basemap.router, prefix="/api/v1")
+    app.include_router(routes_albums.router, prefix="/api/v1")
     app.include_router(routes_selection.router, prefix="/api/v1")
     app.include_router(search.router, prefix="/api/v1")
     app.include_router(search.worker_router, prefix="/worker-api/v1")

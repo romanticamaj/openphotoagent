@@ -390,7 +390,8 @@
     "groupLibrary": "Library",
     "groupWork": "Work",
     "groupSystem": "System",
-    "explore": "Categories"
+    "explore": "Categories",
+    "albums": "Albums"
   },
   "viewer": {
     "title": "Photos",
@@ -1037,5 +1038,26 @@
     "noneHint": "Import a folder and AI analyses each photo. The results show up here.",
     "analyseRest": "Analyse the remaining {n}",
     "started": "Analysis started. Progress is in the corner."
+  },
+  "albums": {
+    "title": "Albums",
+    "favorite": "Add to favourites",
+    "unfavorite": "Remove from favourites",
+    "addTo": "Add to album",
+    "newName": "New album name",
+    "createAndAdd": "Create and add",
+    "added": "Added to “{name}”",
+    "favorites": "Favourites",
+    "empty": "No photos yet. Press ★ or “Add to album” on a photo.",
+    "count": "{n} photos",
+    "create": "New album",
+    "rename": "Rename",
+    "delete": "Delete album",
+    "deleteNote": "Only the album goes; the photos stay.",
+    "remove": "Remove from album",
+    "back": "← All albums",
+    "none": "No albums yet.",
+    "save": "Save",
+    "open": "Open photo"
   }
 }

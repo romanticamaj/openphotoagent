@@ -36,6 +36,8 @@ const EXTRA: Record<string, (p: Page, lang: string) => Promise<void>> = {
   "/settings/faces": async (p, l) => void (await go(p, "/settings/faces", l), await p.locator("main").waitFor()),
   "/approvals/$approvalId": async (p, l) => void (await go(p, "/approvals/ap_missing", l), await p.locator("main").waitFor()),
   "/login": async (p, l) => void (await go(p, "/login", l), await p.locator("#login-h").waitFor()),
+  "/albums": async (p, l) => void (await go(p, "/albums", l), await heading(p)),
+  "/albums/$albumId": async (p, l) => void (await go(p, "/albums/fav-default", l), await heading(p)),
 };
 
 test("[A11Y-010] every route of the app has an accessibility check", () => {

@@ -134,6 +134,7 @@ def get_asset(asset_id: str, req: Request, lang: str = "zh-TW") -> dict[str, Any
     """Lightbox info panel: every label with its decision layer and model fingerprint (INF-CAS-005)."""
     from opagent_core.decide import Policy
 
+    from .routes_albums import asset_albums
     from .search import tag_names
 
     with _st(req).engine.begin() as c:
@@ -179,6 +180,7 @@ def get_asset(asset_id: str, req: Request, lang: str = "zh-TW") -> dict[str, Any
             "faces_state": _faces_state(c, [r.source_id for r in locs]),
             "faces_found": _faces_found(c, asset_id),
             "unknown_faces": _unknown_faces(c, asset_id),
+            **dict(zip(("favorite", "albums"), asset_albums(c, asset_id), strict=True)),  # ADR-0041
         }
 
 

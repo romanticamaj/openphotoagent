@@ -390,7 +390,8 @@
     "groupLibrary": "圖庫",
     "groupWork": "工作",
     "groupSystem": "系統",
-    "explore": "分類"
+    "explore": "分類",
+    "albums": "相簿"
   },
   "viewer": {
     "title": "照片",
@@ -1037,5 +1038,26 @@
     "noneHint": "匯入資料夾後，AI 會分析每張照片，結果會顯示在這裡。",
     "analyseRest": "分析剩下的 {n} 張",
     "started": "已開始分析，進度在右下角"
+  },
+  "albums": {
+    "title": "相簿",
+    "favorite": "加入收藏",
+    "unfavorite": "取消收藏",
+    "addTo": "加入相簿",
+    "newName": "新相簿名稱",
+    "createAndAdd": "建立並加入",
+    "added": "已加入「{name}」",
+    "favorites": "收藏",
+    "empty": "還沒有照片。在照片上按 ★ 或「加入相簿」。",
+    "count": "{n} 張",
+    "create": "新增相簿",
+    "rename": "改名",
+    "delete": "刪除相簿",
+    "deleteNote": "只刪除相簿，照片不會被刪除。",
+    "remove": "從相簿移除",
+    "back": "← 所有相簿",
+    "none": "還沒有相簿。",
+    "save": "儲存",
+    "open": "開啟照片"
   }
 }

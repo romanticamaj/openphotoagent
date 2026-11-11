@@ -1,6 +1,7 @@
 // Lightbox (10 §3): progressive ThumbHash → t512 → p1024, neighbours preloaded, zoom/pan, filmstrip, `I` info
 // panel with EXIF and every AI label's model and decision layer, inline correction (→ review), reveal in file
 // manager on desktop only. role="dialog" aria-modal; position is announced through aria-live.
+import { AddToAlbum, FavoriteButton, typingIn, useFavorite } from "../albums/AlbumButtons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { FaceCrop } from "../../components/FaceCrop";
@@ -64,16 +65,19 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
   }, []);
 
   const close = useCallback(() => onClose(asset?.id ?? null), [asset, onClose]);
+  const favRef = useRef<() => void>(() => undefined); // F: ★ the photo on screen (ADR-0041)
   const go = useCallback((d: number) => setOrd((o) => Math.max(0, Math.min(grid.total - 1, o + d))), [grid.total]);
 
   const onKey = (e: React.KeyboardEvent) => {
-    if ((e.target as HTMLElement).tagName === "SELECT") return;
+    if (typingIn(e.target)) return; // text in a field, not a shortcut (COL-008)
     const k: Record<string, () => void> = {
       Escape: close,
       ArrowLeft: () => go(-1),
       ArrowRight: () => go(1),
       i: () => setShowInfo((s) => !s),
       I: () => setShowInfo((s) => !s),
+      f: () => favRef.current(),
+      F: () => favRef.current(),
       "+": () => setScale((s) => Math.min(8, s * 1.5)),
       "=": () => setScale((s) => Math.min(8, s * 1.5)),
       "-": () => setScale((s) => Math.max(1, s / 1.5)),
@@ -102,6 +106,9 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
         <span className="flex-1" />
         <button type="button" onClick={() => setScale((s) => Math.max(1, s / 1.5))} aria-label={t("lightbox.zoomOut")} className="px-2">−</button>
         <button type="button" onClick={() => setScale((s) => Math.min(8, s * 1.5))} aria-label={t("lightbox.zoomIn")} className="px-2">+</button>
+        {asset ? <FavoriteHotkey assetId={asset.id} bind={favRef} /> : null}
+        {asset ? <FavoriteButton assetId={asset.id} /> : null}
+        {asset ? <AddToAlbum assetIds={[asset.id]} /> : null}
         <button type="button" aria-pressed={showInfo} onClick={() => setShowInfo((s) => !s)} className="rounded-[var(--radius-sm)] px-2 py-1 hover:bg-[var(--surface-2)]">{t("lightbox.info")}</button>
       </div>
       <div
@@ -404,6 +411,13 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
       )}
     </aside>
   );
+}
+
+/** Binds the F key to this photo's ★ (ADR-0041). */
+function FavoriteHotkey({ assetId, bind }: { assetId: string; bind: React.MutableRefObject<() => void> }) {
+  const fav = useFavorite(assetId);
+  bind.current = fav.toggle;
+  return null;
 }
 
 const FACT_ICONS = ["calendar", "camera", "lens", "aperture", "size"] as const;
