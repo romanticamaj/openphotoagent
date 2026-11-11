@@ -7,6 +7,9 @@ import { useTranslation } from "react-i18next";
 import { Button } from "../../components/Button";
 import { api, mediaUrl, type DuplicateGroup } from "../../lib/api";
 import { formatBytes } from "../../lib/format";
+import { cardMembers } from "./cardMembers";
+
+const CARD_MAX = 4; // thumbnails on a card; the rest are counted
 
 function dropCount(g: DuplicateGroup): number {
   return g.members.length - 1;
@@ -65,15 +68,27 @@ export function DuplicatesPage() {
                   <span>{t(g.reason === "hash" ? "duplicates.exact" : "duplicates.near")}</span>
                   <span className="tnum text-[var(--text-muted)]">{t("duplicates.reclaimable", { size: formatBytes(g.reclaimable_bytes, i18n.language) })}</span>
                 </label>
-                <div className="flex gap-2">
-                  {g.members.map((m, i) => (
-                    <figure key={`${m.asset_id}-${i}`} className="w-24 space-y-1">
-                      <img src={mediaUrl(m.asset_id, "t256", m.ch)} alt="" className="aspect-square w-full rounded-[var(--radius-photo)] object-cover" />
-                      <figcaption className="truncate text-xs" title={m.rel_path ?? ""}>
-                        {(g.reason === "hash" ? i === 0 : m.asset_id === g.representative.asset_id) ? t("duplicates.representative") : m.rel_path}
-                      </figcaption>
-                    </figure>
-                  ))}
+                <div className="flex flex-wrap gap-2">
+                  {(() => {
+                    const c = cardMembers(g.members, g.representative.asset_id, CARD_MAX);
+                    return (
+                      <>
+                        {c.shown.map((m, i) => (
+                          <figure key={`${m.asset_id}-${i}`} className="w-24 min-w-0 space-y-1">
+                            <img src={mediaUrl(m.asset_id, "t256", m.ch)} alt="" className="aspect-square w-full rounded-[var(--radius-photo)] object-cover" />
+                            <figcaption className={i === 0 ? "truncate text-xs font-medium" : "truncate text-xs text-[var(--text-muted)]"} title={m.rel_path ?? ""}>
+                              {i === 0 ? t("duplicates.representative") : m.rel_path}
+                            </figcaption>
+                          </figure>
+                        ))}
+                        {c.more ? (
+                          <div className="grid aspect-square w-24 place-items-center rounded-[var(--radius-photo)] bg-[var(--surface-2)] text-sm text-[var(--text-muted)] tnum">
+                            +{c.more.toLocaleString(i18n.language)}
+                          </div>
+                        ) : null}
+                      </>
+                    );
+                  })()}
                 </div>
               </li>
             ))}

@@ -106,3 +106,21 @@ def test_col_017_adding_a_selection_can_be_undone_exactly(m):
     assert get(m, f"/assets/{m.ids[0]}")["favorite"] is True
     assert get(m, f"/assets/{m.ids[1]}")["favorite"] is False
     assert send(m, "POST", "/albums/nope/photos/remove", {"asset_ids": m.ids[:1]}).status_code == 404
+
+
+@pytest.mark.integration
+@pytest.mark.tc("COL-023")
+def test_col_023_an_album_photo_has_the_date_the_timeline_shows(m):
+    """回歸 (audit rounds 51-53): a photo with no capture date was 「未知日期」 in an album but 2026-11-05 on the
+    timeline, which places it by its file time. The album uses the same date."""
+    from sqlalchemy import text
+
+    with m.eng.begin() as c:
+        c.execute(
+            text("update asset set taken_at = null, local_at = '2026-11-05 10:00' where id = :a"), {"a": m.ids[0]}
+        )
+        c.execute(text("insert into index_outbox(asset_id) values (:a)"), {"a": m.ids[0]})  # as a change does
+    m.index()
+    send(m, "PUT", f"/assets/{m.ids[0]}/favorite")
+    photos = get(m, "/albums/fav-default")["photos"]
+    assert photos[0]["taken_at"] and photos[0]["taken_at"].startswith("2026-11-05")

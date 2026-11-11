@@ -1087,7 +1087,8 @@
     "confirm": "Delete",
     "cancel": "Cancel",
     "removed": "Removed from the album",
-    "undo": "Undo"
+    "undo": "Undo",
+    "undoFailed": "Not undone. Please try again."
   },
   "memories": {
     "onThisDay": "On this day",

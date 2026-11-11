@@ -1087,7 +1087,8 @@
     "confirm": "確定刪除",
     "cancel": "取消",
     "removed": "已從相簿移除",
-    "undo": "復原"
+    "undo": "復原",
+    "undoFailed": "沒有復原，請再試一次"
   },
   "memories": {
     "onThisDay": "那年今日",

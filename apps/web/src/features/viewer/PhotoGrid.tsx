@@ -272,7 +272,9 @@ export function PhotoGrid({
       moveFocus(dir);
       if (!e.shiftKey || !onPick || !moved || moved === from) return;
       if (!choosing && from) pick(from, "toggle");
-      onPick(moved, "range", loadedOrder());
+      // back onto a chosen photo: the one left behind is let go, so Shift+← shrinks what Shift+→ grew (VIEW-044)
+      if (chosen?.(moved) && from) onPick(from, "toggle", loadedOrder());
+      else onPick(moved, "range", loadedOrder());
     };
     if ((e.key === "a" || e.key === "A") && (e.ctrlKey || e.metaKey) && onPickAll) {
       e.preventDefault(); // not the page's text (audit round 52)

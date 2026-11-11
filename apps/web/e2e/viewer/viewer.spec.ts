@@ -259,3 +259,21 @@ test("[VIEW-043] 回歸：Ctrl+A 選取整個圖庫、不反白頁面文字；Sh
   await expect(bar).toContainText("已選 3 張");
   await expect(grid(page).getByRole("gridcell").nth(2)).toBeFocused();
 });
+
+test("[VIEW-044] 回歸：在照片頁任何地方按 Ctrl+A 都是全選；Shift+← 縮回選取（驗證第 53 輪）", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("link", { name: "照片", exact: true }).first().click(); // focus on the nav, not on the grid
+  await page.keyboard.press("ControlOrMeta+a");
+  const bar = page.getByTestId("timeline-batch");
+  await expect(bar).toContainText("已選 30 張");
+  expect(await page.evaluate(() => window.getSelection()?.toString() ?? "")).toBe("");
+  await page.keyboard.press("Escape");
+  await firstTile(page).click({ modifiers: ["ControlOrMeta"] });
+  await page.keyboard.press("Shift+ArrowRight");
+  await page.keyboard.press("Shift+ArrowRight");
+  await expect(bar).toContainText("已選 3 張");
+  await page.keyboard.press("Shift+ArrowLeft");
+  await expect(bar).toContainText("已選 2 張");
+  await expect(grid(page).getByRole("gridcell").nth(1)).toBeFocused();
+  await expect(grid(page).getByRole("gridcell").nth(2)).toHaveAttribute("aria-selected", "false");
+});

@@ -7,7 +7,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
-from opagent_db.schema import asset, collection, collection_member
+from opagent_db.schema import asset, collection, collection_member, search_doc
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
@@ -144,9 +144,12 @@ def get_album(album_id: str, req: Request) -> dict[str, Any]:
         if album_id == FAVORITES:
             _favorites(c)
         row = _album(c, album_id)
+        # the date the timeline shows: the capture date, or the file time it is indexed by (COL-023)
+        when = func.coalesce(asset.c.taken_at, search_doc.c.taken_at).label("taken_at")
         photos = c.execute(
-            select(collection_member.c.asset_id, asset.c.content_hash, asset.c.taken_at, asset.c.rotation)
+            select(collection_member.c.asset_id, asset.c.content_hash, when, asset.c.rotation)
             .join(asset, asset.c.id == collection_member.c.asset_id)
+            .outerjoin(search_doc, search_doc.c.asset_id == asset.c.id)
             .where(collection_member.c.collection_id == album_id)
             .order_by(collection_member.c.added_at.desc(), collection_member.c.asset_id)
         ).all()

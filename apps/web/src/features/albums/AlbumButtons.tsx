@@ -54,7 +54,11 @@ function AddedToast({ done, onGone }: { done: Done; onGone: () => void }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const undo = useMutation({
-    mutationFn: () => api.removeManyFromAlbum(done.albumId!, done.added!),
+    // in pieces the API takes (500 a request): 841 photos in one went back 422 and nothing was undone (COL-022)
+    mutationFn: async () => {
+      const ids = done.added!;
+      for (let i = 0; i < ids.length; i += UNDO_CHUNK) await api.removeManyFromAlbum(done.albumId!, ids.slice(i, i + UNDO_CHUNK));
+    },
     onSuccess: () => {
       onGone();
       void qc.invalidateQueries({ queryKey: ["albums"] });
@@ -70,6 +74,11 @@ function AddedToast({ done, onGone }: { done: Done; onGone: () => void }) {
         <button type="button" className="ml-2 underline" onClick={() => !undo.isPending && undo.mutate()}>
           {t("albums.undo")}
         </button>
+      ) : null}
+      {undo.isError ? (
+        <span role="alert" className="ml-2 text-[var(--danger,#f87171)]">
+          {t("albums.undoFailed")}
+        </span>
       ) : null}
     </span>
   );
@@ -102,6 +111,7 @@ export function FavoriteSelection({ put }: { put: Put }) {
 }
 
 const FAVORITES = "fav-default";
+const UNDO_CHUNK = 500; // the most photos /albums/{id}/photos/remove takes in one request
 const MENU_W = 240; // .album-menu's width, near enough: min-width 220 px plus its padding
 
 /** 「加入相簿」: one photo in the Lightbox (assetIds), or a whole selection (put) from the batch bar (COL-015). */

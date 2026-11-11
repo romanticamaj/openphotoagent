@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api } from "../../lib/api";
-import { AddToAlbum, FavoriteSelection } from "../albums/AlbumButtons";
+import { AddToAlbum, FavoriteSelection, typingIn } from "../albums/AlbumButtons";
 import { memoryGrid, OnThisDay } from "../memories/OnThisDay";
 import { Lightbox } from "./Lightbox";
 import { PhotoGrid, type GridApi } from "./PhotoGrid";
@@ -21,6 +21,17 @@ export function PhotosPage() {
     setSel(NONE);
     requestAnimationFrame(() => document.querySelector<HTMLElement>('[data-testid="photo-grid"] .tile[tabindex="0"]')?.focus());
   };
+  // Ctrl/⌘+A anywhere on the page but a text field: every photo, never the page's text (VIEW-044)
+  useEffect(() => {
+    if (open) return;
+    const selectAll = (e: KeyboardEvent) => {
+      if ((e.key !== "a" && e.key !== "A") || !(e.ctrlKey || e.metaKey) || typingIn(e.target)) return;
+      e.preventDefault();
+      setSel(all());
+    };
+    window.addEventListener("keydown", selectAll);
+    return () => window.removeEventListener("keydown", selectAll);
+  }, [open]);
   useEffect(() => {
     if (!choosing || open) return;
     const esc = (e: KeyboardEvent) => e.key === "Escape" && clear();

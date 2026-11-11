@@ -255,5 +255,25 @@ describe("keys in the Lightbox (audit round 34)", () => {
     expect((await screen.findByRole("menu")).classList.contains("album-menu-start")).toBe(false);
     spy2.mockRestore();
   });
+
+  it("[COL-022] 回歸：上千張的批次加入也能復原，失敗時會說（驗證第 53 輪：841 張復原時 422，沒有任何提示）", async () => {
+    s.removeManyFromAlbum.mockReset();
+    s.removeManyFromAlbum.mockResolvedValue({ count: 0 });
+    const added = Array.from({ length: 1200 }, (_, i) => `p${i}`);
+    const put = vi.fn().mockResolvedValue({ count: 1200, added });
+    const { unmount } = wrap(<FavoriteSelection put={put} />);
+    fireEvent.click(screen.getByRole("button", { name: "加入收藏" }));
+    fireEvent.click(await screen.findByRole("button", { name: "復原" }));
+    await waitFor(() => expect(s.removeManyFromAlbum).toHaveBeenCalledTimes(3));
+    const sent = s.removeManyFromAlbum.mock.calls.map((c) => c[1] as string[]);
+    expect(sent.every((ids) => ids.length <= 500)).toBe(true);
+    expect(sent.flat()).toEqual(added);
+    unmount();
+    s.removeManyFromAlbum.mockRejectedValue(new Error("HTTP 500"));
+    wrap(<FavoriteSelection put={put} />);
+    fireEvent.click(screen.getByRole("button", { name: "加入收藏" }));
+    fireEvent.click(await screen.findByRole("button", { name: "復原" }));
+    expect((await screen.findByRole("alert")).textContent).toContain("沒有復原");
+  });
 });
 
