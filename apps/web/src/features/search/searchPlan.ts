@@ -118,3 +118,8 @@ export function weakNeedsMore(shown: boolean, loaded: number, total: number, has
   return shown && hasNext && !fetching && loaded < total;
 }
 
+/** The header counts the photos shown; folded look-alikes are said apart (SRCH-UI-018): 175 here, 164 in 問 AI. */
+export function headerCount(t: T, total: number, weak: number, capped: boolean, lang: string): string {
+  const shown = countText(t, Math.max(0, total - weak), capped, lang);
+  return weak ? `${shown} · ${t("search.weakCount", { n: weak.toLocaleString(lang) })}` : shown;
+}

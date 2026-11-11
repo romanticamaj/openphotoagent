@@ -50,8 +50,29 @@ COMPLEX = re.compile(r"比較|每月|每年|誰|趨勢|哪一年|which year|comp
 SINGLE = re.compile(r"這張|this photo")
 YES_NO = re.compile(r"有沒有|有嗎|是否有|any\b|are there|is there", re.IGNORECASE)
 EDITED = "使用你編輯的條件"
-WHERE = re.compile(r"哪裡|在哪|where", re.IGNORECASE)
-WHEN = re.compile(r"什麼時候|何時|哪一天|幾月|when", re.IGNORECASE)
+# where or when the photo was taken, not where someone in it stands (ASK-ONE-005): 「她站在哪裡？」 got the GPS answer
+WHERE = re.compile(
+    "|".join(
+        (
+            r"(哪裡|在哪|哪兒|什麼地方).{0,3}拍",
+            r"拍攝(地點|位置|地方)",
+            r"這張.{0,3}(在)?(哪裡|哪兒)[？?]?$",
+            r"where (was|is) (this|it)\b.*taken",
+        )
+    ),
+    re.IGNORECASE,
+)
+WHEN = re.compile(
+    "|".join(
+        (
+            r"(什麼時候|何時|哪一天|幾月|哪一年).{0,3}拍",
+            r"拍攝(時間|日期)",
+            r"這張.{0,3}(是)?(什麼時候|何時)",
+            r"when (was|is) (this|it)\b.*taken",
+        )
+    ),
+    re.IGNORECASE,
+)
 CAMERA = re.compile(r"相機|哪台|camera", re.IGNORECASE)
 LABELS = {
     "search_photos": "搜尋照片",

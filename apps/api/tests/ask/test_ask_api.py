@@ -455,3 +455,19 @@ def test_ask_ret_003_a_yes_says_what_was_not_seen(m, monkeypatch):
     )
     text = "".join(d["text"] for e, d in ask(m, "有沒有海邊的貓的照片？", FakeLLM()) if e == "token")
     assert "其中 2 張看得出「海邊」" in text and "，，" not in text
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-ONE-005")
+def test_ask_one_005_where_she_stands_is_not_where_it_was_taken(m, monkeypatch):
+    """回歸 (audit round 38): 「她站在哪裡？」 answered 「這張照片沒有位置資訊。」: any 「在哪裡」 went to GPS. Only
+    where (or when) the photo was taken is read from its metadata; anything else is looked at."""
+    import opagent_api.mcp_tools as H
+
+    monkeypatch.setattr(H, "_vlm", lambda ctx, mode, ids, text_: {"answer": "她站在遊樂場的溜滑梯旁。", "model": "m"})
+    one = {"photo_ids": [m.cats[0]], "scope": "photo"}
+    said = lambda q: "".join(d["text"] for e, d in ask(m, q, FakeLLM(), context=one) if e == "token")
+    assert "溜滑梯" in said("她站在哪裡？")
+    assert "溜滑梯" in said("他什麼時候會跳下來？")
+    assert "位置" in said("這張是在哪裡拍的？") and "溜滑梯" not in said("這張是在哪裡拍的？")
+    assert "拍攝" in said("這張是什麼時候拍的？")

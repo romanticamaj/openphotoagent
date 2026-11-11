@@ -10,7 +10,7 @@ import { Lightbox } from "../viewer/Lightbox";
 import type { GridApi } from "../viewer/PhotoGrid";
 import { api, isDegraded, mediaUrl, type SearchBody } from "../../lib/api";
 
-import { bodyFor, cappedNote, chipLabel, chipsFrom, countText, onlyByMeaning, softView, weakNeedsMore, weakTail, withoutPerson, type Chip } from "./searchPlan";
+import { bodyFor, cappedNote, chipLabel, chipsFrom, headerCount, onlyByMeaning, softView, weakNeedsMore, weakTail, withoutPerson, type Chip } from "./searchPlan";
 
 export function SearchPage({ q }: { q: string }) {
   const { t, i18n } = useTranslation();
@@ -155,7 +155,7 @@ export function SearchPage({ q }: { q: string }) {
         {first ? (
           // no count until the answer is here: 「0 張」 flashed before every result (audit round 2)
           <span data-testid="result-count" className="tnum text-[var(--text-muted)]">
-            {countText(t, total, Boolean(first.total_capped), i18n.language)}
+            {headerCount(t, total, first.weak ?? 0, Boolean(first.total_capped), i18n.language)}
           </span>
         ) : null}
       </div>

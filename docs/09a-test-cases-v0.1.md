@@ -827,6 +827,7 @@
 | SRCH-UI-015 | 「以文搜圖」只標在只靠意思找到的照片（回歸，驗證第 22 輪） | matched_by 各種組合 | 只有影像或說明向量、沒有文字或標籤命中時才標 | C | #— |
 | SRCH-UI-016 | 截斷時說還有更多（回歸，驗證第 25 輪） | `total_capped` 為 true 的 233 張 | 標題「233 張以上 · 依相關度排序」；捲到最後說「只列出最相關的 233 張，其餘照片相似度較低。」 | C | #— |
 | SRCH-UI-017 | 標籤的移除按鈕念名稱（回歸，驗證第 25 輪） | 「只看開心」、標籤、人物標籤 | 無障礙名稱是「移除 只看開心」等，不是 mood.smile | C | #— |
+| SRCH-UI-018 | 標題張數不含收起的照片（回歸，驗證第 38 輪） | 175 張，其中 11 張收起 | 「164 張 · 另有 11 張較不相關」，與問 AI 一致 | C | #— |
 | SRCH-SEM-001 | 以文搜圖 | `fb:vectors(deterministic)`：查詢向量與 `img:semantic` 中「狗 + 海灘」最近 | top-5 含全部 3 張目標；nightly 真 SigLIP2 英文查詢 `a dog on the beach` 的 recall@10 ≥ 0.8（**待 M0 確認**） | I/N | #64 |
 | SRCH-SEM-002 | Worker 離線降級 | 停止 worker | 文字搜尋照常；回應 `notice=degraded_search`；UI 顯示 | I | #64 |
 | SRCH-SEM-003 | 索引進度 | 30,000 張中 12,300 有向量 | UI「已可搜尋 12,300 / 30,000 張」；`SEARCH_INDEX_INCOMPLETE` warning | I/E | DoD 5.4 |

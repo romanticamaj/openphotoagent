@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import i18n from "../../lib/i18n";
-import { bodyFor, cappedNote, chipLabel, chipsFrom, countText, onlyByMeaning, softView, weakNeedsMore, weakTail, withoutPerson } from "./searchPlan";
+import { bodyFor, cappedNote, chipLabel, chipsFrom, countText, headerCount, onlyByMeaning, softView, weakNeedsMore, weakTail, withoutPerson } from "./searchPlan";
 
 const planner = (filters: Record<string, unknown>, explain: string[], text = "") => ({
   source: "rules",
@@ -130,6 +130,15 @@ describe("a scene the activity implies (SRCH-CNC-013)", () => {
     const v = softView(t, [{ word: "海邊", key: "scene.beach", shown: 2, implied_by: "衝浪" }], 5, []);
     expect(v?.divider).toBe("以下 3 張沒看出「海邊」，但都在「衝浪」");
     expect(v?.only).toBe("只看海邊（2 張）");
+  });
+});
+
+describe("the header counts what is shown (audit round 38)", () => {
+  const t = i18n.getFixedT("zh-TW");
+  it("[SRCH-UI-018] 回歸：較不相關的照片收起時，標題的張數與問 AI 一致（175 對 164）", () => {
+    expect(headerCount(t, 175, 11, false, "zh-TW")).toBe("164 張 · 另有 11 張較不相關");
+    expect(headerCount(t, 17, 0, false, "zh-TW")).toBe("17 張");
+    expect(headerCount(t, 233, 8, true, "zh-TW")).toBe("225 張以上 · 依相關度排序 · 另有 8 張較不相關");
   });
 });
 
