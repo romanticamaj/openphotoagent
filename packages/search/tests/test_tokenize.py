@@ -188,3 +188,15 @@ def test_srch_tok_017_place_words_are_not_concepts():
         got = [c.word for c in Tokenizer().concepts(q)]
         assert not {"上", "裡", "旁邊", "旁"} & set(got), (q, got)
         assert all(w in got for w in want), (q, got)
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-018")
+def test_srch_tok_018_a_street_named_sunset_is_not_a_sunset():
+    """回歸 (audit round 50): 「夕陽」 found a highway whose caption read the sign 「日落大道」: a name holding a
+    vocabulary word was cut into that word. Names stay whole, so the concept does not match them."""
+    tok = Tokenizer()
+    doc = tok.document(caption="高速公路橋下車流穿梭，路牌指示前往好萊塢與日落大道。")
+    assert "日落" not in doc["B"] and "日落大道" in doc["B"]
+    assert "日落" in tok.document(caption="海邊的日落")["B"]  # a real sunset still is one
+    assert tok.tag_key("日落") == "mood.sunset"

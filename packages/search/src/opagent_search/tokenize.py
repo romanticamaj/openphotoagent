@@ -24,7 +24,10 @@ from typing import Any
 import yaml
 from opagent_core.vocabularies import VOCAB_DIR
 
-TOKENIZER_VERSION = "jieba-zh-hant@4+opencc-s2twp+bigram"  # @4: file-time dates indexed (SRCH-IDX-010); @3 SRCH-TOK-014
+TOKENIZER_VERSION = "jieba-zh-hant@5+opencc-s2twp+bigram"  # @5: names kept whole (SRCH-TOK-018); @4 SRCH-IDX-010
+# Names that hold a vocabulary word but are not that thing: a caption reading a sign 「日落大道」 (Sunset Blvd) is not a
+# sunset (SRCH-TOK-018). Weighed above the vocabulary's words, so the name is one word.
+NAMES = ("日落大道", "夕陽大道")
 VOCAB = VOCAB_DIR / "general-photo.yaml"  # package data in opagent_core (ADR-0023)
 _ZW = re.compile("[​‌‍⁠﻿­]")
 _CJK = re.compile(r"[぀-ヿ㐀-䶿一-鿿豈-﫿]+")
@@ -161,6 +164,8 @@ class Tokenizer:
             # a single character is already a token; as a heavy custom word it would split real words apart
             if _CJK.fullmatch(nw) and len(nw) > 1:
                 self._jb.add_word(t2s.convert(nw), freq=200000)
+        for name in NAMES:
+            self._jb.add_word(t2s.convert(normalize(name)), freq=400000)
 
     # ---- words ----
     def _cut_cjk(self, run: str) -> list[str]:
