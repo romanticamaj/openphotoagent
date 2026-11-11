@@ -362,6 +362,7 @@ export const api = {
     req<FolderPreview>("GET", `/fs/preview?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`),
   folderThumb: (root: string, path: string) =>
     req<{ thumbnail_b64: string }>("GET", `/fs/thumb?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`),
+  onThisDay: () => req<{ today: string; groups: Array<{ year: number; years_ago: number; photos: Array<{ asset_id: string; ch: string | null; taken_at: string | null }> }> }>("GET", "/memories/on-this-day"),
   albums: () => req<{ albums: Album[] }>("GET", "/albums"),
   album: (id: string) => req<AlbumDetail>("GET", `/albums/${encodeURIComponent(id)}`),
   createAlbum: (name: string) => req<{ id: string; name: string }>("POST", "/albums", { name }),

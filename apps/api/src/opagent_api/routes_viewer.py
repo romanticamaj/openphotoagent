@@ -180,6 +180,61 @@ def analysis_status(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
     }
 
 
+MEMORY_DAYS = 3  # 10 §2.8: the same day ±3, in earlier years
+MEMORY_MAX = 24  # photos per year shown (10 §2.8: 12-30)
+
+
+@router.get("/memories/on-this-day")
+def on_this_day(req: Request, today: str | None = None) -> dict[str, Any]:
+    """那年今日 (10 §2.8, MEM-001): photos taken within ±3 days of today's date in each earlier year, newest year
+    first; one photo per near-duplicate group. Read-only."""
+    from datetime import timedelta
+
+    from opagent_db.schema import duplicate_member
+
+    st = _st(req)
+    try:
+        now = date.fromisoformat(today) if today else st.clock.now().date()
+    except ValueError:
+        raise HTTPException(422, detail={"code": "VALIDATION", "field": "today"}) from None
+    when = func.coalesce(asset.c.local_at, asset.c.taken_at)
+    hidden = select(duplicate_member.c.asset_id).where(duplicate_member.c.is_representative.is_(False))
+    groups = []
+    with st.engine.connect() as c:
+        first = c.execute(select(func.min(when)).where(asset.c.workspace_id == DEFAULT_WS)).scalar()
+        if first is None:
+            return {"today": now.isoformat(), "groups": []}
+        for year in range(now.year - 1, first.year - 1, -1):
+            try:
+                day = now.replace(year=year)
+            except ValueError:  # 29 February in a year without one
+                day = now.replace(year=year, day=28)
+            lo, hi = day - timedelta(days=MEMORY_DAYS), day + timedelta(days=MEMORY_DAYS + 1)
+            rows = c.execute(
+                select(asset.c.id, asset.c.content_hash, when.label("at"))
+                .where(
+                    asset.c.workspace_id == DEFAULT_WS,
+                    when >= lo,
+                    when < hi,
+                    asset.c.id.notin_(hidden),
+                )
+                .order_by(when, asset.c.id)
+                .limit(MEMORY_MAX)
+            ).all()
+            if rows:
+                groups.append(
+                    {
+                        "year": year,
+                        "years_ago": now.year - year,
+                        "photos": [
+                            {"asset_id": r.id, "ch": r.content_hash, "taken_at": r.at.isoformat() if r.at else None}
+                            for r in rows
+                        ],
+                    }
+                )
+    return {"today": now.isoformat(), "groups": groups}
+
+
 @router.get("/timeline/buckets")
 def buckets(req: Request) -> dict[str, Any]:
     """Per-month counts, newest first; photos with no usable date go to ``unknown`` (10 §2.3)."""

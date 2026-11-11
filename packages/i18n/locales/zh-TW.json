@@ -1072,5 +1072,12 @@
     "cancel": "取消",
     "removed": "已從相簿移除",
     "undo": "復原"
+  },
+  "memories": {
+    "onThisDay": "那年今日",
+    "notToday": "今天先不看",
+    "yearsAgo_one": "{count} 年前的今天",
+    "yearsAgo_other": "{count} 年前的今天",
+    "open": "{year} 年的第 {n} 張"
   }
 }

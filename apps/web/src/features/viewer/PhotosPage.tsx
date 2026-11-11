@@ -1,9 +1,20 @@
 import { lazy, Suspense, useState } from "react";
+import { OnThisDay } from "../memories/OnThisDay";
 import { Lightbox } from "./Lightbox";
 import { PhotoGrid, type GridApi } from "./PhotoGrid";
 import { withTransition } from "./transition";
 
 const FaceOptInCard = lazy(() => import("../people/PeoplePage").then((m) => ({ default: m.FaceOptInCard })));
+
+/** A Lightbox over a list of photos, the 那年今日 row's (10 §2.8). */
+function idsGrid(ids: string[]): GridApi {
+  return {
+    total: ids.length,
+    ordinal: (p) => p.index,
+    at: async (i) =>
+      ids[i] ? { asset: { id: ids[i], w: null, h: null, thumbhash: null, taken_at: null, flags: [] }, pos: { bucket: 0, index: i } } : null,
+  };
+}
 
 export function PhotosPage() {
   const [open, setOpen] = useState<{ ord: number; grid: GridApi } | null>(null);
@@ -14,6 +25,7 @@ export function PhotosPage() {
       <Suspense fallback={null}>
         <FaceOptInCard />
       </Suspense>
+      <OnThisDay onOpen={(ids, start) => setOpen({ ord: start, grid: idsGrid(ids) })} />
       <div className="min-h-0 flex-1">
       <PhotoGrid
         focusAsset={back}

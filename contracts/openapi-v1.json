@@ -6598,6 +6598,55 @@
         "summary": "Remove Member"
       }
     },
+    "/api/v1/memories/on-this-day": {
+      "get": {
+        "description": "那年今日 (10 §2.8, MEM-001): photos taken within ±3 days of today's date in each earlier year, newest year\nfirst; one photo per near-duplicate group. Read-only.",
+        "operationId": "on_this_day_api_v1_memories_on_this_day_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "today",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Today"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response On This Day Api V1 Memories On This Day Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "On This Day"
+      }
+    },
     "/api/v1/models": {
       "get": {
         "operationId": "list_models_api_v1_models_get",
