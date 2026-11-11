@@ -174,3 +174,17 @@ def test_srch_tok_016_measure_words_are_not_concepts():
         got = [c.word for c in Tokenizer().concepts(q)]
         assert not {"隻", "個", "些", "三", "兩"} & set(got), (q, got)
         assert all(w in got for w in want), (q, got)
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-017")
+def test_srch_tok_017_place_words_are_not_concepts():
+    """回歸 (audit round 44): 「兩隻狗在草地上」 said 「沒有照片拍到「上」」: a place word was a search term."""
+    for q, want in [
+        ("兩隻狗在草地上", ["狗", "草地"]),
+        ("箱子裡的貓", ["箱子", "貓"]),
+        ("桌子旁邊的小朋友", ["桌子", "小朋友"]),
+    ]:
+        got = [c.word for c in Tokenizer().concepts(q)]
+        assert not {"上", "裡", "旁邊", "旁"} & set(got), (q, got)
+        assert all(w in got for w in want), (q, got)

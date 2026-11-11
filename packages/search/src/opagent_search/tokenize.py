@@ -78,6 +78,17 @@ FILLER = {
     "有",
     "嗎",
     "呢",
+    # place words on their own: 「兩隻狗在草地上」 made a photo show 上 (SRCH-TOK-017)
+    "上",
+    "下",
+    "裡",
+    "裡面",
+    "上面",
+    "下面",
+    "旁",
+    "旁邊",
+    "附近",
+    "中間",
     # quantity words: 「一張有很多彩色方塊的圖」 made a photo show 一張 and 很多 (SRCH-TOK-015)
     "一張",
     "一個",
