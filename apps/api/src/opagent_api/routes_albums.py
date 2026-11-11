@@ -57,13 +57,19 @@ def _known(c: Any, ids: list[str]) -> None:
         raise HTTPException(404, detail={"code": "NOT_FOUND"})
 
 
-def _add(c: Any, album_id: str, ids: list[str]) -> None:
+def _add(c: Any, album_id: str, ids: list[str]) -> list[str]:
+    """The photos it added, not those already there: what 復原 takes out again (COL-017)."""
+    added = []
     for a in dict.fromkeys(ids):
-        c.execute(
+        r = c.execute(
             pg_insert(collection_member)
             .values(collection_id=album_id, asset_id=a)
             .on_conflict_do_nothing(index_elements=["collection_id", "asset_id"])
-        )
+            .returning(collection_member.c.asset_id)  # a row only when it went in: rowcount can be -1
+        ).first()
+        if r is not None:
+            added.append(a)
+    return added
 
 
 def _count(c: Any, album_id: str) -> int:
@@ -225,3 +231,18 @@ def unfavorite(asset_id: str, req: Request) -> dict[str, Any]:
             )
         )
     return {"asset_id": asset_id, "favorite": False}
+
+
+@router.post("/albums/{album_id}/photos/remove")
+def remove_photos(album_id: str, body: PhotosIn, req: Request) -> dict[str, Any]:
+    """Several photos out at once: undoing a batch add (COL-017). The photos themselves stay."""
+    with _st(req).engine.begin() as c:
+        if album_id == FAVORITES:
+            _favorites(c)
+        _album(c, album_id)
+        c.execute(
+            delete(collection_member).where(
+                collection_member.c.collection_id == album_id, collection_member.c.asset_id.in_(body.asset_ids)
+            )
+        )
+        return {"id": album_id, "count": _count(c, album_id)}

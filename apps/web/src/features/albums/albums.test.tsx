@@ -17,6 +17,7 @@ const s = vi.hoisted(() => ({
   album: vi.fn(),
   removeFromAlbum: vi.fn(),
   deleteAlbum: vi.fn(),
+  removeManyFromAlbum: vi.fn(),
 }));
 vi.mock("../../lib/api", async (orig) => ({
   ...(await orig<typeof import("../../lib/api")>()),
@@ -29,6 +30,7 @@ vi.mock("../../lib/api", async (orig) => ({
     album: s.album,
     removeFromAlbum: s.removeFromAlbum,
     deleteAlbum: s.deleteAlbum,
+    removeManyFromAlbum: s.removeManyFromAlbum,
   },
 }));
 vi.mock("@tanstack/react-router", async (orig) => ({
@@ -199,6 +201,25 @@ describe("keys in the Lightbox (audit round 34)", () => {
     wrap(<AlbumPage albumId="b1" />);
     expect(await screen.findByRole("button", { name: "照片，2024-07-01" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "照片，未知日期" })).toBeTruthy();
+  });
+
+  it("[COL-018] 回歸：批次加入後可以復原，只拿掉這次加入的（驗證第 50 輪：沒有復原）", async () => {
+    s.albums.mockResolvedValue({ albums: [{ id: "b1", kind: "album", name: "墾丁", count: 3, cover: null }] });
+    s.removeManyFromAlbum.mockResolvedValue({ count: 1 });
+    const put = vi.fn().mockResolvedValue({ count: 3, added: ["p2", "p3"] });
+    wrap(
+      <>
+        <FavoriteSelection put={put} />
+        <AddToAlbum put={put} />
+      </>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "加入收藏" }));
+    fireEvent.click(await screen.findByRole("button", { name: "復原" }));
+    await waitFor(() => expect(s.removeManyFromAlbum).toHaveBeenCalledWith("fav-default", ["p2", "p3"]));
+    fireEvent.click(screen.getByRole("button", { name: "加入相簿" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: /墾丁/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "復原" }));
+    await waitFor(() => expect(s.removeManyFromAlbum).toHaveBeenCalledWith("b1", ["p2", "p3"]));
   });
 });
 

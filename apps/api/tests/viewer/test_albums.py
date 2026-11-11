@@ -89,3 +89,20 @@ def test_col_014_a_selection_goes_into_an_album_or_favourites_at_once(m):
     aid = send(m, "POST", "/albums", {"name": "選的"}).json()["id"]
     assert send(m, "POST", f"/selections/{sel}/album", {"album_id": aid}).json()["count"] == 2
     assert send(m, "POST", f"/selections/{sel}/album", {"album_id": "nope"}).status_code == 404
+
+
+@pytest.mark.integration
+@pytest.mark.tc("COL-017")
+def test_col_017_adding_a_selection_can_be_undone_exactly(m):
+    """Audit round 50: the batch toasts had no 復原. The response names the photos it added, not the ones already
+    there, and they leave together; undoing never takes out a photo that was in the album before."""
+    pre = send(m, "PUT", f"/assets/{m.ids[0]}/favorite")
+    assert pre.status_code == 200, pre.text
+    sel = m.client.post("/api/v1/selections", json={"asset_ids": m.ids[:3]}, headers=m.ui).json()["id"]
+    r = send(m, "POST", f"/selections/{sel}/album", {"album_id": "fav-default"}).json()
+    assert sorted(r.get("added", [])) == sorted(m.ids[1:3]) and r["count"] == 3
+    back = send(m, "POST", "/albums/fav-default/photos/remove", {"asset_ids": r["added"]})
+    assert back.status_code == 200 and back.json()["count"] == 1
+    assert get(m, f"/assets/{m.ids[0]}")["favorite"] is True
+    assert get(m, f"/assets/{m.ids[1]}")["favorite"] is False
+    assert send(m, "POST", "/albums/nope/photos/remove", {"asset_ids": m.ids[:1]}).status_code == 404

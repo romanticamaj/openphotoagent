@@ -60,6 +60,7 @@ ROUTES: dict[tuple[str, str], str] = {
     ("PUT", "/api/v1/assets/{asset_id}/favorite"): RV,
     ("DELETE", "/api/v1/assets/{asset_id}/favorite"): RV,
     ("POST", "/api/v1/selections/{sid}/album"): J,
+    ("POST", "/api/v1/albums/{album_id}/photos/remove"): J,
     ("POST", "/api/v1/albums"): J,
     ("PATCH", "/api/v1/albums/{album_id}"): J,
     ("DELETE", "/api/v1/albums/{album_id}"): J,

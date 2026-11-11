@@ -371,6 +371,8 @@ export const api = {
   renameAlbum: (id: string, name: string) => req<{ id: string; name: string }>("PATCH", `/albums/${encodeURIComponent(id)}`, { name }),
   deleteAlbum: (id: string) => req<unknown>("DELETE", `/albums/${encodeURIComponent(id)}`),
   addToAlbum: (id: string, asset_ids: string[]) => req<{ count: number }>("POST", `/albums/${encodeURIComponent(id)}/photos`, { asset_ids }),
+  /** several out at once: undoing a batch add (COL-017) */
+  removeManyFromAlbum: (id: string, asset_ids: string[]) => req<{ count: number }>("POST", `/albums/${encodeURIComponent(id)}/photos/remove`, { asset_ids }),
   removeFromAlbum: (id: string, assetId: string) => req<{ count: number }>("DELETE", `/albums/${encodeURIComponent(id)}/photos/${encodeURIComponent(assetId)}`),
   setRotation: (assetId: string, degrees: number) => req<{ rotation: number }>("PUT", `/assets/${encodeURIComponent(assetId)}/rotation`, { degrees }),
   setFavorite: (assetId: string, on: boolean) => req<{ favorite: boolean }>(on ? "PUT" : "DELETE", `/assets/${encodeURIComponent(assetId)}/favorite`),
@@ -407,7 +409,7 @@ export const api = {
   searchIndex: () => req<{ searchable: number; total: number }>("GET", "/search-index"),
   createSelection: (body: { query?: SearchBody; asset_ids?: string[] }) => req<{ id: string; count: number }>("POST", "/selections", body),
   /** a selection into an album or 收藏 at once (COL-014) */
-  selectionAlbum: (id: string, albumId: string) => req<{ id: string; count: number }>("POST", `/selections/${id}/album`, { album_id: albumId }),
+  selectionAlbum: (id: string, albumId: string) => req<{ id: string; count: number; added: string[] }>("POST", `/selections/${id}/album`, { album_id: albumId }),
   selectionLabels: (id: string, body: { category?: string; tags?: string[] }) => req<{ updated: number }>("POST", `/selections/${id}/labels`, body),
   selectionOrganize: (id: string, target: { root_alias: string; sub_path: string }) =>
     req<{ plan_id: string; job_id: string }>("POST", `/selections/${id}/organize`, { target }),

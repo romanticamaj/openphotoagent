@@ -46,15 +46,46 @@ export function FavoriteButton({ assetId }: { assetId: string }) {
   );
 }
 
-/** ★ for many photos at once: a selection goes into 收藏 in one request (COL-015). */
-export function FavoriteSelection({ put }: { put: (albumId: string) => Promise<unknown> }) {
+type Put = (albumId: string) => Promise<{ added?: string[] } | unknown>;
+type Done = { text: string; albumId?: string; added?: string[] };
+
+/** 「已加入…」 and, after a batch add, 復原: it takes out the photos this add put in, not those already there (COL-018). */
+function AddedToast({ done, onGone }: { done: Done; onGone: () => void }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
-  const [done, setDone] = useState<string | null>(null);
+  const undo = useMutation({
+    mutationFn: () => api.removeManyFromAlbum(done.albumId!, done.added!),
+    onSuccess: () => {
+      onGone();
+      void qc.invalidateQueries({ queryKey: ["albums"] });
+      void qc.invalidateQueries({ queryKey: ["album"] });
+      void qc.invalidateQueries({ queryKey: ["asset"] });
+    },
+  });
+  const canUndo = Boolean(done.albumId && done.added?.length);
+  return (
+    <span role="status" className="toast" onAnimationEnd={onGone}>
+      {done.text}
+      {canUndo ? (
+        <button type="button" className="ml-2 underline" onClick={() => !undo.isPending && undo.mutate()}>
+          {t("albums.undo")}
+        </button>
+      ) : null}
+    </span>
+  );
+}
+
+const addedOf = (r: unknown): string[] | undefined => (r as { added?: string[] } | null)?.added;
+
+/** ★ for many photos at once: a selection goes into 收藏 in one request (COL-015). */
+export function FavoriteSelection({ put }: { put: Put }) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const [done, setDone] = useState<Done | null>(null);
   const fav = useMutation({
     mutationFn: () => put(FAVORITES),
-    onSuccess: () => {
-      setDone(t("albums.added", { name: t("albums.favorites") }));
+    onSuccess: (r) => {
+      setDone({ text: t("albums.added", { name: t("albums.favorites") }), albumId: FAVORITES, added: addedOf(r) });
       void qc.invalidateQueries({ queryKey: ["albums"] });
       void qc.invalidateQueries({ queryKey: ["album"] });
       void qc.invalidateQueries({ queryKey: ["asset"] });
@@ -65,11 +96,7 @@ export function FavoriteSelection({ put }: { put: (albumId: string) => Promise<u
       <button type="button" aria-label={t("albums.favorite")} title={t("albums.favorite")} aria-busy={fav.isPending} onClick={() => !fav.isPending && fav.mutate()} className="icon-button">
         <Star on={false} />
       </button>
-      {done ? (
-        <span role="status" className="toast" onAnimationEnd={() => setDone(null)}>
-          {done}
-        </span>
-      ) : null}
+      {done ? <AddedToast done={done} onGone={() => setDone(null)} /> : null}
     </span>
   );
 }
@@ -77,22 +104,22 @@ export function FavoriteSelection({ put }: { put: (albumId: string) => Promise<u
 const FAVORITES = "fav-default";
 
 /** 「加入相簿」: one photo in the Lightbox (assetIds), or a whole selection (put) from the batch bar (COL-015). */
-export function AddToAlbum({ assetIds, put }: { assetIds?: string[]; put?: (albumId: string) => Promise<unknown> }) {
+export function AddToAlbum({ assetIds, put }: { assetIds?: string[]; put?: Put }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
-  const [done, setDone] = useState<string | null>(null);
+  const [done, setDone] = useState<Done | null>(null);
   const opener = useRef<HTMLButtonElement>(null);
   const list = useQuery({ queryKey: ["albums"], queryFn: api.albums, enabled: open });
   const add = useMutation({
     mutationFn: async (a: { id?: string; name: string }) => {
       const id = a.id ?? (await api.createAlbum(a.name)).id;
-      await (put ? put(id) : api.addToAlbum(id, assetIds ?? []));
-      return a.name;
+      const r = await (put ? put(id) : api.addToAlbum(id, assetIds ?? []));
+      return { name: a.name, id, added: put ? addedOf(r) : undefined };
     },
     onSuccess: (n) => {
-      setDone(t("albums.added", { name: n }));
+      setDone({ text: t("albums.added", { name: n.name }), albumId: n.id, added: n.added });
       setOpen(false);
       setName("");
       opener.current?.focus(); // the field it was in is gone: keys stay with the Lightbox (Esc, ←, →)
@@ -140,11 +167,7 @@ export function AddToAlbum({ assetIds, put }: { assetIds?: string[]; put?: (albu
           </form>
         </div>
       ) : null}
-      {done ? (
-        <span role="status" className="toast" onAnimationEnd={() => setDone(null)}>
-          {done}
-        </span>
-      ) : null}
+      {done ? <AddedToast done={done} onGone={() => setDone(null)} /> : null}
     </div>
   );
 }

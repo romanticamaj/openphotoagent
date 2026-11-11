@@ -197,5 +197,5 @@ def batch_album(sid: str, body: ToAlbum, req: Request) -> dict[str, Any]:
         if body.album_id == FAVORITES:
             _favorites(c)
         _album(c, body.album_id)
-        _add(c, body.album_id, ids)
-        return {"id": body.album_id, "count": _count(c, body.album_id)}
+        added = _add(c, body.album_id, ids)
+        return {"id": body.album_id, "count": _count(c, body.album_id), "added": added}

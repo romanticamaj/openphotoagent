@@ -3281,6 +3281,58 @@
         "summary": "Add Photos"
       }
     },
+    "/api/v1/albums/{album_id}/photos/remove": {
+      "post": {
+        "description": "Several photos out at once: undoing a batch add (COL-017). The photos themselves stay.",
+        "operationId": "remove_photos_api_v1_albums__album_id__photos_remove_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "album_id",
+            "required": true,
+            "schema": {
+              "title": "Album Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PhotosIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Remove Photos Api V1 Albums  Album Id  Photos Remove Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Remove Photos"
+      }
+    },
     "/api/v1/albums/{album_id}/photos/{asset_id}": {
       "delete": {
         "operationId": "remove_photo_api_v1_albums__album_id__photos__asset_id__delete",
