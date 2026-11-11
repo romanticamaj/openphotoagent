@@ -294,3 +294,14 @@ test("[VIEW-046] 回歸：Shift 範圍越過起點往回時，另一邊會放掉
   await page.keyboard.press("ControlOrMeta+a");
   expect(await page.evaluate(() => window.getSelection()?.toString() ?? "")).toBe("");
 });
+
+test("[A11Y-013] 回歸：第一次按 Tab 出現「跳到主要內容」，按下去焦點到第一張照片（驗證第 54～55 輪：要按 12～15 次 Tab）", async ({ page }) => {
+  await page.goto("/");
+  await expect(firstTile(page)).toBeVisible();
+  await page.keyboard.press("Tab");
+  const skip = page.getByRole("link", { name: "跳到主要內容" });
+  await expect(skip).toBeFocused();
+  await expect(skip).toBeInViewport();
+  await page.keyboard.press("Enter");
+  await expect(firstTile(page)).toBeFocused();
+});

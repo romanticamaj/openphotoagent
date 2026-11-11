@@ -1,6 +1,7 @@
 {
   "app": {
-    "title": "OpenPhotoAgent"
+    "title": "OpenPhotoAgent",
+    "skipToMain": "跳到主要內容"
   },
   "common": {
     "working": "處理中…",
@@ -1062,7 +1063,8 @@
     "none": "還沒有分析結果",
     "noneHint": "匯入資料夾後，AI 會分析每張照片，結果會顯示在這裡。",
     "analyseRest": "分析剩下的 {n} 張",
-    "started": "已開始分析，進度在右下角"
+    "started": "已開始分析，進度在右下角",
+    "categoryRow": "類別"
   },
   "albums": {
     "title": "相簿",

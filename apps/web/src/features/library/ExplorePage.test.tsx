@@ -125,4 +125,15 @@ describe("the words the AI wrote (ADR-0029)", () => {
     expect(screen.queryByRole("button", { name: /地板/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /坐姿/ })).toBeNull();
   });
+
+  it("[IMP-038] 回歸：兩列有標題「類別」「標籤」；選了一個後照片上方寫出它與張數（驗證第 55 輪：分不出類別與標籤）", async () => {
+    s.search.mockReset();
+    s.search.mockResolvedValue(result([hit("a")], { category: { food: 3 }, tags: { 海邊: 2 } }));
+    ui();
+    expect(await screen.findByRole("heading", { name: "類別" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "標籤" })).toBeTruthy();
+    fireEvent.click(await screen.findByRole("button", { name: /美食/, pressed: false }));
+    expect((await screen.findByRole("heading", { name: /美食/ })).textContent).toContain("3 張");
+  });
 });
+

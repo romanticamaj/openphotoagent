@@ -1,6 +1,7 @@
 {
   "app": {
-    "title": "OpenPhotoAgent"
+    "title": "OpenPhotoAgent",
+    "skipToMain": "Skip to main content"
   },
   "common": {
     "working": "Working…",
@@ -1062,7 +1063,8 @@
     "none": "No analysis results yet",
     "noneHint": "Import a folder and AI analyses each photo. The results show up here.",
     "analyseRest": "Analyse the remaining {n}",
-    "started": "Analysis started. Progress is in the corner."
+    "started": "Analysis started. Progress is in the corner.",
+    "categoryRow": "Category"
   },
   "albums": {
     "title": "Albums",

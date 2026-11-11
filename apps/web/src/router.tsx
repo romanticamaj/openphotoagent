@@ -152,6 +152,19 @@ function Shell() {
   const pending = useQuery({ queryKey: ["reviews", "count"], queryFn: () => api.reviewCount(), refetchInterval: 10_000 });
   return (
     <div className="shell" data-single-user={caps.data ? String(caps.data.single_user) : undefined}>
+      {/* the first Tab: past the search box and the sidebar, to the page's photos (A11Y-013) */}
+      <a
+        href="#main"
+        className="skip-link"
+        onClick={(e) => {
+          e.preventDefault();
+          const main = document.getElementById("main");
+          const target = main?.querySelector<HTMLElement>('[role="gridcell"][tabindex="0"]') ?? main;
+          target?.focus();
+        }}
+      >
+        {t("app.skipToMain")}
+      </a>
       <header className="topbar">
         <strong>{t("app.title")}</strong>
         <SearchBar />
@@ -191,7 +204,7 @@ function Shell() {
       </nav>
       <ProgressDock />
       </div>
-      <main className="page" id="main">
+      <main className="page" id="main" tabIndex={-1}>
         <RecoveryCard onReview={() => setActivityOpen(true)} />
         <Suspense fallback={null}>
           <ApprovalInbox />

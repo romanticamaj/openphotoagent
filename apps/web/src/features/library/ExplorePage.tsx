@@ -73,6 +73,9 @@ export function ExplorePage({ initial = null, onPick }: { initial?: Pick; onPick
   const total = (library.data?.buckets ?? []).reduce((n, b) => n + b.count, 0);
   const left = Math.max(0, total - analysed);
   const num = (n: number) => n.toLocaleString(i18n.language);
+  // what was picked, named over the photos with its count (IMP-038)
+  const pickedName = pick ? (pick.kind === "category" ? (names.get(pick.value) ?? pick.value) : (all.data?.tag_names?.[pick.value] ?? pick.value)) : "";
+  const pickedCount = pick ? ((pick.kind === "category" ? all.data?.facets.category : all.data?.facets.tags)?.[pick.value] ?? 0) : 0;
   const chip = (next: Pick, label: string, count: number) => {
     const on = pick?.kind === next?.kind && pick?.value === next?.value;
     return (
@@ -107,13 +110,21 @@ export function ExplorePage({ initial = null, onPick }: { initial?: Pick; onPick
           </Button>
         ) : null}
       </header>
-      <section aria-label={t("explore.categories")} className="flex flex-wrap gap-2">
-        {categories.map(([k, n]) => chip({ kind: "category", value: k }, names.get(k) ?? k, n))}
+      {/* each row says what it is: 類別 (one per photo) and 標籤 (any number) were two unlabelled rows (IMP-038) */}
+      <section aria-labelledby="explore-cat-h" className="explore-row">
+        <h2 id="explore-cat-h" className="explore-row-h">{t("explore.categoryRow")}</h2>
+        <div className="flex flex-wrap gap-2">{categories.map(([k, n]) => chip({ kind: "category", value: k }, names.get(k) ?? k, n))}</div>
       </section>
       {tags.length > 0 ? (
-        <section aria-label={t("explore.tags")} className="flex flex-wrap gap-2 text-sm">
-          {tags.map(([k, n]) => chip({ kind: "tag", value: k }, all.data?.tag_names?.[k] ?? k, n))}
+        <section aria-labelledby="explore-tag-h" className="explore-row">
+          <h2 id="explore-tag-h" className="explore-row-h">{t("explore.tags")}</h2>
+          <div className="flex flex-wrap gap-2 text-sm">{tags.map(([k, n]) => chip({ kind: "tag", value: k }, all.data?.tag_names?.[k] ?? k, n))}</div>
         </section>
+      ) : null}
+      {pick ? (
+        <h2 className="text-lg font-semibold">
+          {pickedName} <span className="tnum text-sm font-normal text-[var(--text-muted)]">{t("albums.count", { n: num(pickedCount) })}</span>
+        </h2>
       ) : null}
       <div className="explore-grid">
         {hits.map((h, i) => (

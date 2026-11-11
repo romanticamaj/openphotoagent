@@ -1085,3 +1085,29 @@ body {
   font-size: 0.75rem;
 }
 
+/* 分類: each row of chips with its name (IMP-038) */
+.explore-row { display: grid; grid-template-columns: 4rem 1fr; gap: 0.5rem 0.75rem; align-items: start; }
+.explore-row-h { padding-top: 0.3rem; font-size: 0.8125rem; font-weight: 600; color: var(--text-muted); }
+@media (max-width: 640px) { .explore-row { grid-template-columns: 1fr; } }
+
+/* 跳到主要內容 (A11Y-013): out of sight until it has the keyboard's focus */
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 100;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 600;
+  transform: translateY(-200%);
+}
+.skip-link:focus-visible,
+.skip-link:focus {
+  transform: none;
+}
+#main:focus {
+  outline: none;
+}
+
