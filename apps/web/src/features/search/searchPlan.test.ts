@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import i18n from "../../lib/i18n";
-import { bodyFor, chipsFrom, countText, onlyByMeaning, softView, withoutPerson } from "./searchPlan";
+import { bodyFor, cappedNote, chipLabel, chipsFrom, countText, onlyByMeaning, softView, withoutPerson } from "./searchPlan";
 
 const planner = (filters: Record<string, unknown>, explain: string[], text = "") => ({
   source: "rules",
@@ -36,7 +36,7 @@ describe("the search a planned query becomes", () => {
   it("[SRCH-UI-014] 回歸：結果被截在前 250 張時，說是「最相關的 250 張」（驗證第 18 輪：看起來像剛好 250 張）", async () => {
     await i18n.changeLanguage("zh-TW");
     const t = i18n.t.bind(i18n);
-    expect(countText(t, 250, true, "zh-TW")).toBe("最相關的 250 張");
+    expect(countText(t, 250, true, "zh-TW")).toBe("250 張以上 · 依相關度排序"); // wording as of SRCH-UI-016
     expect(countText(t, 17, false, "zh-TW")).toBe("17 張");
   });
 
@@ -77,6 +77,22 @@ describe("only the expression (SRCH-CNC-012)", () => {
   it("[SRCH-CNC-012] 回歸：「只看開心」仍是同一個查詢，只留看得出的照片（驗證第 24 輪：23 張變 19 張）", () => {
     const chips = [{ kind: "soft" as const, value: "mood.smile", word: "開心" }];
     expect(bodyFor("小孩踢球很開心", chips, { text: "小孩踢球很開心" })).toEqual({ q: "小孩踢球很開心", soft_only: true, filters: {} });
+  });
+});
+
+describe("results cut at a route's limit (SRCH-UI-016)", () => {
+  const t = i18n.getFixedT("zh-TW");
+  it("[SRCH-UI-016] 回歸：被截斷時說「N 張以上」，看到最後時說其餘相似度較低（驗證第 25 輪：「最相關的 233 張」看不出還有更多）", () => {
+    expect(countText(t, 233, true, "zh-TW")).toBe("233 張以上 · 依相關度排序");
+    expect(cappedNote(t, 233, true, false)).toBe("只列出最相關的 233 張，其餘照片相似度較低。");
+    expect(cappedNote(t, 233, true, true)).toBeNull(); // more pages still to load
+    expect(cappedNote(t, 17, false, false)).toBeNull();
+  });
+
+  it("[SRCH-UI-017] 回歸：標籤的移除按鈕念出名稱，不念內部代號（驗證第 25 輪：「移除 mood.smile」）", () => {
+    expect(chipLabel(t, { kind: "soft", value: "mood.smile", word: "開心" }, {})).toBe("只看開心");
+    expect(chipLabel(t, { kind: "tag", value: "animal.dog" }, { "animal.dog": "狗" })).toBe("狗");
+    expect(chipLabel(t, { kind: "person", value: "測試A", id: "p1" }, {})).toBe("人物：測試A");
   });
 });
 

@@ -10,7 +10,7 @@ import { Lightbox } from "../viewer/Lightbox";
 import type { GridApi } from "../viewer/PhotoGrid";
 import { api, isDegraded, mediaUrl, type SearchBody } from "../../lib/api";
 
-import { bodyFor, chipsFrom, countText, onlyByMeaning, softView, withoutPerson, type Chip } from "./searchPlan";
+import { bodyFor, cappedNote, chipLabel, chipsFrom, countText, onlyByMeaning, softView, withoutPerson, type Chip } from "./searchPlan";
 
 export function SearchPage({ q }: { q: string }) {
   const { t, i18n } = useTranslation();
@@ -166,8 +166,8 @@ export function SearchPage({ q }: { q: string }) {
       <ul aria-label={t("search.chips")} className="flex flex-wrap gap-2">
         {chips.map((c) => (
           <li key={`${c.kind}:${c.value}`} className="flex items-center gap-1 rounded-full border border-[var(--border)] px-3 py-0.5 text-sm">
-            {c.kind === "person" ? t("search.personChip", { name: c.value }) : c.kind === "soft" ? t("search.softChip", { word: c.word }) : (c.kind === "tag" && tagNames[c.value]) || c.value}
-            <button type="button" aria-label={t("search.remove", { what: (c.kind === "tag" && tagNames[c.value]) || c.value })} onClick={() =>
+            {chipLabel(t, c, tagNames)}
+            <button type="button" aria-label={t("search.remove", { what: chipLabel(t, c, tagNames) })} onClick={() =>
                 c.kind === "person"
                   ? void nav({ to: "/search", search: { q: withoutPerson(q, c.value) } }) // the box follows (SRCH-UI-013)
                   : setChips(chips.filter((x) => x !== c))
@@ -260,6 +260,11 @@ export function SearchPage({ q }: { q: string }) {
             window.setTimeout(() => focusTile(id ? i : active), 0); // focus goes back to the photo you were on
           }}
         />
+      ) : null}
+      {first && cappedNote(t, total, Boolean(first.total_capped), Boolean(res.hasNextPage)) ? (
+        <p data-testid="capped-note" className="text-sm text-[var(--text-muted)]">
+          {cappedNote(t, total, Boolean(first.total_capped), Boolean(res.hasNextPage))}
+        </p>
       ) : null}
       {res.hasNextPage && (
         <Button variant="ghost" onClick={() => void res.fetchNextPage()}>

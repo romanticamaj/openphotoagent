@@ -138,6 +138,7 @@ describe("progress on every page (ADR-0029, invariant 9)", () => {
       await qc.refetchQueries({ queryKey: ["operations"] });
     });
     await waitFor(() => expect(screen.getByTestId("progress-dock").textContent).toContain("都已分析過"));
+    expect(screen.queryByRole("link", { name: "整理到資料夾" })).toBeNull(); // nothing new to organise (驗證第 25 輪)
   });
 
   it("[IMP-012] 完成後說明做完什麼、下一步去哪裡", async () => {

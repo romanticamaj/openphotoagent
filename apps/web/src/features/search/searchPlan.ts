@@ -85,3 +85,15 @@ export function softView(
   };
 }
 
+/** At the end of a cut list: the rest exist but are less alike (SRCH-UI-016). None while more pages are coming. */
+export function cappedNote(t: T, n: number, capped: boolean, more: boolean): string | null {
+  return capped && !more ? t("search.cappedNote", { n: n.toLocaleString() }) : null;
+}
+
+/** What a chip says, and what its remove button names (SRCH-UI-017): never an internal key. */
+export function chipLabel(t: T, c: Chip, tagNames: Record<string, string>): string {
+  if (c.kind === "person") return t("search.personChip", { name: c.value });
+  if (c.kind === "soft") return t("search.softChip", { word: c.word });
+  return (c.kind === "tag" && tagNames[c.value]) || c.value;
+}
+

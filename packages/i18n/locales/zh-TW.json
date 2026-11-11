@@ -540,11 +540,12 @@
     "related": "可能相關的照片",
     "relaxed": "沒有照片拍到「{words}」，下面是符合其他條件的照片。",
     "personChip": "人物：{name}",
-    "countCapped": "最相關的 {n} 張",
+    "countCapped": "{n} 張以上 · 依相關度排序",
     "softDivider": "以下 {n} 張沒看出「{word}」，仍符合其他條件",
     "softNone": "沒有看得出「{word}」的照片，下面是符合其他條件的照片。",
     "softOnly": "只看{word}（{n} 張）",
-    "softChip": "只看{word}"
+    "softChip": "只看{word}",
+    "cappedNote": "只列出最相關的 {n} 張，其餘照片相似度較低。"
   },
   "problem": {
     "chosen": "已改用 {what}"

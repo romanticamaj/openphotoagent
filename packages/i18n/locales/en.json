@@ -540,11 +540,12 @@
     "related": "Possibly related",
     "relaxed": "No photo shows “{words}”. Below are photos that match the rest.",
     "personChip": "Person: {name}",
-    "countCapped": "the {n} most relevant",
+    "countCapped": "{n}+ photos · by relevance",
     "softDivider": "The {n} below don't clearly show “{word}” but match the rest",
     "softNone": "No photo clearly shows “{word}”. Below are photos that match the rest.",
     "softOnly": "Only “{word}” ({n})",
-    "softChip": "Only “{word}”"
+    "softChip": "Only “{word}”",
+    "cappedNote": "Showing the {n} most relevant; the rest are less alike."
   },
   "problem": {
     "chosen": "Switched to {what}"

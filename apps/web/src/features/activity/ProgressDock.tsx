@@ -84,7 +84,7 @@ export function ProgressDock() {
         </p>
         <div className="flex flex-wrap items-center gap-3 text-sm">
           <Link to="/" className="underline">{t("dock.seePhotos")}</Link>
-          <Link to="/organize" className="underline">{t("dock.organize")}</Link>
+          {finished ? <Link to="/organize" className="underline">{t("dock.organize")}</Link> : null}
           <button type="button" className="ml-auto underline" onClick={() => setFinished(null)}>{t("dock.close")}</button>
         </div>
       </aside>
