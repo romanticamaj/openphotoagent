@@ -24,7 +24,7 @@ from typing import Any
 import yaml
 from opagent_core.vocabularies import VOCAB_DIR
 
-TOKENIZER_VERSION = "jieba-zh-hant@5+opencc-s2twp+bigram"  # @5: names kept whole (SRCH-TOK-018); @4 SRCH-IDX-010
+TOKENIZER_VERSION = "jieba-zh-hant@6+opencc-s2twp+bigram"  # @6: 車子 its own term (SRCH-TOK-020); @5 SRCH-TOK-018
 # Names that hold a vocabulary word but are not that thing: a caption reading a sign 「日落大道」 (Sunset Blvd) is not a
 # sunset (SRCH-TOK-018). Weighed above the vocabulary's words, so the name is one word.
 NAMES = ("日落大道", "夕陽大道")
@@ -172,6 +172,7 @@ class Tokenizer:
     _names: dict[str, dict[str, str]] = field(default_factory=dict)
     _forms: dict[str, list[str]] = field(default_factory=dict)
     _implies: dict[str, set[str]] = field(default_factory=dict)
+    _includes: dict[str, set[str]] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         import jieba
@@ -183,6 +184,7 @@ class Tokenizer:
         for t in d.get("terms", []):
             self._names[t["id"]] = {"zh": t["zh"], "en": t["en"]}
             self._implies[t["id"]] = set(t.get("implies") or [])
+            self._includes[t["id"]] = set(t.get("includes") or [])
             for s in [t["zh"], t["en"], *t.get("synonyms", [])]:
                 self._index.setdefault(normalize(s), t["id"])
                 self.custom_words.append(s)
@@ -223,6 +225,17 @@ class Tokenizer:
         out: list[str] = []
         for run in _CJK.findall(normalize(text)):
             out.extend("§" + run[i : i + 2] for i in range(len(run) - 1))
+        return out
+
+    def included(self, key: str | None) -> set[str]:
+        """The kinds a broader term includes (SRCH-TOK-020): 車子 is a car, a bus, a train or a bicycle."""
+        return set(self._includes.get(key or "", set()))
+
+    def _forms_of(self, key: str) -> list[str]:
+        """A term's own names, then those of the kinds it includes: a photo of any of them shows it."""
+        out = list(self._forms.get(key, []))
+        for k in sorted(self.included(key)):
+            out += [f for f in self._forms.get(k, []) if f not in out]
         return out
 
     def implied(self, key: str | None) -> set[str]:
@@ -267,7 +280,9 @@ class Tokenizer:
         know are left out; when none is known the image route is skipped (None). Latin script is passed as it is."""
         if not _CJK.search(text):
             return text.strip() or None
-        names = [n for k in self.query(text).tag_keys if (n := self.term_name(k, "en"))]
+        # the query's own terms: 車子 asks for "vehicle", not for each kind it includes (SRCH-TOK-020)
+        own = sorted({k for w in [*self.words(text), text] if (k := self.tag_key(w))})
+        names = [n for k in own if (n := self.term_name(k, "en"))]
         latin = re.findall(r"[a-z][a-z0-9'-]*", normalize(text))
         out = list(dict.fromkeys([*names, *latin]))
         return " ".join(out) or None
@@ -284,15 +299,16 @@ class Tokenizer:
             if ident in seen:
                 continue
             seen.add(ident)
-            forms = [normalize(w), *(f for f in self._forms.get(k, []) if f != normalize(w))] if k else [normalize(w)]
+            forms = [normalize(w), *(f for f in self._forms_of(k) if f != normalize(w))] if k else [normalize(w)]
             out.append(Concept(word=w, key=k, forms=tuple(forms)))
         return out
 
     def query(self, text: str) -> ParsedQuery:
         words = self.words(text)
-        keys = sorted({k for w in [*words, text] if (k := self.tag_key(w))})
+        own = {k for w in [*words, text] if (k := self.tag_key(w))}
+        keys = sorted(own | {i for k in own for i in self.included(k)})  # its kinds' tags too (SRCH-TOK-020)
         bi = self.bigrams(text)
-        alts = {w: [f for f in self._forms.get(k, []) if f != normalize(w)] for w in words if (k := self.tag_key(w))}
+        alts = {w: [f for f in self._forms_of(k) if f != normalize(w)] for w in words if (k := self.tag_key(w))}
         return ParsedQuery(
             words=words,
             bigram=bi or None,

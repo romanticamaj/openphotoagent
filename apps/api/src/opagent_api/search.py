@@ -296,8 +296,8 @@ def _concept_cond(i: int, cpt: Any, meaning: list[str] | None = None) -> Any:
             to_tsquery_alts([cpt.forms[0]], {cpt.forms[0]: list(cpt.forms[1:])}), cpt.word if latin else "", f"c{i}"
         )
     ]
-    if cpt.key:
-        parts.append(search_doc.c.tags.overlap([cpt.key]))
+    if cpt.key:  # the term's tag, or a kind it includes: 車子 shows on a photo tagged 公車 (SRCH-CNC-017)
+        parts.append(search_doc.c.tags.overlap([cpt.key, *sorted(tok.included(cpt.key))]))
     elif not latin:
         bi = tok.bigrams(cpt.word)
         if bi:

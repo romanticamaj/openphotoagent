@@ -213,3 +213,35 @@ def test_srch_tok_019_only_characters_traditional_text_cannot_have_are_converted
     assert to_hant("两个小孩很开心地玩积木") == "兩個小孩很開心地玩積木"
     for keep in ("剪彩、洗手台、家具、設備、文件、自行車、工作台、托盤、划槳", "Two kids play.", "", None):
         assert to_hant(keep) == keep
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-020")
+def test_srch_tok_020_a_broader_word_includes_its_kinds():
+    """回歸 (audit rounds 57-58): 「車子」 was a synonym of 汽車 only, so buses, trains and bicycles were missed though
+    their words were in the captions. 車子 is its own term that includes those kinds (strict: every bus is a 車子;
+    a plane is not), and 「汽車」 still means a car only. Checked like `implies`: no chains, same group."""
+    import yaml
+    from opagent_core.vocabularies import VOCAB_DIR
+
+    tok = Tokenizer()
+    assert tok.tag_key("車子") == "object.vehicle" and tok.tag_key("汽車") == "object.car"
+    forms = {f for c in tok.concepts("車子") for f in c.forms}
+    assert {"公車", "巴士", "火車", "捷運", "腳踏車", "汽車"} <= forms and "飛機" not in forms
+    assert sorted(tok.query("車子").tag_keys) == [
+        "object.bicycle",
+        "object.bus",
+        "object.car",
+        "object.train",
+        "object.vehicle",
+    ]
+    assert tok.query("汽車").tag_keys == ["object.car"]
+    assert tok.vector_text("車子") == "vehicle"
+    terms = yaml.safe_load((VOCAB_DIR / "general-photo.yaml").read_text(encoding="utf-8"))["terms"]
+    by_id = {t["id"]: t for t in terms}
+    for t in terms:
+        for k in t.get("includes", []):
+            assert k in by_id and k != t["id"], (t["id"], k)
+            assert not by_id[k].get("includes"), "no chains"
+            assert k.split(".")[0] == t["id"].split(".")[0], (t["id"], k)
+    assert "飯" not in {f for c in tok.concepts("吃飯") for f in c.forms}  # eating is not a bowl of rice

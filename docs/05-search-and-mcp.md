@@ -265,6 +265,8 @@ SELECT * FROM fused ORDER BY score DESC LIMIT :limit OFFSET :offset;
 
 > **（ADR-0042 補充）** 只有影像路徑命中（全文、標籤、說明向量都沒有命中）時，影像路徑的最高分要達到 `embedding.min_cosine_alone`，否則視為沒有結果（`image_only_weak: true`、`total: 0`）。最高分過了這道門檻，其餘照片仍以 `min_cosine` 判斷。目錄沒有這個值的模型不受影響。
 
+> **（ADR-0032 補充，includes）** 詞彙表的 `includes` 只用於嚴格的上下位：查「車子」也找汽車、公車、火車、腳踏車（全文替代詞與標籤），這些照片計入張數；影像路徑只問上位詞。聯想（吃飯 → 飯）不展開。
+
 ### 2.3 Query planner（自然語言 → 結構化）
 
 輸出（同時是 REST `/search` 的請求格式，也是 MCP `search_photos` 的參數）：

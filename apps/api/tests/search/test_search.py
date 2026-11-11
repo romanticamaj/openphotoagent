@@ -1178,3 +1178,22 @@ def test_srch_sem_015_a_phrase_no_photo_shows_in_words_needs_a_strong_image_answ
     for q in ("城市夜景", "city night"):
         res = s.search(q=q)
         assert not {x["asset_id"] for x in res["items"]} & set(ids[:2]), (q, res["items"])
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-CNC-017")
+def test_srch_cnc_017_cars_buses_trains_and_bicycles_are_all_車子(s):
+    """回歸 (audit rounds 57-58): 「車子」 found 2 of about 11 vehicle photos. It includes its kinds; a plane is not
+    one, and 「汽車」 is still a car only. The included photos are members and count."""
+    s.add(1, caption="小朋友搭公車")
+    s.add(2, caption="一家人坐捷運")
+    s.add(3, caption="騎腳踏車到公園")
+    s.add(4, caption="路邊停著一輛汽車")
+    s.add(5, caption="準備搭飛機出國")
+    s.index()
+    res = s.search(q="車子", semantic=False)
+    assert res["total"] == 4, [x["caption"] for x in res["items"]]
+    assert "準備搭飛機出國" not in {x["caption"] for x in res["items"]}
+    assert s.search(q="汽車", semantic=False)["total"] == 1
+    assert s.search(q="公車", semantic=False)["total"] == 1
+    assert s.search(q="小朋友 車子", semantic=False)["total"] == 1  # every concept still has to show (ADR-0032)

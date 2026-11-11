@@ -16,7 +16,9 @@ terms:
   - { id: food.coffee, zh: 咖啡, en: coffee, group: 物件, synonyms: [拿鐵, latte] }
   - { id: people.child, zh: 小孩, en: child, group: 人物, synonyms: [兒童, 孩子, 小朋友, 幼童, 孩童, 幼兒, 小男孩, 小女孩, 男孩, 女孩, kid, kids, children] }
   - { id: people.group, zh: 合照, en: group photo, group: 人物, synonyms: [團體照, 大合照] }
-  - { id: object.car, zh: 汽車, en: car, group: 物件, synonyms: [車子, 轎車, cars] }
+  - { id: object.car, zh: 汽車, en: car, group: 物件, synonyms: [轎車, cars] }
+  # 車子 is any of its kinds (SRCH-TOK-020): every bus or train is a 車子; a plane is not
+  - { id: object.vehicle, zh: 車子, en: vehicle, group: 物件, synonyms: [vehicles], includes: [object.car, object.bus, object.train, object.bicycle] }
   - { id: object.bicycle, zh: 腳踏車, en: bicycle, group: 物件, synonyms: [自行車, 單車, bike] }
   - { id: object.document, zh: 文件, en: document, group: 物件, synonyms: [紙本, 收據, receipt] }
   - { id: object.flower, zh: 花, en: flower, group: 物件, synonyms: [花朵, flowers] }
