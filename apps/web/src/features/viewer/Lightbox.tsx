@@ -124,13 +124,27 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
 
   const close = useCallback(() => onClose(asset?.id ?? null), [asset, onClose]);
   const go = useCallback((d: number) => setOrd((o) => Math.max(0, Math.min(grid.total - 1, o + d))), [grid.total]);
+  // a slideshow (VIEW-039): the next photo every SLIDE_MS, stopping on the last; moving by hand stops it
+  const [playing, setPlaying] = useState(false);
+  const [showKeys, setShowKeys] = useState(false);
+  const step = (d: number) => {
+    setPlaying(false);
+    go(d);
+  };
+  useEffect(() => {
+    if (!playing) return;
+    const id = window.setTimeout(() => (ord >= grid.total - 1 ? setPlaying(false) : setOrd(ord + 1)), SLIDE_MS);
+    return () => window.clearTimeout(id);
+  }, [playing, ord, grid.total]);
 
   const onKey = (e: React.KeyboardEvent) => {
     if (typingIn(e.target)) return; // text in a field, not a shortcut (COL-008)
     const k: Record<string, () => void> = {
       Escape: close,
-      ArrowLeft: () => go(-1),
-      ArrowRight: () => go(1),
+      ArrowLeft: () => step(-1),
+      ArrowRight: () => step(1),
+      " ": () => setPlaying((x) => !x),
+      "?": () => setShowKeys(true),
       i: () => setShowInfo((s) => !s),
       I: () => setShowInfo((s) => !s),
       r: rotate,
@@ -159,6 +173,7 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
 
   return (
     <div ref={dialog} role="dialog" aria-modal="true" aria-label={t("lightbox.label")} tabIndex={-1} className="lightbox" onKeyDown={onKey} data-testid="lightbox">
+      {showKeys ? <KeyList onClose={() => (setShowKeys(false), dialog.current?.focus())} /> : null}
       <div className="col-span-1 flex items-center gap-2 px-3">
         <button type="button" onClick={close} className="rounded-[var(--radius-sm)] px-2 py-1 hover:bg-[var(--surface-2)]">{t("lightbox.close")}</button>
         <span aria-live="polite" className="tnum text-[var(--text)]" data-testid="lightbox-position">{position}</span>
@@ -181,6 +196,21 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
             </svg>
           </button>
         ) : null}
+        <button
+          type="button"
+          aria-pressed={playing}
+          aria-label={t(playing ? "lightbox.slideshowStop" : "lightbox.slideshow")}
+          title={`${t(playing ? "lightbox.slideshowStop" : "lightbox.slideshow")} (${t("lightbox.k.space")})`}
+          onClick={() => setPlaying((x) => !x)}
+          className="icon-button"
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+            {playing ? <path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" /> : <path d="M8 5.5v13l10.5-6.5z" />}
+          </svg>
+        </button>
+        <button type="button" aria-label={t("lightbox.keys")} title={`${t("lightbox.keys")} (?)`} onClick={() => setShowKeys(true)} className="icon-button text-sm font-semibold">
+          ?
+        </button>
         <button type="button" aria-pressed={showInfo} onClick={() => setShowInfo((s) => !s)} className="rounded-[var(--radius-sm)] px-2 py-1 hover:bg-[var(--surface-2)]">{t("lightbox.info")}</button>
       </div>
       <div
@@ -240,8 +270,8 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
         {asset && showInfo && natural && scale === 1 && !rot ? <PhotoFaces id={asset.id} photo={natural} /> : null}
         {grid.total > 1 ? (
           <>
-            <button type="button" onClick={() => go(-1)} aria-label={t("lightbox.prev")} className="absolute left-2 rounded-full bg-black/40 px-3 py-2">‹</button>
-            <button type="button" onClick={() => go(1)} aria-label={t("lightbox.next")} className="absolute right-2 rounded-full bg-black/40 px-3 py-2">›</button>
+            <button type="button" onClick={() => step(-1)} aria-label={t("lightbox.prev")} className="absolute left-2 rounded-full bg-black/40 px-3 py-2">‹</button>
+            <button type="button" onClick={() => step(1)} aria-label={t("lightbox.next")} className="absolute right-2 rounded-full bg-black/40 px-3 py-2">›</button>
           </>
         ) : null}
       </div>
@@ -635,3 +665,53 @@ function PhotoFaces({ id, photo }: { id: string; photo: { w: number; h: number }
   const unknown = info.data?.unknown_faces ?? [];
   return people.length || unknown.length ? <FaceBoxes photo={photo} people={people} unknown={unknown} /> : null;
 }
+
+const SLIDE_MS = 4000;
+
+/** The Lightbox's keys, from 「?」 or its button (VIEW-040). Esc closes the list, not the Lightbox. */
+function KeyList({ onClose }: { onClose: () => void }) {
+  const { t } = useTranslation();
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => ref.current?.focus(), []);
+  const rows: Array<[string, string]> = [
+    ["← →", t("lightbox.k.prevNext")],
+    [t("lightbox.k.space"), t("lightbox.k.play")],
+    ["F", t("lightbox.k.fav")],
+    ["R", t("lightbox.k.rotate")],
+    ["I", t("lightbox.k.info")],
+    ["+ − 0", t("lightbox.k.zoom")],
+    ["?", t("lightbox.keys")],
+    ["Esc", t("lightbox.k.close")],
+  ];
+  return (
+    <div
+      ref={ref}
+      role="dialog"
+      aria-label={t("lightbox.keys")}
+      tabIndex={-1}
+      className="key-list"
+      onKeyDown={(e) => {
+        e.stopPropagation(); // keys here are not the Lightbox's
+        if (e.key === "Escape" || e.key === "?") onClose();
+      }}
+    >
+      <div className="flex items-center">
+        <h2 className="font-semibold">{t("lightbox.keys")}</h2>
+        <button type="button" className="ml-auto underline text-sm" onClick={onClose}>
+          {t("lightbox.close")}
+        </button>
+      </div>
+      <dl>
+        {rows.map(([k, what]) => (
+          <div key={k} className="flex gap-3 py-1">
+            <dt className="w-20 shrink-0">
+              <kbd>{k}</kbd>
+            </dt>
+            <dd>{what}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+

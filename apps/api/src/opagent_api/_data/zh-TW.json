@@ -481,7 +481,20 @@
     "nameFacesSmall": "另有 {n} 張臉太小，認不出是誰。",
     "showMoreFaces": "再顯示 {n} 張",
     "correctShort": "分類不對？修改…",
-    "rotate": "旋轉"
+    "rotate": "旋轉",
+    "slideshow": "幻燈片",
+    "slideshowStop": "停止幻燈片",
+    "keys": "快捷鍵",
+    "k": {
+      "prevNext": "上一張／下一張",
+      "space": "空白鍵",
+      "play": "播放或停止幻燈片",
+      "fav": "收藏",
+      "rotate": "旋轉 90 度",
+      "info": "資訊",
+      "zoom": "放大、縮小、原尺寸",
+      "close": "關閉"
+    }
   },
   "onboarding": {
     "welcome": "歡迎使用 OpenPhotoAgent",

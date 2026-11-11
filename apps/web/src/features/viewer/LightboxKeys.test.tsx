@@ -128,3 +128,56 @@ describe("a photo already turned (audit round 47)", () => {
     await waitFor(() => expect(s.setRotation).toHaveBeenCalledWith("t0", 180));
   });
 });
+
+describe("a slideshow and the shortcut list (audit round 50)", () => {
+  it("[VIEW-039] 空白鍵或「幻燈片」每 4 秒換下一張，到最後一張停；按 ← → 或空白鍵就停", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      render(
+        <QueryClientProvider client={new QueryClient()}>
+          <Lightbox start={0} grid={grid} onClose={vi.fn()} />
+        </QueryClientProvider>,
+      );
+      const lb = screen.getByTestId("lightbox");
+      const pos = () => screen.getByTestId("lightbox-position").textContent;
+      fireEvent.click(screen.getByRole("button", { name: "幻燈片" }));
+      expect(screen.getByRole("button", { name: "停止幻燈片" }).getAttribute("aria-pressed")).toBe("true");
+      await vi.advanceTimersByTimeAsync(4000);
+      expect(pos()).toBe("第 2 張，共 3 張");
+      await vi.advanceTimersByTimeAsync(4000);
+      expect(pos()).toBe("第 3 張，共 3 張");
+      await vi.advanceTimersByTimeAsync(4000); // the last one: it stops there
+      expect(pos()).toBe("第 3 張，共 3 張");
+      expect(screen.getByRole("button", { name: "幻燈片" })).toBeTruthy();
+      fireEvent.keyDown(lb, { key: "ArrowLeft" });
+      fireEvent.keyDown(lb, { key: "ArrowLeft" });
+      fireEvent.keyDown(lb, { key: " " }); // Space plays
+      await vi.advanceTimersByTimeAsync(4000);
+      expect(pos()).toBe("第 2 張，共 3 張");
+      fireEvent.keyDown(lb, { key: "ArrowLeft" }); // moving by hand stops it
+      await vi.advanceTimersByTimeAsync(8000);
+      expect(pos()).toBe("第 1 張，共 3 張");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("[VIEW-040] 「?」列出快捷鍵；Esc 只關掉清單", async () => {
+    const onClose = vi.fn();
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Lightbox start={0} grid={grid} onClose={onClose} />
+      </QueryClientProvider>,
+    );
+    const lb = screen.getByTestId("lightbox");
+    fireEvent.keyDown(lb, { key: "?" });
+    const list = screen.getByRole("dialog", { name: "快捷鍵" });
+    for (const k of ["←", "→", "空白鍵", "F", "R", "I", "Esc"]) expect(list.textContent).toContain(k);
+    fireEvent.keyDown(list, { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "快捷鍵" })).toBeNull();
+    expect(onClose).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "快捷鍵" }));
+    expect(screen.getByRole("dialog", { name: "快捷鍵" })).toBeTruthy();
+  });
+});
+

@@ -481,7 +481,20 @@
     "nameFacesSmall": "{n} more faces are too small to tell who they are.",
     "showMoreFaces": "Show {n} more",
     "correctShort": "Wrong category? Change…",
-    "rotate": "Rotate"
+    "rotate": "Rotate",
+    "slideshow": "Slideshow",
+    "slideshowStop": "Stop slideshow",
+    "keys": "Keyboard shortcuts",
+    "k": {
+      "prevNext": "Previous / next",
+      "space": "Space",
+      "play": "Play or stop the slideshow",
+      "fav": "Favourite",
+      "rotate": "Rotate 90°",
+      "info": "Info",
+      "zoom": "Zoom in, out, fit",
+      "close": "Close"
+    }
   },
   "onboarding": {
     "welcome": "Welcome to OpenPhotoAgent",
