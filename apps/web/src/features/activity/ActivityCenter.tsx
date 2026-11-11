@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { groupOps, type Op, opTypeKey } from "./model";
+import { groupOps, type Op, opStatusKey, opTypeKey } from "./model";
 import { OperationProgress } from "./OperationProgress";
 
 /** 06 §6.1 Activity Center drawer: operations grouped by worker × lane; failed rows show the problem's fixes. */
@@ -72,7 +72,7 @@ export function ActivityCenter({
               <li key={op.id} className="flex justify-between gap-2">
                 <span>{t(`activity.type.${opTypeKey(op)}`, { defaultValue: op.type })}</span>
                 <span className="tnum text-xs text-[var(--text-muted)]">
-                  {t(`activity.status.${op.status}`, { defaultValue: op.status })}
+                  {t(`activity.status.${opStatusKey(op)}`, { defaultValue: op.status })}
                   {op.finished_at ? ` · ${new Date(op.finished_at).toLocaleTimeString(i18n.language, { hour: "2-digit", minute: "2-digit" })}` : ""}
                 </span>
               </li>

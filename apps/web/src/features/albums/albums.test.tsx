@@ -320,5 +320,17 @@ describe("keys in the Lightbox (audit round 34)", () => {
     fireEvent.click(await screen.findByRole("button", { name: "刪除相簿" }));
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "取消" })));
   });
+
+  it("[COL-027] 回歸：取消刪除、改名完成或取消後，焦點回到原本的按鈕（驗證第 57～59 輪：掉到頁面）", async () => {
+    s.album.mockResolvedValue({ id: "b1", name: "墾丁", kind: "album", photos: [] });
+    wrap(<AlbumPage albumId="b1" />);
+    const del = await screen.findByRole("button", { name: "刪除相簿" });
+    fireEvent.click(del);
+    fireEvent.click(await screen.findByRole("button", { name: "取消" }));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "刪除相簿" })));
+    fireEvent.click(screen.getByRole("button", { name: "改名" }));
+    fireEvent.keyDown(await screen.findByRole("textbox", { name: "改名" }), { key: "Escape" });
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "改名" })));
+  });
 });
 

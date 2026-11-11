@@ -30,6 +30,11 @@ export function opTypeKey(op: Pick<Op, "type"> & { subject?: unknown }): string 
   return op.type;
 }
 
+/** The status a row shows: an organize plan waiting for approval is not 「完成」 (ACT-018), though its analysis is. */
+export function opStatusKey(op: Pick<Op, "type" | "status"> & { subject?: unknown }): string {
+  return opTypeKey(op) === "job.planWaiting" ? "awaitingApproval" : op.status;
+}
+
 export type Indicator = { state: "idle" | "running" | "paused" | "failed" | "interrupted"; icon: string; token: string; labelKey: string };
 
 const IND: Record<Indicator["state"], Omit<Indicator, "state" | "labelKey">> = {

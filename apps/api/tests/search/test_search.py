@@ -1197,3 +1197,17 @@ def test_srch_cnc_017_cars_buses_trains_and_bicycles_are_all_車子(s):
     assert s.search(q="汽車", semantic=False)["total"] == 1
     assert s.search(q="公車", semantic=False)["total"] == 1
     assert s.search(q="小朋友 車子", semantic=False)["total"] == 1  # every concept still has to show (ADR-0032)
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-CNC-018")
+def test_srch_cnc_018_a_tram_and_traffic_are_車子_too(s):
+    """回歸 (audit round 59): 「車子」 missed a tram tagged 電車 and two street photos tagged 車輛, the very words for
+    them: 車輛 names 車子 itself and 電車 is a kind of 火車."""
+    s.add(1, caption="電車行駛在街道上", tags=("電車",))
+    s.add(2, caption="高架橋下的道路", tags=("車輛", "道路"))
+    s.add(3, caption="城市街景", tags=("車輛",))
+    s.add(4, caption="海邊的夕陽")
+    s.index()
+    assert s.search(q="車子", semantic=False)["total"] == 3
+    assert s.search(q="火車", semantic=False)["total"] == 1

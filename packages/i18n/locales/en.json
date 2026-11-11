@@ -210,7 +210,8 @@
       "succeeded": "Done",
       "waiting": "Waiting",
       "interrupted": "Interrupted",
-      "cancelled": "Cancelled"
+      "cancelled": "Cancelled",
+      "awaitingApproval": "Waiting for you"
     },
     "eta": {
       "rough": "About",

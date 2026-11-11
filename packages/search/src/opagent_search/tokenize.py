@@ -24,7 +24,7 @@ from typing import Any
 import yaml
 from opagent_core.vocabularies import VOCAB_DIR
 
-TOKENIZER_VERSION = "jieba-zh-hant@6+opencc-s2twp+bigram"  # @6: 車子 its own term (SRCH-TOK-020); @5 SRCH-TOK-018
+TOKENIZER_VERSION = "jieba-zh-hant@7+opencc-s2twp+bigram"  # @7: 車輛, 電車 (SRCH-CNC-018); @6 SRCH-TOK-020
 # Names that hold a vocabulary word but are not that thing: a caption reading a sign 「日落大道」 (Sunset Blvd) is not a
 # sunset (SRCH-TOK-018). Weighed above the vocabulary's words, so the name is one word.
 NAMES = ("日落大道", "夕陽大道")

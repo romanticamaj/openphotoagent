@@ -89,3 +89,13 @@ describe("an organize job named by where its plan stands (audit round 58)", () =
     expect(opTypeKey({ type: "job.label", subject: { job_kind: "organize", job_status: "completed" } })).toBe("job.label"); // applied: 整理
   });
 });
+
+describe("a waiting plan is not done (audit round 59)", () => {
+  it("[ACT-018] 回歸：待核准的整理計畫狀態寫「等你核准」，不是「完成」", async () => {
+    const { opStatusKey } = await import("./model");
+    const zh = (await import("@opa/i18n/locales/zh-TW.json")).default as { activity: { status: Record<string, string> } };
+    const waiting = { type: "job.label", status: "succeeded", subject: { job_kind: "organize", job_status: "awaiting_approval" } };
+    expect(zh.activity.status[opStatusKey(waiting)]).toBe("等你核准");
+    expect(opStatusKey({ type: "model.download", status: "succeeded" })).toBe("succeeded");
+  });
+});

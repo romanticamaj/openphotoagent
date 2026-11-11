@@ -124,7 +124,11 @@ export function AlbumPage({ albumId }: { albumId: string }) {
     mutationFn: (assetId: string) => api.addToAlbum(albumId, [assetId]),
     onSuccess: () => (setRemoved(null), refresh()),
   });
-  const rename = useMutation({ mutationFn: (n: string) => api.renameAlbum(albumId, n), onSuccess: () => (setRenaming(null), refresh()) });
+  // focus back to the button that began it, once its field or question is gone (COL-027)
+  const renameBtn = useRef<HTMLButtonElement>(null);
+  const deleteBtn = useRef<HTMLButtonElement>(null);
+  const back = (el: React.RefObject<HTMLButtonElement | null>) => requestAnimationFrame(() => el.current?.focus());
+  const rename = useMutation({ mutationFn: (n: string) => api.renameAlbum(albumId, n), onSuccess: () => (setRenaming(null), refresh(), back(renameBtn)) });
   const drop = useMutation({
     mutationFn: () => api.deleteAlbum(albumId),
     onSuccess: () => {
@@ -173,6 +177,7 @@ export function AlbumPage({ albumId }: { albumId: string }) {
               onKeyDown={(e) => {
                 if (e.key !== "Escape") return;
                 setRenaming(null); // Esc keeps the old name
+                back(renameBtn);
                 setRenameNeeded(false);
               }}
               className="rounded-full border border-[var(--border)] bg-[var(--bg)] px-3 py-1"
@@ -186,8 +191,8 @@ export function AlbumPage({ albumId }: { albumId: string }) {
         <span className="tnum text-[var(--text-muted)]">{t("albums.count", { n: photos.length.toLocaleString() })}</span>
         {!fav && q.data ? (
           <span className="ml-auto flex gap-3 text-sm">
-            <button type="button" className="underline" onClick={() => setRenaming(q.data.name)}>{t("albums.rename")}</button>
-            <button type="button" className="underline" onClick={() => setConfirming(true)}>{t("albums.delete")}</button>
+            <button ref={renameBtn} type="button" className="underline" onClick={() => setRenaming(q.data.name)}>{t("albums.rename")}</button>
+            <button ref={deleteBtn} type="button" className="underline" onClick={() => setConfirming(true)}>{t("albums.delete")}</button>
           </span>
         ) : null}
       </div>
@@ -197,7 +202,7 @@ export function AlbumPage({ albumId }: { albumId: string }) {
           <span>{t("albums.confirmDelete", { name: q.data?.name ?? "" })}</span>
           <button type="button" className="rounded-full bg-[var(--danger)] px-3 py-1 text-white" onClick={() => drop.mutate()}>{t("albums.confirm")}</button>
           {/* the safe choice has the focus as the question opens (COL-026) */}
-          <button ref={cancelRef} type="button" className="underline" onClick={() => setConfirming(false)}>{t("albums.cancel")}</button>
+          <button ref={cancelRef} type="button" className="underline" onClick={() => (setConfirming(false), back(deleteBtn))}>{t("albums.cancel")}</button>
         </div>
       ) : null}
       {removed ? (
