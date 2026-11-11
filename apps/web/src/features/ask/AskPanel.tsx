@@ -300,7 +300,7 @@ export function AskPhoto({ assetId }: { assetId: string }) {
   const go = (text: string) => {
     if (!text.trim() || busy) return;
     setQ("");
-    void run(text, { context: { photo_ids: [assetId] } });
+    void run(text, { context: { photo_ids: [assetId], scope: "photo" } }); // about this photo (ASK-ONE-004)
   };
   return (
     <section role="region" aria-label={t("ask.photo.title")} className="space-y-2">

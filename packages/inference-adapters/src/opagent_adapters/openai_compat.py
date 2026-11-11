@@ -14,7 +14,7 @@ from typing import Any
 import httpx
 from opagent_core.operation import NullReporter, OperationReporter
 from opagent_inference.fused import CategoryMap, OutputParseError, category_probability, fused_schema, parse_fused
-from opagent_inference.prompts import CaptionConfig, render_fused_prompt
+from opagent_inference.prompts import CaptionConfig, render_answer_prompt, render_fused_prompt
 from opagent_inference.types import (
     BackendInfo,
     BatchRequest,
@@ -114,7 +114,12 @@ class OpenAICompatAdapter:
 
     # ---- inference ----
     def _payload(self, req: BatchRequest, item: ImageInput, cats: CategoryMap, retry: bool) -> dict[str, Any]:
-        prompt = render_fused_prompt(cats, self.caption, descriptions=req.variables.get("descriptions"))
+        prompt = render_fused_prompt(
+            cats,
+            self.caption,
+            descriptions=req.variables.get("descriptions"),
+            question=req.variables.get("question") if req.task_type == "classify" else None,
+        )
         url = "data:image/jpeg;base64," + base64.b64encode(item.data).decode()
         gp = dict(req.generation_params)
         body: dict[str, Any] = {
@@ -164,12 +169,41 @@ class OpenAICompatAdapter:
     def _on_connection_lost(self) -> None:
         return None
 
+    def _answer_payload(self, req: BatchRequest, item: ImageInput) -> dict[str, Any]:
+        prompt = render_answer_prompt(str(req.variables["question"]))
+        url = "data:image/jpeg;base64," + base64.b64encode(item.data).decode()
+        gp = dict(req.generation_params)
+        return {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": prompt.system},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "image_url", "image_url": {"url": url}},
+                        {"type": "text", "text": prompt.user},
+                    ],
+                },
+            ],
+            "temperature": gp.get("temperature", 0.2),
+            "seed": gp.get("seed", 0),
+            "max_tokens": gp.get("max_tokens", 256),
+        }
+
     async def run_batch(self, req: BatchRequest) -> list[ItemOutput]:
         items = check_items(list(req.items))
         if not items:
             return []
         if not self.loaded:
             raise ModelUnavailable(f"{self.adapter_key} not loaded")
+        if req.task_type == "caption" and req.variables.get("question"):
+            # a question about the photo: answered in words, not the caption JSON (INF-ASK-001)
+            async with httpx.AsyncClient(timeout=httpx.Timeout(req.deadline_s + 5)) as client:
+                outs = []
+                for it in items:
+                    text, _ = await self._post(client, self._answer_payload(req, it))
+                    outs.append(ItemOutput(item_id=it.item_id, caption=text.strip(), raw={"content": text}, usage={}))
+                return outs
         cats = CategoryMap(keys=list(req.variables.get("categories") or self.categories))
         if "other" not in cats.keys:
             cats.keys.append("other")

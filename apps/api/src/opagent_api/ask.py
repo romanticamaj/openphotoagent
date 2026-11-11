@@ -214,6 +214,9 @@ class AskIn(BaseModel):
 
 
 def route(q: str, context: dict[str, Any]) -> str:
+    one = len(context.get("photo_ids") or []) == 1
+    if one and context.get("scope") == "photo" and not ACTION.search(q):
+        return "single"  # asked from the photo itself (「問這張」): about it, whatever the words (ASK-ONE-004)
     if G.is_statistic(q) and not COMPLEX.search(q):
         return "count"
     if ACTION.search(q):

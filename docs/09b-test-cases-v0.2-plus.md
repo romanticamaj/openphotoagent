@@ -425,6 +425,9 @@
 | ASK-ONE-001 | 問這張會等模型回答（回歸，驗證第 29 輪） | 單張照片的問題，VLM 7–19 s 才回答 | 問 AI 等候 VLM 最多 45 s（MCP 仍 5 s 後回 queued）；回答是模型看到的內容並引用該照片 | I | #— |
 | ASK-ONE-002 | 模型還沒回答時說出來（回歸，驗證第 29 輪） | 等候時間內沒有回答 | 回答「AI 還在看這張照片（模型可能正在啟動），請過幾秒再問一次。」，不是空白 | I | #— |
 | ASK-ONE-003 | 問這張顯示進度與失敗（回歸，驗證第 29 輪） | 執行中、完成但沒有文字、失敗 | 「看照片…」；「沒有得到回答，請再問一次。」；「出了點問題，請再問一次。」 | C | #— |
+| ASK-ONE-004 | 從照片問的問題都是問這張（回歸，驗證第 30 輪） | 「問這張」送出 `scope: photo`；「這隻貓是什麼顏色？」「背景有幾隻大象？」 | intent 為 single，問題原文送給 VLM；動作類問題仍產生計畫 | I | #— |
+| INF-ASK-001 | 問題本身送給模型、以文字回答（回歸，驗證第 30 輪） | caption 任務帶 `question` | 以問答提示詞送出（不要求 JSON），回答原文放在 caption；沒有問題時照舊產生說明 JSON | U | #— |
+| INF-ASK-002 | 檢查照片的條件送給模型（回歸，驗證第 30 輪） | classify 任務帶 `question` | 提示詞包含條件，category 為 yes／no／unsure | U | #— |
 | ASK-LLM-001 | OpenAI 相容 client | llama-server `--jinja` 或外部 endpoint；tool call、壞 JSON、未提供的 tool、逾時、探測 | 只接受本輪提供的 tool 與合法 JSON 物件；逾時安靜回空答案；從不送影像；探測 3/3 才開 tool loop；外部 endpoint 必須 https；API key 存 OS keyring、不回傳；egress log 記實際送出的 bytes | C/I | #101、#105 |
 | ASK-SRCH-001 | 標籤詞不擋住沒標籤的照片（回歸，ADR-0027） | 問「幫我找海邊的照片」，有張照片只有 caption 提到海邊 | 也被找到；使用者編輯過的 chips 仍是硬條件 | I | #40 |
 

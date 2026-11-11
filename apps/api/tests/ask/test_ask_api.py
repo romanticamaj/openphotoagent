@@ -376,3 +376,24 @@ def test_ask_one_002_a_model_still_busy_is_said(m, monkeypatch):
     ev = ask(m, "這張照片裡有什麼？", FakeLLM(), context={"photo_ids": [m.cats[0]]})
     text = "".join(d["text"] for e, d in ev if e == "token")
     assert "還在看這張照片" in text
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-ONE-004")
+def test_ask_one_004_a_question_typed_in_this_photo_is_about_it(m, monkeypatch):
+    """回歸 (audit round 30): typed questions in 「問這張」 failed 7 of 7. Only words like 這張 kept a question on the
+    photo, so 「這隻小象大概幾歲？」 searched the library and 「背景有幾隻大象？」 counted it. Asked from the photo, a
+    question is about that photo (an action still proposes a plan)."""
+    import opagent_api.mcp_tools as H
+
+    asked = []
+
+    def vlm(ctx, mode, ids, text_):
+        asked.append((mode, text_))
+        return {"answer": "背景有三隻大象。", "model": "qwen3-vl", "latency_ms": 9000}
+
+    monkeypatch.setattr(H, "_vlm", vlm)
+    for q in ("這隻貓是什麼顏色？", "背景有幾隻大象？", "牠在做什麼？"):
+        ev = ask(m, q, FakeLLM(), context={"photo_ids": [m.cats[0]], "scope": "photo"})
+        assert ev[0][1]["intent"] == "single", q
+    assert [t for _, t in asked] == ["這隻貓是什麼顏色？", "背景有幾隻大象？", "牠在做什麼？"]
