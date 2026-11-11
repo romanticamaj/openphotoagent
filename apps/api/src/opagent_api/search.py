@@ -222,6 +222,8 @@ def _ft(c: Any, where: list[Any], tsq: str, en: str) -> list[str]:
 MAX_CONCEPTS = 5
 # standing in for a concept, a caption meaning must be closer than the route's floor: on the reference library
 # 0.5 + 0.06 lets in 0.05% of irrelevant photos against 1.65% at 0.5 (「小孩在玩水」 had 8 hits, none in water)
+# a tag the VLM seldom gives small, moving faces: beside other concepts it ranks, never filters (SRCH-CNC-007)
+SOFT_KEYS = frozenset({"mood.smile"})
 MEANING_MARGIN = 0.08  # 17 words on the reference library: wrong photos 14 at +0, 1 at +0.06, 0 at +0.08
 
 
@@ -424,6 +426,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
     routes: dict[str, list[str]] = {}
     relaxed: list[str] = []
     concepts: list[Any] = []
+    soft_out: list[dict[str, Any]] = []
     member: list[Any] = []  # ADR-0005: the match set (total, facets, selection) — not just the ranking window
     mode = None
     with st.engine.begin() as c:
@@ -491,12 +494,17 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                 ]
                 capped = capped or len(routes["caption_vector"]) == PER_ROUTE  # a floor too (SRCH-R2-009)
             concepts = tokenizer().concepts(q)
+            # an expression ranks, never filters, beside other concepts (ADR-0032 addendum, SRCH-CNC-007)
+            soft = [cpt for cpt in concepts if cpt.key in SOFT_KEYS] if len(concepts) > 1 else []
+            if len(soft) == len(concepts):
+                soft = []
+            concepts = [cpt for cpt in concepts if cpt not in soft]
             by_meaning = (
                 _caption_meaning(st, c, where, cspace, concepts[:MAX_CONCEPTS])
                 if len(concepts) > 1 and cspace is not None and body.semantic
                 else {}
             )
-            if len(concepts) > 1:  # every concept must show (ADR-0032): one tag or one vector hit is not enough
+            if len(concepts) > 1 or soft:  # every concept must show (ADR-0032): one tag or one vector hit is not enough
                 member, relaxed = _all_concepts(c, where, concepts, by_meaning)
             from opagent_search.fusion import fuse, route_weights
 
@@ -505,7 +513,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
             matched = {f.asset_id: f.matched_by for f in fused}
             ranked = [f.asset_id for f in fused]
             vec_ids = (routes.get("image_vector") or []) + (routes.get("caption_vector") or [])
-            if len(concepts) > 1:
+            if len(concepts) > 1 or soft:
                 match = and_(*member) if member else false()
                 # the image model was asked the whole question (English, or every concept in the vocabulary): what it
                 # finds above the floor shows all of it together, "a dog on the beach" (SRCH-SEM-001, ADR-0032)
@@ -530,6 +538,30 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                 .order_by(search_doc.c.taken_at.desc().nulls_last(), search_doc.c.asset_id)
             )
             n_tail = c.execute(select(func.count()).select_from(tail_q.subquery())).scalar_one()
+            if soft:
+                # the photos that show it first: those ranked, then the rest of the set by date
+                shows = and_(*(_concept_cond(90 + i, cpt) for i, cpt in enumerate(soft)))
+                lit = [
+                    r[0]
+                    for r in c.execute(
+                        select(search_doc.c.asset_id)
+                        .where(and_(*where), match, shows)
+                        .order_by(search_doc.c.taken_at.desc().nulls_last(), search_doc.c.asset_id)
+                    )
+                ]
+                first = set(lit)
+                ranked = (
+                    [a for a in ranked if a in first]
+                    + [a for a in lit if a not in set(ranked)]
+                    + [a for a in ranked if a not in first]
+                )
+                tail_q = tail_q.where(search_doc.c.asset_id.notin_(ranked or ["-"]))
+                n_tail = c.execute(select(func.count()).select_from(tail_q.subquery())).scalar_one()
+                soft_out = [{"word": cpt.word, "key": cpt.key, "shown": len(lit)} for cpt in soft]
+            if (len(concepts) > 1 or soft) and len(ranked) + n_tail < PER_ROUTE:
+                # every concept required: fewer than a route's limit is the whole answer, not the top of a longer
+                # list (SRCH-R2-010: 「最相關的 2 張」)
+                capped = False
         else:
             ranked = [
                 r[0]
@@ -605,6 +637,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
         "next_cursor": _sign({"o": nxt, "s": snapshot, "h": _qhash(body)}) if nxt < total else None,
         "total": total,
         "relaxed": relaxed,  # words no photo shows, left out so the rest still answers (ADR-0032)
+        "soft": soft_out,  # expressions that rank, with how many photos show them (SRCH-CNC-007)
         "total_capped": capped,  # the vector route hit K: `total` is a lower bound
         "related": [
             {"asset_id": a, "ch": hashes.get(a), "caption": rel_rows[a].caption} for a in near_ids if a in rel_rows

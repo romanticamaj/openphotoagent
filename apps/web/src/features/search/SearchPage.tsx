@@ -2,7 +2,7 @@
 // banner while vectors are being built, and selection → batch actions. "Select all" is a query handle (⌘A).
 import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../../components/Button";
 import { COMPARE_MAX, CompareView } from "./CompareView";
@@ -10,7 +10,7 @@ import { Lightbox } from "../viewer/Lightbox";
 import type { GridApi } from "../viewer/PhotoGrid";
 import { api, isDegraded, mediaUrl, type SearchBody } from "../../lib/api";
 
-import { bodyFor, chipsFrom, countText, onlyByMeaning, withoutPerson, type Chip } from "./searchPlan";
+import { bodyFor, chipsFrom, countText, onlyByMeaning, softView, withoutPerson, type Chip } from "./searchPlan";
 
 export function SearchPage({ q }: { q: string }) {
   const { t, i18n } = useTranslation();
@@ -139,6 +139,7 @@ export function SearchPage({ q }: { q: string }) {
   const handle = async () =>
     sel.all ? api.createSelection({ query: body }) : api.createSelection({ asset_ids: [...sel.ids] });
 
+  const soft = first ? softView(t, first.soft, total, chips) : null;
   return (
     <section className="space-y-4 p-4" aria-labelledby="search-h">
       <div className="flex items-baseline gap-3">
@@ -150,6 +151,9 @@ export function SearchPage({ q }: { q: string }) {
           </span>
         ) : null}
       </div>
+      {soft?.note ? (
+        <p role="status" className="text-sm text-[var(--text-muted)]">{soft.note}</p>
+      ) : null}
       {first?.relaxed?.length ? (
         <p role="status" className="text-sm text-[var(--text-muted)]">{t("search.relaxed", { words: first.relaxed.join("、") })}</p>
       ) : null}
@@ -212,6 +216,19 @@ export function SearchPage({ q }: { q: string }) {
         {hits.map((h, i) => {
           const selected = sel.all || sel.ids.has(h.asset_id);
           return (
+            <Fragment key={h.asset_id}>
+            {soft?.at === i ? (
+              // where the photos that show the expression end (SRCH-CNC-010)
+              <div role="presentation" data-testid="soft-divider" className="col-span-full flex flex-wrap items-center gap-3 py-2 text-sm text-[var(--text-muted)]">
+                <span>{soft.divider}</span>
+                <button type="button" className="underline" onClick={() => {
+                    setTagNames((x) => ({ ...x, [soft.chip.value]: first?.soft?.[0]?.word ?? soft.chip.value }));
+                    setChips([...chips, soft.chip]);
+                  }}>
+                  {soft.only}
+                </button>
+              </div>
+            ) : null}
             <button
               key={h.asset_id}
               type="button"
@@ -231,6 +248,7 @@ export function SearchPage({ q }: { q: string }) {
                 {onlyByMeaning(h.matched_by) ? <span className="rounded bg-black/55 px-1 text-white/90">{t("search.matched.image_vector")}</span> : null}
               </span>
             </button>
+            </Fragment>
           );
         })}
         </div>

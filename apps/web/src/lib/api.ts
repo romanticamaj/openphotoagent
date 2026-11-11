@@ -168,6 +168,8 @@ export type SearchResult = {
   /** near misses, shown apart: outside `total`, facets and selections (ADR-0027) */
   related?: { asset_id: string; ch: string | null; caption: string | null }[];
   relaxed?: string[];
+  /** expressions that rank without filtering, and how many photos show them (SRCH-CNC-007) */
+  soft?: { word: string; key: string; shown: number }[];
   degraded: string[];
   planner?: Planner;
 };

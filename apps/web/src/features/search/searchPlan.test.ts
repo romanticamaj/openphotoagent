@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import i18n from "../../lib/i18n";
-import { bodyFor, chipsFrom, countText, onlyByMeaning, withoutPerson } from "./searchPlan";
+import { bodyFor, chipsFrom, countText, onlyByMeaning, softView, withoutPerson } from "./searchPlan";
 
 const planner = (filters: Record<string, unknown>, explain: string[], text = "") => ({
   source: "rules",
@@ -48,3 +48,28 @@ describe("the search a planned query becomes", () => {
     expect(onlyByMeaning(["tag"])).toBe(false);
   });
 });
+
+describe("an expression that ranks (ADR-0032 addendum)", () => {
+  const t = i18n.getFixedT("zh-TW");
+  it("[SRCH-CNC-010] 有看得出的照片：分隔線在第 shown 張之後，按鈕加上表情標籤篩選", () => {
+    const v = softView(t, [{ word: "開心", key: "mood.smile", shown: 2 }], 175, []);
+    expect(v?.at).toBe(2);
+    expect(v?.divider).toBe("以下 173 張沒看出「開心」，仍符合其他條件");
+    expect(v?.only).toBe("只看開心（2 張）");
+    expect(v?.chip).toEqual({ kind: "tag", value: "mood.smile" });
+  });
+
+  it("[SRCH-CNC-010] 沒有看得出的照片：一句說明、沒有分隔線也沒有按鈕", () => {
+    const v = softView(t, [{ word: "開心", key: "mood.smile", shown: 0 }], 175, []);
+    expect(v?.at).toBeNull();
+    expect(v?.note).toBe("沒有看得出「開心」的照片，下面是符合其他條件的照片。");
+    expect(v?.only).toBeNull();
+  });
+
+  it("[SRCH-CNC-010] 已經只看開心，或全部都看得出：不再分隔", () => {
+    expect(softView(t, [{ word: "開心", key: "mood.smile", shown: 2 }], 2, [])).toBeNull();
+    expect(softView(t, [{ word: "開心", key: "mood.smile", shown: 2 }], 175, [{ kind: "tag", value: "mood.smile" }])).toBeNull();
+    expect(softView(t, [], 175, [])).toBeNull();
+  });
+});
+

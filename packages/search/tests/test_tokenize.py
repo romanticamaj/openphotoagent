@@ -126,3 +126,12 @@ def test_srch_tok_011_the_vocabulary_covers_a_family_library():
         for s in [t["zh"], t["en"], *t.get("synonyms", [])]:
             key = normalize(s)
             assert seen.setdefault(key, t["id"]) == t["id"], f"{s} is both {seen[key]} and {t['id']}"
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-013")
+def test_srch_tok_013_degree_words_are_not_concepts():
+    """回歸 (audit round 23): 「小孩踢球很開心」 made 很 a concept every photo had to show."""
+    words = [c.word for c in Tokenizer().concepts("小孩踢球很開心")]
+    assert "很" not in words and "開心" in words
+    assert [c.word for c in Tokenizer().concepts("非常漂亮的夕陽")] == ["漂亮", "夕陽"]

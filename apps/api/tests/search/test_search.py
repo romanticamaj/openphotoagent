@@ -817,3 +817,73 @@ def test_srch_r2_009_a_caption_route_at_its_limit_marks_the_total_as_a_floor(s, 
     monkeypatch.setattr(S, "caption_floor", lambda _st, _sp: 0.5)
     res = s.search(q="zzz-no-word-matches")
     assert res["total_capped"] is True
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-R2-010")
+def test_srch_r2_010_a_few_results_are_not_called_the_most_relevant(s, monkeypatch):
+    """回歸 (audit round 23): 「小孩踢球很開心」 read 「最相關的 2 張」: a vector route stopped at its limit, then
+    requiring every concept left 2. Fewer than the limit is the whole answer, not the top of a longer list."""
+    import opagent_api.search as S
+
+    ids = [s.add(i, caption=f"教室 喵喵 {i}" if i < 2 else f"教室 {i}") for i in range(5)]
+    s.index()
+    sid = s.sql(
+        "insert into embedding_space(model_key, fingerprint, dim, modality, status)"
+        " values ('fake-cap', 'caption:fake-cap:x', 2, 'caption', 'active') returning id"
+    ).scalar()
+    for aid in ids:
+        s.sql(
+            "insert into asset_embedding(asset_id, space_id, vec) values (:a, :s, CAST('[1,0]' AS vector))",
+            a=aid,
+            s=sid,
+        )
+    monkeypatch.setattr(S, "PER_ROUTE", 3)
+    monkeypatch.setattr(
+        S, "query_vector", lambda st, t, space, modality="image": [1.0, 0.0] if modality == "caption" else None
+    )
+    monkeypatch.setattr(S, "caption_floor", lambda _st, _sp: 0.5)
+    monkeypatch.setattr(S, "_caption_meaning", lambda *a: {})  # 喵 by its text only
+    res = s.search(q="教室 喵喵")  # the caption route stopped at 3; both words leave 2 (喵喵: not in the vocabulary)
+    assert res["total"] == 2 and res["total_capped"] is False
+
+
+def _soccer(s, smiling=1):
+    ids = [
+        s.add(
+            i,
+            caption=f"小朋友在草地上踢足球 {i}",
+            tags=("people.child", "activity.soccer", *(("mood.smile",) if i < smiling else ())),
+        )
+        for i in range(3)
+    ]
+    s.add(9, caption="小朋友開心地笑", tags=("people.child", "mood.smile"))
+    s.index()
+    return ids
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-CNC-007")
+def test_srch_cnc_007_an_expression_ranks_but_does_not_filter(s):
+    """回歸 (audit round 23): 「小孩踢球很開心」 found 2 where 「小孩踢球」 found 175: a smile tag on small, moving faces is
+    seldom given, and its absence is not a frown (ADR-0032 addendum 2026-11-11)."""
+    ids = _soccer(s, smiling=1)
+    res = s.search(q="小孩踢球很開心", semantic=False)
+    assert res["total"] == 3 and res["items"][0]["asset_id"] == ids[0]  # the smile first
+    assert res["soft"] == [{"word": "開心", "key": "mood.smile", "shown": 1}]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-CNC-008")
+def test_srch_cnc_008_an_expression_alone_still_filters(s):
+    _soccer(s, smiling=1)
+    res = s.search(q="開心", semantic=False)
+    assert res["total"] == 2 and res.get("soft", []) == []
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-CNC-009")
+def test_srch_cnc_009_no_photo_shows_the_expression(s):
+    _soccer(s, smiling=0)
+    res = s.search(q="小孩踢球很開心", semantic=False)
+    assert res["total"] == 3 and res["soft"] == [{"word": "開心", "key": "mood.smile", "shown": 0}]
