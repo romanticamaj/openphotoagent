@@ -32,7 +32,8 @@ export function ExplorePage({ initial = null, onPick }: { initial?: Pick; onPick
   const names = useMemo(() => new Map((preset.data?.categories ?? []).map((c) => [c.key, c.name])), [preset.data]);
   const all = useQuery({
     queryKey: ["explore", "facets"],
-    queryFn: () => api.search({ q: null, limit: 1, facets: ["category", "tags"], lang: i18n.language }),
+    // every photo counts: folding copies hid 180 analysed photos (20 groups of 10) from 「已分析」 (IMP-039)
+    queryFn: () => api.search({ q: null, limit: 1, facets: ["category", "tags"], lang: i18n.language, collapse_duplicates: false }),
     refetchInterval: 5000, // counts grow while a folder is being analysed
   });
   const library = useQuery({ queryKey: ["timeline", "buckets"], queryFn: api.buckets });

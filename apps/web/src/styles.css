@@ -1111,3 +1111,7 @@ body {
   outline: none;
 }
 
+/* 匯入 / 整理 in the sidebar: the name, and under it what the page does (IMP-040) */
+.nav-two-line { display: flex; flex-direction: column; line-height: 1.2; }
+.nav-hint { font-size: 0.6875rem; font-weight: 400; color: var(--text-muted); }
+

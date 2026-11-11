@@ -28,7 +28,7 @@ test("[IMP-014] 匯入：先看資料夾內容，加入後自動分析，完成�
   expect(Object.keys(files).some((f) => f.startsWith("sorted/"))).toBe(false);
   await page.getByRole("link", { name: "分類" }).click();
   await expect(page.getByTestId("explore-summary")).toContainText("20");
-  const chips = page.getByRole("region", { name: "分類" }).or(page.locator("section[aria-label='分類']")).getByRole("button");
+  const chips = page.getByRole("region", { name: "類別" }).getByRole("button"); // the row is titled 類別 since IMP-038
   await chips.first().click();
   await expect(page.locator(".explore-tile").first()).toBeVisible();
   if (shots) await page.screenshot({ path: `${shots}/explore.png` });

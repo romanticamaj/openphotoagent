@@ -193,9 +193,17 @@ function Shell() {
         {navSections(Boolean(faces.data?.enabled)).map((g) => (
           <div key={g.key} className="sidenav-group">
             <p aria-hidden="true">{t(g.key)}</p>
-            {g.items.map(({ to, label }) => (
-              <Link key={to} to={to} activeOptions={{ exact: to === "/" }} activeProps={{ "aria-current": "page" }}>
-                {t(label)}
+            {g.items.map(({ to, label, hint }) => (
+              <Link key={to} to={to} activeOptions={{ exact: to === "/" }} activeProps={{ "aria-current": "page" }} aria-description={hint ? t(hint) : undefined}>
+                {hint ? (
+                  // the name stays the link's name; the line under it says what the page does (IMP-040)
+                  <span className="nav-two-line">
+                    <span>{t(label)}</span>
+                    <span aria-hidden="true" className="nav-hint">{t(hint)}</span>
+                  </span>
+                ) : (
+                  t(label)
+                )}
                 {to === "/review" && pending.data ? <span className="nav-badge tnum">{pending.data.toLocaleString()}</span> : null}
               </Link>
             ))}

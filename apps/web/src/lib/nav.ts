@@ -1,5 +1,6 @@
 // Left navigation (ADR-0029): what you have, what you are doing with it, and the machinery.
-export type NavItem = { to: string; label: string };
+/** `hint`: one line under the name, where two pages looked alike (IMP-040: 匯入 and 整理) */
+export type NavItem = { to: string; label: string; hint?: string };
 export type NavSection = { key: string; items: NavItem[] };
 
 export function navSections(faces: boolean): NavSection[] {
@@ -17,8 +18,8 @@ export function navSections(faces: boolean): NavSection[] {
     {
       key: "nav.groupWork",
       items: [
-        { to: "/import", label: "nav.import" },
-        { to: "/organize", label: "nav.organize" },
+        { to: "/import", label: "nav.import", hint: "nav.importHint" },
+        { to: "/organize", label: "nav.organize", hint: "nav.organizeHint" },
         { to: "/review", label: "nav.review" },
         { to: "/duplicates", label: "nav.duplicates" },
       ],

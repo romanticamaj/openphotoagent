@@ -392,7 +392,9 @@
     "groupWork": "Work",
     "groupSystem": "System",
     "explore": "Categories",
-    "albums": "Albums"
+    "albums": "Albums",
+    "importHint": "Add folders to the library",
+    "organizeHint": "Copy into tidy folders"
   },
   "viewer": {
     "title": "Photos",

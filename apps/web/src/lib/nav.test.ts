@@ -16,3 +16,11 @@ describe("navigation (ADR-0029)", () => {
     expect(has(true)).toBe(true);
   });
 });
+
+describe("匯入 and 整理 say what they do (audit rounds 55-56)", () => {
+  it("[IMP-040] 回歸：側欄的「匯入」「整理」各有一行說明：加入圖庫 vs 複製到輸出資料夾", () => {
+    const work = navSections(false)[1].items;
+    expect(work.find((i) => i.to === "/import")?.hint).toBe("nav.importHint");
+    expect(work.find((i) => i.to === "/organize")?.hint).toBe("nav.organizeHint");
+  });
+});

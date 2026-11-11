@@ -135,5 +135,14 @@ describe("the words the AI wrote (ADR-0029)", () => {
     fireEvent.click(await screen.findByRole("button", { name: /美食/, pressed: false }));
     expect((await screen.findByRole("heading", { name: /美食/ })).textContent).toContain("3 張");
   });
+
+  it("[IMP-039] 回歸：已分析的張數不把重複照片收起來，與匯入頁一致（驗證第 56 輪：845/845 對 665 + 180）", async () => {
+    s.search.mockReset();
+    s.search.mockResolvedValue(result([hit("a")], { category: { food: 3 } }));
+    ui();
+    await waitFor(() => expect(s.search).toHaveBeenCalled());
+    const facets = s.search.mock.calls.map(([b]) => b).find((b) => b.facets?.includes("category"));
+    expect(facets?.collapse_duplicates).toBe(false); // 20 groups of 10 copies hid 180 analysed photos from the count
+  });
 });
 
