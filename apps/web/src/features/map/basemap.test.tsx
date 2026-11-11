@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "../../lib/i18n";
-import { BasemapBanner, basemapOfferDismissed, basemapStyle, dismissBasemapOffer } from "./basemap";
+import { BasemapBanner, basemapOfferDismissed, basemapStyle, dismissBasemapOffer, mapMaxZoom } from "./basemap";
 
 beforeAll(async () => {
   await i18n.changeLanguage("zh-TW");
@@ -40,5 +40,26 @@ describe("offline street map (ADR-0037)", () => {
     expect(no).toHaveBeenCalled();
     dismissBasemapOffer();
     expect(basemapOfferDismissed()).toBe(true);
+  });
+
+  it("[MAP-019] 回歸：按過「不用了」之後仍留一個小按鈕可以下載（驗證第 23 輪：提示再也回不來）", () => {
+    const go = vi.fn();
+    render(<BasemapBanner status={{ region: "taiwan", available: false, bytes: 0, operation_id: null }} onDownload={go} dismissed />);
+    expect(screen.getByTestId("basemap-banner").textContent).not.toContain("國界與海岸線");
+    fireEvent.click(screen.getByRole("button", { name: /下載台灣街道圖/ }));
+    expect(go).toHaveBeenCalled();
+  });
+
+  it("[MAP-020] 回歸：沒有圖示也不報錯；範圍外是海與國界、不是灰色方框；放大有上限（驗證第 23 輪）", () => {
+    const land = { type: "FeatureCollection" as const, features: [] };
+    const st = basemapStyle("pmtiles://x", false, "g", land);
+    expect(JSON.stringify(st.layers)).not.toContain("icon-image"); // no sprite ships: ~30 「could not be loaded」
+    const bg = st.layers[0] as unknown as { type: string; paint: Record<string, string> };
+    expect(bg.type).toBe("background");
+    expect(bg.paint["background-color"]).not.toBe("#cccccc");
+    expect(st.layers[1]).toMatchObject({ type: "fill", source: "countries" }); // land outside the extract
+    expect((st.sources.countries as { data: unknown }).data).toBe(land);
+    expect(mapMaxZoom(true)).toBe(18);
+    expect(mapMaxZoom(false)).toBeLessThanOrEqual(10);
   });
 });

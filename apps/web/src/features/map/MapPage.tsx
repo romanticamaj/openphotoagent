@@ -11,7 +11,7 @@ import { useTranslation } from "react-i18next";
 import { feature } from "topojson-client";
 import countries110 from "world-atlas/countries-110m.json";
 import { api, mediaUrl } from "../../lib/api";
-import { BasemapBanner, basemapOfferDismissed, basemapSource, basemapStyle, dismissBasemapOffer, glyphsUrl } from "./basemap";
+import { BasemapBanner, basemapOfferDismissed, basemapSource, basemapStyle, dismissBasemapOffer, glyphsUrl, mapMaxZoom } from "./basemap";
 import { endpoint } from "../../lib/platform";
 import { clusterPoints, type Cluster, type GeoPoint } from "./cluster";
 import { boundsOf, unwrapRings, spanMeters } from "./geo";
@@ -70,6 +70,7 @@ export function MapPage() {
       },
       center: [120, 25],
       zoom: 1,
+      maxZoom: mapMaxZoom(false),
       attributionControl: { compact: true }, // OpenStreetMap credit when the street map is on (ODbL)
     });
     m.on("zoomend", () => setZoom(m.getZoom()));
@@ -88,7 +89,9 @@ export function MapPage() {
     if (!m || !streets) return;
     let live = true;
     void basemapSource().then((src) => {
-      if (live) m.setStyle(basemapStyle(src, isDark(), glyphsUrl()));
+      if (!live) return;
+      m.setMaxZoom(mapMaxZoom(true));
+      m.setStyle(basemapStyle(src, isDark(), glyphsUrl(), unwrapRings(borders)));
     });
     return () => {
       live = false;
@@ -130,9 +133,10 @@ export function MapPage() {
       <h1 id="map-h" className="text-xl font-semibold">
         {t("map.title")}
       </h1>
-      {bm.data && (!offerOff || bm.data.operation_id) ? (
+      {bm.data ? (
         <BasemapBanner
           status={bm.data}
+          dismissed={offerOff}
           onDownload={() => getMap.mutate()}
           onDismiss={() => {
             dismissBasemapOffer();

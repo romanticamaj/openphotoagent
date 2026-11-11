@@ -2,7 +2,7 @@
 // read in byte ranges from the local API (never from the internet), drawn with the Protomaps style in Chinese.
 // Latin glyphs ship with the app (public/map-fonts, OFL); Chinese uses the system font (localIdeographFontFamily).
 import { layers, namedFlavor } from "@protomaps/basemaps";
-import { addProtocol, type StyleSpecification } from "maplibre-gl";
+import { addProtocol, type LayerSpecification, type StyleSpecification } from "maplibre-gl";
 import { FetchSource, PMTiles, Protocol } from "pmtiles";
 import { useTranslation } from "react-i18next";
 import { Button } from "../../components/Button";
@@ -10,18 +10,37 @@ import { endpoint } from "../../lib/platform";
 
 export type BasemapStatus = { region: string; available: boolean; bytes: number; operation_id: string | null };
 
-export function basemapStyle(source: string, dark: boolean, glyphs: string): StyleSpecification {
+/** Closest zoom: past the extract's deepest tiles the street map is unlabelled blocks (MAP-020); borders only, a blank fill. */
+export function mapMaxZoom(streets: boolean): number {
+  return streets ? 18 : 9;
+}
+
+/** No icon sprite ships, so text and lines only (MAP-020): icons were ~30 「could not be loaded」 and blank shields. */
+function withoutIcons(l: LayerSpecification): LayerSpecification {
+  if (l.type !== "symbol" || !l.layout || !("icon-image" in l.layout)) return l;
+  const layout = Object.fromEntries(Object.entries(l.layout).filter(([k]) => !k.startsWith("icon-")));
+  return { ...l, layout } as LayerSpecification;
+}
+
+export function basemapStyle(source: string, dark: boolean, glyphs: string, land?: GeoJSON.GeoJSON): StyleSpecification {
+  const flavor = namedFlavor(dark ? "dark" : "light");
+  const all = (layers("protomaps", flavor, { lang: "zh-Hant" }) as LayerSpecification[]).map(withoutIcons);
+  // outside the Taiwan extract: sea, with the bundled borders' land under it, not a grey rectangle (MAP-020)
+  const [bg, ...rest] = all;
+  const sea = { ...bg, paint: { "background-color": flavor.water } } as LayerSpecification;
+  const under: LayerSpecification[] = land ? [{ id: "ne-land", type: "fill", source: "countries", paint: { "fill-color": flavor.earth } }] : [];
   return {
     version: 8,
     glyphs,
     sources: {
+      ...(land ? { countries: { type: "geojson" as const, data: land } } : {}),
       protomaps: {
         type: "vector",
         url: source,
         attribution: '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap</a> · Protomaps',
       },
     },
-    layers: layers("protomaps", namedFlavor(dark ? "dark" : "light"), { lang: "zh-Hant" }) as StyleSpecification["layers"],
+    layers: [sea, ...under, ...rest],
   };
 }
 
@@ -66,13 +85,24 @@ export function BasemapBanner({
   status,
   onDownload,
   onDismiss,
+  dismissed,
 }: {
   status: BasemapStatus;
   onDownload: () => void;
   onDismiss?: () => void;
+  /** after 「不用了」: just the button, so the offer can come back (MAP-019) */
+  dismissed?: boolean;
 }) {
   const { t } = useTranslation();
   if (status.available) return null;
+  if (dismissed && !status.operation_id)
+    return (
+      <div data-testid="basemap-banner" className="text-sm">
+        <button type="button" className="text-sm text-[var(--text-muted)] underline" onClick={onDownload}>
+          {t("map.basemapDownload")}
+        </button>
+      </div>
+    );
   return (
     <div data-testid="basemap-banner" className="flex flex-wrap items-center gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3 text-sm">
       {status.operation_id ? (
