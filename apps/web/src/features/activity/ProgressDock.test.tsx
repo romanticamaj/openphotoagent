@@ -7,11 +7,14 @@ beforeAll(async () => {
   await i18n.changeLanguage("zh-TW");
 });
 
-const state = vi.hoisted(() => ({ ops: [] as unknown[], status: { jobs: [], current: [], recent: [] } as unknown }));
+const state = vi.hoisted(() => ({ ops: [] as unknown[], finals: [] as unknown[], status: { jobs: [], current: [], recent: [] } as unknown }));
 vi.mock("../../lib/api", async (orig) => ({
   ...(await orig<typeof import("../../lib/api")>()),
   mediaUrl: (id: string) => `/m/${id}`,
-  api: { operations: async () => state.ops, analysisStatus: async () => state.status },
+  api: {
+    operations: async (params?: string) => (params?.includes("type=job.label") ? state.finals : state.ops),
+    analysisStatus: async () => state.status,
+  },
 }));
 vi.mock("@tanstack/react-router", async (orig) => ({
   ...(await orig<typeof import("@tanstack/react-router")>()),
@@ -139,6 +142,19 @@ describe("progress on every page (ADR-0029, invariant 9)", () => {
     });
     await waitFor(() => expect(screen.getByTestId("progress-dock").textContent).toContain("都已分析過"));
     expect(screen.queryByRole("link", { name: "整理到資料夾" })).toBeNull(); // nothing new to organise (驗證第 25 輪)
+  });
+
+  it("[ACT-014] 回歸：分析很快完成、卡片只看到 0 張時，依最後結果說分析了幾張（CI：說成「都已分析過」）", async () => {
+    state.ops = [op("job.label", 0, 0, { id: "L1" }), op("scan", 3, 3)];
+    state.finals = [{ id: "L1", type: "job.label", status: "succeeded", progress: { done: 3, total: 3 } }];
+    const qc = ui();
+    await screen.findByTestId("progress-dock");
+    state.ops = [];
+    await act(async () => {
+      await qc.refetchQueries({ queryKey: ["operations"] });
+    });
+    await waitFor(() => expect(screen.getByTestId("progress-dock").textContent).toContain("分析完成：3 張照片"));
+    state.finals = [];
   });
 
   it("[IMP-012] 完成後說明做完什麼、下一步去哪裡", async () => {

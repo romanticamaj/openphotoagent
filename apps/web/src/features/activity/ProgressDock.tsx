@@ -60,6 +60,8 @@ export function ProgressDock() {
 
   const label = stages.find((s) => s.type === "job.label");
   if (label) analysed.current = Math.max(label.total, analysed.current ?? 0);
+  const labelIds = useRef(new Set<string>()); // the analyses seen, to read their final count (ACT-014)
+  for (const o of ops) if (o.type === "job.label") labelIds.current.add(o.id);
   useEffect(() => {
     if (busy) {
       setFinished(null);
@@ -68,9 +70,22 @@ export function ProgressDock() {
       return () => clearInterval(h);
     }
     if (analysed.current !== null) {
-      setFinished(analysed.current);
+      const seen = analysed.current;
+      const ids = new Set(labelIds.current);
       analysed.current = null;
+      labelIds.current = new Set();
       void qc.invalidateQueries({ queryKey: ["timeline"] });
+      if (seen > 0) setFinished(seen);
+      else {
+        // it ended before the card saw its count: the analysis's own final count says whether anything was new (ACT-014)
+        void api
+          .operations("status=all&type=job.label")
+          .then((all) => {
+            const total = all.filter((o) => ids.has(o.id)).reduce((n, o) => n + (progressOf(o as unknown as Op).total ?? 0), 0);
+            setFinished(total);
+          })
+          .catch(() => setFinished(0));
+      }
     }
     return undefined;
   }, [busy, qc]);
