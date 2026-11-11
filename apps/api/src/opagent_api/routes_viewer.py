@@ -14,7 +14,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import FileResponse, Response
 from opagent_core.ids import uuid7
 from opagent_db.schema import asset, job, job_item, result, source, worker_task
-from sqlalchemy import func, insert, select, text
+from sqlalchemy import func, insert, select, text, true
 
 from .state import DEFAULT_WS, AppState
 
@@ -157,7 +157,9 @@ def analysis_status(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
             select(job_item.c.asset_id, job_item.c.rel, asset.c.content_hash, result.c.caption, result.c.category)
             .join(result, result.c.id == job_item.c.result_id)
             .join(asset, asset.c.id == job_item.c.asset_id)
-            .where(job_item.c.status == "done")
+            # during a run, this run's photos only: the run before's lingered while the model loaded (OP-024);
+            # with nothing running, the latest results (IMP-030)
+            .where(job_item.c.job_id.in_(ids) if ids else true(), job_item.c.status == "done")
             .order_by(result.c.created_at.desc(), result.c.id.desc())
             .limit(RECENT_RESULTS)
         ).all()

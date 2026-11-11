@@ -336,3 +336,18 @@ def test_op_023_the_folder_line_counts_this_run_too(env):
         pass
     s = env.client.get("/api/v1/analysis/status").json()
     assert [(j["done"], j["total"]) for j in s["jobs"]] == [(0, 2)]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("OP-024")
+def test_op_024_just_done_is_from_this_run(env):
+    """回歸 (audit round 23): while the next run loaded its model, 「剛完成」 showed a photo from the run before."""
+    src = env.client.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": ""}).json()
+    env.client.post(f"/api/v1/sources/{src['id']}/analyze")
+    while env.w.run_once() or env.w.process_items_once():
+        pass
+    shutil.copyfile(FX / "IMG_0011.jpg", env.tree.photos / "r0.jpg")
+    env.client.post(f"/api/v1/sources/{src['id']}/analyze")
+    while env.w.run_once():  # the scan only: nothing analysed in this run yet
+        pass
+    assert env.client.get("/api/v1/analysis/status").json()["recent"] == []

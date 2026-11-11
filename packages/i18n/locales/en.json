@@ -540,7 +540,10 @@
     "related": "Possibly related",
     "relaxed": "No photo shows “{words}”. Below are photos that match the rest.",
     "personChip": "Person: {name}",
-    "countCapped": "the {n} most relevant"
+    "countCapped": "the {n} most relevant",
+    "softDivider": "The {n} below don't clearly show “{word}” but match the rest",
+    "softNone": "No photo clearly shows “{word}”. Below are photos that match the rest.",
+    "softOnly": "Only “{word}” ({n})"
   },
   "problem": {
     "chosen": "Switched to {what}"
@@ -1014,7 +1017,8 @@
       "scanning": "Scanning"
     },
     "elapsed": "{elapsed} so far",
-    "estimating": "estimating the time left…"
+    "estimating": "estimating the time left…",
+    "scanning": "Finding the photos in the folder…"
   },
   "explore": {
     "title": "Categories",

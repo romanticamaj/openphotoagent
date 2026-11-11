@@ -128,7 +128,7 @@ export function ProgressDock() {
             </div>
             {!s.total ? (
               // its own line: beside the stage name it squeezed both (ACT-011)
-              <p className="text-xs text-[var(--text-muted)]">{t(stages.some((x) => x.type === "scan") ? "dock.waitingScan" : "dock.preparing")}</p>
+              <p className="text-xs text-[var(--text-muted)]">{t(s.type === "scan" ? "dock.scanning" : stages.some((x) => x.type === "scan") ? "dock.waitingScan" : "dock.preparing")}</p>
             ) : null}
             {timing ? <p className="tnum text-xs text-[var(--text-muted)]">{timing}</p> : null}
           </div>

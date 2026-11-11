@@ -73,6 +73,15 @@ describe("progress on every page (ADR-0029, invariant 9)", () => {
     expect(screen.getAllByRole("progressbar").length).toBe(2);
   });
 
+  it("[ACT-012] 回歸：掃描這一階段自己說正在找照片，不說等掃描完成（驗證第 23 輪）", async () => {
+    state.ops = [op("scan"), op("job.label")];
+    ui();
+    const dock = await screen.findByTestId("progress-dock");
+    const lines = [...dock.querySelectorAll("p")].map((p) => p.textContent);
+    expect(lines.filter((x) => x === "等掃描完成")).toHaveLength(1); // the AI stage waits; the scan itself does not
+    expect(dock.textContent).toContain("正在找出資料夾裡的照片");
+  });
+
   it("[IMP-012] 掃描結束、AI 還沒開始時不說在等掃描", async () => {
     state.ops = [op("job.label")];
     ui();
