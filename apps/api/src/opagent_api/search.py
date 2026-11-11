@@ -231,11 +231,14 @@ MEANING_MARGIN = 0.08  # 17 words on the reference library: wrong photos 14 at +
 
 
 def _without_soft(q: str) -> str:
-    """The query without its expressions, when it has other concepts: what the vectors are asked (SRCH-CNC-011)."""
+    """The query without what only ranks — its expressions and the scenes its activities imply — when it has other
+    concepts: what the vectors are asked (SRCH-CNC-011, SRCH-CNC-015: 「beach surfing」 brought in a kite on a beach)."""
     from .labels import tokenizer
 
-    cs = tokenizer().concepts(q)
-    soft = [cpt for cpt in cs if cpt.key in SOFT_KEYS]
+    tok = tokenizer()
+    cs = tok.concepts(q)
+    implied = {k for c in cs if c.key for k in tok.implied(c.key)}
+    soft = [cpt for cpt in cs if cpt.key in SOFT_KEYS or cpt.key in implied]
     if not soft or len(soft) == len(cs):
         return q
     for cpt in soft:

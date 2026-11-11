@@ -986,3 +986,25 @@ def test_srch_cnc_014_an_object_or_a_word_outside_the_vocabulary_implies_nothing
     res = s.search(q="海邊衝浪板", semantic=False)  # a board is not a wave
     assert res["total"] == 0 or all("scene.beach" in (x["tags"] or []) for x in res["items"])
     assert all(x.get("implied_by") is None for x in res.get("soft") or [])
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-CNC-015")
+def test_srch_cnc_015_the_vectors_are_not_asked_the_implied_scene(s, monkeypatch):
+    """回歸 (audit round 36): 「海邊衝浪」 gave 8, the first two a kite and horses on a beach: the image and caption models
+    were asked 「beach surfing」, and their beach photos came in. They are asked the activity only."""
+    import opagent_api.search as S
+
+    asked = []
+    monkeypatch.setattr(S, "query_vector", lambda st, t, space, modality="image": asked.append((modality, t)))
+    import opagent_api.routes_caption as RC
+
+    monkeypatch.setattr(
+        RC,
+        "caption_space",
+        lambda c, status="active": type("Sp", (), {"id": 1, "model_key": "m", "fingerprint": "f"})(),
+    )
+    _surf(s)
+    s.search(q="在海邊衝浪")
+    texts = [t for m, t in asked if m in ("image", "caption")]
+    assert texts and not any("beach" in t or "海邊" in t or "sea" in t.split() for t in texts), texts
