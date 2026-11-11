@@ -232,7 +232,7 @@ MEANING_MARGIN = 0.08  # 17 words on the reference library: wrong photos 14 at +
 
 def _without_soft(q: str) -> str:
     """The query without what only ranks — its expressions and the scenes its activities imply — when it has other
-    concepts: what the vectors are asked (SRCH-CNC-011, SRCH-CNC-015: 「beach surfing」 brought in a kite on a beach)."""
+    concepts: what the vectors are asked (SRCH-CNC-011; SRCH-CNC-015, 「beach surfing」 brought in a kite)."""
     from .labels import tokenizer
 
     tok = tokenizer()
