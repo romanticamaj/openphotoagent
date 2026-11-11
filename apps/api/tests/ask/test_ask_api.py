@@ -428,3 +428,30 @@ def test_ask_ret_002_a_yes_or_no_question_is_answered_yes(m):
     assert text.startswith("有，") and "5" in text and "[[photo:" not in text
     ev = ask(m, "有沒有長頸鹿的照片？", FakeLLM())
     assert "".join(d["text"] for e, d in ev if e == "token").startswith("找不到")
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-RET-003")
+def test_ask_ret_003_a_yes_says_what_was_not_seen(m, monkeypatch):
+    """回歸 (audit round 37): 「有沒有在海邊衝浪的照片？」 said 「有，找到 6 張」 though no photo showed a beach: 海邊 only
+    ranked (ADR-0032 addendum). The answer says how many show it."""
+    import opagent_api.search as S
+
+    real = S.run_search
+    monkeypatch.setattr(
+        S,
+        "run_search",
+        lambda st, body: {
+            **real(st, body),
+            "soft": [{"word": "海邊", "key": "scene.beach", "shown": 0, "implied_by": "衝浪"}],
+        },
+    )
+    text = "".join(d["text"] for e, d in ask(m, "有沒有海邊的貓的照片？", FakeLLM()) if e == "token")
+    assert text.startswith("有，") and "看不出「海邊」" in text
+    monkeypatch.setattr(
+        S,
+        "run_search",
+        lambda st, body: {**real(st, body), "soft": [{"word": "海邊", "key": "scene.beach", "shown": 2}]},
+    )
+    text = "".join(d["text"] for e, d in ask(m, "有沒有海邊的貓的照片？", FakeLLM()) if e == "token")
+    assert "其中 2 張看得出「海邊」" in text and "，，" not in text

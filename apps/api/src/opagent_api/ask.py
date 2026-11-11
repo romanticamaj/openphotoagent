@@ -642,6 +642,7 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
     yield "step.completed", completed(sid, t0, "ok", "；".join(explain) or "以文字搜尋")
 
     seen: set[str] = set()
+    soft_seen: list[dict[str, Any]] = []  # words that only ranked, with how many photos show them (ASK-RET-003)
     counts: list[int] = []
     count_labels: list[str] = []
     hits_text: list[str] = []
@@ -678,6 +679,7 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
             total = int(out.get("total_estimate", out.get("total", len(ids))))
             # the folded look-alikes are not finds: 224 where the search page showed 162 (ASK-RET-001, ADR-0040)
             total = max(0, total - int(out.get("weak") or 0))
+            soft_seen[:] = list(out.get("soft") or [])
             with st.engine.begin() as hc:
                 hashes = dict(
                     hc.execute(select(asset.c.id, asset.c.content_hash).where(asset.c.id.in_(ids or ["-"]))).all()
@@ -876,6 +878,13 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
             # 「有沒有…？」 is answered yes first (ASK-RET-002); the photo strip shows them, so no citations: each
             # thumbnail was drawn twice (audit round 32)
             answer = f"有，找到 {total:,} 張，如下。"
+            for sw in soft_seen:  # 海邊 only ranked: say how many show it, not a plain yes (ASK-RET-003)
+                n = min(int(sw["shown"]), total)
+                answer = (
+                    f"有，找到 {total:,} 張，但看不出「{sw['word']}」。"
+                    if n == 0
+                    else f"有，找到 {total:,} 張，其中 {n:,} 張看得出「{sw['word']}」，排在前面。"
+                )
         for chunk in re.findall(r".{1,24}", answer, re.S):
             yield "token", {"text": chunk}
         for i, m in enumerate(G.CITE.finditer(answer)):

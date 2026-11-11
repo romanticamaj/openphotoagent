@@ -376,6 +376,8 @@ def search_photos(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
         "results": results,
         "total_estimate": int(r["total"]),
         "weak": int(r.get("weak") or 0),  # the folded look-alikes at the end (ADR-0040)
+        # words that only ranked, and how many photos show them (ADR-0032 addendum): a yes must not over-claim them
+        "soft": [{"word": x["word"], "shown": int(x["shown"])} for x in r.get("soft") or []],
         "next_cursor": nxt,
         "selection_id": sel,
         "applied_filters": {k: v for k, v in (body["filters"] or {}).items() if v and k not in ("within", "scope")},
