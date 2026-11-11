@@ -11,6 +11,15 @@ import { endpoint } from "../../lib/platform";
 export type BasemapStatus = { region: string; available: boolean; bytes: number; operation_id: string | null };
 
 /** Closest zoom: past the extract's deepest tiles the street map is unlabelled blocks (MAP-020); borders only, a blank fill. */
+/** A picked cluster's note goes once the map is zoomed out past it (MAP-022): it described a group no longer shown. */
+export function selectionStale(zoomAtPick: number, zoomNow: number): boolean {
+  return zoomNow < zoomAtPick - 1;
+}
+
+/** Below this zoom the street map is not drawn: the Taiwan extract's edge showed as a straight line across Asia
+ * (MAP-021); the bundled borders draw the land instead. */
+const STREETS_FROM = 5;
+
 export function mapMaxZoom(streets: boolean): number {
   return streets ? 18 : 9;
 }
@@ -29,6 +38,10 @@ export function basemapStyle(source: string, dark: boolean, glyphs: string, land
   const [bg, ...rest] = all;
   const sea = { ...bg, paint: { "background-color": flavor.water } } as LayerSpecification;
   const under: LayerSpecification[] = land ? [{ id: "ne-land", type: "fill", source: "countries", paint: { "fill-color": flavor.earth } }] : [];
+  const over: LayerSpecification[] = land
+    ? [{ id: "ne-border", type: "line", source: "countries", maxzoom: STREETS_FROM, paint: { "line-color": flavor.boundaries, "line-width": 0.6 } }]
+    : [];
+  const fromStreets = (l: LayerSpecification) => ({ ...l, minzoom: Math.max(l.minzoom ?? 0, STREETS_FROM) }) as LayerSpecification;
   return {
     version: 8,
     glyphs,
@@ -40,7 +53,7 @@ export function basemapStyle(source: string, dark: boolean, glyphs: string, land
         attribution: '<a href="https://www.openstreetmap.org/copyright">© OpenStreetMap</a> · Protomaps',
       },
     },
-    layers: [sea, ...under, ...rest],
+    layers: [sea, ...under, ...(land ? rest.map(fromStreets) : rest), ...over],
   };
 }
 

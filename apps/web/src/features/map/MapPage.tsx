@@ -11,7 +11,7 @@ import { useTranslation } from "react-i18next";
 import { feature } from "topojson-client";
 import countries110 from "world-atlas/countries-110m.json";
 import { api, mediaUrl } from "../../lib/api";
-import { BasemapBanner, basemapOfferDismissed, basemapSource, basemapStyle, dismissBasemapOffer, glyphsUrl, mapMaxZoom } from "./basemap";
+import { BasemapBanner, basemapOfferDismissed, basemapSource, basemapStyle, dismissBasemapOffer, glyphsUrl, mapMaxZoom, selectionStale } from "./basemap";
 import { endpoint } from "../../lib/platform";
 import { clusterPoints, type Cluster, type GeoPoint } from "./cluster";
 import { boundsOf, unwrapRings, spanMeters } from "./geo";
@@ -51,6 +51,11 @@ export function MapPage() {
   const map = useRef<MapLibreMap | null>(null);
   const [zoom, setZoom] = useState(1);
   const [picked, setPicked] = useState<Cluster | null>(null);
+  const pickedAt = useRef(0);
+  // the note described a group no longer shown once the map is zoomed out past it (MAP-022)
+  useEffect(() => {
+    if (picked && selectionStale(pickedAt.current, zoom)) setPicked(null);
+  }, [zoom, picked]);
   const clusters = useMemo(() => clusterPoints(q.data?.points ?? [], zoom), [q.data, zoom]);
   const hashOf = useMemo(() => new Map((q.data?.points ?? []).map((p) => [p.id, p.ch ?? null])), [q.data]);
 
@@ -120,8 +125,13 @@ export function MapPage() {
       el.dataset.count = String(c.count);
       el.addEventListener("click", () => {
         setPicked(c);
+        pickedAt.current = m.getZoom();
         const [w, so, e, n] = c.bbox;
-        if (c.count > 1 && (e > w || n > so)) m.fitBounds([[w, so], [e, n]], { padding: 80, maxZoom: streets ? 18 : 9 }); // drill down
+        if (c.count > 1 && (e > w || n > so)) {
+          const fit = { padding: 80, maxZoom: streets ? 18 : 9 };
+          pickedAt.current = Math.max(pickedAt.current, m.cameraForBounds([[w, so], [e, n]], fit)?.zoom ?? 0); // where it lands
+          m.fitBounds([[w, so], [e, n]], fit); // drill down
+        }
       });
       return new Marker({ element: el }).setLngLat([c.lon, c.lat]).addTo(m);
     });
