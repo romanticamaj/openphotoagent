@@ -141,7 +141,7 @@ export function SearchPage({ q }: { q: string }) {
   const handle = async () =>
     sel.all ? api.createSelection({ query: body }) : api.createSelection({ asset_ids: [...sel.ids] });
 
-  const soft = first ? softView(t, first.soft, total, chips) : null;
+  const soft = first ? softView(t, first.soft, total, chips, showWeak ? 0 : (first.weak ?? 0)) : null;
   const weak = first ? weakTail(t, first.weak_from, first.weak ?? 0, showWeak, hits.length) : null;
   const shownHits = weak ? hits.slice(0, weak.from) : hits;
   const loadWeak = weakNeedsMore(showWeak && Boolean(first?.weak), hits.length, total, Boolean(res.hasNextPage), res.isFetchingNextPage);
@@ -218,6 +218,19 @@ export function SearchPage({ q }: { q: string }) {
             window.setTimeout(() => document.querySelector<HTMLElement>("[data-compare-button]")?.focus(), 0);
           }}
         />
+      ) : null}
+      {res.isPending ? (
+        // the first answer can take a few seconds after the app idles: say so, and hold the grid's place (SRCH-UI-020)
+        <>
+          <p role="status" aria-label={t("search.busyLabel")} className="text-sm text-[var(--text-muted)]">
+            {t("search.busy")}
+          </p>
+          <div data-testid="search-skeleton" aria-busy="true" className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-0.5">
+            {Array.from({ length: 12 }, (_, i) => (
+              <div key={i} className="search-skeleton aspect-square" />
+            ))}
+          </div>
+        </>
       ) : null}
       {res.isSuccess && hits.length === 0 && <p>{t("search.none")}</p>}
       <div ref={gridRef} onKeyDown={onKey} role="grid" aria-label={t("search.results")} aria-multiselectable="true" aria-rowcount={-1} className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-0.5 outline-none">

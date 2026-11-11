@@ -977,3 +977,8 @@ body {
 .album-tile:hover .album-remove, .album-remove:focus-visible { opacity: 1; }
 .album-empty { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; padding: 3rem 1rem; border: 1px dashed var(--border); border-radius: var(--radius-md); color: var(--text-muted); text-align: center; }
 
+/* search placeholder tiles while the first answer comes (SRCH-UI-020) */
+.search-skeleton { border-radius: var(--radius-photo); background: linear-gradient(90deg, var(--surface-2) 0%, var(--surface) 50%, var(--surface-2) 100%); background-size: 200% 100%; animation: search-shimmer 1.4s ease-in-out infinite; }
+@keyframes search-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) { .search-skeleton { animation: none; } }
+

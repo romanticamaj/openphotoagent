@@ -550,7 +550,9 @@
     "cappedNote": "只列出最相關的 {n} 張，其餘照片相似度較低。",
     "weakMore": "顯示較不相關的 {n} 張",
     "softImpliedDivider": "以下 {n} 張沒看出「{word}」，但都在「{by}」",
-    "weakCount": "另有 {n} 張較不相關"
+    "weakCount": "另有 {n} 張較不相關",
+    "busy": "正在搜尋…",
+    "busyLabel": "搜尋中"
   },
   "problem": {
     "chosen": "已改用 {what}"

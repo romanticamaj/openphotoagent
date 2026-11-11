@@ -142,3 +142,11 @@ describe("the header counts what is shown (audit round 38)", () => {
   });
 });
 
+describe("the divider counts what is under it (audit round 40)", () => {
+  const t = i18n.getFixedT("zh-TW");
+  it("[SRCH-UI-019] 回歸：分隔線不算收起的照片（「以下 164 張」實際只有 154 張）", () => {
+    const v = softView(t, [{ word: "開心", key: "mood.smile", shown: 11 }], 175, [], 10);
+    expect(v?.divider).toBe("以下 154 張沒看出「開心」，仍符合其他條件");
+  });
+});
+

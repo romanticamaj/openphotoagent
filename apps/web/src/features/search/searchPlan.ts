@@ -71,16 +71,18 @@ export function softView(
   soft: Soft[] | undefined,
   total: number,
   chips: Chip[],
+  weak = 0, // folded look-alikes: not under the divider until shown (SRCH-UI-019)
 ): { at: number | null; divider: string | null; note: string | null; only: string | null; chip: Chip } | null {
   const s = soft?.[0];
+  const below = Math.max(0, total - weak - (s?.shown ?? 0));
   if (!s || s.shown >= total || chips.some((c) => c.kind === "soft")) return null;
   const chip: Chip = { kind: "soft", value: s.key, word: s.word };
   if (!s.shown) return { at: null, divider: null, note: t("search.softNone", { word: s.word }), only: null, chip };
   return {
     at: s.shown,
     divider: s.implied_by // kept because the activity implies it (ADR-0032 addendum, SRCH-CNC-013)
-      ? t("search.softImpliedDivider", { n: (total - s.shown).toLocaleString(), word: s.word, by: s.implied_by })
-      : t("search.softDivider", { n: (total - s.shown).toLocaleString(), word: s.word }),
+      ? t("search.softImpliedDivider", { n: below.toLocaleString(), word: s.word, by: s.implied_by })
+      : t("search.softDivider", { n: below.toLocaleString(), word: s.word }),
     note: null,
     only: t("search.softOnly", { word: s.word, n: s.shown.toLocaleString() }),
     chip,
