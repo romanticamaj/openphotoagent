@@ -72,3 +72,14 @@ def test_mem_005_today_is_the_local_day(embedded_pg, tmp_path):
     x.index()
     assert x.client.get("/api/v1/memories/on-this-day", headers=x.ui).json()["today"] == "2026-11-12"
     x.eng.dispose()
+
+
+@pytest.mark.integration
+@pytest.mark.tc("MEM-006")
+def test_mem_006_a_year_says_how_many_it_has(m, monkeypatch):
+    """回歸 (audit rounds 47-48): 「共 24 張」 read as the full count where the window held 424; the cap is a choice."""
+    import opagent_api.routes_viewer as V
+
+    monkeypatch.setattr(V, "MEMORY_MAX", 1)
+    g = m.client.get("/api/v1/memories/on-this-day", params={"today": "2026-11-12"}, headers=m.ui).json()["groups"][0]
+    assert g["year"] == 2025 and len(g["photos"]) == 1 and g["total"] == 2

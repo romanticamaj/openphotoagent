@@ -165,3 +165,11 @@ describe("search opens the Lightbox at the saved angle (ROT-005)", () => {
     expect(gridAssetOf({ asset_id: "a", ch: "h", rot: 90, taken_at: null } as never)).toMatchObject({ id: "a", rot: 90 });
   });
 });
+
+describe("a day in every year (SRCH-PLAN-026)", () => {
+  it("[SRCH-PLAN-026] 「11月10日」成為可移除的標籤，搜尋帶著 month_day", () => {
+    const chips = chipsFrom(planner({ month_day: "11-10" }, ["「11月10日」→ 每年的 11-10"], "貓"));
+    expect(chips).toEqual([{ kind: "day", value: "每年的 11-10", monthDay: "11-10" }]);
+    expect(bodyFor("11月10日的貓", chips, { text: "貓" })).toEqual({ q: "貓", filters: { month_day: "11-10" } });
+  });
+});

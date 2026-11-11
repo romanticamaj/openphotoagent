@@ -1067,3 +1067,15 @@ def test_srch_idx_010_a_photo_dated_by_its_file_is_found_by_date(s):
     s.index()
     res = s.search(filters={"taken_from": "2026-11-01", "taken_to": "2026-12-01"}, semantic=False)
     assert [x["asset_id"] for x in res["items"]] == [a]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-PLAN-026")
+def test_srch_plan_026_a_day_without_a_year_is_found_in_every_year(s):
+    """回歸 (audit rounds 46-48): 「11月10日的貓」 found 0: with no year it looked at this year only."""
+    a = s.add(1, caption="貓", taken=datetime(2024, 11, 10, 3, tzinfo=UTC))
+    b = s.add(2, caption="貓", taken=datetime(2025, 11, 10, 3, tzinfo=UTC))
+    s.add(3, caption="貓", taken=datetime(2025, 11, 12, 3, tzinfo=UTC))
+    s.index()
+    res = s.search(q="11月10日的貓", plan=True, semantic=False)
+    assert {x["asset_id"] for x in res["items"]} == {a, b}

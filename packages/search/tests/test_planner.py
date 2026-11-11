@@ -180,8 +180,9 @@ def test_plan_023_a_year_with_a_month_or_a_day_leaves_nothing_behind(gz):
         p = P(q, gz)
         assert p["text"] == "", q
         assert p["filters"]["taken_at"] == {"from": "2025-11-10", "to": "2025-11-11"}, q
+    # a day with no year is that day in every year, as Google Photos reads it (SRCH-PLAN-026, audit round 47)
     p = P("11月10日的貓", gz)
-    assert p["filters"]["taken_at"] == {"from": "2026-11-10", "to": "2026-11-11"} and "貓" in p["text"]
+    assert p["filters"].get("month_day") == "11-10" and "taken_at" not in p["filters"] and "貓" in p["text"]
 
 
 @pytest.mark.unit

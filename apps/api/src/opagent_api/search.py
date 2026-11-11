@@ -47,6 +47,9 @@ class Filters(BaseModel):
     categories: list[str] | None = None
     taken_from: str | None = None
     taken_to: str | None = None
+    month_day: str | None = Field(
+        default=None, pattern=r"^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$"
+    )  # every year's (SRCH-PLAN-026)
     date_source: str | None = None
     scope: list[Scope] | None = None
     # an MCP token's folders (05 §3.2): ANDed with everything else, so a caller can only narrow it (MCP-FOLD-001)
@@ -185,6 +188,13 @@ def _where(f: Filters, snapshot: str | None) -> tuple[list[Any], dict[str, Any]]
         w.append(search_doc.c.taken_at >= datetime.fromisoformat(f.taken_from))
     if f.taken_to:
         w.append(search_doc.c.taken_at < datetime.fromisoformat(f.taken_to))
+    if f.month_day:  # that day in every year, in local time (SRCH-PLAN-026)
+        from .labels import LOCAL_TZ
+
+        mo, dd = (int(x) for x in f.month_day.split("-"))
+        local = func.timezone(LOCAL_TZ, search_doc.c.taken_at)
+        w.append(func.extract("month", local) == mo)
+        w.append(func.extract("day", local) == dd)
     if f.date_source:
         w.append(search_doc.c.date_source == f.date_source)
     if f.scope:
@@ -367,6 +377,8 @@ def _apply_plan(st: AppState, body: SearchIn, q: str) -> tuple[dict[str, Any], S
     pf = p["filters"]
     if "taken_at" in pf and not (f.taken_from or f.taken_to):
         f.taken_from, f.taken_to = pf["taken_at"]["from"], pf["taken_at"]["to"]
+    if pf.get("month_day") and not (f.month_day or f.taken_from or f.taken_to):
+        f.month_day = str(pf["month_day"])
     if pf.get("persons_all") and not f.persons_all:
         f.persons_all = list(pf["persons_all"])
     # tag words stay in the query text, where the tag route (R4) ranks by them; as a hard filter they would cut

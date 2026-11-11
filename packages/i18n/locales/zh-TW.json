@@ -889,7 +889,8 @@
       "cloudPeople": "雲端也可以依人物回答（人名只以「人物A」這類代稱送出；臉部影像與特徵永遠不送出）"
     },
     "seeAll": "在搜尋頁看全部 {n} 張",
-    "chipPerson": "人物：{names}"
+    "chipPerson": "人物：{names}",
+    "chipDay": "每年的 {day}"
   },
   "map": {
     "title": "地圖",
@@ -1079,6 +1080,7 @@
     "notToday": "今天先不看",
     "yearsAgo_one": "{count} 年前的今天",
     "yearsAgo_other": "{count} 年前的今天",
-    "open": "{year} 年的第 {n} 張"
+    "open": "{year} 年的第 {n} 張",
+    "picked": "精選 {n} 張 · 共 {total} 張"
   }
 }

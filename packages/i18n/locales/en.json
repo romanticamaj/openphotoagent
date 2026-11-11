@@ -889,7 +889,8 @@
       "cloudPeople": "Let the cloud model answer about named people (names go only as aliases such as “Person A”; face images and features never leave)"
     },
     "seeAll": "See all {n} on the search page",
-    "chipPerson": "Person: {names}"
+    "chipPerson": "Person: {names}",
+    "chipDay": "{day}, every year"
   },
   "map": {
     "title": "Map",
@@ -1079,6 +1080,7 @@
     "notToday": "Not today",
     "yearsAgo_one": "{count} year ago today",
     "yearsAgo_other": "{count} years ago today",
-    "open": "{year}, photo {n}"
+    "open": "{year}, photo {n}",
+    "picked": "{n} picked of {total}"
   }
 }

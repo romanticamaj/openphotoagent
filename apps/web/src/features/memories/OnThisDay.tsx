@@ -47,7 +47,11 @@ export function OnThisDay({ onOpen }: { onOpen: (photos: Array<{ id: string; rot
           <div key={g.year} className="on-this-day-year">
             <p className="text-sm">
               <span className="font-medium">{t("memories.yearsAgo", { count: g.years_ago })}</span>{" "}
-              <span className="tnum text-[var(--text-muted)]">{g.year}</span>
+              <span className="tnum text-[var(--text-muted)]">{g.year}</span>{" "}
+              {g.total && g.total > g.photos.length ? (
+                // a few of them, said so: 「共 24 張」 read as all there were (MEM-006)
+                <span className="tnum text-xs text-[var(--text-muted)]">{t("memories.picked", { n: g.photos.length.toLocaleString(i18n.language), total: g.total.toLocaleString(i18n.language) })}</span>
+              ) : null}
             </p>
             <ul className="flex gap-1">
               {g.photos.slice(0, SHOWN).map((p, i) => (

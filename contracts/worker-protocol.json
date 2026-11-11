@@ -783,6 +783,18 @@
             ],
             "title": "Date Source"
           },
+          "month_day": {
+            "anyOf": [
+              {
+                "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12]\\d|3[01])$",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Month Day"
+          },
           "persons_all": {
             "anyOf": [
               {

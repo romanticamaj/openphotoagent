@@ -1066,3 +1066,4 @@ packages/
 | Operation | `run_labeling_job` 與 `propose_organize` 回傳 06 §5.9 的 `estimate`（開始前預估時間、張數、磁碟用量），讓 agent 先告訴使用者要多久；`get_job_status` 附 `eta.state/p50`、`waiting_reason`、`elapsed_ms`；MCP 錯誤帶 06 錯誤碼；「連接 AI 助手」的測試連線用 `mcp.connect` preflight | 06 §7.4 | v0.2 | §3.3.1 |
 | 協定版本 | 桌面只用 stdio，降低對 2026-07-28 HTTP 傳輸細節的依賴；HTTP 相關未驗證項目移到 v0.5 | 08 C-33 | v0.5 | §10 |
 | 多概念查詢 | 每個概念都要符合（ADR-0032），三個例外：詞彙外且沒有照片的詞放寬並列在 `relaxed`；表情詞（`mood.smile`）與活動隱含的場景（詞彙表 `implies`，例如衝浪 → 海、海灘）只排序，列在 `soft`（`implied_by` 說明由哪個詞隱含）；「只看…」按鈕以 `soft_only` 改回嚴格 | DECISIONS ADR-0032 補充 | v1.0 | §2 |
+| 日期 | 「2025年11月10日」「2025/11/10」是那一天；沒寫年份的「11月10日」是每年的那一天（`month_day`，本地時間，SRCH-PLAN-026）；只寫月份的「11月」仍是今年；「去年今天」前後 3 天、「去年這個時候」前後 15 天 | 驗證第 45～48 輪 | v1.0 | §2.3 |

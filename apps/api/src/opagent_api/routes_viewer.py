@@ -203,6 +203,27 @@ MEMORY_YEARS = 30  # years looked back at most (security review: one query per y
 MEMORY_PAST_YEARS = 100  # a requested day this far from the server's today is refused
 
 
+def _memory_window(year: int, now: date) -> tuple[date, date]:
+    from datetime import timedelta
+
+    try:
+        day = now.replace(year=year)
+    except ValueError:  # 29 February in a year without one
+        day = now.replace(year=year, day=28)
+    return day - timedelta(days=MEMORY_DAYS), day + timedelta(days=MEMORY_DAYS + 1)
+
+
+def _memory_total(c: Any, year: int, now: date) -> int:
+    """All the photos of that window, not only those shown (MEM-006: 「共 24 張」 read as the whole)."""
+    lo, hi = _memory_window(year, now)
+    when = func.coalesce(asset.c.local_at, asset.c.taken_at)
+    return int(
+        c.execute(
+            select(func.count()).select_from(asset).where(asset.c.workspace_id == DEFAULT_WS, when >= lo, when < hi)
+        ).scalar_one()
+    )
+
+
 def _memory_year(c: Any, year: int, now: date) -> list[Any]:
     """The photos of one earlier year within ±3 days of today's date; one per near-duplicate group."""
     from datetime import timedelta
@@ -257,6 +278,7 @@ def on_this_day(req: Request, today: str | None = None) -> dict[str, Any]:
                     {
                         "year": year,
                         "years_ago": now.year - year,
+                        "total": _memory_total(c, year, now),
                         "photos": [
                             {
                                 "asset_id": r.id,

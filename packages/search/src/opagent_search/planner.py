@@ -202,18 +202,25 @@ def _dates(t: _Text, today: date, tz: str, explain: list[str]) -> dict[str, str]
             del explain[n_explain:]
             explain.append(f"「{word}」→ {y}-12 – {y + 1}-02")
             return _range(date(y, 12, 1), date(y + 1, 3, 1))
-    # a month and a day, 「11月10日」: that day, this year unless one was named (SRCH-PLAN-023)
+    # a month and a day, 「11月10日」: that day of the named year, or of every year when none is named, as Google
+    # Photos reads it (SRCH-PLAN-023, SRCH-PLAN-026)
     m = t.take(r"(?<!\d)(1[0-2]|0?[1-9])\s*月\s*(3[01]|[12]\d|0?[1-9])\s*[日號]")
     if m:
-        y = year if year is not None else today.year
+        mo, dd = int(m.group(1)), int(m.group(2))
         try:
-            d = date(y, int(m.group(1)), int(m.group(2)))
+            date(2024, mo, dd)  # a leap year: 2月29日 is a day
         except ValueError:
-            d = None
-        if d is not None:
-            del explain[n_explain:]
-            explain.append(f"「{m.group(0).strip()}」→ {_iso(d)}")
-            return _range(d, d + timedelta(days=1))
+            return None
+        del explain[n_explain:]
+        if year is None:
+            explain.append(f"「{m.group(0).strip()}」→ 每年的 {mo:02d}-{dd:02d}")
+            return {"month_day": f"{mo:02d}-{dd:02d}"}
+        try:
+            d = date(year, mo, dd)
+        except ValueError:
+            return None
+        explain.append(f"「{m.group(0).strip()}」→ {_iso(d)}")
+        return _range(d, d + timedelta(days=1))
     m = t.take(r"(?<!\d)(1[0-2]|0?[1-9])\s*月(?!份?\d)")
     if m:
         mo = int(m.group(1))
@@ -329,7 +336,9 @@ def plan(
         filters: dict[str, Any] = {}
         people = _persons(t, persons or {}, scopes, explain)
         span = _dates(t, today, tzname, explain)
-        if span:
+        if span and "month_day" in span:
+            filters["month_day"] = span["month_day"]  # every year's (SRCH-PLAN-026)
+        elif span:
             filters["taken_at"] = span
         place = _place(t, gazetteer, explain)
         if place:

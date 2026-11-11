@@ -7,6 +7,8 @@ export type Chip =
   | { kind: "tag"; value: string }
   | { kind: "year"; value: string }
   | { kind: "range"; value: string; from: string; to: string }
+  /** that day in every year, 「11月10日」 with no year (SRCH-PLAN-026) */
+  | { kind: "day"; value: string; monthDay: string }
   | { kind: "person"; value: string; id: string }
   /** 「只看開心」: the same query, only the photos that show the expression (SRCH-CNC-012) */
   | { kind: "soft"; value: string; word: string };
@@ -19,6 +21,11 @@ export function chipsFrom(p: Planner): Chip[] {
   if (at) {
     const label = p.explain.find((e) => /→/.test(e) && /\d{4}/.test(e)) ?? `${at.from} – ${at.to}`;
     out.push({ kind: "range", value: label, from: at.from, to: at.to });
+  }
+  const md = p.filters.month_day as string | undefined;
+  if (md) {
+    const label = p.explain.find((e) => e.includes(md))?.split("→ ")[1] ?? md;
+    out.push({ kind: "day", value: label, monthDay: md });
   }
   const ids = (p.filters.persons_all as string[] | undefined) ?? [];
   const names = p.explain.map((e) => PERSON.exec(e)?.[1]).filter((x): x is string => Boolean(x));
@@ -39,6 +46,7 @@ export function bodyFor(q: string, chips: Chip[], planned: { text: string } | nu
   const year = chips.find((c) => c.kind === "year")?.value;
   const range = chips.find((c): c is Extract<Chip, { kind: "range" }> => c.kind === "range");
   const people = chips.filter((c): c is Extract<Chip, { kind: "person" }> => c.kind === "person").map((c) => c.id);
+  const day = chips.find((c): c is Extract<Chip, { kind: "day" }> => c.kind === "day");
   return {
     q: (planned ? planned.text : q) || null,
     ...(chips.some((c) => c.kind === "soft") ? { soft_only: true } : {}),
@@ -46,6 +54,7 @@ export function bodyFor(q: string, chips: Chip[], planned: { text: string } | nu
       ...(tags.length ? { tags_all: tags } : {}),
       ...(range ? { taken_from: range.from, taken_to: range.to } : year ? { taken_from: `${year}-01-01`, taken_to: `${year}-12-31` } : {}),
       ...(people.length ? { persons_all: people } : {}),
+      ...(day ? { month_day: day.monthDay } : {}),
     },
   };
 }

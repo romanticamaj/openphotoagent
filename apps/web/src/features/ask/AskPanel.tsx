@@ -61,6 +61,7 @@ export function chipLabel(t: (k: string, o?: Record<string, unknown>) => string,
     const last = r.to ? new Date(Date.parse(`${r.to}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10) : "";
     return t("ask.chipDate", { from: r.from ?? "", to: last });
   }
+  if (key === "month_day") return t("ask.chipDay", { day: String(v ?? "") }); // every year's (SRCH-PLAN-026)
   if (key === "tags_any" || key === "tags_all") return t("ask.chipTag", { tag: ((v as string[]) ?? []).map((x) => names[x] ?? x).join("、") });
   if (key === "persons_all" || key === "persons_any") return t("ask.chipPerson", { names: ((v as string[]) ?? []).map((x) => names[x] ?? "?").join("、") });
   return key;
