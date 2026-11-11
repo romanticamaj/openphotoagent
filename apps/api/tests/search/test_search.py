@@ -1081,11 +1081,13 @@ def test_srch_plan_026_a_day_without_a_year_is_found_in_every_year(s):
     assert {x["asset_id"] for x in res["items"]} == {a, b}
 
 
-def _near(s, cosines, captions=None):
+def _near(s, cosines, captions=None, tags=None):
     """Photos at these cosines to the query [1, 0] in a fake image space."""
     import math
 
-    ids = [s.add(i, caption=(captions or {}).get(i, f"圖{i}")) for i in range(len(cosines))]
+    ids = [
+        s.add(i, caption=(captions or {}).get(i, f"圖{i}"), tags=(tags or {}).get(i, ())) for i in range(len(cosines))
+    ]
     s.index()
     sid = s.sql(
         "insert into embedding_space(model_key, fingerprint, dim, modality, status)"
@@ -1158,3 +1160,21 @@ def test_srch_sem_014_the_bar_is_per_model_in_the_catalog():
     st = SimpleNamespace(registry=load_registry)
     assert vector_alone(st, SimpleNamespace(fingerprint="siglip2-so400m-384@abc")) == 0.082
     assert vector_alone(st, SimpleNamespace(fingerprint="qwen3-embedding-0.6b@abc")) is None
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-SEM-015")
+def test_srch_sem_015_a_phrase_no_photo_shows_in_words_needs_a_strong_image_answer(s, monkeypatch):
+    """回歸 (audit round 52): 「城市夜景」 and 「city night」 still showed two abstract collages, found by the image model
+    alone at 0.077: photos say 城市 and one says 夜景, but none says both, so the whole phrase rests on the image model,
+    as one word did in SRCH-SEM-012 (ADR-0042 addendum)."""
+    ids = _near(
+        s,
+        [0.077, 0.077, 0.03, 0.03, 0.02],
+        captions={2: "城市街景", 3: "城市的街道", 4: "山上的夜景"},
+        tags={2: ("scene.city",), 3: ("scene.city",), 4: ("scene.night",)},  # the tag route finds some: no gate
+    )
+    _gate(monkeypatch, 0.082)
+    for q in ("城市夜景", "city night"):
+        res = s.search(q=q)
+        assert not {x["asset_id"] for x in res["items"]} & set(ids[:2]), (q, res["items"])

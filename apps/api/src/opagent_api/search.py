@@ -605,6 +605,15 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                 # the image model was asked the whole question (English, or every concept in the vocabulary): what it
                 # finds above the floor shows all of it together, "a dog on the beach" (SRCH-SEM-001, ADR-0032)
                 whole = all(cpt.key or cpt.word.isascii() for cpt in concepts)
+                if whole and vec_ids and alone is not None and routes.get("image_vector"):
+                    # no photo shows every concept in words: the phrase rests on the image model, which then needs a
+                    # strong best, as one word does (SRCH-SEM-015, ADR-0042 addendum): 「城市夜景」 found collages
+                    shown = c.execute(select(search_doc.c.asset_id).where(and_(*where), match).limit(1)).first()
+                    best = max(image_cos[a] for a in routes["image_vector"])
+                    if shown is None and best < alone:
+                        weak_images = set(routes["image_vector"]) - set(routes.get("caption_vector") or [])
+                        vec_ids = [a for a in vec_ids if a not in weak_images]
+                        image_only_weak = not vec_ids
                 if whole and vec_ids:
                     match = or_(match, search_doc.c.asset_id.in_(vec_ids))
                 # the routes rank; only photos showing every concept stay (vectors never add one, ADR-0032)
