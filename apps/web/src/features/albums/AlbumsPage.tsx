@@ -38,7 +38,6 @@ export function AlbumsPage() {
           <button type="submit" className="rounded-full bg-[var(--accent)] px-3 py-1 text-sm text-[var(--accent-fg)]">{t("albums.create")}</button>
         </form>
       </div>
-      {list.isSuccess && albums.length <= 1 && !albums[0]?.count ? <p className="text-sm text-[var(--text-muted)]">{t("albums.empty")}</p> : null}
       <ul className="album-grid" data-testid="album-list">
         {albums.map((a) => (
           <li key={a.id}>
@@ -52,6 +51,8 @@ export function AlbumsPage() {
           </li>
         ))}
       </ul>
+      {/* under the cards: above them it read as a caption for 收藏 (audit round 33) */}
+      {list.isSuccess && albums.length <= 1 && !albums[0]?.count ? <p className="text-sm text-[var(--text-muted)]">{t("albums.empty")}</p> : null}
     </section>
   );
 }
@@ -63,12 +64,21 @@ export function AlbumPage({ albumId }: { albumId: string }) {
   const q = useQuery({ queryKey: ["album", albumId], queryFn: () => api.album(albumId) });
   const [viewing, setViewing] = useState<number | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [removed, setRemoved] = useState<string | null>(null); // the last photo taken out, for 「復原」
   const photos = useMemo(() => q.data?.photos ?? [], [q.data]);
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: ["album", albumId] });
     void qc.invalidateQueries({ queryKey: ["albums"] });
   };
-  const remove = useMutation({ mutationFn: (assetId: string) => api.removeFromAlbum(albumId, assetId), onSuccess: refresh });
+  const remove = useMutation({
+    mutationFn: (assetId: string) => api.removeFromAlbum(albumId, assetId),
+    onSuccess: (_r, assetId) => (setRemoved(assetId), refresh()),
+  });
+  const restore = useMutation({
+    mutationFn: (assetId: string) => api.addToAlbum(albumId, [assetId]),
+    onSuccess: () => (setRemoved(null), refresh()),
+  });
   const rename = useMutation({ mutationFn: (n: string) => api.renameAlbum(albumId, n), onSuccess: () => (setRenaming(null), refresh()) });
   const drop = useMutation({
     mutationFn: () => api.deleteAlbum(albumId),
@@ -112,14 +122,28 @@ export function AlbumPage({ albumId }: { albumId: string }) {
         {!fav && q.data ? (
           <span className="ml-auto flex gap-3 text-sm">
             <button type="button" className="underline" onClick={() => setRenaming(q.data.name)}>{t("albums.rename")}</button>
-            <button type="button" className="underline" title={t("albums.deleteNote")} onClick={() => drop.mutate()}>{t("albums.delete")}</button>
+            <button type="button" className="underline" onClick={() => setConfirming(true)}>{t("albums.delete")}</button>
           </span>
         ) : null}
       </div>
+      {confirming ? (
+        // asked first; only the album goes (COL-010)
+        <div role="alertdialog" aria-label={t("albums.delete")} className="flex flex-wrap items-center gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3 text-sm">
+          <span>{t("albums.confirmDelete", { name: q.data?.name ?? "" })}</span>
+          <button type="button" className="rounded-full bg-[var(--danger)] px-3 py-1 text-white" onClick={() => drop.mutate()}>{t("albums.confirm")}</button>
+          <button type="button" className="underline" onClick={() => setConfirming(false)}>{t("albums.cancel")}</button>
+        </div>
+      ) : null}
+      {removed ? (
+        <div role="status" className="flex items-center gap-3 text-sm">
+          <span>{t("albums.removed")}</span>
+          <button type="button" className="underline" onClick={() => restore.mutate(removed)}>{t("albums.undo")}</button>
+        </div>
+      ) : null}
       {q.isSuccess && photos.length === 0 ? <p className="text-sm text-[var(--text-muted)]">{t("albums.empty")}</p> : null}
-      <ul className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-0.5" aria-label={q.data?.name ?? ""}>
+      <ul className="album-photos" aria-label={q.data?.name ?? ""}>
         {photos.map((p, i) => (
-          <li key={p.asset_id} className="tile relative aspect-square">
+          <li key={p.asset_id} className="album-tile">
             <button type="button" className="h-full w-full" onClick={() => setViewing(i)} aria-label={t("albums.open")}>
               <img src={mediaUrl(p.asset_id, "t256", p.ch)} alt="" loading="lazy" className="h-full w-full object-cover" />
             </button>

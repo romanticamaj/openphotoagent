@@ -30,7 +30,8 @@ export function useFavorite(assetId: string) {
       void qc.invalidateQueries({ queryKey: ["albums"] });
     },
   });
-  return { on, toggle: () => flip.mutate(), ready: info.isSuccess };
+  // until this photo's state is in, F does nothing: right after → it toggled the photo before (audit round 33)
+  return { on, toggle: () => info.isSuccess && !flip.isPending && flip.mutate(), ready: info.isSuccess };
 }
 
 export function FavoriteButton({ assetId }: { assetId: string }) {
@@ -76,7 +77,17 @@ export function AddToAlbum({ assetIds }: { assetIds: string[] }) {
         </svg>
       </button>
       {open ? (
-        <div className="album-menu" role="menu" aria-label={t("albums.addTo")}>
+        <div
+          className="album-menu"
+          role="menu"
+          aria-label={t("albums.addTo")}
+          onKeyDown={(e) => {
+            if (e.key !== "Escape") return;
+            e.stopPropagation(); // the menu closes, the Lightbox stays (COL-009)
+            setOpen(false);
+            opener.current?.focus();
+          }}
+        >
           {(list.data?.albums ?? [])
             .filter((a) => a.kind === "album")
             .map((a) => (

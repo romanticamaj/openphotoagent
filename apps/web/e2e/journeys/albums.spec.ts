@@ -25,6 +25,29 @@ test("[E2E-COL-001] ★ 收藏、加入新相簿、在相簿裡看照片並移�
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "從相簿移除" }).first().click({ force: true });
   await expect(page.getByText("還沒有照片")).toBeVisible();
+  await page.getByRole("button", { name: "復原" }).click(); // back in the album
+  await expect(page.getByRole("button", { name: "開啟照片" })).toHaveCount(1);
+  await page.getByRole("button", { name: "刪除相簿" }).click();
+  await expect(page.getByRole("alertdialog")).toContainText("照片不會被刪除");
+  await page.getByRole("button", { name: "確定刪除" }).click();
+  await expect(page.getByTestId("album-list")).not.toContainText("旅行精選");
+});
+
+test("[COL-010] 相簿裡的照片排成格子，不疊在一起", async ({ page }) => {
+  await page.goto("/");
+  for (const i of [0, 1, 2]) {
+    await page.getByRole("gridcell").nth(i).click();
+    const lb = page.getByTestId("lightbox");
+    await expect(lb.getByRole("button", { name: "加入收藏" })).toBeVisible();
+    await lb.getByRole("button", { name: "加入收藏" }).click();
+    await expect(lb.getByRole("button", { name: "取消收藏" })).toBeVisible();
+    await page.keyboard.press("Escape");
+  }
+  await page.goto("/albums/fav-default");
+  const tiles = page.locator(".album-tile");
+  await expect(tiles).toHaveCount(3);
+  const boxes = await tiles.evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => `${Math.round(r.x)},${Math.round(r.y)}`));
+  expect(new Set(boxes).size).toBe(3);
 });
 
 test("[COL-008] Lightbox：在「問這張」打字不會觸發快捷鍵；按 F 收藏", async ({ page }) => {

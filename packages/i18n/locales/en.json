@@ -1058,6 +1058,11 @@
     "back": "← All albums",
     "none": "No albums yet.",
     "save": "Save",
-    "open": "Open photo"
+    "open": "Open photo",
+    "confirmDelete": "Delete the album “{name}”? The photos are not deleted.",
+    "confirm": "Delete",
+    "cancel": "Cancel",
+    "removed": "Removed from the album",
+    "undo": "Undo"
   }
 }

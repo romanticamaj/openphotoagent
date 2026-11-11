@@ -972,5 +972,7 @@ body {
 .album-menu [role="menuitem"] { display: flex; justify-content: space-between; gap: 0.75rem; text-align: left; padding: 0.3rem 0.5rem; border-radius: var(--radius-sm); font-size: 0.875rem; }
 .album-menu [role="menuitem"]:hover, .album-menu [role="menuitem"]:focus-visible { background: var(--surface-2); }
 .album-remove { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; border-radius: 9999px; background: rgb(0 0 0 / 0.55); color: #fff; opacity: 0; transition: opacity 120ms ease; }
-.tile:hover .album-remove, .album-remove:focus-visible { opacity: 1; }
+.album-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 2px; }
+.album-tile { position: relative; aspect-ratio: 1; overflow: hidden; border-radius: var(--radius-photo); background: var(--surface-2); }
+.album-tile:hover .album-remove, .album-remove:focus-visible { opacity: 1; }
 

@@ -1058,6 +1058,11 @@
     "back": "← 所有相簿",
     "none": "還沒有相簿。",
     "save": "儲存",
-    "open": "開啟照片"
+    "open": "開啟照片",
+    "confirmDelete": "刪除相簿「{name}」？照片不會被刪除。",
+    "confirm": "確定刪除",
+    "cancel": "取消",
+    "removed": "已從相簿移除",
+    "undo": "復原"
   }
 }

@@ -14,6 +14,9 @@ const s = vi.hoisted(() => ({
   albums: vi.fn(),
   addToAlbum: vi.fn(),
   createAlbum: vi.fn(),
+  album: vi.fn(),
+  removeFromAlbum: vi.fn(),
+  deleteAlbum: vi.fn(),
 }));
 vi.mock("../../lib/api", async (orig) => ({
   ...(await orig<typeof import("../../lib/api")>()),
@@ -23,10 +26,19 @@ vi.mock("../../lib/api", async (orig) => ({
     albums: s.albums,
     addToAlbum: s.addToAlbum,
     createAlbum: s.createAlbum,
+    album: s.album,
+    removeFromAlbum: s.removeFromAlbum,
+    deleteAlbum: s.deleteAlbum,
   },
+}));
+vi.mock("@tanstack/react-router", async (orig) => ({
+  ...(await orig<typeof import("@tanstack/react-router")>()),
+  Link: ({ children }: { children: React.ReactNode }) => <a>{children}</a>,
+  useNavigate: () => vi.fn(),
 }));
 
 import { AddToAlbum, FavoriteButton, typingIn } from "./AlbumButtons";
+import { AlbumPage } from "./AlbumsPage";
 
 const wrap = (el: React.ReactNode) => render(<QueryClientProvider client={new QueryClient()}>{el}</QueryClientProvider>);
 
@@ -74,3 +86,41 @@ describe("favourites and albums (ADR-0041)", () => {
     expect(typingIn(div)).toBe(false);
   });
 });
+
+describe("album page and menu (audit round 33)", () => {
+  it("[COL-009] 回歸：Esc 只關閉加入相簿的選單，不關掉 Lightbox", async () => {
+    s.albums.mockResolvedValue({ albums: [] });
+    const outer = vi.fn();
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <div onKeyDown={outer}>
+          <AddToAlbum assetIds={["a1"]} />
+        </div>
+      </QueryClientProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "加入相簿" }));
+    fireEvent.keyDown(await screen.findByRole("menu"), { key: "Escape" });
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(outer).not.toHaveBeenCalled();
+  });
+
+  it("[COL-010] 回歸：刪除相簿先確認；移除照片可以復原；照片格不疊在一起（驗證第 33 輪）", async () => {
+    s.album.mockResolvedValue({ id: "b1", name: "墾丁", kind: "album", photos: [{ asset_id: "p1", ch: null, taken_at: null }, { asset_id: "p2", ch: null, taken_at: null }] });
+    s.removeFromAlbum.mockResolvedValue({ count: 1 });
+    s.addToAlbum.mockResolvedValue({ count: 2 });
+    wrap(<AlbumPage albumId="b1" />);
+    const tiles = await screen.findAllByRole("listitem");
+    expect(tiles).toHaveLength(2);
+    expect(tiles.every((t) => !t.classList.contains("tile"))).toBe(true); // .tile is the timeline's absolute tile
+    fireEvent.click(screen.getAllByRole("button", { name: "從相簿移除" })[0]);
+    await waitFor(() => expect(s.removeFromAlbum).toHaveBeenCalledWith("b1", "p1"));
+    fireEvent.click(await screen.findByRole("button", { name: "復原" }));
+    await waitFor(() => expect(s.addToAlbum).toHaveBeenCalledWith("b1", ["p1"]));
+    fireEvent.click(screen.getByRole("button", { name: "刪除相簿" }));
+    expect(s.deleteAlbum).not.toHaveBeenCalled();
+    expect(screen.getByRole("alertdialog").textContent).toContain("照片不會被刪除");
+    fireEvent.click(screen.getByRole("button", { name: "確定刪除" }));
+    await waitFor(() => expect(s.deleteAlbum).toHaveBeenCalledWith("b1"));
+  });
+});
+
