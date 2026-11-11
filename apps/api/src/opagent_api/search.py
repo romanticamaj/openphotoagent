@@ -223,6 +223,8 @@ def _ft(c: Any, where: list[Any], tsq: str, en: str) -> list[str]:
 MAX_CONCEPTS = 5
 # standing in for a concept, a caption meaning must be closer than the route's floor: on the reference library
 # 0.5 + 0.06 lets in 0.05% of irrelevant photos against 1.65% at 0.5 (「小孩在玩水」 had 8 hits, none in water)
+# image-only matches this far under the query's best are 2-30% relevant on the reference library (ADR-0040)
+WEAK_GAP = 0.06
 # a tag the VLM seldom gives small, moving faces: beside other concepts it ranks, never filters (SRCH-CNC-007)
 SOFT_KEYS = frozenset({"mood.smile"})
 MEANING_MARGIN = 0.08  # 17 words on the reference library: wrong photos 14 at +0, 1 at +0.06, 0 at +0.08
@@ -443,6 +445,8 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
     relaxed: list[str] = []
     concepts: list[Any] = []
     soft_out: list[dict[str, Any]] = []
+    image_cos: dict[str, float] = {}
+    weak: list[str] = []
     member: list[Any] = []  # ADR-0005: the match set (total, facets, selection) — not just the ranking window
     mode = None
     with st.engine.begin() as c:
@@ -486,6 +490,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                 near = c.execute(vq, {"qv": str(qvec)}).all()
                 floor = vector_floor(st, space)
                 routes["image_vector"] = [r[0] for r in near if floor is None or r[1] >= floor]
+                image_cos = {r[0]: float(r[1]) for r in near}
                 capped = len(routes["image_vector"]) == PER_ROUTE
             if cvec is not None and cspace is not None:  # R2: multilingual caption vectors (05 §2, ADR-0014)
                 cq = (
@@ -577,6 +582,19 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                 tail_q = tail_q.where(search_doc.c.asset_id.notin_(ranked or ["-"]))
                 n_tail = c.execute(select(func.count()).select_from(tail_q.subquery())).scalar_one()
                 soft_out = [{"word": cpt.word, "key": cpt.key, "shown": len(lit)} for cpt in soft]
+            if image_cos and not n_tail:
+                # found by the image model alone and far under the best: last, and folded away (ADR-0040)
+                best = max((image_cos[a] for a in routes.get("image_vector") or []), default=None)
+                weak = [
+                    a
+                    for a in ranked
+                    if best is not None
+                    and set(matched.get(a, [])) <= {"image_vector"}
+                    and image_cos.get(a, best) < best - WEAK_GAP
+                ]
+                if len(weak) == len(ranked):
+                    weak = []  # nothing strong: the list is not folded away whole
+                ranked = [a for a in ranked if a not in set(weak)] + weak
             if (len(concepts) > 1 or soft) and len(ranked) + n_tail < PER_ROUTE:
                 # every concept required: fewer than a route's limit is the whole answer, not the top of a longer
                 # list (SRCH-R2-010: 「最相關的 2 張」)
@@ -656,7 +674,11 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
         "next_cursor": _sign({"o": nxt, "s": snapshot, "h": _qhash(body)}) if nxt < total else None,
         "total": total,
         "relaxed": relaxed,  # words no photo shows, left out so the rest still answers (ADR-0032)
-        "soft": soft_out,  # expressions that rank, with how many photos show them (SRCH-CNC-007)
+        "soft": soft_out,
+        "weak": len(weak),  # weak look-alikes, last (ADR-0040)
+        "weak_from": total - len(weak)
+        if weak
+        else None,  # expressions that rank, with how many photos show them (SRCH-CNC-007)
         "total_capped": capped,  # the vector route hit K: `total` is a lower bound
         "related": [
             {"asset_id": a, "ch": hashes.get(a), "caption": rel_rows[a].caption} for a in near_ids if a in rel_rows

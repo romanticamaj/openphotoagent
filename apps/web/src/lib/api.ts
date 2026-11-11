@@ -171,6 +171,9 @@ export type SearchResult = {
   relaxed?: string[];
   /** expressions that rank without filtering, and how many photos show them (SRCH-CNC-007) */
   soft?: { word: string; key: string; shown: number }[];
+  /** weak look-alikes, last: how many and from where (ADR-0040) */
+  weak?: number;
+  weak_from?: number | null;
   degraded: string[];
   planner?: Planner;
 };

@@ -10,7 +10,7 @@ import { Lightbox } from "../viewer/Lightbox";
 import type { GridApi } from "../viewer/PhotoGrid";
 import { api, isDegraded, mediaUrl, type SearchBody } from "../../lib/api";
 
-import { bodyFor, cappedNote, chipLabel, chipsFrom, countText, onlyByMeaning, softView, withoutPerson, type Chip } from "./searchPlan";
+import { bodyFor, cappedNote, chipLabel, chipsFrom, countText, onlyByMeaning, softView, weakTail, withoutPerson, type Chip } from "./searchPlan";
 
 export function SearchPage({ q }: { q: string }) {
   const { t, i18n } = useTranslation();
@@ -22,7 +22,9 @@ export function SearchPage({ q }: { q: string }) {
   const [sel, setSel] = useState<{ all: boolean; ids: Set<string>; anchor: number | null; multi?: boolean }>({ all: false, ids: new Set(), anchor: null });
   const [toast, setToast] = useState<string | null>(null);
   const [comparing, setComparing] = useState<string[] | null>(null);
+  const [showWeak, setShowWeak] = useState(false);
   useEffect(() => {
+    setShowWeak(false);
     setChips([]);
     setPlanned(null);
     setSel({ all: false, ids: new Set(), anchor: null });
@@ -140,6 +142,8 @@ export function SearchPage({ q }: { q: string }) {
     sel.all ? api.createSelection({ query: body }) : api.createSelection({ asset_ids: [...sel.ids] });
 
   const soft = first ? softView(t, first.soft, total, chips) : null;
+  const weak = first ? weakTail(t, first.weak_from, first.weak ?? 0, showWeak) : null;
+  const shownHits = weak ? hits.slice(0, weak.from) : hits;
   return (
     <section className="space-y-4 p-4" aria-labelledby="search-h">
       <div className="flex items-baseline gap-3">
@@ -214,7 +218,7 @@ export function SearchPage({ q }: { q: string }) {
       {res.isSuccess && hits.length === 0 && <p>{t("search.none")}</p>}
       <div ref={gridRef} onKeyDown={onKey} role="grid" aria-label={t("search.results")} aria-multiselectable="true" aria-rowcount={-1} className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-0.5 outline-none">
         <div role="row" className="contents">
-        {hits.map((h, i) => {
+        {shownHits.map((h, i) => {
           const selected = sel.all || sel.ids.has(h.asset_id);
           return (
             <Fragment key={h.asset_id}>
@@ -262,12 +266,17 @@ export function SearchPage({ q }: { q: string }) {
           }}
         />
       ) : null}
-      {first && cappedNote(t, total, Boolean(first.total_capped), Boolean(res.hasNextPage)) ? (
+      {weak ? (
+        <Button variant="ghost" data-testid="weak-more" onClick={() => setShowWeak(true)}>
+          {weak.more}
+        </Button>
+      ) : null}
+      {first && !weak && cappedNote(t, total, Boolean(first.total_capped), Boolean(res.hasNextPage)) ? (
         <p data-testid="capped-note" className="text-sm text-[var(--text-muted)]">
           {cappedNote(t, total, Boolean(first.total_capped), Boolean(res.hasNextPage))}
         </p>
       ) : null}
-      {res.hasNextPage && (
+      {!weak && res.hasNextPage && (
         <Button variant="ghost" onClick={() => void res.fetchNextPage()}>
           {t("search.loadMore")}
         </Button>

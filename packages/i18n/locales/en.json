@@ -545,7 +545,8 @@
     "softNone": "No photo clearly shows “{word}”. Below are photos that match the rest.",
     "softOnly": "Only “{word}” ({n})",
     "softChip": "Only “{word}”",
-    "cappedNote": "Showing the {n} most relevant; the rest are less alike."
+    "cappedNote": "Showing the {n} most relevant; the rest are less alike.",
+    "weakMore": "Show {n} less related"
   },
   "problem": {
     "chosen": "Switched to {what}"

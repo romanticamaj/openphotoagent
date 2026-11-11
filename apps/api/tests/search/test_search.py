@@ -921,3 +921,37 @@ def test_srch_cnc_012_only_the_expression_counts_what_the_divider_said(s):
     shown = res["soft"][0]["shown"]
     only = s.search(q="小孩踢球很開心", semantic=False, soft_only=True)
     assert only["total"] == shown == 2 and {x["asset_id"] for x in only["items"]} == set(ids[:2])
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-SEM-007")
+def test_srch_sem_007_weak_look_alikes_go_last_and_are_counted(s, monkeypatch):
+    """回歸 (audit round 26): the last ~35 of 233 for 「kids playing soccer」 were children crawling or running. On the
+    reference library, photos found by the image model alone more than 0.06 under the best were 2-30% relevant, those
+    within it 75-100% (ADR-0040)."""
+    import opagent_api.search as S
+
+    a = s.add(1, caption="甲")
+    b = s.add(2, caption="乙")
+    c = s.add(3, caption="丙")
+    d = s.add(4, caption="zebra on grass")  # found by its words too: never weak
+    s.index()
+    sid = s.sql(
+        "insert into embedding_space(model_key, fingerprint, dim, modality, status)"
+        " values ('fake-img', 'fake-img@x', 2, 'image', 'active') returning id"
+    ).scalar()
+    for aid, v in ((a, "[1,0]"), (b, "[0.97,0.2431]"), (c, "[0.9,0.4359]"), (d, "[0.88,0.475]")):
+        s.sql(
+            "insert into asset_embedding(asset_id, space_id, vec) values (:a, :s, CAST(:v AS vector))",
+            a=aid,
+            s=sid,
+            v=v,
+        )
+    monkeypatch.setattr(
+        S, "query_vector", lambda st, t, space, modality="image": [1.0, 0.0] if modality == "image" else None
+    )
+    monkeypatch.setattr(S, "vector_floor", lambda _st, _sp: 0.0)
+    res = s.search(q="zebra")
+    order = [x["asset_id"] for x in res["items"]]
+    assert order[-1] == c and set(order[:3]) == {a, b, d}
+    assert res.get("weak") == 1 and res.get("weak_from") == 3 and res["total"] == 4

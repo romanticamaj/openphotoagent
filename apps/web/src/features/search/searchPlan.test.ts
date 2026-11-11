@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import i18n from "../../lib/i18n";
-import { bodyFor, cappedNote, chipLabel, chipsFrom, countText, onlyByMeaning, softView, withoutPerson } from "./searchPlan";
+import { bodyFor, cappedNote, chipLabel, chipsFrom, countText, onlyByMeaning, softView, weakTail, withoutPerson } from "./searchPlan";
 
 const planner = (filters: Record<string, unknown>, explain: string[], text = "") => ({
   source: "rules",
@@ -93,6 +93,16 @@ describe("results cut at a route's limit (SRCH-UI-016)", () => {
     expect(chipLabel(t, { kind: "soft", value: "mood.smile", word: "開心" }, {})).toBe("只看開心");
     expect(chipLabel(t, { kind: "tag", value: "animal.dog" }, { "animal.dog": "狗" })).toBe("狗");
     expect(chipLabel(t, { kind: "person", value: "測試A", id: "p1" }, {})).toBe("人物：測試A");
+  });
+});
+
+describe("weak look-alikes (SRCH-SEM-007)", () => {
+  const t = i18n.getFixedT("zh-TW");
+  it("[SRCH-SEM-007] 回歸：較不相關的照片先收起，按一下才顯示（驗證第 26 輪：最後 35 張大多不是踢球）", () => {
+    expect(weakTail(t, 160, 73, false)).toEqual({ from: 160, more: "顯示較不相關的 73 張" });
+    expect(weakTail(t, 160, 73, true)).toBeNull(); // shown
+    expect(weakTail(t, undefined, 0, false)).toBeNull();
+    expect(weakTail(t, 0, 5, false)).toBeNull(); // nothing strong: show them, the list is not hidden whole
   });
 });
 

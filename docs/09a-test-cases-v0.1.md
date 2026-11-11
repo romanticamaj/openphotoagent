@@ -832,6 +832,7 @@
 | SRCH-SEM-004 | 過濾 + HNSW | 高選擇性 filter（剩 50 張）+ 向量查詢 k=24 | 回傳 min(24, 50) 筆（`iterative_scan` 或 pre-filter 策略），不因 HNSW 過濾而少回 | I | #64 |
 | SRCH-SEM-005 | 語意 + facet | 向量查詢 + 日期 facet | 結果全部符合 facet | I | DoD 5.4 |
 | SRCH-SEM-006 | review 修正後重索引 | 修正 tag 後 | 1 s 內（outbox）搜尋反映新 tag | I | #56 |
+| SRCH-SEM-007 | 較不相關的相似照片收在最後（回歸，驗證第 26 輪） | 只靠圖像向量找到、比最高分低 0.06 以上的照片 | 排在最後；回應 `weak`（張數）與 `weak_from`；畫面先收起，「顯示較不相關的 N 張」才顯示；靠文字或標籤找到的不算 | I/C | #— |
 | SRCH-SEM-007 | 空的 `degraded` 不顯示降級提示（回歸） | API 回傳 `degraded: []` 與 `["image_vector"]` | 只有後者顯示提示 | U | #24 |
 
 ---

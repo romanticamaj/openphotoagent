@@ -545,7 +545,8 @@
     "softNone": "沒有看得出「{word}」的照片，下面是符合其他條件的照片。",
     "softOnly": "只看{word}（{n} 張）",
     "softChip": "只看{word}",
-    "cappedNote": "只列出最相關的 {n} 張，其餘照片相似度較低。"
+    "cappedNote": "只列出最相關的 {n} 張，其餘照片相似度較低。",
+    "weakMore": "顯示較不相關的 {n} 張"
   },
   "problem": {
     "chosen": "已改用 {what}"

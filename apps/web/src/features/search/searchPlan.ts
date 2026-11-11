@@ -97,3 +97,9 @@ export function chipLabel(t: T, c: Chip, tagNames: Record<string, string>): stri
   return (c.kind === "tag" && tagNames[c.value]) || c.value;
 }
 
+/** Weak look-alikes come last and stay folded until asked for (ADR-0040, SRCH-SEM-007). */
+export function weakTail(t: T, from: number | null | undefined, n: number, shown: boolean): { from: number; more: string } | null {
+  if (shown || !n || !from) return null;
+  return { from, more: t("search.weakMore", { n: n.toLocaleString() }) };
+}
+
