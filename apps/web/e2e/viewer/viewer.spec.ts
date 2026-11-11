@@ -277,3 +277,20 @@ test("[VIEW-044] 回歸：在照片頁任何地方按 Ctrl+A 都是全選；Shif
   await expect(grid(page).getByRole("gridcell").nth(1)).toBeFocused();
   await expect(grid(page).getByRole("gridcell").nth(2)).toHaveAttribute("aria-selected", "false");
 });
+
+test("[VIEW-046] 回歸：Shift 範圍越過起點往回時，另一邊會放掉；燈箱裡 Ctrl+A 不反白頁面（驗證第 54 輪）", async ({ page }) => {
+  await page.goto("/");
+  const cells = grid(page).getByRole("gridcell");
+  await cells.nth(3).click({ modifiers: ["ControlOrMeta"] });
+  await page.keyboard.press("Shift+ArrowRight"); // 3, 4
+  await page.keyboard.press("Shift+ArrowLeft"); // 3
+  await page.keyboard.press("Shift+ArrowLeft"); // 2, 3
+  const bar = page.getByTestId("timeline-batch");
+  await expect(bar).toContainText("已選 2 張");
+  await expect(cells.nth(4)).toHaveAttribute("aria-selected", "false");
+  await expect(cells.nth(2)).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("Escape");
+  await open(page);
+  await page.keyboard.press("ControlOrMeta+a");
+  expect(await page.evaluate(() => window.getSelection()?.toString() ?? "")).toBe("");
+});

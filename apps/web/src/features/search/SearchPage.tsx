@@ -157,7 +157,7 @@ export function SearchPage({ q }: { q: string }) {
         {first ? (
           // no count until the answer is here: 「0 張」 flashed before every result (audit round 2)
           <span data-testid="result-count" className="tnum text-[var(--text-muted)]">
-            {headerCount(t, total, first.weak ?? 0, Boolean(first.total_capped), i18n.language)}
+            {headerCount(t, total, first.weak ?? 0, Boolean(first.total_capped), i18n.language, first.meaning_only ? [] : first.relaxed)}
           </span>
         ) : null}
       </div>

@@ -207,3 +207,13 @@ describe("copies folded into one tile (audit round 52)", () => {
   });
 });
 
+describe("the count when a word was set aside (audit round 54)", () => {
+  const t = ((k: string, o?: Record<string, unknown>) =>
+    k === "search.count" ? `${o?.n} 張` : k === "search.countCapped" ? `${o?.n} 張以上 · 依相關度排序` : k === "search.partialCount" ? `沒有完全符合的照片 · 符合其他條件的有 ${o?.count}` : k) as never;
+  it("[SRCH-UI-025] 回歸：「小孩在玩水」沒有照片拍到玩水時，標題不說「561 張以上」而是說只符合其他條件（驗證第 54 輪）", () => {
+    expect(headerCount(t, 561, 0, true, "zh-TW", ["玩水"])).toBe("沒有完全符合的照片 · 符合其他條件的有 561 張以上 · 依相關度排序");
+    expect(headerCount(t, 6, 0, false, "zh-TW", [])).toBe("6 張");
+    expect(headerCount(t, 6, 0, false, "zh-TW")).toBe("6 張");
+  });
+});
+

@@ -2,7 +2,7 @@
 // Lightbox. Albums are database sets: deleting one keeps its photos (COL-004).
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { tileLabel } from "../search/searchPlan";
 import { api, mediaUrl } from "../../lib/api";
@@ -19,6 +19,8 @@ export function AlbumsPage() {
   const nav = useNavigate();
   const list = useQuery({ queryKey: ["albums"], queryFn: api.albums });
   const [name, setName] = useState("");
+  const [nameNeeded, setNameNeeded] = useState(false); // an empty name says so (COL-024)
+  const nameField = useRef<HTMLInputElement>(null);
   const create = useMutation({
     mutationFn: () => api.createAlbum(name.trim()),
     onSuccess: (a) => {
@@ -37,10 +39,26 @@ export function AlbumsPage() {
           onSubmit={(e) => {
             e.preventDefault();
             if (name.trim()) create.mutate();
+            else {
+              setNameNeeded(true);
+              nameField.current?.focus();
+            }
           }}
         >
-          <input aria-label={t("albums.newName")} placeholder={t("albums.newName")} value={name} onChange={(e) => setName(e.target.value)} className="rounded-full border border-[var(--border)] bg-[var(--bg)] px-3 py-1 text-sm" />
+          <input
+            ref={nameField}
+            aria-label={t("albums.newName")}
+            aria-invalid={nameNeeded || undefined}
+            placeholder={t("albums.newName")}
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value);
+              setNameNeeded(false);
+            }}
+            className="rounded-full border border-[var(--border)] bg-[var(--bg)] px-3 py-1 text-sm"
+          />
           <button type="submit" className="rounded-full bg-[var(--accent)] px-3 py-1 text-sm text-[var(--accent-fg)]">{t("albums.create")}</button>
+          {nameNeeded ? <span role="alert" className="self-center text-sm text-[var(--danger,#f87171)]">{t("albums.nameNeeded")}</span> : null}
         </form>
       </div>
       {list.isSuccess && albums.length <= 1 && !albums[0]?.count ? (
@@ -74,6 +92,14 @@ export function AlbumPage({ albumId }: { albumId: string }) {
   const q = useQuery({ queryKey: ["album", albumId], queryFn: () => api.album(albumId) });
   const [viewing, setViewing] = useState<number | null>(null);
   const [renaming, setRenaming] = useState<string | null>(null);
+  const [renameNeeded, setRenameNeeded] = useState(false);
+  const renameField = useRef<HTMLInputElement>(null);
+  const editing = renaming !== null;
+  useEffect(() => {
+    if (!editing) return;
+    renameField.current?.focus(); // typing after 「改名」 goes into the name (COL-024)
+    renameField.current?.select();
+  }, [editing]);
   const [confirming, setConfirming] = useState(false);
   const [removed, setRemoved] = useState<string | null>(null); // the last photo taken out, for 「復原」
   useEffect(() => {
@@ -125,10 +151,30 @@ export function AlbumPage({ albumId }: { albumId: string }) {
             onSubmit={(e) => {
               e.preventDefault();
               if (renaming.trim()) rename.mutate(renaming.trim());
+              else {
+                setRenameNeeded(true);
+                renameField.current?.focus();
+              }
             }}
           >
-            <input aria-label={t("albums.rename")} value={renaming} onChange={(e) => setRenaming(e.target.value)} className="rounded-full border border-[var(--border)] bg-[var(--bg)] px-3 py-1" />
+            <input
+              ref={renameField}
+              aria-label={t("albums.rename")}
+              aria-invalid={renameNeeded || undefined}
+              value={renaming}
+              onChange={(e) => {
+                setRenaming(e.target.value);
+                setRenameNeeded(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key !== "Escape") return;
+                setRenaming(null); // Esc keeps the old name
+                setRenameNeeded(false);
+              }}
+              className="rounded-full border border-[var(--border)] bg-[var(--bg)] px-3 py-1"
+            />
             <button type="submit" className="rounded-full bg-[var(--accent)] px-3 py-1 text-sm text-[var(--accent-fg)]">{t("albums.save")}</button>
+            {renameNeeded ? <span role="alert" className="self-center text-sm text-[var(--danger,#f87171)]">{t("albums.nameNeeded")}</span> : null}
           </form>
         ) : (
           <h1 id="album-h" className="text-xl font-semibold">{fav ? `★ ${t("albums.favorites")}` : q.data?.name}</h1>

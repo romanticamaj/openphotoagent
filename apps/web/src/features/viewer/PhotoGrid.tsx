@@ -74,6 +74,7 @@ export function PhotoGrid({
   onPick,
   onPickAll,
   onScrolledAway,
+  onSpan,
 }: {
   density?: keyof typeof DENSITY;
   onOpen: (pos: GridPos, api: GridApi) => void;
@@ -84,6 +85,8 @@ export function PhotoGrid({
   onPick?: (id: string, how: "toggle" | "range", order: string[]) => void;
   /** Ctrl/⌘+A: the whole library (VIEW-042), not the page's text */
   onPickAll?: () => void;
+  /** a Shift range from `anchor` to `to` (VIEW-045): the page adds it to what was chosen before the range began */
+  onSpan?: (anchor: string, to: string, order: string[]) => void;
   /** whether the timeline is scrolled away from its top (MEM-009: 那年今日 steps aside) */
   onScrolledAway?: (away: boolean) => void;
 }) {
@@ -234,6 +237,7 @@ export function PhotoGrid({
   }, [focusAsset]);
 
   let moved: string | undefined; // the photo the last moveFocus went to (Shift+arrow, VIEW-043)
+  const spanAnchor = useRef<string | null>(null); // where the current Shift range began
   const moveFocus = (dir: "left" | "right" | "up" | "down") => {
     const l = layoutOf(focus.bucket);
     const assets = assetsOf(focus.bucket);
@@ -277,16 +281,16 @@ export function PhotoGrid({
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     const el = scrollRef.current!;
+    if (!e.shiftKey && e.key !== "Shift") spanAnchor.current = null; // a key without Shift ends the range
     // Shift+arrow extends the choice to the photo it moves to, as in Finder (VIEW-043)
     const arrow = (dir: "left" | "right" | "up" | "down") => {
       const from = assetsOf(focus.bucket)?.[focus.index]?.id;
       moved = undefined;
       moveFocus(dir);
-      if (!e.shiftKey || !onPick || !moved || moved === from) return;
-      if (!choosing && from) pick(from, "toggle");
-      // back onto a chosen photo: the one left behind is let go, so Shift+← shrinks what Shift+→ grew (VIEW-044)
-      if (chosen?.(moved) && from) onPick(from, "toggle", loadedOrder());
-      else onPick(moved, "range", loadedOrder());
+      if (!e.shiftKey || !onSpan || !moved || moved === from || !from) return;
+      // the range runs from where Shift began to here, so going back shrinks it, past the start too (VIEW-044/045)
+      spanAnchor.current ??= from;
+      onSpan(spanAnchor.current, moved, loadedOrder());
     };
     if ((e.key === "a" || e.key === "A") && (e.ctrlKey || e.metaKey) && onPickAll) {
       e.preventDefault(); // not the page's text (audit round 52)
@@ -406,6 +410,7 @@ export function PhotoGrid({
                             style={{ left: x.x, width: x.w, height: r.height, backgroundImage: ph ? `url(${ph})` : undefined }}
                             onFocus={() => setFocus({ bucket: v.index, index: x.index })}
                             onClick={(e) => {
+                              spanAnchor.current = null; // a click starts afresh
                               setFocus({ bucket: v.index, index: x.index });
                               // Ctrl/⌘ toggles, Shift spans; while choosing, or on the check mark, a click chooses
                               const onCheck = (e.target as HTMLElement).closest("[data-check]") !== null;

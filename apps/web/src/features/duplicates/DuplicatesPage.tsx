@@ -74,7 +74,7 @@ export function DuplicatesPage() {
                     return (
                       <>
                         {c.shown.map((m, i) => (
-                          <figure key={`${m.asset_id}-${i}`} className="w-24 min-w-0 space-y-1">
+                          <figure key={`${m.asset_id}-${i}`} className="w-20 min-w-0 space-y-1">
                             <img src={mediaUrl(m.asset_id, "t256", m.ch)} alt="" className="aspect-square w-full rounded-[var(--radius-photo)] object-cover" />
                             <figcaption className={i === 0 ? "truncate text-xs font-medium" : "truncate text-xs text-[var(--text-muted)]"} title={m.rel_path ?? ""}>
                               {i === 0 ? t("duplicates.representative") : m.rel_path}
@@ -82,7 +82,7 @@ export function DuplicatesPage() {
                           </figure>
                         ))}
                         {c.more ? (
-                          <div className="grid aspect-square w-24 place-items-center rounded-[var(--radius-photo)] bg-[var(--surface-2)] text-sm text-[var(--text-muted)] tnum">
+                          <div className="grid aspect-square w-20 place-items-center rounded-[var(--radius-photo)] bg-[var(--surface-2)] text-sm text-[var(--text-muted)] tnum">
                             +{c.more.toLocaleString(i18n.language)}
                           </div>
                         ) : null}

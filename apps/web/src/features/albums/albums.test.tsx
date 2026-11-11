@@ -40,7 +40,7 @@ vi.mock("@tanstack/react-router", async (orig) => ({
 }));
 
 import { AddToAlbum, FavoriteButton, FavoriteSelection, typingIn, useFavorite } from "./AlbumButtons";
-import { AlbumPage } from "./AlbumsPage";
+import { AlbumPage, AlbumsPage } from "./AlbumsPage";
 
 const wrap = (el: React.ReactNode) => render(<QueryClientProvider client={new QueryClient()}>{el}</QueryClientProvider>);
 
@@ -274,6 +274,34 @@ describe("keys in the Lightbox (audit round 34)", () => {
     fireEvent.click(screen.getByRole("button", { name: "加入收藏" }));
     fireEvent.click(await screen.findByRole("button", { name: "復原" }));
     expect((await screen.findByRole("alert")).textContent).toContain("沒有復原");
+  });
+
+  it("[COL-024] 回歸：按「改名」焦點進到名稱欄；空白名稱會說要輸入（驗證第 54 輪：打字沒反應、按了沒反應）", async () => {
+    s.album.mockResolvedValue({ id: "b1", name: "墾丁", kind: "album", photos: [] });
+    const { unmount } = wrap(<AlbumPage albumId="b1" />);
+    fireEvent.click(await screen.findByRole("button", { name: "改名" }));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("textbox", { name: "改名" })));
+    fireEvent.change(screen.getByRole("textbox", { name: "改名" }), { target: { value: "  " } });
+    fireEvent.click(screen.getByRole("button", { name: "儲存" }));
+    expect((await screen.findByRole("alert")).textContent).toContain("請輸入相簿名稱");
+    fireEvent.keyDown(screen.getByRole("textbox", { name: "改名" }), { key: "Escape" });
+    expect(screen.queryByRole("textbox", { name: "改名" })).toBeNull();
+    unmount();
+    s.albums.mockResolvedValue({ albums: [] });
+    wrap(<AlbumsPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "新增相簿" }));
+    expect((await screen.findByRole("alert")).textContent).toContain("請輸入相簿名稱");
+    expect(document.activeElement).toBe(screen.getByRole("textbox", { name: "新相簿名稱" }));
+  });
+
+  it("[COL-025] 回歸：復原之後說「已復原 N 張」（驗證第 54 輪：提示就消失了，不知道有沒有成功）", async () => {
+    s.removeManyFromAlbum.mockReset();
+    s.removeManyFromAlbum.mockResolvedValue({ count: 0 });
+    const put = vi.fn().mockResolvedValue({ count: 3, added: ["p1", "p2", "p3"] });
+    wrap(<FavoriteSelection put={put} />);
+    fireEvent.click(screen.getByRole("button", { name: "加入收藏" }));
+    fireEvent.click(await screen.findByRole("button", { name: "復原" }));
+    expect((await screen.findByText("已復原 3 張")).getAttribute("role")).toBe("status");
   });
 });
 

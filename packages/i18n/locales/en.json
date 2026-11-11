@@ -568,7 +568,8 @@
     "busy": "Searching…",
     "busyLabel": "Searching",
     "relaxedMeaning": "No photo says “{words}” outright. Below are photos with a similar meaning.",
-    "copies": "{n} more copies of this photo"
+    "copies": "{n} more copies of this photo",
+    "partialCount": "No photo matches everything · {count} match the rest"
   },
   "problem": {
     "chosen": "Switched to {what}"
@@ -1088,7 +1089,9 @@
     "cancel": "Cancel",
     "removed": "Removed from the album",
     "undo": "Undo",
-    "undoFailed": "Not undone. Please try again."
+    "undoFailed": "Not undone. Please try again.",
+    "nameNeeded": "Type a name for the album",
+    "undone": "Undone: {n} photos"
   },
   "memories": {
     "onThisDay": "On this day",

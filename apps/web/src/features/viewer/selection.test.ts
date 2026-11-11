@@ -35,3 +35,16 @@ describe("Ctrl+A on the timeline (audit round 52)", () => {
     expect(countOf(pick(NONE, "a", "toggle", order), 30)).toBe(1);
   });
 });
+
+describe("a Shift range runs from its anchor (audit round 54)", () => {
+  it("[VIEW-045] 回歸：Shift 範圍永遠是錨點到目前這張，再加上開始前已選的；越過錨點往回時另一邊放掉（驗證第 54 輪：[4,5,6] 而不是 [4,5]）", async () => {
+    const { span } = await import("./selection");
+    const order7 = ["p1", "p2", "p3", "p4", "p5", "p6", "p7"];
+    const base = pick(NONE, "p1", "toggle", order7); // chosen before the range
+    const ids = (s: { ids: Set<string> }) => [...s.ids].sort();
+    expect(ids(span(base, "p5", "p7", order7))).toEqual(["p1", "p5", "p6", "p7"]);
+    expect(ids(span(base, "p5", "p6", order7))).toEqual(["p1", "p5", "p6"]);
+    expect(ids(span(base, "p5", "p4", order7))).toEqual(["p1", "p4", "p5"]);
+    expect(span(base, "p5", "p4", order7).anchor).toBe("p5"); // the anchor stays
+  });
+});

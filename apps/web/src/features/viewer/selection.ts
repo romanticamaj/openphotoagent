@@ -30,3 +30,17 @@ export function pick(sel: Selection, id: string, how: "toggle" | "range", order:
   else ids.add(id);
   return { ids, anchor: id, all: sel.all };
 }
+
+/** A Shift range (VIEW-045): what was chosen before it began, plus everything from its anchor to `to`. Going back past
+ * the anchor lets go of the other side, as in Finder; stepping photo by photo kept [4,5,6] where [4,5] was meant. */
+export function span(base: Selection, anchor: string, to: string, order: string[]): Selection {
+  const from = order.indexOf(anchor);
+  const end = order.indexOf(to);
+  if (from < 0 || end < 0) return pick(base, to, "range", order);
+  const ids = new Set(base.ids);
+  for (let i = Math.min(from, end); i <= Math.max(from, end); i++) {
+    if (base.all) ids.delete(order[i]);
+    else ids.add(order[i]);
+  }
+  return { ids, anchor, all: base.all };
+}

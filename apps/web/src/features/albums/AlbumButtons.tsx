@@ -60,13 +60,25 @@ function AddedToast({ done, onGone }: { done: Done; onGone: () => void }) {
       for (let i = 0; i < ids.length; i += UNDO_CHUNK) await api.removeManyFromAlbum(done.albumId!, ids.slice(i, i + UNDO_CHUNK));
     },
     onSuccess: () => {
-      onGone();
       void qc.invalidateQueries({ queryKey: ["albums"] });
       void qc.invalidateQueries({ queryKey: ["album"] });
       void qc.invalidateQueries({ queryKey: ["asset"] });
     },
   });
   const canUndo = Boolean(done.albumId && done.added?.length);
+  // undone: said so for a moment, then gone (COL-025: the toast just vanished and nobody knew whether it worked)
+  useEffect(() => {
+    if (!undo.isSuccess) return;
+    const id = window.setTimeout(onGone, UNDONE_MS);
+    return () => window.clearTimeout(id);
+  }, [undo.isSuccess, onGone]);
+  if (undo.isSuccess) {
+    return (
+      <span role="status" className="toast">
+        {t("albums.undone", { n: (done.added?.length ?? 0).toLocaleString() })}
+      </span>
+    );
+  }
   return (
     <span role="status" className="toast" onAnimationEnd={onGone}>
       {done.text}
@@ -111,6 +123,7 @@ export function FavoriteSelection({ put }: { put: Put }) {
 }
 
 const FAVORITES = "fav-default";
+const UNDONE_MS = 2500; // how long 「已復原 N 張」 stays
 const UNDO_CHUNK = 500; // the most photos /albums/{id}/photos/remove takes in one request
 const MENU_W = 240; // .album-menu's width, near enough: min-width 220 px plus its padding
 

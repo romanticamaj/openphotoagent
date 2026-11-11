@@ -139,6 +139,10 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
 
   const onKey = (e: React.KeyboardEvent) => {
     if (typingIn(e.target)) return; // text in a field, not a shortcut (COL-008)
+    if ((e.key === "a" || e.key === "A") && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault(); // not the page's text behind the photo (audit round 54)
+      return;
+    }
     const k: Record<string, () => void> = {
       Escape: close,
       ArrowLeft: () => step(-1),

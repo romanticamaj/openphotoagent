@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api } from "../../lib/api";
@@ -6,7 +6,7 @@ import { AddToAlbum, FavoriteSelection, typingIn } from "../albums/AlbumButtons"
 import { memoryGrid, OnThisDay } from "../memories/OnThisDay";
 import { Lightbox } from "./Lightbox";
 import { PhotoGrid, type GridApi } from "./PhotoGrid";
-import { all, chosen, countOf, NONE, pick, type Selection } from "./selection";
+import { all, chosen, countOf, NONE, pick, span, type Selection } from "./selection";
 import { withTransition } from "./transition";
 
 const FaceOptInCard = lazy(() => import("../people/PeoplePage").then((m) => ({ default: m.FaceOptInCard })));
@@ -15,6 +15,8 @@ export function PhotosPage() {
   const [open, setOpen] = useState<{ ord: number; grid: GridApi } | null>(null);
   const [back, setBack] = useState<string | null>(null);
   const [sel, setSel] = useState<Selection>(NONE);
+  // the choice as it was when the current Shift range began: the range is added to it afresh at every step (VIEW-045)
+  const spanBase = useRef<{ anchor: string; base: Selection } | null>(null);
   const [scrolledAway, setScrolledAway] = useState(false); // 那年今日 steps aside once the timeline scrolls (MEM-009)
   const choosing = Boolean(sel.all) || sel.ids.size > 0;
   // back to the photo you were on: the bar's buttons go away with the selection and focus fell to the page (VIEW-041)
@@ -52,7 +54,16 @@ export function PhotosPage() {
         focusAsset={back}
         chosen={(id) => chosen(sel, id)}
         choosing={choosing}
-        onPick={(id, how, order) => setSel((s) => pick(s, id, how, order))}
+        onPick={(id, how, order) => {
+          spanBase.current = null;
+          setSel((s) => pick(s, id, how, order));
+        }}
+        onSpan={(anchor, to, order) =>
+          setSel((s) => {
+            if (spanBase.current?.anchor !== anchor) spanBase.current = { anchor, base: s };
+            return span(spanBase.current.base, anchor, to, order);
+          })
+        }
         onPickAll={() => setSel(all())}
         onScrolledAway={setScrolledAway}
         onOpen={(pos, grid) => withTransition(() => setOpen({ ord: grid.ordinal(pos), grid }), document.activeElement)}
