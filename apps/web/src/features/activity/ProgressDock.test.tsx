@@ -129,6 +129,17 @@ describe("progress on every page (ADR-0029, invariant 9)", () => {
     expect(screen.getByTestId("progress-dock").textContent).toContain("50%");
   });
 
+  it("[ACT-013] 回歸：重新分析時沒有要更新的照片，完成時說都已分析過（驗證第 24 輪：只寫「分析完成」）", async () => {
+    state.ops = [op("job.label", 0, 0, { status: "running" }), op("scan", 280, 280)];
+    const qc = ui();
+    await screen.findByTestId("progress-dock");
+    state.ops = [];
+    await act(async () => {
+      await qc.refetchQueries({ queryKey: ["operations"] });
+    });
+    await waitFor(() => expect(screen.getByTestId("progress-dock").textContent).toContain("都已分析過"));
+  });
+
   it("[IMP-012] 完成後說明做完什麼、下一步去哪裡", async () => {
     state.ops = [op("job.label", 40, 80)];
     const qc = ui();

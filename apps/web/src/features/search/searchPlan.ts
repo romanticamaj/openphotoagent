@@ -7,7 +7,9 @@ export type Chip =
   | { kind: "tag"; value: string }
   | { kind: "year"; value: string }
   | { kind: "range"; value: string; from: string; to: string }
-  | { kind: "person"; value: string; id: string };
+  | { kind: "person"; value: string; id: string }
+  /** 「只看開心」: the same query, only the photos that show the expression (SRCH-CNC-012) */
+  | { kind: "soft"; value: string; word: string };
 
 const PERSON = /^「(.+)」→ 人物/;
 
@@ -39,6 +41,7 @@ export function bodyFor(q: string, chips: Chip[], planned: { text: string } | nu
   const people = chips.filter((c): c is Extract<Chip, { kind: "person" }> => c.kind === "person").map((c) => c.id);
   return {
     q: (planned ? planned.text : q) || null,
+    ...(chips.some((c) => c.kind === "soft") ? { soft_only: true } : {}),
     filters: {
       ...(tags.length ? { tags_all: tags } : {}),
       ...(range ? { taken_from: range.from, taken_to: range.to } : year ? { taken_from: `${year}-01-01`, taken_to: `${year}-12-31` } : {}),
@@ -70,8 +73,8 @@ export function softView(
   chips: Chip[],
 ): { at: number | null; divider: string | null; note: string | null; only: string | null; chip: Chip } | null {
   const s = soft?.[0];
-  if (!s || s.shown >= total || chips.some((c) => c.kind === "tag" && c.value === s.key)) return null;
-  const chip: Chip = { kind: "tag", value: s.key };
+  if (!s || s.shown >= total || chips.some((c) => c.kind === "soft")) return null;
+  const chip: Chip = { kind: "soft", value: s.key, word: s.word };
   if (!s.shown) return { at: null, divider: null, note: t("search.softNone", { word: s.word }), only: null, chip };
   return {
     at: s.shown,

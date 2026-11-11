@@ -543,7 +543,8 @@
     "countCapped": "最相關的 {n} 張",
     "softDivider": "以下 {n} 張沒看出「{word}」，仍符合其他條件",
     "softNone": "沒有看得出「{word}」的照片，下面是符合其他條件的照片。",
-    "softOnly": "只看{word}（{n} 張）"
+    "softOnly": "只看{word}（{n} 張）",
+    "softChip": "只看{word}"
   },
   "problem": {
     "chosen": "已改用 {what}"
@@ -1018,7 +1019,8 @@
     },
     "elapsed": "已經過 {elapsed}",
     "estimating": "估算剩餘時間中…",
-    "scanning": "正在找出資料夾裡的照片…"
+    "scanning": "正在找出資料夾裡的照片…",
+    "nothingNew": "都已分析過，沒有要更新的照片"
   },
   "explore": {
     "title": "分類",

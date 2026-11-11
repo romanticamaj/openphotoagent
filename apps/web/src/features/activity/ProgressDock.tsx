@@ -80,7 +80,7 @@ export function ProgressDock() {
       <aside data-testid="progress-dock" aria-label={t("dock.label")} className="progress-dock">
         <p className="font-semibold">
           <span aria-hidden="true" style={{ color: "var(--success)" }}>{DONE_MARK}</span>
-          {finished ? t("dock.doneCount", { n: finished.toLocaleString(i18n.language) }) : t("dock.done")}
+          {finished ? t("dock.doneCount", { n: finished.toLocaleString(i18n.language) }) : t("dock.nothingNew")}
         </p>
         <div className="flex flex-wrap items-center gap-3 text-sm">
           <Link to="/" className="underline">{t("dock.seePhotos")}</Link>

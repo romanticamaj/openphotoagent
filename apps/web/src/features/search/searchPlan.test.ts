@@ -56,7 +56,7 @@ describe("an expression that ranks (ADR-0032 addendum)", () => {
     expect(v?.at).toBe(2);
     expect(v?.divider).toBe("以下 173 張沒看出「開心」，仍符合其他條件");
     expect(v?.only).toBe("只看開心（2 張）");
-    expect(v?.chip).toEqual({ kind: "tag", value: "mood.smile" });
+    expect(v?.chip).toEqual({ kind: "soft", value: "mood.smile", word: "開心" });
   });
 
   it("[SRCH-CNC-010] 沒有看得出的照片：一句說明、沒有分隔線也沒有按鈕", () => {
@@ -68,8 +68,15 @@ describe("an expression that ranks (ADR-0032 addendum)", () => {
 
   it("[SRCH-CNC-010] 已經只看開心，或全部都看得出：不再分隔", () => {
     expect(softView(t, [{ word: "開心", key: "mood.smile", shown: 2 }], 2, [])).toBeNull();
-    expect(softView(t, [{ word: "開心", key: "mood.smile", shown: 2 }], 175, [{ kind: "tag", value: "mood.smile" }])).toBeNull();
+    expect(softView(t, [{ word: "開心", key: "mood.smile", shown: 2 }], 175, [{ kind: "soft", value: "mood.smile", word: "開心" }])).toBeNull();
     expect(softView(t, [], 175, [])).toBeNull();
+  });
+});
+
+describe("only the expression (SRCH-CNC-012)", () => {
+  it("[SRCH-CNC-012] 回歸：「只看開心」仍是同一個查詢，只留看得出的照片（驗證第 24 輪：23 張變 19 張）", () => {
+    const chips = [{ kind: "soft" as const, value: "mood.smile", word: "開心" }];
+    expect(bodyFor("小孩踢球很開心", chips, { text: "小孩踢球很開心" })).toEqual({ q: "小孩踢球很開心", soft_only: true, filters: {} });
   });
 });
 

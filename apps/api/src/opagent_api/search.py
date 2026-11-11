@@ -69,6 +69,7 @@ class SearchIn(BaseModel):
     # client: the app's own search sets it, MCP and 問 AI only with faces:read on a workspace that opened faces to AI
     # assistants (MCP-SCOPE-010). Off by default, so a new caller fails closed.
     plan_persons: bool = False
+    soft_only: bool = False  # 「只看開心」: only the photos that show the query's expression (SRCH-CNC-012)
     lang: str = "zh-TW"  # the language of tag_names (IMP-022)
 
 
@@ -225,6 +226,19 @@ MAX_CONCEPTS = 5
 # a tag the VLM seldom gives small, moving faces: beside other concepts it ranks, never filters (SRCH-CNC-007)
 SOFT_KEYS = frozenset({"mood.smile"})
 MEANING_MARGIN = 0.08  # 17 words on the reference library: wrong photos 14 at +0, 1 at +0.06, 0 at +0.08
+
+
+def _without_soft(q: str) -> str:
+    """The query without its expressions, when it has other concepts: what the vectors are asked (SRCH-CNC-011)."""
+    from .labels import tokenizer
+
+    cs = tokenizer().concepts(q)
+    soft = [cpt for cpt in cs if cpt.key in SOFT_KEYS]
+    if not soft or len(soft) == len(cs):
+        return q
+    for cpt in soft:
+        q = q.replace(cpt.word, " ")
+    return q
 
 
 def _concept_cond(i: int, cpt: Any, meaning: list[str] | None = None) -> Any:
@@ -410,12 +424,14 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
     qvec = None
     cvec = None
     capped = False
-    vq_text = tokenizer().vector_text(q) if q else None  # None: skipped on purpose, not a fault (ADR-0031)
+    # the vectors are asked the other concepts only: an expression ranks, it does not bring photos in (SRCH-CNC-011)
+    vq_q = _without_soft(q) if q else q
+    vq_text = tokenizer().vector_text(vq_q) if vq_q else None  # None: skipped on purpose, not a fault (ADR-0031)
     if q and body.semantic and cspace is not None:
         # every word in the vocabulary: ask with their English names, which the caption model ranks better (海邊 found
         # 3 photos where beach found 6, SRCH-R2-008); a word it does not know: the words as typed
-        known = tokenizer().concepts(q)
-        cq = vq_text if vq_text and known and all(cpt.key or cpt.word.isascii() for cpt in known) else q
+        known = tokenizer().concepts(vq_q)
+        cq = vq_text if vq_text and known and all(cpt.key or cpt.word.isascii() for cpt in known) else vq_q
         cvec = query_vector(st, cq, cspace, modality="caption")
         if cvec is None:
             degraded.append("caption_vector")
@@ -555,6 +571,9 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                     + [a for a in lit if a not in set(ranked)]
                     + [a for a in ranked if a not in first]
                 )
+                if body.soft_only:  # 「只看開心」: the same set, the photos that show it (SRCH-CNC-012)
+                    ranked = [a for a in ranked if a in first]
+                    tail_q = tail_q.where(false())
                 tail_q = tail_q.where(search_doc.c.asset_id.notin_(ranked or ["-"]))
                 n_tail = c.execute(select(func.count()).select_from(tail_q.subquery())).scalar_one()
                 soft_out = [{"word": cpt.word, "key": cpt.key, "shown": len(lit)} for cpt in soft]

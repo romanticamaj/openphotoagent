@@ -143,6 +143,7 @@ export type Operation = {
 export type SearchBody = {
   q?: string | null;
   plan?: boolean;
+  soft_only?: boolean;
   filters?: { tags_all?: string[]; taken_from?: string; taken_to?: string; category?: string; persons_any?: string[] };
   limit?: number;
   cursor?: string | null;

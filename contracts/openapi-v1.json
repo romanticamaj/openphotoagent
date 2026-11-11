@@ -2293,6 +2293,11 @@
             "default": true,
             "title": "Semantic",
             "type": "boolean"
+          },
+          "soft_only": {
+            "default": false,
+            "title": "Soft Only",
+            "type": "boolean"
           }
         },
         "title": "SearchIn",

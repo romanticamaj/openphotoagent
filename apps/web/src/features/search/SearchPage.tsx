@@ -166,7 +166,7 @@ export function SearchPage({ q }: { q: string }) {
       <ul aria-label={t("search.chips")} className="flex flex-wrap gap-2">
         {chips.map((c) => (
           <li key={`${c.kind}:${c.value}`} className="flex items-center gap-1 rounded-full border border-[var(--border)] px-3 py-0.5 text-sm">
-            {c.kind === "person" ? t("search.personChip", { name: c.value }) : (c.kind === "tag" && tagNames[c.value]) || c.value}
+            {c.kind === "person" ? t("search.personChip", { name: c.value }) : c.kind === "soft" ? t("search.softChip", { word: c.word }) : (c.kind === "tag" && tagNames[c.value]) || c.value}
             <button type="button" aria-label={t("search.remove", { what: (c.kind === "tag" && tagNames[c.value]) || c.value })} onClick={() =>
                 c.kind === "person"
                   ? void nav({ to: "/search", search: { q: withoutPerson(q, c.value) } }) // the box follows (SRCH-UI-013)
@@ -221,10 +221,7 @@ export function SearchPage({ q }: { q: string }) {
               // where the photos that show the expression end (SRCH-CNC-010)
               <div role="presentation" data-testid="soft-divider" className="col-span-full flex flex-wrap items-center gap-3 py-2 text-sm text-[var(--text-muted)]">
                 <span>{soft.divider}</span>
-                <button type="button" className="underline" onClick={() => {
-                    setTagNames((x) => ({ ...x, [soft.chip.value]: first?.soft?.[0]?.word ?? soft.chip.value }));
-                    setChips([...chips, soft.chip]);
-                  }}>
+                <button type="button" className="underline" onClick={() => setChips([...chips, soft.chip])}>
                   {soft.only}
                 </button>
               </div>

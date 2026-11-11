@@ -543,7 +543,8 @@
     "countCapped": "the {n} most relevant",
     "softDivider": "The {n} below don't clearly show “{word}” but match the rest",
     "softNone": "No photo clearly shows “{word}”. Below are photos that match the rest.",
-    "softOnly": "Only “{word}” ({n})"
+    "softOnly": "Only “{word}” ({n})",
+    "softChip": "Only “{word}”"
   },
   "problem": {
     "chosen": "Switched to {what}"
@@ -1018,7 +1019,8 @@
     },
     "elapsed": "{elapsed} so far",
     "estimating": "estimating the time left…",
-    "scanning": "Finding the photos in the folder…"
+    "scanning": "Finding the photos in the folder…",
+    "nothingNew": "Everything was already analysed; nothing to update"
   },
   "explore": {
     "title": "Categories",

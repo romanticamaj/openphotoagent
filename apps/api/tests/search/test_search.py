@@ -887,3 +887,37 @@ def test_srch_cnc_009_no_photo_shows_the_expression(s):
     _soccer(s, smiling=0)
     res = s.search(q="小孩踢球很開心", semantic=False)
     assert res["total"] == 3 and res["soft"] == [{"word": "開心", "key": "mood.smile", "shown": 0}]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-CNC-011")
+def test_srch_cnc_011_the_vectors_are_not_asked_the_expression(s, monkeypatch):
+    """回歸 (audit round 24): 「小孩踢球很開心」 put beads and a book among the happy photos: the image and caption models
+    were asked 「soccer smile child」, so happy children who were not playing ball came in by their vectors."""
+    import opagent_api.search as S
+
+    asked = []
+    monkeypatch.setattr(S, "query_vector", lambda st, t, space, modality="image": asked.append((modality, t)))
+    import opagent_api.routes_caption as RC
+
+    monkeypatch.setattr(
+        RC,
+        "caption_space",
+        lambda c, status="active": type("Sp", (), {"id": 1, "model_key": "m", "fingerprint": "f"})(),
+    )
+    _soccer(s, smiling=1)
+    s.search(q="小孩踢球很開心")
+    texts = [t for m, t in asked if m in ("image", "caption")]
+    assert texts and not any("smile" in t or "開心" in t for t in texts), texts
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-CNC-012")
+def test_srch_cnc_012_only_the_expression_counts_what_the_divider_said(s):
+    """回歸 (audit round 24): 「只看開心（23 張）」 gave 19, and most were not playing ball: the button added a tag filter,
+    which neither kept the other concepts' set nor counted the captions that say it."""
+    ids = _soccer(s, smiling=2)
+    res = s.search(q="小孩踢球很開心", semantic=False)
+    shown = res["soft"][0]["shown"]
+    only = s.search(q="小孩踢球很開心", semantic=False, soft_only=True)
+    assert only["total"] == shown == 2 and {x["asset_id"] for x in only["items"]} == set(ids[:2])
