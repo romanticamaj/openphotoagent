@@ -351,6 +351,9 @@ def maybe_finish(st: Any, c: Any, job_id: str) -> None:
         from .routes_caption import topup
 
         topup(st, c)  # the new captions join the meaning index in use (SRCH-R2-013)
+        from .routes_duplicates import regroup
+
+        regroup(st, c)  # the new vectors join the near-duplicate groups search folds (SRCH-DUP-005)
         return
     if j.kind == "preview":
         if j.params.get("preview_ready"):

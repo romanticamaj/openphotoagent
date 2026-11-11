@@ -428,3 +428,23 @@ def test_view_036_one_preview_task_per_photo_and_a_failure_is_remembered(
     assert client.get(f"/api/v1/assets/{aid}/media", params={"variant": "p2048"}).status_code == 404
     assert tasks() == ["failed"]  # not asked again
     eng.dispose()
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-DUP-005")
+def test_dup_005_near_duplicates_are_grouped_when_analysis_finishes(env):
+    """回歸 (audit round 51, ADR-0042): 14 copies of the same collage with one pHash were in no duplicate group, so
+    search counted each: nothing ever ran the regrouping (`/duplicates/recluster` had no caller). An analysis that
+    finishes regroups, and the near-duplicates fold into one."""
+    from PIL import Image
+
+    (env.tree.photos / "dup").mkdir()
+    img = Image.open(FX / "IMG_0001.jpg").convert("RGB")
+    img.save(env.tree.photos / "dup" / "a.jpg", "JPEG", quality=92)
+    img.save(env.tree.photos / "dup" / "b.jpg", "JPEG", quality=40)  # another file, the same picture
+    src = env.client.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": "dup"}).json()
+    env.client.post(f"/api/v1/sources/{src['id']}/analyze")
+    while env.w.run_once() or env.w.process_items_once():
+        pass
+    near = [g for g in env.client.get("/api/v1/duplicates").json()["groups"] if g["reason"] == "near"]
+    assert len(near) == 1 and len(near[0]["members"]) == 2

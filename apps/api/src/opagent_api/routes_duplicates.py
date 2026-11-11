@@ -94,6 +94,46 @@ def list_duplicates(req: Request) -> dict[str, Any]:
     return {"groups": groups}
 
 
+def regroup(st: Any, c: Any) -> int:
+    """Near-duplicate groups from stored hashes and vectors, the previous ones replaced in the same transaction. Run
+    when an analysis finishes (SRCH-DUP-005): nothing called the route, the groups stayed empty and search counted
+    every copy."""
+    assets = c.execute(select(asset.c.id, asset.c.phash).where(asset.c.workspace_id == DEFAULT_WS)).all()
+    space = active_space(c)
+    vecs: dict[str, list[float]] = {}
+    if space is not None:
+        for aid, v in c.execute(
+            select(asset_embedding.c.asset_id, asset_embedding.c.vec).where(asset_embedding.c.space_id == space.id)
+        ).all():
+            vecs[aid] = [float(x) for x in (v if not isinstance(v, str) else v.strip("[]").split(","))]
+    items = [(aid, ph, vecs.get(aid)) for aid, ph in assets]
+    index = {aid: i for i, (aid, _, _) in enumerate(items)}
+    neighbors = None
+    if space is not None and len(vecs) > BRUTE_VECTORS:
+
+        def neighbors(i: int) -> list[int]:
+            qv = cast(bindparam("qv", str(items[i][2])), Vector())
+            rows = c.execute(
+                select(asset_embedding.c.asset_id)
+                .where(asset_embedding.c.space_id == space.id, asset_embedding.c.asset_id != items[i][0])
+                .order_by(asset_embedding.c.vec.op("<=>")(qv))
+                .limit(10)
+            ).scalars()
+            return [index[a] for a in rows if a in index]
+
+    groups = group_near(items, neighbors=neighbors)
+    c.execute(delete(duplicate_member))
+    sizes = dict(c.execute(select(asset.c.id, asset.c.width * asset.c.height)).all())
+    for g in groups:
+        gid = uuid7(st.clock)
+        rep = max(g, key=lambda a: (sizes.get(a) or 0, a))
+        c.execute(
+            insert(duplicate_member),
+            [{"group_id": gid, "asset_id": a, "reason": "near", "is_representative": a == rep} for a in g],
+        )
+    return len(groups)
+
+
 @router.post("/duplicates/recluster")
 def recluster(req: Request) -> dict[str, Any]:
     """The `dedup` background task (05 §2.2) as an Operation: recompute near-duplicate groups from stored hashes and
@@ -103,41 +143,9 @@ def recluster(req: Request) -> dict[str, Any]:
     with st.engine.begin() as c:
         ensure_operation(c, st.clock, op_id, "dedup")
         set_op_status(c, st.clock, op_id, "running")
-        assets = c.execute(select(asset.c.id, asset.c.phash).where(asset.c.workspace_id == DEFAULT_WS)).all()
-        space = active_space(c)
-        vecs: dict[str, list[float]] = {}
-        if space is not None:
-            for aid, v in c.execute(
-                select(asset_embedding.c.asset_id, asset_embedding.c.vec).where(asset_embedding.c.space_id == space.id)
-            ).all():
-                vecs[aid] = [float(x) for x in (v if not isinstance(v, str) else v.strip("[]").split(","))]
-        items = [(aid, ph, vecs.get(aid)) for aid, ph in assets]
-        index = {aid: i for i, (aid, _, _) in enumerate(items)}
-        neighbors = None
-        if space is not None and len(vecs) > BRUTE_VECTORS:
-
-            def neighbors(i: int) -> list[int]:
-                qv = cast(bindparam("qv", str(items[i][2])), Vector())
-                rows = c.execute(
-                    select(asset_embedding.c.asset_id)
-                    .where(asset_embedding.c.space_id == space.id, asset_embedding.c.asset_id != items[i][0])
-                    .order_by(asset_embedding.c.vec.op("<=>")(qv))
-                    .limit(10)
-                ).scalars()
-                return [index[a] for a in rows if a in index]
-
-        groups = group_near(items, neighbors=neighbors)
-        c.execute(delete(duplicate_member))
-        sizes = dict(c.execute(select(asset.c.id, asset.c.width * asset.c.height)).all())
-        for g in groups:
-            gid = uuid7(st.clock)
-            rep = max(g, key=lambda a: (sizes.get(a) or 0, a))
-            c.execute(
-                insert(duplicate_member),
-                [{"group_id": gid, "asset_id": a, "reason": "near", "is_representative": a == rep} for a in g],
-            )
+        n = regroup(st, c)
         set_op_status(c, st.clock, op_id, "succeeded")
-    return {"operation_id": op_id, "groups": len(groups)}
+    return {"operation_id": op_id, "groups": n}
 
 
 @router.get("/assets/{asset_id}/similar")
