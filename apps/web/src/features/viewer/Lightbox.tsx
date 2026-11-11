@@ -22,6 +22,8 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
   const { t, i18n } = useTranslation();
   const [ord, setOrd] = useState(start);
   const [asset, setAsset] = useState<TimelineAsset | null>(null);
+  const [assetOrd, setAssetOrd] = useState<number | null>(null); // which photo `asset` is: it arrives after ord moves
+  const [favWanted, setFavWanted] = useState<number | null>(null); // F pressed before that photo was in (COL-013)
   const [film, setFilm] = useState<Array<{ ord: number; a: TimelineAsset }>>([]);
   const [stage, setStage] = useState<"t512" | "p1024" | null>(null);
   const [scale, setScale] = useState(1);
@@ -37,7 +39,11 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
     setStage(null);
     setScale(1);
     setPan({ x: 0, y: 0 });
-    void grid.at(ord).then((r) => live && setAsset(r?.asset ?? null));
+    void grid.at(ord).then((r) => {
+      if (!live) return;
+      setAsset(r?.asset ?? null);
+      setAssetOrd(ord);
+    });
     const lo = Math.max(0, ord - FILM);
     const hi = Math.min(grid.total - 1, ord + FILM);
     void Promise.all(Array.from({ length: hi - lo + 1 }, (_, i) => grid.at(lo + i).then((r) => (r ? { ord: lo + i, a: r.asset } : null)))).then(
@@ -65,7 +71,6 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
   }, []);
 
   const close = useCallback(() => onClose(asset?.id ?? null), [asset, onClose]);
-  const favRef = useRef<() => void>(() => undefined); // F: ★ the photo on screen (ADR-0041)
   const go = useCallback((d: number) => setOrd((o) => Math.max(0, Math.min(grid.total - 1, o + d))), [grid.total]);
 
   const onKey = (e: React.KeyboardEvent) => {
@@ -76,8 +81,8 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
       ArrowRight: () => go(1),
       i: () => setShowInfo((s) => !s),
       I: () => setShowInfo((s) => !s),
-      f: () => favRef.current(),
-      F: () => favRef.current(),
+      f: () => setFavWanted(ord), // carried out once this photo and its ★ state are in, not dropped
+      F: () => setFavWanted(ord),
       "+": () => setScale((s) => Math.min(8, s * 1.5)),
       "=": () => setScale((s) => Math.min(8, s * 1.5)),
       "-": () => setScale((s) => Math.max(1, s / 1.5)),
@@ -106,7 +111,13 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
         <span className="flex-1" />
         <button type="button" onClick={() => setScale((s) => Math.max(1, s / 1.5))} aria-label={t("lightbox.zoomOut")} className="px-2">−</button>
         <button type="button" onClick={() => setScale((s) => Math.min(8, s * 1.5))} aria-label={t("lightbox.zoomIn")} className="px-2">+</button>
-        {asset ? <FavoriteHotkey assetId={asset.id} bind={favRef} /> : null}
+        {asset ? (
+          <FavoriteHotkey
+            assetId={asset.id}
+            wanted={favWanted !== null && favWanted === ord && assetOrd === ord}
+            done={() => setFavWanted(null)}
+          />
+        ) : null}
         {asset ? <FavoriteButton assetId={asset.id} /> : null}
         {asset ? <AddToAlbum assetIds={[asset.id]} /> : null}
         <button type="button" aria-pressed={showInfo} onClick={() => setShowInfo((s) => !s)} className="rounded-[var(--radius-sm)] px-2 py-1 hover:bg-[var(--surface-2)]">{t("lightbox.info")}</button>
@@ -417,9 +428,14 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
 }
 
 /** Binds the F key to this photo's ★ (ADR-0041). */
-function FavoriteHotkey({ assetId, bind }: { assetId: string; bind: React.MutableRefObject<() => void> }) {
+/** F: ★ the photo on screen once its state is in (ADR-0041); a press during → waits for it (COL-013). */
+function FavoriteHotkey({ assetId, wanted, done }: { assetId: string; wanted: boolean; done: () => void }) {
   const fav = useFavorite(assetId);
-  bind.current = fav.toggle;
+  useEffect(() => {
+    if (!wanted || !fav.ready) return;
+    fav.toggle();
+    done();
+  }, [wanted, fav, done]);
   return null;
 }
 

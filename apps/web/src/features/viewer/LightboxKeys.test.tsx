@@ -53,3 +53,22 @@ describe("Lightbox keys (audit round 34)", () => {
     }
   });
 });
+
+describe("F while the next photo loads (audit round 35)", () => {
+  it("[COL-013] 回歸：→ 與 F 幾乎同時按，F 在照片載入後仍會收藏那一張", async () => {
+    s.favs.clear();
+    s.setFavorite.mockReset();
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Lightbox start={0} grid={grid} onClose={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    const lb = screen.getByTestId("lightbox");
+    await screen.findByRole("button", { name: "加入收藏" });
+    fireEvent.keyDown(lb, { key: "ArrowRight" });
+    fireEvent.keyDown(lb, { key: "f" }); // the same instant: p1 is not in yet
+    await waitFor(() => expect(s.setFavorite).toHaveBeenCalledWith("p1", true));
+    expect(s.setFavorite).not.toHaveBeenCalledWith("p0", expect.anything());
+  });
+});
+
