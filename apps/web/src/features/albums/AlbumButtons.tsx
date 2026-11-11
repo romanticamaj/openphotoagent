@@ -46,7 +46,38 @@ export function FavoriteButton({ assetId }: { assetId: string }) {
   );
 }
 
-export function AddToAlbum({ assetIds }: { assetIds: string[] }) {
+/** ★ for many photos at once: a selection goes into 收藏 in one request (COL-015). */
+export function FavoriteSelection({ put }: { put: (albumId: string) => Promise<unknown> }) {
+  const { t } = useTranslation();
+  const qc = useQueryClient();
+  const [done, setDone] = useState<string | null>(null);
+  const fav = useMutation({
+    mutationFn: () => put(FAVORITES),
+    onSuccess: () => {
+      setDone(t("albums.added", { name: t("albums.favorites") }));
+      void qc.invalidateQueries({ queryKey: ["albums"] });
+      void qc.invalidateQueries({ queryKey: ["album"] });
+      void qc.invalidateQueries({ queryKey: ["asset"] });
+    },
+  });
+  return (
+    <span className="relative">
+      <button type="button" aria-label={t("albums.favorite")} title={t("albums.favorite")} aria-busy={fav.isPending} onClick={() => !fav.isPending && fav.mutate()} className="icon-button">
+        <Star on={false} />
+      </button>
+      {done ? (
+        <span role="status" className="toast" onAnimationEnd={() => setDone(null)}>
+          {done}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+const FAVORITES = "fav-default";
+
+/** 「加入相簿」: one photo in the Lightbox (assetIds), or a whole selection (put) from the batch bar (COL-015). */
+export function AddToAlbum({ assetIds, put }: { assetIds?: string[]; put?: (albumId: string) => Promise<unknown> }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -57,7 +88,7 @@ export function AddToAlbum({ assetIds }: { assetIds: string[] }) {
   const add = useMutation({
     mutationFn: async (a: { id?: string; name: string }) => {
       const id = a.id ?? (await api.createAlbum(a.name)).id;
-      await api.addToAlbum(id, assetIds);
+      await (put ? put(id) : api.addToAlbum(id, assetIds ?? []));
       return a.name;
     },
     onSuccess: (n) => {
@@ -66,7 +97,8 @@ export function AddToAlbum({ assetIds }: { assetIds: string[] }) {
       setName("");
       opener.current?.focus(); // the field it was in is gone: keys stay with the Lightbox (Esc, ←, →)
       void qc.invalidateQueries({ queryKey: ["albums"] });
-      for (const a of assetIds) void qc.invalidateQueries({ queryKey: ["asset", a] });
+      if (put) void qc.invalidateQueries({ queryKey: ["asset"] });
+      for (const a of assetIds ?? []) void qc.invalidateQueries({ queryKey: ["asset", a] });
     },
   });
   return (

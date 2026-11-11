@@ -56,6 +56,11 @@ PHOTO_FILTERS: dict[str, Any] = {
                 "to": {"type": "string", "format": "date", "description": "不含當日"},
             },
         },
+        "month_day": {
+            "type": "string",
+            "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$",
+            "description": "MM-DD：每年的這一天（本地時間）",
+        },
         "place": {
             "type": "object",
             "additionalProperties": False,

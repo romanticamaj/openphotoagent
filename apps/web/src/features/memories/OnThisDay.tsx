@@ -67,7 +67,17 @@ export function OnThisDay({ onOpen }: { onOpen: (photos: Array<{ id: string; rot
                 </li>
               ))}
               {g.photos.length > SHOWN ? (
-                <li className="self-center text-xs text-[var(--text-muted)]">+{(g.photos.length - SHOWN).toLocaleString(i18n.language)}</li>
+                <li className="self-center">
+                  {/* the rest open where the row stops (audit round 49: 「+16」 was only text) */}
+                  <button
+                    type="button"
+                    className="on-this-day-more tnum"
+                    aria-label={t("memories.more", { n: (g.photos.length - SHOWN).toLocaleString(i18n.language), year: g.year })}
+                    onClick={() => onOpen(g.photos.map((x) => ({ id: x.asset_id, rot: x.rot })), SHOWN)}
+                  >
+                    +{(g.photos.length - SHOWN).toLocaleString(i18n.language)}
+                  </button>
+                </li>
               ) : null}
             </ul>
           </div>

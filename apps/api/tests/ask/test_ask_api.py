@@ -489,3 +489,12 @@ def test_ask_date_001_today_is_the_local_day(embedded_pg, tmp_path):
     f = next(d for e, d in ev if e == "filters")
     assert f["applied_filters"]["taken_at"]["from"] == "2025-11-09"
     x.eng.dispose()
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-DATE-003")
+def test_ask_date_003_a_day_in_every_year_is_a_chip(m):
+    """回歸 (audit round 49): 「11月10日拍了什麼」 understood 「每年的 11-10」 but showed no chip to remove."""
+    ev = ask(m, "11月10日拍了什麼", FakeLLM())
+    f = next(d for e, d in ev if e == "filters")
+    assert f["applied_filters"].get("month_day") == "11-10"

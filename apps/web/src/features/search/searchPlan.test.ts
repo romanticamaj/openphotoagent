@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import i18n from "../../lib/i18n";
-import { bodyFor, cappedNote, chipLabel, chipsFrom, countText, gridAssetOf, headerCount, onlyByMeaning, relaxedText, softView, weakNeedsMore, weakTail, withoutPerson } from "./searchPlan";
+import { bodyFor, cappedNote, chipLabel, chipsFrom, countText, gridAssetOf, headerCount, onlyByMeaning, relaxedText, softView, weakNeedsMore, weakTail, tileLabel, withoutPerson, withoutWords } from "./searchPlan";
 
 const planner = (filters: Record<string, unknown>, explain: string[], text = "") => ({
   source: "rules",
@@ -173,3 +173,21 @@ describe("a day in every year (SRCH-PLAN-026)", () => {
     expect(bodyFor("11月10日的貓", chips, { text: "貓" })).toEqual({ q: "貓", filters: { month_day: "11-10" } });
   });
 });
+
+describe("removing a date chip takes the date out of the box (audit round 49)", () => {
+  it("[SRCH-UI-021] 回歸：移除日期標籤時，搜尋框與網址也拿掉那段日期（重新整理時又出現）", () => {
+    expect(withoutWords("11月10日的貓", ["11月10日"])).toBe("的貓");
+    expect(withoutWords("去年 海邊", ["去年"])).toBe("海邊");
+    expect(withoutWords("海邊", [])).toBe("海邊");
+  });
+});
+
+describe("search tiles say what they are (audit round 49)", () => {
+  const t = ((k: string, o?: Record<string, unknown>) => (k === "viewer.photoAlt" ? `照片，${o?.date}` : k === "viewer.unknownDate" ? "日期不明" : k)) as never;
+  it("[SRCH-UI-022] 回歸：搜尋結果的照片有名稱（驗證第 49 輪：螢幕閱讀器只念「按鈕」）", () => {
+    expect(tileLabel(t, { caption: "海邊的小孩", taken_at: "2024-07-01T10:00:00Z" })).toBe("海邊的小孩，2024-07-01");
+    expect(tileLabel(t, { caption: null, taken_at: "2024-07-01T10:00:00Z" })).toBe("照片，2024-07-01");
+    expect(tileLabel(t, { caption: "", taken_at: null })).toBe("照片，日期不明");
+  });
+});
+

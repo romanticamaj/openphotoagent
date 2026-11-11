@@ -46,4 +46,14 @@ describe("那年今日 (10 §2.8)", () => {
     await new Promise((r) => setTimeout(r, 20));
     expect(container.textContent).toBe("");
   });
+
+  it("[MEM-007] 回歸：「+N」可以點，從第 9 張開始看（驗證第 49 輪：只是文字）", async () => {
+    window.localStorage.clear(); // 「今天先不看」 from the test before
+    s.groups = [{ year: 2024, years_ago: 2, photos: Array.from({ length: 11 }, (_, i) => ({ asset_id: `p${i}`, ch: null, taken_at: null })) }];
+    const open = vi.fn();
+    wrap(open);
+    fireEvent.click(await screen.findByRole("button", { name: "看 2024 年的其他 3 張" }));
+    expect(open).toHaveBeenCalledWith(expect.arrayContaining([{ id: "p8", rot: undefined }]), 8);
+  });
 });
+

@@ -2507,6 +2507,19 @@
         "title": "Target",
         "type": "object"
       },
+      "ToAlbum": {
+        "properties": {
+          "album_id": {
+            "title": "Album Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "album_id"
+        ],
+        "title": "ToAlbum",
+        "type": "object"
+      },
       "TryIn": {
         "properties": {
           "asset_id": {

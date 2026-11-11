@@ -1081,6 +1081,7 @@
     "yearsAgo_one": "{count} 年前的今天",
     "yearsAgo_other": "{count} 年前的今天",
     "open": "{year} 年的第 {n} 張",
+    "more": "看 {year} 年的其他 {n} 張",
     "picked": "精選 {n} 張 · 共 {total} 張"
   }
 }

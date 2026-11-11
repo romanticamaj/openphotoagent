@@ -303,6 +303,7 @@ def _search_body(ctx: Ctx, c: Any, args: dict[str, Any]) -> dict[str, Any]:
             "categories": cats or None,
             "taken_from": taken.get("from"),
             "taken_to": taken.get("to"),
+            "month_day": f.get("month_day"),  # every year's (SRCH-PLAN-026)
             "scope": folders or ([{"source_id": "-", "path": ""}] if f.get("folders") else None),
             "within": within_scopes(ctx, c),
             **{k: f[k] for k in ("persons_all", "persons_any", "persons_none") if f.get(k)},

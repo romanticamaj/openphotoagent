@@ -640,6 +640,8 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
         p = plan(body.message, today=today, persons=known)
         if "taken_at" in p["filters"]:
             filters["taken_at"] = p["filters"]["taken_at"]
+        if p["filters"].get("month_day"):  # every year's, a chip too (ASK-DATE-003)
+            filters["month_day"] = p["filters"]["month_day"]
         if p["filters"].get("persons_all"):
             filters["persons_all"] = p["filters"]["persons_all"]
         if p["filters"].get("tags_any"):

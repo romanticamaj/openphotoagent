@@ -37,7 +37,7 @@ vi.mock("@tanstack/react-router", async (orig) => ({
   useNavigate: () => vi.fn(),
 }));
 
-import { AddToAlbum, FavoriteButton, typingIn, useFavorite } from "./AlbumButtons";
+import { AddToAlbum, FavoriteButton, FavoriteSelection, typingIn, useFavorite } from "./AlbumButtons";
 import { AlbumPage } from "./AlbumsPage";
 
 const wrap = (el: React.ReactNode) => render(<QueryClientProvider client={new QueryClient()}>{el}</QueryClientProvider>);
@@ -175,5 +175,22 @@ describe("keys in the Lightbox (audit round 34)", () => {
     fireEvent.click(b2);
     await waitFor(() => expect(s.setFavorite).toHaveBeenCalledWith("a2", expect.any(Boolean)));
   });
-});
 
+  it("[COL-015] 多選照片一次加入收藏或相簿（驗證第 49 輪：選了 4 張卻只能整理或加標籤）", async () => {
+    s.albums.mockResolvedValue({ albums: [{ id: "b1", kind: "album", name: "墾丁", count: 3, cover: null }] });
+    s.addToAlbum.mockClear();
+    const put = vi.fn().mockResolvedValue({ count: 7 });
+    wrap(
+      <>
+        <FavoriteSelection put={put} />
+        <AddToAlbum put={put} />
+      </>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "加入收藏" }));
+    await waitFor(() => expect(put).toHaveBeenCalledWith("fav-default"));
+    fireEvent.click(screen.getByRole("button", { name: "加入相簿" }));
+    fireEvent.click(await screen.findByRole("menuitem", { name: /墾丁/ }));
+    await waitFor(() => expect(put).toHaveBeenCalledWith("b1"));
+    expect(s.addToAlbum).not.toHaveBeenCalled(); // the selection goes in at once, not photo by photo
+  });
+});

@@ -406,6 +406,8 @@ export const api = {
   search: (body: SearchBody) => req<SearchResult>("POST", "/search", body),
   searchIndex: () => req<{ searchable: number; total: number }>("GET", "/search-index"),
   createSelection: (body: { query?: SearchBody; asset_ids?: string[] }) => req<{ id: string; count: number }>("POST", "/selections", body),
+  /** a selection into an album or 收藏 at once (COL-014) */
+  selectionAlbum: (id: string, albumId: string) => req<{ id: string; count: number }>("POST", `/selections/${id}/album`, { album_id: albumId }),
   selectionLabels: (id: string, body: { category?: string; tags?: string[] }) => req<{ updated: number }>("POST", `/selections/${id}/labels`, body),
   selectionOrganize: (id: string, target: { root_alias: string; sub_path: string }) =>
     req<{ plan_id: string; job_id: string }>("POST", `/selections/${id}/organize`, { target }),

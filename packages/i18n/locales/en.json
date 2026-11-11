@@ -1081,6 +1081,7 @@
     "yearsAgo_one": "{count} year ago today",
     "yearsAgo_other": "{count} years ago today",
     "open": "{year}, photo {n}",
+    "more": "See {n} more from {year}",
     "picked": "{n} picked of {total}"
   }
 }

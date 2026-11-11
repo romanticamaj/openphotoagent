@@ -202,6 +202,17 @@ def _dates(t: _Text, today: date, tz: str, explain: list[str]) -> dict[str, str]
             del explain[n_explain:]
             explain.append(f"「{word}」→ {y}-12 – {y + 1}-02")
             return _range(date(y, 12, 1), date(y + 1, 3, 1))
+    # 「11/10」 with no year: that day in every year, like 「11月10日」 (SRCH-PLAN-027)
+    m = t.take(r"(?<![\d/])(1[0-2]|0?[1-9])/(3[01]|[12]\d|0?[1-9])(?![\d/])")
+    if m and year is None:
+        mo, dd = int(m.group(1)), int(m.group(2))
+        try:
+            date(2024, mo, dd)
+        except ValueError:
+            return None
+        del explain[n_explain:]
+        explain.append(f"「{m.group(0)}」→ 每年的 {mo:02d}-{dd:02d}")
+        return {"month_day": f"{mo:02d}-{dd:02d}"}
     # a month and a day, 「11月10日」: that day of the named year, or of every year when none is named, as Google
     # Photos reads it (SRCH-PLAN-023, SRCH-PLAN-026)
     m = t.take(r"(?<!\d)(1[0-2]|0?[1-9])\s*月\s*(3[01]|[12]\d|0?[1-9])\s*[日號]")

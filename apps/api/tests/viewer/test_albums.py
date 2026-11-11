@@ -76,3 +76,16 @@ def test_col_004_deleting_an_album_keeps_its_photos(m):
     assert send(m, "DELETE", f"/albums/{aid}").status_code == 200
     assert all(a["id"] != aid for a in get(m, "/albums")["albums"])
     assert m.sql("select count(*) from asset").scalar() == 3  # the photos stay; only the set is gone
+
+
+@pytest.mark.integration
+@pytest.mark.tc("COL-014")
+def test_col_014_a_selection_goes_into_an_album_or_favourites_at_once(m):
+    """Audit round 49: search's selection bar had no ★ or 加入相簿. A selection (ids, or 全選's query) is added whole."""
+    sel = m.client.post("/api/v1/selections", json={"asset_ids": m.ids[:2]}, headers=m.ui).json()["id"]
+    r = send(m, "POST", f"/selections/{sel}/album", {"album_id": "fav-default"})
+    assert r.status_code == 200 and r.json()["count"] == 2
+    assert get(m, f"/assets/{m.ids[0]}")["favorite"] is True
+    aid = send(m, "POST", "/albums", {"name": "選的"}).json()["id"]
+    assert send(m, "POST", f"/selections/{sel}/album", {"album_id": aid}).json()["count"] == 2
+    assert send(m, "POST", f"/selections/{sel}/album", {"album_id": "nope"}).status_code == 404

@@ -15,6 +15,14 @@ export type Chip =
 
 const PERSON = /^「(.+)」→ 人物/;
 
+/** The words of the query a date came from: 「去年」, 「11月10日」 (SRCH-UI-021). */
+export function dateWords(explain: string[]): string[] {
+  return explain
+    .filter((e) => /→/.test(e) && !/→ (人物|標籤|國家|相機)/.test(e) && /\d{4}|每年/.test(e.split("→")[1] ?? ""))
+    .map((e) => /^「(.+?)」/.exec(e)?.[1])
+    .filter((x): x is string => Boolean(x));
+}
+
 export function chipsFrom(p: Planner): Chip[] {
   const out: Chip[] = [];
   const at = p.filters.taken_at;
@@ -145,3 +153,20 @@ export function relaxedText(t: T, relaxed: string[] | undefined, meaningOnly: bo
 export function gridAssetOf(h: SearchHit): TimelineAsset {
   return { id: h.asset_id, ch: h.ch, w: null, h: null, thumbhash: null, taken_at: h.taken_at, flags: [], rot: h.rot };
 }
+
+/** The query without the words a date came from: removing the date chip takes 「去年」 out of the box too (SRCH-UI-021). */
+export function withoutWords(q: string, words: string[]): string {
+  let s = q;
+  for (const w of words) {
+    const i = s.indexOf(w);
+    if (i >= 0) s = s.slice(0, i) + " " + s.slice(i + w.length);
+  }
+  return s.replace(/\s+/g, " ").trim();
+}
+
+/** A result's name for a screen reader: its caption, or 「照片」, and the day (SRCH-UI-022). */
+export function tileLabel(t: (k: string, o?: Record<string, unknown>) => string, h: { caption?: string | null; taken_at?: string | null }): string {
+  const date = h.taken_at?.slice(0, 10) ?? t("viewer.unknownDate");
+  return h.caption ? `${h.caption}，${date}` : t("viewer.photoAlt", { date });
+}
+

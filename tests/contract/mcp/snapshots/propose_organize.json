@@ -79,6 +79,11 @@
             "minimum": 0,
             "type": "number"
           },
+          "month_day": {
+            "description": "MM-DD：每年的這一天（本地時間）",
+            "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$",
+            "type": "string"
+          },
           "orientation": {
             "enum": [
               "landscape",

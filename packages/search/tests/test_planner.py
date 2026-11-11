@@ -204,3 +204,14 @@ def test_plan_025_what_was_taken_is_the_question_not_a_word(gz):
         p = P(q, gz)
         assert p["text"] == "", (q, p["text"])
         assert p["filters"].get("taken_at"), q
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-PLAN-027")
+def test_plan_027_a_slashed_day_without_a_year(gz):
+    """回歸 (audit round 49): 「11/10」 searched for the characters and returned 122 look-alikes."""
+    for q in ("11/10", "11/10 的貓", "3/1"):
+        p = P(q, gz)
+        assert p["filters"].get("month_day") in ("11-10", "03-01"), q
+        assert "/" not in p["text"], q
+    assert P("2025/11/10", gz)["filters"]["taken_at"] == {"from": "2025-11-10", "to": "2025-11-11"}  # a year: that day

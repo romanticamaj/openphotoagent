@@ -11,7 +11,8 @@ import type { GridApi } from "../viewer/PhotoGrid";
 import { api, isDegraded, mediaUrl, type SearchBody } from "../../lib/api";
 import { turnStyle } from "../../lib/turn";
 
-import { bodyFor, cappedNote, chipLabel, chipsFrom, gridAssetOf, headerCount, onlyByMeaning, relaxedText, softView, weakNeedsMore, weakTail, withoutPerson, type Chip } from "./searchPlan";
+import { AddToAlbum, FavoriteSelection } from "../albums/AlbumButtons";
+import { bodyFor, cappedNote, chipLabel, chipsFrom, gridAssetOf, headerCount, onlyByMeaning, relaxedText, softView, weakNeedsMore, tileLabel, weakTail, withoutPerson, withoutWords, dateWords, type Chip } from "./searchPlan";
 
 export function SearchPage({ q }: { q: string }) {
   const { t, i18n } = useTranslation();
@@ -19,7 +20,7 @@ export function SearchPage({ q }: { q: string }) {
   const [chips, setChips] = useState<Chip[]>([]);
   const [tagNames, setTagNames] = useState<Record<string, string>>({});
   // the rule planner runs once per query; its filters become chips and the rest of the words stay the query (05 §2.3)
-  const [planned, setPlanned] = useState<{ text: string } | null>(null);
+  const [planned, setPlanned] = useState<{ text: string; dates: string[] } | null>(null);
   const [sel, setSel] = useState<{ all: boolean; ids: Set<string>; anchor: number | null; multi?: boolean }>({ all: false, ids: new Set(), anchor: null });
   const [toast, setToast] = useState<string | null>(null);
   const [comparing, setComparing] = useState<string[] | null>(null);
@@ -42,7 +43,7 @@ export function SearchPage({ q }: { q: string }) {
   useEffect(() => {
     if (planned || !plannerOut) return;
     setChips(chipsFrom(plannerOut));
-    setPlanned({ text: plannerOut.text });
+    setPlanned({ text: plannerOut.text, dates: dateWords(plannerOut.explain) });
   }, [plannerOut, planned]);
   const index = useQuery({ queryKey: ["search-index"], queryFn: api.searchIndex, refetchInterval: 5000 });
   const first = res.data?.pages[0];
@@ -179,7 +180,9 @@ export function SearchPage({ q }: { q: string }) {
             <button type="button" aria-label={t("search.remove", { what: chipLabel(t, c, tagNames) })} onClick={() =>
                 c.kind === "person"
                   ? void nav({ to: "/search", search: { q: withoutPerson(q, c.value) } }) // the box follows (SRCH-UI-013)
-                  : setChips(chips.filter((x) => x !== c))
+                  : (c.kind === "range" || c.kind === "day") && planned?.dates.length && withoutWords(q, planned.dates) !== q
+                    ? void nav({ to: "/search", search: { q: withoutWords(q, planned.dates) } }) // the date leaves the box too (SRCH-UI-021)
+                    : setChips(chips.filter((x) => x !== c))
               }>
               ×
             </button>
@@ -254,6 +257,7 @@ export function SearchPage({ q }: { q: string }) {
               type="button"
               role="gridcell"
               aria-selected={selected}
+              aria-label={tileLabel(t, h)}
               tabIndex={i === active ? 0 : -1}
               data-testid="search-result"
               data-asset={h.asset_id}
@@ -262,7 +266,7 @@ export function SearchPage({ q }: { q: string }) {
               onFocus={() => setActive(i)}
               onClick={(e) => clickHit(i, h.asset_id, e.shiftKey, e.ctrlKey || e.metaKey)}
             >
-              <img src={mediaUrl(h.asset_id, "t256", h.ch)} alt={h.caption ?? ""} loading="lazy" style={turnStyle(h.rot)} onError={(e) => (e.currentTarget.style.visibility = "hidden")} />
+              <img src={mediaUrl(h.asset_id, "t256", h.ch)} alt="" loading="lazy" style={turnStyle(h.rot)} onError={(e) => (e.currentTarget.style.visibility = "hidden")} />
               <span data-matched={h.matched_by.join(" ")} className="absolute bottom-1 left-1 text-[10px]">
                 {/* found by how it looks, not by its words: worth knowing (E2E-S-002); text and tag matches need no badge */}
                 {onlyByMeaning(h.matched_by) ? <span className="rounded bg-black/55 px-1 text-white/90">{t("search.matched.image_vector")}</span> : null}
@@ -371,6 +375,9 @@ function BatchBar({
       >
         {t("compare.open")}
       </Button>
+      {/* ★ and 加入相簿 for the selection (COL-015): only organising and tags were offered (audit round 49) */}
+      <FavoriteSelection put={async (aid) => api.selectionAlbum((await makeSelection()).id, aid)} />
+      <AddToAlbum put={async (aid) => api.selectionAlbum((await makeSelection()).id, aid)} />
       <label className="flex flex-col text-xs">
         {t("batch.tag")}
         <input aria-label={t("batch.tag")} value={tag} onChange={(e) => setTag(e.target.value)} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-sm" />

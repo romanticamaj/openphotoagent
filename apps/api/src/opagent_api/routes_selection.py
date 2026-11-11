@@ -181,3 +181,21 @@ def batch_organize(sid: str, body: BatchOrganize, req: Request) -> dict[str, Any
             ],
         )
     return {"job_id": jid, "plan_id": pid, "count": len(planned)}
+
+
+class ToAlbum(BaseModel):
+    album_id: str
+
+
+@router.post("/selections/{sid}/album")
+def batch_album(sid: str, body: ToAlbum, req: Request) -> dict[str, Any]:
+    """A selection into an album or 收藏 at once (COL-014, ADR-0041): database sets, never files."""
+    from .routes_albums import FAVORITES, _add, _album, _count, _favorites
+
+    with _st(req).engine.begin() as c:
+        ids = _ids(c, sid)
+        if body.album_id == FAVORITES:
+            _favorites(c)
+        _album(c, body.album_id)
+        _add(c, body.album_id, ids)
+        return {"id": body.album_id, "count": _count(c, body.album_id)}
