@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import i18n from "../../lib/i18n";
-import { bodyFor, cappedNote, chipLabel, chipsFrom, countText, headerCount, onlyByMeaning, relaxedText, softView, weakNeedsMore, weakTail, withoutPerson } from "./searchPlan";
+import { bodyFor, cappedNote, chipLabel, chipsFrom, countText, gridAssetOf, headerCount, onlyByMeaning, relaxedText, softView, weakNeedsMore, weakTail, withoutPerson } from "./searchPlan";
 
 const planner = (filters: Record<string, unknown>, explain: string[], text = "") => ({
   source: "rules",
@@ -159,3 +159,9 @@ describe("words no photo shows (SRCH-CNC-016)", () => {
   });
 });
 
+
+describe("search opens the Lightbox at the saved angle (ROT-005)", () => {
+  it("[ROT-005] 回歸：搜尋結果交給 Lightbox 的照片帶著角度", () => {
+    expect(gridAssetOf({ asset_id: "a", ch: "h", rot: 90, taken_at: null } as never)).toMatchObject({ id: "a", rot: 90 });
+  });
+});

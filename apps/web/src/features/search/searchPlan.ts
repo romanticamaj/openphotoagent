@@ -1,7 +1,7 @@
 // What a planned query becomes (05 §2.3): the planner's filters turn into removable chips, and the chips are the
 // filters of the search that follows. A person the query named stays a person filter (SRCH-UI-012): dropping it
 // showed the whole library for 「測試A」.
-import type { Planner, SearchBody } from "../../lib/api";
+import type { Planner, SearchBody, SearchHit, TimelineAsset } from "../../lib/api";
 
 export type Chip =
   | { kind: "tag"; value: string }
@@ -132,3 +132,7 @@ export function relaxedText(t: T, relaxed: string[] | undefined, meaningOnly: bo
   return t(meaningOnly ? "search.relaxedMeaning" : "search.relaxed", { words: relaxed.join("、") });
 }
 
+/** A search hit as the Lightbox's photo, with its saved angle: it opened turned photos at 0° (ROT-005). */
+export function gridAssetOf(h: SearchHit): TimelineAsset {
+  return { id: h.asset_id, ch: h.ch, w: null, h: null, thumbhash: null, taken_at: h.taken_at, flags: [], rot: h.rot };
+}

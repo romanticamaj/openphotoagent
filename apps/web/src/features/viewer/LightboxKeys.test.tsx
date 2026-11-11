@@ -108,3 +108,23 @@ describe("rotate (audit round 26 gap)", () => {
   });
 });
 
+
+describe("a photo already turned (audit round 47)", () => {
+  it("[ROT-005] 回歸：從搜尋開啟已轉 90 度的照片，Lightbox 依這個角度顯示，再按 R 存 180 度", async () => {
+    s.setRotation.mockReset();
+    const turned: GridApi = {
+      total: 1,
+      ordinal: (p) => p.index,
+      at: async () => ({ asset: { id: "t0", ch: null, w: 3, h: 4, thumbhash: null, taken_at: null, flags: [], rot: 90 }, pos: { bucket: 0, index: 0 } }),
+    };
+    const { container } = render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Lightbox start={0} grid={turned} onClose={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    await screen.findByRole("button", { name: "加入收藏" });
+    expect((container.querySelector('img[data-variant="t512"]') as HTMLImageElement).style.transform).toContain("rotate(90deg)");
+    fireEvent.keyDown(screen.getByTestId("lightbox"), { key: "r" });
+    await waitFor(() => expect(s.setRotation).toHaveBeenCalledWith("t0", 180));
+  });
+});

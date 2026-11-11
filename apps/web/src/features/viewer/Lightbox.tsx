@@ -86,6 +86,7 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
       void qcr.invalidateQueries({ queryKey: ["search"] });
       void qcr.invalidateQueries({ queryKey: ["on-this-day"] }); // its thumbnails too (ROT-004)
       void qcr.invalidateQueries({ queryKey: ["album"] });
+      void qcr.invalidateQueries({ queryKey: ["asset", asset.id] }); // 尺寸 follows the turn (ROT-005)
     });
   }, [asset, rot, qcr]);
   const stageRef = useRef<HTMLDivElement>(null);

@@ -726,6 +726,7 @@ body {
   display: flex;
   gap: 2px;
   overflow-x: auto;
+  overflow-y: hidden; /* one bar, sideways: a turned tile made a second one (audit round 47) */
   padding: 8px;
 }
 .filmstrip button {

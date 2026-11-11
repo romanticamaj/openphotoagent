@@ -11,7 +11,7 @@ import type { GridApi } from "../viewer/PhotoGrid";
 import { api, isDegraded, mediaUrl, type SearchBody } from "../../lib/api";
 import { turnStyle } from "../../lib/turn";
 
-import { bodyFor, cappedNote, chipLabel, chipsFrom, headerCount, onlyByMeaning, relaxedText, softView, weakNeedsMore, weakTail, withoutPerson, type Chip } from "./searchPlan";
+import { bodyFor, cappedNote, chipLabel, chipsFrom, gridAssetOf, headerCount, onlyByMeaning, relaxedText, softView, weakNeedsMore, weakTail, withoutPerson, type Chip } from "./searchPlan";
 
 export function SearchPage({ q }: { q: string }) {
   const { t, i18n } = useTranslation();
@@ -75,7 +75,7 @@ export function SearchPage({ q }: { q: string }) {
         const h = hits[i];
         if (!h) return null;
         return {
-          asset: { id: h.asset_id, ch: h.ch, w: null, h: null, thumbhash: null, taken_at: h.taken_at, flags: [] },
+          asset: gridAssetOf(h), // with its saved angle (ROT-005)
           pos: { bucket: 0, index: i },
         };
       },

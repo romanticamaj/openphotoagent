@@ -54,10 +54,12 @@ function StepRow({ s }: { s: Step }) {
   );
 }
 
-function chipLabel(t: (k: string, o?: Record<string, unknown>) => string, key: string, v: unknown, names: Record<string, string> = {}): string {
+export function chipLabel(t: (k: string, o?: Record<string, unknown>) => string, key: string, v: unknown, names: Record<string, string> = {}): string {
   if (key === "taken_at") {
     const r = (v ?? {}) as { from?: string; to?: string };
-    return t("ask.chipDate", { from: r.from ?? "", to: r.to ?? "" });
+    // the last day in it, as the planner says it: the range's end is exclusive (ASK-DATE-002)
+    const last = r.to ? new Date(Date.parse(`${r.to}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10) : "";
+    return t("ask.chipDate", { from: r.from ?? "", to: last });
   }
   if (key === "tags_any" || key === "tags_all") return t("ask.chipTag", { tag: ((v as string[]) ?? []).map((x) => names[x] ?? x).join("、") });
   if (key === "persons_all" || key === "persons_any") return t("ask.chipPerson", { names: ((v as string[]) ?? []).map((x) => names[x] ?? "?").join("、") });
