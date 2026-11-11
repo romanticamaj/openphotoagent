@@ -942,3 +942,17 @@ body {
     width: 184px;
   }
 }
+
+/* info panel: one icon per fact (audit round 26) */
+.info-facts { display: grid; gap: 0.4rem; }
+.info-fact { display: flex; align-items: center; gap: 0.6rem; }
+.icon-button { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: var(--radius-sm); color: var(--text-muted); }
+.icon-button:hover { background: var(--surface-2); color: var(--text); }
+.icon-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* search facets: one sideways-scrolling row of soft chips (audit round 26) */
+.facet-row { display: flex; gap: 1.25rem; overflow-x: auto; padding-bottom: 2px; scrollbar-width: thin; }
+.facet-chip { white-space: nowrap; border-radius: 9999px; background: var(--surface-2); padding: 0.125rem 0.6rem; transition: background-color 120ms ease; }
+.facet-chip:hover { background: var(--border); }
+.facet-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+

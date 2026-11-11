@@ -234,19 +234,6 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
   ];
   return (
     <aside className="info space-y-4" aria-label={t("lightbox.info")} data-testid="info-panel">
-      <section aria-labelledby="exif-h">
-        <h2 id="exif-h" className="mb-2 font-semibold">{t("lightbox.exif.title")}</h2>
-        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
-          {rows
-            .filter(([, v]) => v)
-            .map(([k, v]) => (
-              <div key={k} className="contents">
-                <dt className="text-[var(--text-muted)]">{k}</dt>
-                <dd className="tnum">{v}</dd>
-              </div>
-            ))}
-        </dl>
-      </section>
       <section aria-labelledby="ai-h">
         <h2 id="ai-h" className="mb-2 font-semibold">{t("lightbox.ai.title")}</h2>
         {a.human_label && (
@@ -373,6 +360,21 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
           ) : null}
         </form>
       </section>
+      <section aria-labelledby="exif-h">
+        <h2 id="exif-h" className="mb-2 font-semibold">{t("lightbox.exif.title")}</h2>
+        {/* one icon per fact, as photo apps show them; the label stays for screen readers */}
+        <dl className="info-facts text-sm">
+          {rows
+            .filter(([, v]) => v)
+            .map(([k, v]) => (
+              <div key={k} className="info-fact">
+                <InfoIcon kind={FACT_ICONS[rows.findIndex((r) => r[0] === k)]} />
+                <dt className="sr-only">{k}</dt>
+                <dd className="tnum">{v}</dd>
+              </div>
+            ))}
+        </dl>
+      </section>
       <Suspense fallback={null}>
         <AskPhoto assetId={id} />
       </Suspense>
@@ -384,8 +386,14 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
               <li key={`${l.source_id}:${l.rel_path}`} className="flex items-center gap-2">
                 <span className="break-all font-mono text-xs">{`${l.root_alias}/${l.rel_path}`}</span>
                 {p.kind === "desktop" && p.revealInFileManager && (
-                  <button type="button" onClick={() => void p.revealInFileManager!(l.root_alias, l.rel_path)} className="shrink-0 text-[var(--accent)] underline">
-                    {t("lightbox.reveal")}
+                  <button
+                    type="button"
+                    onClick={() => void p.revealInFileManager!(l.root_alias, l.rel_path)}
+                    aria-label={t("lightbox.reveal")}
+                    title={t("lightbox.reveal")}
+                    className="icon-button shrink-0"
+                  >
+                    <InfoIcon kind="folder" />
                   </button>
                 )}
               </li>
@@ -394,6 +402,26 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
         </section>
       )}
     </aside>
+  );
+}
+
+const FACT_ICONS = ["calendar", "camera", "lens", "aperture", "size"] as const;
+type IconKind = (typeof FACT_ICONS)[number] | "folder";
+
+/** Line icons for the info panel (24-unit grid, currentColor), drawn inline: no icon font to load. */
+function InfoIcon({ kind }: { kind: IconKind }) {
+  const d: Record<IconKind, string> = {
+    calendar: "M7 3v3M17 3v3M4 9h16M5 5h14a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1z",
+    camera: "M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1zM12 16.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z",
+    lens: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z",
+    aperture: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 3l3 7M21 12l-7 3M12 21l-3-7M3 12l7-3",
+    size: "M4 4h6M4 4v6M20 20h-6M20 20v-6M4 4l6 6M20 20l-6-6",
+    folder: "M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z",
+  };
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="shrink-0 text-[var(--text-muted)]">
+      <path d={d[kind]} />
+    </svg>
   );
 }
 

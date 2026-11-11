@@ -177,7 +177,8 @@ export function SearchPage({ q }: { q: string }) {
           </li>
         ))}
       </ul>
-      <div className="flex flex-wrap gap-6">
+      {/* one row that scrolls sideways: two wrapped rows of chips made the header busy (audit round 26) */}
+      <div className="facet-row">
         <Facet
           label={t("search.tags")}
           values={first?.facets.tags}
@@ -286,10 +287,10 @@ export function Facet({ label, values, names, onPick }: { label: string; values?
     .sort((a, b) => b[1] - a[1] || b[0].localeCompare(a[0]))
     .slice(0, 12);
   return (
-    <div role="group" aria-label={label} className="flex flex-wrap items-center gap-1 text-sm">
+    <div role="group" aria-label={label} className="flex shrink-0 items-center gap-1 text-sm">
       <span className="text-[var(--text-muted)]">{label}</span>
       {top.map(([v, n]) => (
-        <button key={v} type="button" data-value={v} onClick={() => onPick(v)} className="rounded-full border border-[var(--border)] px-2">
+        <button key={v} type="button" data-value={v} onClick={() => onPick(v)} className="facet-chip">
           {names?.[v] ?? v} <span className="tnum text-[var(--text-muted)]">{n}</span>
         </button>
       ))}
