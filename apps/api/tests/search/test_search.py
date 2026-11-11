@@ -1079,3 +1079,82 @@ def test_srch_plan_026_a_day_without_a_year_is_found_in_every_year(s):
     s.index()
     res = s.search(q="11月10日的貓", plan=True, semantic=False)
     assert {x["asset_id"] for x in res["items"]} == {a, b}
+
+
+def _near(s, cosines, captions=None):
+    """Photos at these cosines to the query [1, 0] in a fake image space."""
+    import math
+
+    ids = [s.add(i, caption=(captions or {}).get(i, f"圖{i}")) for i in range(len(cosines))]
+    s.index()
+    sid = s.sql(
+        "insert into embedding_space(model_key, fingerprint, dim, modality, status)"
+        " values ('fake-img', 'fake-img@x', 2, 'image', 'active') returning id"
+    ).scalar()
+    for aid, cos in zip(ids, cosines, strict=True):
+        s.sql(
+            "insert into asset_embedding(asset_id, space_id, vec) values (:a, :s, CAST(:v AS vector))",
+            a=aid,
+            s=sid,
+            v=f"[{cos},{math.sqrt(1 - cos * cos)}]",
+        )
+    return ids
+
+
+def _gate(monkeypatch, alone):
+    import opagent_api.search as S
+
+    monkeypatch.setattr(
+        S, "query_vector", lambda st, t, space, modality="image": [1.0, 0.0] if modality == "image" else None
+    )
+    monkeypatch.setattr(S, "vector_floor", lambda _st, _sp: 0.07)
+    monkeypatch.setattr(S, "vector_alone", lambda _st, _sp: alone)
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-SEM-012")
+def test_srch_sem_012_a_weak_image_only_answer_is_no_answer(s, monkeypatch):
+    """回歸 (audit round 51): 「夜景」 said 「20 張」, all abstract collages at 0.077 just over the 0.07 floor: no word,
+    tag or caption meaning matched anything, and the image model's best was weak. Alone, the image route needs its
+    best over `min_cosine_alone` (ADR-0042); then the floor judges the rest as before."""
+    _near(s, [0.077, 0.077, 0.077, 0.075, 0.075, 0.069])
+    _gate(monkeypatch, 0.082)
+    res = s.search(q="night", facets=["tags"])
+    assert res["total"] == 0 and res["items"] == [] and res.get("image_only_weak") is True
+    assert not res.get("facets", {}).get("tags")
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-SEM-013")
+def test_srch_sem_013_a_strong_best_keeps_the_floor_for_the_rest(s, monkeypatch):
+    """The bar gates the best score only: 0.087 clears it, and 0.070 (at the floor) stays; 0.065 never counted."""
+    ids = _near(s, [0.087, 0.070, 0.065])
+    _gate(monkeypatch, 0.082)
+    res = s.search(q="night")
+    assert res["total"] == 2 and {x["asset_id"] for x in res["items"]} == set(ids[:2])
+    assert not res.get("image_only_weak")
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-SEM-014")
+def test_srch_sem_014_no_gate_when_words_match_or_the_catalog_has_none(s, monkeypatch):
+    """A word match means the answer does not rest on the image model alone; a model without the key keeps today's
+    behaviour."""
+    _near(s, [0.077, 0.077, 0.05], captions={2: "city at night"})
+    _gate(monkeypatch, 0.082)
+    assert s.search(q="night")["total"] == 3
+    _gate(monkeypatch, None)
+    assert s.search(q="nights")["total"] >= 2
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-SEM-014")
+def test_srch_sem_014_the_bar_is_per_model_in_the_catalog():
+    from types import SimpleNamespace
+
+    from opagent_api.search import vector_alone
+    from opagent_registry.loader import load_registry
+
+    st = SimpleNamespace(registry=load_registry)
+    assert vector_alone(st, SimpleNamespace(fingerprint="siglip2-so400m-384@abc")) == 0.082
+    assert vector_alone(st, SimpleNamespace(fingerprint="qwen3-embedding-0.6b@abc")) is None

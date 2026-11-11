@@ -181,3 +181,21 @@ describe("a slideshow and the shortcut list (audit round 50)", () => {
   });
 });
 
+
+describe("Tab stays in the Lightbox (audit round 51)", () => {
+  it("[A11Y-012] 回歸：剛開啟就按 Shift+Tab 或 Tab，焦點仍在燈箱裡（驗證第 51 輪：跑到後面的頁面，Esc 與方向鍵都失效）", async () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Lightbox start={0} grid={grid} onClose={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    const lb = screen.getByTestId("lightbox");
+    await screen.findByRole("button", { name: "加入收藏" });
+    lb.focus();
+    fireEvent.keyDown(lb, { key: "Tab", shiftKey: true });
+    expect(lb.contains(document.activeElement) && document.activeElement !== lb).toBe(true);
+    lb.focus();
+    fireEvent.keyDown(lb, { key: "Tab" });
+    expect(lb.contains(document.activeElement) && document.activeElement !== lb).toBe(true);
+  });
+});

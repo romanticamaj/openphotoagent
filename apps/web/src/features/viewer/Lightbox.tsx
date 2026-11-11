@@ -298,14 +298,19 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
 
 function trapFocus(e: React.KeyboardEvent, root: HTMLElement | null) {
   if (!root) return;
-  const f = [...root.querySelectorAll<HTMLElement>("button, select, input, [tabindex='0']")].filter((x) => !x.hasAttribute("disabled"));
+  const f = [...root.querySelectorAll<HTMLElement>("button, select, input, textarea, a[href], [tabindex='0']")].filter((x) => !x.hasAttribute("disabled"));
   if (!f.length) return;
   const first = f[0];
   const last = f[f.length - 1];
-  if (e.shiftKey && document.activeElement === first) {
+  const at = document.activeElement as HTMLElement | null;
+  if (!at || at === root || !root.contains(at)) {
+    // on the dialog itself (as it opens) or outside it: Shift+Tab went to the page behind (A11Y-012)
+    e.preventDefault();
+    (e.shiftKey ? last : first).focus();
+  } else if (e.shiftKey && at === first) {
     e.preventDefault();
     last.focus();
-  } else if (!e.shiftKey && document.activeElement === last) {
+  } else if (!e.shiftKey && at === last) {
     e.preventDefault();
     first.focus();
   }

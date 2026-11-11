@@ -263,6 +263,8 @@ SELECT * FROM fused ORDER BY score DESC LIMIT :limit OFFSET :offset;
 
 > **（ADR-0027 補充）** 向量路徑有每個 embedding 空間的 cosine 下限（模型目錄的 `embedding.min_cosine`）。低於下限的照片不屬於結果集合，只放在回應的 `related`（最多 24 張，不計數、不進 facet 與 selection）；向量路徑達到 K 時 `total_capped` 為 true。
 
+> **（ADR-0042 補充）** 只有影像路徑命中（全文、標籤、說明向量都沒有命中）時，影像路徑的最高分要達到 `embedding.min_cosine_alone`，否則視為沒有結果（`image_only_weak: true`、`total: 0`）。最高分過了這道門檻，其餘照片仍以 `min_cosine` 判斷。目錄沒有這個值的模型不受影響。
+
 ### 2.3 Query planner（自然語言 → 結構化）
 
 輸出（同時是 REST `/search` 的請求格式，也是 MCP `search_photos` 的參數）：

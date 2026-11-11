@@ -154,6 +154,14 @@ def vector_floor(st: AppState, space: Any) -> float | None:
     return float(floor) if floor is not None else None
 
 
+def vector_alone(st: AppState, space: Any) -> float | None:
+    """The bar the image route's best must clear when it answers alone, with no word, tag or caption meaning matched
+    (ADR-0042). From the catalog, per model, at query time (invariant 7); None keeps the floor alone."""
+    m = st.registry().models.get(str(space.fingerprint).split("@")[0])
+    bar = ((m.spec.embedding or {}) if m else {}).get("min_cosine_alone")
+    return float(bar) if bar is not None else None
+
+
 def caption_floor(st: AppState, space: Any) -> float | None:
     """The caption route's floor, from its text model in the catalog (SRCH-R2-005). None keeps today's behaviour, as
     for an image space without one (ADR-0027)."""
@@ -480,6 +488,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
     soft_out: list[dict[str, Any]] = []
     image_cos: dict[str, float] = {}
     meaning_only = False  # answered by the phrase's caption meaning alone (SRCH-CNC-016)
+    image_only_weak = False  # only the image model answered, and weakly: there is no answer (ADR-0042)
     shown_first: set[str] = set()  # the photos an expression put first: never weak (SRCH-SEM-010)
     weak: list[str] = []
     member: list[Any] = []  # ADR-0005: the match set (total, facets, selection) — not just the ranking window
@@ -549,6 +558,17 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                     r[0] for r in c.execute(cq, {"qv": str(cvec)}) if cfloor is None or r[1] >= cfloor
                 ]
                 capped = capped or len(routes["caption_vector"]) == PER_ROUTE  # a floor too (SRCH-R2-009)
+            alone = vector_alone(st, space) if space is not None else None
+            if (
+                alone is not None
+                and routes.get("image_vector")
+                and not any(routes.get(k) for k in ("fulltext", "tag", "caption_vector"))
+                and max(image_cos[a] for a in routes["image_vector"]) < alone
+            ):
+                # 「夜景」: abstract collages at 0.077, just over the floor, and nothing else matched (SRCH-SEM-012)
+                routes["image_vector"] = []
+                image_only_weak = True
+                capped = False  # nothing else matched: the caption route is empty here
             concepts = tokenizer().concepts(q)
             # an expression ranks, never filters, beside other concepts (ADR-0032 addendum, SRCH-CNC-007)
             soft = [cpt for cpt in concepts if cpt.key in SOFT_KEYS] if len(concepts) > 1 else []
@@ -726,6 +746,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
         "relaxed": relaxed,  # words no photo shows, left out so the rest still answers (ADR-0032)
         "soft": soft_out,
         "meaning_only": meaning_only,
+        "image_only_weak": image_only_weak,
         "weak": len(weak),  # weak look-alikes, last (ADR-0040)
         "weak_from": total - len(weak)
         if weak

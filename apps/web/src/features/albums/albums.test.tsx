@@ -221,5 +221,23 @@ describe("keys in the Lightbox (audit round 34)", () => {
     fireEvent.click(await screen.findByRole("button", { name: "復原" }));
     await waitFor(() => expect(s.removeManyFromAlbum).toHaveBeenCalledWith("b1", ["p2", "p3"]));
   });
+
+  it("[COL-019] 回歸：加入相簿的選單打開就能用方向鍵，靠左時往右開（驗證第 51 輪：被側欄切掉、↓ 沒反應）", async () => {
+    s.albums.mockResolvedValue({ albums: [{ id: "b1", kind: "album", name: "墾丁", count: 3, cover: null }, { id: "b2", kind: "album", name: "生日", count: 1, cover: null }] });
+    wrap(<AddToAlbum assetIds={["a1"]} />);
+    fireEvent.click(screen.getByRole("button", { name: "加入相簿" }));
+    const first = await screen.findByRole("menuitem", { name: /墾丁/ });
+    await waitFor(() => expect(document.activeElement).toBe(first));
+    const menu = screen.getByRole("menu");
+    fireEvent.keyDown(menu, { key: "ArrowDown" });
+    expect(document.activeElement).toBe(screen.getByRole("menuitem", { name: /生日/ }));
+    fireEvent.keyDown(menu, { key: "ArrowDown" });
+    expect(document.activeElement).toBe(screen.getByLabelText("新相簿名稱"));
+    fireEvent.keyDown(menu, { key: "ArrowDown" });
+    expect(document.activeElement).toBe(first); // round again
+    fireEvent.keyDown(menu, { key: "ArrowUp" });
+    expect(document.activeElement).toBe(screen.getByLabelText("新相簿名稱"));
+    expect(menu.classList.contains("album-menu-start")).toBe(true); // the button is at the left edge here
+  });
 });
 

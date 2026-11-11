@@ -15,9 +15,14 @@ export function PhotosPage() {
   const [back, setBack] = useState<string | null>(null);
   const [sel, setSel] = useState<Selection>(NONE);
   const choosing = sel.ids.size > 0;
+  // back to the photo you were on: the bar's buttons go away with the selection and focus fell to the page (VIEW-041)
+  const clear = () => {
+    setSel(NONE);
+    requestAnimationFrame(() => document.querySelector<HTMLElement>('[data-testid="photo-grid"] .tile[tabindex="0"]')?.focus());
+  };
   useEffect(() => {
     if (!choosing || open) return;
-    const esc = (e: KeyboardEvent) => e.key === "Escape" && setSel(NONE);
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && clear();
     window.addEventListener("keydown", esc);
     return () => window.removeEventListener("keydown", esc);
   }, [choosing, open]);
@@ -28,7 +33,7 @@ export function PhotosPage() {
         <FaceOptInCard />
       </Suspense>
       <OnThisDay onOpen={(ids, start) => setOpen({ ord: start, grid: memoryGrid(ids) })} />
-      {choosing ? <TimelineBatch ids={sel.ids} onClear={() => setSel(NONE)} /> : null}
+      {choosing ? <TimelineBatch ids={sel.ids} onClear={clear} /> : null}
       <div className="min-h-0 flex-1">
       <PhotoGrid
         focusAsset={back}

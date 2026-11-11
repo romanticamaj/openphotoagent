@@ -89,3 +89,19 @@ test("[VIEW-038] 時間軸多選：Ctrl 點選、Shift 範圍、選取時點一�
   await expect(page.getByTestId("lightbox")).toBeVisible(); // nothing chosen: a click opens again
 });
 
+
+test("[VIEW-041] 回歸：取消選取後焦點回到照片（驗證第 51 輪：Esc 後焦點掉到頁面）", async ({ page }) => {
+  await page.goto("/");
+  const tiles = page.getByRole("grid", { name: "照片網格" }).getByRole("gridcell");
+  await tiles.nth(1).click({ modifiers: ["ControlOrMeta"] });
+  const bar = page.getByTestId("timeline-batch");
+  await bar.getByRole("button", { name: "取消選取" }).focus();
+  await page.keyboard.press("Escape");
+  await expect(bar).toHaveCount(0);
+  await expect(tiles.nth(1)).toBeFocused();
+  await tiles.nth(2).click({ modifiers: ["ControlOrMeta"] });
+  await page.getByTestId("timeline-batch").getByRole("button", { name: "取消選取" }).click();
+  await expect(tiles.nth(2)).toBeFocused();
+  await page.keyboard.press("ArrowLeft"); // the grid's keys work from there
+  await expect(tiles.nth(1)).toBeFocused();
+});

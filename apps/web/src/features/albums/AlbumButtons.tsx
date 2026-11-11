@@ -1,6 +1,6 @@
 // ★ and 「加入相簿」 in the Lightbox (ADR-0041): database sets, never files; the photo does not change.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "../../lib/api";
 
@@ -111,7 +111,21 @@ export function AddToAlbum({ assetIds, put }: { assetIds?: string[]; put?: Put }
   const [name, setName] = useState("");
   const [done, setDone] = useState<Done | null>(null);
   const opener = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const list = useQuery({ queryKey: ["albums"], queryFn: api.albums, enabled: open });
+  const focused = useRef(false);
+  // near the left edge (the batch bar) it opens to the right: opening leftwards it went under the sidebar (COL-019)
+  const [start, setStart] = useState(false);
+  useEffect(() => {
+    if (!open) {
+      focused.current = false;
+      return;
+    }
+    if (focused.current || !list.isSuccess) return;
+    focused.current = true; // into the menu once it has its albums, so ↓ works at once
+    requestAnimationFrame(() => menuRef.current?.querySelector<HTMLElement>('[role="menuitem"], input')?.focus());
+  }, [open, list.isSuccess]);
+  const items = () => [...(menuRef.current?.querySelectorAll<HTMLElement>('[role="menuitem"], input') ?? [])];
   const add = useMutation({
     mutationFn: async (a: { id?: string; name: string }) => {
       const id = a.id ?? (await api.createAlbum(a.name)).id;
@@ -139,13 +153,30 @@ export function AddToAlbum({ assetIds, put }: { assetIds?: string[]; put?: Put }
         opener.current?.focus();
       }}
     >
-      <button ref={opener} type="button" aria-haspopup="menu" aria-expanded={open} aria-label={t("albums.addTo")} title={t("albums.addTo")} onClick={() => setOpen((o) => !o)} className="icon-button">
+      <button ref={opener} type="button" aria-haspopup="menu" aria-expanded={open} aria-label={t("albums.addTo")} title={t("albums.addTo")} onClick={() => {
+          setStart((opener.current?.getBoundingClientRect().left ?? 0) < 260);
+          setOpen((o) => !o);
+        }} className="icon-button">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
           <path d="M4 7h11M4 12h11M4 17h7M18 14v6M15 17h6" />
         </svg>
       </button>
       {open ? (
-        <div className="album-menu" role="menu" aria-label={t("albums.addTo")}>
+        <div
+          ref={menuRef}
+          className={start ? "album-menu album-menu-start" : "album-menu"}
+          role="menu"
+          aria-label={t("albums.addTo")}
+          onKeyDown={(e) => {
+            if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+            const all = items();
+            if (!all.length) return;
+            e.preventDefault();
+            e.stopPropagation(); // the Lightbox's and the grid's arrows stay out of it
+            const i = all.indexOf(document.activeElement as HTMLElement);
+            all[(i + (e.key === "ArrowDown" ? 1 : -1) + all.length) % all.length].focus();
+          }}
+        >
           {(list.data?.albums ?? [])
             .filter((a) => a.kind === "album")
             .map((a) => (
