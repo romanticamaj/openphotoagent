@@ -97,3 +97,27 @@ def test_org_019_only_a_plan_waiting_for_approval_can_be_discarded(embedded_pg):
     r = client.post(f"/api/v1/output-plans/{pid}/discard")
     assert r.status_code == 409 and r.json()["code"] == "PLAN_NOT_DRAFT"
     assert client.post("/api/v1/output-plans/nope/discard").status_code == 404
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ACT-016")
+def test_act_016_activity_says_where_the_plan_stands(embedded_pg):
+    """回歸 (audit round 58): a 依日期 preview is an organize job waiting for approval, and Activity said 「整理 完成」:
+    the job's state and outcome go with its row, so the page can say 「計畫待核准」 or 「已捨棄」 instead."""
+    from opagent_api.operations import ensure_operation
+    from opagent_testing.clock import FakeClock
+
+    client = TestClient(create_app(dsn=embedded_pg.dsn))
+    pid = _plan_with_moves(embedded_pg.dsn, 1)
+    eng = engine_for(embedded_pg.dsn)
+    with eng.begin() as c:
+        ensure_operation(c, FakeClock(), "j1", "job.label", {"kind": "job", "id": "j1", "job_kind": "organize"})
+    eng.dispose()
+
+    def row():
+        ops = client.get("/api/v1/operations", params={"status": "all"}).json()
+        return next(o for o in ops if o["id"] == "j1")["subject"]
+
+    assert row().get("job_status") == "awaiting_approval" and not row().get("outcome")
+    client.post(f"/api/v1/output-plans/{pid}/discard")
+    assert row().get("job_status") == "completed" and row().get("outcome") == "discarded"

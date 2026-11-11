@@ -19,7 +19,11 @@ export type Op = {
 
 /** The name to show: every job is a "job.label" operation, but analysing a folder is not organizing it (OP-020). */
 export function opTypeKey(op: Pick<Op, "type"> & { subject?: unknown }): string {
-  const kind = (op.subject as { job_kind?: string } | undefined)?.job_kind;
+  const sub = op.subject as { job_kind?: string; job_status?: string; outcome?: string } | undefined;
+  const kind = sub?.job_kind;
+  // an organize plan says where it stands (ACT-017): a 依日期 preview waits for approval; 「整理 完成」 read as done
+  if (op.type === "job.label" && kind !== "label" && sub?.outcome === "discarded") return "job.discarded";
+  if (op.type === "job.label" && kind !== "label" && sub?.job_status === "awaiting_approval") return "job.planWaiting";
   if (op.type === "job.label" && kind === "label") return "job.analyze";
   // a preview plans and changes nothing: 「整理 完成」 read as if files had been organized (ACT-015)
   if (op.type === "job.label" && kind === "preview") return "job.preview";

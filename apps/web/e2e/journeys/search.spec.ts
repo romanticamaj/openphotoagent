@@ -156,3 +156,16 @@ test("[SRCH-UI-026] 回歸：批次 ★ 復原後焦點回到 ★，在頁面任
   await page.keyboard.press("Escape");
   await expect(bar).toHaveCount(0);
 });
+
+test("[SRCH-UI-027] 回歸：「複製到資料夾」說原檔不動、打開時焦點在對話框裡、Esc 回到按鈕（驗證第 58 輪）", async ({ page }) => {
+  await page.goto("/search?q=photo");
+  await page.getByTestId("search-result").nth(0).click({ modifiers: ["ControlOrMeta"] });
+  const trigger = page.getByTestId("batch-bar").getByRole("button", { name: "複製到資料夾…" });
+  await trigger.click();
+  const dlg = page.getByRole("dialog", { name: "複製到資料夾" });
+  await expect(dlg).toContainText("原檔不動");
+  await expect.poll(() => dlg.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+  await page.keyboard.press("Escape");
+  await expect(dlg).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+});

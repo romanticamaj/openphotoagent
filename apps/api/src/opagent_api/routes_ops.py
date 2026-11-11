@@ -36,7 +36,28 @@ def list_operations(
         q = q.where(operation.c.status == "failed")
     with _st(req).engine.begin() as c:
         rows = c.execute(q.order_by(operation.c.created_at.desc(), operation.c.id).limit(limit)).all()
-    return [op_dict(r) for r in rows]
+        out = [op_dict(r) for r in rows]
+        _with_job_state(c, out)
+    return out
+
+
+def _with_job_state(c: Any, ops: list[dict[str, Any]]) -> None:
+    """A job's row carries where the job is and how it ended (ACT-016): a 依日期 preview is an organize job waiting
+    for approval, and its row said 「整理 完成」. The page names it from `job_status` and `outcome`."""
+    from opagent_db.schema import job
+
+    ids = [o["subject"]["id"] for o in ops if (o.get("subject") or {}).get("kind") == "job" and o["subject"].get("id")]
+    if not ids:
+        return
+    state = {
+        r.id: (r.status, (r.params or {}).get("outcome"))
+        for r in c.execute(select(job.c.id, job.c.status, job.c.params).where(job.c.id.in_(ids)))
+    }
+    for o in ops:
+        sub = o.get("subject") or {}
+        if sub.get("kind") == "job" and sub.get("id") in state:
+            status, outcome = state[sub["id"]]
+            o["subject"] = {**sub, "job_status": status, **({"outcome": outcome} if outcome else {})}
 
 
 @router.get("/operations/{op_id}")

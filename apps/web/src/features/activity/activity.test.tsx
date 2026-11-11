@@ -77,3 +77,15 @@ describe("what each activity is called (audit round 57)", () => {
     for (const k of ["output.plan", "dedup", "face.reembed", "preview.stage", "model.load"]) expect(zh.activity.type[k], k).toBeTruthy();
   });
 });
+
+describe("an organize job named by where its plan stands (audit round 58)", () => {
+  it("[ACT-017] 回歸：待核准的整理寫「整理計畫待核准」，捨棄的寫「已捨棄整理計畫」，不是「整理 完成」", async () => {
+    const { opTypeKey } = await import("./model");
+    const zh = (await import("@opa/i18n/locales/zh-TW.json")).default as { activity: { type: Record<string, string> } };
+    const waiting = opTypeKey({ type: "job.label", subject: { job_kind: "organize", job_status: "awaiting_approval" } });
+    const gone = opTypeKey({ type: "job.label", subject: { job_kind: "organize", job_status: "completed", outcome: "discarded" } });
+    expect(zh.activity.type[waiting]).toBe("整理計畫待核准");
+    expect(zh.activity.type[gone]).toBe("已捨棄整理計畫（未變更檔案）");
+    expect(opTypeKey({ type: "job.label", subject: { job_kind: "organize", job_status: "completed" } })).toBe("job.label"); // applied: 整理
+  });
+});

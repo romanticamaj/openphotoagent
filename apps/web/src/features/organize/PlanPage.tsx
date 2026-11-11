@@ -2,7 +2,7 @@
 // > 10,000 moves a typed string) → applying with cancel → outcome (renamed / identical skipped) → undo.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../../components/Button";
 import { api, type Plan, type PlanAction } from "../../lib/api";
@@ -36,6 +36,12 @@ export function PlanPage({ planId }: { planId: string }) {
     mutationFn: () => api.discardPlan(planId),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["plan", planId] }),
   });
+  // the button pressed goes away: focus to the way back (audit round 58: it fell to the page)
+  const backRef = useRef<HTMLAnchorElement>(null);
+  const discardedNow = Boolean(plan.data?.discarded);
+  useEffect(() => {
+    if (discardedNow && discard.isSuccess) backRef.current?.focus();
+  }, [discardedNow, discard.isSuccess]);
   const undo = useMutation({
     mutationFn: () => api.undo(planId),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["plan", planId] }),
@@ -49,12 +55,12 @@ export function PlanPage({ planId }: { planId: string }) {
     <section className="mx-auto max-w-3xl space-y-6 p-8">
       <h1 className="text-xl font-semibold">{t("organize.planTitle")}</h1>
       <p data-testid="plan-status" className="text-sm text-[var(--text-muted)]">
-        {t(`organize.planStatus.${status}`, { defaultValue: status })}
+        {p.discarded ? t("organize.planStatus.discarded") : t(`organize.planStatus.${status}`, { defaultValue: status })}
       </p>
       {status === "draft" && p.discarded ? (
         <div data-testid="plan-discarded" role="status" className="space-y-2">
           <p>{t("organize.discarded")}</p>
-          <Link to="/organize" className="underline">
+          <Link ref={backRef} to="/organize" className="underline">
             {t("organize.backToOrganize")}
           </Link>
         </div>

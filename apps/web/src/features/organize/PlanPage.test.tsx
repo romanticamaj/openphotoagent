@@ -10,7 +10,12 @@ beforeAll(async () => {
 const s = vi.hoisted(() => ({ discarded: false, discard: vi.fn(), approve: vi.fn() }));
 vi.mock("@tanstack/react-router", async (orig) => ({
   ...(await orig<typeof import("@tanstack/react-router")>()),
-  Link: ({ to, children }: { to: string; children: React.ReactNode }) => <a href={to}>{children}</a>,
+  // forwards its ref, as the router's Link does
+  Link: (await import("react")).forwardRef<HTMLAnchorElement, { to: string; children: React.ReactNode }>(({ to, children }, ref) => (
+    <a ref={ref} href={to}>
+      {children}
+    </a>
+  )),
   useNavigate: () => vi.fn(),
 }));
 vi.mock("../../lib/api", async (orig) => ({
@@ -51,6 +56,8 @@ describe("a plan you do not want (ADR-0045)", () => {
     expect((await screen.findByTestId("plan-discarded")).textContent).toContain("已捨棄計畫，原檔沒有任何變更");
     expect(screen.queryByRole("button", { name: "核准並開始" })).toBeNull();
     expect(screen.getByRole("link", { name: "回到整理" }).getAttribute("href")).toBe("/organize");
+    expect(screen.getByTestId("plan-status").textContent).toBe("已捨棄"); // not 「待核准」 (audit round 58)
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("link", { name: "回到整理" })));
     expect(s.approve).not.toHaveBeenCalled();
   });
 });

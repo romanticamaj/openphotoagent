@@ -69,7 +69,8 @@
       "cancelled": "已取消",
       "undoing": "復原中",
       "undone": "已復原",
-      "failed": "失敗"
+      "failed": "失敗",
+      "discarded": "已捨棄"
     },
     "summaryMove": "將移動 {count} 張到 {folders} 個資料夾。原檔會先複製驗證再移入 .opagent-trash/，可隨時復原",
     "cancel": "取消",
@@ -232,7 +233,9 @@
       "dedup": "找出重複照片",
       "face.reembed": "重新計算人臉",
       "preview.stage": "準備預覽",
-      "model.load": "載入模型"
+      "model.load": "載入模型",
+      "job.planWaiting": "整理計畫待核准",
+      "job.discarded": "已捨棄整理計畫（未變更檔案）"
     },
     "open": "活動",
     "resume": "繼續",
@@ -629,7 +632,8 @@
     "subPath": "子資料夾",
     "createPlan": "建立計畫",
     "updated": "已更新 {n} 張",
-    "cancel": "取消"
+    "cancel": "取消",
+    "copyNote": "會先建立計畫給你核准；照片複製一份到這裡，原檔不動。"
   },
   "compat": {
     "ok": "可用",

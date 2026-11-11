@@ -69,7 +69,8 @@
       "cancelled": "Cancelled",
       "undoing": "Undoing",
       "undone": "Undone",
-      "failed": "Failed"
+      "failed": "Failed",
+      "discarded": "Discarded"
     },
     "summaryMove": "Will move {count} photos into {folders} folders. Each original is copied and verified, then kept in .opagent-trash/; you can undo anytime",
     "cancel": "Cancel",
@@ -232,7 +233,9 @@
       "dedup": "Finding duplicates",
       "face.reembed": "Recomputing faces",
       "preview.stage": "Preparing the preview",
-      "model.load": "Loading a model"
+      "model.load": "Loading a model",
+      "job.planWaiting": "Organize plan waiting for approval",
+      "job.discarded": "Organize plan discarded (no files changed)"
     },
     "open": "Activity",
     "resume": "Resume",
@@ -629,7 +632,8 @@
     "subPath": "Subfolder",
     "createPlan": "Create plan",
     "updated": "{n} photos updated",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "copyNote": "You approve a plan first; the photos are copied here and the originals stay untouched."
   },
   "compat": {
     "ok": "Compatible",
