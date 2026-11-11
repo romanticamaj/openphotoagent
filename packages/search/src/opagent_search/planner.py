@@ -115,7 +115,8 @@ def _year(t: _Text, today: date, explain: list[str]) -> int | None:
         y = 1911 + int(m.group(1))
         explain.append(f"「{m.group(0).replace(' ', '')}」→ {y} 年")
         return y
-    m = t.take(r"(?<!\d)(1[89]\d\d|20\d\d|2100)\s*年?(?!\d)")
+    # 「2025年」 takes its 年 even before a month: 「2025年11月」 left 「年」 behind as a word (SRCH-PLAN-023)
+    m = t.take(r"(?<!\d)(1[89]\d\d|20\d\d|2100)(?:\s*年|(?!\d))")
     if m:
         return int(m.group(1))
     for word, delta in (("前年", 2), ("去年", 1), ("今年", 0)):
@@ -141,8 +142,29 @@ def _dates(t: _Text, today: date, tz: str, explain: list[str]) -> dict[str, str]
         first = date(today.year, today.month, 1)
         explain.append(f"「這個月」→ {first:%Y-%m}")
         return _range(first, _next_month(first.year, first.month))
+    # a whole date, 「2025年11月10日」 「2025/11/10」: that day (SRCH-PLAN-023)
+    m = t.take(r"(?<!\d)(1[89]\d\d|20\d\d)\s*[年/.-]\s*(1[0-2]|0?[1-9])\s*[月/.-]\s*(3[01]|[12]\d|0?[1-9])\s*[日號]?")
+    if m:
+        try:
+            d = date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        except ValueError:
+            d = None
+        if d is not None:
+            explain.append(f"「{m.group(0).strip()}」→ {_iso(d)}")
+            return _range(d, d + timedelta(days=1))
     n_explain = len(explain)
     year = _year(t, today, explain)
+    # 「去年今天」 「去年這個時候」: around today's date in that year (SRCH-PLAN-024)
+    for words, days in ((("今天", "今日", "這天"), 3), (("這個時候", "這時候", "此時", "同一時間"), 15)):
+        if year is not None and any(t.take_word(w) for w in words):
+            try:
+                mid = today.replace(year=year)
+            except ValueError:  # 29 February
+                mid = today.replace(year=year, day=28)
+            del explain[n_explain:]
+            lo, hi = mid - timedelta(days=days), mid + timedelta(days=days)
+            explain.append(f"「{year} 年的今天前後 {days} 天」→ {_iso(lo)} – {_iso(hi)}")
+            return _range(lo, hi + timedelta(days=1))
     for word in LUNAR_NEW_YEAR:
         if t.take_word(word):
             y = year
@@ -178,6 +200,18 @@ def _dates(t: _Text, today: date, tz: str, explain: list[str]) -> dict[str, str]
             del explain[n_explain:]
             explain.append(f"「{word}」→ {y}-12 – {y + 1}-02")
             return _range(date(y, 12, 1), date(y + 1, 3, 1))
+    # a month and a day, 「11月10日」: that day, this year unless one was named (SRCH-PLAN-023)
+    m = t.take(r"(?<!\d)(1[0-2]|0?[1-9])\s*月\s*(3[01]|[12]\d|0?[1-9])\s*[日號]")
+    if m:
+        y = year if year is not None else today.year
+        try:
+            d = date(y, int(m.group(1)), int(m.group(2)))
+        except ValueError:
+            d = None
+        if d is not None:
+            del explain[n_explain:]
+            explain.append(f"「{m.group(0).strip()}」→ {_iso(d)}")
+            return _range(d, d + timedelta(days=1))
     m = t.take(r"(?<!\d)(1[0-2]|0?[1-9])\s*月(?!份?\d)")
     if m:
         mo = int(m.group(1))

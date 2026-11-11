@@ -58,3 +58,17 @@ def test_mem_004_today_is_kept_near_today(m, monkeypatch):
     m.index()
     m.client.get("/api/v1/memories/on-this-day", headers=m.ui)
     assert 0 < len(asked) <= V.MEMORY_YEARS
+
+
+@pytest.mark.integration
+@pytest.mark.tc("MEM-005")
+def test_mem_005_today_is_the_local_day(embedded_pg, tmp_path):
+    """回歸 (audit round 45): at 00:20 on 11/12 in Taipei the card used 11/11, the UTC date, and 「今天先不看」 ran out at
+    08:00. Today is the local day."""
+    from opagent_testing.clock import FakeClock
+
+    x = M(embedded_pg.dsn, tmp_path, clock=FakeClock(datetime(2026, 11, 11, 16, 20, tzinfo=UTC)))
+    x.add("a.jpg", taken=datetime(2025, 11, 12, 9, tzinfo=UTC))
+    x.index()
+    assert x.client.get("/api/v1/memories/on-this-day", headers=x.ui).json()["today"] == "2026-11-12"
+    x.eng.dispose()

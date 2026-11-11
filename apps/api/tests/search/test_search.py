@@ -1055,3 +1055,15 @@ def test_srch_cnc_016_when_no_word_is_shown_the_meaning_answers(s, monkeypatch):
     res = s.search(q="喵喵很多嘟嘟")
     assert {x["asset_id"] for x in res["items"]} == set(near) and res["total"] == 2
     assert res.get("meaning_only") is True
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-IDX-010")
+def test_srch_idx_010_a_photo_dated_by_its_file_is_found_by_date(s):
+    """回歸 (audit round 45): 「11月」 found 0 while the timeline showed 80 photos in 2026-11: photos with no capture
+    date sit on the timeline by their file time (local_at), but the search index kept taken_at only."""
+    a = s.add(1, caption="海邊")
+    s.sql("update asset set taken_at = null, date_source = 'mtime', local_at = '2026-11-03 10:00' where id = :a", a=a)
+    s.index()
+    res = s.search(filters={"taken_from": "2026-11-01", "taken_to": "2026-12-01"}, semantic=False)
+    assert [x["asset_id"] for x in res["items"]] == [a]

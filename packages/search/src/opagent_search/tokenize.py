@@ -24,7 +24,7 @@ from typing import Any
 import yaml
 from opagent_core.vocabularies import VOCAB_DIR
 
-TOKENIZER_VERSION = "jieba-zh-hant@3+opencc-s2twp+bigram"  # @3: 衝浪 is a term (SRCH-TOK-014); @2 SRCH-TOK-011
+TOKENIZER_VERSION = "jieba-zh-hant@4+opencc-s2twp+bigram"  # @4: file-time dates indexed (SRCH-IDX-010); @3 SRCH-TOK-014
 VOCAB = VOCAB_DIR / "general-photo.yaml"  # package data in opagent_core (ADR-0023)
 _ZW = re.compile("[​‌‍⁠﻿­]")
 _CJK = re.compile(r"[぀-ヿ㐀-䶿一-鿿豈-﫿]+")

@@ -15,6 +15,8 @@ from opagent_db.schema import asset, event, index_outbox, job_item, result, revi
 from sqlalchemy import and_, func, insert, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
+LOCAL_TZ = "Asia/Taipei"  # the planner's zone for dates (05 §2.3)
+
 
 def emit(c: Any, kind: str, payload: dict[str, Any]) -> None:
     c.execute(insert(event).values(kind=kind, payload=payload))
@@ -166,6 +168,12 @@ def index_asset(c: Any, asset_id: str) -> None:
     doc = tok.document(caption=caption, tags=tags, category=cat, path=rel)
     en = " ".join(w for w in (caption or "").lower().split() if w.isascii())
     taken = a.taken_at
+    if taken is None and getattr(a, "local_at", None) is not None:
+        # no capture date: the file time the timeline places it by, so a date search finds what the timeline shows
+        # (SRCH-IDX-010: 「11月」 found 0 of the 80 photos the timeline had in 2026-11)
+        from zoneinfo import ZoneInfo
+
+        taken = a.local_at.replace(tzinfo=ZoneInfo(LOCAL_TZ))
     vals = {
         "workspace_id": a.workspace_id,
         "caption": caption,

@@ -231,9 +231,12 @@ def on_this_day(req: Request, today: str | None = None) -> dict[str, Any]:
     """那年今日 (10 §2.8, MEM-001): photos taken within ±3 days of today's date in each earlier year, newest year
     first, at most 30 years back; one photo per near-duplicate group. Read-only."""
     from datetime import timedelta
+    from zoneinfo import ZoneInfo
+
+    from .labels import LOCAL_TZ
 
     st = _st(req)
-    server = st.clock.now().date()
+    server = st.clock.now().astimezone(ZoneInfo(LOCAL_TZ)).date()  # the local day, not UTC's (MEM-005)
     try:
         now = date.fromisoformat(today) if today else server
     except ValueError:

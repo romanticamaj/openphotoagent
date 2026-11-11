@@ -168,3 +168,28 @@ def test_plan_019_stop_words_only_query_is_kept_as_typed(gz, q):
 def test_plan_020_a_question_is_not_the_search_text(gz, q, text):
     """回歸: 問 AI asked「我有幾張滑雪的照片？」and counted 0: the whole sentence went to full-text search."""
     assert P(q, gz)["text"] == text
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-PLAN-023")
+def test_plan_023_a_year_with_a_month_or_a_day_leaves_nothing_behind(gz):
+    """回歸 (audit round 45): 「2025年11月」 searched for 「年」 and found 0; 「2025年11月10日」 kept 年、11、月、10、日."""
+    p = P("2025年11月", gz)
+    assert p["text"] == "" and p["filters"]["taken_at"] == {"from": "2025-11-01", "to": "2025-12-01"}
+    for q in ("2025年11月10日", "2025/11/10", "2025-11-10", "2025年11月10號"):
+        p = P(q, gz)
+        assert p["text"] == "", q
+        assert p["filters"]["taken_at"] == {"from": "2025-11-10", "to": "2025-11-11"}, q
+    p = P("11月10日的貓", gz)
+    assert p["filters"]["taken_at"] == {"from": "2026-11-10", "to": "2026-11-11"} and "貓" in p["text"]
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-PLAN-024")
+def test_plan_024_this_day_in_an_earlier_year(gz):
+    """回歸 (audit round 45): 「去年今天」 and 「去年這個時候」 searched for 今天 / 這個時候 and found 0."""
+    p = P("去年今天", gz)
+    assert p["text"] == "" and p["filters"]["taken_at"] == {"from": "2025-10-29", "to": "2025-11-05"}
+    p = P("去年這個時候拍了哪些照片", gz)
+    assert p["filters"]["taken_at"] == {"from": "2025-10-17", "to": "2025-11-17"}
+    assert "這個時候" not in p["text"]
