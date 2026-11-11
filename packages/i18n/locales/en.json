@@ -548,7 +548,8 @@
     "softOnly": "Only “{word}” ({n})",
     "softChip": "Only “{word}”",
     "cappedNote": "Showing the {n} most relevant; the rest are less alike.",
-    "weakMore": "Show {n} less related"
+    "weakMore": "Show {n} less related",
+    "softImpliedDivider": "The {n} below don't clearly show “{word}”, but all show “{by}”"
   },
   "problem": {
     "chosen": "Switched to {what}"

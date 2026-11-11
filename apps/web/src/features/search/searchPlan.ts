@@ -62,7 +62,7 @@ export function onlyByMeaning(matched: string[]): boolean {
   return matched.includes("image_vector") && !matched.some((m) => m === "fulltext" || m === "tag" || m === "bigram");
 }
 
-export type Soft = { word: string; key: string; shown: number };
+export type Soft = { word: string; key: string; shown: number; implied_by?: string };
 
 /** An expression ranks the results without filtering them (ADR-0032 addendum, SRCH-CNC-010): the photos that show it
  * come first, a divider says where they end, and one button turns it into a filter. */
@@ -78,7 +78,9 @@ export function softView(
   if (!s.shown) return { at: null, divider: null, note: t("search.softNone", { word: s.word }), only: null, chip };
   return {
     at: s.shown,
-    divider: t("search.softDivider", { n: (total - s.shown).toLocaleString(), word: s.word }),
+    divider: s.implied_by // kept because the activity implies it (ADR-0032 addendum, SRCH-CNC-013)
+      ? t("search.softImpliedDivider", { n: (total - s.shown).toLocaleString(), word: s.word, by: s.implied_by })
+      : t("search.softDivider", { n: (total - s.shown).toLocaleString(), word: s.word }),
     note: null,
     only: t("search.softOnly", { word: s.word, n: s.shown.toLocaleString() }),
     chip,

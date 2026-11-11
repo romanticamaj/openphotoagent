@@ -135,3 +135,23 @@ def test_srch_tok_013_degree_words_are_not_concepts():
     words = [c.word for c in Tokenizer().concepts("小孩踢球很開心")]
     assert "很" not in words and "開心" in words
     assert [c.word for c in Tokenizer().concepts("非常漂亮的夕陽")] == ["漂亮", "夕陽"]
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-014")
+def test_srch_tok_014_an_activity_may_imply_a_scene():
+    """ADR-0032 addendum 2026-11-11 (implies): only activity/object → scene, no chains; 衝浪 is a term now."""
+    import yaml
+    from opagent_core.vocabularies import VOCAB_DIR
+
+    tok = Tokenizer()
+    assert tok.tag_key("衝浪") == "activity.surfing" and tok.tag_key("衝浪板") == "object.surfboard"
+    assert tok.implied("activity.surfing") == {"scene.sea", "scene.beach"}
+    assert tok.implied("object.surfboard") == set()  # a board on a car roof is not at the sea
+    terms = yaml.safe_load((VOCAB_DIR / "general-photo.yaml").read_text(encoding="utf-8"))["terms"]
+    ids = {t["id"] for t in terms}
+    for t in terms:
+        for b in t.get("implies", []):
+            assert t["id"].split(".")[0] in ("activity", "object"), t["id"]
+            assert b.startswith("scene.") and b in ids, (t["id"], b)
+            assert not next(x for x in terms if x["id"] == b).get("implies"), "no chains"

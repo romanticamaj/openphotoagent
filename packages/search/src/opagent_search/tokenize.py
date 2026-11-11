@@ -24,7 +24,7 @@ from typing import Any
 import yaml
 from opagent_core.vocabularies import VOCAB_DIR
 
-TOKENIZER_VERSION = "jieba-zh-hant@2+opencc-s2twp+bigram"  # @2: family-library vocabulary (SRCH-TOK-011)
+TOKENIZER_VERSION = "jieba-zh-hant@3+opencc-s2twp+bigram"  # @3: 衝浪 is a term (SRCH-TOK-014); @2 SRCH-TOK-011
 VOCAB = VOCAB_DIR / "general-photo.yaml"  # package data in opagent_core (ADR-0023)
 _ZW = re.compile("[​‌‍⁠﻿­]")
 _CJK = re.compile(r"[぀-ヿ㐀-䶿一-鿿豈-﫿]+")
@@ -114,6 +114,7 @@ class Tokenizer:
     _index: dict[str, str] = field(default_factory=dict)
     _names: dict[str, dict[str, str]] = field(default_factory=dict)
     _forms: dict[str, list[str]] = field(default_factory=dict)
+    _implies: dict[str, set[str]] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         import jieba
@@ -124,6 +125,7 @@ class Tokenizer:
         d = yaml.safe_load(self.vocab_path.read_text(encoding="utf-8")) if self.vocab_path.exists() else {"terms": []}
         for t in d.get("terms", []):
             self._names[t["id"]] = {"zh": t["zh"], "en": t["en"]}
+            self._implies[t["id"]] = set(t.get("implies") or [])
             for s in [t["zh"], t["en"], *t.get("synonyms", [])]:
                 self._index.setdefault(normalize(s), t["id"])
                 self.custom_words.append(s)
@@ -163,6 +165,10 @@ class Tokenizer:
         for run in _CJK.findall(normalize(text)):
             out.extend("§" + run[i : i + 2] for i in range(len(run) - 1))
         return out
+
+    def implied(self, key: str | None) -> set[str]:
+        """The scenes an activity implies (ADR-0032 addendum): 衝浪 happens at the sea or a beach."""
+        return set(self._implies.get(key or "", set()))
 
     def tag_key(self, word: str) -> str | None:
         return self._index.get(normalize(word))

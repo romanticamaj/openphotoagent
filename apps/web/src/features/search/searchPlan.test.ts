@@ -124,3 +124,12 @@ describe("showing the weak look-alikes (SRCH-SEM-009)", () => {
   });
 });
 
+describe("a scene the activity implies (SRCH-CNC-013)", () => {
+  const t = i18n.getFixedT("zh-TW");
+  it("[SRCH-CNC-013] 分隔線說明是因為「衝浪」而保留", () => {
+    const v = softView(t, [{ word: "海邊", key: "scene.beach", shown: 2, implied_by: "衝浪" }], 5, []);
+    expect(v?.divider).toBe("以下 3 張沒看出「海邊」，但都在「衝浪」");
+    expect(v?.only).toBe("只看海邊（2 張）");
+  });
+});
+

@@ -517,6 +517,13 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
             concepts = tokenizer().concepts(q)
             # an expression ranks, never filters, beside other concepts (ADR-0032 addendum, SRCH-CNC-007)
             soft = [cpt for cpt in concepts if cpt.key in SOFT_KEYS] if len(concepts) > 1 else []
+            # a scene another concept implies ranks too (ADR-0032 addendum): surfing shows the waves, not always sand
+            implied_by: dict[str, str] = {}
+            for cpt in concepts:
+                for other in concepts:
+                    if other is not cpt and other.key and cpt.key in tokenizer().implied(other.key):
+                        implied_by[cpt.word] = other.word
+            soft += [cpt for cpt in concepts if cpt.word in implied_by and cpt not in soft]
             if len(soft) == len(concepts):
                 soft = []
             concepts = [cpt for cpt in concepts if cpt not in soft]
@@ -581,7 +588,11 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                     tail_q = tail_q.where(false())
                 tail_q = tail_q.where(search_doc.c.asset_id.notin_(ranked or ["-"]))
                 n_tail = c.execute(select(func.count()).select_from(tail_q.subquery())).scalar_one()
-                soft_out = [{"word": cpt.word, "key": cpt.key, "shown": len(lit)} for cpt in soft]
+                soft_out = [
+                    {"word": cpt.word, "key": cpt.key, "shown": len(lit)}
+                    | ({"implied_by": implied_by[cpt.word]} if cpt.word in implied_by else {})
+                    for cpt in soft
+                ]
             if image_cos and not n_tail:
                 # found by the image model alone and far under the best: last, and folded away (ADR-0040)
                 best = max((image_cos[a] for a in routes.get("image_vector") or []), default=None)

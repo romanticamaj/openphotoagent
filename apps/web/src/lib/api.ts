@@ -175,7 +175,7 @@ export type SearchResult = {
   related?: { asset_id: string; ch: string | null; caption: string | null }[];
   relaxed?: string[];
   /** expressions that rank without filtering, and how many photos show them (SRCH-CNC-007) */
-  soft?: { word: string; key: string; shown: number }[];
+  soft?: { word: string; key: string; shown: number; implied_by?: string }[];
   /** weak look-alikes, last: how many and from where (ADR-0040) */
   weak?: number;
   weak_from?: number | null;

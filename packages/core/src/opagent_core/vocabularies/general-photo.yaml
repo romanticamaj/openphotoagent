@@ -92,6 +92,8 @@ terms:
   - { id: object.tree, zh: 樹, en: tree, group: 物件, synonyms: [樹木, trees] }
   - { id: object.building, zh: 建築, en: building, group: 物件, synonyms: [建築物, 大樓, 房子] }
   - { id: object.surfboard, zh: 衝浪板, en: surfboard, group: 物件, synonyms: [] }
+  # an activity may imply where it happens (ADR-0032 addendum, implies): asked together, the scene ranks, not filters
+  - { id: activity.surfing, zh: 衝浪, en: surfing, group: 活動, synonyms: [surf, 衝浪運動], implies: [scene.sea, scene.beach] }
   - { id: animal.fish, zh: 魚, en: fish, group: 物件, synonyms: [金魚, 魚類] }
   - { id: animal.elephant, zh: 大象, en: elephant, group: 物件, synonyms: [象] }
   - { id: animal.lion, zh: 獅子, en: lion, group: 物件, synonyms: [] }

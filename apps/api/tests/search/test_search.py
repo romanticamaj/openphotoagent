@@ -955,3 +955,34 @@ def test_srch_sem_007_weak_look_alikes_go_last_and_are_counted(s, monkeypatch):
     order = [x["asset_id"] for x in res["items"]]
     assert order[-1] == c and set(order[:3]) == {a, b, d}
     assert res.get("weak") == 1 and res.get("weak_from") == 3 and res["total"] == 4
+
+
+def _surf(s):
+    beach = [s.add(i, caption="在海邊衝浪", tags=("activity.surfing", "scene.beach")) for i in range(2)]
+    sea = [s.add(i + 10, caption="在浪上衝浪", tags=("activity.surfing", "scene.sea")) for i in range(2)]
+    plain = [s.add(20, caption="一個人衝浪", tags=("activity.surfing",))]
+    s.add(30, caption="海邊散步", tags=("scene.beach",))
+    s.add(31, caption="車頂上的衝浪板", tags=("object.surfboard",))
+    s.index()
+    return beach, sea, plain
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-CNC-013")
+def test_srch_cnc_013_a_scene_the_activity_implies_ranks(s):
+    """回歸 (audit rounds 32-35): 「有沒有在海邊衝浪的照片？」 found 2 where 衝浪 found 5: surfing in the waves shows no
+    sand. Surfing implies the sea or a beach; asked together, the beach ranks and does not filter."""
+    beach, sea, plain = _surf(s)
+    res = s.search(q="在海邊衝浪", semantic=False)
+    order = [x["asset_id"] for x in res["items"]]
+    assert res["total"] == 5 and set(order[:2]) == set(beach)
+    assert res["soft"] == [{"word": "海邊", "key": "scene.beach", "shown": 2, "implied_by": "衝浪"}]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-CNC-014")
+def test_srch_cnc_014_an_object_or_a_word_outside_the_vocabulary_implies_nothing(s):
+    _surf(s)
+    res = s.search(q="海邊衝浪板", semantic=False)  # a board is not a wave
+    assert res["total"] == 0 or all("scene.beach" in (x["tags"] or []) for x in res["items"])
+    assert all(x.get("implied_by") is None for x in res.get("soft") or [])
