@@ -648,6 +648,7 @@ def get_plan(plan_id: str, req: Request) -> dict[str, Any]:
         p = c.execute(select(output_plan).where(output_plan.c.id == plan_id)).first()
         if p is None:
             raise HTTPException(404, detail={"code": "NOT_FOUND"})
+        params = c.execute(select(job.c.params).where(job.c.id == p.job_id)).scalar() or {}
         acts = c.execute(
             select(output_action).where(output_action.c.plan_id == plan_id).order_by(output_action.c.seq)
         ).all()
@@ -656,6 +657,7 @@ def get_plan(plan_id: str, req: Request) -> dict[str, Any]:
         "job_id": p.job_id,
         "status": p.status,
         "summary": p.summary,
+        "discarded": params.get("outcome") == "discarded",  # 捨棄 (ORG-018): a draft that can no longer be approved
         "outcome": _outcome(acts) if p.status not in ("draft", "superseded") else None,
         "actions": [{k: v for k, v in a._mapping.items() if k != "plan_id"} for a in acts],
     }
@@ -693,12 +695,33 @@ class ApproveIn(BaseModel):
     confirm_text: str | None = None
 
 
+@router.post("/output-plans/{plan_id}/discard")
+def discard(plan_id: str, req: Request) -> dict[str, Any]:
+    """捨棄計畫 (ORG-018): a plan waiting for approval is closed without output, through the existing 「只標註不輸出」
+    edge (awaiting_approval -> completed, CORE-SM-005). Nothing on disk is touched and nothing needs undoing; the plan
+    stays a draft and the job says it was discarded. Again on a discarded plan: nothing more happens."""
+    st = _st(req)
+    with st.engine.begin() as c:
+        p, j = _plan_job(c, plan_id)
+        params = dict(j.params or {})
+        if params.get("outcome") == "discarded":
+            return {"id": plan_id, "discarded": True}
+        if j.status != "awaiting_approval" or p.status != "draft":
+            raise HTTPException(409, detail={"code": "PLAN_NOT_DRAFT", "status": p.status})
+        set_job_status(c, j.id, JobStatus.completed, clock=st.clock, finished_at=st.clock.now())
+        c.execute(update(job).where(job.c.id == j.id).values(params={**params, "outcome": "discarded"}))
+    return {"id": plan_id, "discarded": True}
+
+
 @router.post("/output-plans/{plan_id}/approve")
 def approve(plan_id: str, req: Request, body: ApproveIn | None = None) -> dict[str, Any]:
     st = _st(req)
     body = body or ApproveIn()
     with st.engine.begin() as c:
         p, j = _plan_job(c, plan_id)
+        if (j.params or {}).get("outcome") == "discarded" or j.status != "awaiting_approval":
+            # a discarded draft stays a draft (CORE-SM-005): the job's state, not the plan's, says it is closed
+            raise HTTPException(409, detail={"code": "PLAN_DISCARDED", "status": j.status})
         if p.status != "draft":
             raise HTTPException(409, detail={"code": "PLAN_NOT_DRAFT", "status": p.status})
         moves = c.execute(

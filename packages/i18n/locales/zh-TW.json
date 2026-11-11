@@ -106,8 +106,11 @@
     "stripTo": "→ 輸出：",
     "stripCopy": "（複製，原檔不動）",
     "fromPhotos": "從照片或相簿挑選",
-    "fromPhotosHint": "在搜尋或相簿裡選好照片，按「移到資料夾」。",
-    "outside": "圖庫以外的資料夾…"
+    "fromPhotosHint": "在搜尋或相簿裡選好照片，按「複製到資料夾…」。",
+    "outside": "圖庫以外的資料夾…",
+    "discard": "捨棄計畫",
+    "discarded": "已捨棄計畫，原檔沒有任何變更。",
+    "backToOrganize": "回到整理"
   },
   "eta": {
     "slow": {
@@ -223,7 +226,13 @@
       "search.reindex": "建立搜尋索引",
       "face.cluster": "分組人臉",
       "job.analyze": "AI 分析",
-      "map.download": "下載街道圖"
+      "map.download": "下載街道圖",
+      "job.preview": "預覽整理（未執行）",
+      "output.plan": "建立整理計畫",
+      "dedup": "找出重複照片",
+      "face.reembed": "重新計算人臉",
+      "preview.stage": "準備預覽",
+      "model.load": "載入模型"
     },
     "open": "活動",
     "resume": "繼續",
@@ -614,8 +623,8 @@
     "addTag": "加上標籤",
     "category": "類別",
     "applyCategory": "套用類別",
-    "moveToFolder": "移到資料夾…",
-    "moveTitle": "移到資料夾",
+    "moveToFolder": "複製到資料夾…",
+    "moveTitle": "複製到資料夾",
     "root": "輸出位置",
     "subPath": "子資料夾",
     "createPlan": "建立計畫",

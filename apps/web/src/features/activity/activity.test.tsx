@@ -67,3 +67,13 @@ describe("activity center", () => {
     expect(open).toBe(true);
   });
 });
+
+describe("what each activity is called (audit round 57)", () => {
+  it("[ACT-015] 回歸：預覽寫成「預覽整理（未執行）」，不是「整理 完成」；內部名稱都有中文名（output.plan、dedup…）", async () => {
+    const { opTypeKey } = await import("./model");
+    const zh = (await import("@opa/i18n/locales/zh-TW.json")).default as { activity: { type: Record<string, string> } };
+    expect(opTypeKey({ type: "job.label", subject: { job_kind: "preview" } })).toBe("job.preview");
+    expect(zh.activity.type["job.preview"]).toBe("預覽整理（未執行）");
+    for (const k of ["output.plan", "dedup", "face.reembed", "preview.stage", "model.load"]) expect(zh.activity.type[k], k).toBeTruthy();
+  });
+});

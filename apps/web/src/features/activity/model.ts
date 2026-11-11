@@ -20,7 +20,10 @@ export type Op = {
 /** The name to show: every job is a "job.label" operation, but analysing a folder is not organizing it (OP-020). */
 export function opTypeKey(op: Pick<Op, "type"> & { subject?: unknown }): string {
   const kind = (op.subject as { job_kind?: string } | undefined)?.job_kind;
-  return op.type === "job.label" && kind === "label" ? "job.analyze" : op.type;
+  if (op.type === "job.label" && kind === "label") return "job.analyze";
+  // a preview plans and changes nothing: 「整理 完成」 read as if files had been organized (ACT-015)
+  if (op.type === "job.label" && kind === "preview") return "job.preview";
+  return op.type;
 }
 
 export type Indicator = { state: "idle" | "running" | "paused" | "failed" | "interrupted"; icon: string; token: string; labelKey: string };

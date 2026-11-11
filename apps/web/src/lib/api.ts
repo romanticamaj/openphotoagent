@@ -246,6 +246,8 @@ export type Plan = {
   id: string;
   job_id: string;
   status: string;
+  /** 捨棄計畫 (ORG-018): a draft closed without output */
+  discarded?: boolean;
   summary: { copy: number; folders: number; total: number; move?: number; trash?: number };
   outcome: { done: number; renamed: number; same_skipped: number; skipped: number; failed: number } | null;
   actions?: PlanAction[];
@@ -395,6 +397,8 @@ export const api = {
   skipRest: (job: string) => req<unknown>("POST", `/jobs/${job}/reviews/skip-rest`),
   job: (id: string) => req<Job>("GET", `/jobs/${id}`),
   plan: (id: string) => req<Plan>("GET", `/output-plans/${id}`),
+  /** 捨棄計畫 (ORG-018): closed without output; files untouched */
+  discardPlan: (id: string) => req<{ id: string; discarded: boolean }>("POST", `/output-plans/${id}/discard`),
   approve: (id: string, body: { move_confirmed?: boolean; confirm_text?: string } = {}) => req<Plan>("POST", `/output-plans/${id}/approve`, body),
   undo: (id: string) => req<Plan>("POST", `/output-plans/${id}/undo`),
   duplicates: () => req<{ groups: DuplicateGroup[] }>("GET", "/duplicates"),

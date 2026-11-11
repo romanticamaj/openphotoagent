@@ -1292,3 +1292,18 @@ C 的 token 機率：95 張 ≥ 0.99，10 張 < 0.8，後者幾乎都是「人�
 **e2e 的程序變更**：從資料夾樹開始整理的旅程（organize ×3、organize-by-date、onboarding 斷網、models-activity ×2、a11y 只用鍵盤、docker all-in-one）各多一步：打開「圖庫以外的資料夾…」。只用鍵盤的兩個旅程以 Tab 到摘要、Enter 打開，因此也驗證了它可用鍵盤操作。沒有任何斷言改變：複製、計畫、核准、復原與原檔不變都照舊檢查。
 
 **之後**：匯入頁改為資料夾樹在前、「已在圖庫」列表在後；輸出位置可以選擇（第二階段）。
+
+## ADR-0045 不要的計畫可以捨棄（2026-11-12，ORG-018～020、ACT-015）
+
+- 日期：2026-11-12｜狀態：已採納（第一步）｜審議：1 個獨立 sub-agent（題目、02 §4.2、state_machine.py、CORE-SM-001／002／005、organize.py、routes_public.py、watch）
+
+**背景**：驗證第 57 輪，在整理按兩次「預覽」留下兩個永遠待核准的計畫；計畫頁只有「核准並開始」。活動也把它寫成「整理 完成」。原因：依日期的「預覽」其實是一個完整的 organize 工作，每按一次就產生一個計畫。
+
+**決定**：
+- 捨棄沿用既有的邊 `awaiting_approval → completed`（CORE-SM-005「只標註不輸出：計畫保持 draft 並標記捨棄」，watch 取代舊計畫也用它）。不新增狀態機的邊，19 條邊與 CORE-SM-001／002 不變。
+- `POST /output-plans/{id}/discard`：只在 `awaiting_approval` 時可用；工作變成 completed、`params.outcome = "discarded"`；計畫仍是 draft，`GET` 回 `discarded: true`；再按一次不再改變任何東西；其他狀態回 409 `PLAN_NOT_DRAFT`。檔案、journal 都不動，也不需要復原。
+- 核准多一道檢查：工作不在 `awaiting_approval`，或已捨棄 → 409 `PLAN_DISCARDED`。先前只看計畫狀態，而捨棄的計畫仍是 draft。
+- 計畫頁有「捨棄計畫」，捨棄後說「已捨棄計畫，原檔沒有任何變更。」並可回到整理。
+- 活動：預覽工作寫「預覽整理（未執行）」，內部名稱（output.plan、dedup…）都有中文名。
+
+**之後**：(C) 同一來源與輸出的新計畫自動取代舊的待核准計畫（同一條邊，`outcome = superseded`）；(B) 依日期的預覽改走 `/previews`，在步驟 ③ 顯示，只有「建立計畫」才寫入計畫。

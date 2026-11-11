@@ -31,6 +31,11 @@ export function PlanPage({ planId }: { planId: string }) {
     },
   });
   const cancel = useMutation({ mutationFn: () => api.cancelJob(p!.job_id) });
+  // 捨棄計畫 (ORG-020): a plan you do not want; nothing on disk changes (ADR-0045)
+  const discard = useMutation({
+    mutationFn: () => api.discardPlan(planId),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["plan", planId] }),
+  });
   const undo = useMutation({
     mutationFn: () => api.undo(planId),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["plan", planId] }),
@@ -46,7 +51,15 @@ export function PlanPage({ planId }: { planId: string }) {
       <p data-testid="plan-status" className="text-sm text-[var(--text-muted)]">
         {t(`organize.planStatus.${status}`, { defaultValue: status })}
       </p>
-      {status === "draft" && (
+      {status === "draft" && p.discarded ? (
+        <div data-testid="plan-discarded" role="status" className="space-y-2">
+          <p>{t("organize.discarded")}</p>
+          <Link to="/organize" className="underline">
+            {t("organize.backToOrganize")}
+          </Link>
+        </div>
+      ) : null}
+      {status === "draft" && !p.discarded && (
         <>
           <p data-testid="plan-summary" className="text-lg">
             {p.summary.trash
@@ -61,6 +74,9 @@ export function PlanPage({ planId }: { planId: string }) {
             onClick={() => (moves ? setConfirming(true) : approve.mutate({}))}
           >
             {t("organize.approve")}
+          </Button>
+          <Button variant="ghost" disabledReason={discard.isPending ? { code: "BUSY", message: t("common.working") } : null} onClick={() => discard.mutate()}>
+            {t("organize.discard")}
           </Button>
           {approve.error && <Blockers error={approve.error} />}
         </>

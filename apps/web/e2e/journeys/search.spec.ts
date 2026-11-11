@@ -111,8 +111,9 @@ test("[E2E-SEL-002] Shift 範圍選取 → 標籤、類別寫 review；「移到
     await expect.poll(async () => (await (await request.get(`/api/v1/assets/${id}`)).json()).human_label?.category).toBe("pets");
   }
   // move to folder → a draft plan, then the approval page
-  await bar.getByRole("button", { name: "移到資料夾…" }).click();
-  const dlg = page.getByRole("dialog", { name: "移到資料夾" });
+  // it copies by default, and says so (audit round 57: 「移到」 contradicted 整理's 「複製，原檔不動」)
+  await bar.getByRole("button", { name: "複製到資料夾…" }).click();
+  const dlg = page.getByRole("dialog", { name: "複製到資料夾" });
   await dlg.getByLabel("子資料夾").fill("精選");
   await dlg.getByRole("button", { name: "建立計畫" }).click();
   await expect(page).toHaveURL(/\/plans\//);

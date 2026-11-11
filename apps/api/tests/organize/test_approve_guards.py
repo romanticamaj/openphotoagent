@@ -56,3 +56,44 @@ def test_out_exe_019_large_move_needs_confirm_text(embedded_pg):
     assert r.json()["expected"] == "MOVE 10001"
     r = client.post(f"/api/v1/output-plans/{pid}/approve", json={"move_confirmed": True, "confirm_text": "MOVE 10001"})
     assert r.status_code == 200
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ORG-018")
+def test_org_018_a_plan_can_be_discarded_and_then_never_approved(embedded_pg):
+    """回歸 (audit round 57): two previews left two plans waiting forever; the plan page offered only 核准. A plan is
+    discarded through the existing 「只標註不輸出」 edge (CORE-SM-005): the job completes, the plan stays a draft marked
+    discarded, nothing on disk changes, and it can no longer be approved."""
+    from sqlalchemy import text
+
+    client = TestClient(create_app(dsn=embedded_pg.dsn))
+    pid = _plan_with_moves(embedded_pg.dsn, 1)
+    r = client.post(f"/api/v1/output-plans/{pid}/discard")
+    assert r.status_code == 200, r.text
+    got = client.get(f"/api/v1/output-plans/{pid}").json()
+    assert got.get("discarded") is True and got["status"] == "draft"
+    eng = engine_for(embedded_pg.dsn)
+    with eng.begin() as c:
+        assert c.execute(text("select status from job where id='j1'")).scalar() == "completed"
+        assert c.execute(text("select count(*) from worker_task")).scalar() == 0  # nothing to apply was queued
+    eng.dispose()
+    r = client.post(f"/api/v1/output-plans/{pid}/approve", json={"move_confirmed": True})
+    assert r.status_code == 409 and r.json()["code"] == "PLAN_DISCARDED"
+    assert client.post(f"/api/v1/output-plans/{pid}/discard").status_code == 200  # twice: nothing more happens
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ORG-019")
+def test_org_019_only_a_plan_waiting_for_approval_can_be_discarded(embedded_pg):
+    from sqlalchemy import text
+
+    client = TestClient(create_app(dsn=embedded_pg.dsn))
+    pid = _plan_with_moves(embedded_pg.dsn, 1)
+    eng = engine_for(embedded_pg.dsn)
+    with eng.begin() as c:
+        c.execute(text("update job set status='applying' where id='j1'"))
+        c.execute(text("update output_plan set status='applying' where id='p1'"))
+    eng.dispose()
+    r = client.post(f"/api/v1/output-plans/{pid}/discard")
+    assert r.status_code == 409 and r.json()["code"] == "PLAN_NOT_DRAFT"
+    assert client.post("/api/v1/output-plans/nope/discard").status_code == 404

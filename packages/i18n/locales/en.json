@@ -106,8 +106,11 @@
     "stripTo": "→ To:",
     "stripCopy": "(copied, originals untouched)",
     "fromPhotos": "Pick from photos or albums",
-    "fromPhotosHint": "Select photos in search or an album, then Move to folder.",
-    "outside": "A folder outside the library…"
+    "fromPhotosHint": "Select photos in search or an album, then Copy to folder.",
+    "outside": "A folder outside the library…",
+    "discard": "Discard plan",
+    "discarded": "Plan discarded. No files were changed.",
+    "backToOrganize": "Back to Organize"
   },
   "eta": {
     "slow": {
@@ -223,7 +226,13 @@
       "search.reindex": "Building search index",
       "face.cluster": "Grouping faces",
       "job.analyze": "AI analysis",
-      "map.download": "Download street map"
+      "map.download": "Download street map",
+      "job.preview": "Organize preview (not run)",
+      "output.plan": "Making the organize plan",
+      "dedup": "Finding duplicates",
+      "face.reembed": "Recomputing faces",
+      "preview.stage": "Preparing the preview",
+      "model.load": "Loading a model"
     },
     "open": "Activity",
     "resume": "Resume",
@@ -614,8 +623,8 @@
     "addTag": "Add tag",
     "category": "Category",
     "applyCategory": "Apply category",
-    "moveToFolder": "Move to folder…",
-    "moveTitle": "Move to folder",
+    "moveToFolder": "Copy to folder…",
+    "moveTitle": "Copy to folder",
     "root": "Destination",
     "subPath": "Subfolder",
     "createPlan": "Create plan",
