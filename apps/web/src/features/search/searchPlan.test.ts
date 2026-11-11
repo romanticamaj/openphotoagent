@@ -191,3 +191,11 @@ describe("search tiles say what they are (audit round 49)", () => {
   });
 });
 
+describe("a caption and its day read as one phrase (audit round 50)", () => {
+  const t = ((k: string, o?: Record<string, unknown>) => (k === "viewer.photoAlt" ? `照片，${o?.date}` : k)) as never;
+  it("[SRCH-UI-023] 回歸：說明結尾的句號不會變成「。，」", () => {
+    expect(tileLabel(t, { caption: "海邊的小孩。", taken_at: "2024-07-01T10:00:00Z" })).toBe("海邊的小孩，2024-07-01");
+    expect(tileLabel(t, { caption: "A child at the beach. ", taken_at: "2024-07-01T10:00:00Z" })).toBe("A child at the beach，2024-07-01");
+  });
+});
+

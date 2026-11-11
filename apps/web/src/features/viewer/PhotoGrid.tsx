@@ -69,10 +69,15 @@ export function PhotoGrid({
   density = "standard",
   onOpen,
   focusAsset,
+  selected,
+  onPick,
 }: {
   density?: keyof typeof DENSITY;
   onOpen: (pos: GridPos, api: GridApi) => void;
   focusAsset?: string | null;
+  /** photos chosen on the timeline (VIEW-038); with `onPick`, Ctrl/⌘-click, Shift-click and Space choose */
+  selected?: ReadonlySet<string>;
+  onPick?: (id: string, how: "toggle" | "range", order: string[]) => void;
 }) {
   const { t, i18n } = useTranslation();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -171,6 +176,10 @@ export function PhotoGrid({
     return exact ?? shown.current.get(`${list[i]?.month}@${innerWidth}@${target}`);
   };
   const assetsOf = (i: number) => bucketData[i]?.data?.assets;
+  /** the loaded photos in timeline order: what a Shift-click range spans */
+  const loadedOrder = () => list.flatMap((_, i) => (assetsOf(i) ?? []).map((a) => a.id));
+  const choosing = Boolean(onPick && selected && selected.size > 0);
+  const pick = (id: string | undefined, how: "toggle" | "range") => id && onPick?.(id, how, loadedOrder());
 
   const gridApi: GridApi = useMemo(
     () => ({
@@ -260,6 +269,7 @@ export function PhotoGrid({
       Home: () => (el.focus({ preventScroll: true }), el.scrollTo({ top: 0 })),
       End: () => (el.focus({ preventScroll: true }), el.scrollTo({ top: el.scrollHeight })),
       Enter: () => onOpen(focus, gridApi),
+      ...(onPick ? { " ": () => pick(assetsOf(focus.bucket)?.[focus.index]?.id, e.shiftKey ? "range" : "toggle") } : {}),
     };
     const f = keys[e.key];
     if (f) {
@@ -294,6 +304,7 @@ export function PhotoGrid({
         aria-label={t("viewer.grid")}
         aria-rowcount={rows}
         aria-readonly="true"
+        aria-multiselectable={onPick ? true : undefined}
         onKeyDown={onKeyDown}
         tabIndex={-1}
         data-testid="photo-grid"
@@ -352,14 +363,19 @@ export function PhotoGrid({
                             type="button"
                             key={a.id}
                             role="gridcell"
-                            className="tile"
+                            className={choosing ? "tile choosing" : "tile"}
+                            aria-selected={onPick ? Boolean(selected?.has(a.id)) : undefined}
                             data-asset={a.id}
                             tabIndex={isFocus ? 0 : -1}
                             aria-label={t("viewer.photoAlt", { date: a.taken_at?.slice(0, 10) ?? t("viewer.unknownDate") })}
                             style={{ left: x.x, width: x.w, height: r.height, backgroundImage: ph ? `url(${ph})` : undefined }}
                             onFocus={() => setFocus({ bucket: v.index, index: x.index })}
-                            onClick={() => {
+                            onClick={(e) => {
                               setFocus({ bucket: v.index, index: x.index });
+                              // Ctrl/⌘ toggles, Shift spans; while choosing, or on the check mark, a click chooses
+                              const onCheck = (e.target as HTMLElement).closest("[data-check]") !== null;
+                              if (onPick && e.shiftKey) return pick(a.id, "range");
+                              if (onPick && (e.ctrlKey || e.metaKey || choosing || onCheck)) return pick(a.id, "toggle");
                               onOpen({ bucket: v.index, index: x.index }, gridApi);
                             }}
                           >
@@ -374,6 +390,13 @@ export function PhotoGrid({
                                 onError={(e) => (e.currentTarget.style.visibility = "hidden")}
                               />
                             )}
+                            {onPick ? (
+                              <span data-check="" className="tile-check" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M5 12.5l4.5 4.5L19 7.5" />
+                                </svg>
+                              </span>
+                            ) : null}
                           </button>
                         );
                       })}

@@ -14,7 +14,7 @@ vi.mock("../../lib/api", async (orig) => ({
   api: { onThisDay: async () => ({ today: "2026-11-12", groups: s.groups }) },
 }));
 
-import { OnThisDay } from "./OnThisDay";
+import { memoryGrid, OnThisDay } from "./OnThisDay";
 
 const wrap = (onOpen = vi.fn()) =>
   render(
@@ -54,6 +54,18 @@ describe("那年今日 (10 §2.8)", () => {
     wrap(open);
     fireEvent.click(await screen.findByRole("button", { name: "看 2024 年的其他 3 張" }));
     expect(open).toHaveBeenCalledWith(expect.arrayContaining([{ id: "p8", rot: undefined }]), 8);
+  });
+
+  it("[MEM-008] 回歸：列外的照片在燈箱裡也看得到（驗證第 50 輪：第 9～24 張是破圖）", async () => {
+    window.localStorage.clear();
+    s.groups = [{ year: 2024, years_ago: 2, photos: Array.from({ length: 10 }, (_, i) => ({ asset_id: `p${i}`, ch: `h${i}`, taken_at: null, rot: 90 })) }];
+    const open = vi.fn();
+    wrap(open);
+    fireEvent.click(await screen.findByRole("button", { name: "看 2024 年的其他 2 張" }));
+    const [photos, start] = open.mock.calls[0] as [Array<{ id: string; ch?: string; rot?: number }>, number];
+    // the hash goes with each photo: without it the desktop app had no thumbnail path for photos the row never drew
+    const at = await memoryGrid(photos).at(start);
+    expect(at?.asset).toMatchObject({ id: "p8", ch: "h8", rot: 90 });
   });
 });
 

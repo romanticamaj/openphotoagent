@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { tileLabel } from "../search/searchPlan";
 import { api, mediaUrl } from "../../lib/api";
 import { turnStyle } from "../../lib/turn";
 import { Lightbox } from "../viewer/Lightbox";
@@ -158,7 +159,7 @@ export function AlbumPage({ albumId }: { albumId: string }) {
       <ul className="album-photos" aria-label={q.data?.name ?? ""}>
         {photos.map((p, i) => (
           <li key={p.asset_id} className="album-tile">
-            <button type="button" className="h-full w-full" onClick={() => setViewing(i)} aria-label={t("albums.open")}>
+            <button type="button" className="h-full w-full" onClick={() => setViewing(i)} aria-label={tileLabel(t, p)}>
               <img src={mediaUrl(p.asset_id, "t256", p.ch)} alt="" loading="lazy" className="h-full w-full object-cover" style={turnStyle(p.rot)} />
             </button>
             <button type="button" className="album-remove" aria-label={t("albums.remove")} title={t("albums.remove")} onClick={() => remove.mutate(p.asset_id)}>

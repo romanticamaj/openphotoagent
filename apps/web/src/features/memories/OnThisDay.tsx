@@ -5,6 +5,22 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, mediaUrl } from "../../lib/api";
 import { turnStyle } from "../../lib/turn";
+import type { GridApi } from "../viewer/PhotoGrid";
+
+export type MemoryPhoto = { id: string; ch?: string; rot?: number };
+
+/** A Lightbox over a year's photos (10 §2.8). Each keeps its hash: the desktop app finds a thumbnail by it, and the
+ * photos the row never drew had none (MEM-008: 「+16」 opened broken images). */
+export function memoryGrid(photos: MemoryPhoto[]): GridApi {
+  return {
+    total: photos.length,
+    ordinal: (p) => p.index,
+    at: async (i) =>
+      photos[i]
+        ? { asset: { id: photos[i].id, ch: photos[i].ch, w: null, h: null, thumbhash: null, taken_at: null, flags: [], rot: photos[i].rot }, pos: { bucket: 0, index: i } }
+        : null,
+  };
+}
 
 const KEY = "opa.memories.hidden";
 const SHOWN = 8; // photos per year in the row; the rest open in the Lightbox
@@ -17,7 +33,7 @@ function hiddenToday(day: string): boolean {
   }
 }
 
-export function OnThisDay({ onOpen }: { onOpen: (photos: Array<{ id: string; rot?: number }>, start: number) => void }) {
+export function OnThisDay({ onOpen }: { onOpen: (photos: MemoryPhoto[], start: number) => void }) {
   const { t, i18n } = useTranslation();
   const q = useQuery({ queryKey: ["on-this-day"], queryFn: () => api.onThisDay(), staleTime: 60 * 60 * 1000 });
   const [hidden, setHidden] = useState(false);
@@ -60,7 +76,7 @@ export function OnThisDay({ onOpen }: { onOpen: (photos: Array<{ id: string; rot
                     type="button"
                     className="on-this-day-tile"
                     aria-label={t("memories.open", { year: g.year, n: (i + 1).toLocaleString(i18n.language) })}
-                    onClick={() => onOpen(g.photos.map((x) => ({ id: x.asset_id, rot: x.rot })), i)}
+                    onClick={() => onOpen(g.photos.map((x) => ({ id: x.asset_id, ch: x.ch ?? undefined, rot: x.rot })), i)}
                   >
                     <img src={mediaUrl(p.asset_id, "t256", p.ch)} alt="" loading="lazy" style={turnStyle(p.rot)} />
                   </button>
@@ -73,7 +89,7 @@ export function OnThisDay({ onOpen }: { onOpen: (photos: Array<{ id: string; rot
                     type="button"
                     className="on-this-day-more tnum"
                     aria-label={t("memories.more", { n: (g.photos.length - SHOWN).toLocaleString(i18n.language), year: g.year })}
-                    onClick={() => onOpen(g.photos.map((x) => ({ id: x.asset_id, rot: x.rot })), SHOWN)}
+                    onClick={() => onOpen(g.photos.map((x) => ({ id: x.asset_id, ch: x.ch ?? undefined, rot: x.rot })), SHOWN)}
                   >
                     +{(g.photos.length - SHOWN).toLocaleString(i18n.language)}
                   </button>

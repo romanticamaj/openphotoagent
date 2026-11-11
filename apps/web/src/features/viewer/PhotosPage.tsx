@@ -1,36 +1,39 @@
-import { lazy, Suspense, useState } from "react";
-import { OnThisDay } from "../memories/OnThisDay";
+import { lazy, Suspense, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { api } from "../../lib/api";
+import { AddToAlbum, FavoriteSelection } from "../albums/AlbumButtons";
+import { memoryGrid, OnThisDay } from "../memories/OnThisDay";
 import { Lightbox } from "./Lightbox";
 import { PhotoGrid, type GridApi } from "./PhotoGrid";
+import { NONE, pick, type Selection } from "./selection";
 import { withTransition } from "./transition";
 
 const FaceOptInCard = lazy(() => import("../people/PeoplePage").then((m) => ({ default: m.FaceOptInCard })));
 
-/** A Lightbox over a list of photos, the 那年今日 row's (10 §2.8). */
-function idsGrid(photos: Array<{ id: string; rot?: number }>): GridApi {
-  return {
-    total: photos.length,
-    ordinal: (p) => p.index,
-    at: async (i) =>
-      photos[i]
-        ? { asset: { id: photos[i].id, w: null, h: null, thumbhash: null, taken_at: null, flags: [], rot: photos[i].rot }, pos: { bucket: 0, index: i } }
-        : null,
-  };
-}
-
 export function PhotosPage() {
   const [open, setOpen] = useState<{ ord: number; grid: GridApi } | null>(null);
   const [back, setBack] = useState<string | null>(null);
+  const [sel, setSel] = useState<Selection>(NONE);
+  const choosing = sel.ids.size > 0;
+  useEffect(() => {
+    if (!choosing || open) return;
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setSel(NONE);
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, [choosing, open]);
   return (
     <div className="flex h-full flex-col">
       {/* here, not above the page: a card outside the grid's box pushed its bottom past the window */}
       <Suspense fallback={null}>
         <FaceOptInCard />
       </Suspense>
-      <OnThisDay onOpen={(ids, start) => setOpen({ ord: start, grid: idsGrid(ids) })} />
+      <OnThisDay onOpen={(ids, start) => setOpen({ ord: start, grid: memoryGrid(ids) })} />
+      {choosing ? <TimelineBatch ids={sel.ids} onClear={() => setSel(NONE)} /> : null}
       <div className="min-h-0 flex-1">
       <PhotoGrid
         focusAsset={back}
+        selected={sel.ids}
+        onPick={(id, how, order) => setSel((s) => pick(s, id, how, order))}
         onOpen={(pos, grid) => withTransition(() => setOpen({ ord: grid.ordinal(pos), grid }), document.activeElement)}
       />
       </div>
@@ -44,6 +47,22 @@ export function PhotosPage() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+/** What chosen photos can do (VIEW-038): ★ and 加入相簿 at once, as on the search page (COL-015). */
+function TimelineBatch({ ids, onClear }: { ids: ReadonlySet<string>; onClear: () => void }) {
+  const { t, i18n } = useTranslation();
+  const put = async (albumId: string) => api.selectionAlbum((await api.createSelection({ asset_ids: [...ids] })).id, albumId);
+  return (
+    <div data-testid="timeline-batch" className="timeline-batch">
+      <strong className="tnum">{t("batch.selected", { n: ids.size.toLocaleString(i18n.language) })}</strong>
+      <FavoriteSelection put={put} />
+      <AddToAlbum put={put} />
+      <button type="button" className="ml-auto text-sm underline" onClick={onClear}>
+        {t("batch.clear")} <kbd className="text-xs text-[var(--text-muted)]">Esc</kbd>
+      </button>
     </div>
   );
 }

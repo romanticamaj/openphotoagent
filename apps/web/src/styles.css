@@ -646,6 +646,47 @@ body {
   object-fit: cover;
   display: block;
 }
+/* the check mark on each tile (VIEW-038): shown on hover and while choosing, filled when chosen */
+.tile-check {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  border: 2px solid rgb(255 255 255 / 0.9);
+  background: rgb(0 0 0 / 0.3);
+  color: transparent;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+.tile:hover .tile-check,
+.tile:focus-visible .tile-check,
+.tile.choosing .tile-check,
+.tile[aria-selected="true"] .tile-check {
+  opacity: 1;
+}
+.tile[aria-selected="true"] .tile-check {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+.timeline-batch {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 1rem 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tile-check { transition: none; }
+}
 /* drawn above the photo: an inset shadow sat under the image and selected tiles looked unselected (audit round 49) */
 .tile[aria-selected="true"]::after {
   content: "";

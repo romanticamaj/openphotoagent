@@ -193,4 +193,12 @@ describe("keys in the Lightbox (audit round 34)", () => {
     await waitFor(() => expect(put).toHaveBeenCalledWith("b1"));
     expect(s.addToAlbum).not.toHaveBeenCalled(); // the selection goes in at once, not photo by photo
   });
+
+  it("[COL-016] 回歸：相簿裡的照片有名稱（驗證第 50 輪：每張都叫「開啟照片」）", async () => {
+    s.album.mockResolvedValue({ id: "b1", name: "墾丁", kind: "album", photos: [{ asset_id: "p1", ch: null, taken_at: "2024-07-01T10:00:00Z" }, { asset_id: "p2", ch: null, taken_at: null }] });
+    wrap(<AlbumPage albumId="b1" />);
+    expect(await screen.findByRole("button", { name: "照片，2024-07-01" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "照片，未知日期" })).toBeTruthy();
+  });
 });
+
