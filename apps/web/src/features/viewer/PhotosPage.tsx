@@ -15,6 +15,7 @@ export function PhotosPage() {
   const [open, setOpen] = useState<{ ord: number; grid: GridApi } | null>(null);
   const [back, setBack] = useState<string | null>(null);
   const [sel, setSel] = useState<Selection>(NONE);
+  const [scrolledAway, setScrolledAway] = useState(false); // 那年今日 steps aside once the timeline scrolls (MEM-009)
   const choosing = Boolean(sel.all) || sel.ids.size > 0;
   // back to the photo you were on: the bar's buttons go away with the selection and focus fell to the page (VIEW-041)
   const clear = () => {
@@ -44,7 +45,7 @@ export function PhotosPage() {
       <Suspense fallback={null}>
         <FaceOptInCard />
       </Suspense>
-      <OnThisDay onOpen={(ids, start) => setOpen({ ord: start, grid: memoryGrid(ids) })} />
+      <OnThisDay away={scrolledAway} onOpen={(ids, start) => setOpen({ ord: start, grid: memoryGrid(ids) })} />
       {choosing ? <TimelineBatch sel={sel} onClear={clear} /> : null}
       <div className="min-h-0 flex-1">
       <PhotoGrid
@@ -53,6 +54,7 @@ export function PhotosPage() {
         choosing={choosing}
         onPick={(id, how, order) => setSel((s) => pick(s, id, how, order))}
         onPickAll={() => setSel(all())}
+        onScrolledAway={setScrolledAway}
         onOpen={(pos, grid) => withTransition(() => setOpen({ ord: grid.ordinal(pos), grid }), document.activeElement)}
       />
       </div>

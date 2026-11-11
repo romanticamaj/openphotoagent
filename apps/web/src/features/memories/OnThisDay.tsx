@@ -33,12 +33,13 @@ function hiddenToday(day: string): boolean {
   }
 }
 
-export function OnThisDay({ onOpen }: { onOpen: (photos: MemoryPhoto[], start: number) => void }) {
+export function OnThisDay({ onOpen, away = false }: { onOpen: (photos: MemoryPhoto[], start: number) => void; away?: boolean }) {
   const { t, i18n } = useTranslation();
   const q = useQuery({ queryKey: ["on-this-day"], queryFn: () => api.onThisDay(), staleTime: 60 * 60 * 1000 });
   const [hidden, setHidden] = useState(false);
   const day = q.data?.today ?? "";
-  if (!q.data?.groups.length || hidden || hiddenToday(day)) return null;
+  // `away`: the timeline has been scrolled down; the card steps aside and comes back at the top (MEM-009)
+  if (!q.data?.groups.length || hidden || away || hiddenToday(day)) return null;
   return (
     <section aria-labelledby="otd-h" className="on-this-day">
       <div className="flex items-baseline gap-3">

@@ -73,6 +73,7 @@ export function PhotoGrid({
   choosing: anyChosen = false,
   onPick,
   onPickAll,
+  onScrolledAway,
 }: {
   density?: keyof typeof DENSITY;
   onOpen: (pos: GridPos, api: GridApi) => void;
@@ -83,6 +84,8 @@ export function PhotoGrid({
   onPick?: (id: string, how: "toggle" | "range", order: string[]) => void;
   /** Ctrl/⌘+A: the whole library (VIEW-042), not the page's text */
   onPickAll?: () => void;
+  /** whether the timeline is scrolled away from its top (MEM-009: 那年今日 steps aside) */
+  onScrolledAway?: (away: boolean) => void;
 }) {
   const { t, i18n } = useTranslation();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -125,8 +128,17 @@ export function PhotoGrid({
   // fast scroll: paint ThumbHash only, load images once scrolling settles for 120 ms (10 §2.2)
   const last = useRef({ y: 0, t: 0 });
   const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const awayCb = useRef(onScrolledAway);
+  awayCb.current = onScrolledAway;
+  const away = useRef(false);
   const onScroll = useCallback(() => {
     const el = scrollRef.current!;
+    // past the first rows the card above steps aside; it comes back only at the very top, so it does not flicker
+    const next = away.current ? el.scrollTop > 8 : el.scrollTop > 120;
+    if (next !== away.current) {
+      away.current = next;
+      awayCb.current?.(next);
+    }
     const now = performance.now();
     const v = Math.abs(el.scrollTop - last.current.y) / Math.max(1, now - last.current.t);
     last.current = { y: el.scrollTop, t: now };

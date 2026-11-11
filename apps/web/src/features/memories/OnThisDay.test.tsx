@@ -67,5 +67,29 @@ describe("那年今日 (10 §2.8)", () => {
     const at = await memoryGrid(photos).at(start);
     expect(at?.asset).toMatchObject({ id: "p8", ch: "h8", rot: 90 });
   });
+
+  it("[MEM-009] 回歸：往下捲動時讓出位置，回到頂端再出現（驗證第 51～53 輪：一直釘在時間軸上方）", async () => {
+    window.localStorage.clear();
+    s.groups = [{ year: 2025, years_ago: 1, photos: [{ asset_id: "a", ch: null, taken_at: null }] }];
+    const qc = new QueryClient();
+    const { rerender } = render(
+      <QueryClientProvider client={qc}>
+        <OnThisDay onOpen={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByRole("heading", { name: "那年今日" })).toBeTruthy();
+    rerender(
+      <QueryClientProvider client={qc}>
+        <OnThisDay onOpen={vi.fn()} away />
+      </QueryClientProvider>,
+    );
+    expect(screen.queryByRole("heading", { name: "那年今日" })).toBeNull();
+    rerender(
+      <QueryClientProvider client={qc}>
+        <OnThisDay onOpen={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    expect(screen.getByRole("heading", { name: "那年今日" })).toBeTruthy();
+  });
 });
 
