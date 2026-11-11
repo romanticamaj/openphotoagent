@@ -8,6 +8,7 @@ test("[E2E-B-001] 依日期端到端：選資料夾 → 依日期 → 預設輸�
 
   await page.goto("/organize"); // 04 §8.1: photos is the home page; organize has its own route
   // 1. choose a folder inside an allowed root
+  await page.getByText("圖庫以外的資料夾…").click(); // the folder tree is folded on 整理 (ADR-0044)
   await page.getByRole("button", { name: "photos" }).click();
   await page.getByRole("button", { name: "trip", exact: true }).click();
   await page.getByRole("button", { name: "選擇此資料夾" }).click();

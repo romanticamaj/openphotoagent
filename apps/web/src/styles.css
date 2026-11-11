@@ -1115,3 +1115,14 @@ body {
 .nav-two-line { display: flex; flex-direction: column; line-height: 1.2; }
 .nav-hint { font-size: 0.6875rem; font-weight: 400; color: var(--text-muted); }
 
+/* 整理 (ADR-0044): three steps, the output always in view, photo sources as tiles */
+.organize-steps { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; font-size: 0.875rem; color: var(--text-muted); }
+.organize-steps li { display: flex; align-items: center; gap: 0.4rem; }
+.organize-steps li[aria-current="step"] { color: var(--text); font-weight: 600; }
+.organize-step-n { display: grid; place-items: center; width: 1.5rem; height: 1.5rem; border-radius: 999px; border: 1px solid var(--border); font-size: 0.75rem; }
+.organize-steps li[aria-current="step"] .organize-step-n { background: var(--accent); border-color: var(--accent); color: var(--accent-fg); }
+.organize-strip { padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); font-size: 0.875rem; }
+.organize-source-tile { display: flex; flex-direction: column; gap: 0.25rem; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
+.organize-source-tile:hover { border-color: var(--accent); }
+.organize-outside > summary { cursor: pointer; color: var(--text-muted); }
+

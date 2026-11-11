@@ -96,7 +96,18 @@
     "secs": "{n} 秒",
     "mins": "{m} 分 {s} 秒",
     "readingFolder": "正在讀取資料夾… · 已經過 {elapsed}",
-    "elapsed": "已經過 {elapsed}"
+    "elapsed": "已經過 {elapsed}",
+    "title": "整理照片",
+    "steps": "整理步驟",
+    "step1": "選照片",
+    "step2": "整理方式",
+    "step3": "輸出與預覽",
+    "stripFrom": "來源：",
+    "stripTo": "→ 輸出：",
+    "stripCopy": "（複製，原檔不動）",
+    "fromPhotos": "從照片或相簿挑選",
+    "fromPhotosHint": "在搜尋或相簿裡選好照片，按「移到資料夾」。",
+    "outside": "圖庫以外的資料夾…"
   },
   "eta": {
     "slow": {

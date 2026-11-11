@@ -96,7 +96,18 @@
     "secs": "{n} s",
     "mins": "{m} min {s} s",
     "readingFolder": "Reading the folder… · {elapsed} so far",
-    "elapsed": "{elapsed} so far"
+    "elapsed": "{elapsed} so far",
+    "title": "Organize photos",
+    "steps": "Organizing steps",
+    "step1": "Choose photos",
+    "step2": "How to organize",
+    "step3": "Output and preview",
+    "stripFrom": "From:",
+    "stripTo": "→ To:",
+    "stripCopy": "(copied, originals untouched)",
+    "fromPhotos": "Pick from photos or albums",
+    "fromPhotosHint": "Select photos in search or an album, then Move to folder.",
+    "outside": "A folder outside the library…"
   },
   "eta": {
     "slow": {

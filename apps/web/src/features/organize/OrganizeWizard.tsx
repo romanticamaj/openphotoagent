@@ -97,19 +97,46 @@ export function OrganizeWizard() {
     },
   });
 
+  // what 整理 is, on every screen (ADR-0044): three steps, and where the copies go with the originals untouched
+  const frame = (step: 1 | 2 | 3) => (
+    <div className="space-y-3">
+      <ol aria-label={t("organize.steps")} className="organize-steps">
+        {(["organize.step1", "organize.step2", "organize.step3"] as const).map((k, i) => (
+          <li key={k} aria-current={i + 1 === step ? "step" : undefined}>
+            <span className="organize-step-n tnum">{i + 1}</span>
+            {t(k)}
+          </li>
+        ))}
+      </ol>
+      <p data-testid="organize-strip" className="organize-strip">
+        {t("organize.stripFrom")} <strong>{folder ? `${folder.root}${folder.path ? `/${folder.path}` : ""}` : "—"}</strong> {t("organize.stripTo")}{" "}
+        <strong>{target?.alias ?? "—"}</strong> <span className="text-[var(--text-muted)]">{t("organize.stripCopy")}</span>
+      </p>
+    </div>
+  );
+
   if (!folder) {
-    // 整理 starts from what is already in the library (IMP-033); any other folder is one click away
+    // 整理 starts from what is already in the library (IMP-033): photo sources as tiles; a folder outside the library
+    // stays one click away, folded, so the page no longer looks like 匯入 (ADR-0044)
     return (
       <div className="mx-auto max-w-5xl space-y-6 p-8">
         <header className="space-y-1">
-          <h1 className="text-xl font-semibold">{t("organize.pickFolder")}</h1>
+          <h1 className="text-xl font-semibold">{t("organize.title")}</h1>
           <p className="text-[var(--text-muted)]">{t("organize.intro")}</p>
         </header>
+        {frame(1)}
         <section className="space-y-2">
           <h2 className="font-semibold">{t("organize.fromLibrary")}</h2>
           <LibraryFolders action={() => t("organize.organizeThis")} onAct={(s) => setFolder({ root: s.root_alias, path: s.sub_path, source: s.id })} />
         </section>
-        <FolderPicker title={t("organize.otherFolder")} onPick={(root, path) => pick.mutate({ root, path })} />
+        <Link to="/search" search={{ q: "" }} className="organize-source-tile">
+          <strong>{t("organize.fromPhotos")}</strong>
+          <span className="text-sm text-[var(--text-muted)]">{t("organize.fromPhotosHint")}</span>
+        </Link>
+        <details className="organize-outside">
+          <summary>{t("organize.outside")}</summary>
+          <FolderPicker title={t("organize.otherFolder")} onPick={(root, path) => pick.mutate({ root, path })} />
+        </details>
       </div>
     );
   }
@@ -135,6 +162,7 @@ export function OrganizeWizard() {
   return (
     <section className="space-y-6">
       {live}
+      {frame(previewId ? 3 : 2)}
       <fieldset className="space-y-2">
         <legend className="text-lg font-semibold">{t("organize.method")}</legend>
         {(

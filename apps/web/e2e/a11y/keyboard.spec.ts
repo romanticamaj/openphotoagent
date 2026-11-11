@@ -32,6 +32,7 @@ test.describe("keyboard only", () => {
     const t = tree();
     const photosBefore = snapshot(t.photos);
     await page.goto("/organize");
+    await press(page, page.locator("summary", { hasText: "圖庫以外的資料夾…" })); // the tree is folded on 整理 (ADR-0044)
     await press(page, page.getByRole("button", { name: "photos" }));
     await press(page, page.getByRole("button", { name: "trip", exact: true }));
     await press(page, page.getByRole("button", { name: "選擇此資料夾" }));

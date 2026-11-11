@@ -74,6 +74,7 @@ test.describe("old NVIDIA driver", () => {
     await expect(page.getByTestId("scan-collage").locator("img")).toHaveCount(20, { timeout: 60_000 });
     // one organize run to completion
     await page.getByRole("link", { name: "整理這些照片" }).click();
+    await page.getByText("圖庫以外的資料夾…").click(); // the folder tree is folded on 整理 (ADR-0044)
     await page.getByRole("button", { name: "photos" }).click();
     await page.getByRole("button", { name: "trip", exact: true }).click();
     await page.getByRole("button", { name: "選擇此資料夾" }).click();
@@ -111,6 +112,7 @@ test.describe("offline", () => {
     await expect(card.getByRole("button", { name: "設定代理" })).toBeVisible();
     // organizing by date needs no model
     await page.goto("/organize");
+    await page.getByText("圖庫以外的資料夾…").click(); // the folder tree is folded on 整理 (ADR-0044)
     await page.getByRole("button", { name: "photos" }).click();
     await page.getByRole("button", { name: "trip", exact: true }).click();
     await page.getByRole("button", { name: "選擇此資料夾" }).click();

@@ -27,6 +27,7 @@ export const ROUTES: Route[] = [
     name: "organize",
     open: async (p, _s, l) => {
       await go(p, "/organize", l);
+      await p.locator(".organize-outside > summary").click(); // folded on 整理 (ADR-0044)
       await p.getByRole("button", { name: "photos" }).click();
       await p.getByRole("button", { name: "trip", exact: true }).click();
       await p.getByTestId("use-folder").click();
