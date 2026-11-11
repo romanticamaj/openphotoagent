@@ -36,6 +36,19 @@ function EmptyLibrary() {
   );
 }
 
+/** A month's layout is redone when its data changes, not only its width: a photo turned in the Lightbox kept its old
+ * tile shape until a reload (ROT-004). */
+export function layoutKey(month: string | undefined, width: number, target: number, shapes: string): string {
+  return `${month}@${width}@${target}@${shapes}`;
+}
+
+/** The tile shapes of a month, cheap to compare: a refetch with the same shapes keeps its layout. */
+export function shapesOf(assets: Array<{ w: number | null; h: number | null }>): string {
+  let n = 0;
+  for (const a of assets) n = (Math.imul(n, 31) + (a.w ?? 0) * 7 + (a.h ?? 0)) | 0;
+  return `${assets.length}:${n}`;
+}
+
 export type GridApi = {
   total: number;
   ordinal: (p: GridPos) => number;
@@ -129,11 +142,12 @@ export function PhotoGrid({
   const alive = useRef(true);
   useEffect(() => () => void (alive.current = false), []);
   const pendingLayout = useRef(new Map<string, Layout>());
+  const shown = useRef(new Map<string, Layout>());
   useEffect(() => {
     if (!innerWidth) return;
     list.forEach((b, i) => {
       const data = bucketData[i]?.data;
-      const key = `${b.month}@${innerWidth}@${target}`;
+      const key = layoutKey(b.month, innerWidth, target, data ? shapesOf(data.assets) : "");
       if (!data || layouts.current.has(key) || pendingLayout.current.has(key)) return;
       const placeholder: Layout = { rows: [], height: model.height(i) - HEADER_H, width: innerWidth };
       pendingLayout.current.set(key, placeholder);
@@ -141,6 +155,7 @@ export function PhotoGrid({
         pendingLayout.current.delete(key);
         if (!alive.current) return;
         layouts.current.set(key, l);
+        shown.current.set(`${b.month}@${innerWidth}@${target}`, l); // the month's latest, until the next is ready
         const idx = list.findIndex((x) => x.month === b.month);
         if (idx >= 0) model.setHeight(idx, HEADER_H + l.height);
         virt.measure();
@@ -149,7 +164,12 @@ export function PhotoGrid({
     });
   });
 
-  const layoutOf = (i: number) => layouts.current.get(`${list[i]?.month}@${innerWidth}@${target}`);
+  // a re-layout (a photo turned, ROT-004) shows the previous one until it is ready: tiles never blink out
+  const layoutOf = (i: number) => {
+    const data = bucketData[i]?.data;
+    const exact = data ? layouts.current.get(layoutKey(list[i]?.month, innerWidth, target, shapesOf(data.assets))) : undefined;
+    return exact ?? shown.current.get(`${list[i]?.month}@${innerWidth}@${target}`);
+  };
   const assetsOf = (i: number) => bucketData[i]?.data?.assets;
 
   const gridApi: GridApi = useMemo(

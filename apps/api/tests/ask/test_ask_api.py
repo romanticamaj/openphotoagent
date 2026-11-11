@@ -471,3 +471,21 @@ def test_ask_one_005_where_she_stands_is_not_where_it_was_taken(m, monkeypatch):
     assert "溜滑梯" in said("他什麼時候會跳下來？")
     assert "位置" in said("這張是在哪裡拍的？") and "溜滑梯" not in said("這張是在哪裡拍的？")
     assert "拍攝" in said("這張是什麼時候拍的？")
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-DATE-001")
+def test_ask_date_001_today_is_the_local_day(embedded_pg, tmp_path):
+    """回歸 (audit round 46): 問 AI 「去年今天」 asked about 11-08–11-15 where search asked 11-09–11-15: 問 AI took the
+    UTC date at 00:20 in Taipei."""
+    from datetime import UTC, datetime
+
+    from opagent_testing.clock import FakeClock
+
+    x = M(embedded_pg.dsn, tmp_path, clock=FakeClock(datetime(2026, 11, 11, 16, 20, tzinfo=UTC)))
+    x.add("a.jpg", caption="海邊", taken=datetime(2025, 11, 12, 9, tzinfo=UTC))
+    x.index()
+    ev = ask(x, "去年今天", FakeLLM())
+    f = next(d for e, d in ev if e == "filters")
+    assert f["applied_filters"]["taken_at"]["from"] == "2025-11-09"
+    x.eng.dispose()

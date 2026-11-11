@@ -90,6 +90,8 @@ export type Label = {
 export type Album = { id: string; name: string; kind: "favorites" | "album"; count: number; cover: { asset_id: string; ch: string | null } | null };
 export type AlbumDetail = { id: string; name: string; kind: "favorites" | "album"; photos: Array<{ asset_id: string; ch: string | null; taken_at: string | null; rot?: number }> };
 export type AssetInfo = {
+  /** turned in the app (ROT-001) */
+  rotation?: number;
   /** ★ and the albums it is in (ADR-0041) */
   favorite?: boolean;
   albums?: Array<{ id: string; name: string }>;

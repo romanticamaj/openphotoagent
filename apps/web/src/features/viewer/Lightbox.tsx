@@ -8,6 +8,7 @@ import { FaceCrop } from "../../components/FaceCrop";
 import { FaceBoxes } from "./faceBoxes";
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { turnStyle } from "../../lib/turn";
 import { api, mediaUrl, preparePreview, type AssetInfo, type TimelineAsset } from "../../lib/api";
 import { platform } from "../../lib/platform";
 import { placeholder } from "../../lib/thumbhash";
@@ -83,6 +84,8 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
     void api.setRotation(asset.id, next).then(() => {
       void qcr.invalidateQueries({ queryKey: ["timeline"] });
       void qcr.invalidateQueries({ queryKey: ["search"] });
+      void qcr.invalidateQueries({ queryKey: ["on-this-day"] }); // its thumbnails too (ROT-004)
+      void qcr.invalidateQueries({ queryKey: ["album"] });
     });
   }, [asset, rot, qcr]);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -249,7 +252,10 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
             aria-current={f.ord === ord}
             aria-label={t("lightbox.position", { n: f.ord + 1, total: grid.total })}
             onClick={() => setOrd(f.ord)}
-            style={{ backgroundImage: `url(${mediaUrl(f.a.id, "t256", f.a.ch)}), url(${placeholder(f.a.thumbhash) ?? ""})` }}
+            style={{
+              backgroundImage: `url(${mediaUrl(f.a.id, "t256", f.a.ch)}), url(${placeholder(f.a.thumbhash) ?? ""})`,
+              ...turnStyle(f.a.id === asset?.id ? rot : f.a.rot), // a square tile: turning is enough (ROT-004)
+            }}
           />
         ))}
       </nav>
@@ -318,7 +324,8 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
     [t("lightbox.exif.camera"), camera || null],
     [t("lightbox.exif.lens"), ex.lens ?? null],
     [t("lightbox.exif.exposure"), exposure || null],
-    [t("lightbox.exif.size"), a.width && a.height ? `${a.width} × ${a.height}` : null],
+    // as it is shown: a quarter turn swaps the sides (ROT-004)
+    [t("lightbox.exif.size"), a.width && a.height ? (a.rotation === 90 || a.rotation === 270 ? `${a.height} × ${a.width}` : `${a.width} × ${a.height}`) : null],
   ];
   return (
     <aside className="info space-y-4" aria-label={t("lightbox.info")} data-testid="info-panel">

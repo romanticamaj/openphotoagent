@@ -617,7 +617,12 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
     # 1. understand: the rule planner turns dates/places/tags into editable filters
     sid, d, t0 = started("understand", "理解問題")
     yield "step.started", d
-    today = date.fromisoformat(body.today) if body.today else st.clock.now().date()
+    from zoneinfo import ZoneInfo
+
+    from .labels import LOCAL_TZ
+
+    # the local day, as search has it: at 00:20 in Taipei UTC was still yesterday (ASK-DATE-001)
+    today = date.fromisoformat(body.today) if body.today else st.clock.now().astimezone(ZoneInfo(LOCAL_TZ)).date()
     filters: dict[str, Any] = {}
     names_seen = False  # a person named while faces are not open to AI assistants (MCP-SCOPE-010)
     if body.filters is not None:  # the user edited the chips: run exactly those (ASK-SSE-004)

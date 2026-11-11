@@ -21,6 +21,8 @@ from opagent_core.lunar import lunar_new_year
 
 # how a question is worded, not what it asks about: the words around the subject in 「我有幾張滑雪的照片？」
 QUESTION_FRAME = re.compile(
+    # 「拍了什麼」 「有哪些」 ask about what is in the range: the question, not a word to find (SRCH-PLAN-025)
+    r"拍了些?什麼|拍了哪些|拍了啥|有哪些|有什麼|是什麼|"
     r"我有|我的|有沒有|有幾張|有多少張?|多少張|幾張|幫我找|幫我|請列出|請問|請|列出|找出|所有|全部|"
     r"的?照片|的?相片|的?圖片|how many|do i have|show me|find me|find all|[？?！!。，,]+",
     re.IGNORECASE,

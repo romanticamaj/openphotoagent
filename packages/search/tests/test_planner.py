@@ -193,3 +193,13 @@ def test_plan_024_this_day_in_an_earlier_year(gz):
     p = P("去年這個時候拍了哪些照片", gz)
     assert p["filters"]["taken_at"] == {"from": "2025-10-17", "to": "2025-11-17"}
     assert "這個時候" not in p["text"]
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-PLAN-025")
+def test_plan_025_what_was_taken_is_the_question_not_a_word(gz):
+    """回歸 (audit round 46): 「去年今天拍了什麼」 searched for 「拍了什麼」 and found 0."""
+    for q in ("去年今天拍了什麼", "去年這個時候拍了哪些照片", "2025年11月有哪些照片", "上個月拍了些什麼"):
+        p = P(q, gz)
+        assert p["text"] == "", (q, p["text"])
+        assert p["filters"].get("taken_at"), q
