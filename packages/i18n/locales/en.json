@@ -480,7 +480,8 @@
     "faceNamePlaceholder": "e.g. Auntie, Max",
     "nameFacesSmall": "{n} more faces are too small to tell who they are.",
     "showMoreFaces": "Show {n} more",
-    "correctShort": "Wrong category? Change…"
+    "correctShort": "Wrong category? Change…",
+    "rotate": "Rotate"
   },
   "onboarding": {
     "welcome": "Welcome to OpenPhotoAgent",

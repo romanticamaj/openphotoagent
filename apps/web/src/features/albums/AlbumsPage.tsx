@@ -5,6 +5,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, mediaUrl } from "../../lib/api";
+import { turnStyle } from "../../lib/turn";
 import { Lightbox } from "../viewer/Lightbox";
 import type { GridApi } from "../viewer/PhotoGrid";
 
@@ -107,7 +108,7 @@ export function AlbumPage({ albumId }: { albumId: string }) {
       at: async (i) => {
         const p = photos[i];
         if (!p) return null;
-        return { asset: { id: p.asset_id, ch: p.ch, w: null, h: null, thumbhash: null, taken_at: p.taken_at, flags: [] }, pos: { bucket: 0, index: i } };
+        return { asset: { id: p.asset_id, ch: p.ch, w: null, h: null, thumbhash: null, taken_at: p.taken_at, flags: [], rot: p.rot }, pos: { bucket: 0, index: i } };
       },
     }),
     [photos],
@@ -158,7 +159,7 @@ export function AlbumPage({ albumId }: { albumId: string }) {
         {photos.map((p, i) => (
           <li key={p.asset_id} className="album-tile">
             <button type="button" className="h-full w-full" onClick={() => setViewing(i)} aria-label={t("albums.open")}>
-              <img src={mediaUrl(p.asset_id, "t256", p.ch)} alt="" loading="lazy" className="h-full w-full object-cover" />
+              <img src={mediaUrl(p.asset_id, "t256", p.ch)} alt="" loading="lazy" className="h-full w-full object-cover" style={turnStyle(p.rot)} />
             </button>
             <button type="button" className="album-remove" aria-label={t("albums.remove")} title={t("albums.remove")} onClick={() => remove.mutate(p.asset_id)}>
               ×

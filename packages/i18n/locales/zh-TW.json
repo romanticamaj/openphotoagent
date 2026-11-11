@@ -480,7 +480,8 @@
     "faceNamePlaceholder": "例如：阿姨、小明",
     "nameFacesSmall": "另有 {n} 張臉太小，認不出是誰。",
     "showMoreFaces": "再顯示 {n} 張",
-    "correctShort": "分類不對？修改…"
+    "correctShort": "分類不對？修改…",
+    "rotate": "旋轉"
   },
   "onboarding": {
     "welcome": "歡迎使用 OpenPhotoAgent",

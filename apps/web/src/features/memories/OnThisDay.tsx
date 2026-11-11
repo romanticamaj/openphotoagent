@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, mediaUrl } from "../../lib/api";
+import { turnStyle } from "../../lib/turn";
 
 const KEY = "opa.memories.hidden";
 const SHOWN = 8; // photos per year in the row; the rest open in the Lightbox
@@ -16,7 +17,7 @@ function hiddenToday(day: string): boolean {
   }
 }
 
-export function OnThisDay({ onOpen }: { onOpen: (ids: string[], start: number) => void }) {
+export function OnThisDay({ onOpen }: { onOpen: (photos: Array<{ id: string; rot?: number }>, start: number) => void }) {
   const { t, i18n } = useTranslation();
   const q = useQuery({ queryKey: ["on-this-day"], queryFn: () => api.onThisDay(), staleTime: 60 * 60 * 1000 });
   const [hidden, setHidden] = useState(false);
@@ -55,9 +56,9 @@ export function OnThisDay({ onOpen }: { onOpen: (ids: string[], start: number) =
                     type="button"
                     className="on-this-day-tile"
                     aria-label={t("memories.open", { year: g.year, n: (i + 1).toLocaleString(i18n.language) })}
-                    onClick={() => onOpen(g.photos.map((x) => x.asset_id), i)}
+                    onClick={() => onOpen(g.photos.map((x) => ({ id: x.asset_id, rot: x.rot })), i)}
                   >
-                    <img src={mediaUrl(p.asset_id, "t256", p.ch)} alt="" loading="lazy" />
+                    <img src={mediaUrl(p.asset_id, "t256", p.ch)} alt="" loading="lazy" style={turnStyle(p.rot)} />
                   </button>
                 </li>
               ))}

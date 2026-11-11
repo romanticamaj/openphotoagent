@@ -2241,6 +2241,25 @@
         "title": "ReviewIn",
         "type": "object"
       },
+      "RotationIn": {
+        "properties": {
+          "degrees": {
+            "enum": [
+              0,
+              90,
+              180,
+              270
+            ],
+            "title": "Degrees",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "degrees"
+        ],
+        "title": "RotationIn",
+        "type": "object"
+      },
       "Scope": {
         "properties": {
           "path": {

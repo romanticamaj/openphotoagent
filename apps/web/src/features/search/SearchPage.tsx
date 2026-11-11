@@ -9,6 +9,7 @@ import { COMPARE_MAX, CompareView } from "./CompareView";
 import { Lightbox } from "../viewer/Lightbox";
 import type { GridApi } from "../viewer/PhotoGrid";
 import { api, isDegraded, mediaUrl, type SearchBody } from "../../lib/api";
+import { turnStyle } from "../../lib/turn";
 
 import { bodyFor, cappedNote, chipLabel, chipsFrom, headerCount, onlyByMeaning, relaxedText, softView, weakNeedsMore, weakTail, withoutPerson, type Chip } from "./searchPlan";
 
@@ -261,7 +262,7 @@ export function SearchPage({ q }: { q: string }) {
               onFocus={() => setActive(i)}
               onClick={(e) => clickHit(i, h.asset_id, e.shiftKey, e.ctrlKey || e.metaKey)}
             >
-              <img src={mediaUrl(h.asset_id, "t256", h.ch)} alt={h.caption ?? ""} loading="lazy" onError={(e) => (e.currentTarget.style.visibility = "hidden")} />
+              <img src={mediaUrl(h.asset_id, "t256", h.ch)} alt={h.caption ?? ""} loading="lazy" style={turnStyle(h.rot)} onError={(e) => (e.currentTarget.style.visibility = "hidden")} />
               <span data-matched={h.matched_by.join(" ")} className="absolute bottom-1 left-1 text-[10px]">
                 {/* found by how it looks, not by its words: worth knowing (E2E-S-002); text and tag matches need no badge */}
                 {onlyByMeaning(h.matched_by) ? <span className="rounded bg-black/55 px-1 text-white/90">{t("search.matched.image_vector")}</span> : null}

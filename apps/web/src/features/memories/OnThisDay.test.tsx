@@ -35,7 +35,7 @@ describe("那年今日 (10 §2.8)", () => {
     expect(screen.getByText("1 年前的今天")).toBeTruthy();
     expect(screen.getByText("3 年前的今天")).toBeTruthy();
     fireEvent.click(screen.getAllByRole("button", { name: /2025/ })[1]);
-    expect(open).toHaveBeenCalledWith(["a", "b"], 1);
+    expect(open).toHaveBeenCalledWith([{ id: "a", rot: undefined }, { id: "b", rot: undefined }], 1);
     fireEvent.click(screen.getByRole("button", { name: "今天先不看" }));
     expect(screen.queryByRole("heading", { name: "那年今日" })).toBeNull();
   });

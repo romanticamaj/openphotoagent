@@ -2241,6 +2241,25 @@
         "title": "ReviewIn",
         "type": "object"
       },
+      "RotationIn": {
+        "properties": {
+          "degrees": {
+            "enum": [
+              0,
+              90,
+              180,
+              270
+            ],
+            "title": "Degrees",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "degrees"
+        ],
+        "title": "RotationIn",
+        "type": "object"
+      },
       "Scope": {
         "properties": {
           "path": {
@@ -3828,6 +3847,58 @@
           }
         },
         "summary": "Media"
+      }
+    },
+    "/api/v1/assets/{asset_id}/rotation": {
+      "put": {
+        "description": "Turn a photo in the app (ROT-001): a view setting kept in the library; the file is not touched (invariant 4).",
+        "operationId": "set_rotation_api_v1_assets__asset_id__rotation_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "title": "Asset Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RotationIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Set Rotation Api V1 Assets  Asset Id  Rotation Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Set Rotation"
       }
     },
     "/api/v1/assets/{asset_id}/similar": {

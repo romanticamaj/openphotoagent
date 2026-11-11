@@ -8,6 +8,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { useTranslation } from "react-i18next";
 import { useActivity } from "../activity/ActivityHost";
 import { api, mediaUrl, type TimelineAsset } from "../../lib/api";
+import { turnStyle } from "../../lib/turn";
 import { placeholder } from "../../lib/thumbhash";
 import type { Layout } from "./layout";
 import { DAY_H, thumbVariant, visibleTiles } from "./layout";
@@ -345,6 +346,7 @@ export function PhotoGrid({
                             {!fast && (
                               <img
                                 src={mediaUrl(a.id, thumbVariant(x.w, r.height, window.devicePixelRatio || 1), a.ch)}
+                                style={turnStyle(a.rot, x.w, r.height)}
                                 alt=""
                                 decoding="async"
                                 loading="lazy"

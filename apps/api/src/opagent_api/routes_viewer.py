@@ -14,6 +14,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import FileResponse, Response
 from opagent_core.ids import uuid7
 from opagent_db.schema import asset, job, job_item, result, source, worker_task
+from pydantic import BaseModel
 from sqlalchemy import func, insert, select, text, true
 
 from .state import DEFAULT_WS, AppState
@@ -180,6 +181,22 @@ def analysis_status(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
     }
 
 
+class RotationIn(BaseModel):
+    degrees: Literal[0, 90, 180, 270]
+
+
+@router.put("/assets/{asset_id}/rotation")
+def set_rotation(asset_id: str, body: RotationIn, req: Request) -> dict[str, Any]:
+    """Turn a photo in the app (ROT-001): a view setting kept in the library; the file is not touched (invariant 4)."""
+    from sqlalchemy import update
+
+    with _st(req).engine.begin() as c:
+        n = c.execute(update(asset).where(asset.c.id == asset_id).values(rotation=body.degrees)).rowcount
+    if not n:
+        raise HTTPException(404, detail={"code": "NOT_FOUND"})
+    return {"asset_id": asset_id, "rotation": body.degrees}
+
+
 MEMORY_DAYS = 3  # 10 §2.8: the same day ±3, in earlier years
 MEMORY_MAX = 24  # photos per year shown (10 §2.8: 12-30)
 MEMORY_YEARS = 30  # years looked back at most (security review: one query per year)
@@ -201,7 +218,7 @@ def _memory_year(c: Any, year: int, now: date) -> list[Any]:
     hidden = select(duplicate_member.c.asset_id).where(duplicate_member.c.is_representative.is_(False))
     return list(
         c.execute(
-            select(asset.c.id, asset.c.content_hash, when.label("at"))
+            select(asset.c.id, asset.c.content_hash, asset.c.rotation, when.label("at"))
             .where(asset.c.workspace_id == DEFAULT_WS, when >= lo, when < hi, asset.c.id.notin_(hidden))
             .order_by(when, asset.c.id)
             .limit(MEMORY_MAX)
@@ -238,7 +255,12 @@ def on_this_day(req: Request, today: str | None = None) -> dict[str, Any]:
                         "year": year,
                         "years_ago": now.year - year,
                         "photos": [
-                            {"asset_id": r.id, "ch": r.content_hash, "taken_at": r.at.isoformat() if r.at else None}
+                            {
+                                "asset_id": r.id,
+                                "ch": r.content_hash,
+                                "taken_at": r.at.isoformat() if r.at else None,
+                                "rot": r.rotation,
+                            }
                             for r in rows
                         ],
                     }
@@ -273,6 +295,7 @@ def bucket(month: str, req: Request) -> dict[str, Any]:
         asset.c.local_at,
         asset.c.date_source,
         asset.c.content_hash,
+        asset.c.rotation,
     ).where(asset.c.workspace_id == DEFAULT_WS)
     if month == UNKNOWN:
         q = q.where(asset.c.month_at.is_(None)).order_by(asset.c.id)
@@ -287,8 +310,10 @@ def bucket(month: str, req: Request) -> dict[str, Any]:
         "assets": [
             {
                 "id": r.id,
-                "w": r.width,
-                "h": r.height,
+                # a quarter turn lays the photo out in its new shape (ROT-001)
+                "w": r.height if r.rotation in (90, 270) else r.width,
+                "h": r.width if r.rotation in (90, 270) else r.height,
+                "rot": r.rotation,
                 "thumbhash": r.thumbhash,
                 "ch": r.content_hash,  # desktop: thumbnail path in the local cache (10 §5.4)
                 "taken_at": r.local_at.isoformat() if r.local_at else None,

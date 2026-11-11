@@ -7,7 +7,7 @@ beforeAll(async () => {
   await i18n.changeLanguage("zh-TW");
 });
 
-const s = vi.hoisted(() => ({ favs: new Set<string>(), setFavorite: vi.fn() }));
+const s = vi.hoisted(() => ({ favs: new Set<string>(), setFavorite: vi.fn(), setRotation: vi.fn() }));
 vi.mock("../../lib/api", async (orig) => ({
   ...(await orig<typeof import("../../lib/api")>()),
   mediaUrl: (id: string, v: string) => `/m/${id}/${v}`,
@@ -21,6 +21,7 @@ vi.mock("../../lib/api", async (orig) => ({
       return { favorite: on };
     },
     albums: async () => ({ albums: [] }),
+    setRotation: async (id: string, deg: number) => (s.setRotation(id, deg), { asset_id: id, rotation: deg }),
   },
 }));
 vi.mock("@tanstack/react-router", async (orig) => ({
@@ -85,6 +86,25 @@ describe("zoom (audit round 38)", () => {
     expect(container.querySelector('img[data-variant="p2048"]')).toBeNull(); // not before it is needed
     fireEvent.keyDown(lb, { key: "+" });
     await waitFor(() => expect(container.querySelector('img[data-variant="p2048"]')?.getAttribute("src")).toBe("/m/p0/p2048"));
+  });
+});
+
+describe("rotate (audit round 26 gap)", () => {
+  it("[ROT-003] R 或「旋轉」把照片轉 90 度：立刻顯示、存在圖庫、檔案不動", async () => {
+    s.setRotation.mockReset();
+    const { container } = render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Lightbox start={0} grid={grid} onClose={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    const lb = screen.getByTestId("lightbox");
+    await screen.findByRole("button", { name: "加入收藏" });
+    fireEvent.keyDown(lb, { key: "r" });
+    await waitFor(() => expect(s.setRotation).toHaveBeenCalledWith("p0", 90));
+    const img = container.querySelector('img[data-variant="t512"]') as HTMLImageElement;
+    expect(img.style.transform).toContain("rotate(90deg)");
+    fireEvent.click(screen.getByRole("button", { name: "旋轉" }));
+    await waitFor(() => expect(s.setRotation).toHaveBeenCalledWith("p0", 180));
   });
 });
 

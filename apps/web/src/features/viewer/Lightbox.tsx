@@ -72,6 +72,42 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
     return () => (prev as HTMLElement | null)?.focus?.();
   }, []);
 
+  // turned in the app (ROT-003): shown at once, kept in the library, the file is not touched
+  const qcr = useQueryClient();
+  const [turns, setTurns] = useState<Record<string, number>>({});
+  const rot = asset ? (turns[asset.id] ?? asset.rot ?? 0) : 0;
+  const rotate = useCallback(() => {
+    if (!asset) return;
+    const next = (rot + 90) % 360;
+    setTurns((m) => ({ ...m, [asset.id]: next }));
+    void api.setRotation(asset.id, next).then(() => {
+      void qcr.invalidateQueries({ queryKey: ["timeline"] });
+      void qcr.invalidateQueries({ queryKey: ["search"] });
+    });
+  }, [asset, rot, qcr]);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [stageBox, setStageBox] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => setStageBox({ w: el.clientWidth, h: el.clientHeight }));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const view = `translate(${pan.x}px, ${pan.y}px) scale(${scale})`;
+  const quarter = rot === 90 || rot === 270;
+  const imgStyle: React.CSSProperties = quarter
+    ? {
+        position: "absolute",
+        left: "50%",
+        top: "50%",
+        width: `${stageBox.h}px`,
+        height: `${stageBox.w}px`,
+        maxWidth: "none",
+        transform: `translate(-50%, -50%) ${view} rotate(${rot}deg)`,
+      }
+    : { transform: `${view}${rot ? ` rotate(${rot}deg)` : ""}`, width: "100%", height: "100%" };
+
   // zoomed in: have the 2048 px preview made, then show it over the 1024 one (VIEW-035, 10 §3.4)
   useEffect(() => {
     if (!asset || scale <= 1 || sharp) return;
@@ -93,6 +129,8 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
       ArrowRight: () => go(1),
       i: () => setShowInfo((s) => !s),
       I: () => setShowInfo((s) => !s),
+      r: rotate,
+      R: rotate,
       f: () => setFavWanted(ord), // carried out once this photo and its ★ state are in, not dropped
       F: () => setFavWanted(ord),
       "+": () => setScale((s) => Math.min(8, s * 1.5)),
@@ -132,9 +170,17 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
         ) : null}
         {asset ? <FavoriteButton assetId={asset.id} /> : null}
         {asset ? <AddToAlbum assetIds={[asset.id]} /> : null}
+        {asset ? (
+          <button type="button" onClick={rotate} aria-label={t("lightbox.rotate")} title={`${t("lightbox.rotate")} (R)`} className="icon-button">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M20 12a8 8 0 1 1-2.34-5.66M20 4v4h-4" />
+            </svg>
+          </button>
+        ) : null}
         <button type="button" aria-pressed={showInfo} onClick={() => setShowInfo((s) => !s)} className="rounded-[var(--radius-sm)] px-2 py-1 hover:bg-[var(--surface-2)]">{t("lightbox.info")}</button>
       </div>
       <div
+        ref={stageRef}
         className="stage"
         style={{ backgroundImage: ph ? `url(${ph})` : undefined, backgroundSize: "contain", backgroundRepeat: "no-repeat", backgroundPosition: "center" }}
         onWheel={(e) => setScale((s) => Math.max(1, Math.min(8, s * (e.deltaY < 0 ? 1.15 : 1 / 1.15))))}
@@ -161,7 +207,7 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
                 setStage((s) => s ?? "t512");
                 setNatural({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight });
               }}
-              style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`, width: "100%", height: "100%" }}
+              style={imgStyle}
             />
             {stage !== null && (
               <img
@@ -170,7 +216,7 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
                 alt={asset.taken_at ? t("viewer.photoAlt", { date: asset.taken_at.slice(0, 10) }) : ""}
                 data-variant="p1024"
                 onLoad={() => setStage((s) => (s === "p2048" ? s : "p1024"))}
-                style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`, width: "100%", height: "100%" }}
+                style={imgStyle}
               />
             )}
             {sharp ? (
@@ -182,12 +228,12 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
                 data-variant="p2048"
                 onLoad={() => setStage("p2048")}
                 onError={(e) => (e.currentTarget.style.visibility = "hidden")}
-                style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`, width: "100%", height: "100%" }}
+                style={imgStyle}
               />
             ) : null}
           </>
         )}
-        {asset && showInfo && natural && scale === 1 ? <PhotoFaces id={asset.id} photo={natural} /> : null}
+        {asset && showInfo && natural && scale === 1 && !rot ? <PhotoFaces id={asset.id} photo={natural} /> : null}
         {grid.total > 1 ? (
           <>
             <button type="button" onClick={() => go(-1)} aria-label={t("lightbox.prev")} className="absolute left-2 rounded-full bg-black/40 px-3 py-2">‹</button>

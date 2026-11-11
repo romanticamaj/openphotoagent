@@ -139,7 +139,7 @@ def get_album(album_id: str, req: Request) -> dict[str, Any]:
             _favorites(c)
         row = _album(c, album_id)
         photos = c.execute(
-            select(collection_member.c.asset_id, asset.c.content_hash, asset.c.taken_at)
+            select(collection_member.c.asset_id, asset.c.content_hash, asset.c.taken_at, asset.c.rotation)
             .join(asset, asset.c.id == collection_member.c.asset_id)
             .where(collection_member.c.collection_id == album_id)
             .order_by(collection_member.c.added_at.desc(), collection_member.c.asset_id)
@@ -149,7 +149,12 @@ def get_album(album_id: str, req: Request) -> dict[str, Any]:
         "name": row.name,
         "kind": "favorites" if row.id == FAVORITES else "album",
         "photos": [
-            {"asset_id": p.asset_id, "ch": p.content_hash, "taken_at": p.taken_at.isoformat() if p.taken_at else None}
+            {
+                "asset_id": p.asset_id,
+                "ch": p.content_hash,
+                "taken_at": p.taken_at.isoformat() if p.taken_at else None,
+                "rot": p.rotation,  # turned in the app (ROT-001)
+            }
             for p in photos
         ],
     }

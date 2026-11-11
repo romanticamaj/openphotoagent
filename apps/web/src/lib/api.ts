@@ -75,7 +75,7 @@ export type PersonRow = { id: string; name: string | null; status: string; face_
 export type FaceCandidate = { face_id: string; asset_id: string; ch: string | null; bbox: number[]; score: number; tier?: number; clear?: boolean; sure?: boolean; faint?: boolean; group: string | null };
 export type FaceSuggestion = { face_id: string; person_id: string; person: string | null; score: number | null; asset_id: string };
 export type PurgeReport = { faces: number; embeddings: number; prototypes: number; persons: number; worker_pending: boolean };
-export type TimelineAsset = { id: string; ch?: string | null; w: number | null; h: number | null; thumbhash: string | null; taken_at: string | null; flags: string[] };
+export type TimelineAsset = { id: string; ch?: string | null; w: number | null; h: number | null; thumbhash: string | null; taken_at: string | null; flags: string[]; rot?: number };
 export type Label = {
   result_id: string;
   category: string | null;
@@ -88,7 +88,7 @@ export type Label = {
   tag_names?: Record<string, string>;
 };
 export type Album = { id: string; name: string; kind: "favorites" | "album"; count: number; cover: { asset_id: string; ch: string | null } | null };
-export type AlbumDetail = { id: string; name: string; kind: "favorites" | "album"; photos: Array<{ asset_id: string; ch: string | null; taken_at: string | null }> };
+export type AlbumDetail = { id: string; name: string; kind: "favorites" | "album"; photos: Array<{ asset_id: string; ch: string | null; taken_at: string | null; rot?: number }> };
 export type AssetInfo = {
   /** ★ and the albums it is in (ADR-0041) */
   favorite?: boolean;
@@ -167,7 +167,7 @@ export type SearchBody = {
   facets?: string[];
   lang?: string;
 };
-export type SearchHit = { asset_id: string; ch?: string | null; score: number; matched_by: string[]; category: string | null; tags: string[]; caption: string | null; taken_at: string | null };
+export type SearchHit = { asset_id: string; ch?: string | null; rot?: number; score: number; matched_by: string[]; category: string | null; tags: string[]; caption: string | null; taken_at: string | null };
 export type Planner = {
   source: string;
   confidence: number;
@@ -362,7 +362,7 @@ export const api = {
     req<FolderPreview>("GET", `/fs/preview?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`),
   folderThumb: (root: string, path: string) =>
     req<{ thumbnail_b64: string }>("GET", `/fs/thumb?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`),
-  onThisDay: () => req<{ today: string; groups: Array<{ year: number; years_ago: number; photos: Array<{ asset_id: string; ch: string | null; taken_at: string | null }> }> }>("GET", "/memories/on-this-day"),
+  onThisDay: () => req<{ today: string; groups: Array<{ year: number; years_ago: number; photos: Array<{ asset_id: string; ch: string | null; taken_at: string | null; rot?: number }> }> }>("GET", "/memories/on-this-day"),
   albums: () => req<{ albums: Album[] }>("GET", "/albums"),
   album: (id: string) => req<AlbumDetail>("GET", `/albums/${encodeURIComponent(id)}`),
   createAlbum: (name: string) => req<{ id: string; name: string }>("POST", "/albums", { name }),
@@ -370,6 +370,7 @@ export const api = {
   deleteAlbum: (id: string) => req<unknown>("DELETE", `/albums/${encodeURIComponent(id)}`),
   addToAlbum: (id: string, asset_ids: string[]) => req<{ count: number }>("POST", `/albums/${encodeURIComponent(id)}/photos`, { asset_ids }),
   removeFromAlbum: (id: string, assetId: string) => req<{ count: number }>("DELETE", `/albums/${encodeURIComponent(id)}/photos/${encodeURIComponent(assetId)}`),
+  setRotation: (assetId: string, degrees: number) => req<{ rotation: number }>("PUT", `/assets/${encodeURIComponent(assetId)}/rotation`, { degrees }),
   setFavorite: (assetId: string, on: boolean) => req<{ favorite: boolean }>(on ? "PUT" : "DELETE", `/assets/${encodeURIComponent(assetId)}/favorite`),
   analysisStatus: (lang: string) => req<AnalysisStatus>("GET", `/analysis/status?lang=${encodeURIComponent(lang)}`),
   analyzeSource: (id: string) => req<{ job_id: string }>("POST", `/sources/${encodeURIComponent(id)}/analyze`),

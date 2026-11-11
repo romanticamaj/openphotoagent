@@ -7,12 +7,14 @@ import { withTransition } from "./transition";
 const FaceOptInCard = lazy(() => import("../people/PeoplePage").then((m) => ({ default: m.FaceOptInCard })));
 
 /** A Lightbox over a list of photos, the 那年今日 row's (10 §2.8). */
-function idsGrid(ids: string[]): GridApi {
+function idsGrid(photos: Array<{ id: string; rot?: number }>): GridApi {
   return {
-    total: ids.length,
+    total: photos.length,
     ordinal: (p) => p.index,
     at: async (i) =>
-      ids[i] ? { asset: { id: ids[i], w: null, h: null, thumbhash: null, taken_at: null, flags: [] }, pos: { bucket: 0, index: i } } : null,
+      photos[i]
+        ? { asset: { id: photos[i].id, w: null, h: null, thumbhash: null, taken_at: null, flags: [], rot: photos[i].rot }, pos: { bucket: 0, index: i } }
+        : null,
   };
 }
 
