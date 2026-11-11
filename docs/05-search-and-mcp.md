@@ -115,7 +115,7 @@ CREATE INDEX search_doc_ws_country ON search_doc (workspace_id, country_code, ad
 | 地點 | GPS → **離線反向地理編碼**（GeoNames kd-tree，最近 city + admin1 + country） | `full/thumbs`：CP 端做；`results-only`：Worker 端做，依 `place_level: none/country/admin1/city` 上傳（不上傳座標） |
 | 相機 / 鏡頭 | EXIF Make/Model/LensModel | 正規化品牌名 |
 | 資料夾 | `scope_keys` | 支援「在 2024/日本 這個資料夾底下」 |
-| 重複 | `duplicate_group_id`、`is_dup_representative` | 02 定義：同 hash / pHash ≤6 / cosine ≥0.97 |
+| 重複 | `duplicate_group_id`、`is_dup_representative` | 同 content_hash，或 pHash ≤ 6 且（任一張沒有向量，或 cosine ≥ 0.90）；以代表張為中心分組，每張都直接與代表張相近；**embedding 相似不算重複**（ADR-0043，取代「cosine ≥0.97」） |
 | 覆核狀態 / 信心 | `review_state`, `confidence` | agent 可找「低信心需確認」 |
 | 人物 | （審查補充）**v0.2**（07）：`person_ids`、`face_count`，facet `person:`；取代原本的 `face_cluster_ids`。只有擁有 `face:read` 權限（MCP 為 `faces:read` scope）時才回傳或計數；未命名的臉群不暴露給 MCP | 預設關閉，需 workspace opt-in（07 §0） |
 
@@ -258,7 +258,7 @@ SELECT * FROM fused ORDER BY score DESC LIMIT :limit OFFSET :offset;
 | 相似照片 `find_similar` | `asset_id` | 直接取該 asset 在 active space 的向量 → kNN（不需推論）；可加 filter；排除同 `duplicate_group_id`（可選） |
 | 以圖搜圖（上傳） | 圖片 bytes | 圖片送到 Worker 的 `embed.image` RPC（互動 lane）→ 向量 → kNN。上傳圖只存在記憶體，不落地 CP（control plane 與 Worker 分離時圖片經 CP 中繼，UI 明示） |
 | 以文 + 圖組合 | text + asset_id | 向量 = normalize(α·v_text + (1-α)·v_img)，α 預設 0.5 |
-| 重複 `find_duplicates` | scope / filter | exact：同 content_hash（asset 已去重，看 `asset_location` 多處）；near：`duplicate_group_id`（scan 時的 pHash/embedding 判定）；可觸發 `dedup` 背景任務重新聚類：對每張 HNSW kNN k=10、cosine ≥ 閾值 → union-find |
+| 重複 `find_duplicates` | scope / filter | exact：同 content_hash（asset 已去重，看 `asset_location` 多處）；near：`duplicate_group_id`（scan 時的 pHash/embedding 判定）；分析完成時與 `dedup` 背景任務重新分組：pHash 多索引找候選，向量只用來否決雜湊碰撞（cosine < 0.90），以代表張為中心分組（ADR-0043）；同場景的相似照片（連拍）不算重複，保留給之後的「相似」檢視 |
 | 代表張 | group | 解析度最高 → 檔案最大 → 最早 taken_at；`is_dup_representative` |
 
 > **（ADR-0027 補充）** 向量路徑有每個 embedding 空間的 cosine 下限（模型目錄的 `embedding.min_cosine`）。低於下限的照片不屬於結果集合，只放在回應的 `related`（最多 24 張，不計數、不進 facet 與 selection）；向量路徑達到 K 時 `total_capped` 為 true。

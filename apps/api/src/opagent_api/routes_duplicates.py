@@ -8,7 +8,7 @@ from typing import Any
 from fastapi import APIRouter, Request
 from opagent_core.ids import uuid7
 from opagent_db.schema import Vector, asset, asset_embedding, asset_location, duplicate_member
-from opagent_search.dedup import group_near
+from opagent_search.dedup import group_duplicates
 from opagent_search.fusion import representative
 from pydantic import BaseModel
 from sqlalchemy import bindparam, cast, delete, func, insert, select
@@ -18,7 +18,6 @@ from .search import active_space
 from .state import DEFAULT_WS, AppState
 
 router = APIRouter()
-BRUTE_VECTORS = 2000  # above this, embedding neighbours come from pgvector k-NN (k = 10) instead of all pairs
 
 
 def _st(req: Request) -> AppState:
@@ -98,35 +97,38 @@ def regroup(st: Any, c: Any) -> int:
     """Near-duplicate groups from stored hashes and vectors, the previous ones replaced in the same transaction. Run
     when an analysis finishes (SRCH-DUP-005): nothing called the route, the groups stayed empty and search counted
     every copy."""
-    assets = c.execute(select(asset.c.id, asset.c.phash).where(asset.c.workspace_id == DEFAULT_WS)).all()
+    # duplicates are pHash near-copies of the photo kept, vetoed by the image vector (ADR-0043); look-alikes found by
+    # the vector alone grouped different children in one gym and offered them for cleanup
+    rows = c.execute(
+        select(asset.c.id, asset.c.phash, asset.c.width * asset.c.height, asset.c.size_bytes).where(
+            asset.c.workspace_id == DEFAULT_WS
+        )
+    ).all()
     space = active_space(c)
-    vecs: dict[str, list[float]] = {}
-    if space is not None:
-        for aid, v in c.execute(
-            select(asset_embedding.c.asset_id, asset_embedding.c.vec).where(asset_embedding.c.space_id == space.id)
-        ).all():
-            vecs[aid] = [float(x) for x in (v if not isinstance(v, str) else v.strip("[]").split(","))]
-    items = [(aid, ph, vecs.get(aid)) for aid, ph in assets]
-    index = {aid: i for i, (aid, _, _) in enumerate(items)}
-    neighbors = None
-    if space is not None and len(vecs) > BRUTE_VECTORS:
+    cache: dict[str, list[float] | None] = {}
 
-        def neighbors(i: int) -> list[int]:
-            qv = cast(bindparam("qv", str(items[i][2])), Vector())
-            rows = c.execute(
-                select(asset_embedding.c.asset_id)
-                .where(asset_embedding.c.space_id == space.id, asset_embedding.c.asset_id != items[i][0])
-                .order_by(asset_embedding.c.vec.op("<=>")(qv))
-                .limit(10)
-            ).scalars()
-            return [index[a] for a in rows if a in index]
+    def vector(aid: str) -> list[float] | None:
+        if aid not in cache:
+            v = (
+                c.execute(
+                    select(asset_embedding.c.vec).where(
+                        asset_embedding.c.asset_id == aid, asset_embedding.c.space_id == space.id
+                    )
+                ).scalar()
+                if space is not None
+                else None
+            )
+            cache[aid] = (
+                None if v is None else [float(x) for x in (v if not isinstance(v, str) else v.strip("[]").split(","))]
+            )
+        return cache[aid]
 
-    groups = group_near(items, neighbors=neighbors)
+    rank = {r[0]: (r[2] or 0, r[3] or 0) for r in rows}  # highest resolution, then largest file (SRCH-DUP-003)
+    groups = group_duplicates([(r[0], r[1], None) for r in rows], rank, vector=vector)
     c.execute(delete(duplicate_member))
-    sizes = dict(c.execute(select(asset.c.id, asset.c.width * asset.c.height)).all())
     for g in groups:
         gid = uuid7(st.clock)
-        rep = max(g, key=lambda a: (sizes.get(a) or 0, a))
+        rep = max(g, key=lambda a: (rank.get(a, (0, 0)), a))
         c.execute(
             insert(duplicate_member),
             [{"group_id": gid, "asset_id": a, "reason": "near", "is_representative": a == rep} for a in g],

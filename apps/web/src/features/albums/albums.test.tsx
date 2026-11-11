@@ -239,5 +239,21 @@ describe("keys in the Lightbox (audit round 34)", () => {
     expect(document.activeElement).toBe(screen.getByLabelText("新相簿名稱"));
     expect(menu.classList.contains("album-menu-start")).toBe(true); // the button is at the left edge here
   });
+
+  it("[COL-020] 回歸：選單預設往右開，只有右邊放不下時才往左（驗證第 52 輪：在 x≈530 的按鈕往左開，被側欄蓋住）", async () => {
+    s.albums.mockResolvedValue({ albums: [] });
+    const at = (left: number) => vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({ left, right: left + 32, top: 0, bottom: 32, width: 32, height: 32, x: left, y: 0, toJSON: () => ({}) } as DOMRect);
+    const { unmount } = wrap(<AddToAlbum assetIds={["a1"]} />);
+    const spy = at(530); // the timeline's batch bar, right of a 300 px sidebar
+    fireEvent.click(screen.getByRole("button", { name: "加入相簿" }));
+    expect((await screen.findByRole("menu")).classList.contains("album-menu-start")).toBe(true);
+    spy.mockRestore();
+    unmount();
+    wrap(<AddToAlbum assetIds={["a1"]} />);
+    const spy2 = at(window.innerWidth - 40); // the Lightbox's top bar, at the right edge
+    fireEvent.click(screen.getByRole("button", { name: "加入相簿" }));
+    expect((await screen.findByRole("menu")).classList.contains("album-menu-start")).toBe(false);
+    spy2.mockRestore();
+  });
 });
 

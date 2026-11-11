@@ -102,6 +102,7 @@ export function FavoriteSelection({ put }: { put: Put }) {
 }
 
 const FAVORITES = "fav-default";
+const MENU_W = 240; // .album-menu's width, near enough: min-width 220 px plus its padding
 
 /** 「加入相簿」: one photo in the Lightbox (assetIds), or a whole selection (put) from the batch bar (COL-015). */
 export function AddToAlbum({ assetIds, put }: { assetIds?: string[]; put?: Put }) {
@@ -114,7 +115,7 @@ export function AddToAlbum({ assetIds, put }: { assetIds?: string[]; put?: Put }
   const menuRef = useRef<HTMLDivElement>(null);
   const list = useQuery({ queryKey: ["albums"], queryFn: api.albums, enabled: open });
   const focused = useRef(false);
-  // near the left edge (the batch bar) it opens to the right: opening leftwards it went under the sidebar (COL-019)
+  // which way it opens: rightwards from the button where there is room (COL-019, COL-020)
   const [start, setStart] = useState(false);
   useEffect(() => {
     if (!open) {
@@ -154,7 +155,8 @@ export function AddToAlbum({ assetIds, put }: { assetIds?: string[]; put?: Put }
       }}
     >
       <button ref={opener} type="button" aria-haspopup="menu" aria-expanded={open} aria-label={t("albums.addTo")} title={t("albums.addTo")} onClick={() => {
-          setStart((opener.current?.getBoundingClientRect().left ?? 0) < 260);
+          // rightwards unless the window has no room there (COL-020): leftwards it went under the sidebar
+          setStart((opener.current?.getBoundingClientRect().left ?? 0) + MENU_W <= window.innerWidth);
           setOpen((o) => !o);
         }} className="icon-button">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">

@@ -442,6 +442,9 @@ def test_dup_005_near_duplicates_are_grouped_when_analysis_finishes(env):
     img = Image.open(FX / "IMG_0001.jpg").convert("RGB")
     img.save(env.tree.photos / "dup" / "a.jpg", "JPEG", quality=92)
     img.save(env.tree.photos / "dup" / "b.jpg", "JPEG", quality=40)  # another file, the same picture
+    # as a real image model does, the two copies of one picture get the same vector: the fake derives vectors from the
+    # file's hash, so it would call them different pictures and the cosine veto (ADR-0043) would keep them apart
+    env.w.embedder.image_vector = lambda it: [1.0] + [0.0] * (env.w.embedder.embedding_dim - 1)
     src = env.client.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": "dup"}).json()
     env.client.post(f"/api/v1/sources/{src['id']}/analyze")
     while env.w.run_once() or env.w.process_items_once():
