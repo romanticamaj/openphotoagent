@@ -101,6 +101,10 @@ export function AlbumPage({ albumId }: { albumId: string }) {
     renameField.current?.select();
   }, [editing]);
   const [confirming, setConfirming] = useState(false);
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (confirming) cancelRef.current?.focus();
+  }, [confirming]);
   const [removed, setRemoved] = useState<string | null>(null); // the last photo taken out, for 「復原」
   useEffect(() => {
     if (!removed) return;
@@ -192,7 +196,8 @@ export function AlbumPage({ albumId }: { albumId: string }) {
         <div role="alertdialog" aria-label={t("albums.delete")} className="flex flex-wrap items-center gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3 text-sm">
           <span>{t("albums.confirmDelete", { name: q.data?.name ?? "" })}</span>
           <button type="button" className="rounded-full bg-[var(--danger)] px-3 py-1 text-white" onClick={() => drop.mutate()}>{t("albums.confirm")}</button>
-          <button type="button" className="underline" onClick={() => setConfirming(false)}>{t("albums.cancel")}</button>
+          {/* the safe choice has the focus as the question opens (COL-026) */}
+          <button ref={cancelRef} type="button" className="underline" onClick={() => setConfirming(false)}>{t("albums.cancel")}</button>
         </div>
       ) : null}
       {removed ? (

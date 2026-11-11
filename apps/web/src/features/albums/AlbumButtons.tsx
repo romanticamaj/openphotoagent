@@ -50,7 +50,7 @@ type Put = (albumId: string) => Promise<{ added?: string[] } | unknown>;
 type Done = { text: string; albumId?: string; added?: string[] };
 
 /** 「已加入…」 and, after a batch add, 復原: it takes out the photos this add put in, not those already there (COL-018). */
-function AddedToast({ done, onGone }: { done: Done; onGone: () => void }) {
+function AddedToast({ done, onGone, back }: { done: Done; onGone: () => void; back?: React.RefObject<HTMLElement | null> }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const undo = useMutation({
@@ -60,6 +60,7 @@ function AddedToast({ done, onGone }: { done: Done; onGone: () => void }) {
       for (let i = 0; i < ids.length; i += UNDO_CHUNK) await api.removeManyFromAlbum(done.albumId!, ids.slice(i, i + UNDO_CHUNK));
     },
     onSuccess: () => {
+      back?.current?.focus(); // 復原 goes away with the toast: focus back where the add began (COL-026)
       void qc.invalidateQueries({ queryKey: ["albums"] });
       void qc.invalidateQueries({ queryKey: ["album"] });
       void qc.invalidateQueries({ queryKey: ["asset"] });
@@ -102,6 +103,7 @@ const addedOf = (r: unknown): string[] | undefined => (r as { added?: string[] }
 export function FavoriteSelection({ put }: { put: Put }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const starRef = useRef<HTMLButtonElement>(null);
   const [done, setDone] = useState<Done | null>(null);
   const fav = useMutation({
     mutationFn: () => put(FAVORITES),
@@ -114,10 +116,10 @@ export function FavoriteSelection({ put }: { put: Put }) {
   });
   return (
     <span className="relative">
-      <button type="button" aria-label={t("albums.favorite")} title={t("albums.favorite")} aria-busy={fav.isPending} onClick={() => !fav.isPending && fav.mutate()} className="icon-button">
+      <button ref={starRef} type="button" aria-label={t("albums.favorite")} title={t("albums.favorite")} aria-busy={fav.isPending} onClick={() => !fav.isPending && fav.mutate()} className="icon-button">
         <Star on={false} />
       </button>
-      {done ? <AddedToast done={done} onGone={() => setDone(null)} /> : null}
+      {done ? <AddedToast done={done} onGone={() => setDone(null)} back={starRef} /> : null}
     </span>
   );
 }
@@ -223,7 +225,7 @@ export function AddToAlbum({ assetIds, put }: { assetIds?: string[]; put?: Put }
           </form>
         </div>
       ) : null}
-      {done ? <AddedToast done={done} onGone={() => setDone(null)} /> : null}
+      {done ? <AddedToast done={done} onGone={() => setDone(null)} back={opener} /> : null}
     </div>
   );
 }

@@ -138,3 +138,20 @@ test.describe("planner chips", () => {
     await expect(page.getByTestId("result-count")).not.toContainText(api.total.toLocaleString("en-US"));
   });
 });
+
+test("[SRCH-UI-026] 回歸：批次 ★ 復原後焦點回到 ★，在頁面任何地方按 Esc 都會取消選取（驗證第 55 輪）", async ({ page }) => {
+  await page.goto("/search?q=photo");
+  const hits = page.getByTestId("search-result");
+  await hits.nth(0).click({ modifiers: ["ControlOrMeta"] });
+  await hits.nth(1).click({ modifiers: ["ControlOrMeta"] });
+  const bar = page.getByTestId("batch-bar");
+  await expect(bar).toContainText("已選 2 張");
+  const star = bar.getByRole("button", { name: "加入收藏" });
+  await star.click();
+  await bar.getByRole("button", { name: "復原" }).click();
+  await expect(bar.getByText("已復原 2 張")).toBeVisible();
+  await expect(star).toBeFocused();
+  await page.locator("body").click({ position: { x: 5, y: 5 } }); // somewhere that is not the results
+  await page.keyboard.press("Escape");
+  await expect(bar).toHaveCount(0);
+});

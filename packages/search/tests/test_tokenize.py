@@ -200,3 +200,16 @@ def test_srch_tok_018_a_street_named_sunset_is_not_a_sunset():
     assert "日落" not in doc["B"] and "日落大道" in doc["B"]
     assert "日落" in tok.document(caption="海邊的日落")["B"]  # a real sunset still is one
     assert tok.tag_key("日落") == "mood.sunset"
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-019")
+def test_srch_tok_019_only_characters_traditional_text_cannot_have_are_converted():
+    """Q-030's conversion, kept narrow: whole-text OpenCC also rewrote correct Taiwan text (設備→裝置, 文件→檔案,
+    台→臺, 家具→傢俱) in 45 of 2,197 captions. Only characters outside Big5 (cp950) are converted: 2 captions, both
+    「开心」."""
+    from opagent_search.tokenize import to_hant
+
+    assert to_hant("两个小孩很开心地玩积木") == "兩個小孩很開心地玩積木"
+    for keep in ("剪彩、洗手台、家具、設備、文件、自行車、工作台、托盤、划槳", "Two kids play.", "", None):
+        assert to_hant(keep) == keep

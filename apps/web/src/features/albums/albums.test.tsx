@@ -303,5 +303,22 @@ describe("keys in the Lightbox (audit round 34)", () => {
     fireEvent.click(await screen.findByRole("button", { name: "復原" }));
     expect((await screen.findByText("已復原 3 張")).getAttribute("role")).toBe("status");
   });
+
+  it("[COL-026] 回歸：復原之後焦點回到按鈕；刪除相簿的確認打開時焦點在「取消」（驗證第 55 輪：焦點掉到頁面）", async () => {
+    s.removeManyFromAlbum.mockReset();
+    s.removeManyFromAlbum.mockResolvedValue({ count: 0 });
+    const put = vi.fn().mockResolvedValue({ count: 2, added: ["p1", "p2"] });
+    const { unmount } = wrap(<FavoriteSelection put={put} />);
+    const star = screen.getByRole("button", { name: "加入收藏" });
+    fireEvent.click(star);
+    fireEvent.click(await screen.findByRole("button", { name: "復原" }));
+    await screen.findByText("已復原 2 張");
+    await waitFor(() => expect(document.activeElement).toBe(star));
+    unmount();
+    s.album.mockResolvedValue({ id: "b1", name: "墾丁", kind: "album", photos: [] });
+    wrap(<AlbumPage albumId="b1" />);
+    fireEvent.click(await screen.findByRole("button", { name: "刪除相簿" }));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "取消" })));
+  });
 });
 

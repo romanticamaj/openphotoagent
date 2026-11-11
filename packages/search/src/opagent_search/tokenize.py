@@ -42,6 +42,35 @@ def _opencc() -> tuple[Any, Any]:
     return opencc.OpenCC("s2twp"), opencc.OpenCC("t2s")
 
 
+def to_hant(text: str | None) -> str | None:
+    """Text as zh-TW keeps it (Q-030): a caption the model wrote with Simplified characters, 「开心」, becomes 「開心」.
+    Only characters Traditional text cannot have are converted, those outside Big5 (cp950): converting whole text
+    also rewrote correct Taiwan wording, 設備→裝置, 台→臺, 家具→傢俱 (SRCH-TOK-019). Latin text passes through."""
+    if not text:
+        return text
+    out = []
+    for ch in text:
+        if "一" <= ch <= "鿿" and not _big5(ch):
+            ch = str(_s2tw().convert(ch))
+        out.append(ch)
+    return "".join(out)
+
+
+def _big5(ch: str) -> bool:
+    try:
+        ch.encode("cp950")
+    except UnicodeEncodeError:
+        return False
+    return True
+
+
+@lru_cache(maxsize=1)
+def _s2tw() -> Any:
+    import opencc
+
+    return opencc.OpenCC("s2tw")
+
+
 def normalize(s: str) -> str:
     s = unicodedata.normalize("NFKC", s)
     s = _ZW.sub("", s).lower()

@@ -11,7 +11,7 @@ import type { GridApi } from "../viewer/PhotoGrid";
 import { api, isDegraded, mediaUrl, type SearchBody } from "../../lib/api";
 import { turnStyle } from "../../lib/turn";
 
-import { AddToAlbum, FavoriteSelection } from "../albums/AlbumButtons";
+import { AddToAlbum, FavoriteSelection, typingIn } from "../albums/AlbumButtons";
 import { bodyFor, cappedNote, chipLabel, chipsFrom, gridAssetOf, headerCount, onlyByMeaning, relaxedText, softView, weakNeedsMore, tileLabel, weakTail, withoutPerson, withoutWords, dateWords, type Chip } from "./searchPlan";
 
 export function SearchPage({ q }: { q: string }) {
@@ -83,6 +83,19 @@ export function SearchPage({ q }: { q: string }) {
     }),
     [hits],
   );
+  // Esc clears the selection wherever focus is but a text field, as on the timeline (SRCH-UI-026: after 復原 focus
+  // was on the page and Esc did nothing, so the next Ctrl-clicks took photos out instead of adding them)
+  const choosingNow = sel.all || sel.ids.size > 0;
+  useEffect(() => {
+    if (!choosingNow || viewing !== null) return;
+    const esc = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || typingIn(e.target) || e.defaultPrevented) return;
+      if ((e.target as HTMLElement | null)?.closest?.('[role="dialog"], [role="alertdialog"], [role="menu"]')) return; // theirs
+      setSel({ all: false, ids: new Set(), anchor: null });
+    };
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, [choosingNow, viewing]);
   const onKey = (e: React.KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
       e.preventDefault();
