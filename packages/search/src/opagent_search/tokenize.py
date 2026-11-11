@@ -107,6 +107,10 @@ FILLER = {
 }
 
 
+# numbers and measure words: 「好多隻貓」 said no photo showed 「隻」 (SRCH-TOK-016); 「三個小朋友」 is children
+MEASURE = re.compile(r"^[一二兩三四五六七八九十百幾好多]*[隻個些位群條頭件本台輛把朵幅張顆塊片雙對]?$")
+
+
 @dataclass(frozen=True)
 class Concept:
     """One thing the photo must show: a vocabulary term with all its names, or a word the vocabulary does not know."""
@@ -228,7 +232,7 @@ class Tokenizer:
         out: list[Concept] = []
         seen: set[str] = set()
         for w in self.words(text):
-            if normalize(w) in FILLER:
+            if normalize(w) in FILLER or MEASURE.fullmatch(normalize(w)):
                 continue
             k = self.tag_key(w)
             ident = k or normalize(w)

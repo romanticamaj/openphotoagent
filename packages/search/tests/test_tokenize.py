@@ -164,3 +164,13 @@ def test_srch_tok_015_quantity_words_are_not_concepts():
     words = [c.word for c in Tokenizer().concepts("一張有很多彩色方塊的圖")]
     assert "一張" not in words and "很多" not in words and "圖" not in words
     assert "好多" not in [c.word for c in Tokenizer().concepts("好多隻貓")]
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-016")
+def test_srch_tok_016_measure_words_are_not_concepts():
+    """回歸 (audit round 43): 「好多隻貓」 said 「沒有照片拍到「隻」」: a measure word was a search term."""
+    for q, want in [("好多隻貓", ["貓"]), ("三個小朋友", ["小朋友"]), ("兩隻狗在草地上", ["狗", "草地"])]:
+        got = [c.word for c in Tokenizer().concepts(q)]
+        assert not {"隻", "個", "些", "三", "兩"} & set(got), (q, got)
+        assert all(w in got for w in want), (q, got)
