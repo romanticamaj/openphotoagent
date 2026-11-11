@@ -109,11 +109,23 @@ export type AssetInfo = {
   faces_found?: { total: number; small: number };
   unknown_faces?: Array<{ id?: string; bbox: number[]; small: boolean; ch?: string | null }>;
 };
-export type Variant = "t256" | "t512" | "p1024";
+export type Variant = "t256" | "t512" | "p1024" | "p2048";
 
 /** A photo's derived image. Desktop: straight from the local cache through the asset protocol, keyed by the
  *  content hash `ch` (10 §5.4); web: the API endpoint. */
 const knownHash = new Map<string, string>(); // ids seen with their hash (e.g. dragged examples carry only the id)
+
+/** Have the 2048 px preview made (VIEW-035): the worker writes it on first request; then mediaUrl finds it, on desktop
+ * straight from the thumbnail cache. Resolves false when there is none (no worker, a video). */
+export async function preparePreview(id: string): Promise<boolean> {
+  const { url, headers } = await endpoint(`/api/v1/assets/${encodeURIComponent(id)}/media?variant=p2048`);
+  try {
+    const r = await fetch(url, { headers });
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
 
 export function mediaUrl(id: string, variant: Variant, ch?: string | null): string {
   const p = platform();

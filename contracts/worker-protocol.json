@@ -4162,6 +4162,7 @@
     "folder_preview",
     "folder_thumb",
     "hash_sha1",
+    "preview",
     "probe_root",
     "query_plan",
     "remove",

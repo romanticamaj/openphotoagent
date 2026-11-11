@@ -10,7 +10,8 @@ beforeAll(async () => {
 const s = vi.hoisted(() => ({ favs: new Set<string>(), setFavorite: vi.fn() }));
 vi.mock("../../lib/api", async (orig) => ({
   ...(await orig<typeof import("../../lib/api")>()),
-  mediaUrl: (id: string) => `/m/${id}`,
+  mediaUrl: (id: string, v: string) => `/m/${id}/${v}`,
+  preparePreview: async () => true,
   api: {
     asset: async (id: string) => ({ id, favorite: s.favs.has(id), albums: [], labels: [], exif: {}, locations: [] }),
     setFavorite: async (id: string, on: boolean) => {
@@ -69,6 +70,21 @@ describe("F while the next photo loads (audit round 35)", () => {
     fireEvent.keyDown(lb, { key: "f" }); // the same instant: p1 is not in yet
     await waitFor(() => expect(s.setFavorite).toHaveBeenCalledWith("p1", true));
     expect(s.setFavorite).not.toHaveBeenCalledWith("p0", expect.anything());
+  });
+});
+
+describe("zoom (audit round 38)", () => {
+  it("[VIEW-035] 回歸：放大後換上 2048 的預覽，不再把 1024 拉大", async () => {
+    const { container } = render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Lightbox start={0} grid={grid} onClose={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    const lb = screen.getByTestId("lightbox");
+    await screen.findByRole("button", { name: "加入收藏" });
+    expect(container.querySelector('img[data-variant="p2048"]')).toBeNull(); // not before it is needed
+    fireEvent.keyDown(lb, { key: "+" });
+    await waitFor(() => expect(container.querySelector('img[data-variant="p2048"]')?.getAttribute("src")).toBe("/m/p0/p2048"));
   });
 });
 

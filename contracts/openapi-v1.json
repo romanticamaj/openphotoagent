@@ -3799,7 +3799,8 @@
               "enum": [
                 "t256",
                 "t512",
-                "p1024"
+                "p1024",
+                "p2048"
               ],
               "title": "Variant",
               "type": "string"

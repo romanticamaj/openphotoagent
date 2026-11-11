@@ -1,5 +1,6 @@
 """匯入 and 整理 are separate (ADR-0029): adding a folder analyses it, and files only move through a plan."""
 
+import io
 import shutil
 import threading
 from datetime import UTC, datetime
@@ -12,7 +13,7 @@ from opagent_db.schema import asset, engine_for, job, job_item, output_plan, res
 from opagent_inference.fake import FakeBackend
 from opagent_testing.clock import FakeClock
 from opagent_worker.agent import WorkerAgent
-from sqlalchemy import func, insert, select, update
+from sqlalchemy import func, insert, select, text, update
 
 FX = Path(__file__).resolve().parents[4] / "fixtures/photos/basic"
 
@@ -351,3 +352,36 @@ def test_op_024_just_done_is_from_this_run(env):
     while env.w.run_once():  # the scan only: nothing analysed in this run yet
         pass
     assert env.client.get("/api/v1/analysis/status").json()["recent"] == []
+
+
+@pytest.mark.integration
+@pytest.mark.tc("VIEW-035")
+def test_view_035_a_sharper_preview_is_made_when_zoomed(embedded_pg, sandbox_tree, tmp_path):
+    """回歸 (audit round 38): zoom stretched the 1024 px preview of a 4896×6528 photo. A 2048 px preview is made by the
+    worker the first time it is asked for (10 §3.4: on demand), then served from its cache; the API opens no original."""
+    from PIL import Image
+
+    home = tmp_path / "w"
+    client = TestClient(create_app(dsn=embedded_pg.dsn, thumbs_dir=home / "thumbs"))
+    Image.new("RGB", (3000, 2000), (200, 120, 40)).save(sandbox_tree.photos / "big.jpg")
+    w = WorkerAgent(
+        client, roots=sandbox_tree.roots, home=home, backend=FakeBackend(), embedder=FakeBackend(), worker_id="w1"
+    )
+    w.register()
+    src = client.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": ""}).json()
+    client.post(f"/api/v1/sources/{src['id']}/scan")
+    while w.run_once():
+        pass
+    eng = engine_for(embedded_pg.dsn)
+    with eng.connect() as c:
+        aid = c.execute(text("select asset_id from asset_location where rel_path = 'big.jpg'")).scalar()
+    eng.dispose()
+    t = threading.Thread(target=w.run_once, kwargs={"wait_s": 5.0})
+    t.start()
+    r = client.get(f"/api/v1/assets/{aid}/media", params={"variant": "p2048"})
+    t.join()
+    assert r.status_code == 200, r.text
+    with Image.open(io.BytesIO(r.content)) as im:
+        assert max(im.size) == 2048
+    again = client.get(f"/api/v1/assets/{aid}/media", params={"variant": "p2048"})  # from the cache, no worker
+    assert again.status_code == 200 and again.headers["cache-control"].startswith("public")

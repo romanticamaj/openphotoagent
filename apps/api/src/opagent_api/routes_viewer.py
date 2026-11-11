@@ -233,6 +233,34 @@ def bucket(month: str, req: Request) -> dict[str, Any]:
     }
 
 
+PREVIEW_WAIT_S = 15.0
+
+
+def _make_preview(st: AppState, asset_id: str, h: str) -> None:
+    """Ask the worker for a 2048 px preview of one photo, written to its thumbnail cache; the API opens no original
+    (invariant 1). Nothing happens when no worker has the photo or it does not answer in time."""
+    from opagent_db.schema import asset_location
+
+    from .routes_public import worker_rpc
+
+    with st.engine.begin() as c:
+        loc = c.execute(
+            select(source.c.worker_id, source.c.root_alias, asset_location.c.rel_path)
+            .join(asset_location, asset_location.c.source_id == source.c.id)
+            .where(asset_location.c.asset_id == asset_id, asset_location.c.missing.is_(False))
+            .limit(1)
+        ).first()
+    if loc is None or loc.worker_id is None:
+        return
+    worker_rpc(
+        st,
+        loc.worker_id,
+        "preview",
+        {"content_hash": h, "root_alias": loc.root_alias, "rel": loc.rel_path, "size": 2048},
+        timeout_s=PREVIEW_WAIT_S,
+    )
+
+
 def _edge_relay(st: AppState, asset_id: str, h: str, variant: str) -> Response | None:
     """edge-thumbs (02 §1.4): the thumbnail stays on the worker; fetch it through the worker channel, never store it."""
     if not st.multi_user:
@@ -264,7 +292,7 @@ def _edge_relay(st: AppState, asset_id: str, h: str, variant: str) -> Response |
 
 
 @router.get("/assets/{asset_id}/media")
-def media(asset_id: str, req: Request, variant: Literal["t256", "t512", "p1024"] = Query(...)) -> FileResponse:
+def media(asset_id: str, req: Request, variant: Literal["t256", "t512", "p1024", "p2048"] = Query(...)) -> FileResponse:
     """Derived variants from the Worker's thumbnail cache, content-addressed and therefore immutable (10 §3.4)."""
     st = _st(req)
     with st.engine.connect() as c:
@@ -274,6 +302,8 @@ def media(asset_id: str, req: Request, variant: Literal["t256", "t512", "p1024"]
     if st.thumbs_dir is None:
         raise HTTPException(404, detail={"code": "THUMB_MISSING"})
     p = st.thumbs_dir / h[:2] / f"{h}.{variant}.webp"
+    if not p.is_file() and variant == "p2048":
+        _make_preview(st, asset_id, h)  # on demand, the first time it is zoomed (10 §3.4, VIEW-035)
     if not p.is_file():
         relayed = _edge_relay(st, asset_id, h, variant)
         if relayed is not None:

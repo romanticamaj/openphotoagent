@@ -71,6 +71,7 @@ RPC_KINDS = frozenset(
         "folder_preview",
         "folder_thumb",
         "hash_sha1",
+        "preview",  # a 2048 px preview into the thumbnail cache, on demand (VIEW-035)
         "probe_root",
         "remove",
         "scan",
@@ -1466,6 +1467,30 @@ class WorkerAgent:
         from .folder_preview import folder_preview
 
         return folder_preview(self.sb, p["root_alias"], p.get("path", ""), self.tz)  # type: ignore[arg-type]
+
+    def _do_preview(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """A sharper preview for zoom (10 §3.4, VIEW-035): one photo, through the sandbox, into the thumbnail cache."""
+        import re
+
+        from PIL import Image
+
+        from .imaging import open_image, oriented
+
+        h, size = str(p["content_hash"]), int(p.get("size") or 2048)
+        if not re.fullmatch(r"[0-9a-f]{16,128}", h) or size != 2048:
+            raise ValueError("bad preview request")
+        d = self.home / "thumbs" / h[:2]
+        dst = d / f"{h}.p{size}.webp"
+        if not dst.is_file():
+            sp = self.sb.resolve(p["root_alias"], p["rel"])
+            with open_image(sp.real) as im:
+                pic = oriented(im)
+                pic.thumbnail((size, size), Image.Resampling.LANCZOS)
+                d.mkdir(parents=True, exist_ok=True)
+                tmp = dst.with_suffix(".part")
+                pic.convert("RGB").save(tmp, "WEBP", quality=85)
+                tmp.replace(dst)  # whole or not at all: the API serves it as soon as it exists
+        return {"ok": True}
 
     def _do_folder_thumb(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         from .folder_preview import folder_thumb

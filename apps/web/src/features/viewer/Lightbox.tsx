@@ -8,7 +8,7 @@ import { FaceCrop } from "../../components/FaceCrop";
 import { FaceBoxes } from "./faceBoxes";
 import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api, mediaUrl, type AssetInfo, type TimelineAsset } from "../../lib/api";
+import { api, mediaUrl, preparePreview, type AssetInfo, type TimelineAsset } from "../../lib/api";
 import { platform } from "../../lib/platform";
 import { placeholder } from "../../lib/thumbhash";
 import type { GridApi } from "./PhotoGrid";
@@ -25,7 +25,8 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
   const [assetOrd, setAssetOrd] = useState<number | null>(null); // which photo `asset` is: it arrives after ord moves
   const [favWanted, setFavWanted] = useState<number | null>(null); // F pressed before that photo was in (COL-013)
   const [film, setFilm] = useState<Array<{ ord: number; a: TimelineAsset }>>([]);
-  const [stage, setStage] = useState<"t512" | "p1024" | null>(null);
+  const [stage, setStage] = useState<"t512" | "p1024" | "p2048" | null>(null);
+  const [sharp, setSharp] = useState(false); // p2048 is there to show (VIEW-035)
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [showInfo, setShowInfo] = useState(false);
@@ -37,6 +38,7 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
   useEffect(() => {
     let live = true;
     setStage(null);
+    setSharp(false);
     setScale(1);
     setPan({ x: 0, y: 0 });
     void grid.at(ord).then((r) => {
@@ -69,6 +71,16 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
     const prev = opener.current;
     return () => (prev as HTMLElement | null)?.focus?.();
   }, []);
+
+  // zoomed in: have the 2048 px preview made, then show it over the 1024 one (VIEW-035, 10 §3.4)
+  useEffect(() => {
+    if (!asset || scale <= 1 || sharp) return;
+    let live = true;
+    void preparePreview(asset.id).then((ok) => live && ok && setSharp(true));
+    return () => {
+      live = false;
+    };
+  }, [asset, scale, sharp]);
 
   const close = useCallback(() => onClose(asset?.id ?? null), [asset, onClose]);
   const go = useCallback((d: number) => setOrd((o) => Math.max(0, Math.min(grid.total - 1, o + d))), [grid.total]);
@@ -157,10 +169,22 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
                 src={mediaUrl(asset.id, "p1024", asset.ch)}
                 alt={asset.taken_at ? t("viewer.photoAlt", { date: asset.taken_at.slice(0, 10) }) : ""}
                 data-variant="p1024"
-                onLoad={() => setStage("p1024")}
+                onLoad={() => setStage((s) => (s === "p2048" ? s : "p1024"))}
                 style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`, width: "100%", height: "100%" }}
               />
             )}
+            {sharp ? (
+              // zoomed in: the 2048 px preview, made on first request (10 §3.4); the 1024 one stays under it until then
+              <img
+                key={`${asset.id}-p2048`}
+                src={mediaUrl(asset.id, "p2048", asset.ch)}
+                alt=""
+                data-variant="p2048"
+                onLoad={() => setStage("p2048")}
+                onError={(e) => (e.currentTarget.style.visibility = "hidden")}
+                style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`, width: "100%", height: "100%" }}
+              />
+            ) : null}
           </>
         )}
         {asset && showInfo && natural && scale === 1 ? <PhotoFaces id={asset.id} photo={natural} /> : null}
