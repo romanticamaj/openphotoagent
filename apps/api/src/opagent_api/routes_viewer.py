@@ -182,45 +182,56 @@ def analysis_status(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
 
 MEMORY_DAYS = 3  # 10 §2.8: the same day ±3, in earlier years
 MEMORY_MAX = 24  # photos per year shown (10 §2.8: 12-30)
+MEMORY_YEARS = 30  # years looked back at most (security review: one query per year)
+MEMORY_PAST_YEARS = 100  # a requested day this far from the server's today is refused
+
+
+def _memory_year(c: Any, year: int, now: date) -> list[Any]:
+    """The photos of one earlier year within ±3 days of today's date; one per near-duplicate group."""
+    from datetime import timedelta
+
+    from opagent_db.schema import duplicate_member
+
+    try:
+        day = now.replace(year=year)
+    except ValueError:  # 29 February in a year without one
+        day = now.replace(year=year, day=28)
+    lo, hi = day - timedelta(days=MEMORY_DAYS), day + timedelta(days=MEMORY_DAYS + 1)
+    when = func.coalesce(asset.c.local_at, asset.c.taken_at)
+    hidden = select(duplicate_member.c.asset_id).where(duplicate_member.c.is_representative.is_(False))
+    return list(
+        c.execute(
+            select(asset.c.id, asset.c.content_hash, when.label("at"))
+            .where(asset.c.workspace_id == DEFAULT_WS, when >= lo, when < hi, asset.c.id.notin_(hidden))
+            .order_by(when, asset.c.id)
+            .limit(MEMORY_MAX)
+        ).all()
+    )
 
 
 @router.get("/memories/on-this-day")
 def on_this_day(req: Request, today: str | None = None) -> dict[str, Any]:
     """那年今日 (10 §2.8, MEM-001): photos taken within ±3 days of today's date in each earlier year, newest year
-    first; one photo per near-duplicate group. Read-only."""
+    first, at most 30 years back; one photo per near-duplicate group. Read-only."""
     from datetime import timedelta
 
-    from opagent_db.schema import duplicate_member
-
     st = _st(req)
+    server = st.clock.now().date()
     try:
-        now = date.fromisoformat(today) if today else st.clock.now().date()
+        now = date.fromisoformat(today) if today else server
     except ValueError:
         raise HTTPException(422, detail={"code": "VALIDATION", "field": "today"}) from None
+    if now > server + timedelta(days=1) or now.year < server.year - MEMORY_PAST_YEARS:  # MEM-004
+        raise HTTPException(422, detail={"code": "VALIDATION", "field": "today"})
     when = func.coalesce(asset.c.local_at, asset.c.taken_at)
-    hidden = select(duplicate_member.c.asset_id).where(duplicate_member.c.is_representative.is_(False))
     groups = []
     with st.engine.connect() as c:
         first = c.execute(select(func.min(when)).where(asset.c.workspace_id == DEFAULT_WS)).scalar()
         if first is None:
             return {"today": now.isoformat(), "groups": []}
-        for year in range(now.year - 1, first.year - 1, -1):
-            try:
-                day = now.replace(year=year)
-            except ValueError:  # 29 February in a year without one
-                day = now.replace(year=year, day=28)
-            lo, hi = day - timedelta(days=MEMORY_DAYS), day + timedelta(days=MEMORY_DAYS + 1)
-            rows = c.execute(
-                select(asset.c.id, asset.c.content_hash, when.label("at"))
-                .where(
-                    asset.c.workspace_id == DEFAULT_WS,
-                    when >= lo,
-                    when < hi,
-                    asset.c.id.notin_(hidden),
-                )
-                .order_by(when, asset.c.id)
-                .limit(MEMORY_MAX)
-            ).all()
+        oldest = max(first.year, now.year - MEMORY_YEARS)
+        for year in range(now.year - 1, oldest - 1, -1):
+            rows = _memory_year(c, year, now)
             if rows:
                 groups.append(
                     {
