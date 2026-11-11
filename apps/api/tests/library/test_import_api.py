@@ -385,3 +385,46 @@ def test_view_035_a_sharper_preview_is_made_when_zoomed(embedded_pg, sandbox_tre
         assert max(im.size) == 2048
     again = client.get(f"/api/v1/assets/{aid}/media", params={"variant": "p2048"})  # from the cache, no worker
     assert again.status_code == 200 and again.headers["cache-control"].startswith("public")
+
+
+@pytest.mark.integration
+@pytest.mark.tc("VIEW-036")
+def test_view_036_one_preview_task_per_photo_and_a_failure_is_remembered(
+    embedded_pg, sandbox_tree, tmp_path, monkeypatch
+):
+    """Security review of VIEW-035: every request for a missing p2048 queued another worker task and held a thread.
+    Requests while one is pending share it; a photo whose preview failed is not asked again."""
+    import opagent_api.routes_viewer as V
+
+    monkeypatch.setattr(V, "PREVIEW_WAIT_S", 0.2)
+    home = tmp_path / "w"
+    client = TestClient(create_app(dsn=embedded_pg.dsn, thumbs_dir=home / "thumbs"))
+    w = WorkerAgent(
+        client, roots=sandbox_tree.roots, home=home, backend=FakeBackend(), embedder=FakeBackend(), worker_id="w1"
+    )
+    w.register()
+    shutil.copyfile(FX / "IMG_0001.jpg", sandbox_tree.photos / "a.jpg")
+    src = client.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": ""}).json()
+    client.post(f"/api/v1/sources/{src['id']}/scan")
+    while w.run_once():
+        pass
+    eng = engine_for(embedded_pg.dsn)
+    with eng.connect() as c:
+        aid = c.execute(text("select asset_id from asset_location where rel_path = 'a.jpg'")).scalar()
+
+    def tasks():
+        with eng.connect() as c:
+            return (
+                c.execute(text("select status from worker_task where kind = 'preview' order by created_at"))
+                .scalars()
+                .all()
+            )
+
+    for _ in range(3):  # no worker answering: each waits briefly, all on the same task
+        assert client.get(f"/api/v1/assets/{aid}/media", params={"variant": "p2048"}).status_code == 404
+    assert tasks() == ["pending"]
+    with eng.begin() as c:
+        c.execute(text("update worker_task set status = 'failed' where kind = 'preview'"))
+    assert client.get(f"/api/v1/assets/{aid}/media", params={"variant": "p2048"}).status_code == 404
+    assert tasks() == ["failed"]  # not asked again
+    eng.dispose()

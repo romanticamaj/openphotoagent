@@ -233,32 +233,53 @@ def bucket(month: str, req: Request) -> dict[str, Any]:
     }
 
 
-PREVIEW_WAIT_S = 15.0
+PREVIEW_WAIT_S = 8.0
 
 
 def _make_preview(st: AppState, asset_id: str, h: str) -> None:
     """Ask the worker for a 2048 px preview of one photo, written to its thumbnail cache; the API opens no original
-    (invariant 1). Nothing happens when no worker has the photo or it does not answer in time."""
+    (invariant 1). One task per photo: requests while it is pending wait on it, and a photo whose preview failed (a
+    video, an unreadable file) is not asked again (VIEW-036, security review). Nothing is raised: the caller falls
+    back to the 1024 px preview."""
+    import time
+
     from opagent_db.schema import asset_location
 
-    from .routes_public import worker_rpc
-
     with st.engine.begin() as c:
-        loc = c.execute(
-            select(source.c.worker_id, source.c.root_alias, asset_location.c.rel_path)
-            .join(asset_location, asset_location.c.source_id == source.c.id)
-            .where(asset_location.c.asset_id == asset_id, asset_location.c.missing.is_(False))
+        last = c.execute(
+            select(worker_task.c.id, worker_task.c.status)
+            .where(worker_task.c.kind == "preview", worker_task.c.payload["content_hash"].astext == h)
+            .order_by(worker_task.c.created_at.desc())
             .limit(1)
         ).first()
-    if loc is None or loc.worker_id is None:
-        return
-    worker_rpc(
-        st,
-        loc.worker_id,
-        "preview",
-        {"content_hash": h, "root_alias": loc.root_alias, "rel": loc.rel_path, "size": 2048},
-        timeout_s=PREVIEW_WAIT_S,
-    )
+        if last is not None and last.status == "failed":
+            return
+        tid = last.id if last is not None and last.status in ("pending", "leased") else None
+        if tid is None:
+            loc = c.execute(
+                select(source.c.worker_id, source.c.root_alias, asset_location.c.rel_path)
+                .join(asset_location, asset_location.c.source_id == source.c.id)
+                .where(asset_location.c.asset_id == asset_id, asset_location.c.missing.is_(False))
+                .limit(1)
+            ).first()
+            if loc is None or loc.worker_id is None:
+                return
+            tid = uuid7(st.clock)
+            c.execute(
+                insert(worker_task).values(
+                    id=tid,
+                    kind="preview",
+                    worker_id=loc.worker_id,
+                    payload={"content_hash": h, "root_alias": loc.root_alias, "rel": loc.rel_path, "size": 2048},
+                )
+            )
+    deadline = time.monotonic() + PREVIEW_WAIT_S  # noqa: TID251 - waits on a real worker over the wire
+    while time.monotonic() < deadline:  # noqa: TID251
+        with st.engine.connect() as c:
+            status = c.execute(select(worker_task.c.status).where(worker_task.c.id == tid)).scalar()
+        if status in ("done", "failed"):
+            return
+        time.sleep(0.05)  # noqa: TID251
 
 
 def _edge_relay(st: AppState, asset_id: str, h: str, variant: str) -> Response | None:
