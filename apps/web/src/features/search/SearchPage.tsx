@@ -10,7 +10,7 @@ import { Lightbox } from "../viewer/Lightbox";
 import type { GridApi } from "../viewer/PhotoGrid";
 import { api, isDegraded, mediaUrl, type SearchBody } from "../../lib/api";
 
-import { bodyFor, cappedNote, chipLabel, chipsFrom, headerCount, onlyByMeaning, softView, weakNeedsMore, weakTail, withoutPerson, type Chip } from "./searchPlan";
+import { bodyFor, cappedNote, chipLabel, chipsFrom, headerCount, onlyByMeaning, relaxedText, softView, weakNeedsMore, weakTail, withoutPerson, type Chip } from "./searchPlan";
 
 export function SearchPage({ q }: { q: string }) {
   const { t, i18n } = useTranslation();
@@ -162,8 +162,8 @@ export function SearchPage({ q }: { q: string }) {
       {soft?.note ? (
         <p role="status" className="text-sm text-[var(--text-muted)]">{soft.note}</p>
       ) : null}
-      {first?.relaxed?.length ? (
-        <p role="status" className="text-sm text-[var(--text-muted)]">{t("search.relaxed", { words: first.relaxed.join("、") })}</p>
+      {first && relaxedText(t, first.relaxed, Boolean(first.meaning_only)) ? (
+        <p role="status" className="text-sm text-[var(--text-muted)]">{relaxedText(t, first.relaxed, Boolean(first.meaning_only))}</p>
       ) : null}
       {index.data && index.data.total > 0 && index.data.searchable < index.data.total && (
         <p data-testid="index-banner" role="status" className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2">

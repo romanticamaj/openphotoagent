@@ -186,6 +186,8 @@ export type SearchResult = {
   /** near misses, shown apart: outside `total`, facets and selections (ADR-0027) */
   related?: { asset_id: string; ch: string | null; caption: string | null }[];
   relaxed?: string[];
+  /** no word was shown: the phrase's caption meaning answered (SRCH-CNC-016) */
+  meaning_only?: boolean;
   /** expressions that rank without filtering, and how many photos show them (SRCH-CNC-007) */
   soft?: { word: string; key: string; shown: number; implied_by?: string }[];
   /** weak look-alikes, last: how many and from where (ADR-0040) */

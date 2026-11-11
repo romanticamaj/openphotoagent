@@ -155,3 +155,12 @@ def test_srch_tok_014_an_activity_may_imply_a_scene():
             assert t["id"].split(".")[0] in ("activity", "object"), t["id"]
             assert b.startswith("scene.") and b in ids, (t["id"], b)
             assert not next(x for x in terms if x["id"] == b).get("implies"), "no chains"
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-015")
+def test_srch_tok_015_quantity_words_are_not_concepts():
+    """回歸 (audit round 42): 「一張有很多彩色方塊的圖」 made 一張 and 很多 things a photo had to show."""
+    words = [c.word for c in Tokenizer().concepts("一張有很多彩色方塊的圖")]
+    assert "一張" not in words and "很多" not in words and "圖" not in words
+    assert "好多" not in [c.word for c in Tokenizer().concepts("好多隻貓")]

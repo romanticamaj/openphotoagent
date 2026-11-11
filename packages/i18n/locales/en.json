@@ -552,7 +552,8 @@
     "softImpliedDivider": "The {n} below don't clearly show “{word}”, but all show “{by}”",
     "weakCount": "{n} less related",
     "busy": "Searching…",
-    "busyLabel": "Searching"
+    "busyLabel": "Searching",
+    "relaxedMeaning": "No photo says “{words}” outright. Below are photos with a similar meaning."
   },
   "problem": {
     "chosen": "Switched to {what}"

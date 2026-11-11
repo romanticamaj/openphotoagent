@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import i18n from "../../lib/i18n";
-import { bodyFor, cappedNote, chipLabel, chipsFrom, countText, headerCount, onlyByMeaning, softView, weakNeedsMore, weakTail, withoutPerson } from "./searchPlan";
+import { bodyFor, cappedNote, chipLabel, chipsFrom, countText, headerCount, onlyByMeaning, relaxedText, softView, weakNeedsMore, weakTail, withoutPerson } from "./searchPlan";
 
 const planner = (filters: Record<string, unknown>, explain: string[], text = "") => ({
   source: "rules",
@@ -147,6 +147,15 @@ describe("the divider counts what is under it (audit round 40)", () => {
   it("[SRCH-UI-019] 回歸：分隔線不算收起的照片（「以下 164 張」實際只有 154 張）", () => {
     const v = softView(t, [{ word: "開心", key: "mood.smile", shown: 11 }], 175, [], 10);
     expect(v?.divider).toBe("以下 154 張沒看出「開心」，仍符合其他條件");
+  });
+});
+
+describe("words no photo shows (SRCH-CNC-016)", () => {
+  const t = i18n.getFixedT("zh-TW");
+  it("[SRCH-CNC-016] 每個詞都沒有照片寫到時，說下面是意思相近的照片", () => {
+    expect(relaxedText(t, ["彩色", "方塊"], true)).toBe("沒有照片直接寫到「彩色、方塊」，下面是意思相近的照片。");
+    expect(relaxedText(t, ["量子"], false)).toBe("沒有照片拍到「量子」，下面是符合其他條件的照片。");
+    expect(relaxedText(t, [], false)).toBeNull();
   });
 });
 

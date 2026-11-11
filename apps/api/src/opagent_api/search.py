@@ -467,6 +467,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
     concepts: list[Any] = []
     soft_out: list[dict[str, Any]] = []
     image_cos: dict[str, float] = {}
+    meaning_only = False  # answered by the phrase's caption meaning alone (SRCH-CNC-016)
     shown_first: set[str] = set()  # the photos an expression put first: never weak (SRCH-SEM-010)
     weak: list[str] = []
     member: list[Any] = []  # ADR-0005: the match set (total, facets, selection) — not just the ranking window
@@ -565,6 +566,10 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
             vec_ids = (routes.get("image_vector") or []) + (routes.get("caption_vector") or [])
             if len(concepts) > 1 or soft:
                 match = and_(*member) if member else false()
+                if not member and relaxed and routes.get("caption_vector"):
+                    # no word is shown by any photo: the whole phrase's caption meaning answers (SRCH-CNC-016)
+                    match = search_doc.c.asset_id.in_(routes["caption_vector"])
+                    meaning_only = True
                 # the image model was asked the whole question (English, or every concept in the vocabulary): what it
                 # finds above the floor shows all of it together, "a dog on the beach" (SRCH-SEM-001, ADR-0032)
                 whole = all(cpt.key or cpt.word.isascii() for cpt in concepts)
@@ -700,6 +705,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
         "total": total,
         "relaxed": relaxed,  # words no photo shows, left out so the rest still answers (ADR-0032)
         "soft": soft_out,
+        "meaning_only": meaning_only,
         "weak": len(weak),  # weak look-alikes, last (ADR-0040)
         "weak_from": total - len(weak)
         if weak

@@ -78,6 +78,16 @@ FILLER = {
     "有",
     "嗎",
     "呢",
+    # quantity words: 「一張有很多彩色方塊的圖」 made a photo show 一張 and 很多 (SRCH-TOK-015)
+    "一張",
+    "一個",
+    "一隻",
+    "很多",
+    "許多",
+    "好多",
+    "一些",
+    "幾個",
+    "好幾",
     # degree words: 「很開心」 made every photo show 很 (SRCH-TOK-013)
     "很",
     "非常",

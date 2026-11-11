@@ -552,7 +552,8 @@
     "softImpliedDivider": "以下 {n} 張沒看出「{word}」，但都在「{by}」",
     "weakCount": "另有 {n} 張較不相關",
     "busy": "正在搜尋…",
-    "busyLabel": "搜尋中"
+    "busyLabel": "搜尋中",
+    "relaxedMeaning": "沒有照片直接寫到「{words}」，下面是意思相近的照片。"
   },
   "problem": {
     "chosen": "已改用 {what}"

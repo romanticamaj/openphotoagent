@@ -125,3 +125,10 @@ export function headerCount(t: T, total: number, weak: number, capped: boolean, 
   const shown = countText(t, Math.max(0, total - weak), capped, lang);
   return weak ? `${shown} · ${t("search.weakCount", { n: weak.toLocaleString(lang) })}` : shown;
 }
+
+/** Words set aside because no photo shows them (ADR-0032); when none was left, the phrase's meaning answered. */
+export function relaxedText(t: T, relaxed: string[] | undefined, meaningOnly: boolean): string | null {
+  if (!relaxed?.length) return null;
+  return t(meaningOnly ? "search.relaxedMeaning" : "search.relaxed", { words: relaxed.join("、") });
+}
+

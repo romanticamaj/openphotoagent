@@ -1023,3 +1023,35 @@ def test_srch_sem_010_photos_shown_first_are_never_the_weak_ones():
     ranked = ["happy", "a", "b", "far"]
     assert weak_ids(ranked, matched, cos, first={"happy"}) == ["far"]
     assert weak_ids(["a"], {"a": ["image_vector"]}, {"a": 0.3}, first=set()) == []  # the best is not weak
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-CNC-016")
+def test_srch_cnc_016_when_no_word_is_shown_the_meaning_answers(s, monkeypatch):
+    """回歸 (audit round 42): 「一張有很多彩色方塊的圖」 gave 1 unrelated photo: no photo's text said 彩色 or 方塊, so
+    every word was set aside (ADR-0032) and nothing was left to match. Then the whole phrase's caption meaning answers,
+    and the response says so."""
+    import opagent_api.search as S
+
+    near = [s.add(i, caption=f"幾何色塊拼貼 {i}") for i in range(2)]
+    s.add(5, caption="小狗在草地")
+    s.index()
+    sid = s.sql(
+        "insert into embedding_space(model_key, fingerprint, dim, modality, status)"
+        " values ('fake-cap', 'caption:fake-cap:x', 2, 'caption', 'active') returning id"
+    ).scalar()
+    for aid, v in ((near[0], "[1,0]"), (near[1], "[0.95,0.3122]")):
+        s.sql(
+            "insert into asset_embedding(asset_id, space_id, vec) values (:a, :s, CAST(:v AS vector))",
+            a=aid,
+            s=sid,
+            v=v,
+        )
+    monkeypatch.setattr(
+        S, "query_vector", lambda st, t, space, modality="image": [1.0, 0.0] if modality == "caption" else None
+    )
+    monkeypatch.setattr(S, "caption_floor", lambda _st, _sp: 0.5)
+    monkeypatch.setattr(S, "_caption_meaning", lambda *a: {})  # no single word means it on its own
+    res = s.search(q="喵喵很多嘟嘟")
+    assert {x["asset_id"] for x in res["items"]} == set(near) and res["total"] == 2
+    assert res.get("meaning_only") is True
