@@ -731,7 +731,8 @@
     "near": "Similar",
     "makePlan": "Create clean-up plan (move {count} to trash)",
     "empty": "No duplicates found",
-    "explain": "Each group keeps its best copy (highest resolution, largest file, earliest date); the others move to the folder's trash and can be restored at any time."
+    "explain": "Each group keeps its best copy (highest resolution, largest file, earliest date); the others move to the folder's trash and can be restored at any time.",
+    "explainReadOnly": "Photos that are the same or nearly the same. Every folder of the library is read-only, so you can look, but copies cannot go to the trash."
   },
   "mcp": {
     "title": "Connect AI assistants",

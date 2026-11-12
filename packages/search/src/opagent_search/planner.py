@@ -128,6 +128,35 @@ def _year(t: _Text, today: date, explain: list[str]) -> int | None:
     return None
 
 
+def _christmas(y: int) -> tuple[date, date]:
+    return date(y, 12, 24), date(y, 12, 27)  # Christmas Eve to Boxing Day
+
+
+def _mid_autumn(y: int) -> tuple[date, date] | None:
+    from opagent_core.lunar import mid_autumn
+
+    d = mid_autumn(y)
+    return (d - timedelta(days=3), d + timedelta(days=4)) if d else None  # three days either side, as 過年
+
+
+def _mothers_day(y: int) -> tuple[date, date]:
+    first = date(y, 5, 1)
+    sunday = first + timedelta(days=(6 - first.weekday()) % 7 + 7)  # the second Sunday of May
+    return sunday, sunday + timedelta(days=1)
+
+
+# longest first, so 「中秋節」 is taken before 「中秋」
+HOLIDAYS: dict[str, Any] = {
+    "聖誕節": _christmas,
+    "耶誕節": _christmas,
+    "聖誕": _christmas,
+    "耶誕": _christmas,
+    "中秋節": _mid_autumn,
+    "中秋": _mid_autumn,
+    "母親節": _mothers_day,
+}
+
+
 def _lunar_new_year_range(y: int) -> tuple[date, date] | None:
     d = lunar_new_year(y)
     return (d - timedelta(days=4), d + timedelta(days=5)) if d else None
@@ -182,6 +211,23 @@ def _dates(t: _Text, today: date, tz: str, explain: list[str]) -> dict[str, str]
                 return None
             last = r[1] - timedelta(days=1)
             explain.append(f"「{word}」→ {y} 過年：{_iso(r[0])} – {_iso(last)}（除夕前 3 天至初五）")
+            return _range(*r)
+    # holidays (SRCH-PLAN-028): 「去年聖誕節」 found nothing
+    for word, span in HOLIDAYS.items():
+        if t.take_word(word):
+            y = year
+            if y is None:  # the most recent one that has started, as for 過年 (ADR-0008)
+                y = today.year
+                r = span(y)
+                if r is None or r[0] > today:
+                    y -= 1
+            r = span(y)
+            del explain[n_explain:]
+            if r is None:
+                explain.append(f"「{word}」：{y} 年超出對照範圍，未加日期條件")
+                return None
+            last = r[1] - timedelta(days=1)
+            explain.append(f"「{word}」→ {_iso(r[0])} – {_iso(last)}" if last != r[0] else f"「{word}」→ {_iso(r[0])}")
             return _range(*r)
     if "新年" in t.s and year is None:
         explain.append("「新年」可能是元旦或過年：請寫「元旦」或「過年」")

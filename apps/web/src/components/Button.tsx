@@ -35,7 +35,7 @@ export function Button({ disabledReason, variant = "primary", className = "", ch
           }
           onClick?.(e);
         }}
-        className={`rounded-[var(--radius-md)] px-4 py-2 text-sm font-medium aria-disabled:cursor-not-allowed aria-disabled:opacity-50 ${base} ${className}`}
+        className={`rounded-[var(--radius-md)] px-4 py-2 text-sm font-medium aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-disabled:grayscale ${base} ${className}`}
       >
         {children}
       </button>

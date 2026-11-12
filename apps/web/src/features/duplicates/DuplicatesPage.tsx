@@ -33,7 +33,10 @@ export function DuplicatesPage() {
   return (
     <section className="mx-auto max-w-5xl space-y-4 p-8">
       <h1 className="text-xl font-semibold">{t("duplicates.title")}</h1>
-      <p className="text-sm text-[var(--text-muted)]">{t("duplicates.explain")}</p>
+      <p data-testid="dup-intro" className="text-sm text-[var(--text-muted)]">
+        {/* on a read-only library nothing can go to the trash: the intro says so too (audit round 65) */}
+        {t(readOnly ? "duplicates.explainReadOnly" : "duplicates.explain")}
+      </p>
       {groups.length === 0 ? (
         <p>{t("duplicates.empty")}</p>
       ) : (
@@ -75,7 +78,9 @@ export function DuplicatesPage() {
                     }}
                   />
                   <span>{t(g.reason === "hash" ? "duplicates.exact" : "duplicates.near")}</span>
-                  <span className="tnum text-[var(--text-muted)]">{t("duplicates.reclaimable", { size: formatBytes(g.reclaimable_bytes, i18n.language) })}</span>
+                  {readOnly ? null : (
+                    <span className="tnum text-[var(--text-muted)]">{t("duplicates.reclaimable", { size: formatBytes(g.reclaimable_bytes, i18n.language) })}</span>
+                  )}
                 </label>
                 <div className="flex flex-wrap gap-2">
                   {(() => {

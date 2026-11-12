@@ -37,5 +37,8 @@ describe("clean-up on a read-only library (audit rounds 63-64)", () => {
     expect(document.getElementById(b.getAttribute("aria-describedby") ?? "")?.textContent).toContain("唯讀");
     fireEvent.click(b);
     expect(s.plan).not.toHaveBeenCalled();
+    // the page says the same thing everywhere: no promise of the trash, no space to free (audit round 65)
+    expect(screen.getByTestId("dup-intro").textContent).toContain("唯讀");
+    expect(document.body.textContent).not.toContain("可釋放");
   });
 });

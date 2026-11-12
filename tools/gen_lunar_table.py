@@ -1,4 +1,4 @@
-"""Generate packages/core/src/opagent_core/lunar_table.py (ADR-0008): Gregorian date of 正月初一 per year,
+"""Generate packages/core/src/opagent_core/lunar_table.py (ADR-0008): Gregorian dates of 正月初一 and 中秋 per year,
 1900–2099, from the ``lunardate`` package (dev-time only; core stays pure — the table is plain Python data).
 
     uv run --with lunardate python tools/gen_lunar_table.py [--check]
@@ -24,6 +24,12 @@ def render() -> str:
     ]
     for y in range(1900, 2100):
         d = LunarDate(y, 1, 1).toSolarDate()
+        rows.append(f"    ({d.month}, {d.day}),  # {y}")
+    rows.append(")")
+    # 中秋, 八月十五 (SRCH-PLAN-028)
+    rows += ["", "MID_AUTUMN: tuple[tuple[int, int], ...] = ("]
+    for y in range(1900, 2100):
+        d = LunarDate(y, 8, 15).toSolarDate()
         rows.append(f"    ({d.month}, {d.day}),  # {y}")
     rows.append(")")
     return "\n".join(rows) + "\n"

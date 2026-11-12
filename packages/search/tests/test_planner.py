@@ -215,3 +215,20 @@ def test_plan_027_a_slashed_day_without_a_year(gz):
         assert p["filters"].get("month_day") in ("11-10", "03-01"), q
         assert "/" not in p["text"], q
     assert P("2025/11/10", gz)["filters"]["taken_at"] == {"from": "2025-11-10", "to": "2025-11-11"}  # a year: that day
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-PLAN-028")
+def test_plan_028_holidays_are_dates(gz):
+    """回歸 (audit round 65): 「去年聖誕節」 found nothing: 聖誕節 was not a date. Christmas Eve to Boxing Day, 中秋 three
+    days either side of the lunar 8/15 (as 過年 is around the lunar new year), 母親節 the second Sunday of May; with no
+    year, the most recent one that has started (ADR-0008)."""
+    assert P("去年聖誕節", gz)["filters"]["taken_at"] == {"from": "2025-12-24", "to": "2025-12-27"}
+    assert P("聖誕節", gz)["filters"]["taken_at"] == {"from": "2025-12-24", "to": "2025-12-27"}  # 2026's is still ahead
+    assert P("2024 耶誕節", gz)["filters"]["taken_at"] == {"from": "2024-12-24", "to": "2024-12-27"}
+    assert P("2025 中秋", gz)["filters"]["taken_at"] == {"from": "2025-10-03", "to": "2025-10-10"}
+    assert P("中秋節烤肉", gz)["filters"]["taken_at"] == {
+        "from": "2026-09-22",
+        "to": "2026-09-29",
+    }  # 2026-09-25 has passed
+    assert P("母親節", gz)["filters"]["taken_at"] == {"from": "2026-05-10", "to": "2026-05-11"}
