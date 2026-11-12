@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "../../lib/i18n";
 
@@ -7,7 +7,7 @@ beforeAll(async () => {
   await i18n.changeLanguage("zh-TW");
 });
 
-const s = vi.hoisted(() => ({ favs: new Set<string>(), setFavorite: vi.fn(), setRotation: vi.fn() }));
+const s = vi.hoisted(() => ({ favs: new Set<string>(), setFavorite: vi.fn(), setRotation: vi.fn(), select: vi.fn(), trash: vi.fn() }));
 vi.mock("../../lib/api", async (orig) => ({
   ...(await orig<typeof import("../../lib/api")>()),
   mediaUrl: (id: string, v: string) => `/m/${id}/${v}`,
@@ -22,11 +22,15 @@ vi.mock("../../lib/api", async (orig) => ({
     },
     albums: async () => ({ albums: [] }),
     setRotation: async (id: string, deg: number) => (s.setRotation(id, deg), { asset_id: id, rotation: deg }),
+    roots: async () => [{ alias: "photos", mode: "rw" }],
+    createSelection: async (b: { asset_ids: string[] }) => (s.select(b), { id: "sel1", count: 1 }),
+    selectionTrash: async (id: string) => (s.trash(id), { plan_id: "p1", job_id: "j1", trash: 1 }),
   },
 }));
 vi.mock("@tanstack/react-router", async (orig) => ({
   ...(await orig<typeof import("@tanstack/react-router")>()),
   Link: ({ children }: { children: React.ReactNode }) => <a>{children}</a>,
+  useNavigate: () => vi.fn(), // the Lightbox's 移到垃圾桶 opens a plan page (TRASH-013)
 }));
 
 import type { GridApi } from "./PhotoGrid";
@@ -131,7 +135,10 @@ describe("a photo already turned (audit round 47)", () => {
 
 describe("a slideshow and the shortcut list (audit round 50)", () => {
   it("[VIEW-039] 空白鍵或「幻燈片」每 4 秒換下一張，到最後一張停；按 ← → 或空白鍵就停", async () => {
-    vi.useFakeTimers({ shouldAdvanceTime: true });
+    vi.useFakeTimers();
+    // React commits on its own scheduler, not on fake timers: each step lets React finish inside act(), or the next
+    // 4 s timer started late under load and the step was missed
+    const tick = (ms: number) => act(async () => void (await vi.advanceTimersByTimeAsync(ms)));
     try {
       render(
         <QueryClientProvider client={new QueryClient()}>
@@ -142,20 +149,20 @@ describe("a slideshow and the shortcut list (audit round 50)", () => {
       const pos = () => screen.getByTestId("lightbox-position").textContent;
       fireEvent.click(screen.getByRole("button", { name: "幻燈片" }));
       expect(screen.getByRole("button", { name: "停止幻燈片" }).getAttribute("aria-pressed")).toBe("true");
-      await vi.advanceTimersByTimeAsync(4000);
+      await tick(4000);
       expect(pos()).toBe("第 2 張，共 3 張");
-      await vi.advanceTimersByTimeAsync(4000);
+      await tick(4000);
       expect(pos()).toBe("第 3 張，共 3 張");
-      await vi.advanceTimersByTimeAsync(4000); // the last one: it stops there
+      await tick(4000); // the last one: it stops there
       expect(pos()).toBe("第 3 張，共 3 張");
       expect(screen.getByRole("button", { name: "幻燈片" })).toBeTruthy();
       fireEvent.keyDown(lb, { key: "ArrowLeft" });
       fireEvent.keyDown(lb, { key: "ArrowLeft" });
       fireEvent.keyDown(lb, { key: " " }); // Space plays
-      await vi.advanceTimersByTimeAsync(4000);
+      await tick(4000);
       expect(pos()).toBe("第 2 張，共 3 張");
       fireEvent.keyDown(lb, { key: "ArrowLeft" }); // moving by hand stops it
-      await vi.advanceTimersByTimeAsync(8000);
+      await tick(8000);
       expect(pos()).toBe("第 1 張，共 3 張");
     } finally {
       vi.useRealTimers();
@@ -199,3 +206,21 @@ describe("Tab stays in the Lightbox (audit round 51)", () => {
     expect(lb.contains(document.activeElement) && document.activeElement !== lb).toBe(true);
   });
 });
+
+describe("Delete in the Lightbox (audit round 61)", () => {
+  it("[VIEW-047] Delete 鍵就是「移到垃圾桶」：為這張照片建立計畫（不會直接移動）；快捷鍵清單列出它", async () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Lightbox start={1} grid={grid} onClose={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    const lb = screen.getByTestId("lightbox");
+    await screen.findByRole("button", { name: "移到垃圾桶" });
+    fireEvent.keyDown(lb, { key: "Delete" });
+    await waitFor(() => expect(s.trash).toHaveBeenCalledWith("sel1"));
+    expect(s.select).toHaveBeenCalledWith({ asset_ids: ["p1"] });
+    fireEvent.keyDown(lb, { key: "?" });
+    expect(screen.getByRole("dialog", { name: "快捷鍵" }).textContent).toContain("移到垃圾桶");
+  });
+});
+

@@ -198,7 +198,17 @@ export function AlbumPage({ albumId }: { albumId: string }) {
       </div>
       {confirming ? (
         // asked first; only the album goes (COL-010)
-        <div role="alertdialog" aria-label={t("albums.delete")} className="flex flex-wrap items-center gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3 text-sm">
+        <div
+          role="alertdialog"
+          aria-label={t("albums.delete")}
+          className="flex flex-wrap items-center gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3 text-sm"
+          onKeyDown={(e) => {
+            if (e.key !== "Escape") return;
+            e.stopPropagation(); // Esc answers 「取消」 (COL-028)
+            setConfirming(false);
+            back(deleteBtn);
+          }}
+        >
           <span>{t("albums.confirmDelete", { name: q.data?.name ?? "" })}</span>
           <button type="button" className="rounded-full bg-[var(--danger)] px-3 py-1 text-white" onClick={() => drop.mutate()}>{t("albums.confirm")}</button>
           {/* the safe choice has the focus as the question opens (COL-026) */}

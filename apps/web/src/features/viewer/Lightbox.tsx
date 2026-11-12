@@ -149,6 +149,8 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
       ArrowLeft: () => step(-1),
       ArrowRight: () => step(1),
       " ": () => setPlaying((x) => !x),
+      // the trash button's own press: a plan to approve, or its reason when the folder is read-only (VIEW-047)
+      Delete: () => dialog.current?.querySelector<HTMLButtonElement>("[data-trash]")?.click(),
       "?": () => setShowKeys(true),
       i: () => setShowInfo((s) => !s),
       I: () => setShowInfo((s) => !s),
@@ -689,6 +691,7 @@ function KeyList({ onClose }: { onClose: () => void }) {
     [t("lightbox.k.space"), t("lightbox.k.play")],
     ["F", t("lightbox.k.fav")],
     ["R", t("lightbox.k.rotate")],
+    ["Delete", t("trash.move")],
     ["I", t("lightbox.k.info")],
     ["+ − 0", t("lightbox.k.zoom")],
     ["?", t("lightbox.keys")],

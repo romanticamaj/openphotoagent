@@ -1133,6 +1133,13 @@
     "picked": "{n} picked of {total}"
   },
   "trash": {
-    "move": "Move to trash"
+    "move": "Move to trash",
+    "readOnly": "{roots} is read-only, so photos there cannot go to the trash.",
+    "nothingMoved": "No file was moved.",
+    "reAdd": "Add the folder again as writable",
+    "orCopy": ", or use Copy to folder.",
+    "failed": "No plan was made. Please try again.",
+    "close": "Close",
+    "allReadOnly": "Every folder in the library is read-only, so photos cannot go to the trash."
   }
 }

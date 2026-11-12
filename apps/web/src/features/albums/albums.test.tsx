@@ -332,5 +332,14 @@ describe("keys in the Lightbox (audit round 34)", () => {
     fireEvent.keyDown(await screen.findByRole("textbox", { name: "改名" }), { key: "Escape" });
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "改名" })));
   });
+
+  it("[COL-028] 回歸：刪除相簿的確認按 Esc 就取消，焦點回到「刪除相簿」（驗證第 60 輪：按兩次都沒反應）", async () => {
+    s.album.mockResolvedValue({ id: "b1", name: "墾丁", kind: "album", photos: [] });
+    wrap(<AlbumPage albumId="b1" />);
+    fireEvent.click(await screen.findByRole("button", { name: "刪除相簿" }));
+    fireEvent.keyDown(screen.getByRole("alertdialog"), { key: "Escape" });
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "刪除相簿" })));
+  });
 });
 

@@ -1126,3 +1126,8 @@ body {
 .organize-source-tile:hover { border-color: var(--accent); }
 .organize-outside > summary { cursor: pointer; color: var(--text-muted); }
 
+/* 移到垃圾桶's refusal (TRASH-015): beside the button, over the page, never inside the bar's flow */
+.trash-popover { position: absolute; top: calc(100% + 6px); left: 0; z-index: 70; display: flex; gap: 0.5rem; width: max-content; max-width: min(22rem, calc(100vw - 32px)); padding: 0.6rem 0.75rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); color: var(--text); box-shadow: 0 10px 28px rgb(0 0 0 / 0.35); text-align: left; }
+.trash-popover-end { left: auto; right: 0; }
+.trash-popover-close { align-self: flex-start; padding: 0 0.25rem; color: var(--text-muted); }
+
