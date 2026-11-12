@@ -145,6 +145,20 @@ def _mothers_day(y: int) -> tuple[date, date]:
     return sunday, sunday + timedelta(days=1)
 
 
+def _lunar_day(fn_name: str, before: int, after: int) -> Any:
+    def span(y: int) -> tuple[date, date] | None:
+        from opagent_core import lunar
+
+        d = getattr(lunar, fn_name)(y)
+        return (d - timedelta(days=before), d + timedelta(days=after + 1)) if d else None
+
+    return span
+
+
+def _day(month: int, day: int, days: int = 1) -> Any:
+    return lambda y: (date(y, month, day), date(y, month, day) + timedelta(days=days))
+
+
 # longest first, so 「中秋節」 is taken before 「中秋」
 HOLIDAYS: dict[str, Any] = {
     "聖誕節": _christmas,
@@ -154,6 +168,20 @@ HOLIDAYS: dict[str, Any] = {
     "中秋節": _mid_autumn,
     "中秋": _mid_autumn,
     "母親節": _mothers_day,
+    # SRCH-PLAN-030
+    "端午節": _lunar_day("dragon_boat", 1, 1),
+    "端午": _lunar_day("dragon_boat", 1, 1),
+    "元宵節": _lunar_day("lantern", 1, 1),
+    "元宵": _lunar_day("lantern", 1, 1),
+    "七夕": _lunar_day("qixi", 0, 0),
+    "兒童節": _day(4, 4),
+    "清明節": _day(4, 4, 3),
+    "清明": _day(4, 4, 3),
+    "國慶日": _day(10, 10),
+    "國慶": _day(10, 10),
+    "雙十節": _day(10, 10),  # not a bare 雙十: 雙十一 is November 11
+    "情人節": _day(2, 14),
+    "跨年": lambda y: (date(y, 12, 31), date(y + 1, 1, 2)),
 }
 
 
@@ -173,6 +201,25 @@ def _dates(t: _Text, today: date, tz: str, explain: list[str]) -> dict[str, str]
         first = date(today.year, today.month, 1)
         explain.append(f"「這個月」→ {first:%Y-%m}")
         return _range(first, _next_month(first.year, first.month))
+    # a range of days, 「2026年6月16日到6月22日」 「2026/6/16~6/22」: both days, the last one included; its parts are
+    # not words (SRCH-PLAN-029: only the first day was used and 「到、6、月、22、日」 became things to find)
+    m = t.take(
+        r"(?<!\d)(1[89]\d\d|20\d\d)\s*[年/.-]\s*(1[0-2]|0?[1-9])\s*[月/.-]\s*(3[01]|[12]\d|0?[1-9])\s*[日號]?\s*"
+        r"(?:到|至|~|～|－|–|—|-)\s*"
+        r"(?:(1[89]\d\d|20\d\d)\s*[年/.-]\s*)?(?:(1[0-2]|0?[1-9])\s*[月/.-]\s*)?(3[01]|[12]\d|0?[1-9])\s*[日號]?"
+    )
+    if m:
+        first_day: date | None
+        last_day: date | None
+        try:
+            first_day = date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+            last_day = date(int(m.group(4) or m.group(1)), int(m.group(5) or m.group(2)), int(m.group(6)))
+        except ValueError:
+            first_day = last_day = None
+        if first_day is not None and last_day is not None:
+            lo, hi = min(first_day, last_day), max(first_day, last_day)
+            explain.append(f"「{m.group(0).strip()}」→ {_iso(lo)} – {_iso(hi)}")
+            return _range(lo, hi + timedelta(days=1))
     # a whole date, 「2025年11月10日」 「2025/11/10」: that day (SRCH-PLAN-023)
     m = t.take(r"(?<!\d)(1[89]\d\d|20\d\d)\s*[年/.-]\s*(1[0-2]|0?[1-9])\s*[月/.-]\s*(3[01]|[12]\d|0?[1-9])\s*[日號]?")
     if m:

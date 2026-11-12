@@ -26,12 +26,13 @@ def render() -> str:
         d = LunarDate(y, 1, 1).toSolarDate()
         rows.append(f"    ({d.month}, {d.day}),  # {y}")
     rows.append(")")
-    # 中秋, 八月十五 (SRCH-PLAN-028)
-    rows += ["", "MID_AUTUMN: tuple[tuple[int, int], ...] = ("]
-    for y in range(1900, 2100):
-        d = LunarDate(y, 8, 15).toSolarDate()
-        rows.append(f"    ({d.month}, {d.day}),  # {y}")
-    rows.append(")")
+    # holidays on the lunar calendar (SRCH-PLAN-028, SRCH-PLAN-030)
+    for name, (lm, ld) in (("MID_AUTUMN", (8, 15)), ("DRAGON_BOAT", (5, 5)), ("LANTERN", (1, 15)), ("QIXI", (7, 7))):
+        rows += ["", f"{name}: tuple[tuple[int, int], ...] = ("]
+        for y in range(1900, 2100):
+            d = LunarDate(y, lm, ld).toSolarDate()
+            rows.append(f"    ({d.month}, {d.day}),  # {y}")
+        rows.append(")")
     return "\n".join(rows) + "\n"
 
 

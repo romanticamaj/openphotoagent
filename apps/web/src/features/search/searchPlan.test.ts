@@ -217,3 +217,12 @@ describe("the count when a word was set aside (audit round 54)", () => {
   });
 });
 
+
+describe("no 「下面是」 over nothing (audit round 66)", () => {
+  const t = ((k: string, o?: Record<string, unknown>) =>
+    k === "search.relaxed" ? `沒有照片拍到「${o?.words}」，下面是符合其他條件的照片。` : k === "search.relaxedNone" ? `沒有照片拍到「${o?.words}」。` : k) as never;
+  it("[SRCH-UI-028] 回歸：放寬後也沒有照片時，不說「下面是…」", () => {
+    expect(relaxedText(t, ["玩水"], false, 0)).toBe("沒有照片拍到「玩水」。");
+    expect(relaxedText(t, ["玩水"], false, 12)).toBe("沒有照片拍到「玩水」，下面是符合其他條件的照片。");
+  });
+});

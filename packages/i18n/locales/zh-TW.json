@@ -598,7 +598,8 @@
     "busyLabel": "搜尋中",
     "relaxedMeaning": "沒有照片直接寫到「{words}」，下面是意思相近的照片。",
     "copies": "另有 {n} 張相同的照片",
-    "partialCount": "沒有完全符合的照片 · 符合其他條件的有 {count}"
+    "partialCount": "沒有完全符合的照片 · 符合其他條件的有 {count}",
+    "relaxedNone": "沒有照片拍到「{words}」。"
   },
   "problem": {
     "chosen": "已改用 {what}"

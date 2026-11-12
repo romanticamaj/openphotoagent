@@ -232,3 +232,33 @@ def test_plan_028_holidays_are_dates(gz):
         "to": "2026-09-29",
     }  # 2026-09-25 has passed
     assert P("母親節", gz)["filters"]["taken_at"] == {"from": "2026-05-10", "to": "2026-05-11"}
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-PLAN-029")
+def test_plan_029_a_range_of_days(gz):
+    """回歸 (audit round 66): 「2026年6月16日到6月22日」 used the first day only and left 「到、6、月、22、日」 as words
+    no photo showed. A range is both days, the last one included, and none of its parts are words."""
+    for q in ("2026年6月16日到6月22日", "2026/6/16~2026/6/22", "2026年6月16日至22日", "2026/6/16 - 6/22"):
+        p = P(q, gz)
+        assert p["filters"]["taken_at"] == {"from": "2026-06-16", "to": "2026-06-23"}, q
+        assert not p["text"].strip(), (q, p["text"])
+    assert P("2026年6月22日到6月16日", gz)["filters"]["taken_at"] == {
+        "from": "2026-06-16",
+        "to": "2026-06-23",
+    }  # either way
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-PLAN-030")
+def test_plan_030_more_holidays(gz):
+    """回歸 (audit round 66): 兒童節, 清明 and 端午 were not dates. Lunar ones from the generated table (端午 5/5,
+    元宵 1/15, 七夕 7/7), fixed ones by the calendar; 跨年 is the last night of the year and the first day after."""
+    assert P("2025 端午", gz)["filters"]["taken_at"] == {"from": "2025-05-30", "to": "2025-06-02"}  # 2025-05-31 ± 1
+    assert P("2026 元宵", gz)["filters"]["taken_at"] == {"from": "2026-03-02", "to": "2026-03-05"}  # 2026-03-03 ± 1
+    assert P("2025 七夕", gz)["filters"]["taken_at"] == {"from": "2025-08-29", "to": "2025-08-30"}
+    assert P("2026 兒童節", gz)["filters"]["taken_at"] == {"from": "2026-04-04", "to": "2026-04-05"}
+    assert P("2026 清明", gz)["filters"]["taken_at"] == {"from": "2026-04-04", "to": "2026-04-07"}
+    assert P("2025 國慶", gz)["filters"]["taken_at"] == {"from": "2025-10-10", "to": "2025-10-11"}
+    assert P("2025 跨年", gz)["filters"]["taken_at"] == {"from": "2025-12-31", "to": "2026-01-02"}
+    assert P("2026 情人節", gz)["filters"]["taken_at"] == {"from": "2026-02-14", "to": "2026-02-15"}

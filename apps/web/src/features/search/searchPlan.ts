@@ -146,8 +146,10 @@ export function headerCount(t: T, total: number, weak: number, capped: boolean, 
 }
 
 /** Words set aside because no photo shows them (ADR-0032); when none was left, the phrase's meaning answered. */
-export function relaxedText(t: T, relaxed: string[] | undefined, meaningOnly: boolean): string | null {
+export function relaxedText(t: T, relaxed: string[] | undefined, meaningOnly: boolean, total?: number): string | null {
   if (!relaxed?.length) return null;
+  // nothing below: no 「下面是…」 over an empty page (SRCH-UI-028)
+  if (total === 0) return t("search.relaxedNone", { words: relaxed.join("、") });
   return t(meaningOnly ? "search.relaxedMeaning" : "search.relaxed", { words: relaxed.join("、") });
 }
 

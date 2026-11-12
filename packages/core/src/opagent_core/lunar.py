@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from .lunar_table import FIRST_YEAR, MID_AUTUMN, NEW_YEAR
+from .lunar_table import DRAGON_BOAT, FIRST_YEAR, LANTERN, MID_AUTUMN, NEW_YEAR, QIXI
 
 
 def lunar_new_year(year: int) -> date | None:
@@ -23,3 +23,26 @@ def mid_autumn(year: int) -> date | None:
         m, d = MID_AUTUMN[i]
         return date(year, m, d)
     return None
+
+
+def _on(table: tuple[tuple[int, int], ...], year: int) -> date | None:
+    i = year - FIRST_YEAR
+    if 0 <= i < len(table):
+        m, d = table[i]
+        return date(year, m, d)
+    return None
+
+
+def dragon_boat(year: int) -> date | None:
+    """端午 (五月初五) in ``year`` (SRCH-PLAN-030)."""
+    return _on(DRAGON_BOAT, year)
+
+
+def lantern(year: int) -> date | None:
+    """元宵 (正月十五) in ``year`` (SRCH-PLAN-030)."""
+    return _on(LANTERN, year)
+
+
+def qixi(year: int) -> date | None:
+    """七夕 (七月初七) in ``year`` (SRCH-PLAN-030)."""
+    return _on(QIXI, year)

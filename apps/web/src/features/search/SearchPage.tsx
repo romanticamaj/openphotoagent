@@ -179,8 +179,8 @@ export function SearchPage({ q }: { q: string }) {
       {soft?.note ? (
         <p role="status" className="text-sm text-[var(--text-muted)]">{soft.note}</p>
       ) : null}
-      {first && relaxedText(t, first.relaxed, Boolean(first.meaning_only)) ? (
-        <p role="status" className="text-sm text-[var(--text-muted)]">{relaxedText(t, first.relaxed, Boolean(first.meaning_only))}</p>
+      {first && relaxedText(t, first.relaxed, Boolean(first.meaning_only), total) ? (
+        <p role="status" className="text-sm text-[var(--text-muted)]">{relaxedText(t, first.relaxed, Boolean(first.meaning_only), total)}</p>
       ) : null}
       {index.data && index.data.total > 0 && index.data.searchable < index.data.total && (
         <p data-testid="index-banner" role="status" className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2">

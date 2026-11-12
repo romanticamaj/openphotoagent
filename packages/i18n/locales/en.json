@@ -598,7 +598,8 @@
     "busyLabel": "Searching",
     "relaxedMeaning": "No photo says “{words}” outright. Below are photos with a similar meaning.",
     "copies": "{n} more copies of this photo",
-    "partialCount": "No photo matches everything · {count} match the rest"
+    "partialCount": "No photo matches everything · {count} match the rest",
+    "relaxedNone": "No photo shows 「{words}」."
   },
   "problem": {
     "chosen": "Switched to {what}"
