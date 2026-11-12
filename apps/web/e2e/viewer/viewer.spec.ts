@@ -305,3 +305,15 @@ test("[A11Y-013] 回歸：第一次按 Tab 出現「跳到主要內容」，按�
   await page.keyboard.press("Enter");
   await expect(firstTile(page)).toBeFocused();
 });
+
+test("[VIEW-048] 回歸：時間軸的多選列也能「複製到資料夾…」，建立計畫給你核准（驗證第 61～63 輪：只有搜尋有）", async ({ page }) => {
+  await page.goto("/");
+  await firstTile(page).click({ modifiers: ["ControlOrMeta"] });
+  const bar = page.getByTestId("timeline-batch");
+  await bar.getByRole("button", { name: "複製到資料夾…" }).click();
+  const dlg = page.getByRole("dialog", { name: "複製到資料夾" });
+  await expect(dlg).toContainText("原檔不動");
+  await dlg.getByRole("button", { name: "建立計畫" }).click();
+  await expect(page.getByTestId("plan-summary")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("button", { name: "核准並開始" })).toBeVisible();
+});

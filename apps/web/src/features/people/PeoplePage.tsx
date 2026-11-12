@@ -406,13 +406,22 @@ export function PeoplePage({ initial }: { initial?: string } = {}) {
     let id: string | null = null;
     try {
       id = window.sessionStorage.getItem(LAST_PERSON);
-      window.sessionStorage.removeItem(LAST_PERSON);
     } catch {
       return;
     }
+    // kept a moment: 「← 人物」 shows the wall here and then the route remounts the page, which must find it too
+    // (audit round 63: the browser's back focused the card, 「← 人物」 left focus on the page)
+    const forget = window.setTimeout(() => {
+      try {
+        window.sessionStorage.removeItem(LAST_PERSON);
+      } catch {
+        /* nothing to forget */
+      }
+    }, 1500);
     const card = id ? document.querySelector<HTMLElement>(`[data-person-id="${CSS.escape(id)}"] button`) : null;
     card?.scrollIntoView?.({ block: "center" });
     card?.focus();
+    return () => window.clearTimeout(forget);
   }, [wallReady]);
   if (selected) {
     return (

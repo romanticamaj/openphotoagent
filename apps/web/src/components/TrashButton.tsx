@@ -4,7 +4,7 @@
 // refusal says why, that nothing changed, and what to do instead, beside the button (TRASH-015, invariant 8).
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ApiError, api } from "../lib/api";
 
@@ -44,8 +44,24 @@ export function TrashButton({ select, compact = false }: { select: () => Promise
     setShown(null);
     self.current?.focus();
   };
+  // the card takes focus as it opens, so its Esc is its own (TRASH-018)
+  const closer = useRef<HTMLButtonElement>(null);
+  const open = shown !== null;
+  useEffect(() => {
+    if (open) closer.current?.focus();
+  }, [open]);
   return (
-    <span className="relative inline-flex flex-col">
+    <span
+      className="relative inline-flex flex-col"
+      onKeyDown={(e) => {
+        // the whole control, as the album menu does: with focus still on the button, Esc closed the card and also the
+        // Lightbox, or cleared the selection (audit round 63)
+        if (e.key !== "Escape" || !open) return;
+        e.stopPropagation();
+        e.preventDefault();
+        close();
+      }}
+    >
       <button
         ref={self}
         type="button"
@@ -75,14 +91,7 @@ export function TrashButton({ select, compact = false }: { select: () => Promise
       ) : null}
       {shown !== null ? (
         // floats beside the button: the selection bar keeps its height, the Lightbox does not clip it (TRASH-015)
-        <span
-          className={compact ? "trash-popover trash-popover-end" : "trash-popover"}
-          onKeyDown={(e) => {
-            if (e.key !== "Escape") return;
-            e.stopPropagation(); // Esc closes this card only, not the Lightbox behind it
-            close();
-          }}
-        >
+        <span className={compact ? "trash-popover trash-popover-end" : "trash-popover"}>
           <span role="alert" className="space-y-1">
             <strong className="block">
               {shown.length ? t("trash.readOnly", { roots: shown.map((r) => `「${r}」`).join("、") }) : t("trash.failed")}
@@ -97,7 +106,7 @@ export function TrashButton({ select, compact = false }: { select: () => Promise
               </span>
             ) : null}
           </span>
-          <button type="button" className="trash-popover-close" aria-label={t("trash.close")} onClick={close}>
+          <button ref={closer} type="button" className="trash-popover-close" aria-label={t("trash.close")} onClick={close}>
             ×
           </button>
         </span>

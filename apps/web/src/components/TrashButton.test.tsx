@@ -81,5 +81,26 @@ describe("移到垃圾桶 (approved 2026-11-12)", () => {
     expect(outer).not.toHaveBeenCalled(); // the Lightbox stays open
     expect(document.activeElement).toBe(b);
   });
+
+  it("[TRASH-018] 回歸：說明打開時焦點進到說明裡；在按鈕上按 Esc 也只關說明，不清掉選取、不關燈箱（驗證第 63 輪）", async () => {
+    s.roots = [{ alias: "photos", mode: "ro" }];
+    s.sources = [{ id: "s1", root_alias: "photos", sub_path: "" }];
+    const outer = vi.fn();
+    wrap(
+      <div onKeyDown={(e) => e.key === "Escape" && outer()}>
+        <TrashButton select={vi.fn()} />
+      </div>,
+    );
+    const b = await screen.findByRole("button", { name: "移到垃圾桶" });
+    await waitFor(() => expect(b.getAttribute("aria-disabled")).toBe("true"));
+    fireEvent.click(b);
+    const card = await screen.findByRole("alert");
+    await waitFor(() => expect(card.parentElement?.contains(document.activeElement)).toBe(true)); // focus is in the card
+    b.focus();
+    fireEvent.keyDown(b, { key: "Escape" }); // Esc with focus still on the button
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(outer).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(b);
+  });
 });
 

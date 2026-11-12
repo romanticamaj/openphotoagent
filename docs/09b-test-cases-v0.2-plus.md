@@ -120,6 +120,7 @@
 | TRASH-015 | 被拒時說原因、沒有變更、怎麼做（回歸，驗證第 61 輪：只說「無法寫入」、撐開工作列、被照片蓋住） | 唯讀 root 被拒 | 「「photos」是唯讀資料夾…」「沒有任何檔案被移動」、連到匯入頁重新以可寫入加入或改用複製；浮在按鈕旁、可關閉 | C | #— |
 | TRASH-016 | 所有資料夾都是唯讀時先說原因（回歸，驗證第 61 輪：按了才被拒） | roots 全是 ro | 按鈕 aria-disabled，aria-describedby 指向「…都是唯讀的…」；按下只顯示說明、不送出請求 | C | #— |
 | TRASH-017 | 關掉說明後焦點回到按鈕、Esc 只關說明；唯讀判斷看圖庫資料夾（回歸，驗證第 62 輪：按 × 後燈箱鍵盤沒反應、按鈕在不能用的圖庫上仍可按） | 圖庫資料夾唯讀、輸出資料夾可寫；按 ×；按 Esc | 按鈕事先 aria-disabled；× 與 Esc 後焦點在按鈕；Esc 不傳到燈箱 | C | #— |
+| TRASH-018 | 說明打開時焦點在說明裡；按鈕上按 Esc 也只關說明（回歸，驗證第 63 輪：Esc 連燈箱一起關、清掉選取） | 打開說明；焦點回按鈕再按 Esc | 焦點在說明的「關閉」；Esc 只關說明、不傳到外層、焦點回按鈕 | C | #— |
 | XMP-001 | 寫入 sidecar | `sidecar_xmp` | `.xmp` 含 `dc:subject`、`dc:description`、`lr:hierarchicalSubject`；exiftool 讀回與預期相同 | I | #50 | v0.2 |
 | XMP-002 | 相容性 | 用 digiKam／Lightroom 範例 XMP schema 驗證；手動清單：digiKam、Lightroom Classic 匯入 | 讀出 tags | C/M | #50 | v0.2 |
 | XMP-003 | 合併既有 XMP | 已存在 XMP 含評分與未知 namespace | 保留原有欄位，只合併我們的欄位；先備份原 XMP | I | #50 | v0.2 |
