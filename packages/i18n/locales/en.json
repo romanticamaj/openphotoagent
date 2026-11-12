@@ -876,7 +876,8 @@
     "maybe": "Likely",
     "maybePhoto": "A photo they are likely in",
     "rename": "Rename",
-    "faint": "Less alike"
+    "faint": "Less alike",
+    "backToPeople": "← People"
   },
   "ask": {
     "open": "✦ Ask AI",

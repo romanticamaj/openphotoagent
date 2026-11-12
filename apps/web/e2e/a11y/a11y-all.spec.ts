@@ -31,6 +31,8 @@ const EXTRA: Record<string, (p: Page, lang: string) => Promise<void>> = {
   "/map": async (p, l) => void (await go(p, "/map", l), await p.getByTestId("map-borders").waitFor({ state: "attached" })),
   "/people": async (p, l) => void (await go(p, "/people", l), await heading(p)),
   "/people/review": async (p, l) => void (await go(p, "/people/review", l), await p.locator("main").waitFor()),
+  // a person's page (FACE-UI-023); this stack has no people, so an unknown id shows the wall
+  "/people/$personId": async (p, l) => void (await go(p, "/people/unknown", l), await heading(p)),
   "/settings/integrations": async (p, l) => void (await go(p, "/settings/integrations", l), await heading(p)),
   "/settings/assistant": async (p, l) => void (await go(p, "/settings/assistant", l), await heading(p)),
   "/settings/faces": async (p, l) => void (await go(p, "/settings/faces", l), await p.locator("main").waitFor()),

@@ -1,7 +1,7 @@
 // People (07 §4): off until the person opts in (never blocking), a wall of named and unnamed people, a keyboard
 // review loop 「這是不是 X？」 (least certain first) and Settings › 人臉 with consent and disable-with-delete.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useLocation } from "@tanstack/react-router";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../../components/Button";
@@ -172,13 +172,27 @@ function Candidates({ person }: { person: PersonRow }) {
 }
 
 /** One person: their photos, and the name that makes them findable. */
+const PERSON_MAX = 2000; // photos on a person's page; past this, search by their name
+
 function PersonPanel({ person, onClose }: { person: PersonRow; onClose: () => void }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [name, setName] = useState(person.name ?? "");
+  // every photo of the person, page after page: the page is where people look for 「all of them」 (FACE-UI-023)
   const photos = useQuery({
     queryKey: ["person-photos", person.id],
-    queryFn: () => api.search({ q: null, filters: { persons_any: [person.id] }, limit: 120 }),
+    queryFn: async () => {
+      const body = { q: null, filters: { persons_any: [person.id] }, limit: 200 };
+      const first = await api.search(body);
+      let items = first.items;
+      let next = first.next_cursor;
+      while (next && items.length < PERSON_MAX) {
+        const more = await api.search({ ...body, cursor: next });
+        items = [...items, ...more.items];
+        next = more.next_cursor;
+      }
+      return { ...first, items, next_cursor: next };
+    },
   });
   // the photos the group holds, then the ones its likely faces are in (FACE-UI-020): most of a child's faces are in
   // no group yet, and the person page is where people look for 「all of them」
@@ -342,13 +356,34 @@ function MoreFaces({ person, skip }: { person: PersonRow; skip?: string }) {
 
 export function PeoplePage({ initial }: { initial?: string } = {}) {
   const { t } = useTranslation();
+  const nav = useNavigate();
   const q = useQuery({ queryKey: ["people"], queryFn: api.people, refetchInterval: 5000 });
   const [open, setOpen] = useState<string | null>(initial ?? null);
+  useEffect(() => setOpen(initial ?? null), [initial]);
   const selected = (q.data?.people ?? []).find((p) => p.id === open);
+  // a person is a page of their own (FACE-UI-023): their photos opened above the wall, under the other people
+  const openPerson = (id: string) => {
+    setOpen(id);
+    void nav({ to: "/people/$personId", params: { personId: id } });
+  };
+  const back = () => {
+    setOpen(null);
+    void nav({ to: "/people", search: { person: undefined } });
+  };
   // the first pair whose two groups are on the wall (small groups are folded away)
   const onWall = new Set((q.data?.people ?? []).map((p) => p.id));
   const [later, setLater] = useState<Set<string>>(() => new Set()); // 「稍後再說」: this visit only, nothing written
   const pair = (q.data?.merge_suggestions ?? []).find((x) => onWall.has(x.a) && onWall.has(x.b) && !later.has(`${x.a}|${x.b}`));
+  if (selected) {
+    return (
+      <section className="space-y-4 p-6" aria-label={selected.name ?? t("faces.unnamed")}>
+        <button type="button" className="text-sm text-[var(--text-muted)] underline" onClick={back}>
+          {t("faces.backToPeople")}
+        </button>
+        <PersonPanel key={selected.id} person={selected} onClose={back} />
+      </section>
+    );
+  }
   return (
     <section className="space-y-4 p-6" aria-labelledby="people-h">
       <header className="flex items-center justify-between">
@@ -356,8 +391,7 @@ export function PeoplePage({ initial }: { initial?: string } = {}) {
         <Link to="/people/review" className="underline">{t("faces.review")}</Link>
       </header>
       {q.isSuccess && q.data.people.length === 0 ? <p className="text-[var(--text-muted)]">{t("faces.grouping")}</p> : null}
-      {selected ? <PersonPanel key={selected.id} person={selected} onClose={() => setOpen(null)} /> : null}
-      {!selected && pair ? (
+      {pair ? (
         <MergeSuggestion
           key={`${pair.a}-${pair.b}`}
           people={q.data!.people}
@@ -368,7 +402,7 @@ export function PeoplePage({ initial }: { initial?: string } = {}) {
       <ul className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-3">
         {(q.data?.people ?? []).map((p) => (
           <li key={p.id} data-testid="person">
-            <button type="button" aria-pressed={open === p.id} onClick={() => setOpen(open === p.id ? null : p.id)} className="person-card">
+            <button type="button" onClick={() => openPerson(p.id)} className="person-card">
               {p.cover?.bbox ? (
                 <FaceCrop assetId={p.cover.asset_id} ch={p.cover.ch} bbox={p.cover.bbox} />
               ) : p.cover ? (

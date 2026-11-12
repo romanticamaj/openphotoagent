@@ -283,6 +283,15 @@ const peopleRoute = createRoute({
   },
 });
 const faceReviewRoute = createRoute({ getParentRoute: () => root, path: "/people/review", component: FaceReview });
+// a person's own page (FACE-UI-023): every photo of them, with 「← 人物」 back to the wall
+const personRoute = createRoute({
+  getParentRoute: () => root,
+  path: "/people/$personId",
+  component: function Person() {
+    const { personId } = personRoute.useParams();
+    return <PeoplePage initial={personId} />;
+  },
+});
 const mapRoute = createRoute({ getParentRoute: () => root, path: "/map", component: MapPage });
 const albumsRoute = createRoute({ getParentRoute: () => root, path: "/albums", component: AlbumsPage });
 const albumRoute = createRoute({
@@ -336,7 +345,7 @@ const organize = createRoute({
   ),
 });
 
-export const router = createRouter({ routeTree: root.addChildren([photos, welcome, importRoute, exploreRoute, organize, plan, reviewRoute, search, duplicatesRoute, modelsRoute, modelRoute, doctorRoute, settingsRoute, integrationsRoute, approvalRoute, peopleRoute, faceReviewRoute, faceSettingsRoute, assistantRoute, mapRoute, albumsRoute, albumRoute]) });
+export const router = createRouter({ routeTree: root.addChildren([photos, welcome, importRoute, exploreRoute, organize, plan, reviewRoute, search, duplicatesRoute, modelsRoute, modelRoute, doctorRoute, settingsRoute, integrationsRoute, approvalRoute, peopleRoute, faceReviewRoute, personRoute, faceSettingsRoute, assistantRoute, mapRoute, albumsRoute, albumRoute]) });
 
 declare module "@tanstack/react-router" {
   interface Register {

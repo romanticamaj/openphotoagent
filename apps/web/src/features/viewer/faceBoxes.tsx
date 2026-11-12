@@ -62,7 +62,7 @@ export function FaceBoxes({
         : null}
       {stage
         ? people.map((p) => (
-            <Link key={p.id} to="/people" search={{ person: p.id }} className="face-box" style={faceBoxStyle(p.bbox, stage, photo)} translate="no">
+            <Link key={p.id} to="/people/$personId" params={{ personId: p.id }} className="face-box" style={faceBoxStyle(p.bbox, stage, photo)} translate="no">
               <span>{p.name ?? t("faces.unnamed")}</span>
             </Link>
           ))

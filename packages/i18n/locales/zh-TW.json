@@ -876,7 +876,8 @@
     "maybe": "可能",
     "maybePhoto": "可能有這個人的照片",
     "rename": "改名",
-    "faint": "不太像"
+    "faint": "不太像",
+    "backToPeople": "← 人物"
   },
   "ask": {
     "open": "✦ 問 AI",

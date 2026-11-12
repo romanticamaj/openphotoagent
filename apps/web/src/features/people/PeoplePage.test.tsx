@@ -7,7 +7,7 @@ beforeAll(async () => {
   await i18n.changeLanguage("zh-TW");
 });
 
-const s = vi.hoisted(() => ({ detail: vi.fn(), search: vi.fn(), name: vi.fn(), cands: vi.fn(), review: vi.fn(), undoReview: vi.fn(), merge: vi.fn(), dismiss: vi.fn(), people: [] as unknown[], merges: [] as unknown[] }));
+const s = vi.hoisted(() => ({ nav: vi.fn(), detail: vi.fn(), search: vi.fn(), name: vi.fn(), cands: vi.fn(), review: vi.fn(), undoReview: vi.fn(), merge: vi.fn(), dismiss: vi.fn(), people: [] as unknown[], merges: [] as unknown[] }));
 vi.mock("../../lib/api", async (orig) => ({
   ...(await orig<typeof import("../../lib/api")>()),
   mediaUrl: (id: string) => `/m/${id}`,
@@ -27,6 +27,7 @@ vi.mock("../viewer/Lightbox", () => ({ Lightbox: ({ start }: { start: number }) 
 vi.mock("@tanstack/react-router", async (orig) => ({
   ...(await orig<typeof import("@tanstack/react-router")>()),
   Link: ({ to, children }: { to: string; children: React.ReactNode }) => <a href={to}>{children}</a>,
+  useNavigate: () => s.nav,
 }));
 
 import { PeoplePage } from "./PeoplePage";
@@ -306,6 +307,28 @@ describe("finding a person (07 §4)", () => {
     await waitFor(() => expect(screen.getByTestId("merge-suggestion").querySelectorAll("img")[1].getAttribute("src")).toContain("ap3"));
     expect(s.merge).not.toHaveBeenCalled();
     expect(s.dismiss).not.toHaveBeenCalled();
+  });
+});
+
+describe("a person is a page of their own (user, 2026-11-12)", () => {
+  it("[FACE-UI-023] 點人物就進到他的頁面：網址換成這個人、其他人物不在畫面上、有「← 人物」，列出全部照片（不只 120 張）", async () => {
+    s.cands.mockResolvedValue({ items: [], references: 0 });
+    s.people = [row, { ...row, id: "p2", name: "測試B", cover: { asset_id: "a2", ch: null } }];
+    const hit = (i: number) => ({ asset_id: `b${i}`, ch: null, caption: null, category: "people", tags: [], taken_at: null, score: 1, matched_by: [] });
+    s.search.mockReset();
+    s.search
+      .mockResolvedValueOnce({ items: Array.from({ length: 120 }, (_, i) => hit(i)), facets: {}, total: 130, next_cursor: "c2" })
+      .mockResolvedValueOnce({ items: Array.from({ length: 10 }, (_, i) => hit(120 + i)), facets: {}, total: 130, next_cursor: null });
+    s.nav.mockReset();
+    ui();
+    fireEvent.click(await screen.findByRole("button", { name: /未命名/ }));
+    expect(s.nav).toHaveBeenCalledWith({ to: "/people/$personId", params: { personId: "p1" } });
+    expect(screen.queryByRole("button", { name: /測試B/ })).toBeNull(); // the wall is behind, not under it
+    expect(screen.getByRole("button", { name: "← 人物" })).toBeTruthy();
+    await waitFor(() => expect(screen.getAllByTestId("person-photo")).toHaveLength(130));
+    fireEvent.click(screen.getByRole("button", { name: "← 人物" }));
+    expect(s.nav).toHaveBeenLastCalledWith(expect.objectContaining({ to: "/people" }));
+    expect(await screen.findByRole("button", { name: /測試B/ })).toBeTruthy();
   });
 });
 

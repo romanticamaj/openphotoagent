@@ -423,7 +423,7 @@ export function InfoPanel({ id, onSaved }: { id: string; onSaved: () => void }) 
             <ul data-testid="photo-people" className="flex flex-wrap gap-1 text-sm">
               {a.people!.map((p) => (
                 <li key={p.id}>
-                  <Link to="/people" search={{ person: p.id }} className="person-chip" translate="no">
+                  <Link to="/people/$personId" params={{ personId: p.id }} className="person-chip" translate="no">
                     {a.people_faces?.[p.id] ? (
                       <FaceCrop assetId={id} ch={a.people_faces[p.id].ch} bbox={a.people_faces[p.id].bbox} className="person-chip-face" />
                     ) : null}
