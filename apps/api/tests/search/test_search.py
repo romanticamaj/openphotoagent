@@ -1243,3 +1243,31 @@ def test_srch_sem_017_with_few_word_hits_each_vector_photo_needs_the_bar(s, monk
     res = s.search(q="night")
     assert res["total"] == 2 and {x["asset_id"] for x in res["items"]} == set(ids[:2])
     assert [x["asset_id"] for x in res.get("possible", [])] == [ids[2]]
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-SEM-018")
+def test_srch_sem_018_a_known_words_caption_meaning_keeps_its_floor():
+    """回歸 (ADR-0047 measured on the reference library): with the stricter caption bar, 「海邊」 fell from 6 photos,
+    all right, to 2: four surfers on the sea were found by the caption meaning alone. The bar plus MEANING_MARGIN was
+    measured for words the vocabulary does not know; a known word's caption meaning keeps the route's floor."""
+    from opagent_api.search import caption_alone_bar, vector_members
+
+    assert caption_alone_bar(0.5, known=True) is None  # a known word: the route's own floor
+    assert abs(caption_alone_bar(0.5, known=False) - 0.58) < 1e-9  # the measured margin, for unknown words
+    counted, possible = vector_members(
+        ["w1", "w2", "c1", "c2"], {"w1", "w2"}, set(), {}, {"c1": 0.53, "c2": 0.51}, 0.082, caption_alone_bar(0.5, True)
+    )
+    assert counted == ["c1", "c2"] and possible == []
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-SEM-019")
+def test_srch_sem_019_no_more_than_when_the_long_tail_is_possible():
+    """回歸 (ADR-0047): 「溜滑梯」 counted 14 but still said 「14 張以上」: the vector routes filling their limit made it
+    capped, though everything past the 14 is in 「可能相關」. Only the counted set can make it 「以上」."""
+    from opagent_api.search import still_capped
+
+    assert still_capped(capped=True, word_hits=14, possible=236) is False
+    assert still_capped(capped=True, word_hits=250, possible=10) is True  # the words themselves filled the limit
+    assert still_capped(capped=True, word_hits=3, possible=0) is True

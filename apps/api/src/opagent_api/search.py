@@ -162,6 +162,23 @@ def vector_alone(st: AppState, space: Any) -> float | None:
     return float(bar) if bar is not None else None
 
 
+def caption_alone_bar(floor: float | None, known: bool) -> float | None:
+    """The caption meaning's bar when it answers alone (ADR-0047): the route's floor plus MEANING_MARGIN for a word the
+    vocabulary does not know, where the margin was measured; a known word keeps the floor (SRCH-SEM-018: 「海邊」 lost
+    four surfers on the sea, all right, to the stricter bar)."""
+    if floor is None or known:
+        return None
+    return floor + MEANING_MARGIN
+
+
+def still_capped(capped: bool, word_hits: int, possible: int) -> bool:
+    """「N 張以上」 only when the counted set itself is longer than the routes could fetch (SRCH-SEM-019): the vector
+    routes filling their limit said so for 「溜滑梯」, though everything past its 14 is in 「可能相關」."""
+    if possible and word_hits < PER_ROUTE:
+        return False
+    return capped
+
+
 ANCHOR_MIN = 3  # word/tag hits that make a sample of what this query looks like (ADR-0047)
 
 
@@ -592,8 +609,10 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                 cap_rows = [r for r in c.execute(cq, {"qv": str(cvec)}) if cfloor is None or r[1] >= cfloor]
                 routes["caption_vector"] = [r[0] for r in cap_rows]
                 cap_cos = {r[0]: float(r[1]) for r in cap_rows}
-                cap_bar = caption_floor(st, cspace)
-                cap_bar = cap_bar + MEANING_MARGIN if cap_bar is not None else None
+                cap_bar = caption_alone_bar(
+                    caption_floor(st, cspace),
+                    known=not (len(one) == 1 and not one[0].key and not one[0].word.isascii()),
+                )
                 capped = capped or len(routes["caption_vector"]) == PER_ROUTE  # a floor too (SRCH-R2-009)
             alone = vector_alone(st, space) if space is not None else None
             if (
@@ -674,6 +693,8 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                     )
                     if counted:
                         member.append(search_doc.c.asset_id.in_(counted))
+                    words_found = len(set(routes.get("fulltext") or []) | set(routes.get("tag") or []))
+                    capped = still_capped(capped, words_found, len(possible))
                     ranked = [a for a in ranked if a not in set(possible)]
                 match = or_(*member) if member else false()
             tail_q = (
