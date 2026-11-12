@@ -62,6 +62,8 @@ describe("「可能相關」 apart from the count (ADR-0047)", () => {
     expect(box.tagName).toBe("DETAILS");
     expect(box.querySelector("summary")?.textContent).toContain("可能相關 2 張");
     expect(box.querySelectorAll("img")).toHaveLength(2);
+    // tiles in flow, not stacked: the shared .tile class is absolutely positioned on the timeline (audit round 68)
+    for (const b of box.querySelectorAll("button")) expect((b as HTMLElement).style.position).toBe("relative");
     s.result = null;
   });
 });

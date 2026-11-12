@@ -309,7 +309,7 @@ def weak_ids(
 
 # image-only matches this far under the query's best are 2-30% relevant on the reference library (ADR-0040)
 WEAK_GAP = 0.06
-POSSIBLE_SHOWN = 60  # 「可能相關」 listed with the first page
+POSSIBLE_SHOWN = 250  # 「可能相關」 listed with the first page: all a route can fetch
 # a tag the VLM seldom gives small, moving faces: beside other concepts it ranks, never filters (SRCH-CNC-007)
 SOFT_KEYS = frozenset({"mood.smile"})
 MEANING_MARGIN = 0.08  # 17 words on the reference library: wrong photos 14 at +0, 1 at +0.06, 0 at +0.08

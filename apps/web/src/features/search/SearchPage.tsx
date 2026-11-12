@@ -299,31 +299,6 @@ export function SearchPage({ q }: { q: string }) {
         })}
         </div>
       </div>
-      {first?.possible_total ? (
-        // 「可能相關」 (ADR-0047): found by the image or caption models only, unlike the photos the words found; apart
-        // from the count, the facets and 全選, folded until asked for
-        <details data-testid="possible" className="possible-group space-y-2">
-          <summary className="cursor-pointer text-sm text-[var(--text-muted)]">
-            {t("search.possible", { n: first.possible_total.toLocaleString(i18n.language) })}
-          </summary>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-0.5">
-            {(first.possible ?? []).map((h, i) => (
-              <button
-                key={h.asset_id}
-                type="button"
-                className="tile relative aspect-square opacity-90"
-                aria-label={tileLabel(t, h)}
-                onClick={() => setViewingPossible(i)}
-              >
-                <img src={mediaUrl(h.asset_id, "t256", h.ch)} alt="" loading="lazy" />
-              </button>
-            ))}
-          </div>
-        </details>
-      ) : null}
-      {viewingPossible !== null && first?.possible ? (
-        <Lightbox start={viewingPossible} grid={possibleGrid(first.possible)} onClose={() => setViewingPossible(null)} />
-      ) : null}
       {viewing !== null ? (
         <Lightbox
           start={viewing}
@@ -354,6 +329,32 @@ export function SearchPage({ q }: { q: string }) {
           {t("search.loadMore")}
         </Button>
       )}
+      {first?.possible_total ? (
+        // 「可能相關」 (ADR-0047): found by the image or caption models only, unlike the photos the words found; apart
+        // from the count, the facets and 全選, folded until asked for
+        <details data-testid="possible" className="possible-group space-y-2">
+          <summary className="cursor-pointer text-sm text-[var(--text-muted)]">
+            {t("search.possible", { n: first.possible_total.toLocaleString(i18n.language) })}
+          </summary>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-0.5">
+            {(first.possible ?? []).map((h, i) => (
+              <button
+                key={h.asset_id}
+                type="button"
+                className="tile relative aspect-square opacity-90"
+                style={{ position: "relative" }} // in flow: .tile is absolutely positioned on the timeline (audit round 68)
+                aria-label={tileLabel(t, h)}
+                onClick={() => setViewingPossible(i)}
+              >
+                <img src={mediaUrl(h.asset_id, "t256", h.ch)} alt="" loading="lazy" />
+              </button>
+            ))}
+          </div>
+        </details>
+      ) : null}
+      {viewingPossible !== null && first?.possible ? (
+        <Lightbox start={viewingPossible} grid={possibleGrid(first.possible)} onClose={() => setViewingPossible(null)} />
+      ) : null}
       {toast && (
         <div role="status" className="toast" onAnimationEnd={() => undefined}>
           {toast}
