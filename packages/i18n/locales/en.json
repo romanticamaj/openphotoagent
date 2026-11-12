@@ -112,7 +112,8 @@
     "discard": "Discard plan",
     "discarded": "Plan discarded. No files were changed.",
     "backToOrganize": "Back to Organize",
-    "summaryTrashChosen": "Move {count} files to the trash. You can undo at any time"
+    "summaryTrashChosen": "Move {count} files to the trash. You can undo at any time",
+    "planTitleTrash": "Plan: move to the trash"
   },
   "eta": {
     "slow": {

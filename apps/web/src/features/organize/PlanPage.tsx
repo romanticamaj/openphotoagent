@@ -53,7 +53,7 @@ export function PlanPage({ planId }: { planId: string }) {
 
   return (
     <section className="mx-auto max-w-3xl space-y-6 p-8">
-      <h1 className="text-xl font-semibold">{t("organize.planTitle")}</h1>
+      <h1 className="text-xl font-semibold">{t(p.summary.trash ? "organize.planTitleTrash" : "organize.planTitle")}</h1>
       <p data-testid="plan-status" className="text-sm text-[var(--text-muted)]">
         {p.discarded ? t("organize.planStatus.discarded") : t(`organize.planStatus.${status}`, { defaultValue: status })}
       </p>
@@ -157,7 +157,9 @@ function PlanTree({ actions }: { actions: PlanAction[] }) {
   const { t } = useTranslation();
   const groups = new Map<string, PlanAction[]>();
   for (const a of actions.slice(0, 2000)) {
-    const dir = a.dst_rel.includes("/") ? a.dst_rel.slice(0, a.dst_rel.lastIndexOf("/")) : ".";
+    // the folder by its name: 「.」 said nothing about where the copies go (ORG-021)
+    const sub = a.dst_rel.includes("/") ? a.dst_rel.slice(0, a.dst_rel.lastIndexOf("/")) : "";
+    const dir = sub ? `${a.dst_alias}/${sub}` : a.dst_alias;
     if (!groups.has(dir)) groups.set(dir, []);
     groups.get(dir)!.push(a);
   }

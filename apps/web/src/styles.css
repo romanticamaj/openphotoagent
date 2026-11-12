@@ -1136,3 +1136,6 @@ body {
 .person-header > :first-child:not(div) { flex: none; width: 72px; height: 72px; border-radius: 999px; overflow: hidden; object-fit: cover; }
 .person-header-face { width: 72px; height: 72px; border-radius: 999px; object-fit: cover; }
 
+/* the person you came back from (FACE-UI-024) */
+.person-card.just-returned { outline: 3px solid var(--accent); outline-offset: 2px; }
+

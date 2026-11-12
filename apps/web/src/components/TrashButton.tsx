@@ -10,18 +10,23 @@ import { ApiError, api } from "../lib/api";
 
 type Refusal = { code?: string; roots?: string[]; detail?: { code?: string; roots?: string[] } };
 
+/** Whether every folder of the library is read-only, so nothing in it can go to the trash; the library's own folders,
+ * not every root: the output folder 「sorted」 is writable while every photo sits in a read-only one (audit round 62).
+ * Shared by 移到垃圾桶 and the duplicate clean-up (SRCH-DUP-010). */
+export function useLibraryReadOnly(): { readOnly: boolean; checked: string[] } {
+  const roots = useQuery({ queryKey: ["roots"], queryFn: api.roots });
+  const sources = useQuery({ queryKey: ["sources"], queryFn: api.sources });
+  const mode = new Map((roots.data ?? []).map((r) => [r.alias, r.mode]));
+  const libraryRoots = [...new Set((sources.data ?? []).map((x) => x.root_alias))];
+  const checked = libraryRoots.length ? libraryRoots : [...mode.keys()];
+  return { readOnly: roots.isSuccess && checked.length > 0 && checked.every((a) => mode.get(a) !== "rw"), checked };
+}
+
 export function TrashButton({ select, compact = false }: { select: () => Promise<{ id: string }>; compact?: boolean }) {
   const { t } = useTranslation();
   const nav = useNavigate();
   const uid = useId().replace(/:/g, "");
-  const roots = useQuery({ queryKey: ["roots"], queryFn: api.roots });
-  const sources = useQuery({ queryKey: ["sources"], queryFn: api.sources });
-  // the library's own folders, not every root: the output folder 「sorted」 is writable while every photo sits in a
-  // read-only one, and the button stayed enabled on a library where it could never work (audit round 62)
-  const mode = new Map((roots.data ?? []).map((r) => [r.alias, r.mode]));
-  const libraryRoots = [...new Set((sources.data ?? []).map((x) => x.root_alias))];
-  const checked = libraryRoots.length ? libraryRoots : [...mode.keys()];
-  const readOnly = roots.isSuccess && checked.length > 0 && checked.every((a) => mode.get(a) !== "rw");
+  const { readOnly, checked } = useLibraryReadOnly();
   const [shown, setShown] = useState<string[] | null>(null); // the folders a refusal names, while its card is open
   const go = useMutation({
     mutationFn: async () => api.selectionTrash((await select()).id),

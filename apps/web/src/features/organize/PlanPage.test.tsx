@@ -60,4 +60,18 @@ describe("a plan you do not want (ADR-0045)", () => {
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("link", { name: "回到整理" })));
     expect(s.approve).not.toHaveBeenCalled();
   });
+
+  it("[ORG-021] 回歸：計畫的目的地寫出資料夾名稱，不是「.」（驗證第 64 輪：「. (2)」）", async () => {
+    s.discarded = false;
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <PlanPage planId="p1" />
+      </QueryClientProvider>,
+    );
+    const tree = await screen.findByTestId("plan-tree");
+    const dirs = [...tree.querySelectorAll("summary")].map((x) => x.textContent?.replace(/\s*\(\d+\)$/, ""));
+    expect(dirs).toEqual(["sorted/2024"]);
+    expect(tree.textContent).not.toMatch(/^\.|\s\.\s/);
+  });
 });
+

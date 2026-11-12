@@ -421,7 +421,13 @@ export function PeoplePage({ initial }: { initial?: string } = {}) {
     const card = id ? document.querySelector<HTMLElement>(`[data-person-id="${CSS.escape(id)}"] button`) : null;
     card?.scrollIntoView?.({ block: "center" });
     card?.focus();
-    return () => window.clearTimeout(forget);
+    // a ring you can see however you came back: after a mouse click the browser draws none (audit round 64)
+    card?.classList.add("just-returned");
+    const unmark = window.setTimeout(() => card?.classList.remove("just-returned"), 2500);
+    return () => {
+      window.clearTimeout(forget);
+      window.clearTimeout(unmark);
+    };
   }, [wallReady]);
   if (selected) {
     return (

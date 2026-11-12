@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "../../components/Button";
 import { api, mediaUrl, type DuplicateGroup } from "../../lib/api";
 import { formatBytes } from "../../lib/format";
+import { useLibraryReadOnly } from "../../components/TrashButton";
 import { cardMembers } from "./cardMembers";
 
 const CARD_MAX = 4; // thumbnails on a card; the rest are counted
@@ -19,6 +20,7 @@ export function DuplicatesPage() {
   const { t, i18n } = useTranslation();
   const nav = useNavigate();
   const q = useQuery({ queryKey: ["duplicates"], queryFn: api.duplicates });
+  const { readOnly } = useLibraryReadOnly();
   const groups = useMemo(() => q.data?.groups ?? [], [q.data]);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const all = groups.length > 0 && picked.size === groups.length;
@@ -44,7 +46,14 @@ export function DuplicatesPage() {
             <span className="text-sm text-[var(--text-muted)]">{t("duplicates.groups", { count: groups.length })}</span>
             <Button
               disabledReason={
-                picked.size === 0 ? { code: "NOTHING_SELECTED", message: t("duplicates.selectAll") } : make.isPending ? { code: "BUSY", message: t("common.working") } : null
+                // said before anything is sent: copies in read-only folders cannot go to the trash (SRCH-DUP-010)
+                readOnly
+                  ? { code: "FS_NOT_WRITABLE", message: t("trash.allReadOnly") }
+                  : picked.size === 0
+                    ? { code: "NOTHING_SELECTED", message: t("duplicates.selectAll") }
+                    : make.isPending
+                      ? { code: "BUSY", message: t("common.working") }
+                      : null
               }
               onClick={() => make.mutate()}
             >

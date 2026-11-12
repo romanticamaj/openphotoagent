@@ -343,6 +343,7 @@ describe("back to the wall where you were (audit round 62)", () => {
     fireEvent.click(await screen.findByRole("button", { name: "← 人物" }));
     const card = await screen.findByRole("button", { name: /測試B/ });
     await waitFor(() => expect(document.activeElement).toBe(card));
+    expect(card.classList.contains("just-returned")).toBe(true); // a ring you can see, mouse or keyboard (audit round 64)
   });
 });
 
