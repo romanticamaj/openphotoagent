@@ -332,3 +332,41 @@ describe("a person is a page of their own (user, 2026-11-12)", () => {
   });
 });
 
+
+describe("back to the wall where you were (audit round 62)", () => {
+  it("[FACE-UI-024] 回歸：從人物頁回來，焦點在剛才那個人的卡片上（驗證第 62 輪：回到最上面、焦點掉到頁面）", async () => {
+    s.cands.mockResolvedValue({ items: [], references: 0 });
+    s.search.mockResolvedValue({ items: [], facets: {}, total: 0, next_cursor: null });
+    s.people = [row, { ...row, id: "p2", name: "測試B", cover: { asset_id: "a2", ch: null } }];
+    ui();
+    fireEvent.click(await screen.findByRole("button", { name: /測試B/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "← 人物" }));
+    const card = await screen.findByRole("button", { name: /測試B/ });
+    await waitFor(() => expect(document.activeElement).toBe(card));
+  });
+});
+
+describe("a person page that looks like one (audit round 62)", () => {
+  it("[FACE-UI-025] 人物頁開頭有這個人的臉、名字、張數與日期範圍", async () => {
+    s.cands.mockResolvedValue({ items: [], references: 0 });
+    const hit = (id: string, at: string) => ({ asset_id: id, ch: null, caption: null, category: "people", tags: [], taken_at: at, score: 1, matched_by: [] });
+    s.search.mockResolvedValue({ items: [hit("b1", "2024-06-22T10:00:00Z"), hit("b2", "2024-04-07T09:00:00Z")], facets: {}, total: 2, next_cursor: null });
+    s.people = [{ ...row, name: "測試A", status: "named", cover: { asset_id: "a1", ch: null, bbox: [0.1, 0.1, 0.3, 0.3] } }];
+    ui();
+    fireEvent.click(await screen.findByRole("button", { name: /測試A/ }));
+    const head = await screen.findByTestId("person-header");
+    expect(head.querySelector("img, canvas, [data-face]")).not.toBeNull();
+    await waitFor(() => expect(head.textContent).toContain("2024-04-07 – 2024-06-22"));
+    expect(head.textContent).toContain("測試A");
+  });
+
+  it("[FACE-FIND-029] 回歸：沒有把握高的候選時不顯示「全部都是」（驗證第 62 輪）", async () => {
+    s.people = [row];
+    s.search.mockResolvedValue({ items: [], facets: {}, total: 0, next_cursor: null });
+    s.cands.mockResolvedValue({ items: [{ face_id: "f1", asset_id: "c1", ch: null, bbox: [0, 0, 0.2, 0.2], score: 0.5, sure: false }], references: 1 });
+    ui();
+    fireEvent.click(await screen.findByRole("button", { name: /未命名/ }));
+    await screen.findByTestId("all-yes-hint");
+    expect(screen.queryByRole("button", { name: "全部都是" })).toBeNull();
+  });
+});

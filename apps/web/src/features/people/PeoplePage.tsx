@@ -144,12 +144,15 @@ function Candidates({ person }: { person: PersonRow }) {
       </ul>
       <div className="flex flex-wrap items-center gap-2">
         {/* only the clear ones: a face too small or soft to judge is never a one-click yes (ADR-0035) */}
-        <Button
-          variant="ghost"
-          onClick={() => setMarks((x) => ({ ...x, ...Object.fromEntries(items.filter(oneClick).map((c) => [c.face_id, "yes" as Mark])) }))}
-        >
-          {t("faces.allYes")}
-        </Button>
+        {items.some(oneClick) ? (
+          // nothing to mark at once when no face is clear and likely (FACE-FIND-029)
+          <Button
+            variant="ghost"
+            onClick={() => setMarks((x) => ({ ...x, ...Object.fromEntries(items.filter(oneClick).map((c) => [c.face_id, "yes" as Mark])) }))}
+          >
+            {t("faces.allYes")}
+          </Button>
+        ) : null}
         {items.some((c) => !oneClick(c)) ? (
           <span data-testid="all-yes-hint" className="text-xs text-[var(--text-muted)]">
             {t("faces.allYesHint", { n: items.filter((c) => !oneClick(c)).length })}
@@ -172,6 +175,7 @@ function Candidates({ person }: { person: PersonRow }) {
 }
 
 /** One person: their photos, and the name that makes them findable. */
+const LAST_PERSON = "opa.people.last";
 const PERSON_MAX = 2000; // photos on a person's page; past this, search by their name
 
 function PersonPanel({ person, onClose }: { person: PersonRow; onClose: () => void }) {
@@ -227,8 +231,18 @@ function PersonPanel({ person, onClose }: { person: PersonRow; onClose: () => vo
       void qc.invalidateQueries({ queryKey: ["people"] });
     },
   });
+  // the span of their photos, for the header (FACE-UI-025)
+  const days = (photos.data?.items ?? []).map((h) => h.taken_at?.slice(0, 10)).filter((d): d is string => Boolean(d)).sort();
+  const span = days.length ? (days[0] === days[days.length - 1] ? days[0] : `${days[0]} – ${days[days.length - 1]}`) : null;
   return (
     <section aria-label={person.name ?? t("faces.unnamed")} className="space-y-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4">
+      <div data-testid="person-header" className="person-header">
+        {person.cover?.bbox ? (
+          <FaceCrop assetId={person.cover.asset_id} ch={person.cover.ch} bbox={person.cover.bbox} />
+        ) : person.cover ? (
+          <img src={mediaUrl(person.cover.asset_id, "t256", person.cover.ch)} alt="" className="person-header-face" />
+        ) : null}
+        <div className="min-w-0 flex-1 space-y-1">
       {person.name && !renaming ? (
         // a named person: their name is the heading; renaming is a deliberate step (FACE-UI-022)
         <div className="flex flex-wrap items-center gap-3">
@@ -258,6 +272,12 @@ function PersonPanel({ person, onClose }: { person: PersonRow; onClose: () => vo
         <button type="button" className="ml-auto text-sm underline" onClick={onClose}>{t("dock.close")}</button>
       </form>
       )}
+          <p className="tnum text-sm text-[var(--text-muted)]">
+            {t("faces.count", { n: person.asset_count })}
+            {span ? ` · ${span}` : ""}
+          </p>
+        </div>
+      </div>
       <h3 data-testid="person-photos-title" className="font-semibold">
         {nMaybe
           ? t("faces.photosWithMaybe", { n: shown.length, sure: shown.length - nMaybe, maybe: nMaybe })
@@ -363,6 +383,11 @@ export function PeoplePage({ initial }: { initial?: string } = {}) {
   const selected = (q.data?.people ?? []).find((p) => p.id === open);
   // a person is a page of their own (FACE-UI-023): their photos opened above the wall, under the other people
   const openPerson = (id: string) => {
+    try {
+      window.sessionStorage.setItem(LAST_PERSON, id); // where to come back to, by 「← 人物」 or the browser's back
+    } catch {
+      /* not remembered: the wall opens at its top */
+    }
     setOpen(id);
     void nav({ to: "/people/$personId", params: { personId: id } });
   };
@@ -374,6 +399,21 @@ export function PeoplePage({ initial }: { initial?: string } = {}) {
   const onWall = new Set((q.data?.people ?? []).map((p) => p.id));
   const [later, setLater] = useState<Set<string>>(() => new Set()); // 「稍後再說」: this visit only, nothing written
   const pair = (q.data?.merge_suggestions ?? []).find((x) => onWall.has(x.a) && onWall.has(x.b) && !later.has(`${x.a}|${x.b}`));
+  // back on the wall: the person you came from, in view and focused (FACE-UI-024: it jumped to the top)
+  const wallReady = !selected && q.isSuccess;
+  useEffect(() => {
+    if (!wallReady) return;
+    let id: string | null = null;
+    try {
+      id = window.sessionStorage.getItem(LAST_PERSON);
+      window.sessionStorage.removeItem(LAST_PERSON);
+    } catch {
+      return;
+    }
+    const card = id ? document.querySelector<HTMLElement>(`[data-person-id="${CSS.escape(id)}"] button`) : null;
+    card?.scrollIntoView?.({ block: "center" });
+    card?.focus();
+  }, [wallReady]);
   if (selected) {
     return (
       <section className="space-y-4 p-6" aria-label={selected.name ?? t("faces.unnamed")}>
@@ -401,7 +441,7 @@ export function PeoplePage({ initial }: { initial?: string } = {}) {
       ) : null}
       <ul className="grid grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-3">
         {(q.data?.people ?? []).map((p) => (
-          <li key={p.id} data-testid="person">
+          <li key={p.id} data-testid="person" data-person-id={p.id}>
             <button type="button" onClick={() => openPerson(p.id)} className="person-card">
               {p.cover?.bbox ? (
                 <FaceCrop assetId={p.cover.asset_id} ch={p.cover.ch} bbox={p.cover.bbox} />

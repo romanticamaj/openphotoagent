@@ -7,7 +7,7 @@ beforeAll(async () => {
   await i18n.changeLanguage("zh-TW");
 });
 
-const s = vi.hoisted(() => ({ nav: vi.fn(), trash: vi.fn(), roots: [{ alias: "photos", mode: "rw" }] as Array<{ alias: string; mode: string }> }));
+const s = vi.hoisted(() => ({ nav: vi.fn(), trash: vi.fn(), roots: [{ alias: "photos", mode: "rw" }] as Array<{ alias: string; mode: string }>, sources: [{ id: "s1", root_alias: "photos", sub_path: "" }] as Array<{ id: string; root_alias: string; sub_path: string }> }));
 vi.mock("@tanstack/react-router", async (orig) => ({
   ...(await orig<typeof import("@tanstack/react-router")>()),
   useNavigate: () => s.nav,
@@ -15,7 +15,7 @@ vi.mock("@tanstack/react-router", async (orig) => ({
 }));
 vi.mock("../lib/api", async (orig) => {
   const real = await orig<typeof import("../lib/api")>();
-  return { ...real, api: { selectionTrash: s.trash, roots: async () => s.roots } };
+  return { ...real, api: { selectionTrash: s.trash, roots: async () => s.roots, sources: async () => s.sources } };
 });
 
 import { ApiError } from "../lib/api";
@@ -59,6 +59,27 @@ describe("移到垃圾桶 (approved 2026-11-12)", () => {
     await waitFor(() => expect(b.getAttribute("aria-disabled")).toBe("true"));
     const why = document.getElementById(b.getAttribute("aria-describedby") ?? "");
     expect(why?.textContent).toContain("唯讀");
+  });
+
+  it("[TRASH-017] 回歸：關掉說明後焦點回到按鈕，Esc 只關說明（驗證第 62 輪：按 × 後燈箱的鍵盤沒反應）", async () => {
+    s.roots = [{ alias: "photos", mode: "ro" }, { alias: "sorted", mode: "rw" }];
+    s.sources = [{ id: "s1", root_alias: "photos", sub_path: "" }];
+    const outer = vi.fn();
+    wrap(
+      <div onKeyDown={(e) => e.key === "Escape" && outer()}>
+        <TrashButton select={vi.fn()} />
+      </div>,
+    );
+    const b = await screen.findByRole("button", { name: "移到垃圾桶" });
+    await waitFor(() => expect(b.getAttribute("aria-disabled")).toBe("true")); // the library's folders: all read-only
+    fireEvent.click(b);
+    fireEvent.click(await screen.findByRole("button", { name: "關閉" }));
+    expect(document.activeElement).toBe(b);
+    fireEvent.click(b);
+    fireEvent.keyDown(await screen.findByRole("alert"), { key: "Escape" });
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(outer).not.toHaveBeenCalled(); // the Lightbox stays open
+    expect(document.activeElement).toBe(b);
   });
 });
 

@@ -1131,3 +1131,8 @@ body {
 .trash-popover-end { left: auto; right: 0; }
 .trash-popover-close { align-self: flex-start; padding: 0 0.25rem; color: var(--text-muted); }
 
+/* a person's page opens with their face, name, count and the span of their photos (FACE-UI-025) */
+.person-header { display: flex; align-items: center; gap: 1rem; }
+.person-header > :first-child:not(div) { flex: none; width: 72px; height: 72px; border-radius: 999px; overflow: hidden; object-fit: cover; }
+.person-header-face { width: 72px; height: 72px; border-radius: 999px; object-fit: cover; }
+

@@ -4,7 +4,7 @@
 // refusal says why, that nothing changed, and what to do instead, beside the button (TRASH-015, invariant 8).
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ApiError, api } from "../lib/api";
 
@@ -15,7 +15,13 @@ export function TrashButton({ select, compact = false }: { select: () => Promise
   const nav = useNavigate();
   const uid = useId().replace(/:/g, "");
   const roots = useQuery({ queryKey: ["roots"], queryFn: api.roots });
-  const readOnly = roots.isSuccess && (roots.data ?? []).length > 0 && (roots.data ?? []).every((r) => r.mode !== "rw");
+  const sources = useQuery({ queryKey: ["sources"], queryFn: api.sources });
+  // the library's own folders, not every root: the output folder 「sorted」 is writable while every photo sits in a
+  // read-only one, and the button stayed enabled on a library where it could never work (audit round 62)
+  const mode = new Map((roots.data ?? []).map((r) => [r.alias, r.mode]));
+  const libraryRoots = [...new Set((sources.data ?? []).map((x) => x.root_alias))];
+  const checked = libraryRoots.length ? libraryRoots : [...mode.keys()];
+  const readOnly = roots.isSuccess && checked.length > 0 && checked.every((a) => mode.get(a) !== "rw");
   const [shown, setShown] = useState<string[] | null>(null); // the folders a refusal names, while its card is open
   const go = useMutation({
     mutationFn: async () => api.selectionTrash((await select()).id),
@@ -28,19 +34,28 @@ export function TrashButton({ select, compact = false }: { select: () => Promise
   });
   const why = readOnly ? t("trash.allReadOnly") : null;
   const press = () => {
-    if (readOnly) return setShown((roots.data ?? []).map((r) => r.alias)); // said before any request (TRASH-016)
+    if (readOnly) return setShown(checked); // said before any request (TRASH-016)
     if (!go.isPending) go.mutate();
+  };
+  const self = useRef<HTMLButtonElement>(null);
+  // closing the card gives the keys back to the button: focus fell to the page and the Lightbox stopped hearing
+  // ←, → and Esc (TRASH-017)
+  const close = () => {
+    setShown(null);
+    self.current?.focus();
   };
   return (
     <span className="relative inline-flex flex-col">
       <button
+        ref={self}
         type="button"
         data-trash=""
         aria-label={t("trash.move")}
         title={why ?? t("trash.move")}
         aria-busy={go.isPending}
         aria-disabled={readOnly || undefined}
-        aria-describedby={why ? `why-${uid}` : undefined}
+        aria-describedby={why && !compact ? `why-${uid}` : undefined}
+        aria-description={why && compact ? why : undefined}
         onClick={press}
         className={`${compact ? "icon-button" : "rounded-[var(--radius-sm)] border border-[var(--border)] px-3 py-1 text-sm hover:bg-[var(--surface-2)]"} aria-disabled:opacity-50`}
       >
@@ -52,14 +67,22 @@ export function TrashButton({ select, compact = false }: { select: () => Promise
           t("trash.move")
         )}
       </button>
-      {why ? (
-        <span id={`why-${uid}`} className={compact ? "sr-only" : "text-xs text-[var(--text-muted)]"}>
+      {why && !compact ? (
+        // shown beside the text button; the Lightbox's icon carries it as its description and tooltip (invariant 8)
+        <span id={`why-${uid}`} className="text-xs text-[var(--text-muted)]">
           {why}
         </span>
       ) : null}
       {shown !== null ? (
         // floats beside the button: the selection bar keeps its height, the Lightbox does not clip it (TRASH-015)
-        <span className={compact ? "trash-popover trash-popover-end" : "trash-popover"}>
+        <span
+          className={compact ? "trash-popover trash-popover-end" : "trash-popover"}
+          onKeyDown={(e) => {
+            if (e.key !== "Escape") return;
+            e.stopPropagation(); // Esc closes this card only, not the Lightbox behind it
+            close();
+          }}
+        >
           <span role="alert" className="space-y-1">
             <strong className="block">
               {shown.length ? t("trash.readOnly", { roots: shown.map((r) => `「${r}」`).join("、") }) : t("trash.failed")}
@@ -74,7 +97,7 @@ export function TrashButton({ select, compact = false }: { select: () => Promise
               </span>
             ) : null}
           </span>
-          <button type="button" className="trash-popover-close" aria-label={t("trash.close")} onClick={() => setShown(null)}>
+          <button type="button" className="trash-popover-close" aria-label={t("trash.close")} onClick={close}>
             ×
           </button>
         </span>
