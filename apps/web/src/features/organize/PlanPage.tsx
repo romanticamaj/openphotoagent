@@ -69,7 +69,8 @@ export function PlanPage({ planId }: { planId: string }) {
         <>
           <p data-testid="plan-summary" className="text-lg">
             {p.summary.trash
-              ? t("organize.summaryTrash", { count: p.summary.trash })
+              ? // photos you chose are not duplicates: no 「保留代表張」 for them (TRASH-014)
+                t(p.summary.kind === "trash" ? "organize.summaryTrashChosen" : "organize.summaryTrash", { count: p.summary.trash })
               : moves
                 ? t("organize.summaryMove", { count: moves, folders: p.summary.folders })
                 : t("organize.summaryCopy", { count: p.summary.copy, folders: p.summary.folders })}

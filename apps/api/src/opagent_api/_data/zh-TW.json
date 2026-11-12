@@ -111,7 +111,8 @@
     "outside": "圖庫以外的資料夾…",
     "discard": "捨棄計畫",
     "discarded": "已捨棄計畫，原檔沒有任何變更。",
-    "backToOrganize": "回到整理"
+    "backToOrganize": "回到整理",
+    "summaryTrashChosen": "將移到垃圾桶 {count} 個檔案，可隨時復原"
   },
   "eta": {
     "slow": {
@@ -1130,5 +1131,8 @@
     "open": "{year} 年的第 {n} 張",
     "more": "看 {year} 年的其他 {n} 張",
     "picked": "精選 {n} 張 · 共 {total} 張"
+  },
+  "trash": {
+    "move": "移到垃圾桶"
   }
 }

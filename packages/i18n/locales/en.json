@@ -111,7 +111,8 @@
     "outside": "A folder outside the library…",
     "discard": "Discard plan",
     "discarded": "Plan discarded. No files were changed.",
-    "backToOrganize": "Back to Organize"
+    "backToOrganize": "Back to Organize",
+    "summaryTrashChosen": "Move {count} files to the trash. You can undo at any time"
   },
   "eta": {
     "slow": {
@@ -1130,5 +1131,8 @@
     "open": "{year}, photo {n}",
     "more": "See {n} more from {year}",
     "picked": "{n} picked of {total}"
+  },
+  "trash": {
+    "move": "Move to trash"
   }
 }

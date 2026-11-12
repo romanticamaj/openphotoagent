@@ -73,6 +73,7 @@ ROUTES: dict[tuple[str, str], str] = {
     ("POST", "/api/v1/benchmarks/{bid}/apply"): SRC,
     ("DELETE", "/api/v1/conversations/{cid}"): AU,
     ("POST", "/api/v1/duplicates/cleanup-plan"): J,
+    ("POST", "/api/v1/selections/{sid}/trash"): J,
     ("POST", "/api/v1/duplicates/recluster"): J,
     ("POST", "/api/v1/estimates"): R,
     ("POST", "/api/v1/export/label-studio"): R,

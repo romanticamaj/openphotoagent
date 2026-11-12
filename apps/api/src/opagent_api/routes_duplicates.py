@@ -198,7 +198,7 @@ def cleanup_plan(body: CleanupIn, req: Request) -> dict[str, Any]:
     """One-click duplicate clean-up (09b TRASH-005): a draft output plan that keeps each group's representative and
     moves every other copy to its root's `.opagent-trash/` (reversible). Nothing changes until a person approves."""
     from fastapi import HTTPException
-    from opagent_db.schema import job, output_action, output_plan, source, worker
+    from opagent_db.schema import source, worker
 
     st = _st(req)
     wanted = set(body.group_ids)
@@ -226,49 +226,70 @@ def cleanup_plan(body: CleanupIn, req: Request) -> dict[str, Any]:
                         )
                     ).all():
                         drops.append((m["asset_id"], sid, rel, ""))
-        hashes = dict(c.execute(select(asset.c.id, asset.c.content_hash)).all())
-        blocked = sorted(
-            {
-                f"{srcs[sid].root_alias}"
-                for _a, sid, _r, _h in drops
-                if modes.get((srcs[sid].worker_id, srcs[sid].root_alias), "ro") != "rw"
-            }
+        return trash_plan(st, c, srcs, modes, drops, "cleanup", {"groups": sorted(wanted)})
+
+
+def trash_plan(
+    st: Any,
+    c: Any,
+    srcs: dict[str, Any],
+    modes: dict[tuple[str, str], str],
+    drops: list[tuple[str, str, str, str]],
+    kind: str,
+    params: dict[str, Any],
+) -> dict[str, Any]:
+    """A draft plan moving each (asset, source, rel) into its own root's `.opagent-trash/` (TRASH-005, TRASH-011):
+    nothing changes until a person approves; undo puts the files back (invariant 3). A read-only root refuses the
+    plan with its reason, never another action (TRASH-004)."""
+    from fastapi import HTTPException
+    from opagent_db.schema import job, output_action, output_plan
+
+    hashes = dict(c.execute(select(asset.c.id, asset.c.content_hash)).all())
+    blocked = sorted(
+        {
+            f"{srcs[sid].root_alias}"
+            for _a, sid, _r, _h in drops
+            if modes.get((srcs[sid].worker_id, srcs[sid].root_alias), "ro") != "rw"
+        }
+    )
+    if blocked:  # plan-time blocker, never quietly turned into another action (TRASH-004)
+        raise HTTPException(409, detail={"code": "FS_NOT_WRITABLE", "roots": blocked})
+    wid = next((srcs[sid].worker_id for _a, sid, _r, _h in drops), None)
+    jid, pid = uuid7(st.clock), uuid7(st.clock)
+    c.execute(
+        insert(job).values(
+            id=jid,
+            workspace_id=DEFAULT_WS,
+            kind=kind,
+            status="awaiting_approval",
+            params={"worker_id": wid, **params},
         )
-        if blocked:  # plan-time blocker, never quietly turned into another action (TRASH-004)
-            raise HTTPException(409, detail={"code": "FS_NOT_WRITABLE", "roots": blocked})
-        wid = next((srcs[sid].worker_id for _a, sid, _r, _h in drops), None)
-        jid, pid = uuid7(st.clock), uuid7(st.clock)
+    )
+    c.execute(
+        insert(output_plan).values(
+            id=pid,
+            job_id=jid,
+            status="draft",
+            summary={"trash": len(drops), "total": len(drops), "folders": 0, "kind": kind},
+        )
+    )
+    if drops:
         c.execute(
-            insert(job).values(
-                id=jid,
-                workspace_id=DEFAULT_WS,
-                kind="cleanup",
-                status="awaiting_approval",
-                params={"worker_id": wid, "groups": sorted(wanted)},
-            )
+            insert(output_action),
+            [
+                {
+                    "id": uuid7(st.clock),
+                    "plan_id": pid,
+                    "seq": i,
+                    "asset_id": aid,
+                    "action": "trash",
+                    "src_alias": srcs[sid].root_alias,
+                    "src_rel": rel,
+                    "dst_alias": srcs[sid].root_alias,
+                    "dst_rel": rel,
+                    "src_hash": hashes[aid],
+                }
+                for i, (aid, sid, rel, _h) in enumerate(drops)
+            ],
         )
-        c.execute(
-            insert(output_plan).values(
-                id=pid, job_id=jid, status="draft", summary={"trash": len(drops), "total": len(drops), "folders": 0}
-            )
-        )
-        if drops:
-            c.execute(
-                insert(output_action),
-                [
-                    {
-                        "id": uuid7(st.clock),
-                        "plan_id": pid,
-                        "seq": i,
-                        "asset_id": aid,
-                        "action": "trash",
-                        "src_alias": srcs[sid].root_alias,
-                        "src_rel": rel,
-                        "dst_alias": srcs[sid].root_alias,
-                        "dst_rel": rel,
-                        "src_hash": hashes[aid],
-                    }
-                    for i, (aid, sid, rel, _h) in enumerate(drops)
-                ],
-            )
     return {"plan_id": pid, "job_id": jid, "trash": len(drops)}

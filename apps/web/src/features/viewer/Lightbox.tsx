@@ -2,6 +2,7 @@
 // panel with EXIF and every AI label's model and decision layer, inline correction (→ review), reveal in file
 // manager on desktop only. role="dialog" aria-modal; position is announced through aria-live.
 import { AddToAlbum, FavoriteButton, typingIn, useFavorite } from "../albums/AlbumButtons";
+import { TrashButton } from "../../components/TrashButton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { FaceCrop } from "../../components/FaceCrop";
@@ -193,6 +194,7 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
         ) : null}
         {asset ? <FavoriteButton assetId={asset.id} /> : null}
         {asset ? <AddToAlbum assetIds={[asset.id]} /> : null}
+        {asset ? <TrashButton compact select={() => api.createSelection({ asset_ids: [asset.id] })} /> : null}
         {asset ? (
           <button type="button" onClick={rotate} aria-label={t("lightbox.rotate")} title={`${t("lightbox.rotate")} (R)`} className="icon-button">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

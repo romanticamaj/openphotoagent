@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { api } from "../../lib/api";
 import { AddToAlbum, FavoriteSelection, typingIn } from "../albums/AlbumButtons";
+import { TrashButton } from "../../components/TrashButton";
 import { memoryGrid, OnThisDay } from "../memories/OnThisDay";
 import { Lightbox } from "./Lightbox";
 import { PhotoGrid, type GridApi } from "./PhotoGrid";
@@ -90,17 +91,17 @@ function TimelineBatch({ sel, onClear }: { sel: Selection; onClear: () => void }
   const buckets = useQuery({ queryKey: ["timeline", "buckets"], queryFn: api.buckets });
   const total = (buckets.data?.buckets ?? []).reduce((n, b) => n + b.count, 0);
   const n = countOf(sel, total);
-  const put = async (albumId: string) => {
-    const s = sel.all
-      ? await api.createSelection({ query: { collapse_duplicates: false }, exclude: [...sel.ids] }) // every photo, as shown
-      : await api.createSelection({ asset_ids: [...sel.ids] });
-    return api.selectionAlbum(s.id, albumId);
-  };
+  const select = () =>
+    sel.all
+      ? api.createSelection({ query: { collapse_duplicates: false }, exclude: [...sel.ids] }) // every photo, as shown
+      : api.createSelection({ asset_ids: [...sel.ids] });
+  const put = async (albumId: string) => api.selectionAlbum((await select()).id, albumId);
   return (
     <div data-testid="timeline-batch" className="timeline-batch">
       <strong className="tnum">{t("batch.selected", { n: n.toLocaleString(i18n.language) })}</strong>
       <FavoriteSelection put={put} />
       <AddToAlbum put={put} />
+      <TrashButton select={select} />
       <button type="button" className="ml-auto text-sm underline" onClick={onClear}>
         {t("batch.clear")} <kbd className="text-xs text-[var(--text-muted)]">Esc</kbd>
       </button>

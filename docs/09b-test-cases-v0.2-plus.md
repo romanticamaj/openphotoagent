@@ -113,6 +113,10 @@
 | TRASH-008 | 當機注入 | trash rename 前後 kill -9 | 09a OUT-CRASH 不變量成立 | X | #59 | v0.2 |
 | TRASH-009 | `/trash/summary` | 3 個 plan 的 trash 檔 | 回傳檔案數、總 bytes、最早到期日（解除安裝提示用） | I | #10 | v0.1 端點／v0.2 資料 |
 | TRASH-010 | 到期時間一律是 UTC（回歸） | 資料庫 session 時區為 `Asia/Taipei` | `earliest_expiry` 的 offset 為 `+00:00`（時區來自 initdb 所在機器，回應曾隨機器而變） | I | #10 | v0.2 |
+| TRASH-011 | 選取的照片移到垃圾桶：建立計畫（ADR-0046） | 選兩張，其中一張有兩個位置 | 草稿計畫、3 個 trash 動作、各自留在原本的 root；核准前沒有任何檔案移動 | I | #— |
+| TRASH-012 | 唯讀資料夾不能移到垃圾桶 | 唯讀 root 裡的照片 | 409 `FS_NOT_WRITABLE`、`roots: [photos]`，不改成其他動作 | I | #— |
+| TRASH-013 | 「移到垃圾桶」按鈕 | 成功；唯讀被拒 | 打開計畫頁；顯示「無法寫入「photos」」 | C | #— |
+| TRASH-014 | 選一張 → 移到垃圾桶 → 核准 → 復原 | 兩個位置的照片 | 摘要「將移到垃圾桶 2 個檔案，可隨時復原」；核准前檔案不變；兩個檔案進 `.opagent-trash/`；復原後位元組與 mtime 都回來 | E | #— |
 | XMP-001 | 寫入 sidecar | `sidecar_xmp` | `.xmp` 含 `dc:subject`、`dc:description`、`lr:hierarchicalSubject`；exiftool 讀回與預期相同 | I | #50 | v0.2 |
 | XMP-002 | 相容性 | 用 digiKam／Lightroom 範例 XMP schema 驗證；手動清單：digiKam、Lightroom Classic 匯入 | 讀出 tags | C/M | #50 | v0.2 |
 | XMP-003 | 合併既有 XMP | 已存在 XMP 含評分與未知 namespace | 保留原有欄位，只合併我們的欄位；先備份原 XMP | I | #50 | v0.2 |

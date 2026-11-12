@@ -204,3 +204,30 @@ def batch_album(sid: str, body: ToAlbum, req: Request) -> dict[str, Any]:
         _album(c, body.album_id)
         added = _add(c, body.album_id, ids)
         return {"id": body.album_id, "count": _count(c, body.album_id), "added": added}
+
+
+@router.post("/selections/{sid}/trash")
+def batch_trash(sid: str, req: Request) -> dict[str, Any]:
+    """「移到垃圾桶」 for chosen photos (TRASH-011; approved by the user 2026-11-12): a draft plan moving every file of
+    them into its own root's `.opagent-trash/`, applied only after a person approves, and undoable (invariant 3)."""
+    from opagent_db.schema import asset_location, source, worker
+
+    from .routes_duplicates import trash_plan
+
+    st = _st(req)
+    with st.engine.begin() as c:
+        ids = _ids(c, sid)
+        srcs = {r.id: r for r in c.execute(select(source)).all()}
+        modes = {}
+        for wid, roots in c.execute(select(worker.c.id, worker.c.roots)).all():
+            for r in roots or []:
+                modes[(wid, r["alias"])] = r.get("mode", "ro")
+        drops = [
+            (r.asset_id, r.source_id, r.rel_path, "")
+            for r in c.execute(
+                select(asset_location.c.asset_id, asset_location.c.source_id, asset_location.c.rel_path)
+                .where(asset_location.c.asset_id.in_(ids or ["-"]), asset_location.c.missing.is_(False))
+                .order_by(asset_location.c.asset_id, asset_location.c.rel_path)
+            )
+        ]
+        return trash_plan(st, c, srcs, modes, drops, "trash", {"selection": sid})

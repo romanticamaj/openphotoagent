@@ -12,6 +12,7 @@ import { api, isDegraded, mediaUrl, type SearchBody } from "../../lib/api";
 import { turnStyle } from "../../lib/turn";
 
 import { AddToAlbum, FavoriteSelection, typingIn } from "../albums/AlbumButtons";
+import { TrashButton } from "../../components/TrashButton";
 import { bodyFor, cappedNote, chipLabel, chipsFrom, gridAssetOf, headerCount, onlyByMeaning, relaxedText, softView, weakNeedsMore, tileLabel, weakTail, withoutPerson, withoutWords, dateWords, type Chip } from "./searchPlan";
 
 export function SearchPage({ q }: { q: string }) {
@@ -423,6 +424,7 @@ function BatchBar({
           {t("batch.applyCategory")}
         </Button>
       ) : null}
+      <TrashButton select={makeSelection} />
       <span ref={moveRef}>
         <Button variant="ghost" onClick={() => setMoving(true)}>
           {t("batch.moveToFolder")}
