@@ -1271,3 +1271,17 @@ def test_srch_sem_019_no_more_than_when_the_long_tail_is_possible():
     assert still_capped(capped=True, word_hits=14, possible=236) is False
     assert still_capped(capped=True, word_hits=250, possible=10) is True  # the words themselves filled the limit
     assert still_capped(capped=True, word_hits=3, possible=0) is True
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-CNC-019")
+def test_srch_cnc_019_english_words_for_a_concept_find_its_photos(s):
+    """回歸 (audit round 68): 「slide」 said 「200 張以上」, every one found by the image model alone, while 「溜滑梯」
+    found its 14: the vocabulary knew 溜滑梯 and 盪鞦韆 but not their English. Typed in English, a concept's word finds
+    the photos its Chinese word finds."""
+    s.add(1, caption="小朋友在溜滑梯", tags=("溜滑梯",))
+    s.add(2, caption="盪鞦韆", tags=("盪鞦韆",))
+    s.add(3, caption="海邊的夕陽")
+    s.index()
+    for q in ("slide", "swing", "slides"):
+        assert s.search(q=q, semantic=False)["total"] == 2, q

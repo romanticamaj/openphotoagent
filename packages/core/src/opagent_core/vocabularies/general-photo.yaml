@@ -26,20 +26,20 @@ terms:
   - { id: event.wedding, zh: 婚禮, en: wedding, group: 活動, synonyms: [婚宴] }
   # 2026-11-09: concepts of a family library (audit round 1; tags seen on the reference library). Written for this
   # project, no imported dictionary. Not here on purpose: 過年 (a date to the planner, ADR-0008).
-  - { id: people.baby, zh: 嬰兒, en: baby, group: 人物, synonyms: [寶寶, 嬰孩, 小嬰兒, infant] }
-  - { id: people.teacher, zh: 老師, en: teacher, group: 人物, synonyms: [教師] }
+  - { id: people.baby, zh: 嬰兒, en: baby, group: 人物, synonyms: [寶寶, 嬰孩, 小嬰兒, infant, babies] }
+  - { id: people.teacher, zh: 老師, en: teacher, group: 人物, synonyms: [教師, teachers] }
   - { id: people.family, zh: 家人, en: family, group: 人物, synonyms: [家庭, 全家福] }
   - { id: scene.classroom, zh: 教室, en: classroom, group: 場景, synonyms: [課堂, 活動室] }
-  - { id: scene.playground, zh: 遊樂場, en: playground, group: 場景, synonyms: [遊戲場, 溜滑梯, 滑梯, 盪鞦韆] }
-  - { id: scene.sports_field, zh: 運動場, en: sports field, group: 場景, synonyms: [操場, 球場, 足球場, 田徑場] }
+  - { id: scene.playground, zh: 遊樂場, en: playground, group: 場景, synonyms: [遊戲場, 溜滑梯, 滑梯, 盪鞦韆, slide, slides, swing, swings, playgrounds] }
+  - { id: scene.sports_field, zh: 運動場, en: sports field, group: 場景, synonyms: [操場, 球場, 足球場, 田徑場, sports ground, court] }
   - { id: scene.gym, zh: 體育館, en: gym, group: 場景, synonyms: [室內場地, 健身房] }
-  - { id: scene.park, zh: 公園, en: park, group: 場景, synonyms: [綠地] }
+  - { id: scene.park, zh: 公園, en: park, group: 場景, synonyms: [綠地, parks] }
   - { id: scene.sea, zh: 海, en: sea, group: 場景, synonyms: [大海, 海洋, ocean] }
   - { id: scene.river, zh: 河, en: river, group: 場景, synonyms: [河流, 溪, 小溪] }
   - { id: scene.lake, zh: 湖, en: lake, group: 場景, synonyms: [湖泊, 湖邊] }
   - { id: scene.snow, zh: 雪, en: snow, group: 場景, synonyms: [雪地, 下雪, 雪景] }
-  - { id: scene.garden, zh: 花園, en: garden, group: 場景, synonyms: [庭院] }
-  - { id: scene.street, zh: 街道, en: street, group: 場景, synonyms: [馬路, 街頭, 巷子] }
+  - { id: scene.garden, zh: 花園, en: garden, group: 場景, synonyms: [庭院, gardens] }
+  - { id: scene.street, zh: 街道, en: street, group: 場景, synonyms: [馬路, 街頭, 巷子, road, streets] }
   - { id: scene.kitchen, zh: 廚房, en: kitchen, group: 場景, synonyms: [] }
   - { id: scene.restaurant, zh: 餐廳, en: restaurant, group: 場景, synonyms: [餐館, 飯館] }
   - { id: scene.bedroom, zh: 臥室, en: bedroom, group: 場景, synonyms: [房間, 寢室] }
@@ -48,27 +48,27 @@ terms:
   - { id: scene.museum, zh: 博物館, en: museum, group: 場景, synonyms: [美術館, 展覽] }
   - { id: scene.temple, zh: 寺廟, en: temple, group: 場景, synonyms: [廟, 廟宇] }
   - { id: scene.sky, zh: 天空, en: sky, group: 場景, synonyms: [藍天] }
-  - { id: scene.grass, zh: 草地, en: grass, group: 場景, synonyms: [草坪, 草皮] }
+  - { id: scene.grass, zh: 草地, en: grass, group: 場景, synonyms: [草坪, 草皮, lawn] }
   - { id: scene.outdoor, zh: 戶外, en: outdoor, group: 場景, synonyms: [室外, outside] }
   - { id: activity.soccer, zh: 足球, en: soccer, group: 活動, synonyms: [踢足球, 踢球, football] }
-  - { id: activity.basketball, zh: 籃球, en: basketball, group: 活動, synonyms: [打籃球] }
+  - { id: activity.basketball, zh: 籃球, en: basketball, group: 活動, synonyms: [打籃球, basketballs] }
   - { id: activity.dance, zh: 跳舞, en: dance, group: 活動, synonyms: [舞蹈, 舞蹈教室, dancing] }
   - { id: activity.drawing, zh: 畫畫, en: drawing, group: 活動, synonyms: [繪畫, 塗鴉, 塗色, 畫圖, painting] }
   - { id: activity.crafts, zh: 手工, en: crafts, group: 活動, synonyms: [手工藝, 美勞, 勞作, 剪紙, 摺紙, 折紙, handicraft] }
-  - { id: activity.reading, zh: 閱讀, en: reading, group: 活動, synonyms: [看書, 讀書] }
-  - { id: activity.swimming, zh: 游泳, en: swimming, group: 活動, synonyms: [泳池, 游泳池] }
-  - { id: activity.running, zh: 跑步, en: running, group: 活動, synonyms: [奔跑, 賽跑] }
-  - { id: activity.eating, zh: 吃飯, en: eating, group: 活動, synonyms: [用餐, 吃東西] }
-  - { id: activity.cooking, zh: 煮飯, en: cooking, group: 活動, synonyms: [烹飪, 做菜] }
-  - { id: activity.sleeping, zh: 睡覺, en: sleeping, group: 活動, synonyms: [睡著, 午睡] }
-  - { id: activity.playing, zh: 玩耍, en: playing, group: 活動, synonyms: [遊戲, 玩樂] }
-  - { id: activity.study, zh: 學習, en: studying, group: 活動, synonyms: [上課, 教學] }
+  - { id: activity.reading, zh: 閱讀, en: reading, group: 活動, synonyms: [看書, 讀書, read] }
+  - { id: activity.swimming, zh: 游泳, en: swimming, group: 活動, synonyms: [泳池, 游泳池, swim, pool] }
+  - { id: activity.running, zh: 跑步, en: running, group: 活動, synonyms: [奔跑, 賽跑, run] }
+  - { id: activity.eating, zh: 吃飯, en: eating, group: 活動, synonyms: [用餐, 吃東西, eat, meal, dinner, lunch] }
+  - { id: activity.cooking, zh: 煮飯, en: cooking, group: 活動, synonyms: [烹飪, 做菜, cook] }
+  - { id: activity.sleeping, zh: 睡覺, en: sleeping, group: 活動, synonyms: [睡著, 午睡, sleep, nap] }
+  - { id: activity.playing, zh: 玩耍, en: playing, group: 活動, synonyms: [遊戲, 玩樂, play] }
+  - { id: activity.study, zh: 學習, en: studying, group: 活動, synonyms: [上課, 教學, study, class, lesson] }
   - { id: activity.performance, zh: 表演, en: performance, group: 活動, synonyms: [演出, 舞台] }
-  - { id: activity.travel, zh: 旅行, en: travel, group: 活動, synonyms: [旅遊, 出遊] }
+  - { id: activity.travel, zh: 旅行, en: travel, group: 活動, synonyms: [旅遊, 出遊, trip] }
   - { id: object.toy, zh: 玩具, en: toy, group: 物件, synonyms: [玩偶, toys] }
   - { id: object.blocks, zh: 積木, en: blocks, group: 物件, synonyms: [樂高, 磁力積木, 磁力片, lego] }
   - { id: object.puzzle, zh: 拼圖, en: puzzle, group: 物件, synonyms: [] }
-  - { id: object.ball, zh: 球, en: ball, group: 物件, synonyms: [皮球] }
+  - { id: object.ball, zh: 球, en: ball, group: 物件, synonyms: [皮球, balls] }
   - { id: object.book, zh: 書, en: book, group: 物件, synonyms: [書本, 書籍, 繪本, books] }
   - { id: object.crayon, zh: 蠟筆, en: crayon, group: 物件, synonyms: [彩色筆, 彩筆, 畫筆] }
   - { id: object.paper, zh: 紙, en: paper, group: 物件, synonyms: [紙張] }
@@ -80,19 +80,19 @@ terms:
   - { id: object.computer, zh: 電腦, en: computer, group: 物件, synonyms: [筆電, 筆記型電腦, laptop] }
   - { id: object.phone, zh: 手機, en: phone, group: 物件, synonyms: [智慧型手機, smartphone] }
   - { id: object.tablet, zh: 平板, en: tablet, group: 物件, synonyms: [平板電腦, ipad] }
-  - { id: object.balloon, zh: 氣球, en: balloon, group: 物件, synonyms: [] }
+  - { id: object.balloon, zh: 氣球, en: balloon, group: 物件, synonyms: [balloons] }
   - { id: object.kite, zh: 風箏, en: kite, group: 物件, synonyms: [] }
-  - { id: object.bus, zh: 公車, en: bus, group: 物件, synonyms: [巴士, 校車] }
-  - { id: object.train, zh: 火車, en: train, group: 物件, synonyms: [列車, 高鐵, 捷運, 電車] }
+  - { id: object.bus, zh: 公車, en: bus, group: 物件, synonyms: [巴士, 校車, buses] }
+  - { id: object.train, zh: 火車, en: train, group: 物件, synonyms: [列車, 高鐵, 捷運, 電車, trains, tram, subway, metro] }
   - { id: object.airplane, zh: 飛機, en: airplane, group: 物件, synonyms: [班機, plane] }
-  - { id: object.boat, zh: 船, en: boat, group: 物件, synonyms: [小船, 遊艇, ship] }
+  - { id: object.boat, zh: 船, en: boat, group: 物件, synonyms: [小船, 遊艇, ship, boats] }
   - { id: object.umbrella, zh: 雨傘, en: umbrella, group: 物件, synonyms: [傘] }
   - { id: object.mask, zh: 口罩, en: face mask, group: 物件, synonyms: [] }
   - { id: object.table, zh: 桌子, en: table, group: 物件, synonyms: [桌椅, 木桌, 課桌, 桌] }
   - { id: object.chair, zh: 椅子, en: chair, group: 物件, synonyms: [] }
   - { id: object.plant, zh: 植物, en: plant, group: 物件, synonyms: [盆栽] }
   - { id: object.tree, zh: 樹, en: tree, group: 物件, synonyms: [樹木, trees] }
-  - { id: object.building, zh: 建築, en: building, group: 物件, synonyms: [建築物, 大樓, 房子] }
+  - { id: object.building, zh: 建築, en: building, group: 物件, synonyms: [建築物, 大樓, 房子, buildings] }
   - { id: object.surfboard, zh: 衝浪板, en: surfboard, group: 物件, synonyms: [] }
   # an activity may imply where it happens (ADR-0032 addendum, implies): asked together, the scene ranks, not filters
   - { id: activity.surfing, zh: 衝浪, en: surfing, group: 活動, synonyms: [surf, 衝浪運動], implies: [scene.sea, scene.beach] }
@@ -121,5 +121,5 @@ terms:
   - { id: event.christmas, zh: 聖誕節, en: christmas, group: 活動, synonyms: [聖誕, 耶誕] }
   - { id: event.sports_day, zh: 運動會, en: sports day, group: 活動, synonyms: [] }
   - { id: event.halloween, zh: 萬聖節, en: halloween, group: 活動, synonyms: [] }
-  - { id: mood.smile, zh: 笑容, en: smile, group: 氛圍, synonyms: [微笑, 笑臉, 開心] }
+  - { id: mood.smile, zh: 笑容, en: smile, group: 氛圍, synonyms: [微笑, 笑臉, 開心, smiling, happy] }
 blacklist: [照片, 圖片, 相片, photo, image, picture, 地板, 木地板, 牆, 牆壁, 天花板, 背景, 坐姿, 穿著, 動作, 線條, 彩色, 手, 人, 互動, 活動, 燈光]
