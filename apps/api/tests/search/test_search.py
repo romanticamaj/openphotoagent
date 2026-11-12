@@ -1129,22 +1129,26 @@ def test_srch_sem_012_a_weak_image_only_answer_is_no_answer(s, monkeypatch):
 @pytest.mark.integration
 @pytest.mark.tc("SRCH-SEM-013")
 def test_srch_sem_013_a_strong_best_keeps_the_floor_for_the_rest(s, monkeypatch):
-    """The bar gates the best score only: 0.087 clears it, and 0.070 (at the floor) stays; 0.065 never counted."""
+    """ADR-0047 (superseding ADR-0042's 「the floor judges the rest」): with no word hits each image-only photo needs the
+    bar, not only the best: 0.087 counts; 0.070, above the floor, is 「可能相關」; 0.065 is below the floor."""
     ids = _near(s, [0.087, 0.070, 0.065])
     _gate(monkeypatch, 0.082)
     res = s.search(q="night")
-    assert res["total"] == 2 and {x["asset_id"] for x in res["items"]} == set(ids[:2])
+    assert res["total"] == 1 and {x["asset_id"] for x in res["items"]} == {ids[0]}
+    assert [x["asset_id"] for x in res["possible"]] == [ids[1]]
     assert not res.get("image_only_weak")
 
 
 @pytest.mark.integration
 @pytest.mark.tc("SRCH-SEM-014")
 def test_srch_sem_014_no_gate_when_words_match_or_the_catalog_has_none(s, monkeypatch):
-    """A word match means the answer does not rest on the image model alone; a model without the key keeps today's
-    behaviour."""
+    """A word match counts, and its photo is never gated; with fewer than 3 word hits the image-only ones each need the
+    bar (ADR-0047: two 0.077 collages are 「可能相關」, not counted, as they inflated 「城市」). A model without the key
+    keeps the floor alone."""
     _near(s, [0.077, 0.077, 0.05], captions={2: "city at night"})
     _gate(monkeypatch, 0.082)
-    assert s.search(q="night")["total"] == 3
+    res = s.search(q="night")
+    assert res["total"] == 1 and res["possible_total"] == 2
     _gate(monkeypatch, None)
     assert s.search(q="nights")["total"] >= 2
 
@@ -1211,3 +1215,31 @@ def test_srch_cnc_018_a_tram_and_traffic_are_車子_too(s):
     s.index()
     assert s.search(q="車子", semantic=False)["total"] == 3
     assert s.search(q="火車", semantic=False)["total"] == 1
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-SEM-016")
+def test_srch_sem_016_vectors_count_only_when_they_look_like_the_word_hits(s, monkeypatch):
+    """ADR-0043b (one deliberation sub-agent; the owner chose 「0 張確定＋可能相關」 2026-11-12): 「溜滑梯」 said
+    「250 張以上」 with 14 photos the words found. With 3 or more word hits, a photo found only by vectors counts when
+    its image score is at least the median of the word hits'; the others are 「可能相關」: not counted, not in facets
+    or select-all, listed apart."""
+    cos = [0.12, 0.13, 0.14, 0.15, 0.16, 0.145, 0.13]
+    ids = _near(s, cos, captions={i: "踢足球" for i in range(5)}, tags={i: ("activity.soccer",) for i in range(5)})
+    _gate(monkeypatch, 0.082)
+    res = s.search(q="足球", facets=["tags"])
+    assert res["total"] == 6 and ids[5] in {x["asset_id"] for x in res["items"]}
+    assert [x["asset_id"] for x in res.get("possible", [])] == [ids[6]] and res.get("possible_total") == 1
+    assert ids[6] not in {x["asset_id"] for x in res["items"]}
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-SEM-017")
+def test_srch_sem_017_with_few_word_hits_each_vector_photo_needs_the_bar(s, monkeypatch):
+    """Fewer than 3 word hits: every photo found by the image alone needs min_cosine_alone (0.082), not only the best;
+    the rest above the floor are 「可能相關」. Nothing above the bar at all stays 「直接說沒有」 (ADR-0042)."""
+    ids = _near(s, [0.09, 0.085, 0.075])
+    _gate(monkeypatch, 0.082)
+    res = s.search(q="night")
+    assert res["total"] == 2 and {x["asset_id"] for x in res["items"]} == set(ids[:2])
+    assert [x["asset_id"] for x in res.get("possible", [])] == [ids[2]]

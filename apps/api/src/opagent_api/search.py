@@ -162,6 +162,37 @@ def vector_alone(st: AppState, space: Any) -> float | None:
     return float(bar) if bar is not None else None
 
 
+ANCHOR_MIN = 3  # word/tag hits that make a sample of what this query looks like (ADR-0047)
+
+
+def vector_members(
+    vec_ids: list[str],
+    word_ids: set[str],
+    image_ids: set[str],
+    image_cos: dict[str, float],
+    cap_cos: dict[str, float],
+    alone: float | None,
+    cap_bar: float | None,
+) -> tuple[list[str], list[str]]:
+    """Which photos found by vectors alone count (ADR-0047). With 3 or more word/tag hits, those are a labelled sample
+    of the query: a vector-only photo counts when its image score reaches the median of theirs. With fewer, each one
+    needs the bar its route needs alone: min_cosine_alone for the image (ADR-0042), the caption floor plus
+    MEANING_MARGIN for the caption meaning. The rest are 「可能相關」: listed apart, never counted
+    (SRCH-SEM-016/017)."""
+    only = [a for a in dict.fromkeys(vec_ids) if a not in word_ids]
+    sample = sorted(image_cos[a] for a in word_ids if a in image_cos)
+    anchor = sample[len(sample) // 2] if len(word_ids) >= ANCHOR_MIN and len(sample) >= ANCHOR_MIN else None
+
+    def counts(a: str) -> bool:
+        if anchor is not None:
+            return image_cos.get(a, -1.0) >= anchor
+        img = a in image_ids and (alone is None or image_cos.get(a, -1.0) >= alone)
+        cap = a in cap_cos and (cap_bar is None or cap_cos[a] >= cap_bar)
+        return img or cap
+
+    return [a for a in only if counts(a)], [a for a in only if not counts(a)]
+
+
 def caption_floor(st: AppState, space: Any) -> float | None:
     """The caption route's floor, from its text model in the catalog (SRCH-R2-005). None keeps today's behaviour, as
     for an image space without one (ADR-0027)."""
@@ -261,6 +292,7 @@ def weak_ids(
 
 # image-only matches this far under the query's best are 2-30% relevant on the reference library (ADR-0040)
 WEAK_GAP = 0.06
+POSSIBLE_SHOWN = 60  # 「可能相關」 listed with the first page
 # a tag the VLM seldom gives small, moving faces: beside other concepts it ranks, never filters (SRCH-CNC-007)
 SOFT_KEYS = frozenset({"mood.smile"})
 MEANING_MARGIN = 0.08  # 17 words on the reference library: wrong photos 14 at +0, 1 at +0.06, 0 at +0.08
@@ -489,6 +521,9 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
     image_cos: dict[str, float] = {}
     meaning_only = False  # answered by the phrase's caption meaning alone (SRCH-CNC-016)
     image_only_weak = False  # only the image model answered, and weakly: there is no answer (ADR-0042)
+    cap_cos: dict[str, float] = {}
+    cap_bar: float | None = None
+    possible: list[str] = []  # found by vectors only, unlike the confirmed hits: listed apart, not counted (ADR-0047)
     shown_first: set[str] = set()  # the photos an expression put first: never weak (SRCH-SEM-010)
     weak: list[str] = []
     member: list[Any] = []  # ADR-0005: the match set (total, facets, selection) — not just the ranking window
@@ -554,9 +589,11 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                 one = tokenizer().concepts(q)
                 if cfloor is not None and len(one) == 1 and not one[0].key and not one[0].word.isascii():
                     cfloor += MEANING_MARGIN  # the query is one word the vocabulary does not know (SRCH-CNC-006)
-                routes["caption_vector"] = [
-                    r[0] for r in c.execute(cq, {"qv": str(cvec)}) if cfloor is None or r[1] >= cfloor
-                ]
+                cap_rows = [r for r in c.execute(cq, {"qv": str(cvec)}) if cfloor is None or r[1] >= cfloor]
+                routes["caption_vector"] = [r[0] for r in cap_rows]
+                cap_cos = {r[0]: float(r[1]) for r in cap_rows}
+                cap_bar = caption_floor(st, cspace)
+                cap_bar = cap_bar + MEANING_MARGIN if cap_bar is not None else None
                 capped = capped or len(routes["caption_vector"]) == PER_ROUTE  # a floor too (SRCH-R2-009)
             alone = vector_alone(st, space) if space is not None else None
             if (
@@ -626,7 +663,18 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                 ranked = [a for a in ranked if a in keep]
             else:
                 if vec_ids:
-                    member.append(search_doc.c.asset_id.in_(vec_ids))
+                    counted, possible = vector_members(
+                        vec_ids,
+                        set(routes.get("fulltext") or []) | set(routes.get("tag") or []),
+                        set(routes.get("image_vector") or []),
+                        image_cos,
+                        cap_cos,
+                        vector_alone(st, space) if space is not None else None,
+                        cap_bar,
+                    )
+                    if counted:
+                        member.append(search_doc.c.asset_id.in_(counted))
+                    ranked = [a for a in ranked if a not in set(possible)]
                 match = or_(*member) if member else false()
             tail_q = (
                 select(search_doc.c.asset_id)
@@ -702,9 +750,19 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
             if near_ids
             else {}
         )
+        maybe = possible[:POSSIBLE_SHOWN] if off == 0 else []
+        maybe_rows = (
+            {r.asset_id: r for r in c.execute(select(search_doc).where(search_doc.c.asset_id.in_(maybe)))}
+            if maybe
+            else {}
+        )
         hashes = (
-            dict(c.execute(select(asset.c.id, asset.c.content_hash).where(asset.c.id.in_([*page, *near_ids]))).all())
-            if page or near_ids
+            dict(
+                c.execute(
+                    select(asset.c.id, asset.c.content_hash).where(asset.c.id.in_([*page, *near_ids, *maybe]))
+                ).all()
+            )
+            if page or near_ids or maybe
             else {}
         )
         turns = (
@@ -757,6 +815,20 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
         "meaning_only": meaning_only,
         "image_only_weak": image_only_weak,
         "weak": len(weak),  # weak look-alikes, last (ADR-0040)
+        # 「可能相關」 (ADR-0047): found by vectors only and unlike the confirmed hits; not counted, not in facets or
+        # selection
+        "possible_total": len(possible),
+        "possible": [
+            {
+                "asset_id": a,
+                "ch": hashes.get(a),
+                "caption": maybe_rows[a].caption,
+                "taken_at": maybe_rows[a].taken_at.isoformat() if maybe_rows[a].taken_at else None,
+                "matched_by": matched.get(a, []),
+            }
+            for a in maybe
+            if a in maybe_rows
+        ],
         "weak_from": total - len(weak)
         if weak
         else None,  # expressions that rank, with how many photos show them (SRCH-CNC-007)

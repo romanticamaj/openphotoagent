@@ -8,7 +8,7 @@ import { Button } from "../../components/Button";
 import { COMPARE_MAX, CompareView } from "./CompareView";
 import { Lightbox } from "../viewer/Lightbox";
 import type { GridApi } from "../viewer/PhotoGrid";
-import { api, isDegraded, mediaUrl, type SearchBody } from "../../lib/api";
+import { api, isDegraded, mediaUrl, type PossibleHit, type SearchBody } from "../../lib/api";
 import { turnStyle } from "../../lib/turn";
 
 import { AddToAlbum, FavoriteSelection, typingIn } from "../albums/AlbumButtons";
@@ -27,6 +27,7 @@ export function SearchPage({ q }: { q: string }) {
   const [toast, setToast] = useState<string | null>(null);
   const [comparing, setComparing] = useState<string[] | null>(null);
   const [showWeak, setShowWeak] = useState(false);
+  const [viewingPossible, setViewingPossible] = useState<number | null>(null);
   useEffect(() => {
     setShowWeak(false);
     setChips([]);
@@ -251,7 +252,7 @@ export function SearchPage({ q }: { q: string }) {
           </div>
         </>
       ) : null}
-      {res.isSuccess && hits.length === 0 && <p>{t("search.none")}</p>}
+      {res.isSuccess && hits.length === 0 && <p>{t(first?.possible_total ? "search.noneSure" : "search.none")}</p>}
       <div ref={gridRef} onKeyDown={onKey} role="grid" aria-label={t("search.results")} aria-multiselectable="true" aria-rowcount={-1} className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-0.5 outline-none">
         <div role="row" className="contents">
         {shownHits.map((h, i) => {
@@ -298,6 +299,31 @@ export function SearchPage({ q }: { q: string }) {
         })}
         </div>
       </div>
+      {first?.possible_total ? (
+        // 「可能相關」 (ADR-0047): found by the image or caption models only, unlike the photos the words found; apart
+        // from the count, the facets and 全選, folded until asked for
+        <details data-testid="possible" className="possible-group space-y-2">
+          <summary className="cursor-pointer text-sm text-[var(--text-muted)]">
+            {t("search.possible", { n: first.possible_total.toLocaleString(i18n.language) })}
+          </summary>
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-0.5">
+            {(first.possible ?? []).map((h, i) => (
+              <button
+                key={h.asset_id}
+                type="button"
+                className="tile relative aspect-square opacity-90"
+                aria-label={tileLabel(t, h)}
+                onClick={() => setViewingPossible(i)}
+              >
+                <img src={mediaUrl(h.asset_id, "t256", h.ch)} alt="" loading="lazy" />
+              </button>
+            ))}
+          </div>
+        </details>
+      ) : null}
+      {viewingPossible !== null && first?.possible ? (
+        <Lightbox start={viewingPossible} grid={possibleGrid(first.possible)} onClose={() => setViewingPossible(null)} />
+      ) : null}
       {viewing !== null ? (
         <Lightbox
           start={viewing}
@@ -426,5 +452,14 @@ function BatchBar({
       <CopyToFolderButton select={makeSelection} />
     </div>
   );
+}
+
+/** The 「可能相關」 photos as a Lightbox's list (ADR-0047). */
+function possibleGrid(list: PossibleHit[]): GridApi {
+  return {
+    total: list.length,
+    ordinal: (p) => p.index,
+    at: async (i) => (list[i] ? { asset: { id: list[i].asset_id, ch: list[i].ch, w: null, h: null, thumbhash: null, taken_at: list[i].taken_at, flags: [] }, pos: { bucket: 0, index: i } } : null),
+  };
 }
 

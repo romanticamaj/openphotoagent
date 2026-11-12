@@ -599,7 +599,9 @@
     "relaxedMeaning": "No photo says “{words}” outright. Below are photos with a similar meaning.",
     "copies": "{n} more copies of this photo",
     "partialCount": "No photo matches everything · {count} match the rest",
-    "relaxedNone": "No photo shows 「{words}」."
+    "relaxedNone": "No photo shows 「{words}」.",
+    "possible": "Possibly related: {n} (not counted)",
+    "noneSure": "No photo is a sure match"
   },
   "problem": {
     "chosen": "Switched to {what}"

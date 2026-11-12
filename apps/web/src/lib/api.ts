@@ -171,6 +171,8 @@ export type SearchBody = {
   /** false: every copy counts (05 §2.1); search folds near-duplicates by default */
   collapse_duplicates?: boolean;
 };
+/** 「可能相關」 (ADR-0047): found by vectors only, unlike the photos the words found; never counted */
+export type PossibleHit = { asset_id: string; ch?: string | null; caption: string | null; taken_at: string | null; matched_by: string[] };
 export type SearchHit = { asset_id: string; ch?: string | null; rot?: number; score: number; matched_by: string[]; category: string | null; tags: string[]; caption: string | null; taken_at: string | null; /** copies folded into this one (05 §2.1) */ duplicates?: number };
 export type Planner = {
   source: string;
@@ -197,6 +199,9 @@ export type SearchResult = {
   /** weak look-alikes, last: how many and from where (ADR-0040) */
   weak?: number;
   weak_from?: number | null;
+  /** 「可能相關」 (ADR-0047): vector-only and unlike the confirmed hits; not counted */
+  possible_total?: number;
+  possible?: PossibleHit[];
   degraded: string[];
   planner?: Planner;
 };
