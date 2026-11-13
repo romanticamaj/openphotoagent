@@ -68,6 +68,7 @@ export function SearchPage({ q, tag, year }: { q: string; tag?: string; year?: s
   const gridRef = useRef<HTMLDivElement>(null);
   // the results are a grid like the timeline (10 §5.5): one tab stop, arrows move, Space selects, Enter opens
   const [active, setActive] = useState(0);
+  const [focusAt, setFocusAt] = useState<number | null>(null); // the first new photo after 載入更多 (SRCH-UI-041)
   const [viewing, setViewing] = useState<number | null>(null);
   const tiles = () => [...(gridRef.current?.querySelectorAll<HTMLElement>('[role="gridcell"]') ?? [])];
   const focusTile = (i: number) => {
@@ -77,6 +78,12 @@ export function SearchPage({ q, tag, year }: { q: string; tag?: string; year?: s
     all[j]?.focus();
     return j;
   };
+  useEffect(() => {
+    if (focusAt !== null && tiles().length > focusAt) {
+      focusTile(focusAt);
+      setFocusAt(null);
+    }
+  });
   const columns = () => {
     const all = tiles();
     const top = all[0]?.offsetTop;
@@ -390,8 +397,8 @@ export function SearchPage({ q, tag, year }: { q: string; tag?: string; year?: s
           variant="ghost"
           onClick={() => {
             // the first new photo takes focus: it dropped to the page (SRCH-UI-041)
-            const from = hits.length;
-            void res.fetchNextPage().then(() => requestAnimationFrame(() => focusTile(from)));
+            setFocusAt(hits.length); // focused once that photo is drawn, however long the page takes
+            void res.fetchNextPage();
           }}
         >
           {loadMoreText(t, total, hits.length, Boolean(first?.total_capped), i18n.language)}

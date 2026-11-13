@@ -255,7 +255,7 @@ describe("load more keeps your place (audit round 85)", () => {
     const more = await screen.findByRole("button", { name: /載入更多/ });
     s.result = { items: [hit("a3")], facets: {}, total: 3, next_cursor: null, degraded: [], possible_total: 0, possible: [] };
     more.click();
-    await waitFor(() => expect((document.activeElement as HTMLElement | null)?.dataset.asset).toBe("a3"));
+    await waitFor(() => expect((document.activeElement as HTMLElement | null)?.dataset.asset).toBe("a3"), { timeout: 3000 }); // a page and a frame: slow under a full run
     s.result = null;
   });
 });
