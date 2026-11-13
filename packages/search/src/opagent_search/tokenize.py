@@ -24,8 +24,8 @@ from typing import Any
 import yaml
 from opagent_core.vocabularies import VOCAB_DIR
 
-# @10 吃, 爬山, 彈跳床 (ADR-0048); @9 SRCH-TOK-021; @8 SRCH-CNC-019; @7 SRCH-CNC-018; @6 SRCH-TOK-020
-TOKENIZER_VERSION = "jieba-zh-hant@10+opencc-s2twp+bigram"
+# @11 車 (ADR-0048); @10 吃, 爬山, 彈跳床; @9 SRCH-TOK-021; @8 SRCH-CNC-019; @7 SRCH-CNC-018; @6 SRCH-TOK-020
+TOKENIZER_VERSION = "jieba-zh-hant@11+opencc-s2twp+bigram"
 # Names that hold a vocabulary word but are not that thing: a caption reading a sign 「日落大道」 (Sunset Blvd) is not a
 # sunset (SRCH-TOK-018). Weighed above the vocabulary's words, so the name is one word.
 NAMES = ("日落大道", "夕陽大道")
@@ -34,7 +34,7 @@ _ZW = re.compile("[​‌‍⁠﻿­]")
 _CJK = re.compile(r"[぀-ヿ㐀-䶿一-鿿豈-﫿]+")
 _WORD = re.compile(r"[0-9a-z]+(?:['._-][0-9a-z]+)*|[぀-ヿ㐀-䶿一-鿿豈-﫿]+")
 # verbs that only say what one does with the thing named next (SRCH-TOK-024): 去爬山, 搭飛機, 堆沙堡, 看海
-LIGHT_VERBS = {"去", "搭", "坐", "堆", "跳", "騎", "看", "玩"}
+LIGHT_VERBS = {"去", "搭", "坐", "堆", "跳", "騎", "看", "玩", "放", "做"}
 STOP = {"的", "了", "在", "是", "和", "與", "a", "an", "the", "of", "in", "on", "and", "with"}
 
 

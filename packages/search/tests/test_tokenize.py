@@ -315,6 +315,9 @@ def test_srch_tok_023_eating_a_thing_is_that_thing(q, out):
         ("吃蛋糕", "蛋糕"),
         ("去", "去"),  # nothing else: left as typed
         ("跳舞", "跳舞"),  # one word, not a verb before a thing
+        ("坐車", "車"),  # audit round 74
+        ("公園放風箏", "公園 風箏"),
+        ("做蛋糕", "蛋糕"),
     ],
 )
 def test_srch_tok_024_a_verb_before_a_thing_is_that_thing(q, out):

@@ -18,7 +18,7 @@ terms:
   - { id: people.group, zh: 合照, en: group photo, group: 人物, synonyms: [團體照, 大合照] }
   - { id: object.car, zh: 汽車, en: car, group: 物件, synonyms: [轎車, cars] }
   # 車子 is any of its kinds (SRCH-TOK-020): every bus or train is a 車子; a plane is not
-  - { id: object.vehicle, zh: 車子, en: vehicle, group: 物件, synonyms: [車輛, vehicles], includes: [object.car, object.bus, object.train, object.bicycle] }
+  - { id: object.vehicle, zh: 車子, en: vehicle, group: 物件, synonyms: [車輛, 車, vehicles], includes: [object.car, object.bus, object.train, object.bicycle] }
   - { id: object.bicycle, zh: 腳踏車, en: bicycle, group: 物件, synonyms: [自行車, 單車, bike] }
   - { id: object.document, zh: 文件, en: document, group: 物件, synonyms: [紙本, 收據, receipt] }
   - { id: object.flower, zh: 花, en: flower, group: 物件, synonyms: [花朵, flowers] }
