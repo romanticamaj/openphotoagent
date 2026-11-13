@@ -20,28 +20,41 @@ const PAGES: Array<[RegExp, string]> = [
   [/^\/settings/, "nav.settings"],
 ];
 
+const APP = "OpenPhotoAgent";
+const TRIES = 20; // × 50 ms: a page loaded on first visit draws its heading a moment later
+
 export function pageTitleKey(path: string): string | null {
   return PAGES.find(([re]) => re.test(path))?.[1] ?? null;
 }
 
 export function usePageArrival(path: string, t: (k: string) => string): void {
   const first = useRef(true);
+  const seen = useRef<HTMLElement | null>(null); // the heading of the page we are leaving
   useEffect(() => {
     const k = pageTitleKey(path);
-    document.title = k ? `${t(k)} — OpenPhotoAgent` : "OpenPhotoAgent";
+    const name = k ? t(k) : null;
+    document.title = name ? `${name} — ${APP}` : APP;
+    const heading = () => document.querySelector<HTMLElement>("#main h1");
     if (first.current) {
       first.current = false; // the app's first page: focus is where the app put it
+      seen.current = heading();
       return;
     }
-    // a page loaded on first visit draws its heading a moment later: look for it a few times
+    // the old page's heading can still be there for a moment: focusing it dropped focus to BODY when it went
+    // (VIEW-056). The new page's is a different element, or one already reading the new page's name.
     let tries = 0;
     let timer = 0;
+    const arrive = (h: HTMLElement) => {
+      seen.current = h;
+      const text = h.textContent?.trim();
+      if (text) document.title = `${text} — ${APP}`; // a theme's page is 「2026 的手工」, not 「搜尋」
+      if (!h.hasAttribute("tabindex")) h.setAttribute("tabindex", "-1");
+      h.focus({ preventScroll: true });
+    };
     const find = () => {
-      const h = document.querySelector<HTMLElement>("#main h1");
-      if (h) {
-        if (!h.hasAttribute("tabindex")) h.setAttribute("tabindex", "-1");
-        h.focus({ preventScroll: true });
-      } else if (tries++ < 10) timer = window.setTimeout(find, 100);
+      const h = heading();
+      if (h && (h !== seen.current || h.textContent?.trim() === name || tries >= TRIES)) arrive(h);
+      else if (tries++ < TRIES) timer = window.setTimeout(find, 50);
     };
     find();
     return () => window.clearTimeout(timer);

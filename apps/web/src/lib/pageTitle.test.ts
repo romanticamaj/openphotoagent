@@ -1,5 +1,5 @@
 import { renderHook } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { pageTitleKey, usePageArrival } from "./pageTitle";
 
 describe("each page says where you are (audit round 89)", () => {
@@ -21,5 +21,29 @@ describe("each page says where you are (audit round 89)", () => {
     expect(document.title).toBe("分類 — OpenPhotoAgent");
     expect(document.activeElement).toBe(h1);
     main.remove();
+  });
+});
+
+describe("the new page's heading, not the old one (audit round 90)", () => {
+  it("[VIEW-056] 回歸：換頁時等新頁面的標題出現再移焦點，視窗標題用它的文字（驗證第 90 輪：焦點到將被移除的舊標題，掉到 BODY）", async () => {
+    vi.useFakeTimers();
+    const main = document.createElement("main");
+    main.id = "main";
+    const old = document.createElement("h1");
+    old.textContent = "分類";
+    main.appendChild(old);
+    document.body.appendChild(main);
+    const t = (k: string) => ({ "nav.explore": "分類", "nav.search": "搜尋" })[k] ?? k;
+    const h = renderHook(({ path }) => usePageArrival(path, t), { initialProps: { path: "/explore" } });
+    h.rerender({ path: "/search" });
+    expect(document.activeElement).not.toBe(old); // the old page's heading is on its way out
+    const fresh = document.createElement("h1");
+    fresh.textContent = "2026 的手工";
+    old.replaceWith(fresh);
+    await vi.advanceTimersByTimeAsync(200);
+    expect(document.activeElement).toBe(fresh);
+    expect(document.title).toBe("2026 的手工 — OpenPhotoAgent");
+    main.remove();
+    vi.useRealTimers();
   });
 });
