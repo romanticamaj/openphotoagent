@@ -404,7 +404,8 @@ export function SearchPage({ q, tag, year, name }: { q: string; tag?: string; ye
         // a page that did not come says so, with a way to try again (SRCH-UI-046: the button did nothing)
         <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
           {/* the alert says what failed; the button is beside it, not read as part of it (audit round 106) */}
-          <p role="alert">{res.isFetchingNextPage ? "" : t("search.moreFailed")}</p>
+          {/* hidden, not emptied, while retrying: 重試 keeps its place (it slid 112 px, audit round 108) */}
+          <p role="alert" className={res.isFetchingNextPage ? "invisible" : undefined}>{t("search.moreFailed")}</p>
           <button
             type="button"
             className="chip justify-center"
