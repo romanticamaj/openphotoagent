@@ -1366,3 +1366,37 @@ def test_srch_sem_020_a_described_photo_the_words_and_meaning_reject_is_only_pos
     counted = {x["asset_id"] for x in res["items"]}
     assert counted == {ids[1]}, res["items"]
     assert [x["asset_id"] for x in res.get("possible", [])] == [ids[0]]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-SEM-022")
+def test_srch_sem_022_a_pair_fallback_hit_does_not_make_an_anchor(s, monkeypatch):
+    """回歸 (audit round 77 → 78): 「海邊」 fell from 6 to 4. A character-pair hit (「沙灘排球」 on a sports field) was
+    its third word hit, which made an anchor of image scores and sent its surfing photos, found by the caption meaning,
+    to 「可能相關」. Pairs are the weakest words: only word and tag hits sample what the query looks like."""
+    import opagent_api.search as S
+
+    ids = _near(
+        s,
+        [0.12, 0.12, 0.12, 0.05],
+        captions={0: "海邊玩水", 1: "海邊散步", 2: "沙灘排球", 3: "一名男子在浪上"},
+        tags={0: ("海邊",), 1: ("海邊",)},
+    )
+    cid = s.sql(
+        "insert into embedding_space(model_key, fingerprint, dim, modality, status)"
+        " values ('fake-cap', 'caption:fake-cap:x', 2, 'caption', 'active') returning id"
+    ).scalar()
+    for i, aid in enumerate(ids):
+        v = "[1,0]" if i == 3 else "[0,1]"
+        s.sql(
+            "insert into asset_embedding(asset_id, space_id, vec) values (:a, :s, CAST(:v AS vector))",
+            a=aid,
+            s=cid,
+            v=v,
+        )
+    monkeypatch.setattr(S, "query_vector", lambda st, t, space, modality="image": [1.0, 0.0])
+    monkeypatch.setattr(S, "vector_floor", lambda _st, _sp: 0.07)
+    monkeypatch.setattr(S, "vector_alone", lambda _st, _sp: 0.082)
+    monkeypatch.setattr(S, "caption_floor", lambda _st, _sp: 0.5)
+    res = s.search(q="海邊")
+    assert ids[3] in {x["asset_id"] for x in res["items"]}, res.get("possible")

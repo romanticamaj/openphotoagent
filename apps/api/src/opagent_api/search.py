@@ -191,6 +191,7 @@ def vector_members(
     alone: float | None,
     cap_bar: float | None,
     described: set[str] | frozenset[str] = frozenset(),
+    sample_ids: set[str] | None = None,
 ) -> tuple[list[str], list[str]]:
     """Which photos found by vectors alone count (ADR-0047). With 3 or more word/tag hits, those are a labelled sample
     of the query: a vector-only photo counts when its image score reaches the median of theirs. With fewer, each one
@@ -198,8 +199,10 @@ def vector_members(
     MEANING_MARGIN for the caption meaning. The rest are 「可能相關」: listed apart, never counted
     (SRCH-SEM-016/017)."""
     only = [a for a in dict.fromkeys(vec_ids) if a not in word_ids]
-    sample = sorted(image_cos[a] for a in word_ids if a in image_cos)
-    anchor = sample[len(sample) // 2] if len(word_ids) >= ANCHOR_MIN and len(sample) >= ANCHOR_MIN else None
+    # character-pair hits are the weakest words: they do not sample what the query looks like (SRCH-SEM-022)
+    pool = word_ids if sample_ids is None else sample_ids
+    sample = sorted(image_cos[a] for a in pool if a in image_cos)
+    anchor = sample[len(sample) // 2] if len(pool) >= ANCHOR_MIN and len(sample) >= ANCHOR_MIN else None
 
     def counts(a: str) -> bool:
         if anchor is not None:
@@ -568,6 +571,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
     cap_cos: dict[str, float] = {}
     cap_bar: float | None = None
     possible: list[str] = []  # found by vectors only, unlike the confirmed hits: listed apart, not counted (ADR-0047)
+    word_hits: list[str] = []
     shown_first: set[str] = set()  # the photos an expression put first: never weak (SRCH-SEM-010)
     weak: list[str] = []
     member: list[Any] = []  # ADR-0005: the match set (total, facets, selection) — not just the ranking window
@@ -578,6 +582,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
             if pq.words:
                 hits = _ft(c, where, to_tsquery_alts(pq.words, pq.alts), pq.english)
                 mode = "words"
+                word_hits = list(hits)  # before the pair fallback: what samples the query (SRCH-SEM-022)
                 member.append(_ft_cond(to_tsquery_alts(pq.words, pq.alts), pq.english, "w"))
                 if len(hits) < MIN_WORD_HITS and pq.bigram:
                     bq = tokenizer().bigram_query(q) or to_tsquery(pq.bigram)  # any of a term's names (SRCH-TOK-025)
@@ -731,6 +736,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                         vector_alone(st, space) if space is not None else None,
                         cap_bar,
                         described,
+                        set(word_hits) | set(routes.get("tag") or []),
                     )
                     if counted:
                         member.append(search_doc.c.asset_id.in_(counted))
