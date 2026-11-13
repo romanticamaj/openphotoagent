@@ -68,6 +68,17 @@ terms:
   - { id: object.tent, zh: 帳篷, en: tent, group: 物件, synonyms: [帳棚, tents] }
   - { id: activity.hiking, zh: 爬山, en: hiking, group: 活動, synonyms: [登山, 健行, 郊山, hike], implies: [scene.mountain] }
   - { id: object.trampoline, zh: 彈跳床, en: trampoline, group: 物件, synonyms: [跳跳床, 蹦床, 彈簧床, trampolines] }
+  # 2026-11-13: everyday family words the image model could not be asked (audit round 93; ADR-0031)
+  - { id: object.fireworks, zh: 煙火, en: fireworks, group: 物件, synonyms: [煙花, 放煙火] }
+  - { id: object.bubbles, zh: 泡泡, en: bubbles, group: 物件, synonyms: [吹泡泡, 肥皂泡] }
+  - { id: activity.bbq, zh: 烤肉, en: barbecue, group: 活動, synonyms: [燒烤, bbq], suggest: [food.meal] }
+  - { id: activity.picnic, zh: 野餐, en: picnic, group: 活動, synonyms: [野餐墊], suggest: [scene.grass, scene.park] }
+  - { id: scene.sandbox, zh: 沙坑, en: sandbox, group: 場景, synonyms: [沙池, sandpit] }
+  - { id: activity.bath, zh: 洗澡, en: bath, group: 活動, synonyms: [泡澡, 澡盆] }
+  - { id: activity.jump_rope, zh: 跳繩, en: jump rope, group: 活動, synonyms: [跳繩子] }
+  - { id: scene.night_market, zh: 夜市, en: night market, group: 場景, synonyms: [攤販] }
+  - { id: object.snowman, zh: 雪人, en: snowman, group: 物件, synonyms: [堆雪人] }
+  - { id: object.dinosaur, zh: 恐龍, en: dinosaur, group: 物件, synonyms: [恐龍模型] }
   - { id: activity.travel, zh: 旅行, en: travel, group: 活動, synonyms: [旅遊, 出遊, trip] }
   - { id: object.toy, zh: 玩具, en: toy, group: 物件, synonyms: [玩偶, toys], theme: false }
   - { id: object.blocks, zh: 積木, en: blocks, group: 物件, synonyms: [樂高, 磁力積木, 磁力片, lego] }

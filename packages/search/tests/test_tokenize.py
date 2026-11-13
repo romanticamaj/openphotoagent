@@ -368,3 +368,34 @@ def test_srch_tok_027_an_event_suggests_what_it_is_seen_by():
     assert "蛋糕" in tok.related("生日")
     assert tok.tag_key("露營") == "activity.camping" and "帳篷" in tok.related("露營")
     assert tok.tag_key("帳篷") == "object.tent"
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-028")
+@pytest.mark.parametrize(
+    ("q", "en"),
+    [
+        ("煙火", "fireworks"),
+        ("泡泡", "bubbles"),
+        ("烤肉", "barbecue"),
+        ("野餐", "picnic"),
+        ("沙坑", "sandbox"),
+        ("洗澡", "bath"),
+        ("跳繩", "jump rope"),
+        ("夜市", "night market"),
+        ("雪人", "snowman"),
+        ("恐龍", "dinosaur"),
+    ],
+)
+def test_srch_tok_028_everyday_family_words_reach_the_image_model(q, en):
+    """回歸 (audit round 93): 煙火, 泡泡, 烤肉 and others dead-ended on 問 AI: a Chinese word the vocabulary does not
+    know is never asked of the image model (ADR-0031), so not even a look-alike could be found. They are terms now."""
+    tok = Tokenizer()
+    assert tok.vector_text(q) == en
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-029")
+def test_srch_tok_029_an_event_inside_a_longer_query_still_suggests():
+    """回歸 (audit round 93): 「生日派對」 suggested nothing while 「生日」 suggested 蛋糕."""
+    assert "蛋糕" in Tokenizer().related("生日派對")

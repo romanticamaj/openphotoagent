@@ -24,8 +24,8 @@ from typing import Any
 import yaml
 from opagent_core.vocabularies import VOCAB_DIR
 
-# @16 露營, 帳篷; @15 帽子; @14 籃球架, 書桌; @13 籃球場, 公園 without 遊樂場 (ADR-0048); history in git
-TOKENIZER_VERSION = "jieba-zh-hant@16+opencc-s2twp+bigram"
+# @17 煙火, 泡泡, 烤肉 and others; @16 露營, 帳篷; @15 帽子; @14 籃球架, 書桌 (ADR-0048); history in git
+TOKENIZER_VERSION = "jieba-zh-hant@17+opencc-s2twp+bigram"
 # Names that hold a vocabulary word but are not that thing: a caption reading a sign 「日落大道」 (Sunset Blvd) is not a
 # sunset (SRCH-TOK-018). Weighed above the vocabulary's words, so the name is one word.
 NAMES = ("日落大道", "夕陽大道")
@@ -331,7 +331,8 @@ class Tokenizer:
                 found[key] = max(found.get(key, 0), len(form))
         keys = sorted(found, key=lambda k: (-found[k], k))
         # an event names the things it is seen by: 生日 tries 蛋糕 (SRCH-TOK-027)
-        keys += [k for k in self._suggest.get(own or "", []) if k not in keys]
+        for k in [own or "", *list(found)]:  # 「生日派對」 holds 生日: its suggestions too (SRCH-TOK-029)
+            keys += [x for x in self._suggest.get(k, []) if x not in keys]
         return [n for k in keys if (n := self.term_name(k, "zh"))]
 
     def term_name(self, key: str, lang: str) -> str | None:
