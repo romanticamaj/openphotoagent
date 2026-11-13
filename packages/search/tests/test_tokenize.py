@@ -340,6 +340,9 @@ def test_srch_tok_025_one_concept_reads_the_same_by_any_of_its_names():
     )
     assert tok.bigram_query("長頸鹿") == to_tsquery(tok.bigrams("長頸鹿"))
     forms = tok.concepts("球")[0].forms
-    assert {"足球", "踢球", "籃球"} <= set(forms)
+    assert {"足球", "踢球", "籃球", "棒球", "網球"} <= set(forms)
     assert tok.tag_key("足球") == "activity.soccer"  # 足球 still names soccer
-    assert "scene.playground" in tok.included("scene.park")
+    # 公園 including 遊樂場 was measured and withdrawn (audit round 78): 16 word hits made an anchor that counted 44
+    # school courts; a park is not where its slides are, to the image model (ADR-0048 addendum 5)
+    assert "scene.playground" not in tok.included("scene.park")
+    assert tok.words("籃球場") == ["籃球場"] and tok.tag_key("籃球場") == "scene.sports_field"  # not 籃球 + 場
