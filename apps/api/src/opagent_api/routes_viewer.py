@@ -363,6 +363,9 @@ def memory_themes(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
 
 
 EVENTS_MAX = 8
+# an event is named by a subject on a quarter of its photos; under that its tags are spread flat, an import day:
+# 2025/11/12 (126 photos, its subject on 39.7%) was dropped at 40% (audit round 100)
+EVENT_SHARE = 0.25
 # what says nothing about one day: who is in it and indoors or out; a day of toys is a day of toys (audit round 99)
 EVENT_SKIP = frozenset(
     {"people.child", "people.group", "people.teacher", "scene.indoor", "scene.outdoor", "scene.sky", "scene.classroom"}
@@ -414,6 +417,7 @@ def memory_events(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
         [(r.id, r.at.astimezone(tz).date() if r.at.tzinfo else r.at.date(), list(r.tags or [])) for r in rows],
         skip=EVENT_SKIP,
         named_only=True,  # an import day of unrelated photos is no outing (MEM-018)
+        share=EVENT_SHARE,
         prefer=lambda a, key: names_subject(key, a),
     )[:EVENTS_MAX]
 

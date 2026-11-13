@@ -26,6 +26,7 @@ export function Themes({ onOpen }: { onOpen: (photos: MemoryPhoto[], start: numb
                 className="memory-theme-cover"
                 aria-label={t("memories.themeOpen", { title, n: th.count.toLocaleString(i18n.language) })}
                 onClick={() => onOpen(th.photos.map((p) => ({ id: p.asset_id, ch: p.ch ?? undefined, rot: p.rot })), 0)}
+                onFocus={(e) => e.currentTarget.scrollIntoView?.({ block: "nearest", inline: "nearest" })}
               >
                 {cover ? <img src={mediaUrl(cover.asset_id, "t512", cover.ch)} alt="" loading="lazy" style={turnStyle(cover.rot)} /> : null}
               </button>

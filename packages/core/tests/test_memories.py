@@ -96,3 +96,25 @@ def test_mem_018_one_outing_over_two_days_is_one_event_and_a_mix_is_none():
     assert [(e.day.isoformat(), e.last.isoformat(), e.key, e.count) for e in out] == [
         ("2026-04-08", "2026-04-09", "activity.crafts", 32)
     ]
+
+
+@pytest.mark.unit
+@pytest.mark.tc("MEM-021")
+def test_mem_021_days_whose_subjects_overlap_are_one_outing():
+    """回歸 (audit round 100): 4/8 named 手工 and 4/9 named 玩具 stayed two cards: days merged only when their names
+    matched. Days next to each other merge when either day's subject is on enough of the other's photos too."""
+    from datetime import date
+
+    from opagent_core.memories import events
+
+    rows = [
+        (f"a{i}", date(2026, 4, 8), ["activity.crafts", "object.toy"] if i < 10 else ["activity.crafts"])
+        for i in range(16)
+    ]
+    rows += [
+        (f"b{i}", date(2026, 4, 9), ["object.toy", "activity.crafts"] if i < 8 else ["object.toy"]) for i in range(16)
+    ]
+    out = events(rows, min_photos=15, named_only=True)
+    assert [(e.day.isoformat(), e.last.isoformat() if e.last else None, e.count) for e in out] == [
+        ("2026-04-08", "2026-04-09", 32)
+    ]

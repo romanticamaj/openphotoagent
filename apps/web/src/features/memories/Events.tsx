@@ -33,6 +33,8 @@ export function Events({ onOpen }: { onOpen: (photos: MemoryPhoto[], start: numb
                 className="memory-theme-cover"
                 aria-label={t("memories.themeOpen", { title, n: ev.count.toLocaleString(i18n.language) })}
                 onClick={() => onOpen(ev.photos.map((p) => ({ id: p.asset_id, ch: p.ch ?? undefined, rot: p.rot })), 0)}
+                // in the sideways row of a narrow window, a card reached by Tab comes into view (audit round 100)
+                onFocus={(e) => e.currentTarget.scrollIntoView?.({ block: "nearest", inline: "nearest" })}
               >
                 {cover ? <img src={mediaUrl(cover.asset_id, "t512", cover.ch)} alt="" loading="lazy" style={turnStyle(cover.rot)} /> : null}
               </button>
