@@ -58,12 +58,14 @@ terms:
   - { id: activity.reading, zh: 閱讀, en: reading, group: 活動, synonyms: [看書, 讀書, read] }
   - { id: activity.swimming, zh: 游泳, en: swimming, group: 活動, synonyms: [泳池, 游泳池, swim, pool] }
   - { id: activity.running, zh: 跑步, en: running, group: 活動, synonyms: [奔跑, 賽跑, run] }
-  - { id: activity.eating, zh: 吃飯, en: eating, group: 活動, synonyms: [用餐, 吃東西, 午餐, 晚餐, 早餐, 午飯, 晚飯, breakfast, eat, meal, dinner, lunch] }
+  - { id: activity.eating, zh: 吃飯, en: eating, group: 活動, synonyms: [用餐, 吃東西, 吃, 午餐, 晚餐, 早餐, 午飯, 晚飯, breakfast, eat, meal, dinner, lunch] }
   - { id: activity.cooking, zh: 煮飯, en: cooking, group: 活動, synonyms: [烹飪, 做菜, cook] }
   - { id: activity.sleeping, zh: 睡覺, en: sleeping, group: 活動, synonyms: [睡著, 午睡, 睡午覺, 入睡, sleep, nap] }
   - { id: activity.playing, zh: 玩耍, en: playing, group: 活動, synonyms: [遊戲, 玩樂, play] }
   - { id: activity.study, zh: 學習, en: studying, group: 活動, synonyms: [上課, 教學, study, class, lesson] }
   - { id: activity.performance, zh: 表演, en: performance, group: 活動, synonyms: [演出, 舞台] }
+  - { id: activity.hiking, zh: 爬山, en: hiking, group: 活動, synonyms: [登山, 健行, 郊山, hike], implies: [scene.mountain] }
+  - { id: object.trampoline, zh: 彈跳床, en: trampoline, group: 物件, synonyms: [跳跳床, 蹦床, 彈簧床, trampolines] }
   - { id: activity.travel, zh: 旅行, en: travel, group: 活動, synonyms: [旅遊, 出遊, trip] }
   - { id: object.toy, zh: 玩具, en: toy, group: 物件, synonyms: [玩偶, toys] }
   - { id: object.blocks, zh: 積木, en: blocks, group: 物件, synonyms: [樂高, 磁力積木, 磁力片, lego] }

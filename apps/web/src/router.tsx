@@ -1,3 +1,4 @@
+import { useAskRequest } from "./lib/askBus";
 import { Link, Outlet, createRootRoute, createRoute, createRouter, redirect } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
@@ -123,6 +124,7 @@ function Shell() {
     setActivity(v);
   };
   // ⌘I / Ctrl+I toggles 問 AI; ⌘J stays with the Activity Center (06 §6.1, ACT-005; ADR-0013)
+  useAskRequest(() => setAsking(true)); // a page hands over a question (ASK-UI-020)
   const askingRef = useRef(asking);
   askingRef.current = asking;
   useEffect(() => {

@@ -2,6 +2,7 @@
 // while running and the elapsed time after (invariant 9); the parsed conditions are chips the user can remove and
 // re-run without re-parsing (ASK-SSE-004); cloud mode is always visible (ASK-PRV-001); a machine without a GPU
 // gets two ways forward instead of an error (ASK-PRV-005). Plan cards come from the plan's own data (ASK-ACT-002).
+import { useAskRequest } from "../../lib/askBus";
 import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
@@ -178,6 +179,7 @@ export function AskPanel({ open, onClose }: { open: boolean; onClose: () => void
   const { turns, busy, run, stop } = useAsk();
   const [q, setQ] = useState("");
   const [slow, setSlow] = useState(slowAccepted);
+  useAskRequest((question) => setQ(question)); // filled in, sent when you press ask (ASK-UI-020)
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (open) input.current?.focus();

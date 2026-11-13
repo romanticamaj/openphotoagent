@@ -603,7 +603,8 @@
     "possible": "可能相關 {n} 張（不算在張數裡）",
     "noneSure": "沒有確定符合的照片",
     "tryInstead": "試試：",
-    "tryWord": "{q}（{n} 張）"
+    "tryWord": "{q}（{n} 張以上）",
+    "askInstead": "問 AI「{q}」"
   },
   "problem": {
     "chosen": "已改用 {what}"

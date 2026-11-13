@@ -80,7 +80,24 @@ describe("nothing found has a next step (audit round 69)", () => {
     expect(await screen.findByText("找不到符合的照片")).toBeTruthy();
     const box = screen.getByTestId("suggest");
     expect(box.textContent).toContain("試試");
-    expect(screen.getByRole("button", { name: "山（3 張）" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "山（3 張以上）" })).toBeTruthy();
+    s.result = null;
+  });
+});
+
+describe("a dead end is not a dead end (audit round 70)", () => {
+  it("[SRCH-UI-031] 回歸：找不到時可以把同一句話拿去問 AI；建議詞的張數是下限（驗證第 70 輪：23 個查詢沒有下一步；山 說 1 開出 2）", async () => {
+    const asked = vi.fn();
+    window.addEventListener("opa:ask", (e) => asked((e as CustomEvent<string>).detail));
+    s.result = { items: [], facets: {}, total: 0, next_cursor: null, degraded: [], possible_total: 0, possible: [], suggest: [{ q: "山", n: 1 }] };
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SearchPage q="爬山" />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByRole("button", { name: "山（1 張以上）" })).toBeTruthy();
+    screen.getByRole("button", { name: "問 AI「爬山」" }).click();
+    expect(asked).toHaveBeenCalledWith("爬山");
     s.result = null;
   });
 });

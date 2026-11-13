@@ -12,6 +12,7 @@ import { api, isDegraded, mediaUrl, type PossibleHit, type SearchBody } from "..
 import { turnStyle } from "../../lib/turn";
 
 import { AddToAlbum, FavoriteSelection, typingIn } from "../albums/AlbumButtons";
+import { askAbout } from "../../lib/askBus";
 import { CopyToFolderButton } from "../../components/CopyToFolder";
 import { TrashButton } from "../../components/TrashButton";
 import { bodyFor, cappedNote, chipLabel, chipsFrom, gridAssetOf, headerCount, onlyByMeaning, relaxedText, softView, weakNeedsMore, tileLabel, weakTail, withoutPerson, withoutWords, dateWords, type Chip } from "./searchPlan";
@@ -253,11 +254,12 @@ export function SearchPage({ q }: { q: string }) {
         </>
       ) : null}
       {res.isSuccess && hits.length === 0 && <p>{t(first?.possible_total ? "search.noneSure" : "search.none")}</p>}
-      {res.isSuccess && hits.length === 0 && first?.suggest?.length ? (
-        // nothing found: the words inside the query that do find photos (SRCH-UI-030)
+      {res.isSuccess && hits.length === 0 && !first?.possible_total ? (
+        // nothing found: the words inside the query that do find photos (SRCH-UI-030), and the same words for 問 AI
+        // (SRCH-UI-031): a page that finds nothing still has a next step
         <p data-testid="suggest" className="flex flex-wrap items-center gap-2 text-sm text-[var(--text-muted)]">
-          <span>{t("search.tryInstead")}</span>
-          {first.suggest.map((x) => (
+          {first?.suggest?.length ? <span>{t("search.tryInstead")}</span> : null}
+          {(first?.suggest ?? []).map((x) => (
             <button
               key={x.q}
               type="button"
@@ -267,6 +269,11 @@ export function SearchPage({ q }: { q: string }) {
               {t("search.tryWord", { q: x.q, n: x.n })}
             </button>
           ))}
+          {q ? (
+            <button type="button" className="chip" onClick={() => askAbout(q)}>
+              {t("search.askInstead", { q })}
+            </button>
+          ) : null}
         </p>
       ) : null}
       <div ref={gridRef} onKeyDown={onKey} role="grid" aria-label={t("search.results")} aria-multiselectable="true" aria-rowcount={-1} className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-0.5 outline-none">
