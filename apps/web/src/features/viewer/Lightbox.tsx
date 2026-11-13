@@ -1,6 +1,7 @@
 // Lightbox (10 §3): progressive ThumbHash → t512 → p1024, neighbours preloaded, zoom/pan, filmstrip, `I` info
 // panel with EXIF and every AI label's model and decision layer, inline correction (→ review), reveal in file
 // manager on desktop only. role="dialog" aria-modal; position is announced through aria-live.
+import { copyPhoto, photoFileName, sharePhoto } from "../../lib/sharePhoto";
 import { AddToAlbum, FavoriteButton, typingIn, useFavorite } from "../albums/AlbumButtons";
 import { TrashButton } from "../../components/TrashButton";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -234,6 +235,44 @@ export function Lightbox({ start, grid: outer, onClose }: { start: number; grid:
         ) : null}
         {asset ? <FavoriteButton assetId={asset.id} /> : null}
         {asset ? <AddToAlbum assetIds={[asset.id]} /> : null}
+        {asset ? (
+          // the photo out of the app: the system share sheet, or a saved file; or onto the clipboard (ADR-0050)
+          <>
+            <button
+              type="button"
+              aria-label={t("lightbox.share")}
+              title={t("lightbox.share")}
+              className="icon-button"
+              onClick={() => {
+                sharePhoto({ id: asset.id, rot, takenAt: asset.taken_at ?? null }).then(
+                  (r) => (r === "saved" ? setToast(t("lightbox.shareSaved", { name: photoFileName({ id: asset.id, takenAt: asset.taken_at ?? null }, "jpg") })) : undefined),
+                  () => setToast(t("lightbox.shareFailed")),
+                );
+              }}
+            >
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 15V3M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              aria-label={t("lightbox.copyImage")}
+              title={t("lightbox.copyImage")}
+              className="icon-button"
+              onClick={() => {
+                copyPhoto({ id: asset.id, rot, takenAt: asset.taken_at ?? null }).then(
+                  () => setToast(t("lightbox.copied")),
+                  () => setToast(t("lightbox.copyFailed")),
+                );
+              }}
+            >
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="8" y="8" width="13" height="13" rx="2" />
+                <path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" />
+              </svg>
+            </button>
+          </>
+        ) : null}
         {asset ? <TrashButton compact select={() => api.createSelection({ asset_ids: [asset.id] })} /> : null}
         {asset ? (
           <button type="button" onClick={rotate} aria-label={t("lightbox.rotate")} title={`${t("lightbox.rotate")} (R)`} className="icon-button">

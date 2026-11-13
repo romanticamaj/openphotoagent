@@ -129,6 +129,17 @@ export async function preparePreview(id: string): Promise<boolean> {
   }
 }
 
+/** A photo's largest derived preview as a blob, for sharing (ADR-0050): 2048 px, or 1024 px when that is not made
+ *  (a video, no worker). Derived images only: the API opens no original (invariant 1). */
+export async function previewBlob(id: string): Promise<Blob> {
+  for (const v of ["p2048", "p1024"] as const) {
+    const { url, headers } = await endpoint(`/api/v1/assets/${encodeURIComponent(id)}/media?variant=${v}`);
+    const r = await fetch(url, { headers }).catch(() => null);
+    if (r?.ok) return r.blob();
+  }
+  throw new Error("THUMB_MISSING");
+}
+
 export function mediaUrl(id: string, variant: Variant, ch?: string | null): string {
   const p = platform();
   if (ch) knownHash.set(id, ch);

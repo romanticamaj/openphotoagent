@@ -528,7 +528,13 @@
     },
     "copies": "{n} near-duplicates",
     "copiesBack": "Back to all photos",
-    "copiesPosition": "Near-duplicate {n} of {total}"
+    "copiesPosition": "Near-duplicate {n} of {total}",
+    "share": "Share",
+    "copyImage": "Copy image",
+    "shareSaved": "Saved as {name}",
+    "shareFailed": "Couldn't share this photo",
+    "copied": "Image copied — paste it into a chat or document",
+    "copyFailed": "Couldn't copy the image: this window can't put images on the clipboard. Use Share to save it as a file"
   },
   "onboarding": {
     "welcome": "Welcome to OpenPhotoAgent",

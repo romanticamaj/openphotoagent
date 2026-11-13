@@ -528,7 +528,13 @@
     },
     "copies": "另有 {n} 張近似重複",
     "copiesBack": "返回全部照片",
-    "copiesPosition": "近似重複 第 {n} 張，共 {total} 張"
+    "copiesPosition": "近似重複 第 {n} 張，共 {total} 張",
+    "share": "分享",
+    "copyImage": "複製圖片",
+    "shareSaved": "已存成 {name}",
+    "shareFailed": "沒能分享這張照片",
+    "copied": "已複製圖片，可以貼到聊天或文件",
+    "copyFailed": "沒能複製圖片：這個視窗不支援把圖片放到剪貼簿，可以改用「分享」存成檔案"
   },
   "onboarding": {
     "welcome": "歡迎使用 OpenPhotoAgent",
