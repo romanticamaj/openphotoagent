@@ -364,7 +364,10 @@ def memory_themes(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
 
 EVENTS_MAX = 8
 # what says nothing about one day: who is in it and indoors or out; a day of toys is a day of toys (audit round 99)
-EVENT_SKIP = frozenset({"people.child", "people.group", "people.teacher", "scene.indoor", "scene.outdoor", "scene.sky"})
+EVENT_SKIP = frozenset(
+    {"people.child", "people.group", "people.teacher", "scene.indoor", "scene.outdoor", "scene.sky", "scene.classroom"}
+    | {"activity.playing", "activity.study"}  # a classroom, playing: any school day (audit round 100 measure)
+)
 
 
 @router.get("/memories/events")
