@@ -316,3 +316,22 @@ describe("a theme's title from the start (audit round 92)", () => {
     expect((await screen.findByRole("heading", { level: 1 })).textContent).toBe("2026 的手工");
   });
 });
+
+describe("load more says when it fails (audit round 102)", () => {
+  it("[SRCH-UI-046] 回歸：載入更多失敗時說出來並可重試（驗證第 102 輪：按了沒反應，還寫「還有 324 張」）", async () => {
+    const hit = (id: string) => ({ asset_id: id, ch: null, score: 1, matched_by: ["tag"], category: null, tags: [], caption: id, taken_at: null });
+    s.result = { items: [hit("a1")], facets: {}, total: 3, next_cursor: "c1", degraded: [], possible_total: 0, possible: [] };
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <SearchPage q="貓" />
+      </QueryClientProvider>,
+    );
+    const more = await screen.findByRole("button", { name: /載入更多/ });
+    s.result = Promise.reject(new Error("CURSOR_INVALID")) as unknown;
+    (s.result as Promise<unknown>).catch(() => undefined);
+    more.click();
+    expect(await screen.findByText("沒能載入更多照片")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "重試" })).toBeTruthy();
+    s.result = null;
+  });
+});

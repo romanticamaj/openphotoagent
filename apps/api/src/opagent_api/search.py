@@ -527,7 +527,10 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
             if not fsettings(c).get("enabled"):  # refuse rather than silently answer "nobody" (07 §3.3)
                 raise HTTPException(403, detail={"code": "FACE_SCOPE_REQUIRED"})
     cur = _unsign(body.cursor) if body.cursor else None
-    if cur and cur.get("h") != _qhash(body):
+    asked = _qhash(
+        body
+    )  # the body as sent: the planner rewrites it below, and the next page is sent as it was (SRCH-PLAN-032)
+    if cur and cur.get("h") != asked:
         raise HTTPException(400, detail={"code": "CURSOR_INVALID"})
     degraded: list[str] = []
     q = (body.q or "").strip()
@@ -969,7 +972,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
             ),
             body.lang,
         ),
-        "next_cursor": _sign({"o": nxt, "s": snapshot, "h": _qhash(body)}) if nxt < total else None,
+        "next_cursor": _sign({"o": nxt, "s": snapshot, "h": asked}) if nxt < total else None,
         "total": total,
         "relaxed": relaxed,  # words no photo shows, left out so the rest still answers (ADR-0032)
         "soft": soft_out,

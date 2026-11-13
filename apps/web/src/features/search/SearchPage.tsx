@@ -392,6 +392,15 @@ export function SearchPage({ q, tag, year, name }: { q: string; tag?: string; ye
           {cappedNote(t, total, Boolean(first.total_capped), Boolean(res.hasNextPage))}
         </p>
       ) : null}
+      {res.isFetchNextPageError ? (
+        // a page that did not come says so, with a way to try again (SRCH-UI-046: the button did nothing)
+        <p role="alert" className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
+          <span>{t("search.moreFailed")}</span>
+          <button type="button" className="chip" onClick={() => void res.fetchNextPage()}>
+            {t("search.retry")}
+          </button>
+        </p>
+      ) : null}
       {!weak && res.hasNextPage && (
         <Button
           variant="ghost"

@@ -1604,3 +1604,21 @@ def test_srch_cnc_025_a_meal_counts_its_tagged_food(s):
     assert {x["asset_id"] for x in s.search(q="公園吃飯", semantic=False)["items"]} == {park_meal}
     assert s.search(q="吃蛋糕", semantic=False)["total"] == s.search(q="蛋糕", semantic=False)["total"] == 1
     assert eat not in {x["asset_id"] for x in s.search(q="食物", semantic=False)["items"]}
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-PLAN-032")
+def test_srch_plan_032_a_planned_query_pages(s):
+    """回歸 (audit round 102): 載入更多 failed on every date, range or month search with CURSOR_INVALID: the cursor
+    was signed with the body the planner had rewritten and checked against the one the client sends again."""
+    from datetime import UTC, datetime
+
+    for i in range(5):
+        s.add(i, caption=f"圖{i}", taken=datetime(2025, 11, 13, 9, i, tzinfo=UTC))
+    s.index()
+    body = {"q": "2025年11月13日", "plan": True, "limit": 2, "semantic": False}
+    first = s.client.post("/api/v1/search", json=body).json()
+    assert first["total"] == 5 and first["next_cursor"]
+    nxt = s.client.post("/api/v1/search", json={**body, "cursor": first["next_cursor"]})
+    assert nxt.status_code == 200, nxt.text
+    assert len(nxt.json()["items"]) == 2

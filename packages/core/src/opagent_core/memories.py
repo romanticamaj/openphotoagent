@@ -110,7 +110,9 @@ def events(
             # weighed against the day next to it, not the whole run (MEM-022)
             _, last, _, more = found[-1]
             near, size, other = edge[-1]
-            if other and (counts.get(other, 0) >= share * len(photos) or near.get(key, 0) >= share * size):
+            # both ways: each day's subject on enough of the other's photos (MEM-023: a toy day joined a football run by
+            # its toys on the next day, while football was on 12% of it; audit rounds 101-102)
+            if other and (counts.get(other, 0) >= share * len(photos) and near.get(key, 0) >= share * size):
                 both = tally[-1] + counts
                 name = max((k for k in both if k in (key, other, found[-1][2])), key=lambda k: (both[k], k))
                 found[-1] = (day, last, name, ids + more)

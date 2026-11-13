@@ -613,7 +613,9 @@
     "partialNone": "No photo matches all of it",
     "loadMoreLeft": "Load more ({n} left)",
     "collapsed": "{n} near-duplicates folded into their group's photo",
-    "resultsFor": "Results for “{q}”"
+    "resultsFor": "Results for “{q}”",
+    "moreFailed": "Could not load more photos",
+    "retry": "Try again"
   },
   "problem": {
     "chosen": "Switched to {what}"

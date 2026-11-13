@@ -123,8 +123,9 @@ def test_mem_021_days_whose_subjects_overlap_are_one_outing():
 @pytest.mark.unit
 @pytest.mark.tc("MEM-022")
 def test_mem_022_a_day_joins_by_the_day_next_to_it_not_by_the_whole_run():
-    """回歸 (audit round 101): a day was weighed against every day merged so far, not the day next to it, so 11/10
-    stayed apart though its subject was on 28.6% of 11/11. Each day joins by the day beside it, as the rule says."""
+    """回歸 (audit round 101): a day was weighed against every day merged so far, not the day next to it. Each day
+    joins by the day beside it (revised, ADR-0049 addendum 5: both ways, MEM-023): 11/11 and 11/12 share football,
+    11/10 has none of it, and the day beside a toy day is not its outing by its toys alone."""
     from datetime import date
 
     from opagent_core.memories import events
@@ -133,4 +134,26 @@ def test_mem_022_a_day_joins_by_the_day_next_to_it_not_by_the_whole_run():
     rows += [(f"b{i}", date(2025, 11, 11), ["object.toy"] if i < 5 else ["activity.soccer"]) for i in range(16)]
     rows += [(f"c{i}", date(2025, 11, 12), ["activity.soccer"]) for i in range(40)]
     out = events(rows, min_photos=15, named_only=True, share=0.25)
-    assert [(e.day.isoformat(), e.last.isoformat() if e.last else None) for e in out] == [("2025-11-10", "2025-11-12")]
+    assert [(e.day.isoformat(), e.last.isoformat() if e.last else None) for e in out] == [
+        ("2025-11-11", "2025-11-12"),
+        ("2025-11-10", None),
+    ]
+
+
+@pytest.mark.unit
+@pytest.mark.tc("MEM-023")
+def test_mem_023_a_run_is_named_by_a_subject_on_enough_of_it():
+    """回歸 (audit round 102): 11/10–11/13 · 足球 joined a classroom corner, an indoor studio and an outdoor field,
+    with 足球 on 28% of the run and 11% of 11/10: each day joined by the day beside it, and the run drifted. A day
+    joins only when the run, with it, still has its name on enough of its photos."""
+    from datetime import date
+
+    from opagent_core.memories import events
+
+    rows = [(f"a{i}", date(2025, 11, 10), ["object.toy"] if i < 14 else ["activity.soccer"]) for i in range(16)]
+    rows += [(f"b{i}", date(2025, 11, 11), ["activity.soccer"] if i < 6 else ["object.toy"]) for i in range(16)]
+    rows += [(f"c{i}", date(2025, 11, 12), ["activity.soccer"]) for i in range(40)]
+    out = events(rows, min_photos=15, named_only=True, share=0.25)
+    got = [(e.day.isoformat(), e.last.isoformat() if e.last else None, e.key) for e in out]
+    # the two toy days are one outing; the football day stands alone: no football run takes in the toy days
+    assert got == [("2025-11-12", None, "activity.soccer"), ("2025-11-10", "2025-11-11", "object.toy")]
