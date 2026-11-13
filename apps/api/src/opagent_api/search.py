@@ -747,6 +747,20 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                         weak_images = set(routes["image_vector"]) - set(routes.get("caption_vector") or [])
                         vec_ids = [a for a in vec_ids if a not in weak_images]
                         image_only_weak = not vec_ids
+                if whole and vec_ids and cspace is not None and cvec is not None:
+                    # a photo the VLM described, chosen by the image alone, is not counted by it (SRCH-CNC-024)
+                    img_only = [x for x in vec_ids if x not in cap_cos]
+                    described_ids = {
+                        r[0]
+                        for r in c.execute(
+                            select(asset_embedding.c.asset_id).where(
+                                asset_embedding.c.space_id == cspace.id,
+                                asset_embedding.c.asset_id.in_(img_only or ["-"]),
+                            )
+                        )
+                    }
+                    possible = [x for x in dict.fromkeys(vec_ids) if x in described_ids]
+                    vec_ids = [x for x in vec_ids if x not in described_ids]
                 if whole and vec_ids:
                     match = or_(match, search_doc.c.asset_id.in_(vec_ids))
                 # the routes rank; only photos showing every concept stay (vectors never add one, ADR-0032)
@@ -757,6 +771,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                     )
                 }
                 ranked = [a for a in ranked if a in keep]
+                possible = [a for a in possible if a not in keep]  # shown by every word: counted, not 「可能相關」
             else:
                 if vec_ids:
                     described: set[str] = set()

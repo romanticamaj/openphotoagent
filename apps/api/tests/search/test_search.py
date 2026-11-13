@@ -1534,3 +1534,28 @@ def test_srch_cnc_023_a_phrase_with_an_untagged_term_is_not_answered_by_the_imag
     res = s.search(q="公園野餐")
     assert res["total"] == 0, [x["asset_id"] for x in res["items"]]
     assert ids
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-CNC-024")
+def test_srch_cnc_024_a_phrase_answered_by_the_image_counts_no_described_photo_by_it_alone(s, monkeypatch):
+    """回歸 (audit round 94 → 95): 「公園野餐」 still counted 33 photos by the image alone (courts, a playground): one
+    photo carried 野餐 as a free tag, so the phrase was answered by the image model. As for one word (ADR-0047
+    addendum 3), a photo the VLM described, which no word and no caption meaning chose, is not counted by the image
+    alone; it is 「可能相關」. Without a caption vector (fast mode) it still counts (SRCH-SEM-001)."""
+    import opagent_api.search as S
+
+    ids = _near(s, [0.12, 0.12, 0.12], tags={0: ("公園",), 1: ("野餐",)})
+    cid = s.sql(
+        "insert into embedding_space(model_key, fingerprint, dim, modality, status)"
+        " values ('fake-cap', 'caption:fake-cap:x', 2, 'caption', 'active') returning id"
+    ).scalar()
+    s.sql(
+        "insert into asset_embedding(asset_id, space_id, vec) values (:a, :s, CAST('[0,1]' AS vector))", a=ids[2], s=cid
+    )
+    monkeypatch.setattr(S, "query_vector", lambda st, t, space, modality="image": [1.0, 0.0])
+    monkeypatch.setattr(S, "vector_floor", lambda _st, _sp: 0.07)
+    monkeypatch.setattr(S, "vector_alone", lambda _st, _sp: 0.082)
+    monkeypatch.setattr(S, "caption_floor", lambda _st, _sp: 0.5)
+    counted = {x["asset_id"] for x in s.search(q="公園野餐")["items"]}
+    assert ids[2] not in counted
