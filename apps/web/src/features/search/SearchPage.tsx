@@ -217,7 +217,14 @@ export function SearchPage({ q, tag, year }: { q: string; tag?: string; year?: s
           <li key={`${c.kind}:${c.value}`} className="flex items-center gap-1 rounded-full border border-[var(--border)] px-3 py-0.5 text-sm">
             {chipLabel(t, c, { ...tagNames, ...first?.tag_names })}
             <button type="button" aria-label={t("search.remove", { what: chipLabel(t, c, { ...tagNames, ...first?.tag_names }) })} onClick={() =>
-                c.kind === "person"
+                (c.kind === "tag" && c.value === tag) || (c.kind === "year" && c.value === year)
+                  ? // a theme's filter came from the address: it leaves the page and the address (SRCH-UI-039/040)
+                    (setChips(chips.filter((x) => x !== c)),
+                    void nav({
+                      to: "/search",
+                      search: { q, ...(tag && !(c.kind === "tag") ? { tag } : {}), ...(year && !(c.kind === "year") ? { year } : {}) },
+                    }))
+                  : c.kind === "person"
                   ? void nav({ to: "/search", search: { q: withoutPerson(q, c.value) } }) // the box follows (SRCH-UI-013)
                   : (c.kind === "range" || c.kind === "day") && planned?.dates.length && withoutWords(q, planned.dates) !== q
                     ? void nav({ to: "/search", search: { q: withoutWords(q, planned.dates) } }) // the date leaves the box too (SRCH-UI-021)
@@ -370,7 +377,14 @@ export function SearchPage({ q, tag, year }: { q: string; tag?: string; year?: s
         </p>
       ) : null}
       {!weak && res.hasNextPage && (
-        <Button variant="ghost" onClick={() => void res.fetchNextPage()}>
+        <Button
+          variant="ghost"
+          onClick={() => {
+            // the first new photo takes focus: it dropped to the page (SRCH-UI-041)
+            const from = hits.length;
+            void res.fetchNextPage().then(() => requestAnimationFrame(() => focusTile(from)));
+          }}
+        >
           {loadMoreText(t, total, hits.length, Boolean(first?.total_capped), i18n.language)}
         </Button>
       )}

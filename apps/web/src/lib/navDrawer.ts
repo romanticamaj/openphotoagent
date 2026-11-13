@@ -22,6 +22,21 @@ export function useNavDrawer(path: string, refs: Refs = {}): { open: boolean; to
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
+      // the open drawer holds focus: Tab goes round its links, not into the dimmed page (VIEW-051)
+      if (e.key === "Tab") {
+        const items = [...(refs.panel?.current?.querySelectorAll<HTMLElement>("a[href], button:not([disabled])") ?? [])];
+        if (!items.length) return;
+        const first = items[0];
+        const last = items[items.length - 1];
+        const at = document.activeElement;
+        if (e.shiftKey && (at === first || !refs.panel?.current?.contains(at))) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && (at === last || !refs.panel?.current?.contains(at))) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
     };
     // a link to the page you are on changes no path: any link followed closes the drawer
     const onClick = (e: Event) => {

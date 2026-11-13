@@ -7,7 +7,7 @@ beforeAll(async () => {
   await i18n.changeLanguage("zh-TW");
 });
 
-const s = vi.hoisted(() => ({ result: null as unknown, calls: 0, last: null as unknown }));
+const s = vi.hoisted(() => ({ result: null as unknown, calls: 0, last: null as unknown, nav: null as unknown as (a: unknown) => void }));
 vi.mock("../../lib/api", async (orig) => ({
   ...(await orig<typeof import("../../lib/api")>()),
   mediaUrl: (id: string) => `/m/${id}`,
@@ -24,7 +24,7 @@ vi.mock("../../lib/api", async (orig) => ({
 }));
 vi.mock("@tanstack/react-router", async (orig) => ({
   ...(await orig<typeof import("@tanstack/react-router")>()),
-  useNavigate: () => vi.fn(),
+  useNavigate: () => (a: unknown) => s.nav?.(a),
   Link: ({ children }: { children: React.ReactNode }) => <a>{children}</a>,
 }));
 
@@ -221,6 +221,41 @@ describe("a theme's title is its chips' (audit round 84)", () => {
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("2026 的手工");
     screen.getByRole("button", { name: "移除 手工" }).click();
     await waitFor(() => expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("搜尋結果"));
+    s.result = null;
+  });
+});
+
+describe("a theme's filters live in the address (audit round 85)", () => {
+  it("[SRCH-UI-040] 回歸：移除從網址來的標籤或年份晶片，網址跟著改（驗證第 85 輪：重新整理又出現、上一頁跳回分類）", async () => {
+    const went: unknown[] = [];
+    s.nav = (a) => went.push(a);
+    s.result = { items: [], facets: {}, total: 0, next_cursor: null, degraded: [], possible_total: 0, possible: [], tag_names: { "activity.crafts": "手工" } };
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SearchPage q="" tag="activity.crafts" year="2026" />
+      </QueryClientProvider>,
+    );
+    await screen.findByText("找不到符合的照片");
+    screen.getByRole("button", { name: "移除 手工" }).click();
+    expect(went).toEqual([{ to: "/search", search: { q: "", year: "2026" } }]);
+    s.result = null;
+    s.nav = null as unknown as (a: unknown) => void;
+  });
+});
+
+describe("load more keeps your place (audit round 85)", () => {
+  it("[SRCH-UI-041] 回歸：按「載入更多」後焦點到第一張新照片（驗證第 85 輪：焦點掉到頁面）", async () => {
+    const hit = (id: string) => ({ asset_id: id, ch: null, score: 1, matched_by: ["tag"], category: null, tags: [], caption: id, taken_at: null });
+    s.result = { items: [hit("a1"), hit("a2")], facets: {}, total: 3, next_cursor: "c1", degraded: [], possible_total: 0, possible: [] };
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SearchPage q="貓" />
+      </QueryClientProvider>,
+    );
+    const more = await screen.findByRole("button", { name: /載入更多/ });
+    s.result = { items: [hit("a3")], facets: {}, total: 3, next_cursor: null, degraded: [], possible_total: 0, possible: [] };
+    more.click();
+    await waitFor(() => expect((document.activeElement as HTMLElement | null)?.dataset.asset).toBe("a3"));
     s.result = null;
   });
 });

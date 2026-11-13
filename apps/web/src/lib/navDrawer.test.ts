@@ -45,3 +45,33 @@ describe("the drawer and the keyboard (audit round 84)", () => {
     panel.remove();
   });
 });
+
+describe("the open drawer holds focus (audit round 85)", () => {
+  it("[VIEW-051] 回歸：抽屜開著時 Tab 在抽屜裡循環，Shift+Tab 從第一個回到最後一個（驗證第 85 輪：設定之後跑到變暗的頁面）", () => {
+    const toggle = document.createElement("button");
+    const panel = document.createElement("div");
+    const a = document.createElement("a");
+    a.href = "#a";
+    const b = document.createElement("a");
+    b.href = "#b";
+    panel.append(a, b);
+    document.body.append(toggle, panel);
+    const h = renderHook(() => useNavDrawer("/", { toggle: { current: toggle }, panel: { current: panel } }));
+    act(() => h.result.current.toggle());
+    expect(document.activeElement).toBe(a);
+    b.focus();
+    const tab = new KeyboardEvent("keydown", { key: "Tab", cancelable: true, bubbles: true });
+    act(() => {
+      b.dispatchEvent(tab);
+    });
+    expect(tab.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(a);
+    const back = new KeyboardEvent("keydown", { key: "Tab", shiftKey: true, cancelable: true, bubbles: true });
+    act(() => {
+      a.dispatchEvent(back);
+    });
+    expect(document.activeElement).toBe(b);
+    toggle.remove();
+    panel.remove();
+  });
+});
