@@ -191,3 +191,18 @@ describe("a theme's photos (audit round 80)", () => {
     s.result = null;
   });
 });
+
+describe("a theme's chip is named (audit round 81)", () => {
+  it("[SRCH-UI-038] 回歸：從主題來的標籤晶片顯示名稱「手工」，不是 activity.crafts", async () => {
+    s.result = { items: [], facets: {}, total: 0, next_cursor: null, degraded: [], possible_total: 0, possible: [], tag_names: { "activity.crafts": "手工" } };
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SearchPage q="" tag="activity.crafts" year="2026" />
+      </QueryClientProvider>,
+    );
+    await screen.findByText("找不到符合的照片");
+    expect(screen.getByText("手工")).toBeTruthy();
+    expect(screen.queryByText("activity.crafts")).toBeNull();
+    s.result = null;
+  });
+});

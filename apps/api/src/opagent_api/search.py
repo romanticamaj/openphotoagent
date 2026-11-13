@@ -880,7 +880,15 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
     out: dict[str, Any] = {
         "items": items,
         "facets": facets,
-        "tag_names": tag_names(list(facets.get("tags") or {}), body.lang),
+        # the facets' tags and those the search is filtered by: a theme's chip read 「activity.crafts」 (SRCH-FAC-006)
+        "tag_names": tag_names(
+            list(
+                dict.fromkeys(
+                    [*(facets.get("tags") or {}), *(body.filters.tags_all or []), *(body.filters.tags_any or [])]
+                )
+            ),
+            body.lang,
+        ),
         "next_cursor": _sign({"o": nxt, "s": snapshot, "h": _qhash(body)}) if nxt < total else None,
         "total": total,
         "relaxed": relaxed,  # words no photo shows, left out so the rest still answers (ADR-0032)

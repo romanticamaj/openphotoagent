@@ -212,8 +212,8 @@ export function SearchPage({ q, tag, year }: { q: string; tag?: string; year?: s
       <ul aria-label={t("search.chips")} className="flex flex-wrap gap-2">
         {chips.map((c) => (
           <li key={`${c.kind}:${c.value}`} className="flex items-center gap-1 rounded-full border border-[var(--border)] px-3 py-0.5 text-sm">
-            {chipLabel(t, c, tagNames)}
-            <button type="button" aria-label={t("search.remove", { what: chipLabel(t, c, tagNames) })} onClick={() =>
+            {chipLabel(t, c, { ...tagNames, ...first?.tag_names })}
+            <button type="button" aria-label={t("search.remove", { what: chipLabel(t, c, { ...tagNames, ...first?.tag_names }) })} onClick={() =>
                 c.kind === "person"
                   ? void nav({ to: "/search", search: { q: withoutPerson(q, c.value) } }) // the box follows (SRCH-UI-013)
                   : (c.kind === "range" || c.kind === "day") && planned?.dates.length && withoutWords(q, planned.dates) !== q

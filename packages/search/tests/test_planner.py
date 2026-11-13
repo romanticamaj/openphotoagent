@@ -262,3 +262,15 @@ def test_plan_030_more_holidays(gz):
     assert P("2025 國慶", gz)["filters"]["taken_at"] == {"from": "2025-10-10", "to": "2025-10-11"}
     assert P("2025 跨年", gz)["filters"]["taken_at"] == {"from": "2025-12-31", "to": "2026-01-02"}
     assert P("2026 情人節", gz)["filters"]["taken_at"] == {"from": "2026-02-14", "to": "2026-02-15"}
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-PLAN-031")
+def test_plan_031_a_thing_named_after_a_holiday_is_not_its_date(gz):
+    """回歸 (audit round 81): 「聖誕樹」 became the Christmas dates and lost 樹, and found nothing. A tree, a hat or Father
+    Christmas is a thing to see, any day of the year; 「聖誕節的聖誕樹」 is still both."""
+    for q in ("聖誕樹", "聖誕老人", "聖誕帽"):
+        p = P(q, gz)
+        assert "taken_at" not in p["filters"], q
+        assert p["text"].strip() == q, p["text"]
+    assert P("聖誕節的聖誕樹", gz)["filters"]["taken_at"] == {"from": "2025-12-24", "to": "2025-12-27"}

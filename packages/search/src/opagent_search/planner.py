@@ -93,8 +93,12 @@ class _Text:
             self.s = self.s[: m.start()] + " " + self.s[m.end() :]
         return m
 
-    def take_word(self, word: str) -> bool:
-        i = self.s.lower().find(word.lower())
+    def take_word(self, word: str, unless: tuple[str, ...] = ()) -> bool:
+        """Take ``word`` out of the text; not where it begins one of ``unless`` (聖誕 in 聖誕樹, SRCH-PLAN-031)."""
+        low = self.s.lower()
+        i = low.find(word.lower())
+        while i >= 0 and any(low.startswith(u.lower(), i) for u in unless):
+            i = low.find(word.lower(), i + 1)
         if i < 0:
             return False
         self.s = self.s[:i] + " " + self.s[i + len(word) :]
@@ -183,6 +187,8 @@ HOLIDAYS: dict[str, Any] = {
     "情人節": _day(2, 14),
     "跨年": lambda y: (date(y, 12, 31), date(y + 1, 1, 2)),
 }
+# things named after a holiday, seen any day of the year: 聖誕樹 is a tree, not the Christmas dates (SRCH-PLAN-031)
+HOLIDAY_THINGS = ("聖誕樹", "聖誕老人", "聖誕帽", "聖誕燈", "耶誕樹")
 
 
 def _lunar_new_year_range(y: int) -> tuple[date, date] | None:
@@ -261,7 +267,7 @@ def _dates(t: _Text, today: date, tz: str, explain: list[str]) -> dict[str, str]
             return _range(*r)
     # holidays (SRCH-PLAN-028): 「去年聖誕節」 found nothing
     for word, span in HOLIDAYS.items():
-        if t.take_word(word):
+        if t.take_word(word, HOLIDAY_THINGS):
             y = year
             if y is None:  # the most recent one that has started, as for 過年 (ADR-0008)
                 y = today.year

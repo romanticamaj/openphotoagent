@@ -1147,3 +1147,8 @@ body {
 .memory-theme-cover:hover img { transform: scale(1.03); }
 @media (prefers-reduced-motion: reduce) { .memory-theme-cover img { transition: none; } }
 
+
+/* a card's line never breaks inside a word (audit round 81: 「看全 / 部」, 「2026 的手 / 工」): the title shortens with … */
+.memory-theme p { flex-wrap: nowrap; word-break: keep-all; min-width: 0; }
+.memory-theme p > * { white-space: nowrap; flex: none; }
+.memory-theme p > span:first-child { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }

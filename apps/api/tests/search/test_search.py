@@ -1428,3 +1428,15 @@ def test_srch_sem_023_a_described_photo_needs_the_upper_quartile_of_the_word_hit
     counted = {x["asset_id"] for x in res["items"]}
     assert ids[5] in counted  # not described: the median (0.14)
     assert ids[6] not in counted and ids[6] in {x["asset_id"] for x in res.get("possible", [])}  # described: 0.15
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-FAC-006")
+def test_srch_fac_006_a_filtered_tag_is_named_too(s):
+    """回歸 (audit round 81): a memory theme's 「看全部」 showed the chip 「activity.crafts」: the names came only for the
+    facets' tags. A tag the search is filtered by is named as well."""
+    s.add(1, caption="剪紙", tags=("手工",))
+    s.index()
+    res = s.search(q=None, filters={"tags_all": ["activity.crafts"]}, semantic=False, facets=[])
+    assert res["total"] == 1
+    assert res["tag_names"].get("activity.crafts") == "手工"
