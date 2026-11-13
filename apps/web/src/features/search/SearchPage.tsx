@@ -400,42 +400,37 @@ export function SearchPage({ q, tag, year, name }: { q: string; tag?: string; ye
         </p>
       ) : null}
       <p role="status" className="sr-only">{loadedNote}</p>
-      {res.isFetchNextPageError ? (
-        // a page that did not come says so, with a way to try again (SRCH-UI-046: the button did nothing)
+      {!weak && (res.hasNextPage || res.isFetchNextPageError) && (
+        // one button that says 載入更多, 載入中…, 重試 or 重試中…, in one place: the failure turned it into another
+        // button 120 px away (audit round 109, SRCH-UI-050); what failed is said after it, so it does not push it
         <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
-          {/* the alert says what failed; the button is beside it, not read as part of it (audit round 106) */}
-          {/* hidden, not emptied, while retrying: 重試 keeps its place (it slid 112 px, audit round 108) */}
-          <p role="alert" className={res.isFetchingNextPage ? "invisible" : undefined}>{t("search.moreFailed")}</p>
-          <button
-            type="button"
-            className="chip justify-center"
-            style={{ minWidth: "6em" }} // 重試 and 重試中… take the same room: it jumped 10 px (audit round 107)
-            ref={(el) => {
+          <Button
+            variant="ghost"
+            ref={(el: HTMLButtonElement | null) => {
               // the failure takes the place of 載入更多: focus goes with it (SRCH-UI-048)
-              if (el && !res.isFetchingNextPage && document.activeElement === document.body) el.focus();
+              if (el && res.isFetchNextPageError && !res.isFetchingNextPage && document.activeElement === document.body) el.focus();
             }}
             onClick={() => {
-              if (res.isFetchingNextPage) return;
-              setFocusAt(hits.length);
+              // the first new photo takes focus: it dropped to the page (SRCH-UI-041)
+              if (res.isFetchingNextPage) return; // a press while a page loads sends nothing more (SRCH-UI-048)
+              setFocusAt(hits.length); // focused once that photo is drawn, however long the page takes
               void res.fetchNextPage();
             }}
           >
-            {res.isFetchingNextPage ? t("search.retrying") : t("search.retry")}
-          </button>
+            {res.isFetchNextPageError
+              ? res.isFetchingNextPage
+                ? t("search.retrying")
+                : t("search.retry")
+              : res.isFetchingNextPage
+                ? t("search.loadingMore")
+                : loadMoreText(t, total, hits.length, Boolean(first?.total_capped), i18n.language)}
+          </Button>
+          {res.isFetchNextPageError ? (
+            // a page that did not come says so (SRCH-UI-046); the alert is not read with the button (audit round 106),
+            // and is hidden, not emptied, while retrying (audit round 108)
+            <p role="alert" className={res.isFetchingNextPage ? "invisible" : undefined}>{t("search.moreFailed")}</p>
+          ) : null}
         </div>
-      ) : null}
-      {!weak && res.hasNextPage && !res.isFetchNextPageError && (
-        <Button
-          variant="ghost"
-          onClick={() => {
-            // the first new photo takes focus: it dropped to the page (SRCH-UI-041)
-            if (res.isFetchingNextPage) return; // a press while a page loads sends nothing more (SRCH-UI-048)
-            setFocusAt(hits.length); // focused once that photo is drawn, however long the page takes
-            void res.fetchNextPage();
-          }}
-        >
-          {res.isFetchingNextPage ? t("search.loadingMore") : loadMoreText(t, total, hits.length, Boolean(first?.total_capped), i18n.language)}
-        </Button>
       )}
       {first?.possible_total ? (
         // 「可能相關」 (ADR-0047): found by the image or caption models only, unlike the photos the words found; apart

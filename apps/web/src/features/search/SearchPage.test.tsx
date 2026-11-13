@@ -394,3 +394,24 @@ describe("a page that came is said (audit round 105)", () => {
     s.result = null;
   });
 });
+
+describe("load more keeps its place when it fails (audit round 109)", () => {
+  it("[SRCH-UI-050] 回歸：載入失敗時「載入中…」原地變成「重試」（驗證第 109 輪：按鈕右移 120 px、下移 8 px）", async () => {
+    const hit = (id: string) => ({ asset_id: id, ch: null, score: 1, matched_by: ["tag"], category: null, tags: [], caption: id, taken_at: null });
+    s.result = { items: [hit("a1")], facets: {}, total: 3, next_cursor: "c1", degraded: [], possible_total: 0, possible: [] };
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <SearchPage q="貓" />
+      </QueryClientProvider>,
+    );
+    const more = await screen.findByRole("button", { name: /載入更多/ });
+    const row = more.parentElement;
+    s.result = Promise.reject(new Error("CURSOR_INVALID")) as unknown;
+    (s.result as Promise<unknown>).catch(() => undefined);
+    more.click();
+    const retry = await screen.findByRole("button", { name: "重試" }, { timeout: 4000 });
+    expect(retry).toBe(more); // the same button, in the same place: only its words change
+    expect(retry.parentElement).toBe(row);
+    s.result = null;
+  });
+});
