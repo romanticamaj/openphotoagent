@@ -363,6 +363,8 @@ def memory_themes(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
 
 
 EVENTS_MAX = 8
+# what says nothing about one day: who is in it and indoors or out; a day of toys is a day of toys (audit round 99)
+EVENT_SKIP = frozenset({"people.child", "people.group", "people.teacher", "scene.indoor", "scene.outdoor", "scene.sky"})
 
 
 @router.get("/memories/events")
@@ -381,22 +383,43 @@ def memory_events(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
     hidden = select(duplicate_member.c.asset_id).where(duplicate_member.c.is_representative.is_(False))
     with _st(req).engine.connect() as c:
         rows = c.execute(
-            select(asset.c.id, asset.c.content_hash, asset.c.rotation, when.label("at"), search_doc.c.tags)
+            select(
+                asset.c.id,
+                asset.c.content_hash,
+                asset.c.rotation,
+                when.label("at"),
+                search_doc.c.tags,
+                search_doc.c.caption,
+            )
             .join(search_doc, search_doc.c.asset_id == asset.c.id)
             .where(asset.c.workspace_id == DEFAULT_WS, when.is_not(None), asset.c.id.notin_(hidden))
             .order_by(when, asset.c.id)
         ).all()
     tz = ZoneInfo(LOCAL_TZ)
     info = {r.id: r for r in rows}
+    forms: dict[str, list[str]] = {}
+
+    def names_subject(key: str | None, a: str) -> bool:
+        """The photo's caption names the subject: it leads the card (MEM-019; MEM-014 for themes)."""
+        if not key:
+            return False
+        if key not in forms:
+            forms[key] = [f for f in tokenizer()._forms_of(key) if f and not f.isascii()]
+        return any(f in (info[a].caption or "") for f in forms[key])
+
     found = events(
         [(r.id, r.at.astimezone(tz).date() if r.at.tzinfo else r.at.date(), list(r.tags or [])) for r in rows],
-        skip=tokenizer().not_themes(),
+        skip=EVENT_SKIP,
+        named_only=True,  # an import day of unrelated photos is no outing (MEM-018)
+        prefer=lambda a, key: names_subject(key, a),
     )[:EVENTS_MAX]
+
     names = tag_names([e.key for e in found if e.key], lang)
     return {
         "events": [
             {
                 "day": e.day.isoformat(),
+                "last": e.last.isoformat() if e.last else None,
                 "key": e.key,
                 "name": names.get(e.key, e.key) if e.key else None,
                 "count": e.count,

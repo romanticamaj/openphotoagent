@@ -40,3 +40,16 @@ describe("活動 (ADR-0049 addendum 2)", () => {
     expect(JSON.parse(screen.getAllByText("看全部")[0].closest("a")?.getAttribute("data-search") ?? "{}")).toEqual({ q: "2025年11月13日" });
   });
 });
+
+describe("an outing over days (audit round 99)", () => {
+  it("[MEM-020] 跨兩天的活動寫「2026/4/8–4/9 · 手工」，「看全部」搜那兩天", async () => {
+    s.events = [{ day: "2026-04-08", last: "2026-04-09", key: "activity.crafts", name: "手工", count: 32, photos: [{ asset_id: "a", ch: null }] }];
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Events onOpen={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText("2026/4/8–4/9 · 手工")).toBeTruthy();
+    expect(JSON.parse(screen.getByText("看全部").closest("a")?.getAttribute("data-search") ?? "{}")).toEqual({ q: "2026年4月8日到4月9日" });
+  });
+});

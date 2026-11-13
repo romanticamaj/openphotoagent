@@ -1175,3 +1175,9 @@ body {
 }
 @media (max-width: 720px) and (prefers-reduced-motion: reduce) { .shell > .sidebar { transition: none; } }
 
+/* a narrow window: the memory cards are a row you scroll sideways, not three screens of cards (audit round 99) */
+@media (max-width: 720px) {
+  .memory-themes { grid-auto-flow: column; grid-auto-columns: minmax(160px, 70%); grid-template-columns: none; overflow-x: auto; scroll-snap-type: x mandatory; }
+  .memory-theme { scroll-snap-align: start; }
+}
+

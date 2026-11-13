@@ -148,3 +148,28 @@ def test_mem_016_events_are_days_of_many_photos(embedded_pg, tmp_path):
     assert [(e["day"], e["key"], e["name"], e["count"]) for e in ev] == [("2025-11-13", "activity.soccer", "足球", 16)]
     assert len(ev[0]["photos"]) == 12 and all(p["ch"] for p in ev[0]["photos"])
     x.eng.dispose()
+
+
+@pytest.mark.integration
+@pytest.mark.tc("MEM-019")
+def test_mem_019_events_merge_an_outing_skip_a_mix_and_lead_with_the_subject(embedded_pg, tmp_path):
+    """回歸 (audit round 99): two days of one outing were two cards, an import day of unrelated photos was the newest
+    「event」, and 2025/11/13 · 運動場 opened on an indoor photo. One outing, one card with its last day; no subject,
+    no card; the cover is the first photo whose caption names the subject."""
+    x = M(embedded_pg.dsn, tmp_path)
+    ids = []
+    for d in (13, 14):
+        for i in range(16):
+            cap = "室內一角" if (d, i) == (13, 0) else ("戶外踢足球" if (d, i) == (13, 4) else "")
+            ids.append(
+                x.add(f"s{d}-{i}.jpg", caption=cap, tags=("足球",), taken=datetime(2025, 11, d, 9, i, tzinfo=UTC))
+            )
+    for i in range(16):
+        x.add(f"m{i}.jpg", taken=datetime(2026, 1, 5, 9, i, tzinfo=UTC))
+    x.index()
+    ev = x.client.get("/api/v1/memories/events", headers=x.ui)
+    assert ev.status_code == 200, ev.text
+    got = ev.json()["events"]
+    assert [(e["day"], e["last"], e["name"]) for e in got] == [("2025-11-13", "2025-11-14", "足球")], got
+    assert got[0]["photos"][0]["asset_id"] == ids[4]
+    x.eng.dispose()

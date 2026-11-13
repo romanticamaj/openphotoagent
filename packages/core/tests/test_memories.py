@@ -77,3 +77,22 @@ def test_mem_015_a_day_of_many_photos_is_an_event():
         ("2025-11-13", "activity.soccer", 20),
     ]
     assert len(out[1].asset_ids) == 12 and out[1].asset_ids[0] == "a0" and out[1].asset_ids[-1] == "a19"
+
+
+@pytest.mark.unit
+@pytest.mark.tc("MEM-018")
+def test_mem_018_one_outing_over_two_days_is_one_event_and_a_mix_is_none():
+    """回歸 (audit round 99): 4/8 and 4/9 were two 「手工」 cards, and the newest 「event」 was 80 unrelated photos of
+    one import day. Days next to each other with the same subject are one event; a day of many photos with nothing in
+    common is not one."""
+    from datetime import date
+
+    from opagent_core.memories import events
+
+    rows = [(f"a{i}", date(2026, 4, 8), ["activity.crafts"]) for i in range(16)]
+    rows += [(f"b{i}", date(2026, 4, 9), ["activity.crafts"]) for i in range(16)]
+    rows += [(f"m{i}", date(2026, 11, 5), [f"object.thing{i}"]) for i in range(20)]  # a mix
+    out = events(rows, min_photos=15, named_only=True)
+    assert [(e.day.isoformat(), e.last.isoformat(), e.key, e.count) for e in out] == [
+        ("2026-04-08", "2026-04-09", "activity.crafts", 32)
+    ]

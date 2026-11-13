@@ -4,6 +4,7 @@ time (ADR-0049); nothing here reads a clock, a file or a model."""
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
 
@@ -71,6 +72,7 @@ class Event:
     key: str | None  # the subject most of its photos share, or none: named by the date only
     count: int
     asset_ids: tuple[str, ...]
+    last: date | None = None  # the last day, when the outing ran over days next to each other (MEM-018)
 
 
 def events(
@@ -80,6 +82,8 @@ def events(
     shown: int = 12,
     skip: set[str] | frozenset[str] = frozenset(),
     share: float = 0.4,
+    named_only: bool = False,
+    prefer: Callable[[str, str | None], bool] | None = None,
 ) -> list[Event]:
     """活動 (MEM-015, ADR-0049 addendum 2): a day with at least ``min_photos`` photos is an event, newest first. It
     is named by the vocabulary tag on the most of its photos, at least ``share`` of them, leaving out ``skip`` (terms
@@ -87,7 +91,7 @@ def events(
     by_day: dict[date, list[tuple[str, list[str]]]] = {}
     for aid, day, tags in rows:
         by_day.setdefault(day, []).append((aid, tags))
-    out: list[Event] = []
+    found: list[tuple[date, date, str | None, list[str]]] = []  # first day, last day, subject, every photo
     for day in sorted(by_day, reverse=True):
         photos = by_day[day]
         if len(photos) < min_photos:
@@ -95,6 +99,24 @@ def events(
         counts = Counter(k for _, tags in photos for k in set(tags) if "." in k and k not in skip)
         top = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
         key = top[0][0] if top and top[0][1] >= share * len(photos) else None
+        if key is None and named_only:
+            continue  # many photos with nothing in common: an import day, not an outing (MEM-018)
         ids = [aid for aid, _ in photos]
-        out.append(Event(day=day, key=key, count=len(photos), asset_ids=tuple(_spread(ids, shown))))
-    return out
+        if found and key and found[-1][2] == key and (found[-1][0] - day).days == 1:
+            # the day before with the same subject is the same outing (MEM-018: 4/8 and 4/9 were two 「手工」 cards)
+            _, last, _, more = found[-1]
+            found[-1] = (day, last, key, ids + more)
+            continue
+        found.append((day, day, key, ids))
+
+    def picked(ids: list[str], key: str | None) -> tuple[str, ...]:
+        # the cover is the first photo ``prefer`` says shows the subject, from the whole outing (MEM-019)
+        lead = next((a for a in ids if prefer(a, key)), None) if prefer else None
+        if lead is None:
+            return tuple(_spread(ids, shown))
+        return (lead, *_spread([a for a in ids if a != lead], shown - 1))
+
+    return [
+        Event(day=first, key=key, count=len(ids), asset_ids=picked(ids, key), last=last if last != first else None)
+        for first, last, key, ids in found
+    ]

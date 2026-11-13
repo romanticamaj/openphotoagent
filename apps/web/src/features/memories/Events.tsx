@@ -20,7 +20,10 @@ export function Events({ onOpen }: { onOpen: (photos: MemoryPhoto[], start: numb
       <ul className="memory-themes">
         {list.map((ev) => {
           const [y, m, d] = parts(ev.day);
-          const day = `${y}/${m}/${d}`;
+          // an outing over days next to each other is one card (MEM-020)
+          const [, m2, d2] = ev.last ? parts(ev.last) : [y, m, d];
+          const day = ev.last ? `${y}/${m}/${d}–${m2}/${d2}` : `${y}/${m}/${d}`;
+          const ask = ev.last ? `${y}年${m}月${d}日到${m2}月${d2}日` : `${y}年${m}月${d}日`;
           const title = ev.name ? `${day} · ${ev.name}` : day;
           const cover = ev.photos[0];
           return (
@@ -38,7 +41,7 @@ export function Events({ onOpen }: { onOpen: (photos: MemoryPhoto[], start: numb
                 <span className="tnum text-[var(--text-muted)]">
                   {t("memories.themeCount", { n: ev.count.toLocaleString(i18n.language), k: ev.photos.length.toLocaleString(i18n.language) })}
                 </span>
-                <Link to="/search" search={{ q: `${y}年${m}月${d}日` }} className="ml-auto underline">
+                <Link to="/search" search={{ q: ask }} className="ml-auto underline">
                   {t("memories.themeAll")}
                 </Link>
               </p>
