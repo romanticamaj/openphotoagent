@@ -68,3 +68,19 @@ describe("「可能相關」 apart from the count (ADR-0047)", () => {
   });
 });
 
+
+describe("nothing found has a next step (audit round 69)", () => {
+  it("[SRCH-UI-030] 回歸：找不到時列出查詢裡找得到照片的詞與張數，可直接點（驗證第 69 輪：19 個查詢只剩一句「找不到」）", async () => {
+    s.result = { items: [], facets: {}, total: 0, next_cursor: null, degraded: [], possible_total: 0, possible: [], suggest: [{ q: "山", n: 3 }] };
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SearchPage q="爬山" />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText("找不到符合的照片")).toBeTruthy();
+    const box = screen.getByTestId("suggest");
+    expect(box.textContent).toContain("試試");
+    expect(screen.getByRole("button", { name: "山（3 張）" })).toBeTruthy();
+    s.result = null;
+  });
+});

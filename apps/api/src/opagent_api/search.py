@@ -331,6 +331,28 @@ def _without_soft(q: str) -> str:
     return q
 
 
+SUGGEST_MAX = 4
+
+
+def _suggest(c: Any, where: list[Any], q: str) -> list[dict[str, Any]]:
+    """Nothing found (SRCH-SUG-001): the vocabulary's words inside the query that find photos, with how many."""
+    from .labels import tokenizer
+
+    out: list[dict[str, Any]] = []
+    for i, word in enumerate(tokenizer().related(q)):
+        cpts = tokenizer().concepts(word)
+        if len(cpts) != 1:
+            continue
+        n = c.execute(
+            select(func.count()).select_from(search_doc).where(and_(*where), _concept_cond(i, cpts[0]))
+        ).scalar_one()
+        if n:
+            out.append({"q": word, "n": int(n)})
+        if len(out) == SUGGEST_MAX:
+            break
+    return out
+
+
 def _concept_cond(i: int, cpt: Any, meaning: list[str] | None = None) -> Any:
     """A photo shows a concept when its text (caption, tags, any name of the term) or its tag id says so; a Chinese
     word the vocabulary does not know also matches by its character pairs, for captions segmented differently."""
@@ -771,6 +793,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
             if near_ids
             else {}
         )
+        suggest = _suggest(c, where, q) if q and total == 0 and not possible and off == 0 else []
         maybe = possible[:POSSIBLE_SHOWN] if off == 0 else []
         maybe_rows = (
             {r.asset_id: r for r in c.execute(select(search_doc).where(search_doc.c.asset_id.in_(maybe)))}
@@ -839,6 +862,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
         # 「可能相關」 (ADR-0047): found by vectors only and unlike the confirmed hits; not counted, not in facets or
         # selection
         "possible_total": len(possible),
+        "suggest": suggest,  # nothing found: words inside the query that find photos (SRCH-SUG-001)
         "possible": [
             {
                 "asset_id": a,

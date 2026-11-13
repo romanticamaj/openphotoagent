@@ -202,6 +202,8 @@ export type SearchResult = {
   /** 「可能相關」 (ADR-0047): vector-only and unlike the confirmed hits; not counted */
   possible_total?: number;
   possible?: PossibleHit[];
+  /** nothing found: words inside the query that find photos (SRCH-SUG-001) */
+  suggest?: { q: string; n: number }[];
   degraded: string[];
   planner?: Planner;
 };

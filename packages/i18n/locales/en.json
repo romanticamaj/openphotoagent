@@ -601,7 +601,9 @@
     "partialCount": "No photo matches everything · {count} match the rest",
     "relaxedNone": "No photo shows 「{words}」.",
     "possible": "Possibly related: {n} (not counted)",
-    "noneSure": "No photo is a sure match"
+    "noneSure": "No photo is a sure match",
+    "tryInstead": "Try:",
+    "tryWord": "{q} ({n})"
   },
   "problem": {
     "chosen": "Switched to {what}"

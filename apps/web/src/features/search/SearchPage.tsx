@@ -253,6 +253,22 @@ export function SearchPage({ q }: { q: string }) {
         </>
       ) : null}
       {res.isSuccess && hits.length === 0 && <p>{t(first?.possible_total ? "search.noneSure" : "search.none")}</p>}
+      {res.isSuccess && hits.length === 0 && first?.suggest?.length ? (
+        // nothing found: the words inside the query that do find photos (SRCH-UI-030)
+        <p data-testid="suggest" className="flex flex-wrap items-center gap-2 text-sm text-[var(--text-muted)]">
+          <span>{t("search.tryInstead")}</span>
+          {first.suggest.map((x) => (
+            <button
+              key={x.q}
+              type="button"
+              className="chip"
+              onClick={() => void nav({ to: "/search", search: { q: x.q } })}
+            >
+              {t("search.tryWord", { q: x.q, n: x.n })}
+            </button>
+          ))}
+        </p>
+      ) : null}
       <div ref={gridRef} onKeyDown={onKey} role="grid" aria-label={t("search.results")} aria-multiselectable="true" aria-rowcount={-1} className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-0.5 outline-none">
         <div role="row" className="contents">
         {shownHits.map((h, i) => {

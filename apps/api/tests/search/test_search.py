@@ -1285,3 +1285,18 @@ def test_srch_cnc_019_english_words_for_a_concept_find_its_photos(s):
     s.index()
     for q in ("slide", "swing", "slides"):
         assert s.search(q=q, semantic=False)["total"] == 2, q
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-SUG-001")
+def test_srch_sug_001_nothing_found_suggests_words_that_find_photos(s):
+    """回歸 (audit round 69): 19 queries ended on a bare 「找不到符合的照片」; 「爬山」 found nothing while 「山」 had photos.
+    With nothing found, the answer names the vocabulary's words inside the query that do find photos, with how many."""
+    s.add(1, caption="山上的風景", tags=("山",))
+    s.add(2, caption="海邊的夕陽")
+    s.index()
+    res = s.search(q="爬山", semantic=False)
+    assert res["total"] == 0
+    assert res["suggest"] == [{"q": "山", "n": 1}]
+    assert s.search(q="夕陽", semantic=False)["suggest"] == []  # something found: nothing to suggest
+    assert s.search(q="長頸鹿", semantic=False)["suggest"] == []

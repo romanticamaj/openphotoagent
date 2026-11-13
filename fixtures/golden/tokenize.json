@@ -1,5 +1,5 @@
 {
- "tokenizer": "jieba-zh-hant@8+opencc-s2twp+bigram",
+ "tokenizer": "jieba-zh-hant@9+opencc-s2twp+bigram",
  "cases": [
   {
    "text": "海邊的貓",

@@ -601,7 +601,9 @@
     "partialCount": "沒有完全符合的照片 · 符合其他條件的有 {count}",
     "relaxedNone": "沒有照片拍到「{words}」。",
     "possible": "可能相關 {n} 張（不算在張數裡）",
-    "noneSure": "沒有確定符合的照片"
+    "noneSure": "沒有確定符合的照片",
+    "tryInstead": "試試：",
+    "tryWord": "{q}（{n} 張）"
   },
   "problem": {
     "chosen": "已改用 {what}"

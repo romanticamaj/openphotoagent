@@ -30,7 +30,7 @@ terms:
   - { id: people.teacher, zh: 老師, en: teacher, group: 人物, synonyms: [教師, teachers] }
   - { id: people.family, zh: 家人, en: family, group: 人物, synonyms: [家庭, 全家福] }
   - { id: scene.classroom, zh: 教室, en: classroom, group: 場景, synonyms: [課堂, 活動室] }
-  - { id: scene.playground, zh: 遊樂場, en: playground, group: 場景, synonyms: [遊戲場, 溜滑梯, 滑梯, 盪鞦韆, slide, slides, swing, swings, playgrounds] }
+  - { id: scene.playground, zh: 遊樂場, en: playground, group: 場景, synonyms: [遊戲場, 溜滑梯, 滑梯, 盪鞦韆, 鞦韆, 蹺蹺板, 攀爬架, seesaw, slide, slides, swing, swings, playgrounds] }
   - { id: scene.sports_field, zh: 運動場, en: sports field, group: 場景, synonyms: [操場, 球場, 足球場, 田徑場, sports ground, court] }
   - { id: scene.gym, zh: 體育館, en: gym, group: 場景, synonyms: [室內場地, 健身房] }
   - { id: scene.park, zh: 公園, en: park, group: 場景, synonyms: [綠地, parks] }
@@ -58,9 +58,9 @@ terms:
   - { id: activity.reading, zh: 閱讀, en: reading, group: 活動, synonyms: [看書, 讀書, read] }
   - { id: activity.swimming, zh: 游泳, en: swimming, group: 活動, synonyms: [泳池, 游泳池, swim, pool] }
   - { id: activity.running, zh: 跑步, en: running, group: 活動, synonyms: [奔跑, 賽跑, run] }
-  - { id: activity.eating, zh: 吃飯, en: eating, group: 活動, synonyms: [用餐, 吃東西, eat, meal, dinner, lunch] }
+  - { id: activity.eating, zh: 吃飯, en: eating, group: 活動, synonyms: [用餐, 吃東西, 午餐, 晚餐, 早餐, 午飯, 晚飯, breakfast, eat, meal, dinner, lunch] }
   - { id: activity.cooking, zh: 煮飯, en: cooking, group: 活動, synonyms: [烹飪, 做菜, cook] }
-  - { id: activity.sleeping, zh: 睡覺, en: sleeping, group: 活動, synonyms: [睡著, 午睡, sleep, nap] }
+  - { id: activity.sleeping, zh: 睡覺, en: sleeping, group: 活動, synonyms: [睡著, 午睡, 睡午覺, 入睡, sleep, nap] }
   - { id: activity.playing, zh: 玩耍, en: playing, group: 活動, synonyms: [遊戲, 玩樂, play] }
   - { id: activity.study, zh: 學習, en: studying, group: 活動, synonyms: [上課, 教學, study, class, lesson] }
   - { id: activity.performance, zh: 表演, en: performance, group: 活動, synonyms: [演出, 舞台] }

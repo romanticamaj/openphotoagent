@@ -245,3 +245,36 @@ def test_srch_tok_020_a_broader_word_includes_its_kinds():
             assert not by_id[k].get("includes"), "no chains"
             assert k.split(".")[0] == t["id"].split(".")[0], (t["id"], k)
     assert "飯" not in {f for c in tok.concepts("吃飯") for f in c.forms}  # eating is not a bowl of rice
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-021")
+@pytest.mark.parametrize(
+    ("q", "out"),
+    [
+        ("slide", "playground"),  # a synonym: the concept's English name, as 溜滑梯 asks
+        ("eat", "eating"),
+        ("lunch", "eating"),
+        ("午餐", "eating"),
+        ("鞦韆", "playground"),
+        ("a puppy on the seaside", "a dog on the beach"),  # the other words of a phrase stay where they are
+        ("red car", "red car"),
+        ("trampoline", "trampoline"),  # a word the vocabulary does not know: as typed
+    ],
+)
+def test_srch_tok_021_english_synonyms_ask_the_concepts_name(q, out):
+    """回歸 (audit round 69): 「slide」 counted 29 and 「遊樂場」 14, 「eat」 1 and 「meal」 7: an English synonym went to
+    the image model as typed, while the Chinese word went by the concept's English name. One concept, one question."""
+    assert Tokenizer().vector_text(q) == out
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-022")
+def test_srch_tok_022_words_inside_a_query_the_vocabulary_knows():
+    """What a query that finds nothing can try instead (audit round 69): 「爬山」 found nothing while 「山」 had photos.
+    The vocabulary's words written inside the query, by their Chinese name, longest first; not the query itself."""
+    tok = Tokenizer()
+    assert tok.related("爬山") == ["山"]
+    assert tok.related("山") == []
+    assert tok.related("海邊撿貝殼")[0] == "海灘"  # 海邊 is a name of the beach
+    assert tok.related("長頸鹿") == []

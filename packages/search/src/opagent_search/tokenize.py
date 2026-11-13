@@ -24,7 +24,9 @@ from typing import Any
 import yaml
 from opagent_core.vocabularies import VOCAB_DIR
 
-TOKENIZER_VERSION = "jieba-zh-hant@8+opencc-s2twp+bigram"  # @8 SRCH-CNC-019; @7 SRCH-CNC-018; @6 SRCH-TOK-020
+TOKENIZER_VERSION = (
+    "jieba-zh-hant@9+opencc-s2twp+bigram"  # @9 SRCH-TOK-021; @8 SRCH-CNC-019; @7 SRCH-CNC-018; @6 SRCH-TOK-020
+)
 # Names that hold a vocabulary word but are not that thing: a caption reading a sign 「日落大道」 (Sunset Blvd) is not a
 # sunset (SRCH-TOK-018). Weighed above the vocabulary's words, so the name is one word.
 NAMES = ("日落大道", "夕陽大道")
@@ -245,6 +247,18 @@ class Tokenizer:
     def tag_key(self, word: str) -> str | None:
         return self._index.get(normalize(word))
 
+    def related(self, text: str) -> list[str]:
+        """The vocabulary's words written inside a query, by their Chinese name, longest match first; not the query's
+        own term (SRCH-TOK-022): what 「爬山」 can try when it finds nothing."""
+        q = normalize(text)
+        own = self.tag_key(q)
+        found: dict[str, int] = {}
+        for form, key in self._index.items():
+            if key != own and _CJK.fullmatch(form) and form in q and form != q:
+                found[key] = max(found.get(key, 0), len(form))
+        keys = sorted(found, key=lambda k: (-found[k], k))
+        return [n for k in keys if (n := self.term_name(k, "zh"))]
+
     def term_name(self, key: str, lang: str) -> str | None:
         """What a person calls a vocabulary id; None when the tag is not a vocabulary id."""
         names = self._names.get(key)
@@ -277,9 +291,18 @@ class Tokenizer:
     def vector_text(self, text: str) -> str | None:
         """What the image model is asked (ADR-0031). SigLIP does not separate Chinese queries from noise on real
         photos, English ones it does: CJK words go through the vocabulary to their English name; words it does not
-        know are left out; when none is known the image route is skipped (None). Latin script is passed as it is."""
+        know are left out; when none is known the image route is skipped (None). Latin script is passed as it is, but
+        a vocabulary word in it asks by its concept's English name, as the Chinese word does (SRCH-TOK-021)."""
         if not _CJK.search(text):
-            return text.strip() or None
+            if not text.strip():
+                return None
+            if (k := self.tag_key(text)) and (n := self.term_name(k, "en")):
+                return n
+            parts = re.split(r"([a-z][a-z0-9'-]*)", normalize(text))
+            for i in range(1, len(parts), 2):
+                if (k := self.tag_key(parts[i])) and (n := self.term_name(k, "en")):
+                    parts[i] = n
+            return "".join(parts).strip() or None
         # the query's own terms: 車子 asks for "vehicle", not for each kind it includes (SRCH-TOK-020)
         own = sorted({k for w in [*self.words(text), text] if (k := self.tag_key(w))})
         names = [n for k in own if (n := self.term_name(k, "en"))]
