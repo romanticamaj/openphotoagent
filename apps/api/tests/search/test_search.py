@@ -1471,3 +1471,66 @@ def test_srch_dup_011_a_photos_folded_copies_can_be_opened(s):
     assert got[0]["asset_id"] == ids[0] and {p["asset_id"] for p in got} == set(ids[:3])
     assert all("ch" in p for p in got)
     assert [p["asset_id"] for p in s.client.get(f"/api/v1/assets/{ids[3]}/duplicates").json()["photos"]] == [ids[3]]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-SEM-024")
+def test_srch_sem_024_a_term_no_photo_is_tagged_with_is_held_like_an_unknown_word(s, monkeypatch):
+    """回歸 (audit round 94): 跳繩, 野餐 and 雪人 joined the vocabulary and counted a dance hall, a play kitchen and two
+    ski slopes: a known word's caption meaning keeps the route's floor because the VLM tags it; the library was analysed
+    before these terms existed, so no photo carries them. A term no photo is tagged with is held to the unknown word's
+    bar (floor + MEANING_MARGIN, SRCH-CNC-006) until one is; a library with no tags at all (fast mode) is left as it is."""
+    import opagent_api.search as S
+
+    a = s.add(1, caption="舞蹈教室", tags=("教室",))  # a library the VLM tagged, before 跳繩 was a term
+    s.index()
+    cid = s.sql(
+        "insert into embedding_space(model_key, fingerprint, dim, modality, status)"
+        " values ('fake-cap', 'caption:fake-cap:x', 2, 'caption', 'active') returning id"
+    ).scalar()
+    s.sql(
+        "insert into asset_embedding(asset_id, space_id, vec) values (:a, :s, CAST('[0.545,0.8384]' AS vector))",
+        a=a,
+        s=cid,
+    )
+    monkeypatch.setattr(
+        S, "query_vector", lambda st, t, space, modality="image": [1.0, 0.0] if modality == "caption" else None
+    )
+    monkeypatch.setattr(S, "caption_floor", lambda _st, _sp: 0.5)
+    res = s.search(q="跳繩")
+    assert res["total"] == 0
+    b = s.add(2, caption="跳繩比賽", tags=("跳繩",))  # once a photo carries the term, its meaning keeps the floor
+    s.index()
+    s.sql(
+        "insert into asset_embedding(asset_id, space_id, vec) values (:a, :s, CAST('[0.545,0.8384]' AS vector))",
+        a=b,
+        s=cid,
+    )
+    assert s.search(q="跳繩")["total"] == 2
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-SUG-002")
+def test_srch_sug_002_no_sure_photo_still_suggests(s):
+    """回歸 (audit round 94): 「雪人」 lost its 「雪」 suggestion once it had 「可能相關」 photos: suggestions came only
+    when nothing at all was found. With no sure photo, the words that find photos are offered too."""
+    import opagent_api.search as S
+
+    s.add(1, caption="下雪的山上", tags=("雪",))
+    s.index()
+    res = s.search(q="雪人", semantic=False)
+    assert res["total"] == 0 and res["suggest"] and res["suggest"][0]["q"] == "雪"
+    assert S.SUGGEST_MAX >= 1
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-CNC-023")
+def test_srch_cnc_023_a_phrase_with_an_untagged_term_is_not_answered_by_the_image(s, monkeypatch):
+    """回歸 (audit round 94): 「公園野餐」 jumped from 2 to 35 counted photos, courts and a slide, 0 picnics: with every
+    concept known, the image model's answer to the whole phrase counts, and 野餐 had just joined the vocabulary, carried
+    by no photo. A phrase whose terms are not all on some photo is not answered by the image alone."""
+    ids = _near(s, [0.12, 0.12, 0.12], tags={0: ("公園",)})
+    _gate(monkeypatch, 0.082)
+    res = s.search(q="公園野餐")
+    assert res["total"] == 0, [x["asset_id"] for x in res["items"]]
+    assert ids

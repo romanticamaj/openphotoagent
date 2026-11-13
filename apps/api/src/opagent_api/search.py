@@ -646,14 +646,33 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                 )
                 cfloor = caption_floor(st, cspace)
                 one = tokenizer().concepts(q)
-                if cfloor is not None and len(one) == 1 and not one[0].key and not one[0].word.isascii():
-                    cfloor += MEANING_MARGIN  # the query is one word the vocabulary does not know (SRCH-CNC-006)
+                # one word the vocabulary does not know (SRCH-CNC-006), or a term no photo is tagged with: the library
+                # was analysed before it existed, its meaning has nothing to lean on (SRCH-SEM-024)
+                unknown = (
+                    len(one) == 1
+                    and not one[0].word.isascii()
+                    and (
+                        not one[0].key
+                        or (
+                            c.execute(
+                                select(search_doc.c.asset_id).where(search_doc.c.tags.overlap([one[0].key])).limit(1)
+                            ).first()
+                            is None
+                            and c.execute(
+                                select(search_doc.c.asset_id).where(func.cardinality(search_doc.c.tags) > 0).limit(1)
+                            ).first()
+                            is not None
+                        )
+                    )
+                )
+                if cfloor is not None and unknown:
+                    cfloor += MEANING_MARGIN
                 cap_rows = [r for r in c.execute(cq, {"qv": str(cvec)}) if cfloor is None or r[1] >= cfloor]
                 routes["caption_vector"] = [r[0] for r in cap_rows]
                 cap_cos = {r[0]: float(r[1]) for r in cap_rows}
                 cap_bar = caption_alone_bar(
                     caption_floor(st, cspace),
-                    known=not (len(one) == 1 and not one[0].key and not one[0].word.isascii()),
+                    known=not unknown,
                 )
                 capped = capped or len(routes["caption_vector"]) == PER_ROUTE  # a floor too (SRCH-R2-009)
             alone = vector_alone(st, space) if space is not None else None
@@ -702,7 +721,23 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                     meaning_only = True
                 # the image model was asked the whole question (English, or every concept in the vocabulary): what it
                 # finds above the floor shows all of it together, "a dog on the beach" (SRCH-SEM-001, ADR-0032)
-                whole = all(cpt.key or cpt.word.isascii() for cpt in concepts)
+                # every term on some photo too, in a library that has tags: one just added to the vocabulary has no
+                # photo to lean on (SRCH-CNC-023); a library with no tags at all (fast mode) asks the image alone
+                tagged_library = (
+                    c.execute(
+                        select(search_doc.c.asset_id).where(func.cardinality(search_doc.c.tags) > 0).limit(1)
+                    ).first()
+                    is not None
+                )
+                whole = all(cpt.key or cpt.word.isascii() for cpt in concepts) and all(
+                    not tagged_library
+                    or not cpt.key
+                    or c.execute(
+                        select(search_doc.c.asset_id).where(search_doc.c.tags.overlap([cpt.key])).limit(1)
+                    ).first()
+                    is not None
+                    for cpt in concepts
+                )
                 if whole and vec_ids and alone is not None and routes.get("image_vector"):
                     # no photo shows every concept in words: the phrase rests on the image model, which then needs a
                     # strong best, as one word does (SRCH-SEM-015, ADR-0042 addendum): 「城市夜景」 found collages
@@ -827,7 +862,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
             if near_ids
             else {}
         )
-        suggest = _suggest(c, where, q) if q and total == 0 and not possible and off == 0 else []
+        suggest = _suggest(c, where, q) if q and total == 0 and off == 0 else []  # with 可能相關 too (SRCH-SUG-002)
         maybe = possible[:POSSIBLE_SHOWN] if off == 0 else []
         maybe_rows = (
             {r.asset_id: r for r in c.execute(select(search_doc).where(search_doc.c.asset_id.in_(maybe)))}
