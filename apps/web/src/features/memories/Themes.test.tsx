@@ -15,7 +15,7 @@ vi.mock("../../lib/api", async (orig) => ({
 }));
 vi.mock("@tanstack/react-router", async (orig) => ({
   ...(await orig<typeof import("@tanstack/react-router")>()),
-  Link: ({ children, search }: { children: React.ReactNode; search?: { q?: string } }) => <a data-q={search?.q}>{children}</a>,
+  Link: ({ children, search }: { children: React.ReactNode; search?: Record<string, string> }) => <a data-search={JSON.stringify(search)}>{children}</a>,
 }));
 
 import { Themes } from "./Themes";
@@ -35,6 +35,8 @@ describe("主題 (10 §2.8)", () => {
     const card = screen.getByRole("button", { name: "2025 的足球，120 張" });
     fireEvent.click(card);
     expect(open).toHaveBeenCalledWith([{ id: "a", rot: undefined }, { id: "b", rot: undefined }], 0);
-    expect(screen.getByText("看全部").closest("a")?.getAttribute("data-q")).toBe("2025年 足球");
+    // the tag and the year, not the words: the same photos the count is of (MEM-013, audit round 80: 29 → 12 → 33)
+    expect(JSON.parse(screen.getByText("看全部").closest("a")?.getAttribute("data-search") ?? "{}")).toEqual({ q: "", tag: "activity.soccer", year: "2025" });
+    expect(screen.getByText("120 張 · 精選 2 張")).toBeTruthy();
   });
 });

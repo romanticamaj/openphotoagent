@@ -1148,7 +1148,7 @@
     "themes": "Themes",
     "themeTitle": "{name} in {year}",
     "themeOpen": "{title}, {n} photos",
-    "themeCount": "{n} photos",
+    "themeCount": "{n} photos · {k} picked",
     "themeAll": "See all"
   },
   "trash": {

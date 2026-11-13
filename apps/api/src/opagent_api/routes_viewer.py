@@ -293,6 +293,9 @@ def on_this_day(req: Request, today: str | None = None) -> dict[str, Any]:
     return {"today": now.isoformat(), "groups": groups}
 
 
+THEME_OVERLAP = 0.5  # 「2025 的運動場」 shared 28 of 64 photos with 「2025 的足球」 (audit round 80)
+
+
 @router.get("/memories/themes")
 def memory_themes(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
     """主題 (10 §2.8, MEM-010): a year's frequent subjects, 「2025 的足球」, from the photos' vocabulary tags. Computed
@@ -308,13 +311,20 @@ def memory_themes(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
         rows = c.execute(
             select(asset.c.id, asset.c.content_hash, asset.c.rotation, when.label("at"), search_doc.c.tags)
             .join(search_doc, search_doc.c.asset_id == asset.c.id)
-            .where(asset.c.workspace_id == DEFAULT_WS, when.is_not(None), asset.c.id.notin_(hidden))
+            .where(asset.c.workspace_id == DEFAULT_WS, when.is_not(None))
             .order_by(when, asset.c.id)
         ).all()
+        dup = {r[0] for r in c.execute(hidden)}
     info = {r.id: r for r in rows}
     from .labels import tokenizer
 
-    found = themes([(r.id, r.at.year, list(r.tags or [])) for r in rows], skip=tokenizer().not_themes())
+    # the count is what 「看全部」 finds, duplicates too; a theme mostly another's is not shown twice (MEM-013)
+    found = themes(
+        [(r.id, r.at.year, list(r.tags or [])) for r in rows],
+        skip=tokenizer().not_themes(),
+        max_overlap=THEME_OVERLAP,
+        hidden=dup,
+    )
     names = tag_names([t.key for t in found], lang)
     return {
         "themes": [

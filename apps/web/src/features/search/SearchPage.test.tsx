@@ -7,13 +7,14 @@ beforeAll(async () => {
   await i18n.changeLanguage("zh-TW");
 });
 
-const s = vi.hoisted(() => ({ result: null as unknown, calls: 0 }));
+const s = vi.hoisted(() => ({ result: null as unknown, calls: 0, last: null as unknown }));
 vi.mock("../../lib/api", async (orig) => ({
   ...(await orig<typeof import("../../lib/api")>()),
   mediaUrl: (id: string) => `/m/${id}`,
   api: {
-    search: () => {
+    search: (b: unknown) => {
       s.calls += 1;
+      s.last = b;
       return s.result ? Promise.resolve(s.result) : new Promise(() => undefined); // still searching unless set
     },
     searchIndex: async () => ({ total: 10, searchable: 10 }),
@@ -171,6 +172,22 @@ describe("one way to say none (audit round 76)", () => {
     );
     expect(await screen.findByText("沒有確定符合的照片")).toBeTruthy();
     expect(screen.queryByTestId("result-count")).toBeNull();
+    s.result = null;
+  });
+});
+
+describe("a theme's photos (audit round 80)", () => {
+  it("[SRCH-UI-037] 回歸：/search 帶 tag 與 year 時，以該標籤與年份篩選，不靠文字（回憶主題的「看全部」）", async () => {
+    s.result = { items: [], facets: {}, total: 0, next_cursor: null, degraded: [], possible_total: 0, possible: [] };
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SearchPage q="" tag="activity.soccer" year="2025" />
+      </QueryClientProvider>,
+    );
+    await screen.findByText("找不到符合的照片");
+    const b = s.last as { q: unknown; filters: Record<string, unknown> };
+    expect(b.q).toBeNull();
+    expect(b.filters).toMatchObject({ tags_all: ["activity.soccer"], taken_from: "2025-01-01", taken_to: "2025-12-31" });
     s.result = null;
   });
 });

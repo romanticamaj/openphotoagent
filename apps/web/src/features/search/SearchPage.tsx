@@ -19,10 +19,12 @@ import { bodyFor, cappedNote, chipLabel, chipsFrom, dateWords, gridAssetOf, head
 
 const sameChips = (a: Chip[], b: Chip[]) => a.length === b.length && a.every((c, i) => JSON.stringify(c) === JSON.stringify(b[i]));
 
-export function SearchPage({ q }: { q: string }) {
+export function SearchPage({ q, tag, year }: { q: string; tag?: string; year?: string }) {
   const { t, i18n } = useTranslation();
   const nav = useNavigate();
-  const [chips, setChips] = useState<Chip[]>([]);
+  // a theme's 「看全部」 asks by its tag and year, not by words (SRCH-UI-037)
+  const seed = useMemo<Chip[]>(() => [...(tag ? [{ kind: "tag" as const, value: tag }] : []), ...(year ? [{ kind: "year" as const, value: year }] : [])], [tag, year]);
+  const [chips, setChips] = useState<Chip[]>(seed);
   const [tagNames, setTagNames] = useState<Record<string, string>>({});
   // the rule planner runs once per query; its filters become chips and the rest of the words stay the query (05 §2.3)
   const [planned, setPlanned] = useState<{ text: string; dates: string[]; chips: Chip[] } | null>(null);
@@ -33,10 +35,10 @@ export function SearchPage({ q }: { q: string }) {
   const [viewingPossible, setViewingPossible] = useState<number | null>(null);
   useEffect(() => {
     setShowWeak(false);
-    setChips([]);
+    setChips(seed);
     setPlanned(null);
     setSel({ all: false, ids: new Set(), anchor: null });
-  }, [q]);
+  }, [q, seed]);
 
   // the planned answer is the first one: while its chips stand as planned, ask the same question again for each page,
   // not a second search for the same answer (SRCH-UI-035); a chip the user changes asks anew

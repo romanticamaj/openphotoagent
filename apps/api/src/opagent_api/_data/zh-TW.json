@@ -1148,7 +1148,7 @@
     "themes": "回憶主題",
     "themeTitle": "{year} 的{name}",
     "themeOpen": "{title}，{n} 張",
-    "themeCount": "{n} 張",
+    "themeCount": "{n} 張 · 精選 {k} 張",
     "themeAll": "看全部"
   },
   "trash": {

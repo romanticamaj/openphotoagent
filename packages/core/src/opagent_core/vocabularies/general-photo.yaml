@@ -77,7 +77,7 @@ terms:
   - { id: object.scissors, zh: 剪刀, en: scissors, group: 物件, synonyms: [] }
   - { id: object.clay, zh: 黏土, en: clay, group: 物件, synonyms: [陶土] }
   - { id: object.beads, zh: 珠子, en: beads, group: 物件, synonyms: [串珠] }
-  - { id: object.mirror, zh: 鏡子, en: mirror, group: 物件, synonyms: [鏡面牆] }
+  - { id: object.mirror, zh: 鏡子, en: mirror, group: 物件, synonyms: [鏡面牆], theme: false }
   - { id: object.whiteboard, zh: 白板, en: whiteboard, group: 物件, synonyms: [黑板] }
   - { id: object.computer, zh: 電腦, en: computer, group: 物件, synonyms: [筆電, 筆記型電腦, laptop] }
   - { id: object.phone, zh: 手機, en: phone, group: 物件, synonyms: [智慧型手機, smartphone] }

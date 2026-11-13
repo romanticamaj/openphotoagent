@@ -31,8 +31,10 @@ export function Themes({ onOpen }: { onOpen: (photos: MemoryPhoto[], start: numb
               </button>
               <p className="flex items-baseline gap-2 text-sm">
                 <span className="font-medium">{title}</span>
-                <span className="tnum text-[var(--text-muted)]">{t("memories.themeCount", { n: th.count.toLocaleString(i18n.language) })}</span>
-                <Link to="/search" search={{ q: `${th.year}年 ${th.name}` }} className="ml-auto text-xs underline">
+                <span className="tnum text-[var(--text-muted)]">
+                  {t("memories.themeCount", { n: th.count.toLocaleString(i18n.language), k: th.photos.length.toLocaleString(i18n.language) })}
+                </span>
+                <Link to="/search" search={{ q: "", tag: th.key, year: String(th.year) }} className="ml-auto text-xs underline">
                   {t("memories.themeAll")}
                 </Link>
               </p>
