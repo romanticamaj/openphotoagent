@@ -1073,7 +1073,8 @@
       "job.label": "AI analysis",
       "output.apply": "Copying files",
       "output.undo": "Undoing",
-      "face.cluster": "Grouping faces"
+      "face.cluster": "Grouping faces",
+      "job.organize": "Organize"
     },
     "preparing": "Getting ready: loading the AI model…",
     "now": "Analysing now",

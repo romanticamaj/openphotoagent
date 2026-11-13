@@ -1314,3 +1314,15 @@ def test_srch_cnc_020_eating_a_food_is_that_food(s):
     assert s.search(q="蛋糕", semantic=False)["total"] == 1
     assert s.search(q="吃蛋糕", semantic=False)["total"] == 1
     assert s.search(q="吃冰淇淋", semantic=False)["total"] == 0
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-CNC-021")
+def test_srch_cnc_021_eating_an_unknown_food_finds_that_food(s):
+    """回歸 (audit round 72): 「吃香蕉」 said 「沒有照片拍到「香蕉」」 while 「香蕉」 alone found 3."""
+    s.add(1, caption="一根香蕉放在桌上")
+    s.add(2, caption="小朋友在吃午餐", tags=("用餐",))
+    s.index()
+    assert s.search(q="香蕉", semantic=False)["total"] == 1
+    res = s.search(q="吃香蕉", semantic=False)
+    assert res["total"] == 1 and not res["relaxed"]

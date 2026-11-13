@@ -502,3 +502,25 @@ def test_org_011_a_preset_gone_during_the_scan_fails_the_job(env, sandbox_tree, 
     j = env.client.get(f"/api/v1/jobs/{jid}").json()
     assert j["status"] == "failed"
     assert env.client.get(f"/api/v1/operations/{jid}").json()["status"] == "failed"
+
+
+@pytest.mark.contract
+@pytest.mark.tc("OP-025")
+def test_op_025_an_organize_says_whether_it_uses_ai(env, sandbox_tree, tmp_path):
+    """回歸 (audit round 72): 依日期（不使用 AI） showed 「AI 分析 · 準備中：載入 AI 模型…」 in the progress card: every
+    organize is a job.label Operation, and nothing told the card that this one asks no model."""
+    WorkerAgent(env.client, roots=sandbox_tree.roots, home=tmp_path / "w").register()
+    src = env.client.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": ""}).json()
+    j = env.client.post(
+        "/api/v1/jobs",
+        json={
+            "kind": "organize",
+            "source_id": src["id"],
+            "preset": "by-date",
+            "target": {"root_alias": "sorted", "sub_path": ""},
+        },
+    ).json()
+    assert "id" in j, j
+    ops = env.client.get("/api/v1/operations?status=all&type=job.label").json()
+    op = next(o for o in ops if o["id"] == j["id"])
+    assert op["subject"]["uses_ai"] is False  # an analysis, or no flag at all, is AI (the card's default)

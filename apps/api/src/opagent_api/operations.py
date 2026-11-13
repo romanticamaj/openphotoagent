@@ -23,7 +23,7 @@ _PROJECTION = {
 }
 
 
-def ensure_operation(conn: Any, clock: Any, op_id: str, op_type: str, subject: dict[str, str] | None = None) -> None:
+def ensure_operation(conn: Any, clock: Any, op_id: str, op_type: str, subject: dict[str, Any] | None = None) -> None:
     if conn.execute(select(operation.c.id).where(operation.c.id == op_id)).first() is None:
         now = clock.now()
         conn.execute(

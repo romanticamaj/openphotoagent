@@ -281,3 +281,22 @@ def test_srch_tok_022_words_inside_a_query_the_vocabulary_knows():
     assert tok.related("山") == []
     assert tok.related("海邊撿貝殼")[0] == "海灘"  # 海邊 is a name of the beach
     assert tok.related("長頸鹿") == []
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-023")
+@pytest.mark.parametrize(
+    ("q", "out"),
+    [
+        ("吃蛋糕", "蛋糕"),
+        ("吃冰淇淋", "冰淇淋"),
+        ("吃香蕉", "香蕉"),  # a word the vocabulary does not know, after 吃, is what is eaten
+        ("eat cake", "cake"),
+        ("吃飯", "吃飯"),  # nothing else: eating itself
+        ("在公園吃東西", "在公園吃東西"),  # beside a place it is a concept of its own
+    ],
+)
+def test_srch_tok_023_eating_a_thing_is_that_thing(q, out):
+    """回歸 (audit round 72): 「吃蛋糕」 still found 10 photos and 「蛋糕」 1; 「吃香蕉」 said no photo shows 香蕉, which
+    finds 3. Beside only foods or words the vocabulary does not know, 吃 leaves the query: 吃蛋糕 is 蛋糕."""
+    assert Tokenizer().without_eating(q).strip() == out

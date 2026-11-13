@@ -683,6 +683,7 @@
 | OP-022 | 進度只算這次要分析的照片（回歸，驗證第 21 輪） | 已分析 3 張的資料夾再加 2 張 | Operation 進度 total 2、done 2（快取的不算） | I | #— |
 | OP-023 | 進度卡的資料夾那一行也只算這次（回歸，驗證第 22 輪） | 已分析的資料夾再加 2 張，掃描完、AI 未開始 | `/analysis/status` 該資料夾 done 0、total 2 | I | #— |
 | OP-024 | 「剛完成」只顯示這次分析的照片（回歸，驗證第 23 輪） | 已分析的資料夾再加 1 張，掃描完、AI 未開始 | `/analysis/status` 的 recent 是空的（不顯示上一次的照片）；沒有在跑時仍給最近的結果（IMP-030） | I | #— |
+| OP-025 | 整理的 Operation 標明是否使用 AI（回歸，驗證第 72 輪） | 依日期整理 | subject.uses_ai = false | C | #— |
 
 ### 9.2 ETA：估算（FakeClock 驅動，06 §2.3、§5.5）
 
@@ -745,6 +746,7 @@
 | ACT-017 | 整理工作依計畫狀態命名 | 待核准；已捨棄；已套用 | 「整理計畫待核准」；「已捨棄整理計畫（未變更檔案）」；「整理」 | U | #— |
 | ACT-018 | 待核准的整理計畫狀態不寫「完成」（回歸，驗證第 59 輪） | 分析已完成、計畫待核准的工作 | 狀態「等你核准」；其他工作照常顯示 | U | #— |
 | ACT-019 | 進度卡只有 AI 分析在等時寫「載入 AI 模型」（回歸，驗證第 70～71 輪） | job.label、output.apply、face.cluster、scan、掃描中 | dock.preparing、dock.waiting、dock.waiting、dock.scanning、dock.waitingScan | C | #— |
+| ACT-020 | 不使用 AI 的整理在進度卡寫「整理」（回歸，驗證第 72 輪） | job.label、uses_ai false／true／沒有 | job.organize「整理」＋準備中…；其餘 job.label | C | #— |
 
 ## 10. ORG、REV — 整理流程與待確認（killer ①；03 §10、04 §3.7、08 §8.1）
 
@@ -835,6 +837,7 @@
 | SRCH-TOK-020 | 上位詞包含它的類別（ADR-0032 補充） | 「車子」「汽車」「吃飯」 | 車子→object.vehicle，形式含公車、巴士、火車、捷運、腳踏車、汽車，不含飛機；標籤含五個 id；影像只問 vehicle；汽車只有 object.car；吃飯不展開到飯；includes 不串連、同一組 | U | #— |
 | SRCH-TOK-021 | 英文同義詞用概念的英文名稱問影像模型（回歸，驗證第 69～70 輪：slide 29、遊樂場 14；吃 0） | slide、eat、lunch、午餐、鞦韆、吃、爬山、彈跳床、a puppy on the seaside、red car、trampoline | playground、eating、eating、eating、playground、eating、hiking、trampoline、a dog on the beach、red car、trampoline | U | #— |
 | SRCH-TOK-022 | 查詢裡詞彙表認得的詞（找不到時的建議） | 爬山、山、海邊撿貝殼、長頸鹿 | [山]、[]、第一個是 海灘、[] | U | #— |
+| SRCH-TOK-023 | 吃＋食物或不認識的詞就是那樣東西（回歸，驗證第 72 輪） | 吃蛋糕、吃冰淇淋、吃香蕉、eat cake、吃飯、在公園吃東西 | 蛋糕、冰淇淋、香蕉、cake、吃飯、在公園吃東西 | U | #— |
 | SRCH-IDX-010 | 以檔案時間定日期的照片可依日期搜尋（回歸，驗證第 45 輪） | 沒有拍攝時間、時間軸依檔案時間放在 2026-11 | 日期條件 2026-11 找得到；斷詞版本 @4 讓既有索引重建 | I | #— |
 | SRCH-TOK-008 | tsquery 注入 | 查詢含 `& \| ! ( ) : * '` 與 `\` | 一律跳脫；不產生 SQL／tsquery 語法錯誤；Hypothesis 任意字串不拋例外 | P/S | — |
 | SRCH-TOK-009 | 回歸：控制字元 | 查詢含 NUL、BEL 等控制字元 | 移除控制字元後照常搜尋，不回 500（MCP-TOOL 產生輸入時發現） | I | #62 |

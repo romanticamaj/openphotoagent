@@ -183,3 +183,18 @@ describe("what a stage waits for (audit rounds 70-71)", () => {
     expect(waitNoteKey("job.label", true)).toBe("dock.waitingScan");
   });
 });
+
+describe("an organize that asks no model (audit round 72)", () => {
+  it("[ACT-020] 回歸：依日期（不使用 AI）的整理在進度卡寫「整理」與「準備中…」，不是「AI 分析」與「載入 AI 模型」", async () => {
+    const { stagesOf, waitNoteKey } = await import("./ProgressDock");
+    const op = (uses_ai?: boolean) =>
+      ({ id: "j", type: "job.label", status: "running", progress: {}, subject: { kind: "job", id: "j", job_kind: "organize", ...(uses_ai === undefined ? {} : { uses_ai }) } }) as never;
+    const [s] = stagesOf([op(false)]);
+    expect(s.type).toBe("job.organize");
+    expect(waitNoteKey(s.type, false)).toBe("dock.waiting");
+    const zh = (await import("@opa/i18n/locales/zh-TW.json")).default as { dock: { stage: Record<string, string> } };
+    expect(zh.dock.stage[s.type]).toBe("整理");
+    expect(stagesOf([op(true)])[0].type).toBe("job.label");
+    expect(stagesOf([op()])[0].type).toBe("job.label"); // no flag: an analysis
+  });
+});

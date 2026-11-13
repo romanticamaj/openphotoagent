@@ -22,15 +22,17 @@ const progressOf = (o: Op) => (o.progress ?? {}) as Progress;
 type Stage = { type: string; done: number; total: number; eta: Op["eta"]; started?: string | null };
 
 /** Several folders can be in the same stage: one bar for the stage, the folders listed underneath. */
-function stagesOf(ops: Op[]): Stage[] {
+export function stagesOf(ops: Op[]): Stage[] {
   return STAGES.flatMap((type) => {
     const list = ops.filter((o) => o.type === type);
     if (!list.length) return [];
+    // an organize that asks no model (依日期) is 「整理」, not 「AI 分析」 (ACT-020, OP-025)
+    const noAi = type === "job.label" && list.every((o) => (o.subject as { uses_ai?: boolean } | undefined)?.uses_ai === false);
     const sum = (f: (p: Progress) => number | undefined) => list.reduce((n, o) => n + (f(progressOf(o)) ?? 0), 0);
     const run = list.find((o) => o.status === "running");
     return [
       {
-        type,
+        type: noAi ? "job.organize" : type,
         done: sum((p) => p.done),
         total: sum((p) => p.total),
         eta: list.find((o) => o.status === "running" && o.eta)?.eta ?? null,

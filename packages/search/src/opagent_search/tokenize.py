@@ -245,6 +245,28 @@ class Tokenizer:
         """The scenes an activity implies (ADR-0032 addendum): 衝浪 happens at the sea or a beach."""
         return set(self._implies.get(key or "", set()))
 
+    def without_eating(self, text: str) -> str:
+        """吃 beside only foods, or words the vocabulary does not know, is eating that thing: 「吃蛋糕」 is 「蛋糕」 and
+        「吃香蕉」 「香蕉」 (SRCH-TOK-023). Beside anything else (a place), or alone, it stays a concept."""
+        cs = self.concepts(text)
+        verbs = [c for c in cs if self.ranks_beside(c.key)]
+        others = [c for c in cs if c not in verbs]
+        if not verbs or not others:
+            return text
+        for c in others:
+            if c.key is None and c.word.isascii():
+                return text
+            if c.key is not None and not any(c.key.split(".")[0] == g for v in verbs for g in self.ranks_beside(v.key)):
+                return text
+        out = text
+        for v in verbs:
+            out = (
+                re.sub(rf"(?<![a-z]){re.escape(v.word)}(?![a-z])", " ", out, count=1)
+                if v.word.isascii()
+                else out.replace(v.word, " ", 1)
+            )
+        return re.sub(r"\s+", " ", out).strip()
+
     def ranks_beside(self, key: str | None) -> set[str]:
         """The kinds of term beside which this one only ranks (SRCH-CNC-020): 吃 beside a food is eating that food."""
         return set(self._beside.get(key or "", set()))

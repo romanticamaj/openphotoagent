@@ -1073,7 +1073,8 @@
       "job.label": "AI 分析",
       "output.apply": "複製檔案",
       "output.undo": "復原",
-      "face.cluster": "分組人臉"
+      "face.cluster": "分組人臉",
+      "job.organize": "整理"
     },
     "preparing": "準備中：載入 AI 模型…",
     "now": "正在分析",
