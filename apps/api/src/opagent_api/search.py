@@ -580,10 +580,11 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                 mode = "words"
                 member.append(_ft_cond(to_tsquery_alts(pq.words, pq.alts), pq.english, "w"))
                 if len(hits) < MIN_WORD_HITS and pq.bigram:
-                    more = _ft(c, where, to_tsquery(pq.bigram), "")
+                    bq = tokenizer().bigram_query(q) or to_tsquery(pq.bigram)  # any of a term's names (SRCH-TOK-025)
+                    more = _ft(c, where, bq, "")
                     if len(more) > len(hits):
                         hits, mode = list(dict.fromkeys(hits + more)), "bigram"
-                        member.append(_ft_cond(to_tsquery(pq.bigram), "", "b"))
+                        member.append(_ft_cond(bq, "", "b"))
                 routes["fulltext"] = hits
             if pq.tag_keys:
                 member.append(search_doc.c.tags.overlap(pq.tag_keys))

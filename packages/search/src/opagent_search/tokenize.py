@@ -24,8 +24,8 @@ from typing import Any
 import yaml
 from opagent_core.vocabularies import VOCAB_DIR
 
-# @11 車 (ADR-0048); @10 吃, 爬山, 彈跳床; @9 SRCH-TOK-021; @8 SRCH-CNC-019; @7 SRCH-CNC-018; @6 SRCH-TOK-020
-TOKENIZER_VERSION = "jieba-zh-hant@11+opencc-s2twp+bigram"
+# @12 SRCH-TOK-025; @11 車; @10 吃, 爬山, 彈跳床; @9 SRCH-TOK-021; @8 SRCH-CNC-019; @7 SRCH-CNC-018
+TOKENIZER_VERSION = "jieba-zh-hant@12+opencc-s2twp+bigram"
 # Names that hold a vocabulary word but are not that thing: a caption reading a sign 「日落大道」 (Sunset Blvd) is not a
 # sunset (SRCH-TOK-018). Weighed above the vocabulary's words, so the name is one word.
 NAMES = ("日落大道", "夕陽大道")
@@ -190,6 +190,10 @@ class Tokenizer:
             self._implies[t["id"]] = set(t.get("implies") or [])
             self._includes[t["id"]] = set(t.get("includes") or [])
             self._beside[t["id"]] = set(t.get("ranks_beside") or [])
+            # words a caption uses for it that already name another term: 球 is in 足球, 踢球 (SRCH-TOK-025); matched in
+            # text only, never a name of this term, never a new word to the segmenter
+            for f in t.get("text_forms") or []:
+                self._forms.setdefault(t["id"], []).append(normalize(f))
             for s in [t["zh"], t["en"], *t.get("synonyms", [])]:
                 self._index.setdefault(normalize(s), t["id"])
                 self.custom_words.append(s)
@@ -246,6 +250,21 @@ class Tokenizer:
     def implied(self, key: str | None) -> set[str]:
         """The scenes an activity implies (ADR-0032 addendum): 衝浪 happens at the sea or a beach."""
         return set(self._implies.get(key or "", set()))
+
+    def bigram_query(self, text: str) -> str:
+        """The character-pair fallback (05 §1.3 rule 3) as a tsquery: each word's pairs AND-ed; a vocabulary word by
+        any of its Chinese names, OR-ed, so 沙灘 and 海邊 find the same photos (SRCH-TOK-025)."""
+        parts: list[str] = []
+        for w in self.words(text):
+            if not _CJK.search(w):
+                continue
+            k = self.tag_key(w)
+            names = [f for f in self._forms_of(k) if _CJK.fullmatch(f) and len(f) > 1] if k else []
+            names = list(dict.fromkeys([normalize(w), *names])) if names else [normalize(w)]
+            groups = [to_tsquery(self.bigrams(n)) for n in names if self.bigrams(n)]
+            if groups:
+                parts.append(groups[0] if len(groups) == 1 else "(" + " | ".join(f"({g})" for g in groups) + ")")
+        return " & ".join(parts)
 
     def without_verbs(self, text: str) -> str:
         """A light verb before other words is not something a photo shows: 「去爬山」 is 「爬山」, 「搭飛機」 「飛機」

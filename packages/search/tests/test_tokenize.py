@@ -324,3 +324,22 @@ def test_srch_tok_024_a_verb_before_a_thing_is_that_thing(q, out):
     """回歸 (audit round 73): 「去爬山」「跳彈跳床」「堆沙堡」 said 「沒有照片拍到「去」」 above what the rest found: the
     verb stood as a concept no photo shows. Like 吃 (SRCH-TOK-023), a light verb before other words leaves the query."""
     assert Tokenizer().without_verbs(q).strip() == out
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-025")
+def test_srch_tok_025_one_concept_reads_the_same_by_any_of_its_names():
+    """回歸 (audit round 77): 「沙灘」 found 4 and 「海邊」 6, one term: the character-pair fallback took the pairs of
+    the word as typed only. A known word's pairs are any of its names'. 「球」 found 51 and 「足球」 120: captions say
+    足球, 踢球, 籃球, one word each to the segmenter, never 球 alone. 公園 includes 遊樂場, where its slides are."""
+    tok = Tokenizer()
+    a, b = tok.bigram_query("沙灘"), tok.bigram_query("海邊")
+    assert "§沙灘" in a and "§海邊" in a and "|" in a
+    assert set(a.replace("(", "").replace(")", "").split(" | ")) == set(
+        b.replace("(", "").replace(")", "").split(" | ")
+    )
+    assert tok.bigram_query("長頸鹿") == to_tsquery(tok.bigrams("長頸鹿"))
+    forms = tok.concepts("球")[0].forms
+    assert {"足球", "踢球", "籃球"} <= set(forms)
+    assert tok.tag_key("足球") == "activity.soccer"  # 足球 still names soccer
+    assert "scene.playground" in tok.included("scene.park")
