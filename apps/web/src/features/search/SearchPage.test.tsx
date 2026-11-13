@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "../../lib/i18n";
 
@@ -205,6 +205,22 @@ describe("a theme's chip is named (audit round 81)", () => {
     expect(screen.queryByText("activity.crafts")).toBeNull();
     // the page is the theme's, not 「搜尋結果」 (audit round 83)
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("2026 的手工");
+    s.result = null;
+  });
+});
+
+describe("a theme's title is its chips' (audit round 84)", () => {
+  it("[SRCH-UI-039] 回歸：移除主題的標籤或年份晶片後，標題回到「搜尋結果」", async () => {
+    s.result = { items: [], facets: {}, total: 0, next_cursor: null, degraded: [], possible_total: 0, possible: [], tag_names: { "activity.crafts": "手工" } };
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SearchPage q="" tag="activity.crafts" year="2026" />
+      </QueryClientProvider>,
+    );
+    await screen.findByText("找不到符合的照片");
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("2026 的手工");
+    screen.getByRole("button", { name: "移除 手工" }).click();
+    await waitFor(() => expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("搜尋結果"));
     s.result = null;
   });
 });

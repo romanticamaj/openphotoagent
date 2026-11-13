@@ -1153,15 +1153,17 @@ body {
 .memory-theme-title { overflow: hidden; text-overflow: ellipsis; }
 
 /* a narrow window (VIEW-049): the sidebar becomes a drawer behind 「選單」, the top bar keeps the search box */
-.nav-toggle { display: none; }
+.nav-toggle, .nav-scrim { display: none; }
 @media (max-width: 720px) {
   .shell { grid-template-columns: minmax(0, 1fr); }
   .shell > .sidebar {
     position: fixed; top: 48px; bottom: 0; left: 0; z-index: 40; width: min(260px, 85vw);
     transform: translateX(-100%); transition: transform 180ms ease; box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
   }
-  .shell[data-nav-open="true"] > .sidebar { transform: none; }
-  .nav-scrim { position: fixed; inset: 48px 0 0 0; z-index: 39; background: rgb(0 0 0 / 0.4); }
+  /* closed, its links leave the Tab order too (VIEW-050: 12 presses went off-screen) */
+  .shell:not([data-nav-open="true"]) > .sidebar { visibility: hidden; transition: transform 180ms ease, visibility 0s 180ms; }
+  .shell[data-nav-open="true"] > .sidebar { transform: none; visibility: visible; }
+  .nav-scrim { display: block; position: fixed; inset: 48px 0 0 0; z-index: 39; background: rgb(0 0 0 / 0.4); }
   .nav-toggle {
     display: inline-flex; flex: none; padding: 4px 10px; border: 1px solid var(--border);
     border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit;

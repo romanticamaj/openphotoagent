@@ -154,7 +154,9 @@ function Shell() {
   const faces = useQuery({ queryKey: ["face-settings"], queryFn: api.faceSettings, staleTime: 30_000 });
   const pending = useQuery({ queryKey: ["reviews", "count"], queryFn: () => api.reviewCount(), refetchInterval: 10_000 });
   const path = useRouterState({ select: (st) => st.location.pathname });
-  const drawer = useNavDrawer(path); // the sidebar folds away in a narrow window (VIEW-049)
+  const menuButton = useRef<HTMLButtonElement>(null);
+  const sidebar = useRef<HTMLDivElement>(null);
+  const drawer = useNavDrawer(path, { toggle: menuButton, panel: sidebar }); // a drawer in a narrow window (VIEW-049/050)
   return (
     <div className="shell" data-single-user={caps.data ? String(caps.data.single_user) : undefined} data-nav-open={drawer.open ? "true" : undefined}>
       {/* the first Tab: past the search box and the sidebar, to the page's photos (A11Y-013) */}
@@ -171,7 +173,7 @@ function Shell() {
         {t("app.skipToMain")}
       </a>
       <header className="topbar">
-        <button type="button" className="nav-toggle" aria-expanded={drawer.open} aria-controls="app-sidebar" onClick={drawer.toggle}>
+        <button ref={menuButton} type="button" className="nav-toggle" aria-expanded={drawer.open} aria-controls="app-sidebar" onClick={drawer.toggle}>
           {t("nav.menu")}
         </button>
         <strong className="app-name">{t("app.title")}</strong>
@@ -197,7 +199,7 @@ function Shell() {
       </header>
       {/* the nav and the progress card share the sidebar column: the card never covers 設定 (ACT-010) */}
       {drawer.open ? <div className="nav-scrim" aria-hidden="true" onClick={drawer.close} /> : null}
-      <div className="sidebar" id="app-sidebar">
+      <div className="sidebar" id="app-sidebar" ref={sidebar}>
       <nav className="sidenav" aria-label={t("nav.label")}>
         {navSections(Boolean(faces.data?.enabled)).map((g) => (
           <div key={g.key} className="sidenav-group">

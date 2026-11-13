@@ -103,6 +103,7 @@
 | SRCH-UI-036 | 只有可能相關時，標題旁不寫「0 張」（回歸，驗證第 76 輪） | 0 張、可能相關 1 張 | 「沒有確定符合的照片」，沒有 result-count | C | #— |
 | SRCH-UI-037 | /search 帶 tag 與 year 時以標籤與年份篩選（回憶主題的「看全部」） | q 空、tag activity.soccer、year 2025 | q null；tags_all、taken_from／to 2025 | C | #— |
 | SRCH-UI-038 | 從主題來的標籤晶片顯示名稱（回歸，驗證第 81 輪） | tag activity.crafts，tag_names 手工 | 晶片「手工」；頁面標題「2026 的手工」（第 83 輪） | C | #— |
+| SRCH-UI-039 | 移除主題的晶片後標題回到「搜尋結果」（回歸，驗證第 84 輪） | 主題頁移除「手工」 | 「搜尋結果」 | C | #— |
 | ASK-UI-020 | 從其他頁面把問題交給問 AI（ADR-0048） | askAbout("爬山的照片") | 聽的人收到同一句；卸載後不再收到 | C | #— |
 | ASK-UI-021 | 面板還沒載入時送出的問題，面板打開時仍帶入（回歸，驗證第 71 輪：34 次都打開空白） | askAbout 早於面板掛上 | takePendingAsk 拿到一次；有人聽時直接交給他 | C | #— |
 | CORE-LUNAR-001 | 初一對照表 | `opagent_core.lunar` | 1900–2099 每年一筆；2024-02-10、2025-01-29、2026-02-17、2030-02-03 正確；`gen_lunar_table.py --check` 一致 | U | #62 |
