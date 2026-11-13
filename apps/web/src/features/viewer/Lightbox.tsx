@@ -14,15 +14,19 @@ import { api, mediaUrl, preparePreview, type AssetInfo, type TimelineAsset } fro
 import { platform } from "../../lib/platform";
 import { placeholder } from "../../lib/thumbhash";
 import type { GridApi } from "./PhotoGrid";
+import { memoryGrid } from "../memories/OnThisDay";
 
 // 「問這張」 loads with the ask chunk, not with the photos route (PERF-003)
 const AskPhoto = lazy(() => import("../ask/AskPanel").then((m) => ({ default: m.AskPhoto })));
 
 const FILM = 7;
 
-export function Lightbox({ start, grid, onClose }: { start: number; grid: GridApi; onClose: (assetId: string | null) => void }) {
+export function Lightbox({ start, grid: outer, onClose }: { start: number; grid: GridApi; onClose: (assetId: string | null) => void }) {
   const { t, i18n } = useTranslation();
   const [ord, setOrd] = useState(start);
+  // a photo's folded near-duplicates, looked through in place; 「返回全部照片」 goes back where it was (VIEW-052)
+  const [copies, setCopies] = useState<{ grid: GridApi; back: number } | null>(null);
+  const grid = copies?.grid ?? outer;
   const [asset, setAsset] = useState<TimelineAsset | null>(null);
   const [assetOrd, setAssetOrd] = useState<number | null>(null); // which photo `asset` is: it arrives after ord moves
   const [favWanted, setFavWanted] = useState<number | null>(null); // F pressed before that photo was in (COL-013)
@@ -76,6 +80,12 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
 
   // turned in the app (ROT-003): shown at once, kept in the library, the file is not touched
   const qcr = useQueryClient();
+  const dups = useQuery({
+    queryKey: ["asset-duplicates", asset?.id],
+    queryFn: () => api.assetDuplicates(asset!.id),
+    enabled: Boolean(asset) && !copies,
+    staleTime: 60_000,
+  });
   const [turns, setTurns] = useState<Record<string, number>>({});
   const rot = asset ? (turns[asset.id] ?? asset.rot ?? 0) : 0;
   const rotate = useCallback(() => {
@@ -193,6 +203,30 @@ export function Lightbox({ start, grid, onClose }: { start: number; grid: GridAp
             wanted={favWanted !== null && favWanted === ord && assetOrd === ord}
             done={() => setFavWanted(null)}
           />
+        ) : null}
+        {copies ? (
+          <button
+            type="button"
+            className="rounded-[var(--radius-sm)] px-2 py-1 text-sm hover:bg-[var(--surface-2)]"
+            onClick={() => {
+              setOrd(copies.back);
+              setCopies(null);
+            }}
+          >
+            {t("lightbox.copiesBack")}
+          </button>
+        ) : asset && (dups.data?.photos.length ?? 0) > 1 ? (
+          <button
+            type="button"
+            className="rounded-[var(--radius-sm)] px-2 py-1 text-sm hover:bg-[var(--surface-2)]"
+            onClick={() => {
+              const photos = dups.data!.photos;
+              setCopies({ grid: memoryGrid(photos.map((p) => ({ id: p.asset_id, ch: p.ch ?? undefined, rot: p.rot }))), back: ord });
+              setOrd(0);
+            }}
+          >
+            {t("lightbox.copies", { n: (dups.data!.photos.length - 1).toLocaleString(i18n.language) })}
+          </button>
         ) : null}
         {asset ? <FavoriteButton assetId={asset.id} /> : null}
         {asset ? <AddToAlbum assetIds={[asset.id]} /> : null}

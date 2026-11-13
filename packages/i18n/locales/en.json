@@ -525,7 +525,9 @@
       "info": "Info",
       "zoom": "Zoom in, out, fit",
       "close": "Close"
-    }
+    },
+    "copies": "{n} near-duplicates",
+    "copiesBack": "Back to all photos"
   },
   "onboarding": {
     "welcome": "Welcome to OpenPhotoAgent",

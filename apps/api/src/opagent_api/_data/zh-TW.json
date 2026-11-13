@@ -525,7 +525,9 @@
       "info": "資訊",
       "zoom": "放大、縮小、原尺寸",
       "close": "關閉"
-    }
+    },
+    "copies": "另有 {n} 張近似重複",
+    "copiesBack": "返回全部照片"
   },
   "onboarding": {
     "welcome": "歡迎使用 OpenPhotoAgent",

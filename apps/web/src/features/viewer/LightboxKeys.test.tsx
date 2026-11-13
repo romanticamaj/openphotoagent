@@ -25,6 +25,10 @@ vi.mock("../../lib/api", async (orig) => ({
     roots: async () => [{ alias: "photos", mode: "rw" }],
     createSelection: async (b: { asset_ids: string[] }) => (s.select(b), { id: "sel1", count: 1 }),
     selectionTrash: async (id: string) => (s.trash(id), { plan_id: "p1", job_id: "j1", trash: 1 }),
+    assetDuplicates: async (id: string) =>
+      id === "p0"
+        ? { photos: [{ asset_id: "p0", ch: null }, { asset_id: "d1", ch: null }, { asset_id: "d2", ch: null }] }
+        : { photos: [{ asset_id: id, ch: null }] },
   },
 }));
 vi.mock("@tanstack/react-router", async (orig) => ({
@@ -224,3 +228,21 @@ describe("Delete in the Lightbox (audit round 61)", () => {
   });
 });
 
+
+describe("a photo's folded copies (audit round 87)", () => {
+  it("[VIEW-052] 回歸：燈箱裡有近似重複的照片顯示「另有 2 張近似重複」，點了看那一組，「返回」回到原處（驗證第 87 輪：+N 打不開）", async () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Lightbox start={0} grid={grid} onClose={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    const open = await screen.findByRole("button", { name: "另有 2 張近似重複" });
+    fireEvent.click(open);
+    await waitFor(() => expect(screen.getByTestId("lightbox-position").textContent).toBe("第 1 張，共 3 張"));
+    fireEvent.keyDown(screen.getByTestId("lightbox"), { key: "ArrowRight" });
+    await waitFor(() => expect(screen.getByTestId("lightbox-position").textContent).toBe("第 2 張，共 3 張"));
+    fireEvent.click(screen.getByRole("button", { name: "返回全部照片" }));
+    await waitFor(() => expect(screen.getByTestId("lightbox-position").textContent).toBe("第 1 張，共 3 張"));
+    expect(screen.getByRole("button", { name: "另有 2 張近似重複" })).toBeTruthy();
+  });
+});

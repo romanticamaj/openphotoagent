@@ -3749,6 +3749,48 @@
         "summary": "Get Asset"
       }
     },
+    "/api/v1/assets/{asset_id}/duplicates": {
+      "get": {
+        "description": "A photo's near-duplicate group, its kept photo first (SRCH-DUP-011): what 「+N」 on a search result opens. A\nphoto in no group is a group of one. Rows only.",
+        "operationId": "asset_duplicates_api_v1_assets__asset_id__duplicates_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "asset_id",
+            "required": true,
+            "schema": {
+              "title": "Asset Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Asset Duplicates Api V1 Assets  Asset Id  Duplicates Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Asset Duplicates"
+      }
+    },
     "/api/v1/assets/{asset_id}/favorite": {
       "delete": {
         "operationId": "unfavorite_api_v1_assets__asset_id__favorite_delete",

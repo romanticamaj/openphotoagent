@@ -1454,3 +1454,20 @@ def test_srch_dup_010_browsing_says_how_many_near_duplicates_are_folded(s):
     s.sql("insert into duplicate_member(group_id, asset_id, is_representative) values ('g', :a, false)", a=ids[2])
     res = s.search(q=None, semantic=False)
     assert res["total"] == 2 and res["collapsed"] == 2
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-DUP-011")
+def test_srch_dup_011_a_photos_folded_copies_can_be_opened(s):
+    """回歸 (audit round 87): 「+2」 said a photo held near-duplicates, but nothing opened them. The group of a photo,
+    its kept photo first, with what the viewer needs to show each; a photo in no group is a group of one."""
+    ids = [s.add(i, caption=f"圖{i}") for i in range(4)]
+    s.index()
+    for aid, rep in ((ids[0], True), (ids[1], False), (ids[2], False)):
+        s.sql("insert into duplicate_member(group_id, asset_id, is_representative) values ('g', :a, :r)", a=aid, r=rep)
+    r = s.client.get(f"/api/v1/assets/{ids[0]}/duplicates")
+    assert r.status_code == 200, r.text
+    got = r.json()["photos"]
+    assert got[0]["asset_id"] == ids[0] and {p["asset_id"] for p in got} == set(ids[:3])
+    assert all("ch" in p for p in got)
+    assert [p["asset_id"] for p in s.client.get(f"/api/v1/assets/{ids[3]}/duplicates").json()["photos"]] == [ids[3]]

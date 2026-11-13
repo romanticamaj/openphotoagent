@@ -93,6 +93,46 @@ def list_duplicates(req: Request) -> dict[str, Any]:
     return {"groups": groups}
 
 
+@router.get("/assets/{asset_id}/duplicates")
+def asset_duplicates(asset_id: str, req: Request) -> dict[str, Any]:
+    """A photo's near-duplicate group, its kept photo first (SRCH-DUP-011): what 「+N」 on a search result opens. A
+    photo in no group is a group of one. Rows only."""
+    with _st(req).engine.begin() as c:
+        gid = c.execute(select(duplicate_member.c.group_id).where(duplicate_member.c.asset_id == asset_id)).scalar()
+        ids = (
+            [
+                r[0]
+                for r in c.execute(
+                    select(duplicate_member.c.asset_id)
+                    .where(duplicate_member.c.group_id == gid)
+                    .order_by(duplicate_member.c.is_representative.desc(), duplicate_member.c.asset_id)
+                )
+            ]
+            if gid
+            else [asset_id]
+        )
+        rows = {
+            r.id: r
+            for r in c.execute(
+                select(asset.c.id, asset.c.content_hash, asset.c.rotation, asset.c.taken_at).where(
+                    asset.c.workspace_id == DEFAULT_WS, asset.c.id.in_(ids)
+                )
+            )
+        }
+    return {
+        "photos": [
+            {
+                "asset_id": a,
+                "ch": rows[a].content_hash,
+                "rot": rows[a].rotation,
+                "taken_at": rows[a].taken_at.isoformat() if rows[a].taken_at else None,
+            }
+            for a in ids
+            if a in rows
+        ]
+    }
+
+
 def regroup(st: Any, c: Any) -> int:
     """Near-duplicate groups from stored hashes and vectors, the previous ones replaced in the same transaction. Run
     when an analysis finishes (SRCH-DUP-005): nothing called the route, the groups stayed empty and search counted

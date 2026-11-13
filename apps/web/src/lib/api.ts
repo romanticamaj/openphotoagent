@@ -413,6 +413,9 @@ export const api = {
   approve: (id: string, body: { move_confirmed?: boolean; confirm_text?: string } = {}) => req<Plan>("POST", `/output-plans/${id}/approve`, body),
   undo: (id: string) => req<Plan>("POST", `/output-plans/${id}/undo`),
   duplicates: () => req<{ groups: DuplicateGroup[] }>("GET", "/duplicates"),
+  /** a photo's near-duplicate group, its kept photo first (SRCH-DUP-011) */
+  assetDuplicates: (id: string) =>
+    req<{ photos: Array<{ asset_id: string; ch: string | null; rot?: number; taken_at?: string | null }> }>("GET", `/assets/${encodeURIComponent(id)}/duplicates`),
   cleanupPlan: (group_ids: string[]) => req<{ plan_id: string; trash: number }>("POST", "/duplicates/cleanup-plan", { group_ids }),
   recommendation: (worker_id: string) => req<Recommendation>("GET", `/onboarding/recommendation?worker_id=${encodeURIComponent(worker_id)}`),
   installCombo: (worker_id: string, variants: string[]) =>
