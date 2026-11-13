@@ -131,8 +131,10 @@ terms:
   - { id: food.pizza, zh: 披薩, en: pizza, group: 物件, synonyms: [比薩], suggest: [food.meal] }
   - { id: food.sushi, zh: 壽司, en: sushi, group: 物件, synonyms: [], suggest: [food.meal] }
   - { id: food.drink, zh: 飲料, en: drink, group: 物件, synonyms: [果汁, 奶茶, 飲品], suggest: [food.meal] }
+  - { id: food.hotpot, zh: 火鍋, en: hotpot, group: 物件, synonyms: [涮涮鍋, 麻辣鍋], suggest: [food.meal] }
+  - { id: food.steak, zh: 牛排, en: steak, group: 物件, synonyms: [排餐], suggest: [food.meal] }
   - { id: food.tea, zh: 茶, en: tea, group: 物件, synonyms: [], suggest: [food.meal] }
-  - { id: food.meal, zh: 食物, en: food, group: 物件, synonyms: [餐點, 料理, 菜餚, 美食, 火鍋, 牛排, hotpot, steak] }
+  - { id: food.meal, zh: 食物, en: food, group: 物件, synonyms: [餐點, 料理, 菜餚, 美食] }
   - { id: event.graduation, zh: 畢業, en: graduation, group: 活動, synonyms: [畢業典禮] }
   - { id: event.christmas, zh: 聖誕節, en: christmas, group: 活動, synonyms: [聖誕, 耶誕] }
   - { id: event.sports_day, zh: 運動會, en: sports day, group: 活動, synonyms: [] }
