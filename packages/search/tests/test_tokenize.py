@@ -347,3 +347,13 @@ def test_srch_tok_025_one_concept_reads_the_same_by_any_of_its_names():
     assert "scene.playground" not in tok.included("scene.park")
     assert tok.words("籃球場") == ["籃球場"] and tok.tag_key("籃球場") == "scene.sports_field"  # not 籃球 + 場
     assert tok.words("籃球架") == ["籃球架"]  # a hoop tag is not basketball being played (audit round 79)
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-026")
+def test_srch_tok_026_a_christmas_hat_is_a_hat():
+    """回歸 (audit round 82): 「聖誕帽」 said no photo shows 「帽」 while 「帽子」 found 2: there was no hat in the
+    vocabulary, so 聖誕 and 帽 were two words no photo had."""
+    tok = Tokenizer()
+    assert tok.words("聖誕帽") == ["聖誕帽"] and tok.tag_key("聖誕帽") == "object.hat"
+    assert tok.tag_key("帽子") == "object.hat" and tok.vector_text("聖誕帽") == "hat"

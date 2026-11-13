@@ -88,6 +88,7 @@ terms:
   - { id: object.train, zh: 火車, en: train, group: 物件, synonyms: [列車, 高鐵, 捷運, 電車, trains, tram, subway, metro] }
   - { id: object.airplane, zh: 飛機, en: airplane, group: 物件, synonyms: [班機, plane] }
   - { id: object.boat, zh: 船, en: boat, group: 物件, synonyms: [小船, 遊艇, ship, boats] }
+  - { id: object.hat, zh: 帽子, en: hat, group: 物件, synonyms: [帽, 聖誕帽, 遮陽帽, 棒球帽, hats, cap] }
   - { id: object.umbrella, zh: 雨傘, en: umbrella, group: 物件, synonyms: [傘] }
   - { id: object.mask, zh: 口罩, en: face mask, group: 物件, synonyms: [] }
   - { id: object.table, zh: 桌子, en: table, group: 物件, synonyms: [桌椅, 木桌, 課桌, 桌, 書桌], theme: false }

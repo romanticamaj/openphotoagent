@@ -29,12 +29,13 @@ export function Themes({ onOpen }: { onOpen: (photos: MemoryPhoto[], start: numb
               >
                 {cover ? <img src={mediaUrl(cover.asset_id, "t512", cover.ch)} alt="" loading="lazy" style={turnStyle(cover.rot)} /> : null}
               </button>
-              <p className="flex items-baseline gap-2 text-sm">
-                <span className="font-medium">{title}</span>
+              {/* the title has a line of its own: beside the count and the link it was cut to 「2026 的…」 (audit round 82) */}
+              <p className="memory-theme-title text-sm font-medium" title={title}>{title}</p>
+              <p className="flex items-baseline gap-2 text-xs">
                 <span className="tnum text-[var(--text-muted)]">
                   {t("memories.themeCount", { n: th.count.toLocaleString(i18n.language), k: th.photos.length.toLocaleString(i18n.language) })}
                 </span>
-                <Link to="/search" search={{ q: "", tag: th.key, year: String(th.year) }} className="ml-auto text-xs underline">
+                <Link to="/search" search={{ q: "", tag: th.key, year: String(th.year) }} className="ml-auto underline">
                   {t("memories.themeAll")}
                 </Link>
               </p>

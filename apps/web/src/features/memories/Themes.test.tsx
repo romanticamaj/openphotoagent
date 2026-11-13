@@ -38,5 +38,9 @@ describe("主題 (10 §2.8)", () => {
     // the tag and the year, not the words: the same photos the count is of (MEM-013, audit round 80: 29 → 12 → 33)
     expect(JSON.parse(screen.getByText("看全部").closest("a")?.getAttribute("data-search") ?? "{}")).toEqual({ q: "", tag: "activity.soccer", year: "2025" });
     expect(screen.getByText("120 張 · 精選 2 張")).toBeTruthy();
+    // the title on a line of its own, not beside the count (audit round 82: every title read 「2025 的…」)
+    const title = screen.getByText("2025 的足球");
+    expect(title.tagName).toBe("P");
+    expect(title.textContent).toBe("2025 的足球");
   });
 });
