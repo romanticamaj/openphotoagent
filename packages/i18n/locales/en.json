@@ -1155,7 +1155,8 @@
     "themeTitle": "{name} in {year}",
     "themeOpen": "{title}, {n} photos",
     "themeCount": "{n} photos · {k} picked",
-    "themeAll": "See all"
+    "themeAll": "See all",
+    "events": "Recent events"
   },
   "trash": {
     "move": "Move to trash",

@@ -362,6 +362,59 @@ def memory_themes(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
     }
 
 
+EVENTS_MAX = 8
+
+
+@router.get("/memories/events")
+def memory_events(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
+    """活動 (MEM-016, ADR-0049 addendum 2): days of many photos, newest first, named by what most of them show.
+    Computed when asked; one photo per near-duplicate group, so a count is what that day's search shows. Read-only."""
+    from zoneinfo import ZoneInfo
+
+    from opagent_core.memories import events
+    from opagent_db.schema import duplicate_member, search_doc
+
+    from .labels import LOCAL_TZ, tokenizer
+    from .search import tag_names
+
+    when = func.coalesce(asset.c.local_at, asset.c.taken_at)
+    hidden = select(duplicate_member.c.asset_id).where(duplicate_member.c.is_representative.is_(False))
+    with _st(req).engine.connect() as c:
+        rows = c.execute(
+            select(asset.c.id, asset.c.content_hash, asset.c.rotation, when.label("at"), search_doc.c.tags)
+            .join(search_doc, search_doc.c.asset_id == asset.c.id)
+            .where(asset.c.workspace_id == DEFAULT_WS, when.is_not(None), asset.c.id.notin_(hidden))
+            .order_by(when, asset.c.id)
+        ).all()
+    tz = ZoneInfo(LOCAL_TZ)
+    info = {r.id: r for r in rows}
+    found = events(
+        [(r.id, r.at.astimezone(tz).date() if r.at.tzinfo else r.at.date(), list(r.tags or [])) for r in rows],
+        skip=tokenizer().not_themes(),
+    )[:EVENTS_MAX]
+    names = tag_names([e.key for e in found if e.key], lang)
+    return {
+        "events": [
+            {
+                "day": e.day.isoformat(),
+                "key": e.key,
+                "name": names.get(e.key, e.key) if e.key else None,
+                "count": e.count,
+                "photos": [
+                    {
+                        "asset_id": a,
+                        "ch": info[a].content_hash,
+                        "rot": info[a].rotation,
+                        "taken_at": info[a].at.isoformat(),
+                    }
+                    for a in e.asset_ids
+                ],
+            }
+            for e in found
+        ]
+    }
+
+
 @router.get("/timeline/buckets")
 def buckets(req: Request) -> dict[str, Any]:
     """Per-month counts, newest first; photos with no usable date go to ``unknown`` (10 §2.3)."""

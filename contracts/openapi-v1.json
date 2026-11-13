@@ -6796,6 +6796,49 @@
         "summary": "Remove Member"
       }
     },
+    "/api/v1/memories/events": {
+      "get": {
+        "description": "活動 (MEM-016, ADR-0049 addendum 2): days of many photos, newest first, named by what most of them show.\nComputed when asked; one photo per near-duplicate group, so a count is what that day's search shows. Read-only.",
+        "operationId": "memory_events_api_v1_memories_events_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "lang",
+            "required": false,
+            "schema": {
+              "default": "zh-TW",
+              "title": "Lang",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Memory Events Api V1 Memories Events Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Memory Events"
+      }
+    },
     "/api/v1/memories/on-this-day": {
       "get": {
         "description": "那年今日 (10 §2.8, MEM-001): photos taken within ±3 days of today's date in each earlier year, newest year\nfirst, at most 30 years back; one photo per near-duplicate group. Read-only.",

@@ -129,3 +129,22 @@ def test_mem_014_a_themes_cover_says_its_subject(embedded_pg, tmp_path):
     assert t["photos"][0]["asset_id"] == ids[4]
     assert {p["asset_id"] for p in t["photos"]} == set(ids)  # the same photos, the cover first
     x.eng.dispose()
+
+
+@pytest.mark.integration
+@pytest.mark.tc("MEM-016")
+def test_mem_016_events_are_days_of_many_photos(embedded_pg, tmp_path):
+    """活動 (ADR-0049 addendum 2): a day with many photos, named by what most of them show; newest first; one photo
+    per near-duplicate group, so its count is what the day's search shows. Read-only."""
+    x = M(embedded_pg.dsn, tmp_path)
+    for i in range(16):
+        x.add(f"s{i}.jpg", tags=("足球",), taken=datetime(2025, 11, 13, 9, i, tzinfo=UTC))
+    for i in range(3):
+        x.add(f"o{i}.jpg", taken=datetime(2025, 11, 20, 9, i, tzinfo=UTC))
+    x.index()
+    r = x.client.get("/api/v1/memories/events", headers=x.ui)
+    assert r.status_code == 200, r.text
+    ev = r.json()["events"]
+    assert [(e["day"], e["key"], e["name"], e["count"]) for e in ev] == [("2025-11-13", "activity.soccer", "足球", 16)]
+    assert len(ev[0]["photos"]) == 12 and all(p["ch"] for p in ev[0]["photos"])
+    x.eng.dispose()

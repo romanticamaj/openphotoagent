@@ -1155,7 +1155,8 @@
     "themeTitle": "{year} 的{name}",
     "themeOpen": "{title}，{n} 張",
     "themeCount": "{n} 張 · 精選 {k} 張",
-    "themeAll": "看全部"
+    "themeAll": "看全部",
+    "events": "最近的活動"
   },
   "trash": {
     "move": "移到垃圾桶",

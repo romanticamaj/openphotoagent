@@ -377,6 +377,8 @@ export const api = {
     req<FolderPreview>("GET", `/fs/preview?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`),
   folderThumb: (root: string, path: string) =>
     req<{ thumbnail_b64: string }>("GET", `/fs/thumb?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`),
+  memoryEvents: (lang: string) =>
+    req<{ events: Array<{ day: string; key: string | null; name: string | null; count: number; photos: Array<{ asset_id: string; ch: string | null; rot?: number; taken_at?: string | null }> }> }>("GET", `/memories/events?lang=${encodeURIComponent(lang)}`),
   memoryThemes: (lang: string) =>
     req<{ themes: Array<{ year: number; key: string; name: string; count: number; photos: Array<{ asset_id: string; ch: string | null; taken_at: string | null; rot?: number }> }> }>("GET", `/memories/themes?lang=${encodeURIComponent(lang)}`),
   onThisDay: () => req<{ today: string; groups: Array<{ year: number; years_ago: number; total?: number; photos: Array<{ asset_id: string; ch: string | null; taken_at: string | null; rot?: number }> }> }>("GET", "/memories/on-this-day"),

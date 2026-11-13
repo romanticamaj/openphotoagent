@@ -56,3 +56,24 @@ def test_mem_013_a_theme_counts_what_see_all_shows_and_does_not_repeat_another()
     out = themes(rows, min_count=8, max_overlap=0.5, hidden={"2025-0001"})
     assert [(t.key, t.count) for t in out] == [("activity.soccer", 40)]  # 運動場: 30 of 40 are 足球's
     assert "2025-0001" not in out[0].asset_ids
+
+
+@pytest.mark.unit
+@pytest.mark.tc("MEM-015")
+def test_mem_015_a_day_of_many_photos_is_an_event():
+    """活動 (10 §2.8, audit rounds 93-98: memories were only 「year + tag」 cards). A day with at least ``min_photos``
+    photos is an event, newest first, named by the subject most of its photos share and that is not true of most days;
+    each with up to ``shown`` photos spread over the day."""
+    from datetime import date
+
+    from opagent_core.memories import events
+
+    rows = [(f"a{i}", date(2025, 11, 13), ["activity.soccer", "people.child"]) for i in range(20)]
+    rows += [(f"b{i}", date(2025, 12, 1), ["activity.drawing"]) for i in range(5)]  # too few
+    rows += [(f"c{i}", date(2026, 3, 2), ["people.child"]) for i in range(16)]  # no subject: named by the date only
+    out = events(rows, min_photos=15, shown=12, skip={"people.child"})
+    assert [(e.day.isoformat(), e.key, e.count) for e in out] == [
+        ("2026-03-02", None, 16),
+        ("2025-11-13", "activity.soccer", 20),
+    ]
+    assert len(out[1].asset_ids) == 12 and out[1].asset_ids[0] == "a0" and out[1].asset_ids[-1] == "a19"

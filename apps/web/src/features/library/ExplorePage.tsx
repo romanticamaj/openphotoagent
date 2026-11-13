@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { Button } from "../../components/Button";
 import { api, mediaUrl, type SearchBody } from "../../lib/api";
 import { memoryGrid } from "../memories/OnThisDay";
+import { Events } from "../memories/Events";
 import { Themes } from "../memories/Themes";
 import { Lightbox } from "../viewer/Lightbox";
 import type { GridApi } from "../viewer/PhotoGrid";
@@ -115,6 +116,7 @@ export function ExplorePage({ initial = null, onPick }: { initial?: Pick; onPick
         ) : null}
       </header>
       {/* a year's frequent subjects, before the counts (MEM-011) */}
+      {!pick ? <Events onOpen={(photos, start) => setMemory({ start, grid: memoryGrid(photos) })} /> : null}
       {!pick ? <Themes onOpen={(photos, start) => setMemory({ start, grid: memoryGrid(photos) })} /> : null}
       {/* each row says what it is: 類別 (one per photo) and 標籤 (any number) were two unlabelled rows (IMP-038) */}
       <section aria-labelledby="explore-cat-h" className="explore-row">

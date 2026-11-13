@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass
+from datetime import date
 
 
 @dataclass(frozen=True)
@@ -61,4 +62,39 @@ def themes(
             taken.append(mine)
             shown_ids = [a for a in ids if a not in hidden]
             out.append(Theme(year=year, key=k, count=n, asset_ids=tuple(_spread(shown_ids, shown))))
+    return out
+
+
+@dataclass(frozen=True)
+class Event:
+    day: date
+    key: str | None  # the subject most of its photos share, or none: named by the date only
+    count: int
+    asset_ids: tuple[str, ...]
+
+
+def events(
+    rows: list[tuple[str, date, list[str]]],
+    *,
+    min_photos: int = 15,
+    shown: int = 12,
+    skip: set[str] | frozenset[str] = frozenset(),
+    share: float = 0.4,
+) -> list[Event]:
+    """活動 (MEM-015, ADR-0049 addendum 2): a day with at least ``min_photos`` photos is an event, newest first. It
+    is named by the vocabulary tag on the most of its photos, at least ``share`` of them, leaving out ``skip`` (terms
+    true of any day); with none, by its date alone. ``rows`` are (asset_id, local day, tags) in date order."""
+    by_day: dict[date, list[tuple[str, list[str]]]] = {}
+    for aid, day, tags in rows:
+        by_day.setdefault(day, []).append((aid, tags))
+    out: list[Event] = []
+    for day in sorted(by_day, reverse=True):
+        photos = by_day[day]
+        if len(photos) < min_photos:
+            continue
+        counts = Counter(k for _, tags in photos for k in set(tags) if "." in k and k not in skip)
+        top = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+        key = top[0][0] if top and top[0][1] >= share * len(photos) else None
+        ids = [aid for aid, _ in photos]
+        out.append(Event(day=day, key=key, count=len(photos), asset_ids=tuple(_spread(ids, shown))))
     return out
