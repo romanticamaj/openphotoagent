@@ -616,7 +616,8 @@
     "resultsFor": "Results for “{q}”",
     "moreFailed": "Could not load more photos",
     "retry": "Try again",
-    "loadingMore": "Loading…"
+    "loadingMore": "Loading…",
+    "retrying": "Retrying…"
   },
   "problem": {
     "chosen": "Switched to {what}"

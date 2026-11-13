@@ -334,6 +334,7 @@ describe("load more says when it fails (audit round 102)", () => {
     expect(screen.getByRole("button", { name: "重試" })).toBeTruthy();
     // one way to try again, not two buttons (audit round 103)
     expect(screen.queryByRole("button", { name: /載入更多/ })).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "重試" })); // focus goes with it (round 104)
     s.result = null;
   });
 });
@@ -353,5 +354,25 @@ describe("load more shows it is working (audit round 103)", () => {
     s.result = null; // the next page does not come yet
     more.click();
     expect(await screen.findByRole("button", { name: "載入中…" })).toBeTruthy();
+  });
+});
+
+describe("retry takes focus and shows it works (audit round 104)", () => {
+  it("[SRCH-UI-048] 回歸：載入失敗時焦點到「重試」，重試中寫「重試中…」；載入中再按不會多送（驗證第 104 輪）", async () => {
+    let asked = 0;
+    const hit = (id: string) => ({ asset_id: id, ch: null, score: 1, matched_by: ["tag"], category: null, tags: [], caption: id, taken_at: null });
+    s.result = { items: [hit("a1")], facets: {}, total: 3, next_cursor: "c1", degraded: [], possible_total: 0, possible: [] };
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SearchPage q="貓" />
+      </QueryClientProvider>,
+    );
+    const more = await screen.findByRole("button", { name: /載入更多/ });
+    s.result = null; // pending
+    const before = s.calls;
+    more.click();
+    (await screen.findByRole("button", { name: "載入中…" })).click(); // a second press while it loads
+    asked = s.calls - before;
+    expect(asked).toBe(1);
   });
 });

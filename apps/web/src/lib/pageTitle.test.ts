@@ -114,3 +114,24 @@ describe("a page that places focus itself keeps it (audit round 96)", () => {
     vi.useRealTimers();
   });
 });
+
+describe("a page with no heading (audit round 104)", () => {
+  it("[VIEW-060] 回歸：新頁面沒有標題時，視窗標題是頁面名稱，不留上一頁的（驗證第 104 輪：回到照片，標題還是相簿）", async () => {
+    vi.useFakeTimers();
+    const main = document.createElement("main");
+    main.id = "main";
+    const old = document.createElement("h1");
+    old.textContent = "相簿";
+    main.appendChild(old);
+    document.body.appendChild(main);
+    const t = (k: string) => ({ "nav.albums": "相簿", "nav.photos": "照片" })[k] ?? k;
+    const h = renderHook(({ path }) => usePageArrival(path, t), { initialProps: { path: "/albums" } });
+    h.rerender({ path: "/" });
+    await vi.advanceTimersByTimeAsync(20);
+    old.remove(); // the timeline draws no heading of its own
+    await vi.advanceTimersByTimeAsync(200);
+    expect(document.title).toBe("照片 — OpenPhotoAgent");
+    main.remove();
+    vi.useRealTimers();
+  });
+});

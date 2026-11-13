@@ -400,8 +400,20 @@ export function SearchPage({ q, tag, year, name }: { q: string; tag?: string; ye
         // a page that did not come says so, with a way to try again (SRCH-UI-046: the button did nothing)
         <p role="alert" className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
           <span>{t("search.moreFailed")}</span>
-          <button type="button" className="chip" onClick={() => void res.fetchNextPage()}>
-            {t("search.retry")}
+          <button
+            type="button"
+            className="chip"
+            ref={(el) => {
+              // the failure takes the place of 載入更多: focus goes with it (SRCH-UI-048)
+              if (el && !res.isFetchingNextPage && document.activeElement === document.body) el.focus();
+            }}
+            onClick={() => {
+              if (res.isFetchingNextPage) return;
+              setFocusAt(hits.length);
+              void res.fetchNextPage();
+            }}
+          >
+            {res.isFetchingNextPage ? t("search.retrying") : t("search.retry")}
           </button>
         </p>
       ) : null}
@@ -410,6 +422,7 @@ export function SearchPage({ q, tag, year, name }: { q: string; tag?: string; ye
           variant="ghost"
           onClick={() => {
             // the first new photo takes focus: it dropped to the page (SRCH-UI-041)
+            if (res.isFetchingNextPage) return; // a press while a page loads sends nothing more (SRCH-UI-048)
             setFocusAt(hits.length); // focused once that photo is drawn, however long the page takes
             void res.fetchNextPage();
           }}

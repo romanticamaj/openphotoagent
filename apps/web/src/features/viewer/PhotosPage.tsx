@@ -14,6 +14,7 @@ import { withTransition } from "./transition";
 const FaceOptInCard = lazy(() => import("../people/PeoplePage").then((m) => ({ default: m.FaceOptInCard })));
 
 export function PhotosPage() {
+  const { t } = useTranslation();
   const [open, setOpen] = useState<{ ord: number; grid: GridApi } | null>(null);
   const [back, setBack] = useState<string | null>(null);
   const [sel, setSel] = useState<Selection>(NONE);
@@ -45,6 +46,8 @@ export function PhotosPage() {
   }, [choosing, open]);
   return (
     <div className="flex h-full flex-col">
+      {/* the page's name for a screen reader and the window title; arriving here, focus has a place (VIEW-060) */}
+      <h1 className="sr-only">{t("viewer.title")}</h1>
       {/* here, not above the page: a card outside the grid's box pushed its bottom past the window */}
       <Suspense fallback={null}>
         <FaceOptInCard />

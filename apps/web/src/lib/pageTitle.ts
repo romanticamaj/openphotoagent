@@ -56,6 +56,8 @@ export function usePageArrival(path: string, t: (k: string) => string): void {
       const text = h?.textContent?.trim();
       // not at the very start of the app's first page: its name until the heading has been drawn and settled
       if (h && text && !(now && first.current && h === stale)) document.title = `${text} — ${APP}`;
+      // a page with no heading of its own keeps its name, not the last page's words (VIEW-060)
+      else if (!h && !now) document.title = name ? `${name} — ${APP}` : APP;
       if (left > 0) titleTimer = window.setTimeout(() => follow(left - 1), 50);
     };
     if (first.current) {
