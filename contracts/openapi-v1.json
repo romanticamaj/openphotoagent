@@ -6803,6 +6803,49 @@
         "summary": "On This Day"
       }
     },
+    "/api/v1/memories/themes": {
+      "get": {
+        "description": "主題 (10 §2.8, MEM-010): a year's frequent subjects, 「2025 的足球」, from the photos' vocabulary tags. Computed\nwhen asked, like 那年今日 (ADR-0049); one photo per near-duplicate group. Read-only.",
+        "operationId": "memory_themes_api_v1_memories_themes_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "lang",
+            "required": false,
+            "schema": {
+              "default": "zh-TW",
+              "title": "Lang",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Memory Themes Api V1 Memories Themes Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Memory Themes"
+      }
+    },
     "/api/v1/models": {
       "get": {
         "operationId": "list_models_api_v1_models_get",

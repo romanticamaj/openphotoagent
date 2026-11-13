@@ -293,6 +293,49 @@ def on_this_day(req: Request, today: str | None = None) -> dict[str, Any]:
     return {"today": now.isoformat(), "groups": groups}
 
 
+@router.get("/memories/themes")
+def memory_themes(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
+    """主題 (10 §2.8, MEM-010): a year's frequent subjects, 「2025 的足球」, from the photos' vocabulary tags. Computed
+    when asked, like 那年今日 (ADR-0049); one photo per near-duplicate group. Read-only."""
+    from opagent_core.memories import themes
+    from opagent_db.schema import duplicate_member, search_doc
+
+    from .search import tag_names
+
+    when = func.coalesce(asset.c.local_at, asset.c.taken_at)
+    hidden = select(duplicate_member.c.asset_id).where(duplicate_member.c.is_representative.is_(False))
+    with _st(req).engine.connect() as c:
+        rows = c.execute(
+            select(asset.c.id, asset.c.content_hash, asset.c.rotation, when.label("at"), search_doc.c.tags)
+            .join(search_doc, search_doc.c.asset_id == asset.c.id)
+            .where(asset.c.workspace_id == DEFAULT_WS, when.is_not(None), asset.c.id.notin_(hidden))
+            .order_by(when, asset.c.id)
+        ).all()
+    info = {r.id: r for r in rows}
+    found = themes([(r.id, r.at.year, list(r.tags or [])) for r in rows])
+    names = tag_names([t.key for t in found], lang)
+    return {
+        "themes": [
+            {
+                "year": t.year,
+                "key": t.key,
+                "name": names.get(t.key, t.key),
+                "count": t.count,
+                "photos": [
+                    {
+                        "asset_id": a,
+                        "ch": info[a].content_hash,
+                        "taken_at": info[a].at.isoformat() if info[a].at else None,
+                        "rot": info[a].rotation,
+                    }
+                    for a in t.asset_ids
+                ],
+            }
+            for t in found
+        ]
+    }
+
+
 @router.get("/timeline/buckets")
 def buckets(req: Request) -> dict[str, Any]:
     """Per-month counts, newest first; photos with no usable date go to ``unknown`` (10 §2.3)."""

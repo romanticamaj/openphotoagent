@@ -83,3 +83,24 @@ def test_mem_006_a_year_says_how_many_it_has(m, monkeypatch):
     monkeypatch.setattr(V, "MEMORY_MAX", 1)
     g = m.client.get("/api/v1/memories/on-this-day", params={"today": "2026-11-12"}, headers=m.ui).json()["groups"][0]
     assert g["year"] == 2025 and len(g["photos"]) == 1 and g["total"] == 2
+
+
+@pytest.mark.integration
+@pytest.mark.tc("MEM-010")
+def test_mem_010_themes_name_a_years_frequent_subjects(embedded_pg, tmp_path):
+    """主題 (10 §2.8, ADR-0049): 「2025 的足球」, computed when asked from the photos' tags; named, counted, with a
+    cover and up to 12 photos each; one per near-duplicate group, as 那年今日 does. Read-only."""
+    x = M(embedded_pg.dsn, tmp_path)
+    for i in range(10):
+        x.add(f"s{i}.jpg", tags=("足球",), taken=datetime(2025, 5, 1 + i, 9, tzinfo=UTC))
+    for i in range(3):
+        x.add(f"c{i}.jpg", tags=("蛋糕",), taken=datetime(2025, 6, 1 + i, 9, tzinfo=UTC))
+    for i in range(12):
+        x.add(f"o{i}.jpg", taken=datetime(2025, 7, 1 + i, 9, tzinfo=UTC))
+    x.index()
+    r = x.client.get("/api/v1/memories/themes", headers=x.ui)
+    assert r.status_code == 200, r.text
+    th = r.json()["themes"]
+    assert [(t["year"], t["key"], t["name"], t["count"]) for t in th] == [(2025, "activity.soccer", "足球", 10)]
+    assert len(th[0]["photos"]) == 10 and all(p["ch"] for p in th[0]["photos"])
+    x.eng.dispose()

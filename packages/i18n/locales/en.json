@@ -1144,7 +1144,12 @@
     "yearsAgo_other": "{count} years ago today",
     "open": "{year}, photo {n}",
     "more": "See {n} more from {year}",
-    "picked": "{n} picked of {total}"
+    "picked": "{n} picked of {total}",
+    "themes": "Themes",
+    "themeTitle": "{name} in {year}",
+    "themeOpen": "{title}, {n} photos",
+    "themeCount": "{n} photos",
+    "themeAll": "See all"
   },
   "trash": {
     "move": "Move to trash",
