@@ -11,9 +11,9 @@ terms:
   - { id: scene.indoor, zh: 室內, en: indoor, group: 場景, synonyms: [屋內, inside], theme: false }
   - { id: scene.night, zh: 夜景, en: night, group: 場景, synonyms: [夜晚, 晚上, night view] }
   - { id: mood.sunset, zh: 夕陽, en: sunset, group: 氛圍, synonyms: [日落, 黃昏, dusk] }
-  - { id: food.noodles, zh: 麵, en: noodles, group: 物件, synonyms: [麵條, 拉麵, ramen, noodle] }
-  - { id: food.cake, zh: 蛋糕, en: cake, group: 物件, synonyms: [甜點蛋糕, cakes] }
-  - { id: food.coffee, zh: 咖啡, en: coffee, group: 物件, synonyms: [拿鐵, latte] }
+  - { id: food.noodles, zh: 麵, en: noodles, group: 物件, synonyms: [麵條, 拉麵, ramen, noodle], suggest: [food.meal] }
+  - { id: food.cake, zh: 蛋糕, en: cake, group: 物件, synonyms: [甜點蛋糕, cakes], suggest: [food.meal] }
+  - { id: food.coffee, zh: 咖啡, en: coffee, group: 物件, synonyms: [拿鐵, latte], suggest: [food.meal] }
   - { id: people.child, zh: 小孩, en: child, group: 人物, synonyms: [兒童, 孩子, 小朋友, 幼童, 孩童, 幼兒, 小男孩, 小女孩, 男孩, 女孩, kid, kids, children], theme: false }
   - { id: people.group, zh: 合照, en: group photo, group: 人物, synonyms: [團體照, 大合照], theme: false }
   - { id: object.car, zh: 汽車, en: car, group: 物件, synonyms: [轎車, cars] }
@@ -124,15 +124,15 @@ terms:
   - { id: animal.duck, zh: 鴨子, en: duck, group: 物件, synonyms: [鴨] }
   - { id: animal.bear, zh: 熊, en: bear, group: 物件, synonyms: [棕熊] }
   - { id: animal.butterfly, zh: 蝴蝶, en: butterfly, group: 物件, synonyms: [] }
-  - { id: food.fruit, zh: 水果, en: fruit, group: 物件, synonyms: [fruits] }
-  - { id: food.rice, zh: 飯, en: rice, group: 物件, synonyms: [米飯, 白飯] }
-  - { id: food.ice_cream, zh: 冰淇淋, en: ice cream, group: 物件, synonyms: [霜淇淋] }
-  - { id: food.bread, zh: 麵包, en: bread, group: 物件, synonyms: [] }
-  - { id: food.pizza, zh: 披薩, en: pizza, group: 物件, synonyms: [比薩] }
-  - { id: food.sushi, zh: 壽司, en: sushi, group: 物件, synonyms: [] }
-  - { id: food.drink, zh: 飲料, en: drink, group: 物件, synonyms: [果汁, 奶茶, 飲品] }
-  - { id: food.tea, zh: 茶, en: tea, group: 物件, synonyms: [] }
-  - { id: food.meal, zh: 食物, en: food, group: 物件, synonyms: [餐點, 料理, 菜餚, 美食] }
+  - { id: food.fruit, zh: 水果, en: fruit, group: 物件, synonyms: [fruits], suggest: [food.meal] }
+  - { id: food.rice, zh: 飯, en: rice, group: 物件, synonyms: [米飯, 白飯], suggest: [food.meal] }
+  - { id: food.ice_cream, zh: 冰淇淋, en: ice cream, group: 物件, synonyms: [霜淇淋], suggest: [food.meal] }
+  - { id: food.bread, zh: 麵包, en: bread, group: 物件, synonyms: [], suggest: [food.meal] }
+  - { id: food.pizza, zh: 披薩, en: pizza, group: 物件, synonyms: [比薩], suggest: [food.meal] }
+  - { id: food.sushi, zh: 壽司, en: sushi, group: 物件, synonyms: [], suggest: [food.meal] }
+  - { id: food.drink, zh: 飲料, en: drink, group: 物件, synonyms: [果汁, 奶茶, 飲品], suggest: [food.meal] }
+  - { id: food.tea, zh: 茶, en: tea, group: 物件, synonyms: [], suggest: [food.meal] }
+  - { id: food.meal, zh: 食物, en: food, group: 物件, synonyms: [餐點, 料理, 菜餚, 美食, 火鍋, 牛排, hotpot, steak] }
   - { id: event.graduation, zh: 畢業, en: graduation, group: 活動, synonyms: [畢業典禮] }
   - { id: event.christmas, zh: 聖誕節, en: christmas, group: 活動, synonyms: [聖誕, 耶誕] }
   - { id: event.sports_day, zh: 運動會, en: sports day, group: 活動, synonyms: [] }

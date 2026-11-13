@@ -440,3 +440,14 @@ def test_srch_tok_031_a_meal_is_seen_by_its_food_through_tags_only():
             )
             assert not by_id[k].get("seen_by") and not by_id[k].get("includes"), "no chains"
             assert k not in (t.get("includes") or [])
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-032")
+def test_srch_tok_032_a_food_suggests_food():
+    """回歸 (audit round 106): 火鍋, 牛排, 拉麵 and 冰淇淋 found nothing and offered no 食物 chip, while 烤肉 did. Every
+    food suggests 食物; 火鍋 and 牛排 are names of it."""
+    tok = Tokenizer()
+    for q in ("冰淇淋", "拉麵", "蛋糕", "火鍋", "牛排"):
+        assert "食物" in tok.related(q) or tok.tag_key(q) == "food.meal", q
+    assert tok.tag_key("火鍋") == "food.meal" and tok.tag_key("牛排") == "food.meal"

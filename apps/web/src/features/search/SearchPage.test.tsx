@@ -335,6 +335,7 @@ describe("load more says when it fails (audit round 102)", () => {
     // one way to try again, not two buttons (audit round 103)
     expect(screen.queryByRole("button", { name: /載入更多/ })).toBeNull();
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "重試" })); // focus goes with it (round 104)
+    expect(screen.getByRole("alert").textContent).toBe("沒能載入更多照片"); // the button is not read as part of it (round 106)
     s.result = null;
   });
 });

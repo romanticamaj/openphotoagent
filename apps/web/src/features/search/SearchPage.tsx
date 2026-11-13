@@ -402,8 +402,9 @@ export function SearchPage({ q, tag, year, name }: { q: string; tag?: string; ye
       <p role="status" className="sr-only">{loadedNote}</p>
       {res.isFetchNextPageError ? (
         // a page that did not come says so, with a way to try again (SRCH-UI-046: the button did nothing)
-        <p role="alert" className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
-          {res.isFetchingNextPage ? null : <span>{t("search.moreFailed")}</span>}
+        <div className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
+          {/* the alert says what failed; the button is beside it, not read as part of it (audit round 106) */}
+          <p role="alert">{res.isFetchingNextPage ? "" : t("search.moreFailed")}</p>
           <button
             type="button"
             className="chip"
@@ -419,7 +420,7 @@ export function SearchPage({ q, tag, year, name }: { q: string; tag?: string; ye
           >
             {res.isFetchingNextPage ? t("search.retrying") : t("search.retry")}
           </button>
-        </p>
+        </div>
       ) : null}
       {!weak && res.hasNextPage && !res.isFetchNextPageError && (
         <Button
