@@ -421,7 +421,8 @@
     "explore": "Categories",
     "albums": "Albums",
     "importHint": "Add folders to the library",
-    "organizeHint": "Copy into tidy folders"
+    "organizeHint": "Copy into tidy folders",
+    "menu": "Menu"
   },
   "viewer": {
     "title": "Photos",

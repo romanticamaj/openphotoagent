@@ -1,5 +1,6 @@
 import { useAskRequest } from "./lib/askBus";
-import { Link, Outlet, createRootRoute, createRoute, createRouter, redirect } from "@tanstack/react-router";
+import { useNavDrawer } from "./lib/navDrawer";
+import { Link, Outlet, createRootRoute, createRoute, createRouter, redirect, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { ActivityButton, ActivityDrawer, RecoveryCard } from "./features/activity/ActivityHost";
@@ -152,8 +153,10 @@ function Shell() {
   });
   const faces = useQuery({ queryKey: ["face-settings"], queryFn: api.faceSettings, staleTime: 30_000 });
   const pending = useQuery({ queryKey: ["reviews", "count"], queryFn: () => api.reviewCount(), refetchInterval: 10_000 });
+  const path = useRouterState({ select: (st) => st.location.pathname });
+  const drawer = useNavDrawer(path); // the sidebar folds away in a narrow window (VIEW-049)
   return (
-    <div className="shell" data-single-user={caps.data ? String(caps.data.single_user) : undefined}>
+    <div className="shell" data-single-user={caps.data ? String(caps.data.single_user) : undefined} data-nav-open={drawer.open ? "true" : undefined}>
       {/* the first Tab: past the search box and the sidebar, to the page's photos (A11Y-013) */}
       <a
         href="#main"
@@ -168,7 +171,10 @@ function Shell() {
         {t("app.skipToMain")}
       </a>
       <header className="topbar">
-        <strong>{t("app.title")}</strong>
+        <button type="button" className="nav-toggle" aria-expanded={drawer.open} aria-controls="app-sidebar" onClick={drawer.toggle}>
+          {t("nav.menu")}
+        </button>
+        <strong className="app-name">{t("app.title")}</strong>
         <SearchBar />
         {multi ? (
           <>
@@ -182,7 +188,7 @@ function Shell() {
             </button>
           </>
         ) : (
-          <span className="text-xs text-[var(--text-muted)]">🔒 {t("nav.local")}</span>
+          <span className="local-badge text-xs text-[var(--text-muted)]">🔒 {t("nav.local")}</span>
         )}
         <button ref={askButton} type="button" aria-expanded={asking} onClick={() => setAsking(!asking)} className="rounded-[var(--radius-sm)] px-2 py-1 hover:bg-[var(--surface-2)]">
           {t("ask.open")}
@@ -190,7 +196,8 @@ function Shell() {
         <ActivityButton onToggle={() => setActivityOpen(!activity)} />
       </header>
       {/* the nav and the progress card share the sidebar column: the card never covers 設定 (ACT-010) */}
-      <div className="sidebar">
+      {drawer.open ? <div className="nav-scrim" aria-hidden="true" onClick={drawer.close} /> : null}
+      <div className="sidebar" id="app-sidebar">
       <nav className="sidenav" aria-label={t("nav.label")}>
         {navSections(Boolean(faces.data?.enabled)).map((g) => (
           <div key={g.key} className="sidenav-group">

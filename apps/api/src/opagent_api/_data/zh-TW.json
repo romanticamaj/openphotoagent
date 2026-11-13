@@ -421,7 +421,8 @@
     "explore": "分類",
     "albums": "相簿",
     "importHint": "把資料夾加進圖庫",
-    "organizeHint": "複製成整理好的資料夾"
+    "organizeHint": "複製成整理好的資料夾",
+    "menu": "選單"
   },
   "viewer": {
     "title": "照片",

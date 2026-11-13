@@ -180,7 +180,10 @@ export function SearchPage({ q, tag, year }: { q: string; tag?: string; year?: s
   return (
     <section className="space-y-4 p-4" aria-labelledby="search-h">
       <div className="flex items-baseline gap-3">
-        <h1 id="search-h" className="text-lg font-semibold">{t("search.results")}</h1>
+        <h1 id="search-h" className="text-lg font-semibold">
+          {/* a memory theme's photos are titled with the theme (audit round 83) */}
+          {tag && year && !q ? t("memories.themeTitle", { year, name: { ...tagNames, ...first?.tag_names }[tag] ?? tag }) : t("search.results")}
+        </h1>
         {first && (total > 0 || !first.possible_total) ? (
           // no count until the answer is here: 「0 張」 flashed before every result (audit round 2); none over
           // 「沒有確定符合的照片」 either, which says it (SRCH-UI-036)

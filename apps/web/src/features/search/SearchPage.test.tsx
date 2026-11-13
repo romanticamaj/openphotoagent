@@ -203,6 +203,8 @@ describe("a theme's chip is named (audit round 81)", () => {
     await screen.findByText("找不到符合的照片");
     expect(screen.getByText("手工")).toBeTruthy();
     expect(screen.queryByText("activity.crafts")).toBeNull();
+    // the page is the theme's, not 「搜尋結果」 (audit round 83)
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("2026 的手工");
     s.result = null;
   });
 });
