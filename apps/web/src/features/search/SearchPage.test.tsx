@@ -330,8 +330,28 @@ describe("load more says when it fails (audit round 102)", () => {
     s.result = Promise.reject(new Error("CURSOR_INVALID")) as unknown;
     (s.result as Promise<unknown>).catch(() => undefined);
     more.click();
-    expect(await screen.findByText("沒能載入更多照片")).toBeTruthy();
+    expect(await screen.findByText("沒能載入更多照片", {}, { timeout: 4000 })).toBeTruthy(); // after one retry, ~1 s
     expect(screen.getByRole("button", { name: "重試" })).toBeTruthy();
+    // one way to try again, not two buttons (audit round 103)
+    expect(screen.queryByRole("button", { name: /載入更多/ })).toBeNull();
     s.result = null;
+  });
+});
+
+describe("load more shows it is working (audit round 103)", () => {
+  it("[SRCH-UI-047] 回歸：載入中按鈕寫「載入中…」；失敗不重試三次才說（驗證第 103 輪：約 7 秒沒有任何反應）", async () => {
+    const { searchRetry } = await import("./SearchPage");
+    expect(searchRetry).toBeLessThanOrEqual(1);
+    const hit = (id: string) => ({ asset_id: id, ch: null, score: 1, matched_by: ["tag"], category: null, tags: [], caption: id, taken_at: null });
+    s.result = { items: [hit("a1")], facets: {}, total: 3, next_cursor: "c1", degraded: [], possible_total: 0, possible: [] };
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SearchPage q="貓" />
+      </QueryClientProvider>,
+    );
+    const more = await screen.findByRole("button", { name: /載入更多/ });
+    s.result = null; // the next page does not come yet
+    more.click();
+    expect(await screen.findByRole("button", { name: "載入中…" })).toBeTruthy();
   });
 });

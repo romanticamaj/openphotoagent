@@ -615,7 +615,8 @@
     "collapsed": "另有 {n} 張近似重複收在代表照片裡",
     "resultsFor": "「{q}」的搜尋結果",
     "moreFailed": "沒能載入更多照片",
-    "retry": "重試"
+    "retry": "重試",
+    "loadingMore": "載入中…"
   },
   "problem": {
     "chosen": "已改用 {what}"

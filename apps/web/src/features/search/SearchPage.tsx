@@ -19,6 +19,9 @@ import { bodyFor, cappedNote, chipLabel, chipsFrom, dateWords, gridAssetOf, head
 
 const sameChips = (a: Chip[], b: Chip[]) => a.length === b.length && a.every((c, i) => JSON.stringify(c) === JSON.stringify(b[i]));
 
+/** tries for a search page beyond the first: the page says it failed instead of waiting through three (SRCH-UI-047) */
+export const searchRetry = 1;
+
 export function SearchPage({ q, tag, year, name }: { q: string; tag?: string; year?: string; name?: string }) {
   const { t, i18n } = useTranslation();
   const nav = useNavigate();
@@ -51,6 +54,7 @@ export function SearchPage({ q, tag, year, name }: { q: string; tag?: string; ye
     queryFn: ({ pageParam }) => api.search({ ...body, limit: 100, cursor: pageParam, facets: ["tags", "year"], lang: i18n.language }),
     initialPageParam: null as string | null,
     getNextPageParam: (last) => last.next_cursor,
+    retry: searchRetry, // a failed page says so in a second, not after three tries (SRCH-UI-047)
   });
   const plannerOut = res.data?.pages[0]?.planner;
   useEffect(() => {
@@ -401,7 +405,7 @@ export function SearchPage({ q, tag, year, name }: { q: string; tag?: string; ye
           </button>
         </p>
       ) : null}
-      {!weak && res.hasNextPage && (
+      {!weak && res.hasNextPage && !res.isFetchNextPageError && (
         <Button
           variant="ghost"
           onClick={() => {
@@ -410,7 +414,7 @@ export function SearchPage({ q, tag, year, name }: { q: string; tag?: string; ye
             void res.fetchNextPage();
           }}
         >
-          {loadMoreText(t, total, hits.length, Boolean(first?.total_capped), i18n.language)}
+          {res.isFetchingNextPage ? t("search.loadingMore") : loadMoreText(t, total, hits.length, Boolean(first?.total_capped), i18n.language)}
         </Button>
       )}
       {first?.possible_total ? (

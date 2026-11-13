@@ -615,7 +615,8 @@
     "collapsed": "{n} near-duplicates folded into their group's photo",
     "resultsFor": "Results for “{q}”",
     "moreFailed": "Could not load more photos",
-    "retry": "Try again"
+    "retry": "Try again",
+    "loadingMore": "Loading…"
   },
   "problem": {
     "chosen": "Switched to {what}"
