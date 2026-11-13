@@ -1559,3 +1559,28 @@ def test_srch_cnc_024_a_phrase_answered_by_the_image_counts_no_described_photo_b
     monkeypatch.setattr(S, "caption_floor", lambda _st, _sp: 0.5)
     counted = {x["asset_id"] for x in s.search(q="公園野餐")["items"]}
     assert ids[2] not in counted
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-SEM-025")
+def test_srch_sem_025_an_untagged_term_is_held_alike_in_any_language(s, monkeypatch):
+    """回歸 (audit round 95): 睡覺 counted 0 and sleep 2, 吃飯 lost a photo eat kept: the rule for a term no photo
+    carries looked at Chinese words only. One concept, one bar, whatever language it is asked in."""
+    import opagent_api.search as S
+
+    a = s.add(1, caption="小朋友在地板上", tags=("教室",))
+    s.index()
+    cid = s.sql(
+        "insert into embedding_space(model_key, fingerprint, dim, modality, status)"
+        " values ('fake-cap', 'caption:fake-cap:x', 2, 'caption', 'active') returning id"
+    ).scalar()
+    s.sql(
+        "insert into asset_embedding(asset_id, space_id, vec) values (:a, :s, CAST('[0.545,0.8384]' AS vector))",
+        a=a,
+        s=cid,
+    )
+    monkeypatch.setattr(
+        S, "query_vector", lambda st, t, space, modality="image": [1.0, 0.0] if modality == "caption" else None
+    )
+    monkeypatch.setattr(S, "caption_floor", lambda _st, _sp: 0.5)
+    assert s.search(q="睡覺")["total"] == s.search(q="sleep")["total"] == 0

@@ -31,6 +31,15 @@ export function usePageArrival(path: string, t: (k: string) => string): void {
   const first = useRef(true);
   const seen = useRef<HTMLElement | null>(null); // the heading of the page we are on: the one to leave behind
   useEffect(() => {
+    if (!path.startsWith("/people")) {
+      // the people wall comes back to the person you came from (FACE-UI-024), only from them: from anywhere else the
+      // page's heading takes focus (VIEW-058)
+      try {
+        window.sessionStorage.removeItem("opa.people.last");
+      } catch {
+        /* nothing remembered */
+      }
+    }
     const k = pageTitleKey(path);
     const name = k ? t(k) : null;
     document.title = name ? `${name} — ${APP}` : APP;

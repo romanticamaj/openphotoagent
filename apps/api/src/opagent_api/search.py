@@ -650,7 +650,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                 # was analysed before it existed, its meaning has nothing to lean on (SRCH-SEM-024)
                 unknown = (
                     len(one) == 1
-                    and not one[0].word.isascii()
+                    and (not one[0].word.isascii() or bool(one[0].key))  # a known term alike in any language (SEM-025)
                     and (
                         not one[0].key
                         or (

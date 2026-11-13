@@ -75,3 +75,14 @@ describe("arriving after a reload (audit round 91)", () => {
     vi.useRealTimers();
   });
 });
+
+describe("people remember the person you came from, only from them (audit rounds 94-95)", () => {
+  it("[VIEW-058] 回歸：到人物以外的頁面就忘了上次看的人，從側欄進人物時焦點到標題（驗證第 94～95 輪：焦點到上次看的人物卡）", () => {
+    window.sessionStorage.setItem("opa.people.last", "p1");
+    const t = (k: string) => k;
+    const h = renderHook(({ path }) => usePageArrival(path, t), { initialProps: { path: "/people/p1" } });
+    expect(window.sessionStorage.getItem("opa.people.last")).toBe("p1"); // back to the wall finds it
+    h.rerender({ path: "/explore" });
+    expect(window.sessionStorage.getItem("opa.people.last")).toBeNull();
+  });
+});
