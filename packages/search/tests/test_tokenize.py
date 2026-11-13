@@ -258,6 +258,11 @@ def test_srch_tok_020_a_broader_word_includes_its_kinds():
         ("午餐", "eating"),
         ("鞦韆", "playground"),
         ("吃", "eating"),  # audit round 70: 吃 alone found 0, 吃早餐 lost 吃
+        ("宵夜", "eating"),  # audit round 105: meal words that dead-ended on 問 AI
+        ("下午茶", "eating"),
+        ("便當", "eating"),
+        ("點心", "eating"),
+        ("brunch", "eating"),
         ("爬山", "hiking"),
         ("彈跳床", "trampoline"),
         ("a puppy on the seaside", "a dog on the beach"),  # the other words of a phrase stay where they are

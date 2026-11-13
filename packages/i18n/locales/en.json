@@ -617,7 +617,8 @@
     "moreFailed": "Could not load more photos",
     "retry": "Try again",
     "loadingMore": "Loading…",
-    "retrying": "Retrying…"
+    "retrying": "Retrying…",
+    "loadedNote": "{n} of {total} loaded"
   },
   "problem": {
     "chosen": "Switched to {what}"

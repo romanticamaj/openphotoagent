@@ -82,10 +82,13 @@ export function SearchPage({ q, tag, year, name }: { q: string; tag?: string; ye
     all[j]?.focus();
     return j;
   };
+  const [loadedNote, setLoadedNote] = useState("");
   useEffect(() => {
     if (focusAt !== null && tiles().length > focusAt) {
       focusTile(focusAt);
       setFocusAt(null);
+      // a page that came is said, for a screen reader too (SRCH-UI-049)
+      setLoadedNote(t("search.loadedNote", { n: tiles().length.toLocaleString(i18n.language), total: (first?.total ?? 0).toLocaleString(i18n.language) }));
     }
   });
   const columns = () => {
@@ -396,10 +399,11 @@ export function SearchPage({ q, tag, year, name }: { q: string; tag?: string; ye
           {cappedNote(t, total, Boolean(first.total_capped), Boolean(res.hasNextPage))}
         </p>
       ) : null}
+      <p role="status" className="sr-only">{loadedNote}</p>
       {res.isFetchNextPageError ? (
         // a page that did not come says so, with a way to try again (SRCH-UI-046: the button did nothing)
         <p role="alert" className="flex items-center gap-2 text-sm text-[var(--text-muted)]">
-          <span>{t("search.moreFailed")}</span>
+          {res.isFetchingNextPage ? null : <span>{t("search.moreFailed")}</span>}
           <button
             type="button"
             className="chip"

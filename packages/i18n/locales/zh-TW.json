@@ -617,7 +617,8 @@
     "moreFailed": "沒能載入更多照片",
     "retry": "重試",
     "loadingMore": "載入中…",
-    "retrying": "重試中…"
+    "retrying": "重試中…",
+    "loadedNote": "已載入 {n} 張，共 {total} 張"
   },
   "problem": {
     "chosen": "已改用 {what}"

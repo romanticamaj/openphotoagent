@@ -376,3 +376,20 @@ describe("retry takes focus and shows it works (audit round 104)", () => {
     expect(asked).toBe(1);
   });
 });
+
+describe("a page that came is said (audit round 105)", () => {
+  it("[SRCH-UI-049] 回歸：載入更多成功時唸出「已載入 N 張，共 M 張」（驗證第 105 輪：成功沒有任何提示）", async () => {
+    const hit = (id: string) => ({ asset_id: id, ch: null, score: 1, matched_by: ["tag"], category: null, tags: [], caption: id, taken_at: null });
+    s.result = { items: [hit("a1"), hit("a2")], facets: {}, total: 3, next_cursor: "c1", degraded: [], possible_total: 0, possible: [] };
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SearchPage q="貓" />
+      </QueryClientProvider>,
+    );
+    const more = await screen.findByRole("button", { name: /載入更多/ });
+    s.result = { items: [hit("a3")], facets: {}, total: 3, next_cursor: null, degraded: [], possible_total: 0, possible: [] };
+    more.click();
+    expect(await screen.findByText("已載入 3 張，共 3 張")).toBeTruthy();
+    s.result = null;
+  });
+});
