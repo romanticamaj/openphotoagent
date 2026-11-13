@@ -1366,3 +1366,34 @@ def test_srch_sem_020_a_described_photo_the_words_and_meaning_reject_is_only_pos
     counted = {x["asset_id"] for x in res["items"]}
     assert counted == {ids[1]}, res["items"]
     assert [x["asset_id"] for x in res.get("possible", [])] == [ids[0]]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-SEM-021")
+def test_srch_sem_021_with_an_anchor_the_caption_meaning_counts_too(s, monkeypatch):
+    """回歸 (audit round 77 → 78): 「海邊」 fell from 6 to 4 when the any-name pair fallback brought 3 word hits: with an
+    anchor only the image score was compared, and its 4 surfing photos were found by the caption meaning. The word
+    hits are a sample for both routes: a photo counts when its caption meaning reaches the median of theirs too."""
+    import opagent_api.search as S
+
+    ids = [s.add(i, caption="海邊玩水" if i < 3 else f"圖{i}", tags=("海邊",) if i < 3 else ()) for i in range(5)]
+    s.index()
+    cid = s.sql(
+        "insert into embedding_space(model_key, fingerprint, dim, modality, status)"
+        " values ('fake-cap', 'caption:fake-cap:x', 2, 'caption', 'active') returning id"
+    ).scalar()
+    for aid, v in zip(ids, ["[0.6,0.8]", "[0.6,0.8]", "[0.6,0.8]", "[0.7,0.714]", "[0.3,0.954]"], strict=True):
+        s.sql(
+            "insert into asset_embedding(asset_id, space_id, vec) values (:a, :s, CAST(:v AS vector))",
+            a=aid,
+            s=cid,
+            v=v,
+        )
+    monkeypatch.setattr(
+        S, "query_vector", lambda st, t, space, modality="image": [1.0, 0.0] if modality == "caption" else None
+    )
+    monkeypatch.setattr(S, "caption_floor", lambda _st, _sp: 0.25)
+    res = s.search(q="海邊")
+    counted = {x["asset_id"] for x in res["items"]}
+    assert ids[3] in counted  # meaning 0.7 ≥ the word hits' median 0.6
+    assert ids[4] not in counted and ids[4] in {x["asset_id"] for x in res.get("possible", [])}
