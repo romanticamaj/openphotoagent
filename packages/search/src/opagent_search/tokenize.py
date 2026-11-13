@@ -177,6 +177,7 @@ class Tokenizer:
     _implies: dict[str, set[str]] = field(default_factory=dict)
     _includes: dict[str, set[str]] = field(default_factory=dict)
     _beside: dict[str, set[str]] = field(default_factory=dict)
+    _no_theme: set[str] = field(default_factory=set)
 
     def __post_init__(self) -> None:
         import jieba
@@ -190,6 +191,8 @@ class Tokenizer:
             self._implies[t["id"]] = set(t.get("implies") or [])
             self._includes[t["id"]] = set(t.get("includes") or [])
             self._beside[t["id"]] = set(t.get("ranks_beside") or [])
+            if t.get("theme") is False:  # true of any year: not a memory theme (MEM-012)
+                self._no_theme.add(t["id"])
             # words a caption uses for it that already name another term: 球 is in 足球, 踢球 (SRCH-TOK-025); matched in
             # text only, never a name of this term, never a new word to the segmenter
             for f in t.get("text_forms") or []:
@@ -303,6 +306,10 @@ class Tokenizer:
                 else out.replace(v.word, " ", 1)
             )
         return re.sub(r"\s+", " ", out).strip()
+
+    def not_themes(self) -> frozenset[str]:
+        """Terms the vocabulary marks ``theme: false``: true of any year (室內, 玩耍), never a memory theme."""
+        return frozenset(self._no_theme)
 
     def ranks_beside(self, key: str | None) -> set[str]:
         """The kinds of term beside which this one only ranks (SRCH-CNC-020): 吃 beside a food is eating that food."""

@@ -32,3 +32,13 @@ def test_mem_009_a_years_frequent_subjects_are_its_themes():
     assert themes([], min_count=8) == []
     # words that are not vocabulary ids (free tags from the VLM) are not themes
     assert themes(_rows(2025, {"球衣": 30}, 40), min_count=8) == []
+
+
+@pytest.mark.unit
+@pytest.mark.tc("MEM-012")
+def test_mem_012_a_term_that_says_where_not_what_is_no_theme():
+    """回歸 (reference library): 「2025 的室內」「2026 的玩耍」 were themes, on fewer than 60% of their year's photos but
+    true of any year. The vocabulary marks such terms; the caller passes them as ``skip``."""
+    rows = _rows(2025, {"scene.indoor": 50, "activity.soccer": 40}, 100)
+    out = themes(rows, min_count=8, skip={"scene.indoor"})
+    assert [t.key for t in out] == ["activity.soccer"]

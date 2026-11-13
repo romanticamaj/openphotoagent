@@ -312,7 +312,9 @@ def memory_themes(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
             .order_by(when, asset.c.id)
         ).all()
     info = {r.id: r for r in rows}
-    found = themes([(r.id, r.at.year, list(r.tags or [])) for r in rows])
+    from .labels import tokenizer
+
+    found = themes([(r.id, r.at.year, list(r.tags or [])) for r in rows], skip=tokenizer().not_themes())
     names = tag_names([t.key for t in found], lang)
     return {
         "themes": [

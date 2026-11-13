@@ -30,18 +30,20 @@ def themes(
     per_year: int = 3,
     common_share: float = 0.6,
     shown: int = 12,
+    skip: set[str] | frozenset[str] = frozenset(),
 ) -> list[Theme]:
     """主題 (10 §2.8, MEM-009): per year, newest first, the vocabulary tags on at least ``min_count`` photos, most
     first, at most ``per_year``. A tag on more than ``common_share`` of the year's photos (a child, outdoors) says
     nothing about that year and is left out. ``rows`` are (asset_id, year, tags) in the order photos should appear
-    (by date); only vocabulary ids (``group.name``) count, never a free word."""
+    (by date); only vocabulary ids (``group.name``) count, never a free word, and not those in ``skip``: terms the
+    vocabulary marks as true of any year (室內, 玩耍; MEM-012)."""
     by_year: dict[int, list[tuple[str, list[str]]]] = {}
     for aid, year, tags in rows:
         by_year.setdefault(year, []).append((aid, tags))
     out: list[Theme] = []
     for year in sorted(by_year, reverse=True):
         photos = by_year[year]
-        counts = Counter(k for _, tags in photos for k in set(tags) if "." in k)
+        counts = Counter(k for _, tags in photos for k in set(tags) if "." in k and k not in skip)
         keep = [
             (k, n)
             for k, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))

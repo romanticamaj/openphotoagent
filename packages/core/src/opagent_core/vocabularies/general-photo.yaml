@@ -8,14 +8,14 @@ terms:
   - { id: scene.mountain, zh: 山, en: mountain, group: 場景, synonyms: [山脈, 高山, mountains] }
   - { id: scene.city, zh: 城市, en: city, group: 場景, synonyms: [都市, 市區, urban] }
   - { id: scene.forest, zh: 森林, en: forest, group: 場景, synonyms: [樹林, woods] }
-  - { id: scene.indoor, zh: 室內, en: indoor, group: 場景, synonyms: [屋內, inside] }
+  - { id: scene.indoor, zh: 室內, en: indoor, group: 場景, synonyms: [屋內, inside], theme: false }
   - { id: scene.night, zh: 夜景, en: night, group: 場景, synonyms: [夜晚, 晚上, night view] }
   - { id: mood.sunset, zh: 夕陽, en: sunset, group: 氛圍, synonyms: [日落, 黃昏, dusk] }
   - { id: food.noodles, zh: 麵, en: noodles, group: 物件, synonyms: [麵條, 拉麵, ramen, noodle] }
   - { id: food.cake, zh: 蛋糕, en: cake, group: 物件, synonyms: [甜點蛋糕, cakes] }
   - { id: food.coffee, zh: 咖啡, en: coffee, group: 物件, synonyms: [拿鐵, latte] }
-  - { id: people.child, zh: 小孩, en: child, group: 人物, synonyms: [兒童, 孩子, 小朋友, 幼童, 孩童, 幼兒, 小男孩, 小女孩, 男孩, 女孩, kid, kids, children] }
-  - { id: people.group, zh: 合照, en: group photo, group: 人物, synonyms: [團體照, 大合照] }
+  - { id: people.child, zh: 小孩, en: child, group: 人物, synonyms: [兒童, 孩子, 小朋友, 幼童, 孩童, 幼兒, 小男孩, 小女孩, 男孩, 女孩, kid, kids, children], theme: false }
+  - { id: people.group, zh: 合照, en: group photo, group: 人物, synonyms: [團體照, 大合照], theme: false }
   - { id: object.car, zh: 汽車, en: car, group: 物件, synonyms: [轎車, cars] }
   # 車子 is any of its kinds (SRCH-TOK-020): every bus or train is a 車子; a plane is not
   - { id: object.vehicle, zh: 車子, en: vehicle, group: 物件, synonyms: [車輛, 車, vehicles], includes: [object.car, object.bus, object.train, object.bicycle] }
@@ -27,9 +27,9 @@ terms:
   # 2026-11-09: concepts of a family library (audit round 1; tags seen on the reference library). Written for this
   # project, no imported dictionary. Not here on purpose: 過年 (a date to the planner, ADR-0008).
   - { id: people.baby, zh: 嬰兒, en: baby, group: 人物, synonyms: [寶寶, 嬰孩, 小嬰兒, infant, babies] }
-  - { id: people.teacher, zh: 老師, en: teacher, group: 人物, synonyms: [教師, teachers] }
+  - { id: people.teacher, zh: 老師, en: teacher, group: 人物, synonyms: [教師, teachers], theme: false }
   - { id: people.family, zh: 家人, en: family, group: 人物, synonyms: [家庭, 全家福] }
-  - { id: scene.classroom, zh: 教室, en: classroom, group: 場景, synonyms: [課堂, 活動室] }
+  - { id: scene.classroom, zh: 教室, en: classroom, group: 場景, synonyms: [課堂, 活動室], theme: false }
   - { id: scene.playground, zh: 遊樂場, en: playground, group: 場景, synonyms: [遊戲場, 溜滑梯, 滑梯, 盪鞦韆, 鞦韆, 蹺蹺板, 攀爬架, seesaw, slide, slides, swing, swings, playgrounds] }
   - { id: scene.sports_field, zh: 運動場, en: sports field, group: 場景, synonyms: [操場, 球場, 足球場, 田徑場, 籃球場, 網球場, 排球場, 籃球架, sports ground, court] }
   - { id: scene.gym, zh: 體育館, en: gym, group: 場景, synonyms: [室內場地, 健身房] }
@@ -47,9 +47,9 @@ terms:
   - { id: scene.zoo, zh: 動物園, en: zoo, group: 場景, synonyms: [] }
   - { id: scene.museum, zh: 博物館, en: museum, group: 場景, synonyms: [美術館, 展覽] }
   - { id: scene.temple, zh: 寺廟, en: temple, group: 場景, synonyms: [廟, 廟宇] }
-  - { id: scene.sky, zh: 天空, en: sky, group: 場景, synonyms: [藍天] }
+  - { id: scene.sky, zh: 天空, en: sky, group: 場景, synonyms: [藍天], theme: false }
   - { id: scene.grass, zh: 草地, en: grass, group: 場景, synonyms: [草坪, 草皮, lawn] }
-  - { id: scene.outdoor, zh: 戶外, en: outdoor, group: 場景, synonyms: [室外, outside] }
+  - { id: scene.outdoor, zh: 戶外, en: outdoor, group: 場景, synonyms: [室外, outside], theme: false }
   - { id: activity.soccer, zh: 足球, en: soccer, group: 活動, synonyms: [踢足球, 踢球, football] }
   - { id: activity.basketball, zh: 籃球, en: basketball, group: 活動, synonyms: [打籃球, basketballs] }
   - { id: activity.dance, zh: 跳舞, en: dance, group: 活動, synonyms: [舞蹈, 舞蹈教室, dancing] }
@@ -61,19 +61,19 @@ terms:
   - { id: activity.eating, zh: 吃飯, en: eating, group: 活動, synonyms: [用餐, 吃東西, 吃, 午餐, 晚餐, 早餐, 午飯, 晚飯, breakfast, eat, meal, dinner, lunch], ranks_beside: [food] }
   - { id: activity.cooking, zh: 煮飯, en: cooking, group: 活動, synonyms: [烹飪, 做菜, cook] }
   - { id: activity.sleeping, zh: 睡覺, en: sleeping, group: 活動, synonyms: [睡著, 午睡, 睡午覺, 入睡, sleep, nap] }
-  - { id: activity.playing, zh: 玩耍, en: playing, group: 活動, synonyms: [遊戲, 玩樂, play] }
-  - { id: activity.study, zh: 學習, en: studying, group: 活動, synonyms: [上課, 教學, study, class, lesson] }
+  - { id: activity.playing, zh: 玩耍, en: playing, group: 活動, synonyms: [遊戲, 玩樂, play], theme: false }
+  - { id: activity.study, zh: 學習, en: studying, group: 活動, synonyms: [上課, 教學, study, class, lesson], theme: false }
   - { id: activity.performance, zh: 表演, en: performance, group: 活動, synonyms: [演出, 舞台] }
   - { id: activity.hiking, zh: 爬山, en: hiking, group: 活動, synonyms: [登山, 健行, 郊山, hike], implies: [scene.mountain] }
   - { id: object.trampoline, zh: 彈跳床, en: trampoline, group: 物件, synonyms: [跳跳床, 蹦床, 彈簧床, trampolines] }
   - { id: activity.travel, zh: 旅行, en: travel, group: 活動, synonyms: [旅遊, 出遊, trip] }
-  - { id: object.toy, zh: 玩具, en: toy, group: 物件, synonyms: [玩偶, toys] }
+  - { id: object.toy, zh: 玩具, en: toy, group: 物件, synonyms: [玩偶, toys], theme: false }
   - { id: object.blocks, zh: 積木, en: blocks, group: 物件, synonyms: [樂高, 磁力積木, 磁力片, lego] }
   - { id: object.puzzle, zh: 拼圖, en: puzzle, group: 物件, synonyms: [] }
   - { id: object.ball, zh: 球, en: ball, group: 物件, synonyms: [皮球, balls], text_forms: [足球, 踢球, 籃球, 棒球, 網球] }
   - { id: object.book, zh: 書, en: book, group: 物件, synonyms: [書本, 書籍, 繪本, books] }
   - { id: object.crayon, zh: 蠟筆, en: crayon, group: 物件, synonyms: [彩色筆, 彩筆, 畫筆] }
-  - { id: object.paper, zh: 紙, en: paper, group: 物件, synonyms: [紙張] }
+  - { id: object.paper, zh: 紙, en: paper, group: 物件, synonyms: [紙張], theme: false }
   - { id: object.scissors, zh: 剪刀, en: scissors, group: 物件, synonyms: [] }
   - { id: object.clay, zh: 黏土, en: clay, group: 物件, synonyms: [陶土] }
   - { id: object.beads, zh: 珠子, en: beads, group: 物件, synonyms: [串珠] }
@@ -90,11 +90,11 @@ terms:
   - { id: object.boat, zh: 船, en: boat, group: 物件, synonyms: [小船, 遊艇, ship, boats] }
   - { id: object.umbrella, zh: 雨傘, en: umbrella, group: 物件, synonyms: [傘] }
   - { id: object.mask, zh: 口罩, en: face mask, group: 物件, synonyms: [] }
-  - { id: object.table, zh: 桌子, en: table, group: 物件, synonyms: [桌椅, 木桌, 課桌, 桌, 書桌] }
-  - { id: object.chair, zh: 椅子, en: chair, group: 物件, synonyms: [] }
+  - { id: object.table, zh: 桌子, en: table, group: 物件, synonyms: [桌椅, 木桌, 課桌, 桌, 書桌], theme: false }
+  - { id: object.chair, zh: 椅子, en: chair, group: 物件, synonyms: [], theme: false }
   - { id: object.plant, zh: 植物, en: plant, group: 物件, synonyms: [盆栽] }
-  - { id: object.tree, zh: 樹, en: tree, group: 物件, synonyms: [樹木, trees] }
-  - { id: object.building, zh: 建築, en: building, group: 物件, synonyms: [建築物, 大樓, 房子, buildings] }
+  - { id: object.tree, zh: 樹, en: tree, group: 物件, synonyms: [樹木, trees], theme: false }
+  - { id: object.building, zh: 建築, en: building, group: 物件, synonyms: [建築物, 大樓, 房子, buildings], theme: false }
   - { id: object.surfboard, zh: 衝浪板, en: surfboard, group: 物件, synonyms: [] }
   # an activity may imply where it happens (ADR-0032 addendum, implies): asked together, the scene ranks, not filters
   - { id: activity.surfing, zh: 衝浪, en: surfing, group: 活動, synonyms: [surf, 衝浪運動], implies: [scene.sea, scene.beach] }
