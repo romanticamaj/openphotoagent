@@ -19,7 +19,7 @@ import { bodyFor, cappedNote, chipLabel, chipsFrom, dateWords, gridAssetOf, head
 
 const sameChips = (a: Chip[], b: Chip[]) => a.length === b.length && a.every((c, i) => JSON.stringify(c) === JSON.stringify(b[i]));
 
-export function SearchPage({ q, tag, year }: { q: string; tag?: string; year?: string }) {
+export function SearchPage({ q, tag, year, name }: { q: string; tag?: string; year?: string; name?: string }) {
   const { t, i18n } = useTranslation();
   const nav = useNavigate();
   // a theme's 「看全部」 asks by its tag and year, not by words (SRCH-UI-037)
@@ -189,7 +189,7 @@ export function SearchPage({ q, tag, year }: { q: string; tag?: string; year?: s
       <div className="flex items-baseline gap-3">
         <h1 id="search-h" className="text-lg font-semibold">
           {/* a memory theme's photos are titled with the theme (audit round 83) */}
-          {tag && year && !q && chips.some((c) => c.kind === "tag" && c.value === tag) && chips.some((c) => c.kind === "year" && c.value === year) ? t("memories.themeTitle", { year, name: { ...tagNames, ...first?.tag_names }[tag] ?? tag }) : q ? t("search.resultsFor", { q }) : t("search.results")}
+          {tag && year && !q && chips.some((c) => c.kind === "tag" && c.value === tag) && chips.some((c) => c.kind === "year" && c.value === year) ? t("memories.themeTitle", { year, name: { ...tagNames, ...first?.tag_names }[tag] ?? name ?? tag }) : q ? t("search.resultsFor", { q }) : t("search.results")}
         </h1>
         {first && (total > 0 || !first.possible_total) ? (
           // no count until the answer is here: 「0 張」 flashed before every result (audit round 2); none over
@@ -238,7 +238,7 @@ export function SearchPage({ q, tag, year }: { q: string; tag?: string; year?: s
                     (setChips(chips.filter((x) => x !== c)),
                     void nav({
                       to: "/search",
-                      search: { q, ...(tag && !(c.kind === "tag") ? { tag } : {}), ...(year && !(c.kind === "year") ? { year } : {}) },
+                      search: { q, ...(tag && !(c.kind === "tag") ? { tag, ...(name ? { name } : {}) } : {}), ...(year && !(c.kind === "year") ? { year } : {}) },
                     }))
                   : c.kind === "person"
                   ? void nav({ to: "/search", search: { q: withoutPerson(q, c.value) } }) // the box follows (SRCH-UI-013)

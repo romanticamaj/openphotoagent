@@ -328,14 +328,15 @@ const welcome = createRoute({ getParentRoute: () => root, path: "/welcome", comp
 const search = createRoute({
   getParentRoute: () => root,
   path: "/search",
-  validateSearch: (s: Record<string, unknown>): { q: string; tag?: string; year?: string } => ({
+  validateSearch: (s: Record<string, unknown>): { q: string; tag?: string; year?: string; name?: string } => ({
     q: typeof s.q === "string" ? s.q : "",
     ...(typeof s.tag === "string" ? { tag: s.tag } : {}),
+    ...(typeof s.name === "string" ? { name: s.name } : {}),
     ...(typeof s.year === "string" || typeof s.year === "number" ? { year: String(s.year) } : {}),
   }),
   component: function SearchRoute() {
-    const { q, tag, year } = search.useSearch();
-    return <SearchPage q={q} tag={tag} year={year} />;
+    const { q, tag, year, name } = search.useSearch();
+    return <SearchPage q={q} tag={tag} year={year} name={name} />;
   },
 });
 const importRoute = createRoute({ getParentRoute: () => root, path: "/import", component: ImportPage });

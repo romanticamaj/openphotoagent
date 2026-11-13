@@ -357,3 +357,14 @@ def test_srch_tok_026_a_christmas_hat_is_a_hat():
     tok = Tokenizer()
     assert tok.words("聖誕帽") == ["聖誕帽"] and tok.tag_key("聖誕帽") == "object.hat"
     assert tok.tag_key("帽子") == "object.hat" and tok.vector_text("聖誕帽") == "hat"
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-027")
+def test_srch_tok_027_an_event_suggests_what_it_is_seen_by():
+    """回歸 (audit round 92): 「生日」 and 「露營」 found nothing and suggested nothing, while 蛋糕 and 帳篷 each had a
+    photo. An event the vocabulary knows names the things it is seen by; a query that finds nothing tries those too."""
+    tok = Tokenizer()
+    assert "蛋糕" in tok.related("生日")
+    assert tok.tag_key("露營") == "activity.camping" and "帳篷" in tok.related("露營")
+    assert tok.tag_key("帳篷") == "object.tent"

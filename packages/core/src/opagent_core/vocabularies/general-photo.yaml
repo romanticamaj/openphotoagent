@@ -22,7 +22,7 @@ terms:
   - { id: object.bicycle, zh: 腳踏車, en: bicycle, group: 物件, synonyms: [自行車, 單車, bike] }
   - { id: object.document, zh: 文件, en: document, group: 物件, synonyms: [紙本, 收據, receipt] }
   - { id: object.flower, zh: 花, en: flower, group: 物件, synonyms: [花朵, flowers] }
-  - { id: event.birthday, zh: 生日, en: birthday, group: 活動, synonyms: [慶生, birthday party] }
+  - { id: event.birthday, zh: 生日, en: birthday, group: 活動, synonyms: [慶生, birthday party], suggest: [food.cake, object.balloon] }
   - { id: event.wedding, zh: 婚禮, en: wedding, group: 活動, synonyms: [婚宴] }
   # 2026-11-09: concepts of a family library (audit round 1; tags seen on the reference library). Written for this
   # project, no imported dictionary. Not here on purpose: 過年 (a date to the planner, ADR-0008).
@@ -64,6 +64,8 @@ terms:
   - { id: activity.playing, zh: 玩耍, en: playing, group: 活動, synonyms: [遊戲, 玩樂, play], theme: false }
   - { id: activity.study, zh: 學習, en: studying, group: 活動, synonyms: [上課, 教學, study, class, lesson], theme: false }
   - { id: activity.performance, zh: 表演, en: performance, group: 活動, synonyms: [演出, 舞台] }
+  - { id: activity.camping, zh: 露營, en: camping, group: 活動, synonyms: [野營, camp], suggest: [object.tent] }
+  - { id: object.tent, zh: 帳篷, en: tent, group: 物件, synonyms: [帳棚, tents] }
   - { id: activity.hiking, zh: 爬山, en: hiking, group: 活動, synonyms: [登山, 健行, 郊山, hike], implies: [scene.mountain] }
   - { id: object.trampoline, zh: 彈跳床, en: trampoline, group: 物件, synonyms: [跳跳床, 蹦床, 彈簧床, trampolines] }
   - { id: activity.travel, zh: 旅行, en: travel, group: 活動, synonyms: [旅遊, 出遊, trip] }

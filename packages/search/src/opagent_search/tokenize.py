@@ -24,8 +24,8 @@ from typing import Any
 import yaml
 from opagent_core.vocabularies import VOCAB_DIR
 
-# @15 帽子; @14 籃球架, 書桌; @13 籃球場, 公園 without 遊樂場 (ADR-0048); history in git
-TOKENIZER_VERSION = "jieba-zh-hant@15+opencc-s2twp+bigram"
+# @16 露營, 帳篷; @15 帽子; @14 籃球架, 書桌; @13 籃球場, 公園 without 遊樂場 (ADR-0048); history in git
+TOKENIZER_VERSION = "jieba-zh-hant@16+opencc-s2twp+bigram"
 # Names that hold a vocabulary word but are not that thing: a caption reading a sign 「日落大道」 (Sunset Blvd) is not a
 # sunset (SRCH-TOK-018). Weighed above the vocabulary's words, so the name is one word.
 NAMES = ("日落大道", "夕陽大道")
@@ -178,6 +178,7 @@ class Tokenizer:
     _includes: dict[str, set[str]] = field(default_factory=dict)
     _beside: dict[str, set[str]] = field(default_factory=dict)
     _no_theme: set[str] = field(default_factory=set)
+    _suggest: dict[str, list[str]] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         import jieba
@@ -191,6 +192,7 @@ class Tokenizer:
             self._implies[t["id"]] = set(t.get("implies") or [])
             self._includes[t["id"]] = set(t.get("includes") or [])
             self._beside[t["id"]] = set(t.get("ranks_beside") or [])
+            self._suggest[t["id"]] = list(t.get("suggest") or [])  # what an event is seen by (SRCH-TOK-027)
             if t.get("theme") is False:  # true of any year: not a memory theme (MEM-012)
                 self._no_theme.add(t["id"])
             # words a caption uses for it that already name another term: 球 is in 足球, 踢球 (SRCH-TOK-025); matched in
@@ -328,6 +330,8 @@ class Tokenizer:
             if key != own and _CJK.fullmatch(form) and form in q and form != q:
                 found[key] = max(found.get(key, 0), len(form))
         keys = sorted(found, key=lambda k: (-found[k], k))
+        # an event names the things it is seen by: 生日 tries 蛋糕 (SRCH-TOK-027)
+        keys += [k for k in self._suggest.get(own or "", []) if k not in keys]
         return [n for k in keys if (n := self.term_name(k, "zh"))]
 
     def term_name(self, key: str, lang: str) -> str | None:

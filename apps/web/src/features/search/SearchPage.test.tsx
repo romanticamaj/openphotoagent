@@ -304,3 +304,15 @@ describe("a search page says what it searched (audit round 91)", () => {
     s.result = null;
   });
 });
+
+describe("a theme's title from the start (audit round 92)", () => {
+  it("[SRCH-UI-045] 回歸：從主題卡片來時，名稱跟著網址，標題一開始就是「2026 的手工」（驗證第 92 輪：先閃 activity.crafts）", async () => {
+    s.result = null; // the answer has not come yet
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SearchPage q="" tag="activity.crafts" year="2026" name="手工" />
+      </QueryClientProvider>,
+    );
+    expect((await screen.findByRole("heading", { level: 1 })).textContent).toBe("2026 的手工");
+  });
+});

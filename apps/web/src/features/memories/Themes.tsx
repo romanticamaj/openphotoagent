@@ -35,7 +35,7 @@ export function Themes({ onOpen }: { onOpen: (photos: MemoryPhoto[], start: numb
                 <span className="tnum text-[var(--text-muted)]">
                   {t("memories.themeCount", { n: th.count.toLocaleString(i18n.language), k: th.photos.length.toLocaleString(i18n.language) })}
                 </span>
-                <Link to="/search" search={{ q: "", tag: th.key, year: String(th.year) }} className="ml-auto underline">
+                <Link to="/search" search={{ q: "", tag: th.key, year: String(th.year), name: th.name }} className="ml-auto underline">
                   {t("memories.themeAll")}
                 </Link>
               </p>
