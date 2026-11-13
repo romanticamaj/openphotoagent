@@ -346,3 +346,4 @@ def test_srch_tok_025_one_concept_reads_the_same_by_any_of_its_names():
     # school courts; a park is not where its slides are, to the image model (ADR-0048 addendum 5)
     assert "scene.playground" not in tok.included("scene.park")
     assert tok.words("籃球場") == ["籃球場"] and tok.tag_key("籃球場") == "scene.sports_field"  # not 籃球 + 場
+    assert tok.words("籃球架") == ["籃球架"]  # a hoop tag is not basketball being played (audit round 79)

@@ -31,7 +31,7 @@ terms:
   - { id: people.family, zh: 家人, en: family, group: 人物, synonyms: [家庭, 全家福] }
   - { id: scene.classroom, zh: 教室, en: classroom, group: 場景, synonyms: [課堂, 活動室] }
   - { id: scene.playground, zh: 遊樂場, en: playground, group: 場景, synonyms: [遊戲場, 溜滑梯, 滑梯, 盪鞦韆, 鞦韆, 蹺蹺板, 攀爬架, seesaw, slide, slides, swing, swings, playgrounds] }
-  - { id: scene.sports_field, zh: 運動場, en: sports field, group: 場景, synonyms: [操場, 球場, 足球場, 田徑場, 籃球場, 網球場, 排球場, sports ground, court] }
+  - { id: scene.sports_field, zh: 運動場, en: sports field, group: 場景, synonyms: [操場, 球場, 足球場, 田徑場, 籃球場, 網球場, 排球場, 籃球架, sports ground, court] }
   - { id: scene.gym, zh: 體育館, en: gym, group: 場景, synonyms: [室內場地, 健身房] }
   - { id: scene.park, zh: 公園, en: park, group: 場景, synonyms: [綠地, parks] }
   - { id: scene.sea, zh: 海, en: sea, group: 場景, synonyms: [大海, 海洋, ocean] }
@@ -90,7 +90,7 @@ terms:
   - { id: object.boat, zh: 船, en: boat, group: 物件, synonyms: [小船, 遊艇, ship, boats] }
   - { id: object.umbrella, zh: 雨傘, en: umbrella, group: 物件, synonyms: [傘] }
   - { id: object.mask, zh: 口罩, en: face mask, group: 物件, synonyms: [] }
-  - { id: object.table, zh: 桌子, en: table, group: 物件, synonyms: [桌椅, 木桌, 課桌, 桌] }
+  - { id: object.table, zh: 桌子, en: table, group: 物件, synonyms: [桌椅, 木桌, 課桌, 桌, 書桌] }
   - { id: object.chair, zh: 椅子, en: chair, group: 物件, synonyms: [] }
   - { id: object.plant, zh: 植物, en: plant, group: 物件, synonyms: [盆栽] }
   - { id: object.tree, zh: 樹, en: tree, group: 物件, synonyms: [樹木, trees] }
