@@ -58,7 +58,7 @@ terms:
   - { id: activity.reading, zh: 閱讀, en: reading, group: 活動, synonyms: [看書, 讀書, read] }
   - { id: activity.swimming, zh: 游泳, en: swimming, group: 活動, synonyms: [泳池, 游泳池, swim, pool] }
   - { id: activity.running, zh: 跑步, en: running, group: 活動, synonyms: [奔跑, 賽跑, run] }
-  - { id: activity.eating, zh: 吃飯, en: eating, group: 活動, synonyms: [用餐, 吃東西, 吃, 午餐, 晚餐, 早餐, 午飯, 晚飯, breakfast, eat, meal, dinner, lunch], ranks_beside: [food] }
+  - { id: activity.eating, zh: 吃飯, en: eating, group: 活動, synonyms: [用餐, 吃東西, 吃, 午餐, 晚餐, 早餐, 午飯, 晚飯, breakfast, eat, meal, dinner, lunch], ranks_beside: [food], suggest: [food.meal, food.rice] }
   - { id: activity.cooking, zh: 煮飯, en: cooking, group: 活動, synonyms: [烹飪, 做菜, cook] }
   - { id: activity.sleeping, zh: 睡覺, en: sleeping, group: 活動, synonyms: [睡著, 午睡, 睡午覺, 入睡, sleep, nap] }
   - { id: activity.playing, zh: 玩耍, en: playing, group: 活動, synonyms: [遊戲, 玩樂, play], theme: false }

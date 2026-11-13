@@ -158,7 +158,8 @@ function Shell() {
   const menuButton = useRef<HTMLButtonElement>(null);
   const sidebar = useRef<HTMLDivElement>(null);
   const drawer = useNavDrawer(path, { toggle: menuButton, panel: sidebar }); // a drawer in a narrow window (VIEW-049/050)
-  usePageArrival(path, t); // the window title and focus follow the page (VIEW-054)
+  const href = useRouterState({ select: (st) => st.location.pathname + st.location.searchStr });
+  usePageArrival(href, t); // the window title and focus follow the page, its query too (VIEW-054/059)
   return (
     <div className="shell" data-single-user={caps.data ? String(caps.data.single_user) : undefined} data-nav-open={drawer.open ? "true" : undefined}>
       {/* the first Tab: past the search box and the sidebar, to the page's photos (A11Y-013) */}

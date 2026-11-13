@@ -399,3 +399,13 @@ def test_srch_tok_028_everyday_family_words_reach_the_image_model(q, en):
 def test_srch_tok_029_an_event_inside_a_longer_query_still_suggests():
     """回歸 (audit round 93): 「生日派對」 suggested nothing while 「生日」 suggested 蛋糕."""
     assert "蛋糕" in Tokenizer().related("生日派對")
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-030")
+def test_srch_tok_030_a_meal_suggests_food():
+    """回歸 (audit round 96): 吃飯, eat, 午餐 and lunch counted nothing (eating is carried by no photo) and offered only
+    問 AI, while 食物 has photos. A meal is seen by its food."""
+    tok = Tokenizer()
+    for q in ("吃飯", "午餐", "eat"):
+        assert "食物" in tok.related(q) or "食物" in tok.related(tok.term_name(tok.tag_key(q), "zh")), q

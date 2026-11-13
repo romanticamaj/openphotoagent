@@ -86,3 +86,31 @@ describe("people remember the person you came from, only from them (audit rounds
     expect(window.sessionStorage.getItem("opa.people.last")).toBeNull();
   });
 });
+
+describe("a page that places focus itself keeps it (audit round 96)", () => {
+  it("[VIEW-059] 回歸：頁面自己把焦點放在主內容裡（回到人物牆時的那張卡），不再被標題搶走；只換查詢的網址也更新視窗標題（驗證第 96 輪）", async () => {
+    vi.useFakeTimers();
+    const main = document.createElement("main");
+    main.id = "main";
+    const h1 = document.createElement("h1");
+    h1.textContent = "人物";
+    const card = document.createElement("button");
+    main.append(h1, card);
+    document.body.appendChild(main);
+    const t = (k: string) => ({ "nav.people": "人物", "nav.search": "搜尋" })[k] ?? k;
+    const h = renderHook(({ path }) => usePageArrival(path, t), { initialProps: { path: "/people/p1" } });
+    h1.remove(); // the wall is being drawn
+    h.rerender({ path: "/people" });
+    card.focus(); // the wall focuses the person you came from, ~10 ms
+    await vi.advanceTimersByTimeAsync(50);
+    main.prepend(h1); // its heading, ~55 ms
+    await vi.advanceTimersByTimeAsync(200);
+    expect(document.activeElement).toBe(card);
+    h1.textContent = "2026 的手工";
+    h.rerender({ path: "/search?tag=activity.crafts&year=2026" });
+    await vi.advanceTimersByTimeAsync(200);
+    expect(document.title).toBe("2026 的手工 — OpenPhotoAgent");
+    main.remove();
+    vi.useRealTimers();
+  });
+});
