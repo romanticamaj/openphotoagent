@@ -141,8 +141,15 @@ export function weakNeedsMore(shown: boolean, loaded: number, total: number, has
 export function headerCount(t: T, total: number, weak: number, capped: boolean, lang: string, relaxed?: string[]): string {
   const counted = countText(t, Math.max(0, total - weak), capped, lang);
   // a word was set aside: these match only the rest, said so (SRCH-UI-025: 「小孩在玩水」 said 「561 張以上」)
-  const shown = relaxed?.length ? t("search.partialCount", { count: counted }) : counted;
+  // nothing left at all: no 「符合其他條件的有 0 張」 above 「找不到」 (SRCH-UI-032)
+  const shown = relaxed?.length ? (total ? t("search.partialCount", { count: counted }) : t("search.partialNone")) : counted;
   return weak ? `${shown} · ${t("search.weakCount", { n: weak.toLocaleString(lang) })}` : shown;
+}
+
+/** 「載入更多」 says how many are left, when the count is exact (SRCH-UI-032). */
+export function loadMoreText(t: T, total: number, shown: number, capped: boolean, lang: string): string {
+  const left = total - shown;
+  return !capped && left > 0 ? t("search.loadMoreLeft", { n: left.toLocaleString(lang) }) : t("search.loadMore");
 }
 
 /** Words set aside because no photo shows them (ADR-0032); when none was left, the phrase's meaning answered. */

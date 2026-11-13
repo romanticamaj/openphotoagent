@@ -113,7 +113,8 @@
     "discarded": "已捨棄計畫，原檔沒有任何變更。",
     "backToOrganize": "回到整理",
     "summaryTrashChosen": "將移到垃圾桶 {count} 個檔案，可隨時復原",
-    "planTitleTrash": "移到垃圾桶的計畫"
+    "planTitleTrash": "移到垃圾桶的計畫",
+    "planning": "正在建立計畫…"
   },
   "eta": {
     "slow": {
@@ -604,7 +605,9 @@
     "noneSure": "沒有確定符合的照片",
     "tryInstead": "試試：",
     "tryWord": "{q}（{n} 張以上）",
-    "askInstead": "問 AI「{q}」"
+    "askInstead": "問 AI「{q}」",
+    "partialNone": "沒有完全符合的照片",
+    "loadMoreLeft": "載入更多（還有 {n} 張）"
   },
   "problem": {
     "chosen": "已改用 {what}"

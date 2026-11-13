@@ -300,3 +300,24 @@ def test_srch_tok_023_eating_a_thing_is_that_thing(q, out):
     """回歸 (audit round 72): 「吃蛋糕」 still found 10 photos and 「蛋糕」 1; 「吃香蕉」 said no photo shows 香蕉, which
     finds 3. Beside only foods or words the vocabulary does not know, 吃 leaves the query: 吃蛋糕 is 蛋糕."""
     assert Tokenizer().without_eating(q).strip() == out
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-024")
+@pytest.mark.parametrize(
+    ("q", "out"),
+    [
+        ("去爬山", "爬山"),
+        ("跳彈跳床", "彈跳床"),
+        ("堆沙堡", "沙堡"),
+        ("搭飛機", "飛機"),
+        ("看海", "海"),
+        ("吃蛋糕", "蛋糕"),
+        ("去", "去"),  # nothing else: left as typed
+        ("跳舞", "跳舞"),  # one word, not a verb before a thing
+    ],
+)
+def test_srch_tok_024_a_verb_before_a_thing_is_that_thing(q, out):
+    """回歸 (audit round 73): 「去爬山」「跳彈跳床」「堆沙堡」 said 「沒有照片拍到「去」」 above what the rest found: the
+    verb stood as a concept no photo shows. Like 吃 (SRCH-TOK-023), a light verb before other words leaves the query."""
+    assert Tokenizer().without_verbs(q).strip() == out

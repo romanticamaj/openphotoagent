@@ -1326,3 +1326,15 @@ def test_srch_cnc_021_eating_an_unknown_food_finds_that_food(s):
     assert s.search(q="香蕉", semantic=False)["total"] == 1
     res = s.search(q="吃香蕉", semantic=False)
     assert res["total"] == 1 and not res["relaxed"]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-CNC-022")
+def test_srch_cnc_022_a_verb_before_a_thing_finds_that_thing(s):
+    """回歸 (audit round 73): 「去爬山」 said 「沒有照片拍到「去」」 and 「符合其他條件的有 0 張」."""
+    s.add(1, caption="週末郊山健行", tags=("爬山",))
+    s.add(2, caption="海邊的夕陽")
+    s.index()
+    for q in ("爬山", "去爬山"):
+        res = s.search(q=q, semantic=False)
+        assert res["total"] == 1 and not res["relaxed"], q

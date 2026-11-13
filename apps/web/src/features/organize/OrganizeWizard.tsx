@@ -505,6 +505,11 @@ function CategoryEditor({
   );
 }
 
+/** 依日期 asks no model: it builds the plan, it does not analyse (ORG-022, ACT-020). */
+export function runningKey(job: Pick<Job, "params">): string {
+  return job.params?.preset === "by-date" ? "organize.planning" : "organize.running";
+}
+
 function JobProgress({ job, onSkipped }: { job: Job; onSkipped: (planId: string) => void }) {
   const { t } = useTranslation();
   const skip = useMutation({
@@ -517,7 +522,7 @@ function JobProgress({ job, onSkipped }: { job: Job; onSkipped: (planId: string)
   return (
     <section className="space-y-4">
       <p className="flex items-center gap-3">
-        <span>{t("organize.running")}</span>
+        <span>{t(runningKey(job))}</span>
         <span data-testid="source-status" className="rounded-[var(--radius-sm)] border border-[var(--border)] px-2 text-xs">
           {job.source_status === "offline" ? t("organize.sourceOffline") : t("organize.sourceOnline")}
         </span>

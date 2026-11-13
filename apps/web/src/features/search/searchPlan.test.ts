@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import i18n from "../../lib/i18n";
-import { bodyFor, cappedNote, chipLabel, chipsFrom, countText, gridAssetOf, headerCount, onlyByMeaning, relaxedText, softView, weakNeedsMore, weakTail, tileLabel, withoutPerson, withoutWords } from "./searchPlan";
+import { bodyFor, cappedNote, chipLabel, chipsFrom, countText, gridAssetOf, headerCount, loadMoreText, onlyByMeaning, relaxedText, softView, weakNeedsMore, weakTail, tileLabel, withoutPerson, withoutWords } from "./searchPlan";
 
 const planner = (filters: Record<string, unknown>, explain: string[], text = "") => ({
   source: "rules",
@@ -224,5 +224,16 @@ describe("no 「下面是」 over nothing (audit round 66)", () => {
   it("[SRCH-UI-028] 回歸：放寬後也沒有照片時，不說「下面是…」", () => {
     expect(relaxedText(t, ["玩水"], false, 0)).toBe("沒有照片拍到「玩水」。");
     expect(relaxedText(t, ["玩水"], false, 12)).toBe("沒有照片拍到「玩水」，下面是符合其他條件的照片。");
+  });
+});
+
+describe("headers that do not contradict the page (audit round 73)", () => {
+  it("[SRCH-UI-032] 回歸：部分符合但沒有照片時不寫「符合其他條件的有 0 張」；載入更多說還有幾張（驗證第 73 輪）", async () => {
+    await i18n.changeLanguage("zh-TW");
+    const t = i18n.getFixedT("zh-TW");
+    expect(headerCount(t, 0, 0, false, "zh-TW", ["沙堡"])).toBe("沒有完全符合的照片");
+    expect(headerCount(t, 12, 0, false, "zh-TW", ["沙堡"])).toBe("沒有完全符合的照片 · 符合其他條件的有 12 張");
+    expect(loadMoreText(t, 120, 50, false, "zh-TW")).toBe("載入更多（還有 70 張）");
+    expect(loadMoreText(t, 250, 100, true, "zh-TW")).toBe("載入更多"); // a lower bound: no count left to promise
   });
 });

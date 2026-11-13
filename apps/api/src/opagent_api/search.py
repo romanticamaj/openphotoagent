@@ -524,7 +524,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
         planned, body = _apply_plan(st, body, q)
         q = (body.q or "").strip()
     if q:
-        q = tokenizer().without_eating(q)  # 吃蛋糕 is 蛋糕 (SRCH-TOK-023, SRCH-CNC-020/021)
+        q = tokenizer().without_verbs(q)  # 去爬山 is 爬山, 吃蛋糕 蛋糕 (SRCH-TOK-023/024, SRCH-CNC-020/021)
     with st.engine.begin() as c:
         snapshot = cur["s"] if cur else str(c.execute(select(func.now())).scalar_one().isoformat())
         where, _ = _where(body.filters, snapshot)

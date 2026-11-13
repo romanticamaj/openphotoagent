@@ -101,3 +101,19 @@ describe("a dead end is not a dead end (audit round 70)", () => {
     s.result = null;
   });
 });
+
+describe("part of the question unanswered (audit round 73)", () => {
+  it("[SRCH-UI-033] 回歸：有字被放下、仍有照片時，也可以把整句拿去問 AI（驗證第 73 輪：游泳池玩水、搭飛機沒有問 AI）", async () => {
+    s.result = {
+      items: [{ asset_id: "a1", ch: null, score: 1, matched_by: ["fulltext"], category: null, tags: [], caption: "泳池", taken_at: null }],
+      facets: {}, total: 1, next_cursor: null, degraded: [], possible_total: 0, possible: [], relaxed: ["玩水"],
+    };
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SearchPage q="游泳池玩水" />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByRole("button", { name: "問 AI「游泳池玩水」" })).toBeTruthy();
+    s.result = null;
+  });
+});

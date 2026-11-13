@@ -15,7 +15,7 @@ import { AddToAlbum, FavoriteSelection, typingIn } from "../albums/AlbumButtons"
 import { askAbout } from "../../lib/askBus";
 import { CopyToFolderButton } from "../../components/CopyToFolder";
 import { TrashButton } from "../../components/TrashButton";
-import { bodyFor, cappedNote, chipLabel, chipsFrom, gridAssetOf, headerCount, onlyByMeaning, relaxedText, softView, weakNeedsMore, tileLabel, weakTail, withoutPerson, withoutWords, dateWords, type Chip } from "./searchPlan";
+import { bodyFor, cappedNote, chipLabel, chipsFrom, dateWords, gridAssetOf, headerCount, loadMoreText, onlyByMeaning, relaxedText, softView, tileLabel, type Chip, weakNeedsMore, weakTail, withoutPerson, withoutWords } from "./searchPlan";
 
 export function SearchPage({ q }: { q: string }) {
   const { t, i18n } = useTranslation();
@@ -182,7 +182,15 @@ export function SearchPage({ q }: { q: string }) {
         <p role="status" className="text-sm text-[var(--text-muted)]">{soft.note}</p>
       ) : null}
       {first && relaxedText(t, first.relaxed, Boolean(first.meaning_only), total) ? (
-        <p role="status" className="text-sm text-[var(--text-muted)]">{relaxedText(t, first.relaxed, Boolean(first.meaning_only), total)}</p>
+        <p role="status" className="flex flex-wrap items-center gap-2 text-sm text-[var(--text-muted)]">
+          <span>{relaxedText(t, first.relaxed, Boolean(first.meaning_only), total)}</span>
+          {total > 0 && q ? (
+            // part of the question went unanswered: the whole question can still go to 問 AI (SRCH-UI-033)
+            <button type="button" className="chip" onClick={() => askAbout(q)}>
+              {t("search.askInstead", { q })}
+            </button>
+          ) : null}
+        </p>
       ) : null}
       {index.data && index.data.total > 0 && index.data.searchable < index.data.total && (
         <p data-testid="index-banner" role="status" className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2">
@@ -349,7 +357,7 @@ export function SearchPage({ q }: { q: string }) {
       ) : null}
       {!weak && res.hasNextPage && (
         <Button variant="ghost" onClick={() => void res.fetchNextPage()}>
-          {t("search.loadMore")}
+          {loadMoreText(t, total, hits.length, Boolean(first?.total_capped), i18n.language)}
         </Button>
       )}
       {first?.possible_total ? (

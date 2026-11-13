@@ -33,6 +33,8 @@ VOCAB = VOCAB_DIR / "general-photo.yaml"  # package data in opagent_core (ADR-00
 _ZW = re.compile("[​‌‍⁠﻿­]")
 _CJK = re.compile(r"[぀-ヿ㐀-䶿一-鿿豈-﫿]+")
 _WORD = re.compile(r"[0-9a-z]+(?:['._-][0-9a-z]+)*|[぀-ヿ㐀-䶿一-鿿豈-﫿]+")
+# verbs that only say what one does with the thing named next (SRCH-TOK-024): 去爬山, 搭飛機, 堆沙堡, 看海
+LIGHT_VERBS = {"去", "搭", "坐", "堆", "跳", "騎", "看", "玩"}
 STOP = {"的", "了", "在", "是", "和", "與", "a", "an", "the", "of", "in", "on", "and", "with"}
 
 
@@ -244,6 +246,22 @@ class Tokenizer:
     def implied(self, key: str | None) -> set[str]:
         """The scenes an activity implies (ADR-0032 addendum): 衝浪 happens at the sea or a beach."""
         return set(self._implies.get(key or "", set()))
+
+    def without_verbs(self, text: str) -> str:
+        """A light verb before other words is not something a photo shows: 「去爬山」 is 「爬山」, 「搭飛機」 「飛機」
+        (SRCH-TOK-024); then 吃 beside a food (SRCH-TOK-023)."""
+        out = text
+        for c in self.concepts(text):  # one word to the segmenter, a verb and a term to a person: 看海
+            w = normalize(c.word)
+            if c.key is None and len(w) > 1 and w[0] in LIGHT_VERBS and self.tag_key(w[1:]):
+                out = out.replace(c.word, " " + c.word[1:], 1)
+        cs = self.concepts(out)
+        verbs = [c for c in cs if c.key is None and normalize(c.word) in LIGHT_VERBS]
+        if verbs and len(verbs) < len(cs):
+            for v in verbs:
+                out = out.replace(v.word, " ", 1)
+        out = re.sub(r"\s+", " ", out).strip()
+        return self.without_eating(out)
 
     def without_eating(self, text: str) -> str:
         """吃 beside only foods, or words the vocabulary does not know, is eating that thing: 「吃蛋糕」 is 「蛋糕」 and

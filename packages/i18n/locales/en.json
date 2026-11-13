@@ -113,7 +113,8 @@
     "discarded": "Plan discarded. No files were changed.",
     "backToOrganize": "Back to Organize",
     "summaryTrashChosen": "Move {count} files to the trash. You can undo at any time",
-    "planTitleTrash": "Plan: move to the trash"
+    "planTitleTrash": "Plan: move to the trash",
+    "planning": "Building the plan…"
   },
   "eta": {
     "slow": {
@@ -604,7 +605,9 @@
     "noneSure": "No photo is a sure match",
     "tryInstead": "Try:",
     "tryWord": "{q} ({n}+)",
-    "askInstead": "Ask AI “{q}”"
+    "askInstead": "Ask AI “{q}”",
+    "partialNone": "No photo matches all of it",
+    "loadMoreLeft": "Load more ({n} left)"
   },
   "problem": {
     "chosen": "Switched to {what}"
