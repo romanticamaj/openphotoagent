@@ -25,7 +25,7 @@ export function Lightbox({ start, grid: outer, onClose }: { start: number; grid:
   const { t, i18n } = useTranslation();
   const [ord, setOrd] = useState(start);
   // a photo's folded near-duplicates, looked through in place; 「返回全部照片」 goes back where it was (VIEW-052)
-  const [copies, setCopies] = useState<{ grid: GridApi; back: number } | null>(null);
+  const [copies, setCopies] = useState<{ grid: GridApi; back: number; backId: string } | null>(null);
   const grid = copies?.grid ?? outer;
   const [asset, setAsset] = useState<TimelineAsset | null>(null);
   const [assetOrd, setAssetOrd] = useState<number | null>(null); // which photo `asset` is: it arrives after ord moves
@@ -133,7 +133,8 @@ export function Lightbox({ start, grid: outer, onClose }: { start: number; grid:
     };
   }, [asset, scale, sharp]);
 
-  const close = useCallback(() => onClose(asset?.id ?? null), [asset, onClose]);
+  // closed while looking through a photo's copies: back to that photo in the grid, not to a copy it does not hold (VIEW-053)
+  const close = useCallback(() => onClose(copies ? copies.backId : (asset?.id ?? null)), [asset, copies, onClose]);
   const go = useCallback((d: number) => setOrd((o) => Math.max(0, Math.min(grid.total - 1, o + d))), [grid.total]);
   // a slideshow (VIEW-039): the next photo every SLIDE_MS, stopping on the last; moving by hand stops it
   const [playing, setPlaying] = useState(false);
@@ -211,6 +212,7 @@ export function Lightbox({ start, grid: outer, onClose }: { start: number; grid:
             onClick={() => {
               setOrd(copies.back);
               setCopies(null);
+              dialog.current?.focus(); // the keys keep working (VIEW-052)
             }}
           >
             {t("lightbox.copiesBack")}
@@ -221,8 +223,9 @@ export function Lightbox({ start, grid: outer, onClose }: { start: number; grid:
             className="rounded-[var(--radius-sm)] px-2 py-1 text-sm hover:bg-[var(--surface-2)]"
             onClick={() => {
               const photos = dups.data!.photos;
-              setCopies({ grid: memoryGrid(photos.map((p) => ({ id: p.asset_id, ch: p.ch ?? undefined, rot: p.rot }))), back: ord });
+              setCopies({ grid: memoryGrid(photos.map((p) => ({ id: p.asset_id, ch: p.ch ?? undefined, rot: p.rot }))), back: ord, backId: asset.id });
               setOrd(0);
+              dialog.current?.focus();
             }}
           >
             {t("lightbox.copies", { n: (dups.data!.photos.length - 1).toLocaleString(i18n.language) })}

@@ -244,5 +244,21 @@ describe("a photo's folded copies (audit round 87)", () => {
     fireEvent.click(screen.getByRole("button", { name: "返回全部照片" }));
     await waitFor(() => expect(screen.getByTestId("lightbox-position").textContent).toBe("第 1 張，共 3 張"));
     expect(screen.getByRole("button", { name: "另有 2 張近似重複" })).toBeTruthy();
+    // the keys still work: focus went to BODY and ←→ Esc did nothing (audit round 88)
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByTestId("lightbox")));
+  });
+
+  it("[VIEW-053] 回歸：在近似重複裡按 Esc，回到原本那張照片的位置（驗證第 88 輪：格子跳回第一張）", async () => {
+    const closed = vi.fn();
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Lightbox start={0} grid={grid} onClose={closed} />
+      </QueryClientProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "另有 2 張近似重複" }));
+    fireEvent.keyDown(screen.getByTestId("lightbox"), { key: "ArrowRight" });
+    await waitFor(() => expect(screen.getByTestId("lightbox-position").textContent).toBe("第 2 張，共 3 張"));
+    fireEvent.keyDown(screen.getByTestId("lightbox"), { key: "Escape" });
+    await waitFor(() => expect(closed).toHaveBeenCalledWith("p0"));
   });
 });
