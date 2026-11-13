@@ -259,3 +259,34 @@ describe("load more keeps your place (audit round 85)", () => {
     s.result = null;
   });
 });
+
+describe("what browsing folds, and where focus goes (audit round 86)", () => {
+  it("[SRCH-UI-042] 回歸：瀏覽時說出幾張近似重複收在代表照片裡（驗證第 86 輪：845 張的圖庫寫 665 張）", async () => {
+    const hit = (id: string) => ({ asset_id: id, ch: null, score: 1, matched_by: [], category: null, tags: [], caption: id, taken_at: null });
+    s.result = { items: [hit("a1")], facets: {}, total: 665, collapsed: 180, next_cursor: null, degraded: [], possible_total: 0, possible: [] };
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SearchPage q="" tag="activity.crafts" />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText(/另有 180 張近似重複/)).toBeTruthy();
+    s.result = null;
+  });
+
+  it("[SRCH-UI-043] 回歸：移除晶片後焦點不掉到頁面（驗證第 86 輪：焦點到 BODY）", async () => {
+    s.nav = () => undefined;
+    s.result = { items: [], facets: {}, total: 0, next_cursor: null, degraded: [], possible_total: 0, possible: [], tag_names: { "activity.crafts": "手工" } };
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SearchPage q="" tag="activity.crafts" year="2026" />
+      </QueryClientProvider>,
+    );
+    await screen.findByText("找不到符合的照片");
+    const x = screen.getByRole("button", { name: "移除 手工" });
+    x.focus();
+    x.click();
+    await waitFor(() => expect(document.activeElement?.getAttribute("aria-label")).toBe("移除 2026"));
+    s.result = null;
+    s.nav = null as unknown as (a: unknown) => void;
+  });
+});

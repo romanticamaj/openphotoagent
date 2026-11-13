@@ -104,3 +104,28 @@ def test_mem_010_themes_name_a_years_frequent_subjects(embedded_pg, tmp_path):
     assert [(t["year"], t["key"], t["name"], t["count"]) for t in th] == [(2025, "activity.soccer", "足球", 10)]
     assert len(th[0]["photos"]) == 10 and all(p["ch"] for p in th[0]["photos"])
     x.eng.dispose()
+
+
+@pytest.mark.integration
+@pytest.mark.tc("MEM-014")
+def test_mem_014_a_themes_cover_says_its_subject(embedded_pg, tmp_path):
+    """回歸 (audit rounds 80-86): 「2026 的運動場」 had an indoor staircase as its cover, the first photo by date that
+    carried the tag. The cover is the first one whose caption names the subject too."""
+    x = M(embedded_pg.dsn, tmp_path)
+    ids = [
+        x.add(
+            f"s{i}.jpg",
+            caption="樓梯間" if i == 0 else ("戶外的運動場" if i == 4 else "一群人"),
+            tags=("運動場",),
+            taken=datetime(2026, 3, 1 + i, 9, tzinfo=UTC),
+        )
+        for i in range(9)
+    ]
+    for i in range(10):  # the year's other photos: a tag on every one of them would say nothing about it
+        x.add(f"o{i}.jpg", taken=datetime(2026, 4, 1 + i, 9, tzinfo=UTC))
+    x.index()
+    th = x.client.get("/api/v1/memories/themes", headers=x.ui).json()["themes"]
+    t = next(t for t in th if t["key"] == "scene.sports_field")
+    assert t["photos"][0]["asset_id"] == ids[4]
+    assert {p["asset_id"] for p in t["photos"]} == set(ids)  # the same photos, the cover first
+    x.eng.dispose()

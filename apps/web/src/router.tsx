@@ -223,7 +223,8 @@ function Shell() {
       </nav>
       <ProgressDock />
       </div>
-      <main className="page" id="main" tabIndex={-1}>
+      {/* behind the open drawer the page is out of reach for a screen reader too (VIEW-051, audit round 86) */}
+      <main className="page" id="main" tabIndex={-1} inert={drawer.open || undefined}>
         <RecoveryCard onReview={() => setActivityOpen(true)} />
         <Suspense fallback={null}>
           <ApprovalInbox />

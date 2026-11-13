@@ -538,10 +538,15 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
     with st.engine.begin() as c:
         snapshot = cur["s"] if cur else str(c.execute(select(func.now())).scalar_one().isoformat())
         where, _ = _where(body.filters, snapshot)
+        collapsed = 0
         if body.collapse_duplicates:  # pre-filter, so total / facets / selection agree (ADR-0005)
             from opagent_db.schema import duplicate_member
 
             hidden = select(duplicate_member.c.asset_id).where(duplicate_member.c.is_representative.is_(False))
+            if not q and not cur:  # browsing says how many are folded into their group's photo (SRCH-DUP-010)
+                collapsed = c.execute(
+                    select(func.count()).select_from(search_doc).where(and_(*where), search_doc.c.asset_id.in_(hidden))
+                ).scalar_one()
             where.append(search_doc.c.asset_id.notin_(hidden))
         space = active_space(c)
         from .routes_caption import caption_space
@@ -899,6 +904,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
         # 「可能相關」 (ADR-0047): found by vectors only and unlike the confirmed hits; not counted, not in facets or
         # selection
         "possible_total": len(possible),
+        "collapsed": int(collapsed),  # near-duplicates folded into their group's photo, when browsing (SRCH-DUP-010)
         "suggest": suggest,  # nothing found: words inside the query that find photos (SRCH-SUG-001)
         "possible": [
             {

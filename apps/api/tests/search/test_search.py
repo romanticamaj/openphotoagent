@@ -1440,3 +1440,17 @@ def test_srch_fac_006_a_filtered_tag_is_named_too(s):
     res = s.search(q=None, filters={"tags_all": ["activity.crafts"]}, semantic=False, facets=[])
     assert res["total"] == 1
     assert res["tag_names"].get("activity.crafts") == "手工"
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-DUP-010")
+def test_srch_dup_010_browsing_says_how_many_near_duplicates_are_folded(s):
+    """回歸 (audit round 86): with every filter removed the page said 665 張 where the library has 845: 180 near-
+    duplicates are folded into their group's photo, as everywhere, but nothing said so. Browsing says how many."""
+    ids = [s.add(i, caption=f"圖{i}") for i in range(4)]
+    s.index()
+    s.sql("insert into duplicate_member(group_id, asset_id, is_representative) values ('g', :a, true)", a=ids[0])
+    s.sql("insert into duplicate_member(group_id, asset_id, is_representative) values ('g', :a, false)", a=ids[1])
+    s.sql("insert into duplicate_member(group_id, asset_id, is_representative) values ('g', :a, false)", a=ids[2])
+    res = s.search(q=None, semantic=False)
+    assert res["total"] == 2 and res["collapsed"] == 2

@@ -309,7 +309,14 @@ def memory_themes(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
     hidden = select(duplicate_member.c.asset_id).where(duplicate_member.c.is_representative.is_(False))
     with _st(req).engine.connect() as c:
         rows = c.execute(
-            select(asset.c.id, asset.c.content_hash, asset.c.rotation, when.label("at"), search_doc.c.tags)
+            select(
+                asset.c.id,
+                asset.c.content_hash,
+                asset.c.rotation,
+                when.label("at"),
+                search_doc.c.tags,
+                search_doc.c.caption,
+            )
             .join(search_doc, search_doc.c.asset_id == asset.c.id)
             .where(asset.c.workspace_id == DEFAULT_WS, when.is_not(None))
             .order_by(when, asset.c.id)
@@ -326,6 +333,13 @@ def memory_themes(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
         hidden=dup,
     )
     names = tag_names([t.key for t in found], lang)
+
+    def cover_first(key: str, ids: tuple[str, ...]) -> list[str]:
+        """The first photo whose caption names the subject leads: a staircase opened 「2026 的運動場」 (MEM-014)."""
+        forms = [f for f in tokenizer()._forms_of(key) if f and not f.isascii()]
+        lead = next((a for a in ids if any(f in (info[a].caption or "") for f in forms)), None)
+        return [lead, *(a for a in ids if a != lead)] if lead else list(ids)
+
     return {
         "themes": [
             {
@@ -340,7 +354,7 @@ def memory_themes(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
                         "taken_at": info[a].at.isoformat() if info[a].at else None,
                         "rot": info[a].rotation,
                     }
-                    for a in t.asset_ids
+                    for a in cover_first(t.key, t.asset_ids)
                 ],
             }
             for t in found

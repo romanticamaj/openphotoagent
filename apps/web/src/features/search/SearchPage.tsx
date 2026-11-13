@@ -189,6 +189,7 @@ export function SearchPage({ q, tag, year }: { q: string; tag?: string; year?: s
           // 「沒有確定符合的照片」 either, which says it (SRCH-UI-036)
           <span data-testid="result-count" className="tnum text-[var(--text-muted)]">
             {headerCount(t, total, first.weak ?? 0, Boolean(first.total_capped), i18n.language, first.meaning_only ? [] : first.relaxed)}
+            {first.collapsed ? ` · ${t("search.collapsed", { n: first.collapsed.toLocaleString(i18n.language) })}` : ""}
           </span>
         ) : null}
       </div>
@@ -216,7 +217,15 @@ export function SearchPage({ q, tag, year }: { q: string; tag?: string; year?: s
         {chips.map((c) => (
           <li key={`${c.kind}:${c.value}`} className="flex items-center gap-1 rounded-full border border-[var(--border)] px-3 py-0.5 text-sm">
             {chipLabel(t, c, { ...tagNames, ...first?.tag_names })}
-            <button type="button" aria-label={t("search.remove", { what: chipLabel(t, c, { ...tagNames, ...first?.tag_names }) })} onClick={() =>
+            <button type="button" aria-label={t("search.remove", { what: chipLabel(t, c, { ...tagNames, ...first?.tag_names }) })} onClick={(e) => {
+                // focus stays in the chips, on the next one, or the search box (SRCH-UI-043)
+                const list = e.currentTarget.closest("ul");
+                const at = [...(list?.querySelectorAll("button") ?? [])].indexOf(e.currentTarget);
+                requestAnimationFrame(() => {
+                  const left = [...(list?.querySelectorAll<HTMLButtonElement>("button") ?? [])];
+                  (left[Math.min(at, left.length - 1)] ?? document.querySelector<HTMLInputElement>('[role="search"] input'))?.focus();
+                });
+                return (
                 (c.kind === "tag" && c.value === tag) || (c.kind === "year" && c.value === year)
                   ? // a theme's filter came from the address: it leaves the page and the address (SRCH-UI-039/040)
                     (setChips(chips.filter((x) => x !== c)),
@@ -228,8 +237,8 @@ export function SearchPage({ q, tag, year }: { q: string; tag?: string; year?: s
                   ? void nav({ to: "/search", search: { q: withoutPerson(q, c.value) } }) // the box follows (SRCH-UI-013)
                   : (c.kind === "range" || c.kind === "day") && planned?.dates.length && withoutWords(q, planned.dates) !== q
                     ? void nav({ to: "/search", search: { q: withoutWords(q, planned.dates) } }) // the date leaves the box too (SRCH-UI-021)
-                    : setChips(chips.filter((x) => x !== c))
-              }>
+                    : setChips(chips.filter((x) => x !== c)));
+              }}>
               ×
             </button>
           </li>
