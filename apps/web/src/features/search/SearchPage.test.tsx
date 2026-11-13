@@ -7,12 +7,15 @@ beforeAll(async () => {
   await i18n.changeLanguage("zh-TW");
 });
 
-const s = vi.hoisted(() => ({ result: null as unknown }));
+const s = vi.hoisted(() => ({ result: null as unknown, calls: 0 }));
 vi.mock("../../lib/api", async (orig) => ({
   ...(await orig<typeof import("../../lib/api")>()),
   mediaUrl: (id: string) => `/m/${id}`,
   api: {
-    search: () => (s.result ? Promise.resolve(s.result) : new Promise(() => undefined)), // still searching unless set
+    search: () => {
+      s.calls += 1;
+      return s.result ? Promise.resolve(s.result) : new Promise(() => undefined); // still searching unless set
+    },
     searchIndex: async () => ({ total: 10, searchable: 10 }),
     preset: async () => ({ categories: [] }),
     roots: async () => [],
@@ -131,6 +134,43 @@ describe("no sure match, some possible (audit round 75)", () => {
     );
     expect(await screen.findByText("沒有確定符合的照片")).toBeTruthy();
     expect(screen.getByRole("button", { name: "問 AI「彈跳床」" })).toBeTruthy();
+    s.result = null;
+  });
+});
+
+describe("one search per query (audit round 76)", () => {
+  it("[SRCH-UI-035] 回歸：規則解析後不再重搜同一個答案（驗證第 76 輪：每個查詢打兩次 /search，等待時間加倍）", async () => {
+    s.calls = 0;
+    s.result = {
+      items: [{ asset_id: "a1", ch: null, score: 1, matched_by: ["tag"], category: null, tags: [], caption: "貓", taken_at: null }],
+      facets: {}, total: 1, next_cursor: null, degraded: [], possible_total: 0, possible: [],
+      planner: { source: "rules", confidence: 0.6, explain: [], text: "貓", filters: {}, unapplied: [] },
+    };
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SearchPage q="貓" />
+      </QueryClientProvider>,
+    );
+    await screen.findByText("1 張");
+    await new Promise((r) => setTimeout(r, 50));
+    expect(s.calls).toBe(1);
+    s.result = null;
+  });
+});
+
+describe("one way to say none (audit round 76)", () => {
+  it("[SRCH-UI-036] 回歸：只有可能相關時，標題旁不再寫「0 張」（驗證第 76 輪）", async () => {
+    s.result = {
+      items: [], facets: {}, total: 0, next_cursor: null, degraded: [], possible_total: 1,
+      possible: [{ asset_id: "p1", ch: null, caption: null, taken_at: null, matched_by: ["image_vector"] }],
+    };
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SearchPage q="博物館" />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText("沒有確定符合的照片")).toBeTruthy();
+    expect(screen.queryByTestId("result-count")).toBeNull();
     s.result = null;
   });
 });

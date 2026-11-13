@@ -17,13 +17,15 @@ import { CopyToFolderButton } from "../../components/CopyToFolder";
 import { TrashButton } from "../../components/TrashButton";
 import { bodyFor, cappedNote, chipLabel, chipsFrom, dateWords, gridAssetOf, headerCount, loadMoreText, onlyByMeaning, relaxedText, softView, tileLabel, type Chip, weakNeedsMore, weakTail, withoutPerson, withoutWords } from "./searchPlan";
 
+const sameChips = (a: Chip[], b: Chip[]) => a.length === b.length && a.every((c, i) => JSON.stringify(c) === JSON.stringify(b[i]));
+
 export function SearchPage({ q }: { q: string }) {
   const { t, i18n } = useTranslation();
   const nav = useNavigate();
   const [chips, setChips] = useState<Chip[]>([]);
   const [tagNames, setTagNames] = useState<Record<string, string>>({});
   // the rule planner runs once per query; its filters become chips and the rest of the words stay the query (05 §2.3)
-  const [planned, setPlanned] = useState<{ text: string; dates: string[] } | null>(null);
+  const [planned, setPlanned] = useState<{ text: string; dates: string[]; chips: Chip[] } | null>(null);
   const [sel, setSel] = useState<{ all: boolean; ids: Set<string>; anchor: number | null; multi?: boolean }>({ all: false, ids: new Set(), anchor: null });
   const [toast, setToast] = useState<string | null>(null);
   const [comparing, setComparing] = useState<string[] | null>(null);
@@ -36,7 +38,12 @@ export function SearchPage({ q }: { q: string }) {
     setSel({ all: false, ids: new Set(), anchor: null });
   }, [q]);
 
-  const body: SearchBody = useMemo(() => bodyFor(q, chips, planned), [q, chips, planned]);
+  // the planned answer is the first one: while its chips stand as planned, ask the same question again for each page,
+  // not a second search for the same answer (SRCH-UI-035); a chip the user changes asks anew
+  const body: SearchBody = useMemo(
+    () => (planned && sameChips(chips, planned.chips) ? bodyFor(q, [], null) : bodyFor(q, chips, planned)),
+    [q, chips, planned],
+  );
   const res = useInfiniteQuery({
     queryKey: ["search", body],
     queryFn: ({ pageParam }) => api.search({ ...body, limit: 100, cursor: pageParam, facets: ["tags", "year"], lang: i18n.language }),
@@ -46,8 +53,9 @@ export function SearchPage({ q }: { q: string }) {
   const plannerOut = res.data?.pages[0]?.planner;
   useEffect(() => {
     if (planned || !plannerOut) return;
-    setChips(chipsFrom(plannerOut));
-    setPlanned({ text: plannerOut.text, dates: dateWords(plannerOut.explain) });
+    const auto = chipsFrom(plannerOut);
+    setChips(auto);
+    setPlanned({ text: plannerOut.text, dates: dateWords(plannerOut.explain), chips: auto });
   }, [plannerOut, planned]);
   const index = useQuery({ queryKey: ["search-index"], queryFn: api.searchIndex, refetchInterval: 5000 });
   const first = res.data?.pages[0];
@@ -171,8 +179,9 @@ export function SearchPage({ q }: { q: string }) {
     <section className="space-y-4 p-4" aria-labelledby="search-h">
       <div className="flex items-baseline gap-3">
         <h1 id="search-h" className="text-lg font-semibold">{t("search.results")}</h1>
-        {first ? (
-          // no count until the answer is here: 「0 張」 flashed before every result (audit round 2)
+        {first && (total > 0 || !first.possible_total) ? (
+          // no count until the answer is here: 「0 張」 flashed before every result (audit round 2); none over
+          // 「沒有確定符合的照片」 either, which says it (SRCH-UI-036)
           <span data-testid="result-count" className="tnum text-[var(--text-muted)]">
             {headerCount(t, total, first.weak ?? 0, Boolean(first.total_capped), i18n.language, first.meaning_only ? [] : first.relaxed)}
           </span>
