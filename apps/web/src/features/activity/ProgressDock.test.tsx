@@ -172,3 +172,14 @@ describe("progress on every page (ADR-0029, invariant 9)", () => {
     expect(screen.queryByTestId("progress-dock")).toBeNull();
   });
 });
+
+describe("what a stage waits for (audit rounds 70-71)", () => {
+  it("[ACT-019] 回歸：只有 AI 分析在等時寫「載入 AI 模型」；其他工作寫「準備中…」（驗證第 70～71 輪：不使用 AI 的整理也顯示載入 AI 模型）", async () => {
+    const { waitNoteKey } = await import("./ProgressDock");
+    expect(waitNoteKey("job.label", false)).toBe("dock.preparing");
+    expect(waitNoteKey("output.apply", false)).toBe("dock.waiting");
+    expect(waitNoteKey("face.cluster", false)).toBe("dock.waiting");
+    expect(waitNoteKey("scan", false)).toBe("dock.scanning");
+    expect(waitNoteKey("job.label", true)).toBe("dock.waitingScan");
+  });
+});

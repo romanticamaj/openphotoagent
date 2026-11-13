@@ -174,6 +174,7 @@ class Tokenizer:
     _forms: dict[str, list[str]] = field(default_factory=dict)
     _implies: dict[str, set[str]] = field(default_factory=dict)
     _includes: dict[str, set[str]] = field(default_factory=dict)
+    _beside: dict[str, set[str]] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         import jieba
@@ -186,6 +187,7 @@ class Tokenizer:
             self._names[t["id"]] = {"zh": t["zh"], "en": t["en"]}
             self._implies[t["id"]] = set(t.get("implies") or [])
             self._includes[t["id"]] = set(t.get("includes") or [])
+            self._beside[t["id"]] = set(t.get("ranks_beside") or [])
             for s in [t["zh"], t["en"], *t.get("synonyms", [])]:
                 self._index.setdefault(normalize(s), t["id"])
                 self.custom_words.append(s)
@@ -242,6 +244,10 @@ class Tokenizer:
     def implied(self, key: str | None) -> set[str]:
         """The scenes an activity implies (ADR-0032 addendum): 衝浪 happens at the sea or a beach."""
         return set(self._implies.get(key or "", set()))
+
+    def ranks_beside(self, key: str | None) -> set[str]:
+        """The kinds of term beside which this one only ranks (SRCH-CNC-020): 吃 beside a food is eating that food."""
+        return set(self._beside.get(key or "", set()))
 
     def tag_key(self, word: str) -> str | None:
         return self._index.get(normalize(word))

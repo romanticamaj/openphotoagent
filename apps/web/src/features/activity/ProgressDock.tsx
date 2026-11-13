@@ -40,6 +40,13 @@ function stagesOf(ops: Op[]): Stage[] {
   });
 }
 
+/** What a stage with no count yet is waiting for (ACT-019): only an analysis loads the AI model. */
+export function waitNoteKey(type: string, scanning: boolean): string {
+  if (type === "scan") return "dock.scanning";
+  if (scanning) return "dock.waitingScan";
+  return type === "job.label" ? "dock.preparing" : "dock.waiting";
+}
+
 export function ProgressDock() {
   const { t, i18n } = useTranslation();
   const now = useNow();
@@ -143,7 +150,7 @@ export function ProgressDock() {
             </div>
             {!s.total ? (
               // its own line: beside the stage name it squeezed both (ACT-011)
-              <p className="text-xs text-[var(--text-muted)]">{t(s.type === "scan" ? "dock.scanning" : stages.some((x) => x.type === "scan") ? "dock.waitingScan" : "dock.preparing")}</p>
+              <p className="text-xs text-[var(--text-muted)]">{t(waitNoteKey(s.type, stages.some((x) => x.type === "scan")))}</p>
             ) : null}
             {timing ? <p className="tnum text-xs text-[var(--text-muted)]">{timing}</p> : null}
           </div>

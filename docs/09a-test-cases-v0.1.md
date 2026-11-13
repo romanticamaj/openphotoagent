@@ -744,6 +744,7 @@
 | ACT-016 | 活動的工作列附上工作狀態與結果（回歸，驗證第 58 輪：依日期預覽寫成「整理 完成」） | 待核准的整理工作；捨棄後 | `subject.job_status` 為 awaiting_approval；捨棄後 completed 且 `outcome: discarded` | I | #— |
 | ACT-017 | 整理工作依計畫狀態命名 | 待核准；已捨棄；已套用 | 「整理計畫待核准」；「已捨棄整理計畫（未變更檔案）」；「整理」 | U | #— |
 | ACT-018 | 待核准的整理計畫狀態不寫「完成」（回歸，驗證第 59 輪） | 分析已完成、計畫待核准的工作 | 狀態「等你核准」；其他工作照常顯示 | U | #— |
+| ACT-019 | 進度卡只有 AI 分析在等時寫「載入 AI 模型」（回歸，驗證第 70～71 輪） | job.label、output.apply、face.cluster、scan、掃描中 | dock.preparing、dock.waiting、dock.waiting、dock.scanning、dock.waitingScan | C | #— |
 
 ## 10. ORG、REV — 整理流程與待確認（killer ①；03 §10、04 §3.7、08 §8.1）
 

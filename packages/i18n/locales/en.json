@@ -1087,7 +1087,8 @@
     "elapsed": "{elapsed} so far",
     "estimating": "estimating the time left…",
     "scanning": "Finding the photos in the folder…",
-    "nothingNew": "Everything was already analysed; nothing to update"
+    "nothingNew": "Everything was already analysed; nothing to update",
+    "waiting": "Getting ready…"
   },
   "explore": {
     "title": "Categories",

@@ -1300,3 +1300,17 @@ def test_srch_sug_001_nothing_found_suggests_words_that_find_photos(s):
     assert res["suggest"] == [{"q": "山", "n": 1}]
     assert s.search(q="夕陽", semantic=False)["suggest"] == []  # something found: nothing to suggest
     assert s.search(q="長頸鹿", semantic=False)["suggest"] == []
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-CNC-020")
+def test_srch_cnc_020_eating_a_food_is_that_food(s):
+    """回歸 (audit round 71): 「吃蛋糕」 found 10 photos and 「蛋糕」 1: 吃 stood as a concept of its own beside the food,
+    and its caption meaning let in toy-play scenes. A food implies eating: beside one, 吃 ranks and never adds photos."""
+    s.add(1, caption="桌上的生日蛋糕", tags=("蛋糕",))
+    s.add(2, caption="小朋友在吃午餐", tags=("用餐",))
+    s.add(3, caption="海邊的夕陽")
+    s.index()
+    assert s.search(q="蛋糕", semantic=False)["total"] == 1
+    assert s.search(q="吃蛋糕", semantic=False)["total"] == 1
+    assert s.search(q="吃冰淇淋", semantic=False)["total"] == 0

@@ -653,8 +653,11 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
             # a scene another concept implies ranks too (ADR-0032 addendum): surfing shows the waves, not always sand
             implied_by: dict[str, str] = {}
             for cpt in concepts:
+                beside = tokenizer().ranks_beside(cpt.key)  # 吃 beside a food is eating it (SRCH-CNC-020)
                 for other in concepts:
-                    if other is not cpt and other.key and cpt.key in tokenizer().implied(other.key):
+                    if other is cpt or not other.key:
+                        continue
+                    if cpt.key in tokenizer().implied(other.key) or other.key.split(".")[0] in beside:
                         implied_by[cpt.word] = other.word
             soft += [cpt for cpt in concepts if cpt.word in implied_by and cpt not in soft]
             if len(soft) == len(concepts):

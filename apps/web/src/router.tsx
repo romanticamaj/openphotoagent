@@ -124,7 +124,7 @@ function Shell() {
     setActivity(v);
   };
   // ⌘I / Ctrl+I toggles 問 AI; ⌘J stays with the Activity Center (06 §6.1, ACT-005; ADR-0013)
-  useAskRequest(() => setAsking(true)); // a page hands over a question (ASK-UI-020)
+  useAskRequest(() => setAsking(true), false); // a page hands over a question; the panel takes it (ASK-UI-020/021)
   const askingRef = useRef(asking);
   askingRef.current = asking;
   useEffect(() => {

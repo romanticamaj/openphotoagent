@@ -1087,7 +1087,8 @@
     "elapsed": "已經過 {elapsed}",
     "estimating": "估算剩餘時間中…",
     "scanning": "正在找出資料夾裡的照片…",
-    "nothingNew": "都已分析過，沒有要更新的照片"
+    "nothingNew": "都已分析過，沒有要更新的照片",
+    "waiting": "準備中…"
   },
   "explore": {
     "title": "分類",
