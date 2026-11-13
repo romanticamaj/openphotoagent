@@ -527,7 +527,8 @@
       "close": "關閉"
     },
     "copies": "另有 {n} 張近似重複",
-    "copiesBack": "返回全部照片"
+    "copiesBack": "返回全部照片",
+    "copiesPosition": "近似重複 第 {n} 張，共 {total} 張"
   },
   "onboarding": {
     "welcome": "歡迎使用 OpenPhotoAgent",

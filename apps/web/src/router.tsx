@@ -1,5 +1,6 @@
 import { useAskRequest } from "./lib/askBus";
 import { useNavDrawer } from "./lib/navDrawer";
+import { usePageArrival } from "./lib/pageTitle";
 import { Link, Outlet, createRootRoute, createRoute, createRouter, redirect, useRouterState } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
@@ -157,6 +158,7 @@ function Shell() {
   const menuButton = useRef<HTMLButtonElement>(null);
   const sidebar = useRef<HTMLDivElement>(null);
   const drawer = useNavDrawer(path, { toggle: menuButton, panel: sidebar }); // a drawer in a narrow window (VIEW-049/050)
+  usePageArrival(path, t); // the window title and focus follow the page (VIEW-054)
   return (
     <div className="shell" data-single-user={caps.data ? String(caps.data.single_user) : undefined} data-nav-open={drawer.open ? "true" : undefined}>
       {/* the first Tab: past the search box and the sidebar, to the page's photos (A11Y-013) */}
@@ -199,7 +201,12 @@ function Shell() {
       </header>
       {/* the nav and the progress card share the sidebar column: the card never covers 設定 (ACT-010) */}
       {drawer.open ? <div className="nav-scrim" aria-hidden="true" onClick={drawer.close} /> : null}
-      <div className="sidebar" id="app-sidebar" ref={sidebar}>
+      <div
+        className="sidebar"
+        id="app-sidebar"
+        ref={sidebar}
+        {...(drawer.open ? { role: "dialog", "aria-modal": true, "aria-label": t("nav.label") } : {})}
+      >
       <nav className="sidenav" aria-label={t("nav.label")}>
         {navSections(Boolean(faces.data?.enabled)).map((g) => (
           <div key={g.key} className="sidenav-group">

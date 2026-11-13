@@ -238,9 +238,10 @@ describe("a photo's folded copies (audit round 87)", () => {
     );
     const open = await screen.findByRole("button", { name: "另有 2 張近似重複" });
     fireEvent.click(open);
-    await waitFor(() => expect(screen.getByTestId("lightbox-position").textContent).toBe("第 1 張，共 3 張"));
+    // the place says it is a group of near-duplicates (VIEW-055, audit round 89)
+    await waitFor(() => expect(screen.getByTestId("lightbox-position").textContent).toBe("近似重複 第 1 張，共 3 張"));
     fireEvent.keyDown(screen.getByTestId("lightbox"), { key: "ArrowRight" });
-    await waitFor(() => expect(screen.getByTestId("lightbox-position").textContent).toBe("第 2 張，共 3 張"));
+    await waitFor(() => expect(screen.getByTestId("lightbox-position").textContent).toBe("近似重複 第 2 張，共 3 張"));
     fireEvent.click(screen.getByRole("button", { name: "返回全部照片" }));
     await waitFor(() => expect(screen.getByTestId("lightbox-position").textContent).toBe("第 1 張，共 3 張"));
     expect(screen.getByRole("button", { name: "另有 2 張近似重複" })).toBeTruthy();
@@ -257,7 +258,7 @@ describe("a photo's folded copies (audit round 87)", () => {
     );
     fireEvent.click(await screen.findByRole("button", { name: "另有 2 張近似重複" }));
     fireEvent.keyDown(screen.getByTestId("lightbox"), { key: "ArrowRight" });
-    await waitFor(() => expect(screen.getByTestId("lightbox-position").textContent).toBe("第 2 張，共 3 張"));
+    await waitFor(() => expect(screen.getByTestId("lightbox-position").textContent).toBe("近似重複 第 2 張，共 3 張"));
     fireEvent.keyDown(screen.getByTestId("lightbox"), { key: "Escape" });
     await waitFor(() => expect(closed).toHaveBeenCalledWith("p0"));
   });

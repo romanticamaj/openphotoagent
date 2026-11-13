@@ -187,7 +187,8 @@ export function Lightbox({ start, grid: outer, onClose }: { start: number; grid:
 
   const dragFrom = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
   const ph = placeholder(asset?.thumbhash);
-  const position = t("lightbox.position", { n: (ord + 1).toLocaleString(i18n.language), total: grid.total.toLocaleString(i18n.language) });
+  // inside a photo's copies the place says so (VIEW-055: the view never said it was a group of near-duplicates)
+  const position = t(copies ? "lightbox.copiesPosition" : "lightbox.position", { n: (ord + 1).toLocaleString(i18n.language), total: grid.total.toLocaleString(i18n.language) });
 
   return (
     <div ref={dialog} role="dialog" aria-modal="true" aria-label={t("lightbox.label")} tabIndex={-1} className="lightbox" onKeyDown={onKey} data-testid="lightbox">

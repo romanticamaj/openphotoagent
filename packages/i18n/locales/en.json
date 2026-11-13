@@ -527,7 +527,8 @@
       "close": "Close"
     },
     "copies": "{n} near-duplicates",
-    "copiesBack": "Back to all photos"
+    "copiesBack": "Back to all photos",
+    "copiesPosition": "Near-duplicate {n} of {total}"
   },
   "onboarding": {
     "welcome": "Welcome to OpenPhotoAgent",
