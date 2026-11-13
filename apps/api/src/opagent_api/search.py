@@ -377,8 +377,10 @@ def _concept_cond(i: int, cpt: Any, meaning: list[str] | None = None) -> Any:
             to_tsquery_alts([cpt.forms[0]], {cpt.forms[0]: list(cpt.forms[1:])}), cpt.word if latin else "", f"c{i}"
         )
     ]
-    if cpt.key:  # the term's tag, or a kind it includes: 車子 shows on a photo tagged 公車 (SRCH-CNC-017)
-        parts.append(search_doc.c.tags.overlap([cpt.key, *sorted(tok.included(cpt.key))]))
+    if cpt.key:  # the term's tag, a kind it includes (SRCH-CNC-017), or a tag it is seen by (SRCH-CNC-025)
+        parts.append(
+            search_doc.c.tags.overlap([cpt.key, *sorted(tok.included(cpt.key)), *sorted(tok.seen_by(cpt.key))])
+        )
     elif not latin:
         bi = tok.bigrams(cpt.word)
         if bi:
@@ -774,6 +776,29 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                 possible = [a for a in possible if a not in keep]  # shown by every word: counted, not 「可能相關」
             else:
                 if vec_ids:
+                    # tag hits by a tag the query's term is only seen by do not sample what it looks like (ADR-0048
+                    # addendum 7): food photos would stretch eating's image bar
+                    own_keys = sorted(
+                        {
+                            k
+                            for cpt in tokenizer().concepts(q)
+                            if cpt.key
+                            for k in (cpt.key, *tokenizer().included(cpt.key))
+                        }
+                    )
+                    own_tag_hits = (
+                        {
+                            r[0]
+                            for r in c.execute(
+                                select(search_doc.c.asset_id).where(
+                                    search_doc.c.asset_id.in_(routes.get("tag") or ["-"]),
+                                    search_doc.c.tags.overlap(own_keys),
+                                )
+                            )
+                        }
+                        if own_keys and routes.get("tag")
+                        else set()
+                    )
                     described: set[str] = set()
                     if cspace is not None and cvec is not None:
                         img_only = [x for x in routes.get("image_vector") or [] if x not in cap_cos]
@@ -795,7 +820,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                         vector_alone(st, space) if space is not None else None,
                         cap_bar,
                         described,
-                        set(word_hits) | set(routes.get("tag") or []),
+                        set(word_hits) | own_tag_hits,
                     )
                     if counted:
                         member.append(search_doc.c.asset_id.in_(counted))

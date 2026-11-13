@@ -409,3 +409,29 @@ def test_srch_tok_030_a_meal_suggests_food():
     tok = Tokenizer()
     for q in ("吃飯", "午餐", "eat"):
         assert "食物" in tok.related(q) or "食物" in tok.related(tok.term_name(tok.tag_key(q), "zh")), q
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-031")
+def test_srch_tok_031_a_meal_is_seen_by_its_food_through_tags_only():
+    """ADR-0048 addendum 7 (one deliberation sub-agent; audit round 97: 吃飯, eat and 午餐 counted 0 with 16 meal
+    photos). `seen_by`: a photo tagged with one of these shows the activity, through the tag route only; never a form
+    of the word (SRCH-TOK-020 stands), never the image prompt, never backwards."""
+    import yaml
+    from opagent_core.vocabularies import VOCAB_DIR
+
+    tok = Tokenizer()
+    assert tok.query("吃飯").tag_keys == ["activity.eating", "food.meal", "food.rice"]
+    assert "飯" not in {f for c in tok.concepts("吃飯") for f in c.forms}
+    assert tok.vector_text("吃飯") == "eating"
+    assert tok.query("飯").tag_keys == ["food.rice"] and tok.query("食物").tag_keys == ["food.meal"]
+    terms = yaml.safe_load((VOCAB_DIR / "general-photo.yaml").read_text(encoding="utf-8"))["terms"]
+    by_id = {t["id"]: t for t in terms}
+    for t in terms:
+        for k in t.get("seen_by", []):
+            assert k in by_id and t["id"].startswith("activity.") and k.split(".")[0] in ("object", "food"), (
+                t["id"],
+                k,
+            )
+            assert not by_id[k].get("seen_by") and not by_id[k].get("includes"), "no chains"
+            assert k not in (t.get("includes") or [])

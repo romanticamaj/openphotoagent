@@ -1584,3 +1584,23 @@ def test_srch_sem_025_an_untagged_term_is_held_alike_in_any_language(s, monkeypa
     )
     monkeypatch.setattr(S, "caption_floor", lambda _st, _sp: 0.5)
     assert s.search(q="睡覺")["total"] == s.search(q="sleep")["total"] == 0
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-CNC-025")
+def test_srch_cnc_025_a_meal_counts_its_tagged_food(s):
+    """回歸 (audit round 97; ADR-0048 addendum 7): 吃飯, eat and 午餐 counted 0 while photos were tagged 食物 and 飯.
+    Photos tagged food.meal or food.rice count for eating; 公園吃飯 still needs the park; 吃蛋糕 is 蛋糕; 食物 does
+    not count a photo tagged eating only."""
+    meal = s.add(1, caption="一桌菜", tags=("食物",))
+    rice = s.add(2, caption="一碗白飯", tags=("飯",))
+    eat = s.add(3, caption="小朋友在用餐", tags=("吃飯",))
+    park_meal = s.add(4, caption="草地上", tags=("公園", "食物"))
+    s.add(5, caption="生日蛋糕", tags=("蛋糕",))
+    s.index()
+    for q in ("吃飯", "eat", "午餐"):
+        got = {x["asset_id"] for x in s.search(q=q, semantic=False)["items"]}
+        assert {meal, rice, eat, park_meal} <= got, q
+    assert {x["asset_id"] for x in s.search(q="公園吃飯", semantic=False)["items"]} == {park_meal}
+    assert s.search(q="吃蛋糕", semantic=False)["total"] == s.search(q="蛋糕", semantic=False)["total"] == 1
+    assert eat not in {x["asset_id"] for x in s.search(q="食物", semantic=False)["items"]}

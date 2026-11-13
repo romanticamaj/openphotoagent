@@ -179,6 +179,7 @@ class Tokenizer:
     _beside: dict[str, set[str]] = field(default_factory=dict)
     _no_theme: set[str] = field(default_factory=set)
     _suggest: dict[str, list[str]] = field(default_factory=dict)
+    _seen_by: dict[str, set[str]] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         import jieba
@@ -193,6 +194,8 @@ class Tokenizer:
             self._includes[t["id"]] = set(t.get("includes") or [])
             self._beside[t["id"]] = set(t.get("ranks_beside") or [])
             self._suggest[t["id"]] = list(t.get("suggest") or [])  # what an event is seen by (SRCH-TOK-027)
+            # tags that show an activity: a photo tagged 食物 shows 吃飯, through the tag route only (SRCH-TOK-031)
+            self._seen_by[t["id"]] = set(t.get("seen_by") or [])
             if t.get("theme") is False:  # true of any year: not a memory theme (MEM-012)
                 self._no_theme.add(t["id"])
             # words a caption uses for it that already name another term: 球 is in 足球, 踢球 (SRCH-TOK-025); matched in
@@ -240,6 +243,10 @@ class Tokenizer:
         for run in _CJK.findall(normalize(text)):
             out.extend("§" + run[i : i + 2] for i in range(len(run) - 1))
         return out
+
+    def seen_by(self, key: str | None) -> set[str]:
+        """Tags whose photos show this activity (ADR-0048 addendum 7): never forms of its word, never backwards."""
+        return set(self._seen_by.get(key or "", set()))
 
     def included(self, key: str | None) -> set[str]:
         """The kinds a broader term includes (SRCH-TOK-020): 車子 is a car, a bus, a train or a bicycle."""
@@ -405,7 +412,9 @@ class Tokenizer:
     def query(self, text: str) -> ParsedQuery:
         words = self.words(text)
         own = {k for w in [*words, text] if (k := self.tag_key(w))}
-        keys = sorted(own | {i for k in own for i in self.included(k)})  # its kinds' tags too (SRCH-TOK-020)
+        keys = sorted(
+            own | {i for k in own for i in self.included(k)} | {i for k in own for i in self.seen_by(k)}
+        )  # its kinds' tags too (SRCH-TOK-020), and the tags it is seen by (SRCH-TOK-031)
         bi = self.bigrams(text)
         alts = {w: [f for f in self._forms_of(k) if f != normalize(w)] for w in words if (k := self.tag_key(w))}
         return ParsedQuery(
