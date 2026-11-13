@@ -117,3 +117,20 @@ describe("part of the question unanswered (audit round 73)", () => {
     s.result = null;
   });
 });
+
+describe("no sure match, some possible (audit round 75)", () => {
+  it("[SRCH-UI-034] 沒有確定符合、只有可能相關時，也可以把整句拿去問 AI", async () => {
+    s.result = {
+      items: [], facets: {}, total: 0, next_cursor: null, degraded: [], possible_total: 1,
+      possible: [{ asset_id: "p1", ch: null, caption: null, taken_at: null, matched_by: ["image_vector"] }],
+    };
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SearchPage q="彈跳床" />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText("沒有確定符合的照片")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "問 AI「彈跳床」" })).toBeTruthy();
+    s.result = null;
+  });
+});

@@ -262,9 +262,9 @@ export function SearchPage({ q }: { q: string }) {
         </>
       ) : null}
       {res.isSuccess && hits.length === 0 && <p>{t(first?.possible_total ? "search.noneSure" : "search.none")}</p>}
-      {res.isSuccess && hits.length === 0 && !first?.possible_total ? (
+      {res.isSuccess && hits.length === 0 ? (
         // nothing found: the words inside the query that do find photos (SRCH-UI-030), and the same words for 問 AI
-        // (SRCH-UI-031): a page that finds nothing still has a next step
+        // (SRCH-UI-031): a page that finds nothing still has a next step, with or without 「可能相關」 (SRCH-UI-034)
         <p data-testid="suggest" className="flex flex-wrap items-center gap-2 text-sm text-[var(--text-muted)]">
           {first?.suggest?.length ? <span>{t("search.tryInstead")}</span> : null}
           {(first?.suggest ?? []).map((x) => (
