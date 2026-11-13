@@ -1400,3 +1400,31 @@ def test_srch_sem_022_a_pair_fallback_hit_does_not_make_an_anchor(s, monkeypatch
     monkeypatch.setattr(S, "caption_floor", lambda _st, _sp: 0.5)
     res = s.search(q="海邊")
     assert ids[3] in {x["asset_id"] for x in res["items"]}, res.get("possible")
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-SEM-023")
+def test_srch_sem_023_a_described_photo_needs_the_upper_quartile_of_the_word_hits(s, monkeypatch):
+    """ADR-0047 addendum 5 (hand labels, audit round 75; audit round 78): with an anchor, a photo the VLM described and
+    the words and caption meaning both passed over counted at the word hits' median, and the median let in courts
+    (籃球 17, 公園 44). On the labels the upper quartile kept 書 3/0 and 花 3/0 where the median kept 7/3 and 4/3. A
+    described photo needs the upper quartile; one without a caption vector keeps the median (SRCH-SEM-016)."""
+    import opagent_api.search as S
+
+    cos = [0.12, 0.13, 0.14, 0.15, 0.16, 0.145, 0.145]
+    ids = _near(s, cos, captions={i: "踢足球" for i in range(5)}, tags={i: ("activity.soccer",) for i in range(5)})
+    cid = s.sql(
+        "insert into embedding_space(model_key, fingerprint, dim, modality, status)"
+        " values ('fake-cap', 'caption:fake-cap:x', 2, 'caption', 'active') returning id"
+    ).scalar()
+    s.sql(
+        "insert into asset_embedding(asset_id, space_id, vec) values (:a, :s, CAST('[0,1]' AS vector))", a=ids[6], s=cid
+    )
+    monkeypatch.setattr(S, "query_vector", lambda st, t, space, modality="image": [1.0, 0.0])
+    monkeypatch.setattr(S, "vector_floor", lambda _st, _sp: 0.07)
+    monkeypatch.setattr(S, "vector_alone", lambda _st, _sp: 0.082)
+    monkeypatch.setattr(S, "caption_floor", lambda _st, _sp: 0.5)
+    res = s.search(q="足球")
+    counted = {x["asset_id"] for x in res["items"]}
+    assert ids[5] in counted  # not described: the median (0.14)
+    assert ids[6] not in counted and ids[6] in {x["asset_id"] for x in res.get("possible", [])}  # described: 0.15

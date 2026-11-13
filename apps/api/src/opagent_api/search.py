@@ -203,10 +203,14 @@ def vector_members(
     pool = word_ids if sample_ids is None else sample_ids
     sample = sorted(image_cos[a] for a in pool if a in image_cos)
     anchor = sample[len(sample) // 2] if len(pool) >= ANCHOR_MIN and len(sample) >= ANCHOR_MIN else None
+    # a photo the VLM described, which the words and caption meaning passed over, needs the upper quartile: on the
+    # hand labels it kept 書 3/0 and 花 3/0 where the median kept 7/3 and 4/3 (ADR-0047 addendum 5, SRCH-SEM-023)
+    anchor_hi = sample[min(len(sample) - 1, (len(sample) * 3) // 4)] if anchor is not None else None
 
     def counts(a: str) -> bool:
         if anchor is not None:
-            return image_cos.get(a, -1.0) >= anchor
+            bar = anchor_hi if a in described and anchor_hi is not None else anchor
+            return image_cos.get(a, -1.0) >= bar
         # a photo the VLM described was read by the words and the caption meaning; both said no, and the image alone
         # does not overrule them (ADR-0047 addendum 3, SRCH-SEM-020); without a caption vector (fast mode) it does
         img = a in image_ids and a not in described and (alone is None or image_cos.get(a, -1.0) >= alone)
