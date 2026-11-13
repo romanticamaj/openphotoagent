@@ -407,7 +407,8 @@ export function SearchPage({ q, tag, year, name }: { q: string; tag?: string; ye
           <p role="alert">{res.isFetchingNextPage ? "" : t("search.moreFailed")}</p>
           <button
             type="button"
-            className="chip"
+            className="chip justify-center"
+            style={{ minWidth: "6em" }} // 重試 and 重試中… take the same room: it jumped 10 px (audit round 107)
             ref={(el) => {
               // the failure takes the place of 載入更多: focus goes with it (SRCH-UI-048)
               if (el && !res.isFetchingNextPage && document.activeElement === document.body) el.focus();
