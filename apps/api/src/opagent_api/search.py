@@ -200,16 +200,10 @@ def vector_members(
     only = [a for a in dict.fromkeys(vec_ids) if a not in word_ids]
     sample = sorted(image_cos[a] for a in word_ids if a in image_cos)
     anchor = sample[len(sample) // 2] if len(word_ids) >= ANCHOR_MIN and len(sample) >= ANCHOR_MIN else None
-    # the word hits sample the caption meaning too: 「海邊」's surfing photos are found by it (SRCH-SEM-021)
-    cap_sample = sorted(cap_cos[a] for a in word_ids if a in cap_cos)
-    cap_anchor = (
-        cap_sample[len(cap_sample) // 2] if len(word_ids) >= ANCHOR_MIN and len(cap_sample) >= ANCHOR_MIN else None
-    )
 
     def counts(a: str) -> bool:
-        if anchor is not None or cap_anchor is not None:
-            by_image = anchor is not None and image_cos.get(a, -1.0) >= anchor
-            return by_image or (cap_anchor is not None and cap_cos.get(a, -1.0) >= cap_anchor)
+        if anchor is not None:
+            return image_cos.get(a, -1.0) >= anchor
         # a photo the VLM described was read by the words and the caption meaning; both said no, and the image alone
         # does not overrule them (ADR-0047 addendum 3, SRCH-SEM-020); without a caption vector (fast mode) it does
         img = a in image_ids and a not in described and (alone is None or image_cos.get(a, -1.0) >= alone)
