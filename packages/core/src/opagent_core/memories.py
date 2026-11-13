@@ -92,7 +92,8 @@ def events(
     for aid, day, tags in rows:
         by_day.setdefault(day, []).append((aid, tags))
     found: list[tuple[date, date, str | None, list[str]]] = []  # first day, last day, subject, every photo
-    tally: list[Counter[str]] = []  # each found event's tag counts, to tell one outing over two days (MEM-021)
+    tally: list[Counter[str]] = []  # each found event's tag counts over all its days: its name (MEM-021)
+    edge: list[tuple[Counter[str], int, str | None]] = []  # the day an event would join by: its counts, size, subject
     for day in sorted(by_day, reverse=True):
         photos = by_day[day]
         if len(photos) < min_photos:
@@ -106,16 +107,19 @@ def events(
         if found and key and (found[-1][0] - day).days == 1:
             # the day next to it is the same outing when either day's subject is on enough of the other's photos
             # (MEM-018: two 「手工」 cards; MEM-021: 4/8 手工 and 4/9 玩具 of one craft-and-toy outing)
-            _, last, other, more = found[-1]
-            near = tally[-1]
-            if other and (counts.get(other, 0) >= share * len(photos) or near.get(key, 0) >= share * len(more)):
-                both = near + counts
-                name = max((k for k in (key, other) if k), key=lambda k: (both.get(k, 0), k))
+            # weighed against the day next to it, not the whole run (MEM-022)
+            _, last, _, more = found[-1]
+            near, size, other = edge[-1]
+            if other and (counts.get(other, 0) >= share * len(photos) or near.get(key, 0) >= share * size):
+                both = tally[-1] + counts
+                name = max((k for k in both if k in (key, other, found[-1][2])), key=lambda k: (both[k], k))
                 found[-1] = (day, last, name, ids + more)
                 tally[-1] = both
+                edge[-1] = (counts, len(photos), key)
                 continue
         found.append((day, day, key, ids))
         tally.append(counts)
+        edge.append((counts, len(photos), key))
 
     def picked(ids: list[str], key: str | None) -> tuple[str, ...]:
         # the cover is the first photo ``prefer`` says shows the subject, from the whole outing (MEM-019)

@@ -118,3 +118,19 @@ def test_mem_021_days_whose_subjects_overlap_are_one_outing():
     assert [(e.day.isoformat(), e.last.isoformat() if e.last else None, e.count) for e in out] == [
         ("2026-04-08", "2026-04-09", 32)
     ]
+
+
+@pytest.mark.unit
+@pytest.mark.tc("MEM-022")
+def test_mem_022_a_day_joins_by_the_day_next_to_it_not_by_the_whole_run():
+    """回歸 (audit round 101): a day was weighed against every day merged so far, not the day next to it, so 11/10
+    stayed apart though its subject was on 28.6% of 11/11. Each day joins by the day beside it, as the rule says."""
+    from datetime import date
+
+    from opagent_core.memories import events
+
+    rows = [(f"a{i}", date(2025, 11, 10), ["object.toy"]) for i in range(16)]
+    rows += [(f"b{i}", date(2025, 11, 11), ["object.toy"] if i < 5 else ["activity.soccer"]) for i in range(16)]
+    rows += [(f"c{i}", date(2025, 11, 12), ["activity.soccer"]) for i in range(40)]
+    out = events(rows, min_photos=15, named_only=True, share=0.25)
+    assert [(e.day.isoformat(), e.last.isoformat() if e.last else None) for e in out] == [("2025-11-10", "2025-11-12")]
