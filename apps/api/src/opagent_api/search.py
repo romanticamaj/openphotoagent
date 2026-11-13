@@ -190,6 +190,7 @@ def vector_members(
     cap_cos: dict[str, float],
     alone: float | None,
     cap_bar: float | None,
+    described: set[str] | frozenset[str] = frozenset(),
 ) -> tuple[list[str], list[str]]:
     """Which photos found by vectors alone count (ADR-0047). With 3 or more word/tag hits, those are a labelled sample
     of the query: a vector-only photo counts when its image score reaches the median of theirs. With fewer, each one
@@ -203,7 +204,9 @@ def vector_members(
     def counts(a: str) -> bool:
         if anchor is not None:
             return image_cos.get(a, -1.0) >= anchor
-        img = a in image_ids and (alone is None or image_cos.get(a, -1.0) >= alone)
+        # a photo the VLM described was read by the words and the caption meaning; both said no, and the image alone
+        # does not overrule them (ADR-0047 addendum 3, SRCH-SEM-020); without a caption vector (fast mode) it does
+        img = a in image_ids and a not in described and (alone is None or image_cos.get(a, -1.0) >= alone)
         cap = a in cap_cos and (cap_bar is None or cap_cos[a] >= cap_bar)
         return img or cap
 
@@ -706,6 +709,18 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                 ranked = [a for a in ranked if a in keep]
             else:
                 if vec_ids:
+                    described: set[str] = set()
+                    if cspace is not None and cvec is not None:
+                        img_only = [x for x in routes.get("image_vector") or [] if x not in cap_cos]
+                        described = {
+                            r[0]
+                            for r in c.execute(
+                                select(asset_embedding.c.asset_id).where(
+                                    asset_embedding.c.space_id == cspace.id,
+                                    asset_embedding.c.asset_id.in_(img_only or ["-"]),
+                                )
+                            )
+                        }
                     counted, possible = vector_members(
                         vec_ids,
                         set(routes.get("fulltext") or []) | set(routes.get("tag") or []),
@@ -714,6 +729,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                         cap_cos,
                         vector_alone(st, space) if space is not None else None,
                         cap_bar,
+                        described,
                     )
                     if counted:
                         member.append(search_doc.c.asset_id.in_(counted))

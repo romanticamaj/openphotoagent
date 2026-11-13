@@ -1338,3 +1338,31 @@ def test_srch_cnc_022_a_verb_before_a_thing_finds_that_thing(s):
     for q in ("爬山", "去爬山"):
         res = s.search(q=q, semantic=False)
         assert res["total"] == 1 and not res["relaxed"], q
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-SEM-020")
+def test_srch_sem_020_a_described_photo_the_words_and_meaning_reject_is_only_possible(s, monkeypatch):
+    """ADR-0047 addendum 3 (one deliberation sub-agent; hand labels, audit round 75): with no word hits to anchor it, a
+    photo found by the image alone counted at 0.082, and on a library the VLM had described that was wrong every time
+    (trampoline 0/25, 博物館 0/4, 婚禮 0/1). A photo with a caption vector was read by the words and the caption meaning,
+    and both said no: the image alone does not count it, it is 「可能相關」. A photo without one (fast mode) still
+    counts by the image alone."""
+    import opagent_api.search as S
+
+    ids = _near(s, [0.09, 0.09])
+    cid = s.sql(
+        "insert into embedding_space(model_key, fingerprint, dim, modality, status)"
+        " values ('fake-cap', 'caption:fake-cap:x', 2, 'caption', 'active') returning id"
+    ).scalar()
+    s.sql(  # described, and far from the query's meaning
+        "insert into asset_embedding(asset_id, space_id, vec) values (:a, :s, CAST('[0,1]' AS vector))", a=ids[0], s=cid
+    )
+    monkeypatch.setattr(S, "query_vector", lambda st, t, space, modality="image": [1.0, 0.0])
+    monkeypatch.setattr(S, "vector_floor", lambda _st, _sp: 0.07)
+    monkeypatch.setattr(S, "vector_alone", lambda _st, _sp: 0.082)
+    monkeypatch.setattr(S, "caption_floor", lambda _st, _sp: 0.5)
+    res = s.search(q="trampoline")
+    counted = {x["asset_id"] for x in res["items"]}
+    assert counted == {ids[1]}, res["items"]
+    assert [x["asset_id"] for x in res.get("possible", [])] == [ids[0]]
