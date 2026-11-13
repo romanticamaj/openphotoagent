@@ -612,7 +612,8 @@
     "askInstead": "問 AI「{q}」",
     "partialNone": "沒有完全符合的照片",
     "loadMoreLeft": "載入更多（還有 {n} 張）",
-    "collapsed": "另有 {n} 張近似重複收在代表照片裡"
+    "collapsed": "另有 {n} 張近似重複收在代表照片裡",
+    "resultsFor": "「{q}」的搜尋結果"
   },
   "problem": {
     "chosen": "已改用 {what}"

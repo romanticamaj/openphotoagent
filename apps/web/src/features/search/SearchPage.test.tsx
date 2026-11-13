@@ -290,3 +290,17 @@ describe("what browsing folds, and where focus goes (audit round 86)", () => {
     s.nav = null as unknown as (a: unknown) => void;
   });
 });
+
+describe("a search page says what it searched (audit round 91)", () => {
+  it("[SRCH-UI-044] 回歸：文字查詢的頁面標題帶著查詢字（驗證第 91 輪：只寫「搜尋結果」）", async () => {
+    s.result = { items: [], facets: {}, total: 0, next_cursor: null, degraded: [], possible_total: 0, possible: [] };
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SearchPage q="海邊" />
+      </QueryClientProvider>,
+    );
+    await screen.findByText("找不到符合的照片");
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("「海邊」的搜尋結果");
+    s.result = null;
+  });
+});

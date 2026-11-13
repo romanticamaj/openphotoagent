@@ -29,32 +29,39 @@ export function pageTitleKey(path: string): string | null {
 
 export function usePageArrival(path: string, t: (k: string) => string): void {
   const first = useRef(true);
-  const seen = useRef<HTMLElement | null>(null); // the heading of the page we are leaving
+  const seen = useRef<HTMLElement | null>(null); // the heading of the page we are on: the one to leave behind
   useEffect(() => {
     const k = pageTitleKey(path);
     const name = k ? t(k) : null;
     document.title = name ? `${name} — ${APP}` : APP;
     const heading = () => document.querySelector<HTMLElement>("#main h1");
+    let timer = 0;
+    // once on a page, keep up with its heading for a while: drawn late after a reload, or its names arriving
+    // later (「2026 的activity.crafts」 → 「2026 的手工」); the window title follows it (VIEW-057)
+    const settle = (left: number) => {
+      const h = heading();
+      if (h) {
+        seen.current = h;
+        const text = h.textContent?.trim();
+        if (text && !first.current) document.title = `${text} — ${APP}`;
+      }
+      if (left > 0) timer = window.setTimeout(() => settle(left - 1), 50);
+    };
     if (first.current) {
-      first.current = false; // the app's first page: focus is where the app put it
-      seen.current = heading();
-      return;
+      settle(TRIES * 2); // the app's first page: focus is where the app put it
+      first.current = false;
+      return () => window.clearTimeout(timer);
     }
     // the old page's heading can still be there for a moment: focusing it dropped focus to BODY when it went
     // (VIEW-056). The new page's is a different element, or one already reading the new page's name.
     let tries = 0;
-    let timer = 0;
-    const arrive = (h: HTMLElement) => {
-      seen.current = h;
-      const text = h.textContent?.trim();
-      if (text) document.title = `${text} — ${APP}`; // a theme's page is 「2026 的手工」, not 「搜尋」
-      if (!h.hasAttribute("tabindex")) h.setAttribute("tabindex", "-1");
-      h.focus({ preventScroll: true });
-    };
     const find = () => {
       const h = heading();
-      if (h && (h !== seen.current || h.textContent?.trim() === name || tries >= TRIES)) arrive(h);
-      else if (tries++ < TRIES) timer = window.setTimeout(find, 50);
+      if (h && (h !== seen.current || h.textContent?.trim() === name || tries >= TRIES)) {
+        if (!h.hasAttribute("tabindex")) h.setAttribute("tabindex", "-1");
+        h.focus({ preventScroll: true });
+        settle(TRIES * 2);
+      } else if (tries++ < TRIES) timer = window.setTimeout(find, 50);
     };
     find();
     return () => window.clearTimeout(timer);

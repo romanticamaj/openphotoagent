@@ -47,3 +47,31 @@ describe("the new page's heading, not the old one (audit round 90)", () => {
     vi.useRealTimers();
   });
 });
+
+describe("arriving after a reload (audit round 91)", () => {
+  it("[VIEW-057] 回歸：第一頁的標題稍後才畫出時也記得它；標題文字之後才變好，視窗標題跟著變（驗證第 91 輪：重新整理後 0/33）", async () => {
+    vi.useFakeTimers();
+    const main = document.createElement("main");
+    main.id = "main";
+    document.body.appendChild(main);
+    const t = (k: string) => ({ "nav.explore": "分類", "nav.search": "搜尋" })[k] ?? k;
+    const h = renderHook(({ path }) => usePageArrival(path, t), { initialProps: { path: "/explore" } });
+    const first = document.createElement("h1"); // the first page draws its heading after the hook ran
+    first.textContent = "分類";
+    main.appendChild(first);
+    await vi.advanceTimersByTimeAsync(200);
+    h.rerender({ path: "/search" });
+    await vi.advanceTimersByTimeAsync(60);
+    expect(document.activeElement).not.toBe(first);
+    const next = document.createElement("h1");
+    next.textContent = "2026 的activity.crafts";
+    first.replaceWith(next);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(document.activeElement).toBe(next);
+    next.textContent = "2026 的手工"; // the names arrive a moment later
+    await vi.advanceTimersByTimeAsync(100);
+    expect(document.title).toBe("2026 的手工 — OpenPhotoAgent");
+    main.remove();
+    vi.useRealTimers();
+  });
+});

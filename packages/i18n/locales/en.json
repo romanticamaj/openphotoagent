@@ -612,7 +612,8 @@
     "askInstead": "Ask AI “{q}”",
     "partialNone": "No photo matches all of it",
     "loadMoreLeft": "Load more ({n} left)",
-    "collapsed": "{n} near-duplicates folded into their group's photo"
+    "collapsed": "{n} near-duplicates folded into their group's photo",
+    "resultsFor": "Results for “{q}”"
   },
   "problem": {
     "chosen": "Switched to {what}"
