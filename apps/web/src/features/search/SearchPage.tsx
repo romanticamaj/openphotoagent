@@ -326,6 +326,10 @@ export function SearchPage({ q, tag, year, name }: { q: string; tag?: string; ye
               {t("search.askInstead", { q })}
             </button>
           ) : null}
+          {/* and always a way to look around: a word whose suggestions have no photos left only 問 AI (audit round 120) */}
+          <button type="button" className="chip" onClick={() => void nav({ to: "/explore", search: { category: undefined, tag: undefined } })}>
+            {t("search.browseInstead")}
+          </button>
         </p>
       ) : null}
       <div ref={gridRef} onKeyDown={onKey} role="grid" aria-label={t("search.results")} aria-multiselectable="true" aria-rowcount={-1} className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-0.5 outline-none">

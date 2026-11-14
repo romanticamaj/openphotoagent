@@ -415,3 +415,21 @@ describe("load more keeps its place when it fails (audit round 109)", () => {
     s.result = null;
   });
 });
+
+describe("a page that finds nothing can always browse (audit round 120)", () => {
+  it("[SRCH-UI-051] 回歸：查無結果時除了問 AI，還能「瀏覽分類」到探索頁（驗證第 120 輪：拔河只剩問 AI）", async () => {
+    s.result = { items: [], facets: {}, total: 0, next_cursor: null, degraded: [], possible_total: 0, possible: [] };
+    const went: unknown[] = [];
+    s.nav = (a: unknown) => went.push(a);
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SearchPage q="拔河" />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByRole("button", { name: "問 AI「拔河」" })).toBeTruthy();
+    screen.getByRole("button", { name: "瀏覽分類" }).click();
+    expect(went).toEqual([{ to: "/explore", search: { category: undefined, tag: undefined } }]);
+    s.nav = null as unknown as (a: unknown) => void;
+    s.result = null;
+  });
+});

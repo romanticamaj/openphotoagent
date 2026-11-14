@@ -632,7 +632,8 @@
     "retry": "重試",
     "loadingMore": "載入中…",
     "retrying": "重試中…",
-    "loadedNote": "已載入 {n} 張，共 {total} 張"
+    "loadedNote": "已載入 {n} 張，共 {total} 張",
+    "browseInstead": "瀏覽分類"
   },
   "problem": {
     "chosen": "已改用 {what}"

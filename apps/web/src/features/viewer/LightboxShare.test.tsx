@@ -483,3 +483,17 @@ describe("the photo before goes softly; keeping a story keeps focus (audit round
     }
   });
 });
+
+describe("the photo before is the size it was (audit round 120)", () => {
+  it("[VIEW-078] 回歸：推近只播一張的時間並停在終點，上一張留在同樣的大小（驗證第 120 輪：上一張大 0.67%，換張時跳一下）", async () => {
+    const { readFileSync } = await import("node:fs");
+    const css = readFileSync(`${process.cwd()}/src/styles.css`, "utf-8");
+    const tsx = readFileSync(`${process.cwd()}/src/features/viewer/Lightbox.tsx`, "utf-8");
+    const slide = Number(/const SLIDE_MS = (\d+);/.exec(tsx)![1]);
+    const drift = /story-drift (\d+)ms linear( forwards)?/.exec(css)!;
+    expect(Number(drift[1])).toBe(slide); // it reaches its end as the photo changes
+    expect(drift[2]).toBe(" forwards"); // and stays there
+    const end = /@keyframes story-drift\s*\{[^}]*\}[^}]*to \{ scale: ([\d.]+); \}/.exec(css)![1];
+    expect(tsx).toContain(`scale: "${end}"`); // the photo before is held at that size
+  });
+});

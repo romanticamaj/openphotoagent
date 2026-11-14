@@ -1331,7 +1331,8 @@ body {
 }
 /* a slow drift while a photo shows: `scale`, not transform, so the photo's turn and zoom stay */
 .lightbox.story .stage img {
-  animation: story-in 700ms var(--ease), story-drift 4600ms linear;
+  /* one slide long, held at its end: the photo before is kept at that size (VIEW-078, audit round 120) */
+  animation: story-in 700ms var(--ease), story-drift 4000ms linear forwards;
 }
 @keyframes story-drift {
   from { scale: 1; }
