@@ -143,7 +143,7 @@ terms:
   - { id: food.hotpot, zh: 火鍋, en: hotpot, group: 物件, synonyms: [涮涮鍋, 麻辣鍋], suggest: [food.meal] }
   - { id: food.steak, zh: 牛排, en: steak, group: 物件, synonyms: [排餐], suggest: [food.meal] }
   - { id: food.tea, zh: 茶, en: tea, group: 物件, synonyms: [], suggest: [food.meal] }
-  - { id: food.meal, zh: 食物, en: food, group: 物件, synonyms: [餐點, 料理, 菜餚, 美食], offered_by: [牛肉麵, 小籠包, 滷肉飯, 蘿蔔糕, 雞蛋糕, 花生湯, 鳳梨酥, 車輪餅, 臭豆腐, 蚵仔煎, 肉圓, 水餃, 鍋貼, 粽子, 肉粽, 湯圓, 燒餅, 油條, 飯糰, 炒飯, 炒麵, 鹽酥雞, 雞排, 漢堡, 薯條, 生魚片, 咖哩飯, 珍珠奶茶, 布丁, 牛奶, 餅乾, 豆花, 鹹酥雞, 雞腿, 吐司, 三明治, 蔥油餅, 紅豆餅, 魚丸, 熱狗, 馬卡龍, 月餅, 糖果] }
+  - { id: food.meal, zh: 食物, en: food, group: 物件, synonyms: [餐點, 料理, 菜餚, 美食], offered_by: [牛肉麵, 小籠包, 滷肉飯, 蘿蔔糕, 雞蛋糕, 花生湯, 鳳梨酥, 車輪餅, 臭豆腐, 蚵仔煎, 肉圓, 水餃, 鍋貼, 粽子, 肉粽, 湯圓, 燒餅, 油條, 飯糰, 炒飯, 炒麵, 鹽酥雞, 雞排, 漢堡, 薯條, 生魚片, 咖哩飯, 珍珠奶茶, 布丁, 牛奶, 餅乾, 豆花, 鹹酥雞, 雞腿, 吐司, 三明治, 蔥油餅, 紅豆餅, 魚丸, 熱狗, 馬卡龍, 月餅, 糖果, 冰棒, 豆漿, 麻糬, 蛋塔, 鬆餅, 仙草, 芋圓, 包子, 饅頭, 蛋餅, 巧克力, 甜甜圈, 地瓜, 爆米花, 洋芋片, 優格, 稀飯] }
   - { id: event.graduation, zh: 畢業, en: graduation, group: 活動, synonyms: [畢業典禮] }
   - { id: event.christmas, zh: 聖誕節, en: christmas, group: 活動, synonyms: [聖誕, 耶誕] }
   - { id: event.sports_day, zh: 運動會, en: sports day, group: 活動, synonyms: [] }

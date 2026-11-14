@@ -645,3 +645,31 @@ def test_srch_tok_042_a_word_is_suggested_once():
         got = tok.related(q)
         assert len(got) == len(set(got)), (q, got)
     assert tok.related("鞦韆") == ["遊樂場"]
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-043")
+def test_srch_tok_043_snacks_and_breakfasts_offer_food():
+    """回歸 (audit round 124): 冰棒, 豆漿, 麻糬, 蛋塔, 鬆餅, 仙草 … still dead-ended with no 食物 chip."""
+    tok = Tokenizer()
+    foods = (
+        "冰棒",
+        "豆漿",
+        "麻糬",
+        "蛋塔",
+        "鬆餅",
+        "仙草",
+        "芋圓",
+        "包子",
+        "饅頭",
+        "蛋餅",
+        "巧克力",
+        "甜甜圈",
+        "地瓜",
+        "爆米花",
+        "洋芋片",
+        "優格",
+        "稀飯",
+    )
+    for q in foods:
+        assert "食物" in tok.related(q), (q, tok.related(q))
