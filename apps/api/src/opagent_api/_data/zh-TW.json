@@ -541,7 +541,8 @@
     "storyKeep": "存成相簿（{n} 張）",
     "storyKept": "已存成相簿「{name}」",
     "storyKeepFailed": "沒能存成相簿",
-    "storySeeAll": "看全部 {n} 張"
+    "storySeeAll": "看全部 {n} 張",
+    "storyOpenAlbum": "打開相簿"
   },
   "onboarding": {
     "welcome": "歡迎使用 OpenPhotoAgent",

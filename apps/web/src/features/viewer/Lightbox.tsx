@@ -159,6 +159,12 @@ export function Lightbox({
   const [showKeys, setShowKeys] = useState(false);
   // played to the last photo: an end card offers it again (VIEW-064, audit round 113)
   const [ended, setEnded] = useState(false);
+  // the end card takes focus once, as it comes: an inline ref focused it on every redraw, every 5 s with the search
+  // refetching behind it (audit round 117, VIEW-074)
+  const againRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (ended) againRef.current?.focus();
+  }, [ended]);
   // playing, a moving pointer brings the controls back for a moment (VIEW-065, audit round 113)
   const [awake, setAwake] = useState(false);
   const awakeTimer = useRef<number | undefined>(undefined);
@@ -181,14 +187,16 @@ export function Lightbox({
     if (!asset) return;
     const before = lastShown.current;
     lastShown.current = asset;
-    const fading = playing && before && before.id !== asset.id ? before : null;
-    setPrev(fading);
-    if (!fading) return;
-    // gone once it has faded (a timer, not animationend: that does not come in a hidden tab or with reduced motion)
-    const id = window.setTimeout(() => setPrev(null), PREV_FADE_MS);
-    return () => window.clearTimeout(id);
+    setPrev(playing && before && before.id !== asset.id ? before : null);
     // only when the photo changes: starting or stopping play does not bring one back
   }, [asset]);
+  // it goes once the next one has loaded and faded in over it: before, a frame with neither was black (audit round 117,
+  // VIEW-075); a photo that never loads does not hold it for ever
+  useEffect(() => {
+    if (!prev) return;
+    const id = window.setTimeout(() => setPrev(null), stage !== null ? PREV_FADE_MS : PREV_HOLD_MS);
+    return () => window.clearTimeout(id);
+  }, [prev, stage]);
   const keep = useMutation({
     mutationFn: async () => {
       const got = await Promise.all(Array.from({ length: grid.total }, (_, i) => grid.at(i)));
@@ -198,7 +206,7 @@ export function Lightbox({
       const album = await api.createAlbum((title ?? t("lightbox.label")).replaceAll("/", "-"));
       for (let i = 0; i < ids.length; i += 500) await api.addToAlbum(album.id, ids.slice(i, i + 500)); // the API takes 500 a request
       void qcr.invalidateQueries({ queryKey: ["albums"] });
-      return album.name;
+      return album;
     },
     onError: () => setToast(t("lightbox.storyKeepFailed")),
   });
@@ -301,12 +309,19 @@ export function Lightbox({
               {t("lightbox.storyPlayed", { n: grid.total.toLocaleString(i18n.language), total: seeAll.n.toLocaleString(i18n.language) })}
             </p>
           ) : null}
-          {keep.isSuccess ? <p role="status">{t("lightbox.storyKept", { name: keep.data })}</p> : null}
+          {keep.isSuccess ? (
+            <p role="status" className="flex items-center gap-2">
+              {t("lightbox.storyKept", { name: keep.data.name })}
+              <Link to="/albums/$albumId" params={{ albumId: keep.data.id }} className="underline">
+                {t("lightbox.storyOpenAlbum")}
+              </Link>
+            </p>
+          ) : null}
           <div className="flex flex-wrap justify-center gap-2">
             <button
               type="button"
               className="story-end-again"
-              ref={(el) => el?.focus()}
+              ref={againRef}
               onClick={replay}
             >
               {t("lightbox.playAgain")}
@@ -449,6 +464,8 @@ export function Lightbox({
         }}
         onPointerUp={() => (dragFrom.current = null)}
         data-testid="lightbox-stage"
+        // playing, the next photo waits, unseen, until it has loaded, then fades in over the one before (VIEW-075)
+        data-wait={(playing && stage === null) || undefined}
         data-scale={scale}
       >
         {prev && playing ? (
@@ -459,7 +476,8 @@ export function Lightbox({
             src={mediaUrl(prev.id, "p1024", prev.ch)}
             alt=""
             aria-hidden="true"
-            style={prev.rot ? { transform: `rotate(${prev.rot}deg)` } : undefined}
+            // the size its drift ended at: it shrank back in one frame (audit round 117)
+            style={{ scale: "1.05", ...(prev.rot ? { transform: `rotate(${prev.rot}deg)` } : {}) }}
           />
         ) : null}
         {asset && (
@@ -909,6 +927,8 @@ function PhotoFaces({ id, photo }: { id: string; photo: { w: number; h: number }
 const SLIDE_MS = 4000;
 /** how long the photo before fades under the next (as long as its CSS animation) */
 const PREV_FADE_MS = 800;
+/** the longest the photo before waits for the next one to load */
+const PREV_HOLD_MS = 3000;
 /** up to this many photos, the progress is a segment each; more, one bar */
 const STORY_SEGMENTS = 60;
 

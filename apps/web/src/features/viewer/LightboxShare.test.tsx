@@ -372,12 +372,67 @@ describe("one photo into the next (audit round 116)", () => {
       await waitFor(() => expect(screen.getByTestId("lightbox-position").textContent).toBe("第 2 張，共 3 張"));
       const prev = await screen.findByTestId("story-prev");
       expect(prev.getAttribute("src")).toContain("p0");
-      await tick(800); // its fade
+      for (const img of screen.getByTestId("lightbox-stage").querySelectorAll("img:not(.story-prev)")) fireEvent.load(img); // the next one came (round 117)
+      await tick(800); // and faded in over it
       expect(screen.queryByTestId("story-prev")).toBeNull(); // gone once it has faded
       fireEvent.click(screen.getByRole("button", { name: "停止幻燈片" }));
       fireEvent.keyDown(screen.getByTestId("lightbox"), { key: "ArrowRight" });
       await waitFor(() => expect(screen.getByTestId("lightbox-position").textContent).toBe("第 3 張，共 3 張"));
       expect(screen.queryByTestId("story-prev")).toBeNull(); // by hand: the photo just changes
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("the end card holds still, and a fade has no black frame (audit round 117)", () => {
+  it("[VIEW-074] 回歸：結尾卡只在出現時把焦點放到「再播一次」，之後重新繪製不會把焦點拉回去（驗證第 117 輪：每 5 秒被拉回一次）", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const tick = (ms: number) => act(async () => void (await vi.advanceTimersByTimeAsync(ms)));
+    try {
+      const ui = (n: number) => (
+        <QueryClientProvider client={new QueryClient()}>
+          <Lightbox start={0} grid={grid} onClose={vi.fn()} autoplay title="足球" seeAll={{ n, go: vi.fn() }} />
+        </QueryClientProvider>
+      );
+      const { rerender } = render(ui(17));
+      await screen.findByRole("button", { name: "停止幻燈片" });
+      for (let i = 0; i < 3; i++) await tick(4000);
+      const again = await screen.findByRole("button", { name: "再播一次" });
+      expect(document.activeElement).toBe(again); // as it appears
+      const keepBtn = screen.getByRole("button", { name: "存成相簿（3 張）" });
+      keepBtn.focus();
+      rerender(ui(18)); // a refetch behind it draws the card again
+      await tick(100);
+      expect(document.activeElement).toBe(keepBtn);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("[VIEW-075] 回歸：上一張在下一張載入前不淡出（沒有黑色那一格），維持推近後的大小（沒有縮回的跳動）；存成相簿後可「打開相簿」（驗證第 117 輪）", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const tick = (ms: number) => act(async () => void (await vi.advanceTimersByTimeAsync(ms)));
+    try {
+      render(
+        <QueryClientProvider client={new QueryClient()}>
+          <Lightbox start={0} grid={grid} onClose={vi.fn()} autoplay title="足球" />
+        </QueryClientProvider>,
+      );
+      await screen.findByRole("button", { name: "停止幻燈片" });
+      await tick(4000);
+      const prev = await screen.findByTestId("story-prev");
+      expect(prev.style.scale).toBe("1.05"); // where its drift ended
+      await tick(1500); // the next has not loaded: the one before stays, whole
+      expect(screen.getByTestId("story-prev")).toBe(prev);
+      for (const img of screen.getByTestId("lightbox-stage").querySelectorAll("img:not(.story-prev)")) fireEvent.load(img);
+      await tick(800);
+      expect(screen.queryByTestId("story-prev")).toBeNull();
+      // to the end, keep it, and open the album
+      await tick(4000);
+      await tick(4000);
+      fireEvent.click(await screen.findByRole("button", { name: "存成相簿（3 張）" }));
+      expect(await screen.findByText("打開相簿")).toBeTruthy();
     } finally {
       vi.useRealTimers();
     }

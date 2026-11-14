@@ -1351,13 +1351,16 @@ body {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  animation: story-out 700ms var(--ease) forwards;
+  /* whole under the next, which fades in over it: both fading dimmed the middle by 15-20% (audit round 117) */
+  animation: none;
 }
 @keyframes story-out {
   from { opacity: 1; }
   to { opacity: 0; }
 }
-@media (prefers-reduced-motion: reduce) {
-  .lightbox .stage img.story-prev { animation-duration: 1ms; }
+/* not yet loaded: unseen, its fade-in held until it has (VIEW-075) */
+.lightbox.story .stage[data-wait] img:not(.story-prev) {
+  opacity: 0;
+  animation: none;
 }
 

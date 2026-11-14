@@ -541,7 +541,8 @@
     "storyKeep": "Save {n} as album",
     "storyKept": "Saved as album “{name}”",
     "storyKeepFailed": "Couldn't save the album",
-    "storySeeAll": "See all {n}"
+    "storySeeAll": "See all {n}",
+    "storyOpenAlbum": "Open album"
   },
   "onboarding": {
     "welcome": "Welcome to OpenPhotoAgent",
