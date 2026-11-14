@@ -355,3 +355,31 @@ describe("the end card's keyboard and album name (audit round 116)", () => {
     }
   });
 });
+
+describe("one photo into the next (audit round 116)", () => {
+  it("[VIEW-073] 回歸：播放中換下一張時，上一張留在下面淡出（交叉淡化）；沒在播放時沒有（驗證第 116 輪：每張從黑色浮出）", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const tick = (ms: number) => act(async () => void (await vi.advanceTimersByTimeAsync(ms)));
+    try {
+      render(
+        <QueryClientProvider client={new QueryClient()}>
+          <Lightbox start={0} grid={grid} onClose={vi.fn()} autoplay title="足球" />
+        </QueryClientProvider>,
+      );
+      await screen.findByRole("button", { name: "停止幻燈片" });
+      expect(screen.queryByTestId("story-prev")).toBeNull(); // the first photo has none before it
+      await tick(4000);
+      await waitFor(() => expect(screen.getByTestId("lightbox-position").textContent).toBe("第 2 張，共 3 張"));
+      const prev = await screen.findByTestId("story-prev");
+      expect(prev.getAttribute("src")).toContain("p0");
+      await tick(800); // its fade
+      expect(screen.queryByTestId("story-prev")).toBeNull(); // gone once it has faded
+      fireEvent.click(screen.getByRole("button", { name: "停止幻燈片" }));
+      fireEvent.keyDown(screen.getByTestId("lightbox"), { key: "ArrowRight" });
+      await waitFor(() => expect(screen.getByTestId("lightbox-position").textContent).toBe("第 3 張，共 3 張"));
+      expect(screen.queryByTestId("story-prev")).toBeNull(); // by hand: the photo just changes
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

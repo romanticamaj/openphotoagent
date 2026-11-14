@@ -173,6 +173,22 @@ export function Lightbox({
     setEnded(false);
     go(d);
   };
+  // playing, the photo before stays under the next one and fades out: one photo into the next, not each out of black
+  // (audit round 116, VIEW-073)
+  const [prev, setPrev] = useState<TimelineAsset | null>(null);
+  const lastShown = useRef<TimelineAsset | null>(null);
+  useEffect(() => {
+    if (!asset) return;
+    const before = lastShown.current;
+    lastShown.current = asset;
+    const fading = playing && before && before.id !== asset.id ? before : null;
+    setPrev(fading);
+    if (!fading) return;
+    // gone once it has faded (a timer, not animationend: that does not come in a hidden tab or with reduced motion)
+    const id = window.setTimeout(() => setPrev(null), PREV_FADE_MS);
+    return () => window.clearTimeout(id);
+    // only when the photo changes: starting or stopping play does not bring one back
+  }, [asset]);
   const keep = useMutation({
     mutationFn: async () => {
       const got = await Promise.all(Array.from({ length: grid.total }, (_, i) => grid.at(i)));
@@ -435,6 +451,17 @@ export function Lightbox({
         data-testid="lightbox-stage"
         data-scale={scale}
       >
+        {prev && playing ? (
+          <img
+            key={`prev-${prev.id}`}
+            className="story-prev"
+            data-testid="story-prev"
+            src={mediaUrl(prev.id, "p1024", prev.ch)}
+            alt=""
+            aria-hidden="true"
+            style={prev.rot ? { transform: `rotate(${prev.rot}deg)` } : undefined}
+          />
+        ) : null}
         {asset && (
           <>
             <img
@@ -880,6 +907,8 @@ function PhotoFaces({ id, photo }: { id: string; photo: { w: number; h: number }
 }
 
 const SLIDE_MS = 4000;
+/** how long the photo before fades under the next (as long as its CSS animation) */
+const PREV_FADE_MS = 800;
 /** up to this many photos, the progress is a segment each; more, one bar */
 const STORY_SEGMENTS = 60;
 

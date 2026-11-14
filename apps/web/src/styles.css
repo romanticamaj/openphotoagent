@@ -1345,4 +1345,19 @@ body {
   .lightbox.story .stage img { animation: none; }
   .story-progress > span.now::after { animation: none; transform: scaleX(1); opacity: 0.5; }
 }
+/* the photo before, fading out under the next (VIEW-073) */
+.lightbox .stage img.story-prev {
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  animation: story-out 700ms var(--ease) forwards;
+}
+@keyframes story-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lightbox .stage img.story-prev { animation-duration: 1ms; }
+}
 
