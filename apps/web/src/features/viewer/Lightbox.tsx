@@ -170,6 +170,14 @@ export function Lightbox({
     setEnded(false);
     go(d);
   };
+  // from the end card, by 再播一次 or Space: from the first photo with its title card, focus kept in the dialog (the
+  // button goes with the card: focus fell out of it, audit round 114, VIEW-066/067)
+  const replay = () => {
+    setEnded(false);
+    setOrd(0);
+    setPlaying(true);
+    dialog.current?.focus();
+  };
   useEffect(() => {
     if (!playing) return;
     const id = window.setTimeout(() => {
@@ -191,7 +199,7 @@ export function Lightbox({
       Escape: close,
       ArrowLeft: () => step(-1),
       ArrowRight: () => step(1),
-      " ": () => setPlaying((x) => !x),
+      " ": () => (ended ? replay() : setPlaying((x) => !x)),
       // the trash button's own press: a plan to approve, or its reason when the folder is read-only (VIEW-047)
       Delete: () => dialog.current?.querySelector<HTMLButtonElement>("[data-trash]")?.click(),
       "?": () => setShowKeys(true),
@@ -249,11 +257,7 @@ export function Lightbox({
               type="button"
               className="story-end-again"
               ref={(el) => el?.focus()}
-              onClick={() => {
-                setEnded(false);
-                setOrd(0);
-                setPlaying(true);
-              }}
+              onClick={replay}
             >
               {t("lightbox.playAgain")}
             </button>

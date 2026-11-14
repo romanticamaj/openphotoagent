@@ -205,3 +205,40 @@ describe("the end of a story, and a pointer that moves (audit round 113)", () =>
     expect(screen.getByRole("button", { name: "停止幻燈片" })).toBeTruthy(); // still playing
   });
 });
+
+describe("playing it again (audit round 114)", () => {
+  async function toEnd() {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const tick = (ms: number) => act(async () => void (await vi.advanceTimersByTimeAsync(ms)));
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Lightbox start={0} grid={grid} onClose={vi.fn()} autoplay title="足球" />
+      </QueryClientProvider>,
+    );
+    await screen.findByRole("button", { name: "停止幻燈片" });
+    for (let i = 0; i < 3; i++) await tick(4000);
+    return screen.findByRole("button", { name: "再播一次" });
+  }
+
+  it("[VIEW-066] 回歸：按「再播一次」後焦點留在 Lightbox 裡（驗證第 114 輪：焦點掉出去，→、空白鍵、Esc 都沒反應）", async () => {
+    try {
+      fireEvent.click(await toEnd());
+      const lb = screen.getByTestId("lightbox");
+      expect(lb.contains(document.activeElement)).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("[VIEW-067] 回歸：結尾卡上按空白鍵等於「再播一次」：從第 1 張重播、結尾卡消失（驗證第 114 輪：只切換播放，結尾卡還在）", async () => {
+    try {
+      await toEnd();
+      fireEvent.keyDown(screen.getByTestId("lightbox"), { key: " " });
+      expect(screen.getByTestId("lightbox-position").textContent).toBe("第 1 張，共 3 張");
+      expect(screen.getByRole("button", { name: "停止幻燈片" })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "再播一次" })).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
