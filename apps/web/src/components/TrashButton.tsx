@@ -90,7 +90,8 @@ export function TrashButton({ select, compact = false }: { select: () => Promise
       </button>
       {why && !compact ? (
         // shown beside the text button; the Lightbox's icon carries it as its description and tooltip (invariant 8)
-        <span id={`why-${uid}`} className="text-xs text-[var(--text-muted)]">
+        // as wide as the button, wrapping: its 264 px made the search bar two rows at 1024 px (audit round 127, TRASH-019)
+        <span id={`why-${uid}`} className="w-0 min-w-full text-xs leading-snug text-[var(--text-muted)]">
           {why}
         </span>
       ) : null}

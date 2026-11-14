@@ -102,5 +102,17 @@ describe("移到垃圾桶 (approved 2026-11-12)", () => {
     expect(outer).not.toHaveBeenCalled();
     expect(document.activeElement).toBe(b);
   });
+
+  it("[TRASH-019] 回歸：唯讀的原因仍寫在按鈕旁，但折到按鈕的寬度，不把選取列撐寬（驗證第 127、128 輪：264 px 的說明使 1024 px 時兩行）", async () => {
+    s.roots = [{ alias: "photos", mode: "ro" }];
+    s.sources = [{ id: "s1", root_alias: "photos", sub_path: "" }];
+    wrap(<TrashButton select={vi.fn()} />);
+    const b = await screen.findByRole("button", { name: "移到垃圾桶" });
+    await waitFor(() => expect(b.getAttribute("aria-describedby")).toBeTruthy());
+    const why = document.getElementById(b.getAttribute("aria-describedby")!)!;
+    expect(why.textContent).toContain("唯讀"); // still said beside it (invariant 8)
+    expect(why.className).toContain("w-0");
+    expect(why.className).toContain("min-w-full");
+  });
 });
 
