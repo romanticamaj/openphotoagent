@@ -67,5 +67,40 @@ describe("分享 N 張 on the selection bar (ADR-0054; audit round 124: one phot
     expect(status.textContent).not.toContain("share125");
     expect(container.querySelector("[data-testid=bar]")!.contains(status)).toBe(false);
   });
+
+  it("[SHARE-026] 回歸：存好後焦點到提示的「開啟資料夾」；在提示上按 Esc 只關提示、不清掉選取，焦點回到分享按鈕（驗證第 126 輪：Tab 到不了、Esc 後焦點掉了）", async () => {
+    const run = vi.fn(async (): Promise<ManyResult> => ({ kind: "saved", handle: "h", dir: "D:\分享（2 張）", n: 2, failed: 0 }));
+    const outer = vi.fn();
+    render(
+      <div onKeyDown={outer}>
+        <ShareSelection ids={["a", "b"]} run={run} open={async () => ""} />
+      </div>,
+    );
+    const share = screen.getByRole("button", { name: "分享 2 張…" });
+    fireEvent.click(share);
+    const openBtn = await screen.findByRole("button", { name: "開啟資料夾" });
+    await vi.waitFor(() => expect(document.activeElement).toBe(openBtn));
+    fireEvent.keyDown(openBtn, { key: "Escape" });
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(outer).not.toHaveBeenCalled(); // the selection stays
+    expect(document.activeElement).toBe(share);
+  });
+
+  it("[SHARE-027] 回歸：準備中與被拒絕時，選取列的按鈕不移位：不在按鈕下加說明列，拒絕原因也是浮動提示（驗證第 126 輪）", async () => {
+    let fail: (e: unknown) => void = () => undefined;
+    const run = vi.fn(() => new Promise<ManyResult>((_ok, no) => (fail = no)));
+    const { container } = render(
+      <div data-testid="bar">
+        <ShareSelection ids={["a"]} run={run} />
+      </div>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "分享 1 張…" }));
+    const busy = await screen.findByRole("button", { name: "準備中…" });
+    expect(busy.getAttribute("aria-busy")).toBe("true");
+    expect(screen.queryByRole("note")).toBeNull(); // no line under the button
+    fail("SHARE_IN_ROOT");
+    const alert = await screen.findByRole("alert");
+    expect(container.querySelector("[data-testid=bar]")!.contains(alert)).toBe(false);
+  });
 });
 

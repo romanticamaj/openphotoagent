@@ -663,6 +663,8 @@
     "tag": "Tag",
     "addTag": "Add tag",
     "category": "Category",
+    "tagHint": "Tag…",
+    "categoryHint": "Category…",
     "applyCategory": "Apply category",
     "moveToFolder": "Copy to folder…",
     "moveTitle": "Copy to folder",

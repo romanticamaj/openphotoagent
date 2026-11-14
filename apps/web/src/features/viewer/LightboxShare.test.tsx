@@ -497,3 +497,23 @@ describe("the photo before is the size it was (audit round 120)", () => {
     expect(tsx).toContain(`scale: "${end}"`); // the photo before is held at that size
   });
 });
+
+describe("a story is shared from its end card (audit round 126)", () => {
+  it("[VIEW-079] 結尾卡有「分享 N 張…」，分享這次播放的全部照片（ADR-0054 補充 3，驗證第 126 輪：結尾卡沒有分享）", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const tick = (ms: number) => act(async () => void (await vi.advanceTimersByTimeAsync(ms)));
+    try {
+      render(
+        <QueryClientProvider client={new QueryClient()}>
+          <Lightbox start={0} grid={grid} onClose={vi.fn()} autoplay title="足球" />
+        </QueryClientProvider>,
+      );
+      await screen.findByRole("button", { name: "停止幻燈片" });
+      for (let i = 0; i < 3; i++) await tick(4000);
+      expect(await screen.findByRole("button", { name: "分享 3 張…" })).toBeTruthy();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+

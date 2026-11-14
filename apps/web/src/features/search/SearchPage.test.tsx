@@ -28,7 +28,7 @@ vi.mock("@tanstack/react-router", async (orig) => ({
   Link: ({ children }: { children: React.ReactNode }) => <a>{children}</a>,
 }));
 
-import { SearchPage } from "./SearchPage";
+import { BatchBar, SearchPage } from "./SearchPage";
 
 describe("search while it runs (audit round 40)", () => {
   it("[SRCH-UI-020] 回歸：第一次搜尋還沒回來時，顯示正在搜尋與佔位格（驗證第 40 輪：約 3 秒什麼都沒有）", async () => {
@@ -462,3 +462,21 @@ describe("a page that finds nothing says it once (audit round 123)", () => {
     s.result = null;
   });
 });
+
+describe("the search selection bar fits one row (audit round 126)", () => {
+  it("[SRCH-UI-054] 回歸：標籤與類別不再在欄位上方疊一行標題（以 placeholder 與無障礙名稱表示），按鈕置中對齊；名稱仍可讓輔助工具與 E2E 找到（驗證第 126 輪：1280 px 寬仍兩行）", () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <BatchBar count={3} makeSelection={async () => ({ id: "s", count: 3 })} onDone={() => undefined} shareIds={["a", "b", "c"]} />
+      </QueryClientProvider>,
+    );
+    const bar = screen.getByTestId("batch-bar");
+    const tag = screen.getByRole("textbox", { name: "標籤" });
+    expect(tag.getAttribute("placeholder")).toBe("標籤…");
+    expect(screen.getByRole("combobox", { name: "類別" })).toBeTruthy();
+    expect(screen.getByRole("option", { name: "類別…" })).toBeTruthy();
+    expect(bar.querySelectorAll("label").length).toBe(0); // no stacked caption above a field
+    expect(bar.className).toContain("items-center");
+  });
+});
+

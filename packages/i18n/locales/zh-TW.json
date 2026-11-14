@@ -663,6 +663,8 @@
     "tag": "標籤",
     "addTag": "加上標籤",
     "category": "類別",
+    "tagHint": "標籤…",
+    "categoryHint": "類別…",
     "applyCategory": "套用類別",
     "moveToFolder": "複製到資料夾…",
     "moveTitle": "複製到資料夾",

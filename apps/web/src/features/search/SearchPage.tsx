@@ -492,7 +492,7 @@ export function Facet({ label, values, names, onPick }: { label: string; values?
   );
 }
 
-function BatchBar({
+export function BatchBar({
   count,
   makeSelection,
   onDone,
@@ -519,7 +519,7 @@ function BatchBar({
   });
   const busy = labels.isPending ? { code: "BUSY", message: t("common.working") } : null;
   return (
-    <div data-testid="batch-bar" className="flex flex-wrap items-end gap-3 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3">
+    <div data-testid="batch-bar" className="flex flex-wrap items-center gap-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3">
       <strong className="tnum">{t("batch.selected", { n: count.toLocaleString(i18n.language) })}</strong>
       <Button
         variant="ghost"
@@ -538,26 +538,21 @@ function BatchBar({
       {/* ★ and 加入相簿 for the selection (COL-015): only organising and tags were offered (audit round 49) */}
       <FavoriteSelection put={async (aid) => api.selectionAlbum((await makeSelection()).id, aid)} />
       <AddToAlbum put={async (aid) => api.selectionAlbum((await makeSelection()).id, aid)} />
-      <label className="flex flex-col text-xs">
-        {t("batch.tag")}
-        <input aria-label={t("batch.tag")} value={tag} onChange={(e) => setTag(e.target.value)} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-sm" />
-      </label>
+      {/* named, not captioned: a caption above each field made the bar two rows at 1280 px (audit round 126, SRCH-UI-054) */}
+      <input aria-label={t("batch.tag")} placeholder={t("batch.tagHint")} value={tag} onChange={(e) => setTag(e.target.value)} className="w-28 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5 text-sm" />
       {tag.trim() ? (
         <Button variant="ghost" disabledReason={busy} onClick={() => labels.mutate({ tags: [tag.trim()] })}>
           {t("batch.addTag")}
         </Button>
       ) : null}
-      <label className="flex flex-col text-xs">
-        {t("batch.category")}
-        <select aria-label={t("batch.category")} value={cat} onChange={(e) => setCat(e.target.value)} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-sm">
-          <option value="">—</option>
+      <select aria-label={t("batch.category")} value={cat} onChange={(e) => setCat(e.target.value)} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5 text-sm">
+          <option value="">{t("batch.categoryHint")}</option>
           {(preset.data?.categories ?? []).map((c) => (
             <option key={c.key} value={c.key}>
               {c.name}
             </option>
           ))}
         </select>
-      </label>
       {cat ? (
         <Button variant="ghost" disabledReason={busy} onClick={() => labels.mutate({ category: cat })}>
           {t("batch.applyCategory")}

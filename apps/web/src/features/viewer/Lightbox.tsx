@@ -4,6 +4,7 @@
 import { copyPhoto, photoFileName, sharePhoto } from "../../lib/sharePhoto";
 import { AddToAlbum, FavoriteButton, typingIn, useFavorite } from "../albums/AlbumButtons";
 import { TrashButton } from "../../components/TrashButton";
+import { ShareSelection } from "../../components/ShareSelection";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { FaceCrop } from "../../components/FaceCrop";
@@ -198,10 +199,20 @@ export function Lightbox({
     const id = window.setTimeout(() => setPrev(null), stage !== null ? PREV_FADE_MS : PREV_HOLD_MS);
     return () => window.clearTimeout(id);
   }, [prev, stage]);
+  const storyIds = async () => (await Promise.all(Array.from({ length: grid.total }, (_, i) => grid.at(i)))).flatMap((r) => (r ? [r.asset.id] : []));
+  // the story's photos, for 分享 on its end card (ADR-0054 addendum 3, VIEW-079)
+  const [endIds, setEndIds] = useState<string[] | null>(null);
+  useEffect(() => {
+    if (!ended || !title) return;
+    let live = true;
+    void storyIds().then((ids) => live && setEndIds(ids));
+    return () => {
+      live = false;
+    };
+  }, [ended, title]);
   const keep = useMutation({
     mutationFn: async () => {
-      const got = await Promise.all(Array.from({ length: grid.total }, (_, i) => grid.at(i)));
-      const ids = got.flatMap((r) => (r ? [r.asset.id] : []));
+      const ids = await storyIds();
       // an album name is never a path (INJ-017): the server turns a slash into "_", so a date's slashes become "-" here
       // and the card says the name it kept (audit round 116, VIEW-072)
       const album = await api.createAlbum((title ?? t("lightbox.label")).replaceAll("/", "-"));
@@ -341,6 +352,7 @@ export function Lightbox({
                 {t("lightbox.storyKeep", { n: grid.total.toLocaleString(i18n.language) })}
               </button>
             ) : null}
+            {title && endIds?.length ? <ShareSelection ids={endIds} /> : null}
             {seeAll ? (
               <button type="button" className="story-end-close" onClick={seeAll.go}>
                 {t("lightbox.storySeeAll", { n: seeAll.n.toLocaleString(i18n.language) })}
