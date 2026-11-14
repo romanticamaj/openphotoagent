@@ -24,8 +24,8 @@ from typing import Any
 import yaml
 from opagent_core.vocabularies import VOCAB_DIR
 
-# @22 雪花冰, 鐵馬 (ADR-0051 addendum 1); @21 拔河, 熱氣球 of their own (ADR-0051); @20 火鍋, 牛排; history in git
-TOKENIZER_VERSION = "jieba-zh-hant@22+opencc-s2twp+bigram"
+# @23 鞦韆, 蹺蹺板 kinds of their own (ADR-0053); @22 雪花冰, 鐵馬; @21 拔河, 熱氣球; history in git
+TOKENIZER_VERSION = "jieba-zh-hant@23+opencc-s2twp+bigram"
 # Names that hold a vocabulary word but are not that thing: a caption reading a sign 「日落大道」 (Sunset Blvd) is not a
 # sunset (SRCH-TOK-018). Weighed above the vocabulary's words, so the name is one word.
 NAMES = ("日落大道", "夕陽大道")
@@ -358,8 +358,11 @@ class Tokenizer:
         for form, key in self._index.items():
             if len(form) > 1 and _CJK.fullmatch(form) and form in q and form != q:
                 put(key, len(form))
-        for word, key in self._offered.items():
-            if word in q:
+        # a word offered inside a longer offered word gives way to it: 鳳梨酥 offers 食物, not 水果 for its 鳳梨
+        # (ADR-0053, audit round 123)
+        offered = [(w, k) for w, k in self._offered.items() if w in q]
+        for word, key in offered:
+            if not any(word != w2 and word in w2 and key != k2 for w2, k2 in offered):
                 put(key, len(word))
         for w in (normalize(x) for x in self.words(q)):
             ones = [w] if len(w) == 1 else []

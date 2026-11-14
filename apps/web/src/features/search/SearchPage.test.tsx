@@ -433,3 +433,19 @@ describe("a page that finds nothing can always browse (audit round 120)", () => 
     s.result = null;
   });
 });
+
+describe("a page that finds nothing says it once (audit round 123)", () => {
+  it("[SRCH-UI-052] 回歸：0 張且有被略過的字時只說一次「找不到符合的照片」，不疊「沒有完全符合」與「沒有照片拍到…」（驗證第 123 輪：旋轉木馬疊三層標題）", async () => {
+    s.result = { items: [], facets: {}, total: 0, next_cursor: null, degraded: [], possible_total: 0, possible: [], relaxed: ["旋轉", "木馬"] };
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SearchPage q="旋轉木馬" />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText("找不到符合的照片")).toBeTruthy();
+    expect(screen.queryByText("沒有完全符合的照片")).toBeNull();
+    expect(screen.queryByText(/沒有照片拍到/)).toBeNull();
+    expect(screen.getByRole("button", { name: "瀏覽分類" })).toBeTruthy(); // the next steps stay
+    s.result = null;
+  });
+});

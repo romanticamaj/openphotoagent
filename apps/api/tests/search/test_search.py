@@ -1283,8 +1283,10 @@ def test_srch_cnc_019_english_words_for_a_concept_find_its_photos(s):
     s.add(2, caption="盪鞦韆", tags=("盪鞦韆",))
     s.add(3, caption="海邊的夕陽")
     s.index()
-    for q in ("slide", "swing", "slides"):
-        assert s.search(q=q, semantic=False)["total"] == 2, q
+    for q in ("slide", "slides", "遊樂場"):
+        assert s.search(q=q, semantic=False)["total"] == 2, q  # the playground: its slide and its swing
+    for q in ("swing", "鞦韆"):  # a swing is a kind of its own, in English as in Chinese (ADR-0053, audit round 123)
+        assert s.search(q=q, semantic=False)["total"] == 1, q
 
 
 @pytest.mark.integration
@@ -1641,3 +1643,18 @@ def test_srch_cnc_026_a_compound_is_not_answered_by_one_of_its_parts(s):
         assert res["total"] == 0 and not res.get("relaxed"), (q, res["total"], res.get("relaxed"))
     res = s.search(q="蘿蔔糕", semantic=False)
     assert [h["asset_id"] for h in res["items"]] == [want] and not res.get("relaxed")
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-CNC-027")
+def test_srch_cnc_027_a_swing_finds_swings_not_every_playground(s):
+    """回歸 (audit round 123, ADR-0053): 鞦韆 and seesaw returned exactly the playground's 14 slide photos for five
+    rounds. A swing finds swings; with none, nothing is found and 遊樂場 is offered."""
+    s.add(1, caption="小朋友在溜滑梯", tags=("溜滑梯",))
+    s.add(2, caption="遊樂場的溜滑梯", tags=("遊樂場",))
+    s.index()
+    res = s.search(q="鞦韆", semantic=False)
+    assert res["total"] == 0
+    assert res["suggest"] and res["suggest"][0]["q"] == "遊樂場"
+    assert s.search(q="蹺蹺板", semantic=False)["total"] == 0
+    assert s.search(q="遊樂場", semantic=False)["total"] == 2

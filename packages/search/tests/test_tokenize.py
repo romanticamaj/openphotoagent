@@ -256,7 +256,7 @@ def test_srch_tok_020_a_broader_word_includes_its_kinds():
         ("eat", "eating"),
         ("lunch", "eating"),
         ("午餐", "eating"),
-        ("鞦韆", "playground"),
+        ("鞦韆", "swing"),  # a swing is not every playground (ADR-0053, audit round 123)
         ("吃", "eating"),  # audit round 70: 吃 alone found 0, 吃早餐 lost 吃
         ("宵夜", "eating"),  # audit round 105: meal words that dead-ended on 問 AI
         ("下午茶", "eating"),
@@ -590,3 +590,46 @@ def test_srch_tok_039_a_compound_the_tokenizer_cut_is_bound():
         assert len(cs) >= 2 and all(c.bound for c in cs), (q, cs)
     for q in ("海邊夕陽", "小孩玩沙", "弟弟踢球", "戴口罩的小女孩", "媽媽抱寶寶", "小孩在玩水", "海綿 寶寶"):
         assert not any(c.bound for c in tok.concepts(q)), (q, tok.concepts(q))
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-040")
+def test_srch_tok_040_a_swing_and_a_seesaw_are_not_every_playground():
+    """回歸 (audit round 123, ADR-0053): 鞦韆 and seesaw were names of 遊樂場, so they found its 14 slide photos for
+    five rounds. A swing and a seesaw are kinds of their own that 遊樂場 includes, and suggest it."""
+    tok = Tokenizer()
+    assert tok.tag_key("鞦韆") == tok.tag_key("盪鞦韆") == tok.tag_key("swing") == "scene.swing"
+    assert tok.tag_key("蹺蹺板") == tok.tag_key("seesaw") == "scene.seesaw"
+    assert tok.tag_key("溜滑梯") == "scene.playground"
+    assert {"scene.swing", "scene.seesaw"} <= tok.included("scene.playground")
+    assert "遊樂場" in tok.related("鞦韆") and "遊樂場" in tok.related("蹺蹺板")
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-041")
+def test_srch_tok_041_more_foods_and_fruits_offer_their_word():
+    """回歸 (audit round 123): 布丁, 牛奶, 餅乾, 豆花, 鹹酥雞 … got no 食物 chip; 鳳梨 and 藍莓 no 水果. A word offered inside
+    a longer offered word of another term gives way to it: 鳳梨酥 (a pastry) offers 食物, not 水果."""
+    tok = Tokenizer()
+    foods = (
+        "布丁",
+        "牛奶",
+        "餅乾",
+        "豆花",
+        "鹹酥雞",
+        "雞腿",
+        "吐司",
+        "三明治",
+        "蔥油餅",
+        "紅豆餅",
+        "魚丸",
+        "熱狗",
+        "馬卡龍",
+        "月餅",
+        "糖果",
+    )
+    for q in foods:
+        assert "食物" in tok.related(q), (q, tok.related(q))
+    for q in ("鳳梨", "藍莓"):
+        assert "水果" in tok.related(q), (q, tok.related(q))
+    assert "水果" not in tok.related("鳳梨酥") and "食物" in tok.related("鳳梨酥")

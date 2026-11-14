@@ -198,7 +198,8 @@ export function SearchPage({ q, tag, year, name }: { q: string; tag?: string; ye
           {/* a memory theme's photos are titled with the theme (audit round 83) */}
           {tag && year && !q && chips.some((c) => c.kind === "tag" && c.value === tag) && chips.some((c) => c.kind === "year" && c.value === year) ? t("memories.themeTitle", { year, name: { ...tagNames, ...first?.tag_names }[tag] ?? name ?? tag }) : q ? t("search.resultsFor", { q }) : t("search.results")}
         </h1>
-        {first && (total > 0 || !first.possible_total) ? (
+        {/* nothing found with words set aside: 「找不到」 says it once below (SRCH-UI-052, audit round 123) */}
+        {first && (total > 0 || !first.possible_total) && !(total === 0 && first.relaxed?.length) ? (
           // no count until the answer is here: 「0 張」 flashed before every result (audit round 2); none over
           // 「沒有確定符合的照片」 either, which says it (SRCH-UI-036)
           <span data-testid="result-count" className="tnum text-[var(--text-muted)]">
@@ -210,7 +211,7 @@ export function SearchPage({ q, tag, year, name }: { q: string; tag?: string; ye
       {soft?.note ? (
         <p role="status" className="text-sm text-[var(--text-muted)]">{soft.note}</p>
       ) : null}
-      {first && relaxedText(t, first.relaxed, Boolean(first.meaning_only), total) ? (
+      {first && total > 0 && relaxedText(t, first.relaxed, Boolean(first.meaning_only), total) ? (
         <p role="status" className="flex flex-wrap items-center gap-2 text-sm text-[var(--text-muted)]">
           <span>{relaxedText(t, first.relaxed, Boolean(first.meaning_only), total)}</span>
           {total > 0 && q ? (
