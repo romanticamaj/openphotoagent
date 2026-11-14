@@ -242,3 +242,21 @@ describe("playing it again (audit round 114)", () => {
     }
   });
 });
+
+describe("Space on a button presses the button (audit round 115)", () => {
+  it("[VIEW-068] 回歸：焦點在按鈕上時空白鍵按的是那個按鈕，不是幻燈片；焦點在 Lightbox 本身時才是幻燈片（驗證第 115 輪：在「關閉」上按空白鍵卻重播）", async () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Lightbox start={0} grid={grid} onClose={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    const star = await screen.findByRole("button", { name: "加入收藏" });
+    star.focus();
+    const space = fireEvent.keyDown(star, { key: " " });
+    expect(space).toBe(true); // not taken: the browser presses the button
+    expect(screen.getByRole("button", { name: "播放幻燈片" })).toBeTruthy();
+    screen.getByTestId("lightbox").focus();
+    fireEvent.keyDown(screen.getByTestId("lightbox"), { key: " " });
+    expect(screen.getByRole("button", { name: "停止幻燈片" })).toBeTruthy();
+  });
+});

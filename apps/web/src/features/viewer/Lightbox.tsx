@@ -191,6 +191,8 @@ export function Lightbox({
 
   const onKey = (e: React.KeyboardEvent) => {
     if (typingIn(e.target)) return; // text in a field, not a shortcut (COL-008)
+    // Space on a button presses that button: on 關閉 it replayed the story (audit round 115, VIEW-068)
+    if (e.key === " " && e.target instanceof Element && e.target !== e.currentTarget && e.target.closest("button, a, summary, select, [role='button']")) return;
     if ((e.key === "a" || e.key === "A") && (e.ctrlKey || e.metaKey)) {
       e.preventDefault(); // not the page's text behind the photo (audit round 54)
       return;
