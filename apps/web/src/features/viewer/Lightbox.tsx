@@ -8,7 +8,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { FaceCrop } from "../../components/FaceCrop";
 import { FaceBoxes } from "./faceBoxes";
-import { Suspense, lazy, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { turnStyle } from "../../lib/turn";
 import { api, mediaUrl, preparePreview, type AssetInfo, type TimelineAsset } from "../../lib/api";
@@ -183,7 +183,8 @@ export function Lightbox({
   // (audit round 116, VIEW-073)
   const [prev, setPrev] = useState<TimelineAsset | null>(null);
   const lastShown = useRef<TimelineAsset | null>(null);
-  useEffect(() => {
+  // a layout effect: the one before is in place before the next is drawn (2 of 33 frames were black, audit round 118)
+  useLayoutEffect(() => {
     if (!asset) return;
     const before = lastShown.current;
     lastShown.current = asset;
@@ -210,6 +211,14 @@ export function Lightbox({
     },
     onError: () => setToast(t("lightbox.storyKeepFailed")),
   });
+  // kept: its button goes, so focus goes to 打開相簿, or 再播一次 when that cannot take it (audit round 118, VIEW-077)
+  const endCard = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!keep.isSuccess) return;
+    const link = endCard.current?.querySelector<HTMLElement>("a[href]");
+    link?.focus();
+    if (document.activeElement !== link) againRef.current?.focus();
+  }, [keep.isSuccess]);
   // from the end card, by 再播一次 or Space: from the first photo with its title card, focus kept in the dialog (the
   // button goes with the card: focus fell out of it, audit round 114, VIEW-066/067)
   const replay = () => {
@@ -301,7 +310,7 @@ export function Lightbox({
         </div>
       ) : null}
       {ended ? (
-        <div className="story-end" role="group" aria-labelledby="story-end-h">
+        <div ref={endCard} className="story-end" role="group" aria-labelledby="story-end-h">
           <p id="story-end-h" className="story-end-h">{t("lightbox.storyEnd")}</p>
           {title ? <p className="story-end-title">{title}</p> : null}
           {seeAll ? (
@@ -471,7 +480,8 @@ export function Lightbox({
         {prev && playing ? (
           <img
             key={`prev-${prev.id}`}
-            className="story-prev"
+            // whole while the next loads; then it fades out under it (its edges went in one frame, audit round 118)
+            className={stage !== null ? "story-prev out" : "story-prev"}
             data-testid="story-prev"
             src={mediaUrl(prev.id, "p1024", prev.ch)}
             alt=""

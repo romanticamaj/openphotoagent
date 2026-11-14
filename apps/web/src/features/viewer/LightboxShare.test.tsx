@@ -438,3 +438,48 @@ describe("the end card holds still, and a fade has no black frame (audit round 1
     }
   });
 });
+
+describe("the photo before goes softly; keeping a story keeps focus (audit round 118)", () => {
+  it("[VIEW-076] 回歸：下一張載入後，上一張才開始淡出（class out），不是 0.8 秒後一格消失；上一張在新的一張出現的同一次繪製就在（驗證第 118 輪：邊緣露出後一格消失、2/33 黑格）", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const tick = (ms: number) => act(async () => void (await vi.advanceTimersByTimeAsync(ms)));
+    try {
+      render(
+        <QueryClientProvider client={new QueryClient()}>
+          <Lightbox start={0} grid={grid} onClose={vi.fn()} autoplay title="足球" />
+        </QueryClientProvider>,
+      );
+      await screen.findByRole("button", { name: "停止幻燈片" });
+      await tick(4000);
+      const prev = await screen.findByTestId("story-prev");
+      expect(prev.className).not.toContain("out"); // whole while the next loads
+      for (const img of screen.getByTestId("lightbox-stage").querySelectorAll("img:not(.story-prev)")) fireEvent.load(img);
+      await waitFor(() => expect(screen.getByTestId("story-prev").className).toContain("out")); // then it fades
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("[VIEW-077] 回歸：用鍵盤按「存成相簿」後焦點留在結尾卡裡（驗證第 118 輪：按鈕消失，焦點掉到頁面）", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const tick = (ms: number) => act(async () => void (await vi.advanceTimersByTimeAsync(ms)));
+    try {
+      render(
+        <QueryClientProvider client={new QueryClient()}>
+          <Lightbox start={0} grid={grid} onClose={vi.fn()} autoplay title="足球" />
+        </QueryClientProvider>,
+      );
+      await screen.findByRole("button", { name: "停止幻燈片" });
+      for (let i = 0; i < 3; i++) await tick(4000);
+      const keepBtn = await screen.findByRole("button", { name: "存成相簿（3 張）" });
+      keepBtn.focus();
+      fireEvent.click(keepBtn);
+      await screen.findByText("打開相簿");
+      await tick(50);
+      expect(screen.getByTestId("lightbox").contains(document.activeElement)).toBe(true);
+      expect(document.activeElement).not.toBe(screen.getByTestId("lightbox")); // on something in the card
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

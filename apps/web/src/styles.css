@@ -1363,4 +1363,16 @@ body {
   opacity: 0;
   animation: none;
 }
+/* the next has loaded and fades in: the one before fades out under it, mostly there early and gone by the end, so the
+   middle does not dim and its edges do not go in one frame (VIEW-076) */
+.lightbox .stage img.story-prev.out {
+  animation: story-out 750ms cubic-bezier(0.55, 0, 1, 0.45) forwards;
+}
+@keyframes story-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lightbox .stage img.story-prev.out { animation-duration: 1ms; }
+}
 
