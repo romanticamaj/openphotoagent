@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { copyPhoto, photoFileName, sharePhoto, type ShareDeps } from "./sharePhoto";
+import { browserDeps, copyPhoto, photoFileName, sharePhoto, type ShareDeps } from "./sharePhoto";
 
 const jpeg = new Blob(["j"], { type: "image/jpeg" });
 const png = new Blob(["p"], { type: "image/png" });
@@ -65,5 +65,14 @@ describe("sharing one photo (audit round 109: no share or export)", () => {
     expect(photoFileName({ id: "0192ab34-cdef", takenAt: "2024-02-10T00:00:00Z" }, "jpg")).toBe("photo-2024-02-10.jpg");
     expect(photoFileName({ id: "0192ab34-cdef", takenAt: null }, "png")).toBe("photo-0192ab34.png");
     expect(photoFileName({ id: "../../x", takenAt: null }, "jpg")).toBe("photo-x.jpg");
+  });
+});
+
+describe("sharing on the desktop (audit round 110: the share sheet never came)", () => {
+  it("[SHARE-008] 回歸：桌面版（WebView2）不用系統分享，直接存檔；網頁版照用（驗證第 110 輪：按了 30 秒沒有任何反應）", () => {
+    const nav = { share: async () => undefined, canShare: () => true } as unknown as Navigator;
+    expect(browserDeps("desktop", nav).share).toBeUndefined();
+    expect(browserDeps("desktop", nav).canShare).toBeUndefined();
+    expect(browserDeps("web", nav).share).toBeDefined();
   });
 });

@@ -1,4 +1,5 @@
 import { previewBlob } from "./api";
+import { platform } from "./platform";
 
 /**
  * Sharing one photo (ADR-0050). What leaves the app is the derived 2048 px preview the API already serves, re-encoded
@@ -73,14 +74,16 @@ function saveFile(b: Blob, name: string): void {
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
 
-function browserDeps(): ShareDeps {
-  const nav = typeof navigator === "undefined" ? undefined : navigator;
+/** The browser's pieces. On the desktop the share sheet is left out: WebView2 says it can share files, but in the app's
+ *  window the sheet never comes and the press does nothing (audit round 110, SHARE-008), so the photo is saved. */
+export function browserDeps(kind: string = platform().kind, nav: Navigator | undefined = typeof navigator === "undefined" ? undefined : navigator): ShareDeps {
+  const sheet = kind !== "desktop" && nav?.share ? nav : undefined;
   return {
     preview: previewBlob,
     encode: encodeTurned,
     save: saveFile,
-    share: nav?.share ? (d) => nav.share(d) : undefined,
-    canShare: nav?.canShare ? (d) => nav.canShare(d) : undefined,
+    share: sheet ? (d) => sheet.share(d) : undefined,
+    canShare: sheet?.canShare ? (d) => sheet.canShare(d) : undefined,
     writeClipboard:
       nav?.clipboard?.write && typeof ClipboardItem !== "undefined"
         ? (png) => nav.clipboard.write([new ClipboardItem({ "image/png": png })])

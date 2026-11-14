@@ -65,7 +65,7 @@ describe("sharing from the Lightbox (audit round 109: no share or export)", () =
     open();
     (await screen.findByRole("button", { name: "分享" })).click();
     await waitFor(() => expect(sh.share).toHaveBeenCalledWith({ id: "p0", rot: 0, takenAt: null }));
-    expect(await screen.findByText("已存成 photo-p0.jpg")).toBeTruthy();
+    expect(await screen.findByText("已存到「下載」資料夾：photo-p0.jpg")).toBeTruthy(); // which folder too (audit round 110)
     sh.share.mockRejectedValueOnce(new Error("THUMB_MISSING"));
     screen.getByRole("button", { name: "分享" }).click();
     expect(await screen.findByText("沒能分享這張照片")).toBeTruthy();
