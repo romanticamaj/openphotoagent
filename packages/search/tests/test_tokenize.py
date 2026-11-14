@@ -467,3 +467,78 @@ def test_srch_tok_033_a_word_inside_another_by_its_letters_only_is_not_related()
     assert "河" not in tok.related("拔河比賽")
     assert tok.related("荷花") == ["花"]
     assert tok.related("爬山") == ["山"]
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-034")
+def test_srch_tok_034_a_single_character_is_not_related_by_being_written_inside():
+    """回歸 (audit round 120, ADR-0051): words whose only tie to a vocabulary word is one character written inside them
+    got that word as a chip: 河馬 → 河 and 馬, 雪糕 → 雪, 熱氣球 → 球, 鐵馬 → 馬. The vocabulary's own words did too:
+    熊貓 → 貓, 煙花 → 花, 氣球 → 球. A single character is related only in a grammatical slot or by a link."""
+    tok = Tokenizer()
+    wrong = {
+        "河馬": {"河", "馬"},
+        "雪糕": {"雪"},
+        "雪碧": {"雪"},
+        "海苔": {"海"},
+        "海盜船": {"海"},
+        "山豬": {"山"},
+        "雲霄飛車": {"車子"},
+        "熱氣球": {"球", "氣球"},
+        "鐵馬": {"馬"},
+        "熊貓": {"貓"},
+        "煙花": {"花"},
+        "馬路": {"馬"},
+        "氣球": {"球"},
+    }
+    for q, bad in wrong.items():
+        assert not bad & set(tok.related(q)), (q, tok.related(q))
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-035")
+def test_srch_tok_035_a_single_character_alone_after_a_light_verb_or_before_a_place_word_is_related():
+    """ADR-0051: a single character counts as a word of its own (「海 夕陽」), as the object of a light verb (看海, 騎馬)
+    or before a place word (河邊, 山上); a written link keeps the rest (爬山 → 山 by implies, 火車 → 車子 by includes,
+    海邊 → 海 and 雪人 → 雪 by suggest)."""
+    tok = Tokenizer()
+    keep = {
+        "看海": "海",
+        "騎馬": "馬",
+        "河邊": "河",
+        "山上": "山",
+        "海 夕陽": "海",
+        "爬山": "山",
+        "火車": "車子",
+        "海邊撿貝殼": "海",
+        "堆雪人": "雪",
+        "雪人": "雪",
+    }
+    for q, want in keep.items():
+        assert want in tok.related(q), (q, tok.related(q))
+    assert tok.related("生日派對")[:3] == ["生日", "蛋糕", "氣球"]
+    assert tok.related("騎腳踏車")[:2] == ["腳踏車", "車子"]
+    assert tok.related("雪人")[0] == "雪"  # first, as SRCH-SUG-002 has it
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-036")
+def test_srch_tok_036_offered_by_words_offer_a_term_without_being_its_names():
+    """ADR-0051: `offered_by` lists words that offer a term as a chip (荷花 → 花). They are never its names: not a tag,
+    not a search alternative, not segmented, so the segmentation stays as it was. Each is 2+ Chinese characters, names
+    an existing term, and is no term's name."""
+    import yaml
+    from opagent_search.tokenize import VOCAB
+
+    tok = Tokenizer()
+    assert tok.related("荷花") == ["花"]
+    assert tok.related("櫻花") == ["花"]
+    assert tok.tag_key("荷花") is None  # not a name of 花
+    terms = yaml.safe_load(VOCAB.read_text(encoding="utf-8"))["terms"]
+    ids = {t["id"] for t in terms}
+    names = {n for t in terms for n in [t["zh"], t["en"], *(t.get("synonyms") or [])]}
+    for t in terms:
+        for w in t.get("offered_by") or []:
+            assert len(w) >= 2 and all("一" <= c <= "鿿" for c in w), (t["id"], w)
+            assert w not in names, (t["id"], w)
+        assert t["id"] in ids

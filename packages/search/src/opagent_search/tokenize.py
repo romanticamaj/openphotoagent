@@ -24,8 +24,8 @@ from typing import Any
 import yaml
 from opagent_core.vocabularies import VOCAB_DIR
 
-# @20 火鍋, 牛排 of their own; @19 food suggests 食物; @18 宵夜, 下午茶 (ADR-0048); history in git
-TOKENIZER_VERSION = "jieba-zh-hant@20+opencc-s2twp+bigram"
+# @21 拔河, 熱氣球 of their own (ADR-0051); @20 火鍋, 牛排 of their own; @19 food suggests 食物; history in git
+TOKENIZER_VERSION = "jieba-zh-hant@21+opencc-s2twp+bigram"
 # Names that hold a vocabulary word but are not that thing: a caption reading a sign 「日落大道」 (Sunset Blvd) is not a
 # sunset (SRCH-TOK-018). Weighed above the vocabulary's words, so the name is one word.
 NAMES = ("日落大道", "夕陽大道")
@@ -35,6 +35,8 @@ _CJK = re.compile(r"[぀-ヿ㐀-䶿一-鿿豈-﫿]+")
 _WORD = re.compile(r"[0-9a-z]+(?:['._-][0-9a-z]+)*|[぀-ヿ㐀-䶿一-鿿豈-﫿]+")
 # verbs that only say what one does with the thing named next (SRCH-TOK-024): 去爬山, 搭飛機, 堆沙堡, 看海
 LIGHT_VERBS = {"去", "搭", "坐", "堆", "跳", "騎", "看", "玩", "放", "做"}
+# after a single character, a place: 河邊, 山上 relate to 河 and 山 (ADR-0051)
+PLACE_WORDS = {"邊", "旁", "畔", "裡", "上", "下"}
 STOP = {"的", "了", "在", "是", "和", "與", "a", "an", "the", "of", "in", "on", "and", "with"}
 
 
@@ -180,6 +182,7 @@ class Tokenizer:
     _no_theme: set[str] = field(default_factory=set)
     _suggest: dict[str, list[str]] = field(default_factory=dict)
     _unrelated: dict[str, set[str]] = field(default_factory=dict)
+    _offered: dict[str, str] = field(default_factory=dict)
     _seen_by: dict[str, set[str]] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -196,6 +199,8 @@ class Tokenizer:
             self._beside[t["id"]] = set(t.get("ranks_beside") or [])
             self._suggest[t["id"]] = list(t.get("suggest") or [])  # what an event is seen by (SRCH-TOK-027)
             self._unrelated[t["id"]] = set(t.get("unrelated") or [])  # written inside it, no part of it (SRCH-TOK-033)
+            for w in t.get("offered_by") or []:  # words that offer it as a chip, never its names (ADR-0051)
+                self._offered[normalize(w)] = t["id"]
             # tags that show an activity: a photo tagged 食物 shows 吃飯, through the tag route only (SRCH-TOK-031)
             self._seen_by[t["id"]] = set(t.get("seen_by") or [])
             if t.get("theme") is False:  # true of any year: not a memory theme (MEM-012)
@@ -330,21 +335,45 @@ class Tokenizer:
         return self._index.get(normalize(word))
 
     def related(self, text: str) -> list[str]:
-        """The vocabulary's words written inside a query, by their Chinese name, longest match first; not the query's
-        own term (SRCH-TOK-022): what 「爬山」 can try when it finds nothing."""
+        """The vocabulary's words a query that found nothing can try, by their Chinese name (SRCH-TOK-022, ADR-0051).
+
+        A name of two or more characters counts when it is written inside the query (生日派對 → 生日); so does a word
+        that offers a term (`offered_by`: 荷花 → 花). A single character does not: 河馬 is no river and 熱氣球 no ball.
+        It counts as a word of its own (「海 夕陽」), as a light verb's object (看海, 騎馬) or before a place word
+        (河邊, 山上). Written links come after: what a term suggests, implies, or the broader term that includes it."""
         q = normalize(text)
         own = self.tag_key(q)
         found: dict[str, int] = {}
+
+        def put(key: str | None, n: int) -> None:
+            if key and key != own:
+                found[key] = max(found.get(key, 0), n)
+
         for form, key in self._index.items():
-            if key != own and _CJK.fullmatch(form) and form in q and form != q:
-                found[key] = max(found.get(key, 0), len(form))
+            if len(form) > 1 and _CJK.fullmatch(form) and form in q and form != q:
+                put(key, len(form))
+        for word, key in self._offered.items():
+            if word in q:
+                put(key, len(word))
+        for w in (normalize(x) for x in self.words(q)):
+            ones = [w] if len(w) == 1 else []
+            if len(w) == 2 and w[0] in LIGHT_VERBS:
+                ones.append(w[1])  # 看海, 騎馬 (the light verbs of SRCH-TOK-024)
+            if len(w) == 2 and w[1] in PLACE_WORDS:
+                ones.append(w[0])  # 河邊, 山上
+            for one in ones:
+                if _CJK.fullmatch(one):
+                    put(self._index.get(one), 1)
         # a word written inside a term but no part of it is not offered: 拔河 does not suggest 河 (SRCH-TOK-033)
         unrelated = {u for k in [own or "", *found] for u in self._unrelated.get(k, set())}
         found = {k: n for k, n in found.items() if k not in unrelated}
         keys = sorted(found, key=lambda k: (-found[k], k))
-        # an event names the things it is seen by: 生日 tries 蛋糕 (SRCH-TOK-027)
-        for k in [own or "", *list(found)]:  # 「生日派對」 holds 生日: its suggestions too (SRCH-TOK-029)
-            keys += [x for x in self._suggest.get(k, []) if x not in keys]
+        # written links: an event names the things it is seen by (SRCH-TOK-027, 生日派對 holds 生日: SRCH-TOK-029), an
+        # activity the scene it implies (爬山 → 山), a kind the broader word that includes it (火車 → 車子)
+        for k in [own or "", *list(found)]:
+            broader = sorted(b for b, inc in self._includes.items() if k and k in inc)
+            links = [*self._suggest.get(k, []), *sorted(self._implies.get(k, set())), *broader]
+            keys += [x for x in links if x not in keys and x != own and x not in unrelated]
         return [n for k in keys if (n := self.term_name(k, "zh"))]
 
     def term_name(self, key: str, lang: str) -> str | None:

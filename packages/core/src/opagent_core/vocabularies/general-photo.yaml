@@ -4,10 +4,10 @@ terms:
   - { id: animal.dog, zh: 狗, en: dog, group: 物件, synonyms: [犬, 小狗, 狗狗, 柴犬, いぬ, puppy, doggy, dogs] }
   - { id: animal.cat, zh: 貓, en: cat, group: 物件, synonyms: [貓咪, 小貓, 猫, ねこ, 猫咪, kitten, cats] }
   - { id: animal.bird, zh: 鳥, en: bird, group: 物件, synonyms: [鳥類, birds] }
-  - { id: scene.beach, zh: 海灘, en: beach, group: 場景, synonyms: [沙灘, 海邊, seaside] }
+  - { id: scene.beach, zh: 海灘, en: beach, group: 場景, synonyms: [沙灘, 海邊, seaside], suggest: [scene.sea] }
   - { id: scene.mountain, zh: 山, en: mountain, group: 場景, synonyms: [山脈, 高山, mountains] }
   - { id: scene.city, zh: 城市, en: city, group: 場景, synonyms: [都市, 市區, urban] }
-  - { id: scene.forest, zh: 森林, en: forest, group: 場景, synonyms: [樹林, woods] }
+  - { id: scene.forest, zh: 森林, en: forest, group: 場景, synonyms: [樹林, woods], suggest: [object.tree] }
   - { id: scene.indoor, zh: 室內, en: indoor, group: 場景, synonyms: [屋內, inside], theme: false }
   - { id: scene.night, zh: 夜景, en: night, group: 場景, synonyms: [夜晚, 晚上, night view] }
   - { id: mood.sunset, zh: 夕陽, en: sunset, group: 氛圍, synonyms: [日落, 黃昏, dusk] }
@@ -21,7 +21,7 @@ terms:
   - { id: object.vehicle, zh: 車子, en: vehicle, group: 物件, synonyms: [車輛, 車, vehicles], includes: [object.car, object.bus, object.train, object.bicycle] }
   - { id: object.bicycle, zh: 腳踏車, en: bicycle, group: 物件, synonyms: [自行車, 單車, bike] }
   - { id: object.document, zh: 文件, en: document, group: 物件, synonyms: [紙本, 收據, receipt] }
-  - { id: object.flower, zh: 花, en: flower, group: 物件, synonyms: [花朵, flowers] }
+  - { id: object.flower, zh: 花, en: flower, group: 物件, synonyms: [花朵, flowers], offered_by: [荷花, 蓮花, 櫻花, 梅花, 菊花, 桐花, 油菜花, 玫瑰, 向日葵, 鬱金香] }
   - { id: event.birthday, zh: 生日, en: birthday, group: 活動, synonyms: [慶生, birthday party], suggest: [food.cake, object.balloon] }
   - { id: event.wedding, zh: 婚禮, en: wedding, group: 活動, synonyms: [婚宴] }
   # 2026-11-09: concepts of a family library (audit round 1; tags seen on the reference library). Written for this
@@ -38,7 +38,7 @@ terms:
   - { id: scene.river, zh: 河, en: river, group: 場景, synonyms: [河流, 溪, 小溪] }
   - { id: scene.lake, zh: 湖, en: lake, group: 場景, synonyms: [湖泊, 湖邊] }
   - { id: scene.snow, zh: 雪, en: snow, group: 場景, synonyms: [雪地, 下雪, 雪景] }
-  - { id: scene.garden, zh: 花園, en: garden, group: 場景, synonyms: [庭院, gardens] }
+  - { id: scene.garden, zh: 花園, en: garden, group: 場景, synonyms: [庭院, gardens], suggest: [object.flower] }
   - { id: scene.street, zh: 街道, en: street, group: 場景, synonyms: [馬路, 街頭, 巷子, road, streets] }
   - { id: scene.kitchen, zh: 廚房, en: kitchen, group: 場景, synonyms: [] }
   - { id: scene.restaurant, zh: 餐廳, en: restaurant, group: 場景, synonyms: [餐館, 飯館] }
@@ -55,7 +55,7 @@ terms:
   - { id: activity.dance, zh: 跳舞, en: dance, group: 活動, synonyms: [舞蹈, 舞蹈教室, dancing] }
   - { id: activity.drawing, zh: 畫畫, en: drawing, group: 活動, synonyms: [繪畫, 塗鴉, 塗色, 畫圖, painting] }
   - { id: activity.crafts, zh: 手工, en: crafts, group: 活動, synonyms: [手工藝, 美勞, 勞作, 剪紙, 摺紙, 折紙, handicraft] }
-  - { id: activity.reading, zh: 閱讀, en: reading, group: 活動, synonyms: [看書, 讀書, read] }
+  - { id: activity.reading, zh: 閱讀, en: reading, group: 活動, synonyms: [看書, 讀書, read], suggest: [object.book] }
   - { id: activity.swimming, zh: 游泳, en: swimming, group: 活動, synonyms: [泳池, 游泳池, swim, pool] }
   - { id: activity.running, zh: 跑步, en: running, group: 活動, synonyms: [奔跑, 賽跑, run] }
   - { id: activity.eating, zh: 吃飯, en: eating, group: 活動, synonyms: [用餐, 吃東西, 吃, 午餐, 晚餐, 早餐, 午飯, 晚飯, 宵夜, 下午茶, 便當, 點心, 早午餐, breakfast, eat, meal, dinner, lunch, brunch, snack], ranks_beside: [food], suggest: [food.meal, food.rice], seen_by: [food.meal, food.rice] }
@@ -79,7 +79,7 @@ terms:
   # 河 is written inside 拔河 but is no part of it (audit round 119, SRCH-TOK-033)
   - { id: activity.tug_of_war, zh: 拔河, en: tug of war, group: 活動, synonyms: [拔河比賽], suggest: [event.sports_day], unrelated: [scene.river] }
   - { id: scene.night_market, zh: 夜市, en: night market, group: 場景, synonyms: [攤販] }
-  - { id: object.snowman, zh: 雪人, en: snowman, group: 物件, synonyms: [堆雪人] }
+  - { id: object.snowman, zh: 雪人, en: snowman, group: 物件, synonyms: [堆雪人], suggest: [scene.snow] }
   - { id: object.dinosaur, zh: 恐龍, en: dinosaur, group: 物件, synonyms: [恐龍模型] }
   - { id: activity.travel, zh: 旅行, en: travel, group: 活動, synonyms: [旅遊, 出遊, trip] }
   - { id: object.toy, zh: 玩具, en: toy, group: 物件, synonyms: [玩偶, toys], theme: false }
@@ -98,6 +98,8 @@ terms:
   - { id: object.phone, zh: 手機, en: phone, group: 物件, synonyms: [智慧型手機, smartphone] }
   - { id: object.tablet, zh: 平板, en: tablet, group: 物件, synonyms: [平板電腦, ipad] }
   - { id: object.balloon, zh: 氣球, en: balloon, group: 物件, synonyms: [balloons] }
+  # 氣球 is written inside 熱氣球 but is no part of it (audit round 120, ADR-0051)
+  - { id: object.hot_air_balloon, zh: 熱氣球, en: hot air balloon, group: 物件, synonyms: [hot air balloons], unrelated: [object.balloon] }
   - { id: object.kite, zh: 風箏, en: kite, group: 物件, synonyms: [] }
   - { id: object.bus, zh: 公車, en: bus, group: 物件, synonyms: [巴士, 校車, buses] }
   - { id: object.train, zh: 火車, en: train, group: 物件, synonyms: [列車, 高鐵, 捷運, 電車, trains, tram, subway, metro] }
