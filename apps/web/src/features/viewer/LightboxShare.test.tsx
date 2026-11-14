@@ -111,6 +111,37 @@ describe("a Lightbox opened to play (audit round 109)", () => {
         <Lightbox start={0} grid={grid} onClose={vi.fn()} />
       </QueryClientProvider>,
     );
-    expect((await screen.findByRole("button", { name: "幻燈片" })).getAttribute("aria-pressed")).toBe("false");
+    expect((await screen.findByRole("button", { name: "播放幻燈片" })).getAttribute("aria-pressed")).toBe("false");
+  });
+});
+
+describe("a slideshow that plays as a story (audit round 112)", () => {
+  it("[VIEW-062] 回歸：播放中不逐張唸出位置；停止時按鈕叫「播放幻燈片」（驗證第 112 輪：每一步都唸、按鈕只叫「幻燈片」）", async () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Lightbox start={0} grid={grid} onClose={vi.fn()} autoplay />
+      </QueryClientProvider>,
+    );
+    await screen.findByRole("button", { name: "停止幻燈片" });
+    expect(screen.getByTestId("lightbox-position").getAttribute("aria-live")).toBe("off");
+    screen.getByRole("button", { name: "停止幻燈片" }).click();
+    await screen.findByRole("button", { name: "播放幻燈片" });
+    expect(screen.getByTestId("lightbox-position").getAttribute("aria-live")).toBe("polite");
+  });
+
+  it("[VIEW-063] 回歸：以「播放」打開時先顯示標題卡，播放中是故事模式（控制列淡出、照片淡入）（驗證第 112 輪：沒有標題、硬切）", async () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Lightbox start={0} grid={grid} onClose={vi.fn()} autoplay title="2025/11/11–11/12 · 足球" />
+      </QueryClientProvider>,
+    );
+    const card = await screen.findByTestId("story-title");
+    expect(card.textContent).toContain("2025/11/11–11/12 · 足球");
+    expect(card.getAttribute("aria-hidden")).toBe("true"); // the dialog's name says it; not read twice
+    expect(screen.getByTestId("lightbox").className).toContain("story");
+    screen.getByRole("button", { name: "停止幻燈片" }).click();
+    await screen.findByRole("button", { name: "播放幻燈片" });
+    expect(screen.getByTestId("lightbox").className).not.toContain("story"); // stopped: every control back
+    expect(screen.queryByTestId("story-title")).toBeNull();
   });
 });

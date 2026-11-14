@@ -27,12 +27,15 @@ export function Lightbox({
   grid: outer,
   onClose,
   autoplay = false,
+  title,
 }: {
   start: number;
   grid: GridApi;
   onClose: (assetId: string | null) => void;
   /** opened to play: the slideshow is running from the start (VIEW-061) */
   autoplay?: boolean;
+  /** what is playing, 「2025/11/11–11/12 · 足球」: a title card opens the story (VIEW-063) */
+  title?: string;
 }) {
   const { t, i18n } = useTranslation();
   const [ord, setOrd] = useState(start);
@@ -203,11 +206,27 @@ export function Lightbox({
   const position = t(copies ? "lightbox.copiesPosition" : "lightbox.position", { n: (ord + 1).toLocaleString(i18n.language), total: grid.total.toLocaleString(i18n.language) });
 
   return (
-    <div ref={dialog} role="dialog" aria-modal="true" aria-label={t("lightbox.label")} tabIndex={-1} className="lightbox" onKeyDown={onKey} data-testid="lightbox">
+    <div
+      ref={dialog}
+      role="dialog"
+      aria-modal="true"
+      aria-label={title ? `${title} · ${t("lightbox.label")}` : t("lightbox.label")}
+      tabIndex={-1}
+      // playing, it is a story: the controls fade until the pointer or focus comes to them, photos fade in (VIEW-063)
+      className={playing ? "lightbox story" : "lightbox"}
+      onKeyDown={onKey}
+      data-testid="lightbox"
+    >
+      {playing && title && ord === start ? (
+        <div className="story-title" data-testid="story-title" aria-hidden="true">
+          <p>{title}</p>
+        </div>
+      ) : null}
       {showKeys ? <KeyList onClose={() => (setShowKeys(false), dialog.current?.focus())} /> : null}
       <div className="col-span-1 flex items-center gap-2 px-3">
         <button type="button" onClick={close} className="rounded-[var(--radius-sm)] px-2 py-1 hover:bg-[var(--surface-2)]">{t("lightbox.close")}</button>
-        <span aria-live="polite" className="tnum text-[var(--text)]" data-testid="lightbox-position">{position}</span>
+        {/* playing, each step is not read out: it stops when the person stops it (VIEW-062, audit round 112) */}
+        <span aria-live={playing ? "off" : "polite"} className="tnum text-[var(--text)]" data-testid="lightbox-position">{position}</span>
         <span className="flex-1" />
         <button type="button" onClick={() => setScale((s) => Math.max(1, s / 1.5))} aria-label={t("lightbox.zoomOut")} className="px-2">−</button>
         <button type="button" onClick={() => setScale((s) => Math.min(8, s * 1.5))} aria-label={t("lightbox.zoomIn")} className="px-2">+</button>

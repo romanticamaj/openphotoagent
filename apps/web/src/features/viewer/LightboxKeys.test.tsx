@@ -151,7 +151,7 @@ describe("a slideshow and the shortcut list (audit round 50)", () => {
       );
       const lb = screen.getByTestId("lightbox");
       const pos = () => screen.getByTestId("lightbox-position").textContent;
-      fireEvent.click(screen.getByRole("button", { name: "幻燈片" }));
+      fireEvent.click(screen.getByRole("button", { name: "播放幻燈片" }));
       expect(screen.getByRole("button", { name: "停止幻燈片" }).getAttribute("aria-pressed")).toBe("true");
       await tick(4000);
       expect(pos()).toBe("第 2 張，共 3 張");
@@ -159,7 +159,7 @@ describe("a slideshow and the shortcut list (audit round 50)", () => {
       expect(pos()).toBe("第 3 張，共 3 張");
       await tick(4000); // the last one: it stops there
       expect(pos()).toBe("第 3 張，共 3 張");
-      expect(screen.getByRole("button", { name: "幻燈片" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "播放幻燈片" })).toBeTruthy();
       fireEvent.keyDown(lb, { key: "ArrowLeft" });
       fireEvent.keyDown(lb, { key: "ArrowLeft" });
       fireEvent.keyDown(lb, { key: " " }); // Space plays

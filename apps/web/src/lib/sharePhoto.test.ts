@@ -61,9 +61,9 @@ describe("sharing one photo (audit round 109: no share or export)", () => {
     await expect(copyPhoto({ id: "a1", rot: 0, takenAt: null }, deps())).rejects.toThrow("CLIPBOARD_UNSUPPORTED");
   });
 
-  it("[SHARE-005] 檔名：拍攝日期（有的話）加照片編號前 8 碼，只用安全字元", () => {
-    expect(photoFileName({ id: "0192ab34-cdef", takenAt: "2024-02-10T00:00:00Z" }, "jpg")).toBe("photo-2024-02-10-0192ab34.jpg");
-    expect(photoFileName({ id: "0192ab34-cdef", takenAt: null }, "png")).toBe("photo-0192ab34.png");
+  it("[SHARE-005] 檔名：拍攝日期（有的話）加照片編號末 8 碼，只用安全字元", () => {
+    expect(photoFileName({ id: "0192ab34-cdef", takenAt: "2024-02-10T00:00:00Z" }, "jpg")).toBe("photo-2024-02-10-ab34cdef.jpg"); // the id's last 8 (round 112)
+    expect(photoFileName({ id: "0192ab34-cdef", takenAt: null }, "png")).toBe("photo-ab34cdef.png");
     expect(photoFileName({ id: "../../x", takenAt: null }, "jpg")).toBe("photo-x.jpg");
   });
 });
@@ -82,6 +82,15 @@ describe("two photos, two files (audit round 111)", () => {
     const a = photoFileName({ id: "0192ab34-0001", takenAt: "2026-11-05T09:00:00" }, "jpg");
     const b = photoFileName({ id: "0192ab99-0002", takenAt: "2026-11-05T10:00:00" }, "jpg");
     expect(a).not.toBe(b);
-    expect(a).toBe("photo-2026-11-05-0192ab34.jpg");
+    expect(a).toBe("photo-2026-11-05-ab340001.jpg"); // the id's last 8 (round 112)
+  });
+});
+
+describe("ids that share their start (audit round 112)", () => {
+  it("[SHARE-011] 回歸：同一批匯入的照片（UUIDv7 開頭相同）存成不同檔名（驗證第 112 輪：兩張都叫 photo-2026-11-05-01a1ae84.jpg）", () => {
+    const a = photoFileName({ id: "01a1ae84-7496-7c3e-9d2a-5b8f0c1e2a11", takenAt: "2026-11-05T09:00:00" }, "jpg");
+    const b = photoFileName({ id: "01a1ae84-7491-7f00-8a1b-3c4d5e6f7a22", takenAt: "2026-11-05T09:00:00" }, "jpg");
+    expect(a).not.toBe(b);
+    expect(a).toBe("photo-2026-11-05-0c1e2a11.jpg"); // the id's random end, not its time-stamped start
   });
 });

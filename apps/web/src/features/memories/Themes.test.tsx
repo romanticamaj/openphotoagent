@@ -55,6 +55,6 @@ describe("a theme plays as a story (audit round 109)", () => {
       </QueryClientProvider>,
     );
     fireEvent.click(await screen.findByRole("button", { name: "播放 2025 的足球" }));
-    expect(open).toHaveBeenCalledWith([expect.objectContaining({ id: "a" })], 0, true);
+    expect(open).toHaveBeenCalledWith([expect.objectContaining({ id: "a" })], 0, true, "2025 的足球");
   });
 });

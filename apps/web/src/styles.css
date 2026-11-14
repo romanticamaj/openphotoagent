@@ -1198,3 +1198,55 @@ body {
 .memory-play:hover {
   background: var(--surface-2);
 }
+
+/* a slideshow plays as a story (VIEW-063): the bar and the filmstrip fade until the pointer or focus comes to them, each
+   photo fades in, and a title card opens it */
+.lightbox.story > div:has(> [data-testid="lightbox-position"]),
+.lightbox.story .filmstrip {
+  opacity: 0;
+  transition: opacity 400ms var(--ease);
+}
+.lightbox.story > div:has(> [data-testid="lightbox-position"]):hover,
+.lightbox.story > div:has(> [data-testid="lightbox-position"]):focus-within,
+.lightbox.story .filmstrip:hover,
+.lightbox.story .filmstrip:focus-within {
+  opacity: 1;
+}
+.lightbox.story .stage img {
+  animation: story-in 700ms var(--ease);
+}
+@keyframes story-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.story-title {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  background: linear-gradient(to top, rgb(0 0 0 / 0.55), rgb(0 0 0 / 0.15));
+  animation: story-title 3600ms var(--ease) forwards;
+}
+.story-title p {
+  color: #fff;
+  font-size: clamp(1.5rem, 4vw, 2.75rem);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-align: center;
+  padding: 0 16px;
+  text-shadow: 0 2px 12px rgb(0 0 0 / 0.5);
+}
+@keyframes story-title {
+  0% { opacity: 0; }
+  15% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .lightbox.story .stage img { animation: none; }
+  .story-title { animation-duration: 1ms; animation-delay: 3000ms; }
+}
+

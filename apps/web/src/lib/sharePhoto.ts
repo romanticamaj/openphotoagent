@@ -17,11 +17,12 @@ export type ShareDeps = {
   writeClipboard: ((png: Blob) => Promise<void>) | undefined;
 };
 
-/** photo-2025-11-11-0192ab34.jpg: the day it was taken and the first 8 of its id, so two photos of one day are two
+/** photo-2025-11-11-0c1e2a11.jpg: the day it was taken and the last 8 of its id, so two photos of one day are two
  *  files (audit round 111, SHARE-009); plain characters only, whatever the id holds */
 export function photoFileName(p: { id: string; takenAt: string | null }, ext: string): string {
   const day = p.takenAt && /^\d{4}-\d{2}-\d{2}/.test(p.takenAt) ? p.takenAt.slice(0, 10) : null;
-  const short = p.id.replace(/[^0-9A-Za-z]/g, "").slice(0, 8);
+  // the id's last 8: a UUIDv7 starts with when it was imported, the same for a whole import (audit round 112, SHARE-011)
+  const short = p.id.replace(/[^0-9A-Za-z]/g, "").slice(-8);
   return `photo-${day ? `${day}-` : ""}${short}.${ext}`;
 }
 

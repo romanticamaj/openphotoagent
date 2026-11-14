@@ -126,13 +126,16 @@
 | SHARE-002 | 沒有系統分享、或不能分享檔案時存成 JPEG 檔 | 無 share；canShare 為假 | 存成 `photo-<id 前 8 碼>.jpg` | C | #— |
 | SHARE-003 | 取消分享不算失敗也不改存檔；其他錯誤往外拋 | share 拋 AbortError；預覽缺少 | 回傳 cancelled、未存檔；THUMB_MISSING 往外拋 | C | #— |
 | SHARE-004 | 複製圖片：剪貼簿寫入一張套用旋轉的 PNG；不支援時拋 CLIPBOARD_UNSUPPORTED | 旋轉 180° | 一張 PNG | C | #— |
-| SHARE-005 | 分享檔名只用安全字元：拍攝日期（有的話）加照片編號前 8 碼 | id `../../x` | `photo-x.jpg` | C | #— |
+| SHARE-005 | 分享檔名只用安全字元：拍攝日期（有的話）加照片編號末 8 碼 | id `../../x` | `photo-x.jpg` | C | #— |
 | SHARE-006 | Lightbox「分享」分享目前這張；存成檔案時說檔名；失敗時說出來 | 第 1 張 | 「已存到「下載」資料夾：photo-p0.jpg」、「沒能分享這張照片」 | C | #— |
 | SHARE-007 | Lightbox「複製圖片」說可以貼上；取消分享不顯示訊息 | 第 1 張 | 「已複製圖片，可以貼到聊天或文件」 | C | #— |
 | SHARE-008 | 桌面版（WebView2）不用系統分享，直接存檔；網頁版照用（回歸，驗證第 110 輪：按了 30 秒沒有任何反應） | 桌面、share 與 canShare 都為真 | share 未提供，改存檔；存檔訊息說出「下載」資料夾 | C | #— |
-| SHARE-009 | 同一天的兩張照片存成不同檔名（回歸，驗證第 111 輪：兩張都叫 photo-2026-11-05.jpg） | 同日兩張 | `photo-2026-11-05-0192ab34.jpg` 與另一個名稱 | C | #— |
+| SHARE-009 | 同一天的兩張照片存成不同檔名（回歸，驗證第 111 輪：兩張都叫 photo-2026-11-05.jpg） | 同日兩張 | `photo-2026-11-05-ab340001.jpg` 與另一個名稱 | C | #— |
 | SHARE-010 | Lightbox 裡的提示在底片列上方，不蓋住底片列（回歸，驗證第 111 輪） | styles.css | `.lightbox .toast` 的 bottom 大於底片列高度 | C | #— |
+| SHARE-011 | 同一批匯入的照片（UUIDv7 開頭相同）存成不同檔名，檔名用編號末 8 碼（回歸，驗證第 112 輪：兩張都叫 photo-2026-11-05-01a1ae84.jpg） | 兩個開頭相同的 UUIDv7 | `photo-2026-11-05-0c1e2a11.jpg` 與另一個名稱 | C | #— |
 | VIEW-061 | 以「播放」打開 Lightbox 時幻燈片已在播放；一般打開時沒有 | autoplay | 「停止幻燈片」aria-pressed=true；一般打開為「幻燈片」false | C | #— |
+| VIEW-062 | 播放中不逐張唸出位置；停止時按鈕叫「播放幻燈片」（回歸，驗證第 112 輪） | autoplay | 位置 aria-live=off；停止後為 polite | C | #— |
+| VIEW-063 | 以「播放」打開時先顯示標題卡（aria-hidden，對話框名稱已含標題）；播放中是故事模式（控制列淡出、照片淡入）；停止後恢復（回歸，驗證第 112 輪：沒有標題、硬切） | autoplay、title | story-title 含標題；class 含 story；停止後兩者皆無 | C | #— |
 | ASK-UI-020 | 從其他頁面把問題交給問 AI（ADR-0048） | askAbout("爬山的照片") | 聽的人收到同一句；卸載後不再收到 | C | #— |
 | ASK-UI-021 | 面板還沒載入時送出的問題，面板打開時仍帶入（回歸，驗證第 71 輪：34 次都打開空白） | askAbout 早於面板掛上 | takePendingAsk 拿到一次；有人聽時直接交給他 | C | #— |
 | CORE-LUNAR-001 | 初一對照表 | `opagent_core.lunar` | 1900–2099 每年一筆；2024-02-10、2025-01-29、2026-02-17、2030-02-03 正確；`gen_lunar_table.py --check` 一致 | U | #62 |
