@@ -1,5 +1,6 @@
 // Albums (ADR-0041): 「收藏」 first, then the albums, each a card with its newest photo; an album opens as a grid with the
 // Lightbox. Albums are database sets: deleting one keeps its photos (COL-004).
+import { ShareSelection } from "../../components/ShareSelection";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -189,6 +190,8 @@ export function AlbumPage({ albumId }: { albumId: string }) {
           <h1 id="album-h" className="text-xl font-semibold">{fav ? `★ ${t("albums.favorites")}` : q.data?.name}</h1>
         )}
         <span className="tnum text-[var(--text-muted)]">{t("albums.count", { n: photos.length.toLocaleString() })}</span>
+        {/* the whole album at once, as the selection bars do (ADR-0054, COL-031) */}
+        {photos.length ? <ShareSelection ids={photos.map((p) => p.asset_id)} /> : null}
         {!fav && q.data ? (
           <span className="ml-auto flex gap-3 text-sm">
             <button ref={renameBtn} type="button" className="underline" onClick={() => setRenaming(q.data.name)}>{t("albums.rename")}</button>

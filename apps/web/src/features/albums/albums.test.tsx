@@ -341,5 +341,19 @@ describe("keys in the Lightbox (audit round 34)", () => {
     expect(screen.queryByRole("alertdialog")).toBeNull();
     await waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "刪除相簿" })));
   });
-});
 
+  it("[COL-031] 相簿頁可一次分享整本相簿；★ 收藏也可以；空相簿不顯示（ADR-0054，驗證第 124 輪：相簿只能一張一張分享）", async () => {
+    s.album.mockResolvedValue({ id: "b1", name: "墾丁", kind: "album", photos: [{ asset_id: "p1", ch: null, taken_at: null }, { asset_id: "p2", ch: null, taken_at: null }] });
+    const { unmount } = wrap(<AlbumPage albumId="b1" />);
+    expect(await screen.findByRole("button", { name: "分享 2 張…" })).toBeTruthy();
+    unmount();
+    s.album.mockResolvedValue({ id: "favorites", name: "收藏", kind: "favorites", photos: [{ asset_id: "p1", ch: null, taken_at: null }] });
+    const r2 = wrap(<AlbumPage albumId="favorites" />);
+    expect(await screen.findByRole("button", { name: "分享 1 張…" })).toBeTruthy();
+    r2.unmount();
+    s.album.mockResolvedValue({ id: "b1", name: "墾丁", kind: "album", photos: [] });
+    wrap(<AlbumPage albumId="b1" />);
+    await screen.findByText("墾丁");
+    expect(screen.queryByRole("button", { name: /分享/ })).toBeNull();
+  });
+});
