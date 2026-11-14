@@ -14,6 +14,9 @@ import re
 import sqlite3
 import stat as stat_mod
 import unicodedata
+from collections import deque
+from collections.abc import Callable, Iterator
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta, timezone, tzinfo
 from functools import lru_cache
@@ -43,6 +46,7 @@ GPS_IFD = 0x8825
 DATETIME_ORIGINAL = 0x9003
 OFFSET_TIME_ORIGINAL = 0x9011
 CHUNK = 1 << 20
+CACHE_BATCH = 256  # files per cache commit: a WAL commit is an fsync, and a crash re-hashes at most this many
 ALWAYS_EXCLUDE = [
     "**/.DS_Store",
     "**/Thumbs.db",
@@ -157,7 +161,7 @@ def _walk(
             continue
         for e in reversed(ents):
             rel = unicodedata.normalize("NFC", Path(e.path).relative_to(root_real).as_posix())
-            if e.is_symlink():
+            if e.is_symlink() or e.is_junction():  # a junction is not a symlink to DirEntry, and needs no privilege
                 skipped.append(Skipped(rel, "symlink"))
                 continue
             if e.is_dir(follow_symlinks=False):
@@ -258,7 +262,10 @@ def read_meta(path: Path, mtime: datetime, tz: tzinfo) -> PhotoMeta:
 
 
 class HashCache:
-    """Worker-local cache (abs path, size, mtime_ns, file id) -> scan entry (02 §4.1 stage 2)."""
+    """Worker-local cache (abs path, size, mtime_ns, file id) -> scan entry (02 §4.1 stage 2).
+
+    Only an optimisation, so ``put`` commits every ``CACHE_BATCH`` files, not every file (SCAN-027): a crash loses at
+    most one batch, and those files are simply hashed again. The scan's own resume cursor does not depend on it."""
 
     def __init__(self, path: Path) -> None:
         self.path = Path(path)
@@ -266,6 +273,7 @@ class HashCache:
         self._db = sqlite3.connect(self.path, check_same_thread=False)
         self._db.execute("PRAGMA journal_mode=WAL")
         self._db.execute("CREATE TABLE IF NOT EXISTS entry(k TEXT PRIMARY KEY, v TEXT NOT NULL)")
+        self._uncommitted = 0
 
     @staticmethod
     def key(abs_path: Path, st: os.stat_result) -> str:
@@ -277,7 +285,16 @@ class HashCache:
 
     def put(self, k: str, v: dict[str, Any]) -> None:
         self._db.execute("INSERT OR REPLACE INTO entry(k, v) VALUES (?, ?)", (k, json.dumps(v)))
+        self._uncommitted += 1
+        if self._uncommitted >= CACHE_BATCH:
+            self.flush()
+
+    def flush(self) -> None:
         self._db.commit()
+        self._uncommitted = 0
+
+    def close(self) -> None:
+        self._db.close()  # uncommitted rows are only lost work, and a scan has flushed by the time this runs
 
 
 def _entry_to_json(e: ScanEntry) -> dict[str, Any]:
@@ -312,9 +329,14 @@ def scan(
     reporter: Any = None,
     previous_total: int | None = None,
     after: str | None = None,
+    sink: Callable[[list[ScanEntry]], None] | None = None,
+    page_size: int = 100,
+    threads: int = 1,
 ) -> ScanResult:
     """enumerate (indeterminate unless a previous total is known) -> hash/exif/thumbnails (determinate).
-    ``after``: resume cursor — files sorting at or before it were already reported (SCAN-019)."""
+    ``after``: resume cursor — files sorting at or before it were already reported (SCAN-019).
+    ``sink``: takes pages of entries as they are ready, in file order, so photos appear during a long scan (IMP-006);
+    they are then not kept in the result. ``threads``: decoding is most of a scan and releases the GIL (IMP-007)."""
     if reporter is not None:
         reporter.start("scan", previous_total)
         reporter.phase("enumerate")
@@ -327,25 +349,64 @@ def scan(
         reporter.progress(len(files), None)
         reporter.phase("hash")
     entries: list[ScanEntry] = []
+    page: list[ScanEntry] = []
     bytes_read = 0
     total = len(files)
-    for n, (rel, st) in enumerate(files, start=1):
-        sp = sb.resolve(alias, rel)
-        k = HashCache.key(sp.real, st)
-        cached = cache.get(k) if cache is not None else None
-        if cached is not None:
-            entries.append(_entry_from_json(cached))
-        else:
-            e, reason = _scan_one(sp.real, sp.rel, st, tz, thumbs_dir)
-            if e is None:
-                skipped.append(Skipped(rel, reason or "DECODE_FAILED"))
+
+    def emit(e: ScanEntry) -> None:
+        if sink is None:
+            entries.append(e)
+            return
+        page.append(e)
+        if len(page) >= page_size:
+            sink(page[:])
+            page.clear()
+
+    def looked_up() -> Iterator[tuple[str, os.stat_result, str, Any, Any]]:
+        """In file order: the cached entry, or what is needed to decode the file."""
+        for rel, st in files:
+            sp = sb.resolve(alias, rel)
+            k = HashCache.key(sp.real, st)
+            yield rel, st, k, cache.get(k) if cache is not None else None, sp
+
+    def decoded() -> Iterator[tuple[str, os.stat_result, str, Any, Any]]:
+        if threads <= 1:
+            for rel, st, k, cached, sp in looked_up():
+                yield rel, st, k, cached, None if cached is not None else _scan_one(sp.real, sp.rel, st, tz, thumbs_dir)
+            return
+        with ThreadPoolExecutor(threads) as pool:
+            window: deque[tuple[str, os.stat_result, str, Any, Any]] = deque()
+            for rel, st, k, cached, sp in looked_up():
+                fut = None if cached is not None else pool.submit(_scan_one, sp.real, sp.rel, st, tz, thumbs_dir)
+                window.append((rel, st, k, cached, fut))
+                if len(window) >= threads * 2:
+                    r, s, kk, c, f = window.popleft()
+                    yield r, s, kk, c, f.result() if f is not None else None
+            while window:
+                r, s, kk, c, f = window.popleft()
+                yield r, s, kk, c, f.result() if f is not None else None
+
+    try:
+        for n, (rel, st, k, cached, got) in enumerate(decoded(), start=1):
+            if cached is not None:
+                emit(_entry_from_json(cached))
             else:
-                bytes_read += st.st_size
-                if cache is not None:
-                    cache.put(k, _entry_to_json(e))
-                entries.append(e)
-        if reporter is not None:
-            reporter.progress(n, total)
+                e, reason = got
+                if e is None:
+                    skipped.append(Skipped(rel, reason or "DECODE_FAILED"))
+                else:
+                    bytes_read += st.st_size
+                    if cache is not None:
+                        cache.put(k, _entry_to_json(e))
+                    emit(e)
+            if reporter is not None:
+                reporter.progress(n, total)
+        if sink is not None and page:
+            sink(page[:])
+            page.clear()
+    finally:  # also when a source goes offline mid-scan: what was hashed stays hashed
+        if cache is not None:
+            cache.flush()
     skipped.sort(key=lambda s: s.rel)
     if reporter is not None:
         reporter.finish("succeeded")

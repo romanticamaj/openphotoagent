@@ -165,6 +165,17 @@ Timeline (scroll container, 單一捲軸)
 > - **聚類在前端完成**：以純函式網格聚類（`cluster.ts`，MAP-003）處理 `GET /map/points` 的資料。10 萬點以上時改用上表的伺服器端 geohash 聚類，記為 v0.4.x 待辦。
 > - **聚類 marker 是 DOM 按鈕**，帶 `aria-label`「N 張照片」，點擊後顯示該範圍的照片（MAP-002）。
 
+> **（離線街道圖，2026-11-10，ADR-0037）**
+> - **觸發**：使用者在地圖頁按「下載台灣街道圖」。範圍是台灣、澎湖、金門、馬祖，bbox `118.0,21.7,122.2,26.4`，最大縮放 15。
+> - **由 Worker 執行（`basemap` 任務，Operation 類型 `map.download`）**：
+>   1. 下載釘選版本的 go-pmtiles v1.31.2，以 SHA-256 核對後才解壓或執行。
+>   2. 從 Protomaps 最新一份 schema 4 的 planet build，用 `pmtiles extract` 取出這個範圍。
+>   3. 檔頭確認是 PMTiles v3 才裝進資料目錄（`maps/taiwan.pmtiles`）。
+> - **讀取**：API 以 `GET /map/basemap.pmtiles`（支援 Range）提供檔案；前端用 `pmtiles` 協定讀取，帶 launch token，不連外。
+> - **樣式**：`@protomaps/basemaps` 5.7.2，地名用 `zh-Hant`。拉丁字型的 glyph 隨 App 打包（OFL）；中文用系統字型。
+> - **授權**：顯示 © OpenStreetMap（ODbL）。
+> - **沒有下載**：維持上面的無圖磚模式。
+
 ### 2.6 資料夾
 
 - 樹狀（source alias → 相對路徑）+ 右側網格；顯示「已分類/待處理」計數；**輸出資料夾（自動歸檔的結果）** 也在樹中，用類別色點標示 → 讓 killer 功能①「自動分類到資料夾」的結果能被直接「看見」。
@@ -187,7 +198,7 @@ Timeline (scroll container, 單一捲軸)
 
 - 每個回憶挑 12–30 張：去重（duplicate_group 代表）→ 多樣性（embedding k-center greedy）→ 品質（評分/清晰度）。
 - 標題由本地 LLM 生成（可關閉，預設用模板「2024 年 7 月・花蓮」），**不使用雲端**。
-- 回憶在背景 job 中生成（每日一次、低優先序），不在開頁時即時算。
+- 「那年今日」「旅程」「主題」為**請求時計算**的唯讀查詢（ADR-0049）：純函式在 `packages/core`，API 只讀 `asset`／`search_doc` 的時間、GPS 與標籤，不碰原檔、不需模型；新加入的照片在下次請求即出現。清單只回傳摘要（標題、張數、封面與至多 12 張），精選的多樣性挑選在開啟該回憶時才算。效能門檻：60k 張含 GPS 時冷啟 p95 ≤ 500 ms；超過時改由既有掃描／去重步驟增量寫入，不另設每日排程。需要 embedding 或 LLM 的回憶（人物時光、LLM 標題）仍可在 Worker 背景 job 生成。「旅程」的「GPS 眾數城市」需要離線 GeoNames 補上座標與最近地點查詢，尚未做。
 - 呈現：全螢幕 Ken Burns 幻燈片（`prefers-reduced-motion` 時改淡入淡出），可「存成相簿」。
 
 ---
@@ -700,6 +711,8 @@ flowchart LR
 | 保存與刪除 | 對話預設保存 90 天（可設定 0 = 不保存）；可一鍵刪除；對話內容**不**用於任何訓練 | `conversation.expires_at` |
 
 ### 8.9 隱私
+
+> **（ADR-0039，2026-11-11）人物資料**：本機模型只要啟用人臉辨識，就能依使用者命名的人物回答（篩選、張數）。雲端模型需另外開 `assistant.cloud_people`（預設關閉）；開啟後人名仍只以「人物A」代稱送出，臉部影像與特徵永遠不送出。被擋住時說明到哪裡開啟，不回答 0 張。
 
 - **預設全地端**：LLM 在 Worker；CP 與 Worker 間照片不離開使用者機器（all-in-one 下同一台）。
 - 使用者設定雲端 endpoint 時：

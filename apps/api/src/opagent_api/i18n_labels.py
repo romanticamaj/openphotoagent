@@ -8,7 +8,9 @@ from functools import cache
 from pathlib import Path
 from typing import Any
 
-_LOCALES = Path(__file__).resolve().parents[4] / "packages/i18n/locales/zh-TW.json"
+_LOCALES = (
+    Path(__file__).resolve().parent / "_data" / "zh-TW.json"
+)  # generated copy (tools/gen_api_labels.py, ADR-0023)
 
 
 @cache

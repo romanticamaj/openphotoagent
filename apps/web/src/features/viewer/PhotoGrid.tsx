@@ -1,19 +1,54 @@
 // <PhotoGrid> (10 §2.2): month buckets with known counts are stacked by TimelineModel (estimated heights until
 // laid out); TanStack Virtual decides which buckets mount, and inside a bucket only the rows near the viewport
 // render (≤ ~400 tiles on a 4K screen). Layout runs in a Web Worker. ThumbHash paints every tile before its image.
+import { Link } from "@tanstack/react-router";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useActivity } from "../activity/ActivityHost";
 import { api, mediaUrl, type TimelineAsset } from "../../lib/api";
+import { turnStyle } from "../../lib/turn";
 import { placeholder } from "../../lib/thumbhash";
 import type { Layout } from "./layout";
-import { visibleTiles } from "./layout";
+import { DAY_H, thumbVariant, visibleTiles } from "./layout";
 import { layoutAsync } from "./layoutClient";
 import { Scrubber } from "./Scrubber";
 import { HEADER_H, TimelineModel, monthLabel, type Bucket } from "./timeline";
 
 export type GridPos = { bucket: number; index: number };
+/** Its own component: the activity query ticks every second, and the grid must not render with it. */
+function EmptyLibrary() {
+  const { t } = useTranslation();
+  const working = useActivity().data?.some((o) => ["scan", "job.label"].includes(o.type)) ?? false;
+  return (
+    <div className="flex h-full flex-col items-center justify-center gap-3 p-8 text-center">
+      <p className="text-base font-semibold">{t(working ? "viewer.arriving" : "viewer.empty")}</p>
+      {working ? null : (
+        <>
+          <p className="max-w-md text-[var(--text-muted)]">{t("viewer.emptyHint")}</p>
+          <Link to="/import" className="rounded-[var(--radius-md)] bg-[var(--accent)] px-4 py-2 font-semibold text-[var(--accent-fg)]">
+            {t("viewer.emptyAction")}
+          </Link>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** A month's layout is redone when its data changes, not only its width: a photo turned in the Lightbox kept its old
+ * tile shape until a reload (ROT-004). */
+export function layoutKey(month: string | undefined, width: number, target: number, shapes: string): string {
+  return `${month}@${width}@${target}@${shapes}`;
+}
+
+/** The tile shapes of a month, cheap to compare: a refetch with the same shapes keeps its layout. */
+export function shapesOf(assets: Array<{ w: number | null; h: number | null }>): string {
+  let n = 0;
+  for (const a of assets) n = (Math.imul(n, 31) + (a.w ?? 0) * 7 + (a.h ?? 0)) | 0;
+  return `${assets.length}:${n}`;
+}
+
 export type GridApi = {
   total: number;
   ordinal: (p: GridPos) => number;
@@ -22,6 +57,9 @@ export type GridApi = {
 
 const DENSITY = { comfortable: 260, standard: 200, compact: 120 } as const;
 const FAST_SCREENS_PER_S = 4;
+// the tiles below come from React state, a frame behind the browser's scroll: a wheel flick moves three screens in that
+// frame. Only ThumbHash backgrounds are painted while scrolling fast, so reaching further ahead is cheap (VIEW-003).
+const FAST_OVERSCAN_ROWS = 30;
 
 function aspect(a: TimelineAsset): number {
   return a.w && a.h ? Math.min(Math.max(a.w / a.h, 0.25), 4) : 1.5;
@@ -31,10 +69,26 @@ export function PhotoGrid({
   density = "standard",
   onOpen,
   focusAsset,
+  chosen,
+  choosing: anyChosen = false,
+  onPick,
+  onPickAll,
+  onScrolledAway,
+  onSpan,
 }: {
   density?: keyof typeof DENSITY;
   onOpen: (pos: GridPos, api: GridApi) => void;
   focusAsset?: string | null;
+  /** photos chosen on the timeline (VIEW-038); with `onPick`, Ctrl/⌘-click, Shift-click, Space and Shift+arrows choose */
+  chosen?: (id: string) => boolean;
+  choosing?: boolean;
+  onPick?: (id: string, how: "toggle" | "range", order: string[]) => void;
+  /** Ctrl/⌘+A: the whole library (VIEW-042), not the page's text */
+  onPickAll?: () => void;
+  /** a Shift range from `anchor` to `to` (VIEW-045): the page adds it to what was chosen before the range began */
+  onSpan?: (anchor: string, to: string, order: string[]) => void;
+  /** whether the timeline is scrolled away from its top (MEM-009: 那年今日 steps aside) */
+  onScrolledAway?: (away: boolean) => void;
 }) {
   const { t, i18n } = useTranslation();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -50,6 +104,7 @@ export function PhotoGrid({
 
   const buckets = useQuery({ queryKey: ["timeline", "buckets"], queryFn: api.buckets });
   const list: Bucket[] = useMemo(() => buckets.data?.buckets ?? [], [buckets.data]);
+  const hasPhotos = list.length > 0;
   const innerWidth = Math.max(0, width - 72); // scrubber gutter
   const model = useMemo(() => new TimelineModel(list, innerWidth || 1, target), [list, innerWidth, target]);
 
@@ -64,7 +119,7 @@ export function PhotoGrid({
     setWidth(el.clientWidth);
     setViewport(el.clientHeight);
     return () => ro.disconnect();
-  }, []);
+  }, [hasPhotos]); // the empty state has no scroller: measure again when the first photos arrive (IMP-014)
 
   const virt = useVirtualizer({
     count: list.length,
@@ -76,8 +131,17 @@ export function PhotoGrid({
   // fast scroll: paint ThumbHash only, load images once scrolling settles for 120 ms (10 §2.2)
   const last = useRef({ y: 0, t: 0 });
   const settle = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const awayCb = useRef(onScrolledAway);
+  awayCb.current = onScrolledAway;
+  const away = useRef(false);
   const onScroll = useCallback(() => {
     const el = scrollRef.current!;
+    // past the first rows the card above steps aside; it comes back only at the very top, so it does not flicker
+    const next = away.current ? el.scrollTop > 8 : el.scrollTop > 120;
+    if (next !== away.current) {
+      away.current = next;
+      awayCb.current?.(next);
+    }
     const now = performance.now();
     const v = Math.abs(el.scrollTop - last.current.y) / Math.max(1, now - last.current.t);
     last.current = { y: el.scrollTop, t: now };
@@ -103,18 +167,20 @@ export function PhotoGrid({
   const alive = useRef(true);
   useEffect(() => () => void (alive.current = false), []);
   const pendingLayout = useRef(new Map<string, Layout>());
+  const shown = useRef(new Map<string, Layout>());
   useEffect(() => {
     if (!innerWidth) return;
     list.forEach((b, i) => {
       const data = bucketData[i]?.data;
-      const key = `${b.month}@${innerWidth}@${target}`;
+      const key = layoutKey(b.month, innerWidth, target, data ? shapesOf(data.assets) : "");
       if (!data || layouts.current.has(key) || pendingLayout.current.has(key)) return;
       const placeholder: Layout = { rows: [], height: model.height(i) - HEADER_H, width: innerWidth };
       pendingLayout.current.set(key, placeholder);
-      void layoutAsync(data.assets.map(aspect), innerWidth, target).then((l) => {
+      void layoutAsync(data.assets.map(aspect), innerWidth, target, dayGroups(data.assets)).then((l) => {
         pendingLayout.current.delete(key);
         if (!alive.current) return;
         layouts.current.set(key, l);
+        shown.current.set(`${b.month}@${innerWidth}@${target}`, l); // the month's latest, until the next is ready
         const idx = list.findIndex((x) => x.month === b.month);
         if (idx >= 0) model.setHeight(idx, HEADER_H + l.height);
         virt.measure();
@@ -123,8 +189,17 @@ export function PhotoGrid({
     });
   });
 
-  const layoutOf = (i: number) => layouts.current.get(`${list[i]?.month}@${innerWidth}@${target}`);
+  // a re-layout (a photo turned, ROT-004) shows the previous one until it is ready: tiles never blink out
+  const layoutOf = (i: number) => {
+    const data = bucketData[i]?.data;
+    const exact = data ? layouts.current.get(layoutKey(list[i]?.month, innerWidth, target, shapesOf(data.assets))) : undefined;
+    return exact ?? shown.current.get(`${list[i]?.month}@${innerWidth}@${target}`);
+  };
   const assetsOf = (i: number) => bucketData[i]?.data?.assets;
+  /** the loaded photos in timeline order: what a Shift-click range spans */
+  const loadedOrder = () => list.flatMap((_, i) => (assetsOf(i) ?? []).map((a) => a.id));
+  const choosing = Boolean(onPick && anyChosen);
+  const pick = (id: string | undefined, how: "toggle" | "range") => id && onPick?.(id, how, loadedOrder());
 
   const gridApi: GridApi = useMemo(
     () => ({
@@ -161,6 +236,8 @@ export function PhotoGrid({
     }
   }, [focusAsset]);
 
+  let moved: string | undefined; // the photo the last moveFocus went to (Shift+arrow, VIEW-043)
+  const spanAnchor = useRef<string | null>(null); // where the current Shift range began
   const moveFocus = (dir: "left" | "right" | "up" | "down") => {
     const l = layoutOf(focus.bucket);
     const assets = assetsOf(focus.bucket);
@@ -193,6 +270,7 @@ export function PhotoGrid({
     index = Math.max(0, index);
     setFocus({ bucket, index });
     const id = assetsOf(bucket)?.[index]?.id;
+    moved = id;
     if (bucket !== focus.bucket) virt.scrollToIndex(bucket, { align: "start" });
     requestAnimationFrame(() => {
       const el = document.querySelector<HTMLElement>(`[data-asset="${id}"]`);
@@ -203,17 +281,34 @@ export function PhotoGrid({
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     const el = scrollRef.current!;
+    if (!e.shiftKey && e.key !== "Shift") spanAnchor.current = null; // a key without Shift ends the range
+    // Shift+arrow extends the choice to the photo it moves to, as in Finder (VIEW-043)
+    const arrow = (dir: "left" | "right" | "up" | "down") => {
+      const from = assetsOf(focus.bucket)?.[focus.index]?.id;
+      moved = undefined;
+      moveFocus(dir);
+      if (!e.shiftKey || !onSpan || !moved || moved === from || !from) return;
+      // the range runs from where Shift began to here, so going back shrinks it, past the start too (VIEW-044/045)
+      spanAnchor.current ??= from;
+      onSpan(spanAnchor.current, moved, loadedOrder());
+    };
+    if ((e.key === "a" || e.key === "A") && (e.ctrlKey || e.metaKey) && onPickAll) {
+      e.preventDefault(); // not the page's text (audit round 52)
+      onPickAll();
+      return;
+    }
     const keys: Record<string, () => void> = {
-      ArrowLeft: () => moveFocus("left"),
-      ArrowRight: () => moveFocus("right"),
-      ArrowUp: () => moveFocus("up"),
-      ArrowDown: () => moveFocus("down"),
+      ArrowLeft: () => arrow("left"),
+      ArrowRight: () => arrow("right"),
+      ArrowUp: () => arrow("up"),
+      ArrowDown: () => arrow("down"),
       // the focused tile may scroll out and unmount: keep keyboard focus on the grid container itself
       PageUp: () => (el.focus({ preventScroll: true }), el.scrollBy({ top: -el.clientHeight })),
       PageDown: () => (el.focus({ preventScroll: true }), el.scrollBy({ top: el.clientHeight })),
       Home: () => (el.focus({ preventScroll: true }), el.scrollTo({ top: 0 })),
       End: () => (el.focus({ preventScroll: true }), el.scrollTo({ top: el.scrollHeight })),
       Enter: () => onOpen(focus, gridApi),
+      ...(onPick ? { " ": () => pick(assetsOf(focus.bucket)?.[focus.index]?.id, e.shiftKey ? "range" : "toggle") } : {}),
     };
     const f = keys[e.key];
     if (f) {
@@ -227,7 +322,7 @@ export function PhotoGrid({
   };
 
   if (buckets.isSuccess && list.length === 0) {
-    return <p className="p-8 text-[var(--text-muted)]">{t("viewer.empty")}</p>;
+    return <EmptyLibrary />;
   }
 
   // global row numbering for aria-rowindex (unlaid buckets count their estimated rows)
@@ -248,6 +343,7 @@ export function PhotoGrid({
         aria-label={t("viewer.grid")}
         aria-rowcount={rows}
         aria-readonly="true"
+        aria-multiselectable={onPick ? true : undefined}
         onKeyDown={onKeyDown}
         tabIndex={-1}
         data-testid="photo-grid"
@@ -262,7 +358,7 @@ export function PhotoGrid({
             const top = v.start;
             const label = monthLabel(b.month, i18n.language) ?? t("viewer.unknownDate");
             const local = scrollTop - top - HEADER_H;
-            const tiles = l && assets ? visibleTiles(l, local, viewport, 2) : [];
+            const tiles = l && assets ? visibleTiles(l, local, viewport, fast ? FAST_OVERSCAN_ROWS : 2) : [];
             const rowOf = new Map<number, number>();
             l?.rows.forEach((r, ri) => r.tiles.forEach((x) => rowOf.set(x.index, ri)));
             const byRow = new Map<number, typeof tiles>();
@@ -283,6 +379,11 @@ export function PhotoGrid({
                   <span role="columnheader">{label}</span>
                   <span className="tnum text-[var(--text-muted)]">{t("viewer.count", { count: b.count })}</span>
                 </div>
+                {(l?.heads ?? []).map((h) => (
+                  <div key={`d${h.first}`} className="day-header" style={{ position: "absolute", top: HEADER_H + h.y, left: 0, height: DAY_H }}>
+                    {dayLabel(assets?.[h.first]?.taken_at ?? null, i18n.language) ?? t("viewer.unknownDate")}
+                  </div>
+                ))}
                 {[...byRow].map(([ri, rowTiles]) => {
                   const r = l!.rows[ri];
                   return (
@@ -301,20 +402,27 @@ export function PhotoGrid({
                             type="button"
                             key={a.id}
                             role="gridcell"
-                            className="tile"
+                            className={choosing ? "tile choosing" : "tile"}
+                            aria-selected={onPick ? Boolean(chosen?.(a.id)) : undefined}
                             data-asset={a.id}
                             tabIndex={isFocus ? 0 : -1}
                             aria-label={t("viewer.photoAlt", { date: a.taken_at?.slice(0, 10) ?? t("viewer.unknownDate") })}
                             style={{ left: x.x, width: x.w, height: r.height, backgroundImage: ph ? `url(${ph})` : undefined }}
                             onFocus={() => setFocus({ bucket: v.index, index: x.index })}
-                            onClick={() => {
+                            onClick={(e) => {
+                              spanAnchor.current = null; // a click starts afresh
                               setFocus({ bucket: v.index, index: x.index });
+                              // Ctrl/⌘ toggles, Shift spans; while choosing, or on the check mark, a click chooses
+                              const onCheck = (e.target as HTMLElement).closest("[data-check]") !== null;
+                              if (onPick && e.shiftKey) return pick(a.id, "range");
+                              if (onPick && (e.ctrlKey || e.metaKey || choosing || onCheck)) return pick(a.id, "toggle");
                               onOpen({ bucket: v.index, index: x.index }, gridApi);
                             }}
                           >
                             {!fast && (
                               <img
-                                src={mediaUrl(a.id, r.height > 256 ? "t512" : "t256", a.ch)}
+                                src={mediaUrl(a.id, thumbVariant(x.w, r.height, window.devicePixelRatio || 1), a.ch)}
+                                style={turnStyle(a.rot, x.w, r.height)}
                                 alt=""
                                 decoding="async"
                                 loading="lazy"
@@ -322,6 +430,13 @@ export function PhotoGrid({
                                 onError={(e) => (e.currentTarget.style.visibility = "hidden")}
                               />
                             )}
+                            {onPick ? (
+                              <span data-check="" className="tile-check" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M5 12.5l4.5 4.5L19 7.5" />
+                                </svg>
+                              </span>
+                            ) : null}
                           </button>
                         );
                       })}
@@ -338,4 +453,27 @@ export function PhotoGrid({
       )}
     </div>
   );
+}
+
+/** Photos of one calendar day (local time) are one group; the timeline is newest first, so groups follow the list. */
+export function dayGroups(assets: Array<{ taken_at: string | null }>): number[] {
+  const out: number[] = [];
+  let prev: string | null | undefined;
+  for (const a of assets) {
+    const d = a.taken_at ? localDay(a.taken_at) : null;
+    if (out.length && d === prev) out[out.length - 1]++;
+    else out.push(1);
+    prev = d;
+  }
+  return out;
+}
+
+function localDay(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
+
+export function dayLabel(iso: string | null, lang: string): string | null {
+  if (!iso) return null;
+  return new Intl.DateTimeFormat(lang, { month: "long", day: "numeric", weekday: "short" }).format(new Date(iso));
 }

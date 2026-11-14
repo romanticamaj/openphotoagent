@@ -233,7 +233,7 @@ def test_priv_005_worker_enforces_policy(env):
         "evil-2": "EGRESS_POLICY_DENIED",
     }
     assert len(e.sent_bytes()) == before and e.cp_thumb_sizes() == []
-    log = [json.loads(x) for x in (e.home / "egress-denied.log").read_text().splitlines()]
+    log = [json.loads(x) for x in (e.home / "egress-denied.log").read_text(encoding="utf-8").splitlines()]
     assert len(log) >= 3 and all(x["mode"] == "results-only" for x in log)
     # even a direct upload attempt through the client is stopped on the worker
     from opagent_worker.remote import EgressDenied

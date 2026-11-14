@@ -1,0 +1,68 @@
+{
+  "properties": {
+    "index_entry": {
+      "properties": {
+        "files_manifest": {
+          "type": "object"
+        },
+        "id": {
+          "type": "string"
+        },
+        "numerics_epoch": {
+          "type": "integer"
+        },
+        "pack_api": {
+          "type": "integer"
+        },
+        "parts": {
+          "items": {
+            "type": "object"
+          },
+          "type": "array"
+        },
+        "size": {
+          "type": "integer"
+        },
+        "unpacked_size": {
+          "type": "integer"
+        },
+        "url": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "version",
+        "pack_api",
+        "url",
+        "size",
+        "unpacked_size",
+        "files_manifest"
+      ],
+      "type": "object"
+    },
+    "lock_entry": {
+      "properties": {
+        "pack_api": {
+          "items": {
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "type": "object"
+    }
+  },
+  "required": [
+    "index_entry",
+    "lock_entry"
+  ],
+  "type": "object",
+  "x-pack-api": 1
+}

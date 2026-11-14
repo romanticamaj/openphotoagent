@@ -24,6 +24,7 @@ from opagent_db.schema import (
     job_item,
     output_action,
     output_plan,
+    result,
     source,
     worker,
     worker_task,
@@ -36,7 +37,7 @@ from .db import offset_minutes, set_job_status, to_aware
 from .operations import ensure_operation, set_op_status
 from .state import DEFAULT_WS
 
-PRESETS_DIR = Path(__file__).resolve().parents[4] / "presets" / "builtin"
+PRESETS_DIR = Path(__file__).resolve().parent / "presets" / "builtin"  # package data (ADR-0023)
 ACTIVE_JOB = ("queued", "running", "paused", "planning", "applying", "cancelling")
 
 
@@ -178,7 +179,10 @@ def finish_scan(st: Any, c: Any, t: Any) -> None:
     c.execute(update(source).where(source.c.id == src_id).values(last_scan_at=st.clock.now()))
     j = c.execute(select(job).where(job.c.id == t.job_id)).first()
     if j is not None:
-        after_scan(st, c, j, t)
+        try:
+            after_scan(st, c, j, t)
+        except KeyError as e:  # an imported preset deleted during the scan (ORG-011)
+            set_job_status(c, j.id, JobStatus.failed, st.clock, error=f"preset {e} no longer exists")
 
 
 def _source_assets(c: Any, src_id: str) -> Any:
@@ -344,6 +348,12 @@ def maybe_finish(st: Any, c: Any, job_id: str) -> None:
         for s in (JobStatus.planning, JobStatus.awaiting_approval):
             set_job_status(c, job_id, s, clock=st.clock)
         set_job_status(c, job_id, JobStatus.completed, clock=st.clock, finished_at=st.clock.now())
+        from .routes_caption import topup
+
+        topup(st, c)  # the new captions join the meaning index in use (SRCH-R2-013)
+        from .routes_duplicates import regroup
+
+        regroup(st, c)  # the new vectors join the near-duplicate groups search folds (SRCH-DUP-005)
         return
     if j.kind == "preview":
         if j.params.get("preview_ready"):
@@ -364,7 +374,14 @@ def _queue_estimate(st: Any, c: Any, j: Any) -> None:
     if tc.get("strategy") != "cascade":
         return
     s = c.execute(select(source).where(source.c.id == j.params["source_id"])).first()
-    rows = list(_source_assets(c, s.id))
+    every = list(_source_assets(c, s.id))
+    # photos with a result for this config and model count as they are (ORG-012): the worker reads only the rest
+    # (ORG-016: a folder already analysed sat over 60 s while every photo was decoded and embedded again)
+    known = _known_ids(c, j, [r.asset_id for r in every])
+    rows = [r for r in every if r.asset_id not in known]
+    if not rows:  # every photo known: nothing for the worker to read
+        finish_estimate(st, c, j.id, {"counts": {}, "routed_to_vlm": 0, "n_embedded": 0, "total": len(every)})
+        return
     step = max(1, len(rows) // ESTIMATE_CAP + (1 if len(rows) % ESTIMATE_CAP else 0)) if len(rows) > ESTIMATE_CAP else 1
     sample = rows[::step][:ESTIMATE_CAP]
     c.execute(
@@ -376,7 +393,7 @@ def _queue_estimate(st: Any, c: Any, j: Any) -> None:
             payload={
                 "job_id": j.id,
                 "root_alias": s.root_alias,
-                "total": len(rows),
+                "total": len(every),
                 "task_config": tc,
                 "items": [{"rel": r.rel_path, "content_hash": r.content_hash} for r in sample],
             },
@@ -509,6 +526,43 @@ def _p50(rng: list[float] | None, default: float) -> float:
     return float((rng[0] * rng[1]) ** 0.5)  # geometric middle of the [p10, p90] prior
 
 
+def _known_ids(c: Any, j: Any, ids: list[str]) -> set[str]:
+    """The photos among ``ids`` that already have a result for this job's config and model."""
+    tc, fp = (j.params or {}).get("task_config"), (j.params or {}).get("fingerprint")
+    if not tc or not fp or not ids:
+        return set()
+    return {
+        r[0]
+        for r in c.execute(
+            select(result.c.asset_id).where(
+                result.c.asset_id.in_(ids),
+                result.c.task_config_hash == config_hash(tc),
+                result.c.model_fingerprint == fp,
+            )
+        )
+    }
+
+
+def _known_categories(c: Any, j: Any) -> dict[str, int]:
+    """Per category, the photos of the source that already have a result for this job's config and model."""
+
+    tc, fp = (j.params or {}).get("task_config"), (j.params or {}).get("fingerprint")
+    if not tc or not fp:
+        return {}
+    ids = [r.asset_id for r in _source_assets(c, j.params["source_id"])]
+    cat = func.coalesce(result.c.category, "other")
+    rows = c.execute(
+        select(cat, func.count())
+        .where(
+            result.c.asset_id.in_(ids or ["-"]),
+            result.c.task_config_hash == config_hash(tc),
+            result.c.model_fingerprint == fp,
+        )
+        .group_by(cat)
+    ).all()
+    return {str(k): int(v) for k, v in rows}
+
+
 def finish_estimate(st: Any, c: Any, job_id: str, res: dict[str, Any]) -> None:
     """Scale the embedded sample to the whole library (largest remainder keeps the sum exact) and attach a
     p50 duration from throughput priors (06 §5.9 basis=prior until perf_observation exists)."""
@@ -519,11 +573,17 @@ def finish_estimate(st: Any, c: Any, job_id: str, res: dict[str, Any]) -> None:
         return
     total, n = int(res.get("total", 0)), max(1, int(res.get("n_embedded", 0)))
     counts: dict[str, int] = res.get("counts") or {}
-    exact = {k: v * total / n for k, v in counts.items()}
+    # photos this run will take from the cache (same config and model) count as they are (ORG-012): the fast path
+    # alone said 「其他 73，人物 0」 for a folder whose photos were all already 人物
+    known = _known_categories(c, j)
+    rest = max(0, total - sum(known.values()))
+    exact = {k: v * rest / n for k, v in counts.items()}
     dist = {k: int(v) for k, v in exact.items()}
-    for k in sorted(exact, key=lambda k: -(exact[k] - dist[k]))[: total - sum(dist.values())]:
+    for k in sorted(exact, key=lambda k: -(exact[k] - dist[k]))[: rest - sum(dist.values())]:
         dist[k] += 1
-    routed = round(int(res.get("routed_to_vlm", 0)) * total / n)
+    for k, v in known.items():
+        dist[k] = dist.get(k, 0) + v
+    routed = round(int(res.get("routed_to_vlm", 0)) * rest / n)
     reg = load_registry()
     emb = reg.models.get("siglip2-so400m-384")
     vlm = reg.models.get("qwen3-vl-8b-instruct")
@@ -538,7 +598,12 @@ def finish_estimate(st: Any, c: Any, job_id: str, res: dict[str, Any]) -> None:
         "total": total,
         "distribution": dist,
         "routed_to_vlm": routed,
-        "basis": {"method": "embedding_fast_path", "sample": int(j.params.get("k", 10)), "embedded": n},
+        "basis": {
+            "method": "embedding_fast_path",
+            "sample": int(j.params.get("k", 10)),
+            "embedded": n,
+            "known": sum(known.values()),
+        },
         "time": {"p50_s": round(p50, 1), "basis": "prior"},
     }
     c.execute(update(job).where(job.c.id == job_id).values(params={**j.params, "estimate": est}))

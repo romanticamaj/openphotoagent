@@ -13,7 +13,7 @@ def test_dl_014_kill9_then_auto_resume(env, tmp_path):
     c = env["client"]
     srv = env["srv"]
     srv.rate_bps = 400_000  # slow enough to die mid-file
-    op = c.post("/api/v1/workers/w1/installs", json={"variant": f"{EMB}@onnx-int8"}).json()["operation_id"]
+    op = c.post("/api/v1/workers/w1/installs", json={"variant": f"{EMB}@onnx-fp16"}).json()["operation_id"]
     # a separate worker process starts the download and is killed -9 after its 2nd chunk report
     code = (
         "import sys\nfrom fastapi.testclient import TestClient\nfrom opagent_api.app import create_app\n"

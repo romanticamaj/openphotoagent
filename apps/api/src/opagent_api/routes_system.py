@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import UTC, timedelta
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
@@ -50,7 +50,7 @@ def trash_summary(req: Request) -> dict[str, Any]:
         "bytes": int(size),
         "plans": int(plans),
         "roots": sorted(r for r in (roots or []) if r is not None),
-        "earliest_expiry": expiry.isoformat() if expiry else None,
+        "earliest_expiry": expiry.astimezone(UTC).isoformat() if expiry else None,
         "retention_days": TRASH_RETENTION_DAYS,
     }
 

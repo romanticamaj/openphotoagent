@@ -49,13 +49,15 @@ Some contracts are consumed by other software. They carry their own versions so 
 | Contract | Scheme | Compatibility promise |
 |---|---|---|
 | REST API | URL prefix `/api/v1` | Additive changes only within `v1`; removing or renaming a field requires `/api/v2`, and both are served for at least one minor release |
-| Worker ↔ control plane protocol | `protocol_version` integer, negotiated at handshake | The control plane accepts workers from the **current and previous minor** release |
+| Worker ↔ control plane protocol | `protocol_version` string `"MAJOR.MINOR"`, negotiated in the `hello`/`welcome` handshake (independent of the product version) | Minor bumps are additive only (new optional fields, messages or task types; nothing removed or tightened). Any breaking change bumps the major. The control plane serves protocol majors **N and N-1**; older workers get `welcome.status = "upgrade_required"` (lease/poll return 426), newer ones get `"server_too_old"`. Enforced by the FRZ-002 contract snapshot (ADR-0017) |
 | MCP tools | MCP spec version negotiated by the transport, plus a tool manifest `version` | Adding tools or optional params is non-breaking. Removing or renaming a tool is a breaking change and goes in the release notes |
 | Model registry YAML | `schema_version` field | Older registry files are auto-migrated on load |
 | Database | Alembic migrations, forward-only | Upgrading from **any release of the previous minor** is supported. Downgrades mean restoring a backup |
 | Pipeline / preset files | `schema_version` field | Presets exported from an older version import into newer ones |
 | Runtime pack | `pack_api` integer + `packs.lock.json` | No breaking pack changes within a minor release; the app refuses incompatible or unsigned packs |
 | Desktop data dir layout | `layout_version` | Migrated automatically on first launch of a newer version, after a backup |
+
+From v1.0 every contract above has a snapshot in `contracts/` (`just contracts` checks, `just contracts-update` rewrites; 09b §9.1). A difference that is only additive needs the snapshot updated in the same PR; a breaking one needs the new major and a `Migration:` note in the CHANGELOG.
 
 ## 5. Artifacts per release *(from v0.1.0)*
 

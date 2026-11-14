@@ -94,14 +94,24 @@ class OrtEmbedAdapter:
             return
         rep.start("model.load", 2, "steps")
         rep.phase("vision_encoder")
-        self.vision = ort.InferenceSession(self.vision_model, providers=self.providers)
+        self.vision = self._session(self.vision_model)
         rep.progress(1, 2)
         rep.phase("text_encoder")
         if self.text_model is not None:
-            self.text = ort.InferenceSession(self.text_model, providers=self.providers)
+            self.text = self._session(self.text_model)
         rep.progress(2, 2)
         self.loaded = True
         rep.finish("succeeded")
+
+    def _session(self, model: str | bytes) -> ort.InferenceSession:
+        """The fp16 export fails graph optimization on the CPU provider of onnxruntime-directml (M0-S4): a machine with
+        no GPU still has to run it, so it loads unoptimized rather than not at all."""
+        try:
+            return ort.InferenceSession(model, providers=self.providers)
+        except Exception:
+            opts = ort.SessionOptions()
+            opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_DISABLE_ALL
+            return ort.InferenceSession(model, sess_options=opts, providers=self.providers)
 
     async def unload(self) -> None:
         self.vision = self.text = None
@@ -119,8 +129,13 @@ class OrtEmbedAdapter:
         arr = np.asarray(rgb, dtype=np.float32) / 255.0
         return ((arr - self.mean) / self.std).transpose(2, 0, 1)
 
+    @staticmethod
+    def _embedding_output(sess: ort.InferenceSession) -> list[str] | None:
+        """Exports differ: ours has one output; the public one puts last_hidden_state first (INF-LOCAL-004)."""
+        return ["pooler_output"] if any(o.name == "pooler_output" for o in sess.get_outputs()) else None
+
     def _run(self, sess: ort.InferenceSession, feeds: dict[str, np.ndarray], ro: ort.RunOptions) -> np.ndarray:
-        return np.asarray(sess.run(None, feeds, ro)[0], dtype=np.float32)
+        return np.asarray(sess.run(self._embedding_output(sess), feeds, ro)[0], dtype=np.float32)
 
     @staticmethod
     def _l2(x: np.ndarray) -> np.ndarray:
@@ -172,5 +187,5 @@ class OrtEmbedAdapter:
         if self.text is None or self.tokenizer is None:
             raise ModelUnavailable("text encoder not loaded")
         ids = self.tokenizer(texts)
-        out = self.text.run(None, {self.text.get_inputs()[0].name: ids})[0]
+        out = self.text.run(self._embedding_output(self.text), {self.text.get_inputs()[0].name: ids})[0]
         return self._l2(np.asarray(out, dtype=np.float32))

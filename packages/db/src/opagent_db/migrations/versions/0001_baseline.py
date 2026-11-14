@@ -4,12 +4,13 @@ Revision ID: 0001
 Revises:
 Create Date: 2026-11-02
 
-Until v0.1.0 is tagged this baseline tracks ``opagent_db.schema``; from then on it is frozen and every
-schema change is a new revision (VERSIONING §4: forward-only).
+Builds the frozen v1.0 schema (``opagent_db.frozen_v1_0``) on an empty database. Databases written by v0.x were
+stamped ``0001`` with whatever that release had; ``0002`` brings them up to v1.0. Every later change is a new
+explicit revision (VERSIONING §4: forward-only).
 """
 
 from alembic import op
-from opagent_db.schema import metadata
+from opagent_db.frozen_v1_0 import metadata
 
 revision = "0001"
 down_revision = None

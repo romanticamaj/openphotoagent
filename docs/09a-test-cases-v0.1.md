@@ -118,6 +118,8 @@
 | CORE-THR-017 | 只重套門檻 = 純函式重算 | 已存 `stages`（各層 top-k），改 thresholds | 結果與「重新推論後判定」一致；不需任何 backend 呼叫 | U | #46 |
 | CORE-THR-018 | accept 是 embedding 快速路徑的最終閘門（ADR-0001） | `p_top1=0.86, margin=0.22`、3 張範例；`thresholds.accept=0.90` | route=accept 但 0.86 < 0.90 → `needs_review`（low_confidence）；不需重新推論 | U | #45、#46 |
 | CORE-THR-019 | conflict 低於 floor 仍交人工（ADR-0001） | E=food 0.9、V=pets 0.6 → p=0.48 | `needs_review`、reason=`conflict`、category=pets（不是 other） | U | #45、#49 |
+| CORE-THR-020 | 接近均勻的 embedding 不算意見（ADR-0030） | E=pets 0.17、V=food 0.97；V=people 0.6 | 前者 `accepted`（vlm）；後者 `needs_review` | U | — |
+| CORE-THR-021 | 候選被截斷時 other 不是定論（ADR-0030） | 截斷、V=other | `needs_review`、reason=`shortlist`；重算結果相同 | U | — |
 
 ### 1.4 CORE-SM：狀態機（02 §4.2 Job、06 §5.3 Operation、02 §3.2 output_plan）
 
@@ -145,8 +147,8 @@
 | CORE-RULE-004 | require_reviewed | `require_reviewed=true`，3 張 needs_review | 這 3 張不產生 action，直到 review；選「略過剩下的放進其他」後改進其他 | U | #49 |
 | CORE-RULE-005 | DSL 語法錯誤 | `when: "category == "` | 驗證錯誤含 JSON pointer 與欄位位置 | U | #39 |
 | CORE-RULE-006 | DSL 沙箱 | `when` 嘗試 `__import__`、屬性存取 `a.__class__`、函式呼叫 | 解析拒絕（DSL 只允許白名單欄位、比較、`in`、`and/or/not`） | S | #39 |
-| CORE-RULE-007 | `by-date` preset 不需模型 | 載入 `presets/builtin/by-date.yaml` | task_configs 為空；模板 `{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}`；plan 產生不呼叫推論 | U | #40 |
-| CORE-RULE-008 | `by-content-12` 完整性 | 載入 preset | 恰 12 類（人物、風景、美食、寵物、文件與截圖、旅行、活動、建築、植物、交通、藝術、其他），每類有 zh-Hant／en 名稱與描述，`other` 為 fallback | C | #41 |
+| CORE-RULE-007 | `by-date` preset 不需模型 | 載入 `opagent_api/presets/builtin/by-date.yaml` | task_configs 為空；模板 `{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}`；plan 產生不呼叫推論 | U | #40 |
+| CORE-RULE-008 | `by-content-12` 完整性 | 載入 preset | 恰 12 類（人物、風景、美食、動物、文件與截圖、旅行、活動、建築、植物、交通、藝術、其他），每類有 zh-Hant／en 名稱與描述，`other` 為 fallback | C | #41 |
 | CORE-RULE-009 | `custom` preset 驗證 | 類別只有名稱、無描述也無範例 | 驗證錯誤「至少要有描述或 1 張範例照片」；有 3 張範例時通過 | U | #42 |
 | CORE-RULE-010 | final_label 優先 review | result=food、review.corrected=pets | `final_label.category=pets`、`source=review` | U | #56 |
 
@@ -184,6 +186,10 @@
 | FS-024 | 性質 fuzz：路徑字串 | Hypothesis 依文法產生 rel：段 ∈ {`..`,`.`,``,`/`,`\`,NUL,`:`,保留名,隨機 Unicode,255+ bytes} | 結果只有兩種：在 root 之下的路徑，或 `PathViolation`；**永遠不回傳 root 外路徑**。PR 2,000 例、nightly 1,000,000 例 | P/S | DoD 5.3 |
 | FS-025 | 性質 fuzz：真實樹 + 隨機 symlink | 每例在 tmp 建立隨機深度 ≤ 5 的樹，隨機放入指向內／外的 symlink 與 junction（Windows） | 任何解析結果的 realpath 都在 root 之下 | P/I/S | DoD 5.3 |
 | FS-026 | import-linter 契約 | `apps/api`、`packages/db` 匯入 `fs_sandbox` 或 `inference_*` | import-linter 失敗（CI 守門） | C | — |
+| FS-027 | 文字檔讀寫一律指定編碼（回歸） | repo 內所有 Python 檔的 `read_text`／`write_text`／`open` | 都帶 `encoding=`；Windows 預設 cp1252，CI 的 Windows runner 曾讀不了含 CJK 的 golden 檔 | C | #2 |
+| FS-028 | Windows 不允許的名稱是 PathViolation（回歸） | `windows=True`：0–31 號字元、`<>"\|?*`、結尾為點或空白的段 | `PathViolation("windows_invalid_name")`，不會丟 OSError；其他 OS 保留在該 OS 合法的名稱（如 `what?.jpg`） | U | #48 |
+| FS-029 | Windows 上 fsync 用可寫入的 handle（回歸） | `sys.platform = win32` 的 `fsync_file` | 以 `O_RDWR` 開檔（Windows 的 `_commit` 需要寫入權限，唯讀 handle 會 EBADF） | U | #48 |
+| FS-030 | 檔案底下的路徑在每個 OS 都是 not_a_directory（回歸） | `file.jpg/child.jpg`，lstat 回傳 Windows 的「找不到路徑」 | `PathViolation("not_a_directory")`，與 POSIX 的 ENOTDIR 相同 | U | #48 |
 
 ---
 
@@ -291,6 +297,8 @@
 | SCAN-023 | Unicode 與長檔名 | NFC、NFD、255 bytes 檔名、emoji 檔名 | 全部被索引；`rel_path` 存 NFC | I | — |
 | SCAN-024 | 輸出資料夾不被掃描 | 輸出 target 位於來源 root 之下（使用者仍堅持時） | 掃描自動排除該 target 子樹；preflight 另有 `OUTPUT_TARGET_INSIDE_SOURCE` | I | #47 |
 | SCAN-025 | 掃描進度型態 | 10,000 檔，無上次總數 | enumerate 階段 `indeterminate` 並回報「已找到 N 張 · X 張/秒」；數完後轉 determinate；有上次總數時直接 rough | I | #30 |
+| SCAN-026 | junction 不被跟隨（回歸） | Windows：來源 root 內有指向 root 外的 junction（`mklink /J`，不需要權限） | 不走進去、不中止掃描；列入略過，原因 `symlink` | U | Windows |
+| SCAN-027 | 掃描快取批次提交（回歸） | 超過兩個批次的檔案；每個檔案時以第二條連線檢查快取；掃描中途丟例外；重新掃描 | commit 次數 ≤ 檔案數／批次＋1；任何時刻落後已掃描數不超過一個批次（kill -9 只需重算這些）；掃描結束或丟例外時全部落地；重掃讀 0 bytes（參考機實測：每檔一次 fsync 在 4 TB 硬碟上約 590 ms／檔，批次後約 150 ms；NVMe 上兩者都約 10 ms） | U | #33、Windows |
 
 ## 5. Q — 佇列與 Job 生命週期（02 §4.3；真 PostgreSQL）
 
@@ -322,10 +330,13 @@
 | Q-022 | kill -9 worker 不產生重複結果 | 推論中 `kill -9` worker（chaos runner） | lease 到期後由新 worker 續做；`result` 無重複；最終計數正確 | X | #3、DoD 5.1 |
 | Q-023 | 10 張預覽分層抽樣 | 1,000 張來源（多資料夾、多月份）、`seed=42` | 10 張涵蓋最多資料夾與月份；同 seed 結果相同 | U | #46 |
 | Q-024 | 預覽只改門檻 / 樣板 | 預覽完成後改 thresholds 或 path_template | 結果 < 200 ms 更新，FakeBackend 呼叫數 0（不跑 GPU） | I/F | #46、DoD 5.3 |
-| Q-025 | 預覽改類別描述 | 改某類 description | 圖像 embedding 命中快取；只重算文字 embedding 與受影響的 VLM 呼叫 | I | #46 |
+| Q-025 | 預覽改類別描述（ADR-0030） | 改某類 description | 圖像 embedding 命中快取；只重算該類文字 embedding；候選含該類的照片重問 VLM（全類別時即全部送 VLM 的照片） | I | #46 |
 | Q-026 | 電池暫停 | FakePower：拔電源 | 10 s 內重型 Operation 為 `paused`、`waiting_reason=PAUSED_ON_BATTERY`；搜尋仍可用；接回 → 自動繼續 | I | #9、DoD 5.2 |
 | Q-027 | GPU 被占用 / 全螢幕 | `hw:game-running-5gb`、FakeFullscreen=true | `PAUSED_GPU_CONTENDED`；GPU 釋放後自動繼續；選「改用 CPU」可繼續 | I | #9、DoD 5.2 |
 | Q-028 | 只在閒置時處理 | `only_when_idle=true`，FakeIdle 秒數 = 5 | `PAUSED_NOT_IDLE`；閒置達門檻後繼續；「現在就處理」覆寫 | I | #32 |
+| Q-029 | outbox 使用 WAL（回歸） | 開啟 worker outbox；另一個連線在交易中寫入 | `journal_mode` 為 `wal`；目錄中不會出現 `outbox.db-journal`（IMG-002 曾在寫入當下看到它） | U | #3 |
+| Q-030 | 簡體字的說明存成繁體（回歸，驗證第 55 輪：「开心」） | 結果說明「两个小孩很开心地玩积木」與英文說明 | 存成「兩個小孩很開心地玩積木」；英文不變 | I | #— |
+| Q-030 | 停止的 worker 釋放資料庫檔案（回歸） | `close()` 後刪除 worker 資料夾；連續呼叫兩次 | 刪除成功、不報錯（Windows 不能刪開啟中的檔案，e2e 每個案例的 reset 都因此 WinError 32） | U | Windows |
 
 ---
 
@@ -335,13 +346,14 @@
 
 | ID | 標題 | 前置／輸入 | 預期 | 層 | # |
 |----|------|-----------|------|----|---|
-| INF-REG-001 | 內建 YAML 與 lock 全部通過 schema | `registry/models/*.yaml`、`registry/runtimes/*.yaml`、`gpu_classes.yaml`、`registry/pins.lock` | 全部通過 JSON Schema；catalog 不含 `size`／`sha256`；每個 lock 條目指向存在的 variant 與檔案；合併後每個 `pinned` variant 的每個檔案都有 `size > 0` 與 64-hex `sha256`（ADR-0002） | C | #15 |
+| INF-REG-001 | 內建 YAML 與 lock 全部通過 schema | `opagent_registry/builtin/models/*.yaml`、`opagent_registry/builtin/runtimes/*.yaml`、`gpu_classes.yaml`、`opagent_registry/builtin/pins.lock` | 全部通過 JSON Schema；catalog 不含 `size`／`sha256`；每個 lock 條目指向存在的 variant 與檔案；合併後每個 `pinned` variant 的每個檔案都有 `size > 0` 與 64-hex `sha256`（ADR-0002） | C | #15 |
 | INF-REG-002 | 缺 sha256 拒絕 | 使用者 YAML 檔案缺 sha256；內建 lock 條目 sha256 缺漏或格式錯；內建 variant 沒有 lock 條目 | 使用者檔：該模型標 `invalid`，不影響其他；內建 lock 條目不完整：載入錯誤（CI 失敗）；內建 variant 無 lock 條目：載入為 `unpinned`（ADR-0002） | U | #24 |
 | INF-REG-003 | 使用者自訂 YAML | 在 `models/custom/` 放合法 YAML | Models 頁出現、跑過 compat；`source=user` | I | #24 |
 | INF-REG-004 | 自訂 YAML 壞掉 | 語法錯誤／欄位錯誤 | 顯示錯誤與檔名行號，registry 其餘照常 | U | #24 |
 | INF-REG-005 | 每任務預設 | `tasks_default_rank` 與 `task_default_model` 覆寫 | caption、classify、embed 各自解析到指定 variant | U | #25 |
 | INF-REG-006 | 預設組合授權 | 檔位預設組合的所有 variant | `license.weights` 皆為 Apache-2.0 或同等寬鬆，`redistributable=true`；否則 CI 失敗 | C | #21 |
 | INF-REG-013 | 發版前全部釘選 | release gate：所有內建 variant 與 runtime pack | 每個內建 variant 都是 `pinned`；每個 runtime pack 都有 sha256；否則 release gate 失敗（與 INF-REG-001 合起來等價於原本的「全部有 sha256」，ADR-0002） | G | #15 |
+| INF-REG-014 | 空的 catalog 不會讓 recommend 當掉（回歸） | 沒有任何 model 與 runtime 的 registry | 回傳建議並列為未釘選，不丟 KeyError（曾讓 job.start 回 500） | U | #24 |
 
 ### 6.2 INF-CONF：InferenceBackend／Adapter 一致性套件（`packages/inference-sdk/conformance`）
 
@@ -362,6 +374,13 @@
 | INF-CONF-011 | 不接觸路徑 | 靜態檢查 `BatchRequest`／`ImageInput` 傳入 adapter 時 `path is None` | adapter 程式碼中無 `open(`／`Path(` 於影像輸入（ruff 自訂規則 + 執行期斷言） | C/S | — |
 | INF-CONF-012 | `health()` | — | 回傳 `vram_used_mb`（無 GPU 時為 0） | C | — |
 | INF-CONF-013 | 載入進度回報 | `load(opts, reporter)` | 至少回報一個子階段；無法取得時以時間模型進度且 ≤ 95% 直到 ready | C | #33 |
+| INF-LOCAL-001 | 依磁碟上的模型建立真 adapter（回歸） | 無模型；VLM 檔案齊全且有 runtime | 無模型時兩者皆無；有時為 `LlamaCppServerAdapter`，參數含權重、mmproj、`--jinja`；fingerprint 含 variant | U | #15、不變量 7 |
+| INF-LOCAL-002 | 缺 runtime 要回報，不假裝（回歸） | 有 VLM、無 llama-server；override／pack／內建三處 | 回報 `RUNTIME_NOT_INSTALLED`；順序為 override > GPU pack > 內建 | U | 不變量 8 |
+| INF-LOCAL-003 | SigLIP2 tokenizer 固定長度（回歸） | 短句與超長句 | int64、長度 64，padding 與截斷 | U | M0-S4 |
+| INF-LOCAL-004 | embedding 取 `pooler_output`（回歸） | 第一個輸出是 last_hidden_state 的 ONNX | 影像與文字都取到正規化的 embedding | U | M0-S4 |
+| INF-LOCAL-005 | 下載完成的模型免重啟生效（回歸） | 模型出現、相同模型重建、換模型 | 換上新 adapter 並重新註冊；相同模型不動；舊 adapter 關閉 | U | DoD 5.2 |
+| INF-LOCAL-006 | 模型只放在獨立顯卡上（回歸） | 獨顯＋內顯、內顯排在前面、兩張獨顯、只有內顯、沒有裝置；強制 CPU | 選最大的獨顯；只有內顯時用內顯；沒有裝置時不加參數；`OPAGENT_LLAMA_CPU` 時為 `--device none` | U | 吞吐量 |
+| INF-LOCAL-007 | worker 重啟後語意搜尋仍可用（回歸） | 新啟動的 worker，模型尚未載入；閒置 | `embed_text` 自行載入；閒置時預熱，第一次查詢不必等 | U | #24 |
 
 ### 6.3 INF-JSON：fused 結構化輸出驗證與修復（03 §3.0、§2.3）
 
@@ -379,6 +398,7 @@
 | INF-JSON-010 | 同義詞合併 | tags `["狗","犬","dog"]` | canonical key 皆為 `animal.dog`，只保留一個 | U | #44 |
 | INF-JSON-011 | 新詞上限 | 受控詞彙外的新 tag 12 個，上限 5 | 只保留分數最高 5 個，其餘丟棄並計數 | U | #44 |
 | INF-JSON-012 | 圖中文字標記 | 模型回傳 `contains_image_text=true` | 寫入結果欄位，供搜尋與 05 §3.9 injection 偵測使用 | U | #43 |
+| INF-JSON-013 | confidence 是必填且 prompt 有要求（回歸） | `fused_schema`、`render_fused_prompt` | 必填欄位含 confidence；關閉時不含；prompt 有說明 | U | M0-S3 |
 
 ### 6.4 INF-CAS：cascade 路由（03 §3.3）
 
@@ -386,7 +406,7 @@
 |----|------|-----------|------|----|---|
 | INF-CAS-001 | 規則層命中不推論 | 截圖規則命中 | embed 與 VLM 呼叫數 0；`source=rule` | I | #45 |
 | INF-CAS-002 | 高信心不送 VLM | `fb:scores(high)` 100 張 | VLM 呼叫數 0 | I | #45、DoD 5.3 |
-| INF-CAS-003 | 低信心送 VLM | `fb:scores(low)` | VLM 收到 enum = top-k（3–5）+ other，prompt 含 hints | I | #45 |
+| INF-CAS-003 | 低信心送 VLM（ADR-0030） | `fb:scores(low)` | VLM 收到全部類別 + other，不把 embedding 的候選寫進 prompt | I | #45 |
 | INF-CAS-004 | VLM 仍低 → 待確認或其他 | `fb:vlm(p=0.4)` | `needs_review` 或 `other`（依 CORE-THR）；不失敗 | I | #49 |
 | INF-CAS-005 | 每筆記錄決策層與 fingerprint | 任意 Job | 每個 result 有 `source` 與 `model_fingerprint`；Lightbox 資訊面板 API 可讀出 | I | #45、#89、DoD 5.3 |
 | INF-CAS-006 | 無 VLM（快速模式） | 只安裝 SigLIP2 | cascade 停在 embedding；低信心 → needs_review；Job 不失敗 | I | #28 |
@@ -394,6 +414,14 @@
 | INF-CAS-008 | prototype 權重 α | 範例數 0、2、5、8 | α = 1.0、golden 內插值、0.4、0.4；≥ 8 張時使用 k-medoids(k=2) 多原型 | U | #42 |
 | INF-CAS-009 | 反例降權 | 有 negative_examples 且與反例更相近 | 該類分數降低（golden） | U | #42 |
 | INF-CAS-010 | 全庫預估命中數 | 自訂類別 + 3 張範例，1,000 張已有 embedding | 只用向量運算（不呼叫 VLM）回傳預估命中數與分布，< 500 ms | I/F | #42、#46 |
+| INF-CAS-011 | 不同 hints 的分組併發（回歸） | 8 張照片各有不同 hints | 同時進行的請求 > 1，且不超過 runtime 的 slot 數 | I | 吞吐量 |
+| INF-CAS-012 | 上限內提供全部類別（ADR-0030） | 16 類 | 17 個選項，`truncated=false` | I | #45 |
+| INF-CAS-013 | 超過上限取分數最高（ADR-0030） | 20 類 | 16 類 + other，依分類表順序，`truncated=true` | I | #45 |
+| INF-CAS-014 | VLM 看得到類別說明（ADR-0030） | 類別有描述 | 請求帶每類的名稱與描述 | I | #45 |
+| INF-CAS-015 | 信心來自 token 機率（ADR-0030） | 有 logprobs | 取 `category` 值首 token，對候選正規化；caption 內的同名文字不算 | U | #45 |
+| INF-CAS-016 | 沒有 logprobs 時退回自評（ADR-0030） | runtime 不支援 | 回 None，由呼叫端改用自評 | U | #45 |
+| INF-CAS-017 | 開頭相同的類別（回歸，驗證第 1 輪） | people 與 pets 都以 token `pe` 開頭，模型產生 `pe`+`ople` | P(people) 取整條路徑（≈0.96），不是第一個 token 平分（0.49） | U | #— |
+| INF-CAS-018 | VLM 逾時要重試，不留猜測（回歸，參考機） | VLM 一律 TIMEOUT；之後恢復 | 不寫入 result（快取鍵下沒有東西可重用），job_item 記 RUNTIME_TIMEOUT 並依退避重試；恢復後再分析得到 VLM 的類別，沒有「其他」；升級時 migration 0004 移除舊安裝留下的這類猜測（job_item 記錯誤碼、待確認移除、照片重新索引為未分析） | I | #— |
 
 ### 6.5 INF-CAL、INF-VRAM、INF-OOM、INF-RT：校準、資源、降級、runtime 選擇
 
@@ -406,6 +434,7 @@
 | INF-VRAM-002 | 並載判定 | need(vlm)=8.5、small slot=1.5、budget=14.7 | 並載；compat `ok` | U | #14 |
 | INF-VRAM-003 | LRU 卸載與引用計數 | 已載 A（使用中）、B（閒置），需要載入 C | 卸載 B 不卸載 A；large slot 優先於 small slot | U | — |
 | INF-VRAM-004 | 閒置卸載 | `clk` 前進 10 分鐘 large slot 閒置 | 自動 unload，發 `model.unloaded` | U | — |
+| INF-VRAM-005 | worker 真的會卸載閒置的 VLM（回歸，參考機） | 分析結束後 FakeClock 前進 599 秒、再 1 秒 | 599 秒時仍載入；600 秒卸載一次；下一個工作照常自行載入（之前 llama-server 分析完幾小時仍佔 17.6 GB RAM） | U | — |
 | INF-VRAM-005 | 實測回寫 | 載入後 NVML 量到 9.1 GB（估算 8.5） | 寫入 `perf_observation`；下次 compat 用 9.1 且 `source=observed` | I | #15 |
 | INF-VRAM-006 | Mac 統一記憶體 | `hw:m3-16`（recommendedMaxWorkingSetSize=10.7 GB fixture） | budget = 10.7 − 其他 app − 4 GB 保留 → golden；8B Q5 為 blocked、4B Q4 為 ok | U | #13 |
 | INF-VRAM-007 | DXGI／Vulkan provider | `hw:amd-rx7800-win`（DXGI Budget fixture）、`hw:intel-arc-linux`（VK_EXT_memory_budget fixture） | 解析出 total/used/budget；無資料時 compat 用總量並標 `estimated` | U | #26 |
@@ -413,6 +442,8 @@
 | INF-OOM-001 | llama-server 崩潰 | FakeRuntime 第一次請求 SIGKILL | 重啟一次並 `--parallel` 減半；第二次崩潰 → 改用下一個 variant；provenance 記錄 fallback | I | #28 |
 | INF-OOM-002 | ORT OOM | `fb:inject(OOM)` 持續 | batch 16→8→4→2→1，仍 OOM → 降 `max_pixels` 一檔；最後失敗為 `MODEL_OOM` | U | #28 |
 | INF-OOM-003 | CUDA pack 連續崩潰 → Vulkan | CUDA FakeRuntime 崩潰兩次 | doctor 產生「改用 Vulkan」建議；選擇後 Job 繼續並完成 | I | #28、DoD 5.2 |
+| INF-OOM-004 | 假 llama-server 的跨重啟狀態在並行請求與 SIGKILL 下不損壞（回歸） | 多執行緒同時更新狀態檔並持續讀取；16 個執行緒同時搶 `--crash-first-n 1` 的崩潰 | 讀到的永遠是完整 JSON；恰好一個請求取得崩潰（INF-OOM-001 曾因此約 1/12 失敗） | U | #9 |
+| INF-OOM-005 | RUNTIME 故障在每個 OS 都真的結束行程（回歸） | 假 llama-server 與 torch sidecar（`--fake-pipeline`）注入 `RUNTIME` 後送一個請求 | 請求得不到回應，行程在 10 s 內結束（Windows 沒有 `signal.SIGKILL`，曾只丟 AttributeError、行程繼續活著，崩潰復原路徑沒有被走到） | U | #28 |
 | INF-RT-001 | 5070 Ti（Win，驅動 580，cc 12.0） | `hw:rtx5070ti-win11` | packs=`[llamacpp-cuda13]`；VLM=Qwen3-VL-8B Q5_K_M；ORT=DirectML；只推薦一個組合，附下載 GB 與分鐘數 | U | #13、#22 |
 | INF-RT-002 | RTX 4060 8 GB 筆電 | `hw:rtx4060-laptop` | Qwen3-VL-4B Q4_K_M；8B Q4 為「序列模式」選項 | U | #13 |
 | INF-RT-003 | Mac M2／M3 16 GB | `hw:m2-air-16`、`hw:m3-16` | 不需要 pack（Metal 內建）；4B Q4；CoreML | U | #13 |
@@ -447,6 +478,12 @@
 | MDL-011 | 授權同意 | 預設組合（Apache-2.0）／非商用權重 | 前者不需勾選；後者 `LICENSE_CONSENT_REQUIRED`，同意後寫 `license_acceptance(license_hash)`；授權文字改變（hash 不同）需重新同意 | I | #21 |
 | MDL-012 | `list_models()` 相容欄位 | 呼叫 | 含 compat 物件與舊欄位 `fits_now` | C | #14 |
 | MDL-013 | 回歸：徽章載入中 | 首次設定的方案卡，模型資料尚未回來 | 不顯示「? 未檢查」徽章，改顯示載入中；資料回來後才顯示與其他三處相同的徽章（MDL-005 偶發失敗） | U | #14 |
+| MDL-016 | 推薦組合只算還要下載的量（回歸） | 組合中的模型已安裝 | `download_bytes` 扣除已安裝者；全裝好時為 0，畫面不再要求下載 | I | #15 |
+| MDL-017 | 方案卡顯示實際的執行方式（回歸） | 推薦 CUDA pack、尚未安裝 | `packs` 仍是建議；`runtime` 為內建的 Vulkan | I | #15 |
+| MDL-018 | 模型清單看得懂（回歸，驗證第 1 輪） | 一個已安裝的 vlm、一個未安裝的 embedding | 類型顯示「看懂照片（說明、分類、標籤）」「以文搜圖」而非 key；已安裝的標「已安裝」 | C | #— |
+| MDL-019 | 每種模型類型都有看得懂的名稱（回歸，驗證第 41 輪） | 模型目錄的所有 kind | 兩種語言都有對應名稱；不顯示 text_embedder | U | #— |
+| MDL-014 | 搬移時硬連結的 snapshot 只複製一次（回歸） | snapshot 是 blob 的硬連結（沒有 symlink 權限時下載器的退路，DL-018） | 預估的總量與目標磁碟的實際用量都只算一份；搬移後 snapshot 與 blob 仍是同一個檔案（曾複製兩份，模型佔用的空間加倍） | U | #19、Windows |
+| MDL-015 | 沒有 symlink 權限也能搬移含 symlink 的模型資料夾（回歸） | `os.symlink` 回傳權限錯誤 | 依序退回硬連結、複製，與下載器相同；搬移成功（曾直接失敗） | U | #19、Windows |
 
 ### 7.2 DL：Download Manager（`hf:<scenario>` 錄製伺服器）
 
@@ -475,6 +512,7 @@
 | DL-021 | 限速 | 設定 20 MB/s | 10 秒平均 ∈ [18, 22] MB/s | I | — |
 | DL-022 | 優先下載 | 佇列第 2 位按「優先下載」 | 目前下載暫停（保留斷點），被提升者開始 | I | — |
 | DL-023 | 退避中取消（ADR-0004） | 來源連線被拒，下載在退避重試中（`waiting: NET_UNREACHABLE`）→ 取消 | Operation 顯示 `waiting` + NET_UNREACHABLE 問題卡（retry／鏡像／代理）；取消後 ≤ 2 s 到 `cancelled`；不再對來源發出請求；`.part` 已刪除 | I | #24、#32 |
+| DL-024 | 沒有 `os.pwrite` 的平台也能下載（回歸） | 移除 `os.pwrite`（Windows 本來就沒有），下載含換行位元組的 3 MB 檔 | 完成且 sha256 相符（fd 為 binary mode） | I | — |
 
 ### 7.3 DOC：Environment Doctor（`hw:<profile>` 探針注入，09 §3.4）
 
@@ -500,6 +538,10 @@
 | DOC-018 | feature 對應 | `runtime.llamacpp` fail | 只有 `caption.vlm.llamacpp` 不可用；`embed.onnx` 照常 | U | #26 |
 | DOC-019 | 結果快取與事件 | doctor 結果 `expires_at`；狀態改變 | 發 `doctor.changed`，preflight `revalidate_on` 觸發重算 | I | #27 |
 | DOC-020 | 五類真機 | nightly／release：NVIDIA、AMD（Vulkan）、Intel、Apple Silicon、純 CPU | 報告產生且不崩潰；附在 release notes | N/M | #26、DoD 5.2 |
+| DOC-021 | Windows 回報實體記憶體（回歸） | Windows 上收集探針 | `ram_gb` 大於 0 | U | Windows |
+| DOC-022 | 解析 Windows 版 nvidia-smi XML（回歸） | `<gpu id=…>`、WDDM 下 `used_memory` 為 N/A | 認得 GPU；外部佔用改用 `fb_memory_usage/used` | U | M0-T2 |
+| DOC-023 | 問題只說一次（回歸，驗證第 1 輪） | 內文與標題相同；代價說明以按鈕名稱開頭 | 內文不重印；代價說明前不再加「名稱 —」 | C | #— |
+| DOC-024 | 佔用 GPU 的程式精簡列出（回歸，驗證第 1 輪） | 12 個程式含 Windows 殼層、重複 | 去掉殼層與重複，最多列 5 個，超過時寫「等 N 個程式」（N 為總數）；只有殼層時回空字串 | U | #— |
 
 ### 7.4 DIAG：診斷包
 
@@ -635,6 +677,13 @@
 | OP-016 | 同 lane 重新排序 | `POST /operations/reorder` | 只在同 worker × lane 生效；跨 lane 回 400 | I | — |
 | OP-017 | 等待原因目錄 | 參數化 13 個 code：QUEUED_BEHIND、WAITING_GPU_SLOT、WAITING_MODEL_DOWNLOAD、WAITING_MODEL_LOAD、WORKER_OFFLINE、DISK_INSUFFICIENT_*、NET_UNREACHABLE、PAUSED_BY_USER、PAUSED_ERROR_RATE、PAUSED_ON_BATTERY、PAUSED_GPU_CONTENDED、PAUSED_NOT_IDLE、SOURCE_OFFLINE | 每個都有 zh-TW/en 顯示文字與 CTA；`status=waiting` 或自動 paused 時 `waiting_reason` 必填（schema 驗證） | C/E | #32、DoD 5.2 |
 | OP-018 | 等待中暫停／取消（ADR-0004，回歸） | `waiting` 的 Operation：(a) Worker 持有 lease；(b) 沒有 lease | (a) 暫停 → `pausing`、取消 → `cancelling`，Worker 確認後才到 `paused`／`cancelled`；(b) 直接到 `paused`（`waiting_reason=PAUSED_BY_USER`）／`cancelled`；兩者狀態都真的改變 | I | #32、#47 |
+| OP-019 | 下載後的索引 Operation 會結束（回歸） | 嵌入模型下載完成 | `search.reindex` 不會永遠停在 queued | I | — |
+| OP-020 | 分析資料夾有進度與時間（回歸，驗證第 2 輪） | 分析 3 張 | Operation 有 done/total、進入 running 時寫 started_at、有 ETA；活動中心名稱為「AI 分析」（不是「整理」） | I | #— |
+| OP-021 | 預覽不是可繼續的工作；中斷的工作說是什麼（回歸，驗證第 17 輪） | 重新啟動時有進行中的預覽與整理 | 預覽被取消、不出現在中斷提示；整理的 Operation subject 帶 job_kind 與資料夾 | I | #— |
+| OP-022 | 進度只算這次要分析的照片（回歸，驗證第 21 輪） | 已分析 3 張的資料夾再加 2 張 | Operation 進度 total 2、done 2（快取的不算） | I | #— |
+| OP-023 | 進度卡的資料夾那一行也只算這次（回歸，驗證第 22 輪） | 已分析的資料夾再加 2 張，掃描完、AI 未開始 | `/analysis/status` 該資料夾 done 0、total 2 | I | #— |
+| OP-024 | 「剛完成」只顯示這次分析的照片（回歸，驗證第 23 輪） | 已分析的資料夾再加 1 張，掃描完、AI 未開始 | `/analysis/status` 的 recent 是空的（不顯示上一次的照片）；沒有在跑時仍給最近的結果（IMP-030） | I | #— |
+| OP-025 | 整理的 Operation 標明是否使用 AI（回歸，驗證第 72 輪） | 依日期整理 | subject.uses_ai = false | C | #— |
 
 ### 9.2 ETA：估算（FakeClock 驅動，06 §2.3、§5.5）
 
@@ -659,6 +708,20 @@
 | ETA-017 | 佇列等待 | 前方 2 個 Operation p50 為 300 s、600 s | `queue.ahead_seconds_p50=900` | U | #32 |
 | ETA-018 | 開始前預估 | `POST /estimates`：10,234 張、3,150 快取、312 不支援 | `items` 正確；breakdown 含 download/load/embed/infer/postprocess；無頻寬歷史時文案為「100 Mbps 約 15 分鐘 · 1 Gbps 約 1.5 分鐘」 | I | #29、DoD 5.2 |
 | ETA-019 | 參考機涵蓋率實測 | release gate：三台參考機跑測試圖庫 | 記錄 `eta_calibration` 涵蓋率（≥ 70%）並寫入 release notes | N/M | #30、DoD 5.2 |
+| ETA-020 | 即時 ETA（回歸，不變量 9） | 進度序列：穩定、過早、bytes、無總數、過密、停滯 | 由進度算出 state 與 p10／p50／p90；可以 JSON 保存 | U | — |
+| ETA-021 | 校準樣本（回歸） | 第一次顯示的預估、暫停 | 保留第一次顯示的總時長預估；暫停時間不算入 | U | — |
+| ETA-022 | 實際路徑寫入 ETA（回歸，不變量 9） | Worker 回報 task 進度；標註 job 回報結果 | `operation.eta` 與 `progress` 更新；內部欄位不外露 | I | — |
+| ETA-023 | 完成時回寫（回歸） | Operation 經 `/tasks/{id}/complete` 成功、暫停後成功、失敗 | 成功才寫 `eta_calibration` 與 `perf_observation`；actual 不含暫停 | I | — |
+| ETA-024 | 匯出校準資料 | `opagent ops export-calibration` | 輸出 M0-V7 需要的欄位 | I | — |
+| ETA-026 | precise 的區間可信（ADR-0028） | 模擬 40 次 lognormal；δ 隨剩餘時間變化 | precise 顯示期間涵蓋率 ≥ 70%；δ 在 0.04～0.1 | U | — |
+| ETA-027 | 掃描回報進度（回歸，不變量 9） | 掃描 3 張 | Operation 的 progress 有 done／total | I | — |
+| ETA-028 | 匯出指令的預設資料夾（回歸） | 不帶參數 | 找桌面版的資料夾，不是 `~/.opagent` | U | — |
+| ETA-029 | 從 Operation 開始時起算 ETA（回歸，驗證第 19 輪） | 開始時種下 0 的基準，之後兩次回報 | 第二次回報就有 rough 的剩餘時間；已在算的不重設 | U | #— |
+| ETA-030 | 每幾張就回報結果（回歸，驗證第 19 輪） | 一次租到 10 張 | 分三次回報 4、4、2 張 | U | #— |
+| ETA-031 | 進度卡顯示經過時間與「估算中」（回歸，驗證第 19 輪） | 分析進行 42 秒、ETA 估算中 | 顯示「已經過 42 秒」與「估算剩餘時間中…」 | C | #— |
+| ETA-032 | 不到一分鐘時說約幾秒（回歸，驗證第 21 輪） | rough、38 秒、5 個樣本 | 「約 40 秒」（以 10 秒為單位）；樣本不夠時仍是「不到 1 分鐘」 | C | #— |
+| ETA-033 | 啟動時間不留在速率裡（回歸，驗證第 22 輪：第一個估計約 2 倍） | 開始時種下基準，第一次回報含載入時間，第二次回報 6 秒 4 張 | 剩餘時間依第二段速率（約 42 秒），不是混入載入時間的約 85 秒 | U | #— |
+| ETA-025 | 顯示剩餘時間（回歸，不變量 9） | Activity Center 收到 rough／precise／stalled | 畫面顯示時間文字，不是只有狀態字 | U | — |
 
 ### 9.3 ACT：Activity Center 與進度元件（Vitest + Playwright）
 
@@ -671,6 +734,19 @@
 | ACT-005 | 鍵盤 | `⌘J`／`Ctrl+J` 開關抽屜；`Alt+↑/↓` 排序 | 可用且 focus 管理正確 | A | #90 |
 | ACT-006 | OperationProgress 四變體 | inline、compact、card、full × 每個 eta.state | 視覺快照 light/dark；full 變體 stepper 顯示 skipped 為灰色虛線 | V | #30 |
 | ACT-007 | 經過時間本地累加 | running，SSE 停止 5 s | 經過時間每秒前進；paused 時停止 | U | #31 |
+| ACT-008 | 最近完成（回歸，驗證第 3 輪） | 一個完成的分析、一個失敗的下載，沒有進行中的 | 仍說「目前沒有進行中的工作」，並列「最近完成」：名稱（AI 分析）、狀態、完成時間；最多 10 筆、24 小時內 | C | #— |
+| ACT-009 | 中斷提示說清楚是什麼、按了會怎樣、可以不用（回歸，驗證第 17 輪） | 一個中斷的 AI 分析 | 列「AI 分析（第19周）」與「會繼續分析剩下的照片，不會動任何檔案」；「不用了」取消它 | C | #— |
+| ACT-010 | 進度卡不蓋住導覽（回歸，驗證第 19 輪：蓋住「設定」） | 分析進行中 | 進度卡在側欄的同一欄、導覽下方，導覽自己捲動 | C | #— |
+| ACT-011 | 進度卡的階段名稱不斷行（回歸，驗證第 20 輪） | 準備中的長說明 | 「AI 分析」維持一行 | C | #— |
+| ACT-012 | 掃描階段不說「等掃描完成」（回歸，驗證第 23 輪） | 掃描與 AI 分析都還沒有數字 | 掃描那一列說「正在找出資料夾裡的照片…」；只有 AI 分析那一列說「等掃描完成」 | C | #— |
+| ACT-013 | 沒有要更新的照片時，完成訊息說都已分析過（回歸，驗證第 24 輪） | 重新分析一個都分析過的資料夾 | 完成卡寫「都已分析過，沒有要更新的照片」，不提供「整理到資料夾」 | C | #— |
+| ACT-014 | 分析很快完成時仍說分析了幾張（回歸，CI 43032529913） | 卡片只看到 0 張就結束 | 讀這次分析的最後張數：3 張時說「分析完成：3 張照片」；0 張才說「都已分析過」 | C | #— |
+| ACT-015 | 活動的名稱（回歸，驗證第 57 輪：預覽寫成「整理 完成」、出現 output.plan、dedup） | 預覽工作；各種內部類型 | 「預覽整理（未執行）」；output.plan、dedup、face.reembed、preview.stage、model.load 都有中文名 | U | #— |
+| ACT-016 | 活動的工作列附上工作狀態與結果（回歸，驗證第 58 輪：依日期預覽寫成「整理 完成」） | 待核准的整理工作；捨棄後 | `subject.job_status` 為 awaiting_approval；捨棄後 completed 且 `outcome: discarded` | I | #— |
+| ACT-017 | 整理工作依計畫狀態命名 | 待核准；已捨棄；已套用 | 「整理計畫待核准」；「已捨棄整理計畫（未變更檔案）」；「整理」 | U | #— |
+| ACT-018 | 待核准的整理計畫狀態不寫「完成」（回歸，驗證第 59 輪） | 分析已完成、計畫待核准的工作 | 狀態「等你核准」；其他工作照常顯示 | U | #— |
+| ACT-019 | 進度卡只有 AI 分析在等時寫「載入 AI 模型」（回歸，驗證第 70～71 輪） | job.label、output.apply、face.cluster、scan、掃描中 | dock.preparing、dock.waiting、dock.waiting、dock.scanning、dock.waitingScan | C | #— |
+| ACT-020 | 不使用 AI 的整理在進度卡寫「整理」（回歸，驗證第 72 輪） | job.label、uses_ai false／true／沒有 | job.organize「整理」＋準備中…；其餘 job.label | C | #— |
 
 ## 10. ORG、REV — 整理流程與待確認（killer ①；03 §10、04 §3.7、08 §8.1）
 
@@ -686,11 +762,55 @@
 | ORG-008 | 試跑一張串流 | 「試跑這張」 | `InferenceService.preview` 串流事件到 UI；interactive lane | I | #46 |
 | ORG-009 | caption 寫入搜尋 | Job 完成 | caption 經 index_outbox 寫入 `search_doc.tsv`，全文可查到 | I | #43 |
 | ORG-010 | 就地修正回饋 | `PATCH /assets/{id}/labels {category: pets}` | 寫 `review(status=corrected)`；下一次整理 final_label 用 pets；`search_doc` 更新 | I | #56、DoD 5.4 |
+| ORG-011 | 未知的 preset（回歸） | 建立時就不存在；掃描中被刪除 | 建立時回 404 `PRESET_NOT_FOUND`，不建 job；掃描中刪除時 job 失敗，不會卡住 | I | — |
+| ORG-012 | 全庫預估先算已知的結果（回歸，驗證第 16 輪：樣本都是人物、預估卻是其他 73） | 資料夾的照片已用同一設定與模型分析過 | 這些照片照實際類別計入；其餘才用快速路徑推估；`basis.known` 為已知張數 | I | #— |
+| ORG-013 | 預覽進行中顯示進度（回歸，驗證第 16 輪；不變量 9） | 4 張樣本的預覽 | `/previews/{id}` 帶 `progress {done, total, elapsed_s}`；畫面顯示「正在分析樣本 N／M 張 · 已經過 X · 約剩 Y」，樣本完成後顯示正在估算全庫分布 | I/C | #— |
+| ORG-014 | 準備狀態顯示模型名稱（回歸，驗證第 16 輪：原始 key） | `qwen3-vl-8b-instruct@q4_k_m` | 「Qwen3-VL 8B（看圖說明與分類）」；不認得的模型顯示 id（不含 variant）；原始 key 留在 title | C | #— |
+| ORG-015 | 估算全庫分布時也顯示經過時間（回歸，驗證第 17 輪：約 33 秒沒有時間） | 樣本完成、估算尚未回來 | 「正在估算全庫分布… · 已經過 X」 | C | #— |
+| ORG-016 | 全庫估算只讀還不知道的照片（回歸，驗證第 23 輪） | 已分析 6 張，再加入 2 張 | worker 最多讀 2 張（預覽樣本可能已分析其中一張）；已知 6 張照算，總數 8 | I | #— |
+| ORG-017 | 整理的第一個畫面（ADR-0044；驗證第 55～56 輪：與匯入一模一樣） | 打開整理；選圖庫資料夾 | 標題「整理照片」、三個步驟（目前步驟 aria-current）、摘要列含輸出與「複製，原檔不動」；「從照片或相簿挑選」連到搜尋；資料夾樹在收起的「圖庫以外的資料夾…」裡；選資料夾後摘要列寫出來源、步驟到 ② | C | #— |
+| ORG-018 | 捨棄計畫（ADR-0045；驗證第 57 輪：兩個計畫永遠待核准） | 待核准的計畫按捨棄；再核准；再捨棄 | 工作 completed、計畫仍 draft 且 `discarded`、沒有排入套用；核准回 409 `PLAN_DISCARDED`；再捨棄不改變任何東西 | I | #— |
+| ORG-019 | 只有待核准的計畫能捨棄 | 套用中的計畫；不存在的計畫 | 409 `PLAN_NOT_DRAFT`；404 | I | #— |
+| ORG-020 | 計畫頁的「捨棄計畫」（回歸，驗證第 57 輪：只有核准） | 待核准的計畫頁按「捨棄計畫」 | 顯示「已捨棄計畫，原檔沒有任何變更。」、沒有核准按鈕、可回到整理 | C | #— |
+| ORG-021 | 計畫的目的地寫出資料夾名稱（回歸，驗證第 64 輪：「. (2)」） | 複製到 sorted 與 sorted/2024 | 樹狀列「sorted/2024」等完整名稱，不出現「.」；移到垃圾桶的計畫標題「移到垃圾桶的計畫」 | C | #— |
+| ORG-022 | 依日期的整理寫「正在建立計畫…」（回歸，驗證第 73 輪） | preset by-date／by-content-12 | organize.planning／organize.running | C | #— |
+| IMP-001 | 資料夾預覽（ADR-0029） | 含子資料夾、影片、非照片、隱藏資料夾 | 正確的張數、大小、抽樣日期與樣本；超量時標示；路徑逃逸被拒 | U | — |
+| IMP-002 | 樣本縮圖 | 照片；非照片；逃逸路徑 | 256 px JPEG；其餘被拒 | U | — |
+| IMP-003 | 預覽經由 Worker | `/fs/preview`、`/fs/thumb` | 回傳 Worker 結果；未知 root 回 409 | I | — |
+| IMP-004 | 快速工作不排在掃描後 | `only_kinds` | 只租到指定種類 | I | — |
+| IMP-005 | 分析資料夾不產生計畫 | `POST /sources/{id}/analyze` | 掃描並標註；無計畫、無檔案；重複呼叫回同一工作；沒有模型時回 409 且可改掃描 | I | — |
+| IMP-006 | 掃描中照片陸續出現（回歸） | 分頁大小 1 | 每頁送出後資產即增加 | I | — |
+| IMP-007 | 多執行緒保持順序 | 4 執行緒、分頁 2 | cursor 依檔名遞增 | I | — |
+| IMP-010 | 選資料夾時看得到內容（回歸） | 有照片、空、讀取失敗 | 顯示統計與縮圖；空資料夾不能加入；失敗時說明且可加入 | C | — |
+| IMP-011 | 匯入頁 | 成功；模型未就緒 | 開始分析並回照片頁；顯示原因並可只加入照片 | C | — |
+| IMP-012 | 全域進度卡（回歸，不變量 9） | 掃描中、縮小、完成 | 分階段數字與 ETA；完成後提示下一步 | C | — |
+| IMP-013 | 導覽分組 | 人臉開關 | 三組；匯入在工作第一個；人物依開關出現 | U | — |
+| IMP-014 | 匯入旅程（回歸） | 真實 stack | 預覽→加入→分析→照片出現→前往整理；輸出資料夾沒有檔案；空圖庫導向匯入 | E | — |
+| IMP-020 | 分類頁（回歸） | 有結果、點分類、沒有結果 | 分類與標籤依數量排列，顯示未分析張數；可篩選；空狀態帶去匯入 | C | — |
+| IMP-021 | 看得到 caption 與標籤（回歸） | 分類頁、單張資訊 | 每張顯示 AI 說明；資訊面板有說明與標籤 | C | — |
+| IMP-022 | 標籤顯示名稱（回歸） | 詞彙 id、自由標籤 | `people.child` 顯示「小孩」；自由標籤不變 | U | — |
+| IMP-023 | 補分析舊照片 | 有未分析的照片 | 一鍵對每個來源分析，已分析的走快取 | C | — |
+| IMP-024 | 新分析讓舊的待確認失效（回歸） | 照片有舊的 pending review | 新結果進來時改為 superseded，不再算在待確認 | I | — |
+| IMP-025 | 分類在網址裡（回歸，驗證第 1 輪） | `/explore?category=food`；再點一次取消 | 開頁就篩選美食；取消時網址跟著清掉 | C | #— |
+| IMP-026 | 分類頁先列概念、不列泛用詞（回歸，驗證第 1 輪） | 標籤含 地板 187、小孩、坐姿、積木 | 概念（小孩、積木）在前；泛用詞（地板、坐姿）不列，同一份詞也在詞彙 blacklist；其他自由標籤照列（IMP-020） | C | #— |
+| IMP-030 | 分析狀態（回歸） | 掃描中、分析中、完成 | 每個資料夾的狀態與數字、處理中的照片、最近的結果 | I | — |
+| IMP-031 | 進度卡顯示細節（回歸，不變量 9） | 多個資料夾同時分析 | 一條整體進度；資料夾清單、目前照片、最新 AI 結果、失敗數 | C | — |
+| IMP-032 | 資料夾預覽的名稱（回歸，驗證第 1 輪） | 選根資料夾 | 不重複寫「photos / photos」（只有子資料夾才顯示路徑）；數字在上、「張照片」在下維持不變（IMP-014） | C | #— |
+| IMP-033 | 已在圖庫的資料夾（回歸，驗證第 1 輪：匯入與整理是同一個畫面） | 兩個來源，其中一個只分析了一部分 | `/sources` 帶照片數與已分析數；匯入頁可「分析剩下的照片／重新分析」；整理頁先說明整理會做什麼，從這些資料夾開始，下方「或選其他資料夾」仍是資料夾樹（E2E-B-001～008） | I/C | #— |
+| IMP-034 | 子資料夾不另列（回歸，驗證第 2 輪） | 第8周 與 第8周/0409 都是來源 | 只列第8周；整理頁標題不重複 | C | #— |
+| IMP-035 | 重新分析說明結果（回歸，驗證第 3 輪） | 已全部分析的資料夾按「重新分析」 | 留在匯入頁；說明「都已分析過，只會補上新增或有變動的照片」；有待分析時說「已開始分析，進度在左下角」 | C | #— |
+| IMP-036 | 資料夾張數包含子資料夾帶進來的照片（回歸，驗證第 19 輪） | photos 已分析 3 張，再加入並分析 photos/new 的 2 張 | photos 的 `tree_photos` 5、`tree_analysed` 2（每張只算一次）；匯入的資料夾卡顯示這個數字 | I/C | #— |
+| IMP-037 | 資料夾裡的新照片在卡片上看得到（回歸，驗證第 20 輪） | 圖庫 120 張、磁碟上 160 張 | 卡片顯示「有 40 張新照片」，按鈕變「分析剩下的照片」 | C | #— |
+| IMP-038 | 分類頁的兩列有標題，選了之後寫出它與張數（回歸，驗證第 55 輪：分不出類別與標籤） | 有類別與標籤；點「美食」 | 標題「類別」「標籤」；照片上方「美食 3 張」 | C | #— |
+| IMP-039 | 分類頁的已分析張數與匯入頁一致（回歸，驗證第 56 輪：845/845 對 665 + 180） | 20 組、每組 10 張的重複照片 | 統計查詢不收起重複照片（`collapse_duplicates: false`），已分析 845 | C | #— |
+| IMP-040 | 側欄的「匯入」「整理」各有一行說明（驗證第 55～56 輪：新使用者分不出兩者） | 側欄 | 「把資料夾加進圖庫」「複製成整理好的資料夾」；連結名稱仍是「匯入」「整理」 | U | #— |
 | REV-001 | 低信心建立 review | needs_review 結果 | `review(status=pending, reason=low_confidence)`；SSE `review.created`；計數「待確認 N 張」 | I | #49 |
 | REV-002 | 一次一張與數字鍵 | 待確認頁 | `1–9` 選候選類別、`0` 其他、`Enter` 接受建議、`S` 略過；處理後自動下一張 | E | #49、DoD 5.3 |
 | REV-003 | 逃生門 | 剩 40 張時「略過剩下的，全部放進『其他』」 | 40 張 `final_label=other`（`source=review_skip`）；Job 可進 planning | I/E | #49、DoD 5.3 |
 | REV-004 | 不覆核也能輸出 | 有 pending review 時直接產生計畫 | 未確認者進「其他」，計畫可核准 | I | #49 |
 | REV-005 | 執行中即可覆核 | Job running 時開啟待確認 | 已產生的 review 可處理；新的即時加入 | E | #49 |
+| REV-010 | 從導覽進待確認（回歸，驗證第 1 輪） | 沒有 job 參數 | 不打 `GET /jobs/`（之前 405）；選項寫「0 其他」不是「0 其他（0）」 | C | #— |
+| REV-011 | 每張照片說明為什麼要你確認（回歸，驗證第 5 輪） | 待確認的照片，`reason` 為 low_confidence／conflict／shortlist | 照片旁說明原因：把握不夠、兩個模型看法不同、類別太多只比對了前幾個 | C | #— |
 
 ---
 
@@ -705,6 +825,41 @@
 | SRCH-TOK-005 | 英文詞幹 | 查 `cats`，caption `a cat` | 命中 | I | — |
 | SRCH-TOK-006 | canonical tag key | 「貓」「cat」「ねこ」 | 都映射 `animal.cat` 並命中權重 A | U | #44 |
 | SRCH-TOK-007 | tokenizer golden | `fixtures/golden/tokenize.json` 100 句 | 輸出相同；`search_profile.fts.tokenizer` 記錄版本 | C | — |
+| SRCH-TOK-010 | 同義詞也找說明（回歸，驗證第 1 輪） | 搜「海邊」；說明寫「沙灘上…」、沒有標籤 | 全文以 `(海邊 | 海灘 | 沙灘 | …)` 比對，找得到；只含一個詞的同義詞才加入 | U/I | — |
+| SRCH-TOK-011 | 詞彙表涵蓋家庭相簿（回歸） | 小朋友、幼童、教室、積木、大象、畫畫 | 各自對到詞彙 id；每個寫法只屬於一個 id；單字詞不加進斷詞字典（以免拆開「海邊」這類詞） | U | — |
+| SRCH-TOK-012 | 斷詞版本變了就重建文字索引（回歸） | 記錄的 `search_tokenizer` 是舊版 | 啟動時把每張照片排入索引並分批處理；之後搜得到新斷法的詞；版本寫回，只做一次 | I | — |
+| SRCH-TOK-013 | 程度副詞不是概念（回歸，驗證第 23 輪） | 「小孩踢球很開心」「非常漂亮的夕陽」 | 很、非常不列為概念；開心、漂亮、夕陽仍是 | U | #— |
+| SRCH-TOK-014 | 活動可以隱含場景（ADR-0032 補充） | 詞彙表的 `implies` | 只能由 activity／object 指向存在的 scene，不能連鎖；衝浪 → 海、海灘；衝浪板沒有 | U | #— |
+| SRCH-TOK-015 | 數量詞不是概念（回歸，驗證第 42 輪） | 「一張有很多彩色方塊的圖」「好多隻貓」 | 一張、很多、好多、圖不列為概念 | U | #— |
+| SRCH-TOK-016 | 數字與量詞不是概念（回歸，驗證第 43 輪） | 「好多隻貓」「三個小朋友」「兩隻狗在草地上」 | 隻、個、三、兩不列為概念；貓、小朋友、狗、草地仍是 | U | #— |
+| SRCH-TOK-017 | 方位詞不是概念（回歸，驗證第 44 輪） | 「兩隻狗在草地上」「箱子裡的貓」「桌子旁邊的小朋友」 | 上、裡、旁邊不列為概念；狗、草地、箱子、貓、桌子、小朋友仍是 | U | #— |
+| SRCH-TOK-018 | 叫「日落大道」的路不是夕陽（回歸，驗證第 50 輪） | 說明「路牌指示前往好萊塢與日落大道」；「海邊的日落」 | 前者斷成「日落大道」一個詞，搜「夕陽」不會找到；後者仍有「日落」；斷詞版本 @5 觸發重建索引 | U | #— |
+| SRCH-TOK-019 | 只轉換繁體不會有的字（Big5 以外） | 「两个小孩很开心」；「剪彩、洗手台、家具、設備、文件、自行車」 | 前者轉成繁體；後者不變（整段轉換會改寫 45 / 2,197 則正確的說明） | U | #— |
+| SRCH-TOK-020 | 上位詞包含它的類別（ADR-0032 補充） | 「車子」「汽車」「吃飯」 | 車子→object.vehicle，形式含公車、巴士、火車、捷運、腳踏車、汽車，不含飛機；標籤含五個 id；影像只問 vehicle；汽車只有 object.car；吃飯不展開到飯；includes 不串連、同一組 | U | #— |
+| SRCH-TOK-021 | 英文同義詞用概念的英文名稱問影像模型（回歸，驗證第 69～70 輪：slide 29、遊樂場 14；吃 0） | slide、eat、lunch、午餐、鞦韆、吃、爬山、彈跳床、a puppy on the seaside、red car、trampoline | playground、eating、eating、eating、playground、eating、hiking、trampoline、a dog on the beach、red car、trampoline | U | #— |
+| SRCH-TOK-022 | 查詢裡詞彙表認得的詞（找不到時的建議） | 爬山、山、海邊撿貝殼、長頸鹿 | [山]、[]、第一個是 海灘、[] | U | #— |
+| SRCH-TOK-023 | 吃＋食物或不認識的詞就是那樣東西（回歸，驗證第 72 輪） | 吃蛋糕、吃冰淇淋、吃香蕉、eat cake、吃飯、在公園吃東西 | 蛋糕、冰淇淋、香蕉、cake、吃飯、在公園吃東西 | U | #— |
+| SRCH-TOK-024 | 動詞後面接東西時就是那樣東西（回歸，驗證第 73 輪） | 去爬山、跳彈跳床、堆沙堡、搭飛機、看海、吃蛋糕、去、跳舞、坐車、公園放風箏、做蛋糕 | 爬山、彈跳床、沙堡、飛機、海、蛋糕、去、跳舞、車、公園 風箏、蛋糕（驗證第 74 輪：坐車、放、做） | U | #— |
+| SRCH-TOK-025 | 一個概念不論用哪個名字都一樣（回歸，驗證第 77 輪：沙灘 4／海邊 6；球 51／足球 120） | 沙灘、海邊、長頸鹿、球、公園 | 字對備援 OR 各個名字；球的文字形式含 足球 踢球 籃球（text_forms，不是同義詞）；公園不含遊樂場（第 78 輪撤回）；籃球場、籃球架是運動場一個詞（第 78～79 輪） | U | #— |
+| SRCH-TOK-026 | 聖誕帽是帽子（回歸，驗證第 82 輪） | 聖誕帽、帽子 | 聖誕帽一個詞、object.hat；影像問 hat | U | #— |
+| SRCH-TOK-027 | 活動詞建議看得到它的東西（回歸，驗證第 92 輪：生日、露營沒有建議） | 生日、露營、帳篷 | 生日 → 蛋糕；露營是 activity.camping，建議帳篷；帳篷是 object.tent | U | #— |
+| SRCH-TOK-028 | 常見家庭活動詞也問影像模型（回歸，驗證第 93 輪：煙火、泡泡、烤肉只剩問 AI） | 煙火、泡泡、烤肉、野餐、沙坑、洗澡、跳繩、夜市、雪人、恐龍 | 各自的英文名 | U | #— |
+| SRCH-TOK-029 | 較長查詢裡的活動也給建議（回歸，驗證第 93 輪） | 生日派對 | 含蛋糕 | U | #— |
+| SRCH-TOK-030 | 吃飯建議食物（回歸，驗證第 96 輪：吃飯、午餐、eat 只剩問 AI） | 吃飯、午餐、eat | 建議含食物 | U | #— |
+| SRCH-TOK-031 | 吃飯透過標籤由食物、飯看到（ADR-0048 補充 7） | 吃飯、飯、食物 | 吃飯的標籤鍵含 food.meal、food.rice；字形不含飯；影像仍問 eating；不反向；seen_by 檢查 | U | #— |
+| SRCH-TOK-032 | 食物都建議「食物」；火鍋、牛排是食物（回歸，驗證第 106 輪） | 冰淇淋、拉麵、蛋糕、火鍋、牛排 | 建議含食物；火鍋、牛排是自己的食物詞（第 107 輪修訂：當作食物同義詞時謊報 16 張） | U | #— |
+| SRCH-TOK-033 | 字面寫在另一個詞裡、但無關的詞不建議：「拔河」是活動，標明與「河」無關（unrelated），建議「運動會」；「荷花」仍建議「花」、「爬山」仍建議「山」（回歸，驗證第 119 輪：拔河建議河，打開河邊照片） | 拔河、拔河比賽、荷花、爬山 | 沒有「河」、有「運動會」；花；山 | U | 11#98 |
+| SRCH-TOK-034 | 單字詞不因「寫在裡面」而成為建議（ADR-0051；回歸，驗證第 120 輪） | 河馬、雪糕、雪碧、海苔、海盜船、山豬、雲霄飛車、熱氣球、鐵馬、熊貓、煙花、馬路、氣球 | 不建議河／馬／雪／海／山／車子／球／氣球／貓／花 | U | 11#98 |
+| SRCH-TOK-035 | 單字詞單獨成詞、作輕動詞受詞、在方位詞前時建議；明確連結照舊 | 看海、騎馬、河邊、山上、「海 夕陽」、爬山、火車、海邊撿貝殼、堆雪人、雪人、生日派對、騎腳踏車 | 海、馬、河、山、海、山、車子、海、雪、雪（第一）；生日／蛋糕／氣球；腳踏車／車子 | U | 11#98 |
+| SRCH-TOK-036 | `offered_by` 的字串建議該詞但不是它的名稱；每個字串至少兩個中文字且不是任何詞的名稱 | 荷花、櫻花 | 「花」；tag_key(荷花) 為 None | U | 11#98 |
+| SRCH-TOK-037 | 單字規則後補回：圖書館 → 書、河堤 → 河（offered_by）；鐵馬是腳踏車的名稱；雪花冰是食物、不斷成雪花＋冰、不建議雪或花（回歸，驗證第 121 輪） | 圖書館、河堤、鐵馬、雪花冰 | 書、河、object.bicycle、food.shaved_ice 一個詞且建議食物 | U | 11#98 |
+| SRCH-TOK-038 | 常見食物建議「食物」、水果建議「水果」、溪流與河口建議「河」（offered_by）；鳳梨酥不建議水果（回歸，驗證第 122 輪） | 牛肉麵、小籠包、滷肉飯…；西瓜、草莓…；溪流、河口 | 食物；水果；河 | U | 11#98 |
+| SRCH-TOK-039 | 斷詞拆開的複合詞各段標為 bound；空白、填充詞、被拿掉的輕動詞或動詞＋受詞分開的不是（ADR-0052；回歸，驗證第 122 輪） | 蘿蔔糕、花生湯、鳳梨酥、海產店、草莓園、車輪餅、雞蛋糕、海綿寶寶；海邊夕陽、小孩玩沙、弟弟踢球、戴口罩的小女孩、媽媽抱寶寶、小孩在玩水、「海綿 寶寶」 | 前 8 個全部 bound；後 7 個都不是 | U | 11#98 |
+| SRCH-TOK-040 | 鞦韆、蹺蹺板是各自的詞（scene.swing／scene.seesaw），遊樂場以 includes 包含並被它們建議；溜滑梯仍是遊樂場（ADR-0053；回歸，驗證第 123 輪：五輪都回傳 14 張溜滑梯） | 鞦韆、盪鞦韆、swing、蹺蹺板、seesaw | 各自的 id；遊樂場 includes；建議遊樂場 | U | 11#98 |
+| SRCH-TOK-041 | 再補 15 種食物與鳳梨、藍莓；offered_by 寫在另一個更長的 offered_by 字串裡時讓給它（鳳梨酥只建議食物）（回歸，驗證第 123 輪） | 布丁、牛奶、餅乾…；鳳梨、藍莓；鳳梨酥 | 食物；水果；鳳梨酥沒有水果 | U | 11#98 |
+| SRCH-TOK-042 | 同一個詞只建議一次，不論有幾條連結指向它（回歸，驗證第 124 輪：鞦韆既建議遊樂場又被它包含，遊樂場 chip 出現兩次） | 鞦韆、蹺蹺板、swing、火車、爬山… | 無重複；鞦韆 → [遊樂場] | U | 11#98 |
+| SRCH-TOK-043 | 點心與早餐也建議「食物」（回歸，驗證第 124 輪：冰棒、豆漿、麻糬、蛋塔、鬆餅、仙草仍沒有下一步） | 冰棒、豆漿、麻糬、蛋塔、鬆餅、仙草、芋圓、包子…稀飯 | 食物 | U | 11#98 |
+| SRCH-IDX-010 | 以檔案時間定日期的照片可依日期搜尋（回歸，驗證第 45 輪） | 沒有拍攝時間、時間軸依檔案時間放在 2026-11 | 日期條件 2026-11 找得到；斷詞版本 @4 讓既有索引重建 | I | #— |
 | SRCH-TOK-008 | tsquery 注入 | 查詢含 `& \| ! ( ) : * '` 與 `\` | 一律跳脫；不產生 SQL／tsquery 語法錯誤；Hypothesis 任意字串不拋例外 | P/S | — |
 | SRCH-TOK-009 | 回歸：控制字元 | 查詢含 NUL、BEL 等控制字元 | 移除控制字元後照常搜尋，不回 500（MCP-TOOL 產生輸入時發現） | I | #62 |
 | SRCH-FAC-001 | 關鍵字 + tag + 日期 | 2,000 張 fixture DB；`q=海邊`、`tags_all=[scene.beach]`、`taken_at 2025` | 結果與 SQL 參考查詢相同；facet 計數正確 | I | DoD 5.4 |
@@ -712,12 +867,39 @@
 | SRCH-FAC-003 | facet 同 pre-filter | 限定某資料夾範圍 | facet 計數只含範圍內；範圍外不可推知 | I/S | — |
 | SRCH-FAC-004 | 分頁游標 | 第 2 頁游標被竄改 | 400（簽章驗證失敗）；正常游標在資料新增後不重複不遺漏 | I/S | — |
 | SRCH-FAC-005 | 結果集合＝全部符合（ADR-0005，回歸） | 330 張含「beach」（> 每路 200） | `total`＝SQL 參考計數 330；facet 加總＝330；翻頁無重複無遺漏；全選 selection 計數＝330，批次標籤恰好套用 330 張 | I | #64、#91 |
+| SRCH-FAC-006 | 篩選用的標籤也有名稱（回歸，驗證第 81 輪：晶片寫 activity.crafts） | tags_all activity.crafts | tag_names 含「手工」 | I | #— |
+| SRCH-FAC-010 | 篩選與 chip 顯示名稱（回歸，驗證第 1 輪） | 標籤 facet 含 `people.child` 與自由標籤 | 顯示「小孩」，點選後篩選仍用 key；自由標籤顯示原字；結果縮圖只對以文搜圖找到的照片標「以文搜圖」（E2E-S-002），不標「文字」「tag」 | C | #— |
+| SRCH-UI-010 | 頂部搜尋框跟著畫面（回歸，驗證第 1 輪） | 在 /search?q=大象，再換到人物頁 | 搜尋頁顯示「大象」；其他頁清空 | C | #— |
+| SRCH-UI-011 | 點一下結果就打開照片（回歸，驗證第 2 輪） | 搜尋結果；已在選取中 | 單擊打開 Lightbox；已在選取時單擊是加選或取消 | E | #— |
+| SRCH-UI-012 | 人名成為可移除的「人物」標籤（回歸，驗證第 14 輪 P0） | 搜尋「測試A」「測試A 足球」 | 後續搜尋帶 `persons_all`；標籤「人物：測試A」可移除，移除後條件也拿掉 | C | #78 |
+| SRCH-UI-013 | 拿掉人物標籤時搜尋框同步（回歸，驗證第 15 輪） | 「測試A 足球」拿掉「人物：測試A」 | 搜尋框變成「足球」，結果是全部的足球照片 | C | #78 |
+| SRCH-UI-014 | 結果被截斷時說清楚（回歸，驗證第 18 輪） | `total_capped` 為 true 的 250 張 | 顯示「250 張以上 · 依相關度排序」（第 25 輪起的用語，見 SRCH-UI-016）；沒截斷照常顯示張數 | C | #— |
+| SRCH-UI-015 | 「以文搜圖」只標在只靠意思找到的照片（回歸，驗證第 22 輪） | matched_by 各種組合 | 只有影像或說明向量、沒有文字或標籤命中時才標 | C | #— |
+| SRCH-UI-016 | 截斷時說還有更多（回歸，驗證第 25 輪） | `total_capped` 為 true 的 233 張 | 標題「233 張以上 · 依相關度排序」；捲到最後說「只列出最相關的 233 張，其餘照片相似度較低。」 | C | #— |
+| SRCH-UI-017 | 標籤的移除按鈕念名稱（回歸，驗證第 25 輪） | 「只看開心」、標籤、人物標籤 | 無障礙名稱是「移除 只看開心」等，不是 mood.smile | C | #— |
+| SRCH-UI-018 | 標題張數不含收起的照片（回歸，驗證第 38 輪） | 175 張，其中 11 張收起 | 「164 張 · 另有 11 張較不相關」，與問 AI 一致 | C | #— |
+| SRCH-UI-019 | 分隔線不算收起的照片（回歸，驗證第 40 輪） | 175 張、11 張開心、10 張收起 | 「以下 154 張沒看出「開心」」 | C | #— |
+| SRCH-UI-020 | 搜尋中顯示狀態與佔位格（回歸，驗證第 40 輪） | 第一次回應還沒到 | 「正在搜尋…」與 12 個佔位格（aria-busy）；減少動態時不閃動 | C | #— |
+| SRCH-UI-021 | 移除日期標籤時搜尋框也拿掉那個日期（回歸，驗證第 49 輪） | 「去年 海邊」移除「去年」標籤 | 搜尋框變成「海邊」並重新搜尋；與人物標籤相同 | U | #— |
+| SRCH-UI-022 | 搜尋結果的照片有名稱（回歸，驗證第 49 輪） | 有／沒有說明的照片 | 「說明，日期」或「照片，日期」；日期不明時寫「未知日期」 | U | #— |
+| SRCH-UI-023 | 說明結尾的句號不會變成「。，」（回歸，驗證第 50 輪） | 說明「海邊的小孩。」 | 「海邊的小孩，2024-07-01」 | U | #— |
+| SRCH-UI-024 | 收起的重複照片顯示「+N」並說出另有幾張（回歸，驗證第 52 輪） | 結果附 `duplicates: 9` | 照片角落「+9」；名稱結尾「另有 9 張相同的照片」 | U | #— |
+| SRCH-UI-025 | 有詞被放寬時，標題說只符合其他條件（回歸，驗證第 54 輪：「小孩在玩水」說「561 張以上」） | `relaxed: [玩水]`、561 張以上 | 「沒有完全符合的照片 · 符合其他條件的有 561 張以上」 | U | #— |
+| SRCH-UI-026 | 搜尋結果在頁面任何地方按 Esc 都取消選取（回歸，驗證第 55 輪：復原後 Esc 沒反應） | 選 2 張、★、復原、點頁面空白處、Esc | 焦點回到 ★；批次列消失；對話框與選單裡的 Esc 不受影響 | E | #— |
+| SRCH-UI-027 | 「複製到資料夾」說原檔不動、焦點進出（回歸，驗證第 58 輪） | 選一張、按「複製到資料夾…」、Esc | 對話框寫「原檔不動」、焦點在對話框裡；Esc 後焦點回到按鈕 | E | #— |
+| SRCH-UI-028 | 放寬後也沒有照片時不說「下面是…」（回歸，驗證第 66 輪） | 放寬「玩水」、0 張；12 張 | 「沒有照片拍到「玩水」。」；有照片時照舊 | U | #— |
+| SRCH-UI-029 | 「可能相關」與張數分開（使用者決定 2026-11-12） | 0 張確定、2 張可能 | 「沒有確定符合的照片」；下面收起的「可能相關 2 張（不算在張數裡）」，點開兩張；照片在一般排版裡（回歸，驗證第 68 輪：全部疊成一張） | C | #— |
 | SRCH-SEM-001 | 以文搜圖 | `fb:vectors(deterministic)`：查詢向量與 `img:semantic` 中「狗 + 海灘」最近 | top-5 含全部 3 張目標；nightly 真 SigLIP2 英文查詢 `a dog on the beach` 的 recall@10 ≥ 0.8（**待 M0 確認**） | I/N | #64 |
 | SRCH-SEM-002 | Worker 離線降級 | 停止 worker | 文字搜尋照常；回應 `notice=degraded_search`；UI 顯示 | I | #64 |
 | SRCH-SEM-003 | 索引進度 | 30,000 張中 12,300 有向量 | UI「已可搜尋 12,300 / 30,000 張」；`SEARCH_INDEX_INCOMPLETE` warning | I/E | DoD 5.4 |
 | SRCH-SEM-004 | 過濾 + HNSW | 高選擇性 filter（剩 50 張）+ 向量查詢 k=24 | 回傳 min(24, 50) 筆（`iterative_scan` 或 pre-filter 策略），不因 HNSW 過濾而少回 | I | #64 |
 | SRCH-SEM-005 | 語意 + facet | 向量查詢 + 日期 facet | 結果全部符合 facet | I | DoD 5.4 |
 | SRCH-SEM-006 | review 修正後重索引 | 修正 tag 後 | 1 s 內（outbox）搜尋反映新 tag | I | #56 |
+| SRCH-SEM-007 | 較不相關的相似照片收在最後（回歸，驗證第 26 輪） | 只靠圖像向量找到、比最高分低 0.06 以上的照片 | 排在最後；回應 `weak`（張數）與 `weak_from`；畫面先收起，「顯示較不相關的 N 張」才顯示；靠文字或標籤找到的不算 | I/C | #— |
+| SRCH-SEM-007 | 空的 `degraded` 不顯示降級提示（回歸） | API 回傳 `degraded: []` 與 `["image_vector"]` | 只有後者顯示提示 | U | #24 |
+| SRCH-SEM-008 | 跨頁時才收起較不相關的照片（回歸，驗證第 27 輪） | `weak_from` 186，已載入 100 張 | 不收起，照常「載入更多」；載到 186 張時按鈕顯示並載入下一頁；超過才在 186 處收起 | C | #— |
+| SRCH-SEM-009 | 按一次就顯示全部較不相關的照片（回歸，驗證第 28 輪） | 按下「顯示較不相關的 27 張」，其中 14 張在下一頁 | 自動載入剩下的頁，直到全部顯示 | C | #— |
+| SRCH-SEM-010 | 先列出的照片不算較不相關（回歸，驗證第 39 輪） | 表情詞把 11 張開心的照片排在前面 | 這 11 張不收起；只有「只被圖像模型找到」的才可能較不相關 | U | #— |
 
 ---
 
@@ -760,6 +942,8 @@
 | E2E-L-001 | Lightbox 完整 | 點網格照片 → 縮放、平移 → ←/→ → filmstrip → `I` 資訊面板 | 先低解析再換高解析；前後預載（網路面板觀察）；資訊面板含 EXIF、AI 結果、模型名稱與 cascade 層 | E | #87、#88、#89、DoD 5.4 |
 | E2E-L-002 | 就地修正 | Lightbox 改類別 | toast「已記錄修正」；下一次整理計畫使用修正值 | E | #56、DoD 5.4 |
 | E2E-L-003 | 在檔案總管顯示 | desktop build（mock platform） | 呼叫 `platform.revealInFileManager(alias, rel)`；web build 隱藏按鈕 | E | #92 |
+| DESK-062 | 桌面版提供「在檔案總管中顯示」（回歸，驗證第 27 輪） | root alias + 相對路徑 | 只解析到 root 內存在的檔案（`..`、絕對路徑、NUL、連結逃逸都拒絕）；殼注入 `revealInFileManager`，Windows 以 explorer /select 開啟 | U | #92 |
+| DESK-063 | 檔案總管會選取那張照片（回歸，驗證第 28 輪） | canonicalize 後的 `\\?\C:\…`、`\\?\UNC\…` | 交給檔案總管前改成一般路徑 `C:\…`、`\\nas\…` | U | #92 |
 | E2E-SEL-001 | ⌘A 選全部結果 | 搜尋結果 3,214 張（只渲染一部分）→ ⌘A | 批次列顯示「已選 3,214 張」；送出的 selection 為 query handle 而非 ID 清單 | E | #91、DoD 5.4 |
 | E2E-SEL-002 | 批次動作 → 計畫 | Shift 範圍選 37 張 → 標籤、類別、「移到資料夾」 | 前兩者寫 review；後者產生 output plan 並導到核准頁 | E | #55、DoD 5.4 |
 
@@ -778,6 +962,48 @@
 | VIEW-009 | 時間軸 API | 10 萬張 DB | `timeline/buckets` < 50 ms；單 bucket（≤ 5,000）< 80 ms | F | #85 |
 | VIEW-010 | 記憶體預算 | 10 萬張捲動 3 分鐘 + 開 Lightbox 20 次 | 已解碼影像估算 ≤ 512 MB（CDP heap + ImageBitmap 計數） | F | #85 |
 | VIEW-011 | 資訊面板資料 | 某照片有 EXIF、AI 結果 | 欄位齊全；AI 欄位附模型與 `source`；無 GPS 時不顯示地點（不編造） | U | #89 |
+| VIEW-012 | 不存在的 API 路徑不會回網頁（回歸） | web build 掛在 `/`；`/api/v1/nope`、多層路徑、`/worker-api/…`、`/mcp/…`；用戶端路由含有點的資料夾 | API 路徑回 404，內容不是 index.html；`/review/v1.2/abc` 仍回 index.html（Windows 上 StaticFiles 給的是 `api\\v1\\nope`，曾對每個未知路徑回 200 與 HTML） | I | Windows |
+| VIEW-020 | 資訊面板只列目前的分析（回歸，驗證第 1 輪） | 同一張有 3 筆結果（不同模型或設定） | 只顯示最新一筆的類別與信心；較早的收在預設關閉的「之前的分析（2）」 | C | #— |
+| VIEW-021 | 照片中的人物 | 已分群並命名；之後忽略此人 | `/assets/{id}` 帶 `people`；面板列出名字（未命名顯示「未命名」），點了開啟該人物；人臉功能關閉或被忽略時不列 | C/I | #78 |
+| VIEW-022 | 縮圖尺寸依 tile 長邊與螢幕密度（回歸，驗證第 1 輪） | 180×200@1x、480×240@1x、200×200@2x、600×300@2x | t256、t512、t512、t512（網格最大 512，守 VIEW-010 記憶體） | U | #— |
+| VIEW-023 | 月內依日期分段（回歸，驗證第 1 輪） | 同月兩天：2 張與 4 張 | 每天一個標題（例「11月7日 週五」），標題緊貼該天第一列，沒有一列混兩天；高度為最後一列底部 | U | #— |
+| VIEW-024 | 檔案位置不重複、單張不顯示左右鍵（回歸，驗證第 2 輪） | 同一檔案經兩個巢狀來源各一筆位置；只有一張的檢視 | 路徑只列一次；只有一張時沒有 ‹ › | C | #— |
+| VIEW-025 | 照片中的人物有臉（回歸，驗證第 2 輪） | 一張照片裡有一個已分群的人 | `/assets/{id}` 帶 `people_faces`（此照片中每人的 bbox）；面板的人物 chip 顯示臉部頭像與名字 | I/C | #78 |
+| VIEW-026 | 在照片上標出人臉（回歸，驗證第 3 輪） | 4:3 照片置中在 1000×500 的舞台 | 框落在照片實際繪製的範圍內（等比例置中換算）；資訊面板開著、未縮放時顯示名字或「未命名」，點了到該人物 | U | #78 |
+| VIEW-027 | 資料夾沒開人臉辨識時說明（回歸，驗證第 5 輪） | 人臉功能開著但只限其他資料夾 | `/assets/{id}` 的 `faces_state` 為 folder_off（開著的為 on，全關為 off）；資訊面板說明原因並連到人臉設定 | I/C | #78 |
+| VIEW-028 | 有臉但沒有人物時說明原因（回歸，驗證第 6 輪） | 團體照的臉都太小或只出現一次 | `/assets/{id}` 的 `faces_found` 為 {total, small}（不屬於任何人物的臉）；資訊面板說明找到幾張臉、幾張太小、其餘的人出現次數不夠，還沒分成人物 | I/C | #78 |
+| VIEW-029 | 不屬於任何人物的臉也框出來（回歸，驗證第 7 輪） | 團體照的臉都不屬於人物 | `/assets/{id}` 的 `unknown_faces` 列出 bbox 與 small；資訊面板開著時以虛線框標出，太小的用更淡的框；全都太小時說明不提「其餘的人」 | I/C | #78 |
+| VIEW-030 | AI 結果的細節收合（回歸，驗證第 7 輪：像開發者畫面） | 資訊面板 | 一眼看到分類；信心、判斷依據、模型收在「判斷細節」 | C | #— |
+| VIEW-031 | 臉的說明簡短（回歸，驗證第 9 輪：一長串灰字） | 照片有不屬於人物的臉 | 一行「N 張臉還沒分成人物 · 為什麼？」，展開才看原因 | C | #78 |
+| VIEW-032 | 在照片上替還沒分組的臉命名（回歸，驗證第 11 輪） | 只出現一次的臉 | 資訊面板列出能辨識的臉（太小的不列）與「這是誰？」；`POST /faces/{id}/name` 用這個名字建立或併入人物並確認這張臉 | I/C | #78 |
+| VIEW-033 | 命名列好用（回歸，驗證第 12 輪：擠在一起） | 3 張臉其中 1 張太小 | 一臉一列、「這是誰？」不折行、名字欄有提示文字；說另有幾張太小；滑過一列時照片上那張臉的框亮起 | C | #78 |
+| VIEW-034 | 「這是誰？」先列 4 張（回歸，驗證第 13 輪） | 7 張可命名的臉 | 先列 4 列，「再顯示 3 張」展開 | C | #78 |
+| VIEW-035 | 放大時換上 2048 預覽（回歸，驗證第 38 輪） | Lightbox 放大超過 1 倍 | 第一次要求時由 Worker 產生 p2048（API 不開原檔），之後從快取提供；畫面疊在 p1024 上 | I/C | #— |
+| VIEW-036 | 一張照片只有一個預覽工作；失敗記住（安全審查） | 連續要求沒有 p2048 的照片；預覽失敗 | 只建立一個 worker 工作，其他要求等同一個；失敗後不再要求 | I | #— |
+| VIEW-037 | 時間軸選取的規則（驗證第 50 輪） | Ctrl 點選、Shift 點選（往前與往後）、再點一次 | 切換一張；從上一張選的到這一張；錨點不在已載入的照片時只選這一張 | U | #— |
+| VIEW-038 | 時間軸多選與批次（驗證第 50 輪：時間軸無法多選） | Ctrl 點一張、Shift 點第三張、選取中點一下、Space、★、Esc | 不開啟燈箱；已選 3 → 2 → 3 張；一次加入收藏 3 張；Esc 清除，之後點一下開啟 | E | #— |
+| VIEW-039 | 燈箱幻燈片（驗證第 50 輪：沒有幻燈片） | 按「幻燈片」或空白鍵；等 4 秒；到最後一張；按 ← | 每 4 秒下一張；最後一張停住；手動切換就停止 | C | #— |
+| VIEW-040 | 燈箱快捷鍵清單（驗證第 50 輪：沒有「?」） | 按「?」或按鈕；在清單裡按 Esc | 列出 ← → 空白鍵 F R I + − 0 Esc；Esc 只關清單，燈箱仍開著 | C | #— |
+| VIEW-041 | 取消選取後焦點回到照片（回歸，驗證第 51 輪） | 選一張後按 Esc，或按「取消選取」 | 焦點回到那張照片，方向鍵仍可移動 | E | #— |
+| VIEW-042 | Ctrl+A 選取整個圖庫的規則（驗證第 52 輪） | 全選後點一張、再點一次 | 全選時取消那張、張數為全部減去取消的；再點一次選回 | U | #— |
+| VIEW-043 | 時間軸 Ctrl+A 與 Shift+方向鍵（回歸，驗證第 52 輪：Ctrl+A 反白整頁文字、Shift+方向鍵不延伸） | 30 張的圖庫：Ctrl+A、點一張、Esc；Ctrl 點一張後 Shift+→ 兩次 | 已選 30 → 29 張、頁面沒有反白；已選 3 張、焦點在第三張 | E | #— |
+| VIEW-044 | 照片頁任何地方 Ctrl+A 都是全選；Shift+← 縮回（回歸，驗證第 53 輪） | 焦點在側欄時按 Ctrl+A；選 3 張後 Shift+← | 已選 30 張、沒有反白；已選 2 張、焦點在第二張、第三張未選 | E | #— |
+| VIEW-045 | Shift 範圍從錨點算起（驗證第 54 輪） | 開始前已選 p1；錨點 p5，到 p7、p6、p4 | {p1,p5,p6,p7}、{p1,p5,p6}、{p1,p4,p5}；錨點不變 | U | #— |
+| VIEW-046 | Shift 範圍越過起點往回；燈箱裡 Ctrl+A（回歸，驗證第 54 輪：[4,5,6] 而不是 [4,5]） | 選第 4 張，Shift+→、Shift+←、Shift+←；燈箱裡按 Ctrl+A | 已選 2 張（第 3、4 張），第 5 張未選；頁面沒有反白 | E | #— |
+| VIEW-047 | 燈箱的 Delete 鍵（驗證第 61 輪：沒有快捷鍵） | 燈箱裡按 Delete；按 ? | 為這張照片建立移到垃圾桶的計畫（不直接移動）；快捷鍵清單有「Delete 移到垃圾桶」 | C | #— |
+| VIEW-048 | 時間軸多選列的「複製到資料夾…」（回歸，驗證第 61～63 輪：只有搜尋有） | 選一張 → 複製到資料夾… → 建立計畫 | 對話框寫原檔不動；打開計畫頁、可核准 | E | #— |
+| VIEW-049 | 窄視窗時側欄是抽屜（回歸，驗證第 83 輪：420 px 側欄不收、搜尋框成空白方塊） | 按「選單」；Esc；換頁 | 開；關；關。寬度 ≤ 720 px 時側欄收起、頂列只留選單、搜尋、問 AI、活動 | C | #— |
+| VIEW-050 | 抽屜與鍵盤（回歸，驗證第 84 輪：關著的連結吃掉 12 次 Tab、焦點掉到 BODY、放寬視窗版面壞掉） | 開、Esc、點目前這頁、視窗變寬 | 焦點進第一個連結；回到「選單」；關；關。關著時連結不在 Tab 順序（visibility） | C | #— |
+| VIEW-051 | 開著的抽屜留住焦點（回歸，驗證第 85 輪） | 在最後一個連結按 Tab；在第一個按 Shift+Tab | 回到第一個；到最後一個 | C | #— |
+| VIEW-052 | 燈箱裡看一張照片的近似重複（回歸，驗證第 87 輪） | 有 2 張近似重複的照片 | 「另有 2 張近似重複」打開那一組；「返回全部照片」回到原處，焦點在燈箱，按鍵仍有效（第 88 輪） | C | #— |
+| VIEW-053 | 在近似重複裡按 Esc 回到原本那張照片的位置（回歸，驗證第 88 輪：格子跳回第一張） | 打開一組、看第 2 張、Esc | onClose 帶原本那張照片的 id | C | #— |
+| VIEW-054 | 視窗標題跟著頁面；換頁後焦點到頁面標題（回歸，驗證第 89 輪） | / → /explore | 「分類 — OpenPhotoAgent」；焦點在 h1；窄視窗的抽屜開著時是 role=dialog、aria-modal | C | #— |
+| VIEW-055 | 近似重複群組裡的位置寫「近似重複 第 n 張」（驗證第 89 輪） | 打開一組 | 「近似重複 第 1 張，共 3 張」 | C | #— |
+| VIEW-056 | 換頁時等新頁面的標題再移焦點；視窗標題用它的文字（回歸，驗證第 90 輪：焦點到將被移除的舊標題） | /explore → /search，舊 h1 稍後才被換掉 | 焦點在新 h1；「2026 的手工 — OpenPhotoAgent」 | C | #— |
+| VIEW-057 | 重新整理後第一頁的標題稍後才畫出，也記得它；標題文字之後才變好，視窗標題跟著變（回歸，驗證第 91 輪：0/33） | 先掛 hook 再畫第一頁 h1；換頁；新 h1 文字更新 | 焦點在新 h1；視窗標題用更新後的文字 | C | #— |
+| VIEW-058 | 到人物以外的頁面就忘了上次看的人（回歸，驗證第 94～95 輪：從側欄進人物，焦點到上次看的卡片） | /people/p1 → /explore | 記錄被清掉；回到牆時焦點到標題 | C | #— |
+| VIEW-059 | 頁面自己把焦點放進內容時不被標題搶走；只換查詢的網址也更新視窗標題（回歸，驗證第 96 輪：回人物牆焦點被標題搶走；主題頁上一頁標題沒更新） | 回到人物牆，卡片先拿焦點；/search 只換查詢 | 焦點留在卡片；視窗標題跟著 h1 | C | #— |
+| VIEW-060 | 沒有標題的頁面，視窗標題是頁面名稱；照片頁有隱藏的標題（回歸，驗證第 104 輪：回到照片標題還是相簿） | /albums → /，舊 h1 移除 | 「照片 — OpenPhotoAgent」 | C | #— |
 
 ### 12.5 PERF、A11Y、VIS、I18N
 
@@ -790,7 +1016,8 @@
 | PERF-005 | 推論吞吐基準 | 三台參考機、測試圖庫子集 1,000 張 | 記錄張/秒、VRAM、載入時間；回歸 > 10% 警示、> 20% 失敗；寫入 release notes | N | DoD 5.5 |
 | PERF-006 | 搜尋延遲 | 10 萬張，文字 + facet | p95 < 300 ms | F | DoD 5.4 |
 | PERF-007 | 暖啟動 | 桌面（Win／Linux tauri-driver） | < 5 s 可操作 | D/F | #3、DoD 5.1 |
-| PERF-008 | 釋放後的 app 不會留在記憶體（回歸） | 建立數個 `create_app`、放掉參考、`gc.collect()` | 不留下任何 FastAPI app 或 engine（端點不得是捕捉 app 的 closure，FastAPI 會把端點 callable 放在模組層級的快取裡）；這個洩漏曾讓長時間的測試行程 GC 變慢，VIEW-009 因此不穩 | I | DoD 5.4 |
+| PERF-008 | 釋放後的 app 不會留在記憶體（回歸） | 建立數個 `create_app`、放掉參考、`gc.collect()` | 不留下任何 FastAPI app 或 engine（端點不得是捕捉 app 的 closure，FastAPI 會把端點 callable 放在模組層級的快取裡）；這個洩漏曾讓長時間的測試行程 GC 變慢（洩漏已修正；VIEW-009 剩下的不穩定來自與整合測試共用行程，見 PERF-009） | I | DoD 5.4 |
+| PERF-009 | Python 效能測試不與整合測試共用行程（回歸） | `just test-int` 與 ci.yml 整合 job 的 `-m` 選擇式；`just perf-api` 與 CI 效能步驟 | 整合選擇式收集不到任何 `perf` 測試；獨立的效能呼叫一定會收集到 VIEW-009 與 PF-075（ADR-0018） | C | DoD 5.4 |
 | A11Y-001 | axe 全路由 | onboarding、照片、Lightbox、整理精靈、計畫核准、待確認、模型、環境醫生、Activity Center、設定 × light/dark × zh-TW/en | axe 0 serious／critical | A | #11、DoD 5.4 |
 | A11Y-002 | 網格語意 | 照片網格 | `role=grid/row/gridcell`；roving tabindex；`aria-rowcount`／`aria-rowindex` | A | #90 |
 | A11Y-003 | Lightbox | 開啟／切換 | `role=dialog aria-modal`；切換時 `aria-live` 播報「第 12 張，共 312 張」 | A | #90 |
@@ -800,6 +1027,8 @@
 | VIS-001 | 元件視覺回歸 | Storybook：OperationProgress、ReadinessChecklist、CompatBadge、GatedButton、ProblemCard | light/dark 快照，差異 > 0.1% 失敗（只在 Linux Chromium、字型釘選） | V | — |
 | VIS-002 | 頁面視覺回歸 | 10 個主要路由 × light/dark × zh-TW/en | Playwright `toHaveScreenshot`；動態區域（時間、ETA）遮罩 | V | #11 |
 | VIS-003 | 每個錯誤碼一個 story | 自動產生 | story 數 = 錯誤碼目錄數；每個都有快照 | V/C | #27 |
+| VIS-004 | 視覺基準只在釘選的 Playwright 映像算繪 | 所有 workflow | 跑 `visual` project 的 job 一律在 `mcr.microsoft.com/playwright:v<@playwright/test 版本>-noble`；nightly 與 `visual-baselines.yml` 都有；PR 的 `e2e-smoke` 只跑 `chromium` project（ADR-0019） | C | #85 |
+| VIS-005 | E2E 畫面不受執行機器影響（回歸） | 以不同的主機剩餘磁碟空間（0.5 GB、5 GB、2000 GB）產生 E2E stack 的 doctor 報告 | 三份報告除了時間欄位外完全相同，`disk.models` 為正常（曾因開發容器剩不到 20 GB，讓 VIS-002 的 doctor 快照多出警告） | U | #85 |
 | I18N-001 | 無缺漏 key | 比對 zh-TW 與 en key 集合 | 完全相同；無空字串 | C | #11、DoD 5.4 |
 | I18N-002 | 無硬編碼字串 | ESLint `i18next/no-literal-string`（JSX 文字） | 0 違規（allowlist 除外） | C | #11 |
 | I18N-003 | 數字與複數 | 1 photo／2 photos；「1,284 張」 | ICU MessageFormat 正確；`tnum` | U | #11 |
@@ -845,19 +1074,41 @@
 | DESK-027 | Python 隔離 | 設使用者 `PYTHONPATH`、`PYTHONHOME`、site-packages 放惡意 `json.py` | `python -I` 不載入；app 正常 | S | — |
 | DESK-028 | 版本一致 | 手動替換 worker 版本 | 啟動時偵測不一致並提示 | U | — |
 | DESK-029 | 解除安裝保留資料 | NSIS 解除安裝（預設選項）；macOS 拖垃圾桶；deb remove | 照片、輸出資料夾、data dir 皆保留；有 `.opagent-trash/` 檔案時先提示（`GET /trash/summary`） | M/D | #10 |
-| DESK-030 | 安裝包大小 | CI 產物 | 三平台壓縮後各 ≤ 200 MB（硬上限）；超過則 build 失敗 | C | #1、DoD 5.1 |
+| DESK-030 | 安裝包大小 | CI 產物：每個平台產出的每一種安裝包（Windows NSIS、macOS dmg、Linux AppImage 與 .deb） | 壓縮後各 ≤ 200 MB（硬上限）；超過則 build 失敗（ADR-0022） | C | #1、DoD 5.1 |
 | DESK-031 | 一般使用者安裝 | 乾淨 VM：Win 11（標準帳號）、macOS 14、Ubuntu 22.04 | 安裝並啟動成功，不需 UAC／sudo | M/D | #1、DoD 5.1 |
 | DESK-032 | capabilities 驅動 UI | `GET /capabilities` 回 `single_user=true` | UI 無 Org／Workspace 選單、無 Workers 頁 | E | #8、DoD 5.1 |
 | DESK-033 | Photos Library 選擇提示 | macOS 選 `Photos Library.photoslibrary` | 顯示封裝格式說明 | D/M | #54 |
 | DESK-034 | 桌面煙霧總表 | Win、Linux：tauri-driver + WebdriverIO；macOS：手動清單 | 啟動 → onboarding（FakeBackend 模式）→ 依日期整理 → undo → 搜尋 → 結束，全程無錯誤 | D/M | DoD 5.5 |
 | DESK-035 | `run/api.json` 出現時 port 已在 listen（回歸） | 啟動 api，偵測到 `run/api.json` 後立即連線，重複 5 次 | 每次都連得上；port 由同一個已 bind 的 socket 提供（沒有「檢查空閒 → 稍後 bind」的競態） | I | #8 |
 | DESK-036 | 桌面傳輸與媒體解析（10 §5.4） | 殼注入 `__OPA_PLATFORM__`（backend `{baseUrl, token}`、`thumbsDir`、`assetUrl`） | REST 改打 `baseUrl` 並帶 `Bearer`；事件流以 fetch 讀 SSE 並帶 token；縮圖 URL＝`assetUrl(<thumbsDir>/<ch[:2]>/<ch>.<variant>.webp)`；影像 payload（時間軸、搜尋、待確認、預覽）都帶 `ch`；Web build 行為不變 | U/I | #8、#93 |
+| DESK-037 | AppImage 不含 WebKitGTK（08 §4.1，ADR-0022） | 精簡後的 AppDir；desktop-build 對實際產物重新解開後檢查 | 不含系統 `libwebkit2gtk-4.1` 的函式庫閉包、GTK hook 與模組；app 自己的資源樹（pg pack、Python）與系統匣函式庫保留 | U/C | #1、DoD 5.1 |
+| DESK-038 | AppRun preflight：缺少 WebKitGTK | AppRun hook，函式庫搜尋路徑中沒有／有 `libwebkit2gtk-4.1.so.0` | 沒有：停止啟動，以 `DESK_WEBVIEW_MISSING` 顯示雙語原因與修復（文字取自 packages/i18n）以及 apt／dnf／pacman 安裝指令；有：不輸出任何東西並繼續啟動 | U | #1、#8 |
+| DESK-039 | 隨附的 Python runtime 自給自足（回歸，ADR-0022） | 建置 runtime，複製到另一個路徑，以空環境 `-I` 執行 | 樹中沒有指向外部的 symlink、內含標準函式庫、`pyvenv.cfg` 不指向建置機；`encodings`、`ssl`、`sqlite3`、`opagent_cli`、`opagent_api` 都能 import；desktop-build 對實際產物再跑一次 | I/C | #1、DoD 5.1 |
+| DESK-040 | app 資料隨 runtime 安裝（回歸，ADR-0022） | 在搬移後的 runtime 中，以 app 自己的載入函式讀取模型 registry、內建整理方式、zh-TW 標籤、標籤詞彙與搜尋詞彙，並稽核每一次開檔 | 每一項都非空；所有開啟的檔案都在 runtime 內（不得讀取建置機的 repo） | I/C | #1、DoD 5.1 |
+| DESK-041 | 程式碼不以原始碼樹的相對路徑找資料（ADR-0023） | 掃描 `apps/*/src`、`packages/*/src` | 沒有 `Path(__file__).parents[N]`；例外只有 opagent_testing 與三個只供測試使用的 fixture 定位（各附理由） | C | #1 |
+| DESK-042 | runtime 來源一定是 uv 管理的直譯器（回歸，ADR-0023） | 在以系統 Python 建立、已啟用的 venv 中解析 runtime 來源 | 回傳的 prefix 位於 `uv python dir` 之下（CI 曾把 venv 背後的 `/usr` 當成來源而整個複製） | I | #1 |
+| DESK-043 | 殼與 CLI 的資料目錄一致（回歸） | 三個 OS 的環境變數組合、`OPAGENT_HOME`、空值 | 與 08 §1.5 及 `paths.py` 相同（Linux 為小寫） | U | #8 |
+| DESK-044 | 新增來源的別名規則（回歸） | 含空白、數字開頭、非 ASCII、超長資料夾名；同一資料夾兩次；名為 sorted | 別名符合 `[a-z][a-z0-9_-]{0,31}`；同資料夾只一個 root，rw 只升不降；輸出別名保留 | U | 不變量 2 |
+| DESK-045 | 首次啟動建立輸出資料夾（回歸） | 全新 data dir；使用者之後刪除該 root | 建立 `Pictures/OpenPhotoAgent` 並登記為 `sorted`（rw）；之後不再自動加回；Windows 路徑與逗號不會破壞清單 | U | DoD 5.3 |
+| DESK-046 | sidecar 輸出落地到 log（回歸） | 超過大小上限後重啟 | 啟動時輪替、保留 5 份；`shell.log` 為 JSON lines | U | 08 §1.5 |
+| DESK-047 | 啟動畫面與啟動失敗頁（回歸） | 後端未就緒；`shell_status` 回報 fatal；就緒後 reconnecting | 顯示啟動中而非空白；失敗時顯示代碼、細節、log 位置與複製診斷；重新連線時保留畫面 | U | #8、DESK-001 |
+| DESK-048 | 桌面版用系統對話框新增來源（回歸） | 桌面點「加入資料夾」；取消；Web build | root 出現後可選；取消無變化；Web build 沒有此按鈕 | U | 不變量 2 |
+| DESK-049 | 隨附路徑不帶 `\\?\` 前綴（回歸） | Tauri 回傳 verbatim 的 resource 路徑 | 傳給子進程的是一般路徑（initdb 才找得到 postgres） | U | DESK-034 |
+| DESK-050 | 桌面視窗可以呼叫 API（回歸） | 來源 `http://tauri.localhost` 的 preflight、帶 token 與不帶 token 的請求；其他來源 | preflight 204 不需 token；回應帶 `Access-Control-Allow-Origin`，不帶 credentials；其他來源一律沒有 CORS 標頭 | I | #8 |
+| DESK-051 | 安裝包內含 llama-server（回歸） | `tools/build_desktop_llama.py` 的檔案篩選、釘選雜湊、tauri 資源 | 只留 server 與其函式庫；三平台都有 sha256；資源已列入 | U | #15、08 §4.1 |
+| DESK-052 | spawn 的子進程不重跑 CLI（回歸） | 以 `__mp_main__` 匯入 `opagent_cli.__main__` | 不呼叫 `main()`；以 `__main__` 執行時才呼叫 | U | DL-*、#15 |
+| DESK-053 | 監看父進程時仍能產生子進程（回歸） | 監看 stdin 的 sidecar 以 spawn 開子進程，再關閉 stdin | 子進程正常回應；sidecar 在 stdin 關閉後結束 | I | DL-*、DESK-006 |
+| DESK-054 | CI 真的安裝並啟動安裝版（回歸） | `desktop-build.yml`：NSIS 靜默安裝後跑 `tools/desktop_smoke.py` | API 健康、worker 註冊、log 沒有 Traceback／ImportError；提早結束視為失敗 | U＋CI | DoD 5.1 |
+| DESK-055 | worker 比頁面晚註冊（回歸） | 全新安裝，頁面先開、worker 之後才註冊 | 推薦仍會載入，不卡在「正在檢查你的電腦」 | U | #15 |
+| DESK-056 | 內建 Administrator 帳號的 ACL 回讀（回歸） | DACL 以 `LA` 別名列出 RID 500 帳號 | 視為本人；其他 SID 不算 | U | Windows |
+| DESK-060 | 秘密檔案從第一個 byte 起就是 owner-only（回歸，ADR-0024） | 上層資料夾權限寬鬆（Windows：Authenticated Users 可修改）；寫入、取代舊檔、寫入失敗；以 `icacls /save` 與 `whoami` 獨立檢查 | POSIX 為 0600；Windows 為受保護的 DACL，只有目前使用者與 SYSTEM；寫入第一個 byte 前就成立；失敗時舊檔不變、不留暫存檔 | U | #8 |
+| DESK-061 | 既有檔案與資料夾收緊為 owner-only（回歸，ADR-0024） | 寬鬆的既有檔案與資料夾；新檔放進私有資料夾；不支援 ACL 的磁碟區；ACL 沒有生效 | POSIX 為 0600／0700；Windows 同 DESK-060，資料夾的項目可繼承；不支援 ACL 時照寫並記錄 `SECRET_UNPROTECTED_VOLUME`；支援 ACL 卻沒生效時拒絕（不留下秘密或暫存檔） | U | #8 |
 
 ### 13.2 PG：嵌入式 PostgreSQL 17 + pgvector（08 §2.3）
 
 | ID | 標題 | 前置／輸入 | 預期 | 層 | # |
 |----|------|-----------|------|----|---|
-| PG-001 | initdb | 全新 data dir | `--locale-provider=builtin --locale=C.UTF-8 -E UTF8`；第二次啟動不重跑 | I | #4 |
+| PG-001 | initdb | 全新 data dir | `-E UTF8 --locale-provider=builtin --builtin-locale=C.UTF-8 --locale=C`（PG 17）：`pg_database` 的 `datlocprovider = 'b'`、`datlocale = 'C.UTF-8'`、`datcollate = datctype = 'C'`；`server_encoding = UTF8`；`upper('é') = 'É'`（C.UTF-8 的 Unicode ctype，不是 ASCII-only 的 C）；排序為 code point（`'B' < 'a' < 'é'`）；第二次啟動不重跑 initdb（ADR-0020） | I | #4 |
 | PG-002 | pgvector 煙霧 | 三平台 | `CREATE EXTENSION vector`、建 HNSW、kNN 查詢結果正確 | I | #4 |
 | PG-003 | desktop profile | RAM 8 GB 與 32 GB 的 FakeRAM | `shared_buffers` 128MB／256MB；`fsync=on`、`synchronous_commit=on` | U/I | #4 |
 | PG-004 | migration 前備份 | 有待執行 migration | 先產生 `pg_dump -Fc` 備份再 `alembic upgrade` | I | #4、DoD 5.1 |
@@ -871,6 +1122,15 @@
 | PG-012 | socket 與權限 | mac／linux | `listen_addresses=''`；socket 目錄 0700；Windows 為隨機 port + SCRAM 隨機密碼檔 0600 | S | #8 |
 | PG-013 | 測試 fixture 速度 | `embedded_pg` session 級 initdb + 每測試 template clone | clone < 200 ms；三平台 CI 可用（macOS runner 無 Docker） | I | DoD 5.5 |
 | PG-014 | Docker parity | Linux：testcontainers `pgvector/pgvector:pg17` | 同一組 migration 與 Q-* 整合測試全過 | I | #2 |
+| PG-015 | 用到真 PostgreSQL 的測試一律是 integration（回歸） | 只標 `security`／`property`、或沒有標記，但使用 `embedded_pg` 的測試 | 快速選擇式（`just test`、CI unit-py）收集不到；`-m integration` 收集得到（CI unit-py 沒有 PostgreSQL，曾有 63 個這類測試在那裡出錯） | C | #2 |
+| PG-016 | 桌面 initdb 只用每個 OS 都有的 locale（回歸） | PG 17、`desktop=True`；`tools/build_desktop_pg.sh` 的 smoke | `--locale-provider=builtin --builtin-locale=C.UTF-8 --locale=C`；不得有 `--locale=C.UTF-8`（只有 Linux 有，macOS 與 Windows 的 initdb 會拒絕） | U | #4 |
+| PG-017 | Windows 桌面 PG 走 127.0.0.1＋SCRAM（回歸） | `desktop=True`、`transport=tcp` | 只聽 127.0.0.1；錯誤密碼被拒；密碼只在 passfile，不在 DSN／argv；`.pw-initdb` 不殘留 | I | #8 |
+| PG-018 | 桌面 port 跨 postmaster 重啟不變（回歸） | 連續兩次 `prepare()`；存下的 port 被別的程式佔用 | 相同 port（api 的 DSN 仍有效）；被佔用時換新 port | U | DESK-002 |
+| PG-019 | 存活檢查不對進程送訊號（回歸） | Windows：`os.kill` 被禁止；活著的非 postgres 進程與已結束的 pid | 都回 False，進程不受影響 | I | Windows |
+| PG-020 | 等 postmaster 啟動完成（回歸） | 建庫時 postmaster 1 秒後才起來 | 重試到連上，不崩潰 | I | DESK-034 |
+| PG-021 | 桌面 profile 讀到真實 RAM（回歸） | Windows：與 `Win32_ComputerSystem.TotalPhysicalMemory` 比對 | 誤差 ≤ 1%（`os.sysconf` 在 Windows 不存在，曾一律回傳 8.0 GB，每台 Windows 都拿到小筆電的 `shared_buffers`） | U | #4 |
+| PG-022 | SCRAM 密碼檔是 owner-only（回歸，ADR-0024） | 資料夾權限寬鬆；`.pw-initdb` 與 `pgpass` | 兩者都符合 DESK-060 的 owner-only（Windows 上 `os.open(..., 0o600)` 沒有作用，其他本機使用者曾可讀取 TCP 資料庫的密碼） | I | #8 |
+| PG-023 | 開發 profile 在每個 OS 都能啟動（回歸） | 非桌面的 `EmbeddedPg`；路徑含空白 | 可連線（`pg_ctl -o` 由 shell 解析，POSIX 引號在 cmd.exe 會留在字串裡，`opagent dev` 與 e2e stack 曾無法啟動） | I | #4 |
 
 ### 13.3 PACK：Runtime pack 驗證（08 §4.3）
 
@@ -901,4 +1161,11 @@
 | DOCK-001 | Docker all-in-one | `docker compose -f deploy/compose/allinone.yml up` | 健康檢查通過；Playwright 完成 onboarding 與一次「依日期」整理 | E | #2、DoD 5.1 |
 | DOCK-002 | 同一份 web build | 比對 Docker 映像內與桌面 bundle 內的 web 資產 hash | 相同（`vite build --mode` 僅影響 runtime 設定檔） | C | #2 |
 | DOCK-003 | 來源唯讀掛載 | compose 以 `:ro` 掛來源 | 嘗試寫入失敗於 OS 層（雙重保護） | I/S | — |
+| DOCK-004 | 映像內含執行時讀取的資料（回歸） | 依 Dockerfile app stage 的 COPY 重建 `/app` | 只靠這個目錄樹就能載入 registry（含 SigLIP2）、內建 presets、hw profiles、FakeBackend 向量；第一次 docker.yml 因缺 `registry/` 而 job.start 回 500 | C | #2 |
+| TCS-001 | coverage-status 一致性檢查（回歸） | 提交的檔案含 nightly／visual 證據，CI 只有 PR 層結果 | `tc_status.py --verify` 通過（舊的逐位元比對永遠不會通過，ADR-0021） | C | — |
+| TCS-002 | CI 為紅或部分時不得隱藏 | CI 紅／部分，檔案寫綠／部分／未開始 | 失敗並指出該 ID | C | — |
+| TCS-003 | 綠必須有對應的測試 | 檔案寫綠，但 inventory 沒有測試，或只有 CI 沒回報的 PR 層測試 | 失敗 | C | — |
+| TCS-004 | 明細與摘要必須由規格產生 | 改動標題、版本、ID 集合或摘要數字 | 失敗 | C | — |
+| TCS-005 | 比 CI 保守只警告；nightly 證據在 strict 模式才失敗 | CI 綠但檔案未開始；nightly 紅但檔案綠 | 警告；`--strict-nightly` 時失敗 | C | — |
+| TCS-006 | 未登記的 ID 會失敗 | CI 結果或 inventory 出現 09a／09b 沒有的 ID | 失敗 | C | — |
 

@@ -92,6 +92,15 @@ def mcp_settings(c: Any) -> Settings:
     return Settings(**known)
 
 
+def mcp_enabled(st: AppState) -> bool:
+    with st.engine.begin() as c:
+        return mcp_settings(c).enabled
+
+
+def disabled_response() -> JSONResponse:
+    return JSONResponse(status_code=403, content={"code": "MCP_DISABLED", "message": "這個工作區已關閉 MCP 伺服器"})
+
+
 def _rpc_error(rid: Any, code: int, message: str, data: Any = None) -> dict[str, Any]:
     err: dict[str, Any] = {"code": code, "message": message}
     if data is not None:
@@ -132,6 +141,8 @@ async def rpc(req: Request) -> Any:
     from starlette.concurrency import run_in_threadpool
 
     st: AppState = req.app.state.opa
+    if not await run_in_threadpool(mcp_enabled, st):  # before the credential: says nothing about tokens (PF-060)
+        return disabled_response()
     tok = _auth(st, req)
     if tok is None:
         return JSONResponse(

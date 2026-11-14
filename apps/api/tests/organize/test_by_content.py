@@ -69,7 +69,7 @@ def test_org_002_every_photo_exactly_one_destination(embedded_pg, sandbox_tree, 
         "人物",
         "風景",
         "美食",
-        "寵物",
+        "動物",
         "文件與截圖",
         "旅行",
         "活動",
@@ -174,7 +174,7 @@ def test_rev_003_skip_rest_to_other(embedded_pg, sandbox_tree, tmp_path):
     j = client.get(f"/api/v1/jobs/{j['id']}").json()
     acts = _plan(client, j)["actions"]
     folders = sorted(a["dst_rel"].split("/")[0] for a in acts)
-    assert folders.count("其他") == 11 and folders.count("寵物") == 1
+    assert folders.count("其他") == 11 and folders.count("動物") == 1
 
 
 @pytest.mark.integration
@@ -205,7 +205,7 @@ def test_org_010_inline_correction_feeds_back(embedded_pg, sandbox_tree, tmp_pat
     assert r.status_code == 200 and r.json()["review"]["status"] == "corrected"
     j2 = _job(client, w, src)
     act = next(a for a in _plan(client, j2)["actions"] if a["asset_id"] == aid)
-    assert act["dst_rel"].startswith("寵物/")
+    assert act["dst_rel"].startswith("動物/")
     eng = engine_for(embedded_pg.dsn)
     with eng.begin() as c:
         cat = c.execute(text("select category from search_doc where asset_id = :a"), {"a": aid}).scalar_one()
@@ -311,3 +311,92 @@ def test_desk_023_job_waits_on_battery_and_continues_on_mains(embedded_pg, sandb
     power.on_ac = True  # plugged back in: continues by itself
     _drain(w)
     assert client.get(f"/api/v1/jobs/{j['id']}").json()["status"] == "awaiting_approval"
+
+
+@pytest.mark.integration
+@pytest.mark.tc("INF-CAS-018")
+def test_inf_cas_018_a_vlm_timeout_is_retried_not_kept_as_other(embedded_pg, sandbox_tree, tmp_path):
+    """回歸 (reference machine): with the GPU shared, 107 photos timed out in the VLM; each was stored as the
+    embedding's guess (other, 0.2) under the normal cache key, so analysing again only brought the same answer back."""
+    _photos(sandbox_tree.photos, "t", 4)
+    vlm = FakeBackend(vlm_p=0.9)
+    vlm.inject("TIMEOUT")
+    client, w = _setup(embedded_pg.dsn, sandbox_tree.roots, tmp_path / "w", FakeBackend(scores="low"), vlm)
+    src = _src(client)
+    client.post(f"/api/v1/sources/{src}/analyze")
+    _drain(w)
+    eng = engine_for(embedded_pg.dsn)
+    with eng.begin() as c:
+        assert c.execute(text("select count(*) from result")).scalar_one() == 0  # nothing to reuse
+        codes = {r[0] for r in c.execute(text("select error_code from job_item"))}
+    assert codes == {"RUNTIME_TIMEOUT"}
+    vlm._faults.clear()  # the GPU is free again
+    client.post(f"/api/v1/sources/{src}/analyze")
+    _drain(w)
+    with eng.begin() as c:
+        cats = [r[0] for r in c.execute(text("select category from search_doc"))]
+    eng.dispose()
+    assert len(cats) == 4 and "other" not in cats
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ORG-012")
+def test_org_012_the_estimate_counts_what_is_already_known(embedded_pg, sandbox_tree, tmp_path):
+    """回歸 (audit round 16): every sample read 「人物 100%」 while the library estimate said 「其他 73，人物 0」: the
+    estimate used the embedding fast path alone, though the folder's photos already had results for this config and
+    model. Those count as they are; only the rest is projected from the fast path."""
+    from collections import Counter
+
+    _photos(sandbox_tree.photos, "k", 8)
+    client, w = _setup(
+        embedded_pg.dsn, sandbox_tree.roots, tmp_path / "w", FakeBackend(scores="low"), FakeBackend(vlm_p=0.95)
+    )
+    src = _src(client)
+    _job(client, w, src)  # every photo analysed with the built-in categories
+    eng = engine_for(embedded_pg.dsn)
+    with eng.begin() as c:
+        cats = Counter(r[0] for r in c.execute(text("select coalesce(category, 'other') from result")))
+    eng.dispose()
+    pv = client.post("/api/v1/previews", json={"source_id": src, "k": 4}).json()
+    _drain(w)
+    est = client.get(f"/api/v1/previews/{pv['id']}").json()["estimate"]
+    assert est["basis"]["known"] == 8 and sum(est["distribution"].values()) == 8
+    assert {k: v for k, v in est["distribution"].items() if v} == dict(cats)
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ORG-013")
+def test_org_013_a_running_preview_says_how_far_it_is(embedded_pg, sandbox_tree, tmp_path):
+    """回歸 (audit round 16): the preview ran about 60 s with nothing on screen; its time only showed at the end."""
+    _photos(sandbox_tree.photos, "q", 6)
+    client, w = _setup(embedded_pg.dsn, sandbox_tree.roots, tmp_path / "w", FakeBackend(scores="low"), FakeBackend())
+    pv = client.post("/api/v1/previews", json={"source_id": _src(client), "k": 4}).json()
+    got = client.get(f"/api/v1/previews/{pv['id']}").json()
+    assert got["status"] == "running"
+    assert got["progress"]["done"] == 0 and got["progress"]["elapsed_s"] >= 0  # total is 0 while the folder is read
+    _drain(w)
+    got = client.get(f"/api/v1/previews/{pv['id']}").json()
+    assert got["progress"]["done"] == got["progress"]["total"] == 4
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ORG-016")
+def test_org_016_the_estimate_reads_only_photos_not_yet_known(embedded_pg, sandbox_tree, tmp_path):
+    """回歸 (audit round 23): 「正在估算全庫分布…」 sat over 60 s for a folder already analysed: the worker decoded and
+    embedded every photo again, though their categories count as they are (ORG-012)."""
+    _photos(sandbox_tree.photos, "k", 6)
+    client, w = _setup(
+        embedded_pg.dsn, sandbox_tree.roots, tmp_path / "w", FakeBackend(scores="low"), FakeBackend(vlm_p=0.95)
+    )
+    src = _src(client)
+    _job(client, w, src)  # every photo analysed
+    (sandbox_tree.photos / "n").mkdir()
+    for i in range(2):  # two new photos, not copies of the first six
+        shutil.copyfile(FX / f"IMG_{i + 10:04d}.jpg", sandbox_tree.photos / "n" / f"{i}.jpg")
+    client.post(f"/api/v1/sources/{src}/scan")
+    _drain(w)
+    pv = client.post("/api/v1/previews", json={"source_id": src, "k": 4}).json()
+    _drain(w)
+    est = client.get(f"/api/v1/previews/{pv['id']}").json()["estimate"]
+    # the preview's own samples may have analysed a new one: the worker reads only what is still unknown, never the 6
+    assert est["basis"]["embedded"] <= 2 and sum(est["distribution"].values()) == 8

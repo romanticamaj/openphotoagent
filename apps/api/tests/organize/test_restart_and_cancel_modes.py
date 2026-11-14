@@ -80,3 +80,32 @@ def test_graceful_cancel_waits_for_the_batch(embedded_pg, sandbox_tree, tmp_path
     client, w, jid = _setup(embedded_pg.dsn, sandbox_tree.roots, sandbox_tree.photos, tmp_path / "w")
     job = client.post(f"/api/v1/jobs/{jid}/cancel", json={"mode": "graceful"}).json()
     assert job["status"] == "cancelling" and job["counters"]["leased"] > 0
+
+
+@pytest.mark.integration
+@pytest.mark.tc("OP-021")
+def test_op_021_a_preview_is_not_a_job_to_resume(embedded_pg, sandbox_tree, tmp_path):
+    """回歸 (audit round 17): a preview cut short by a restart greeted every page as 「上次有 1 個工作被中斷 · 整理」.
+    A preview's samples are thrown away with it; it is cancelled, and an interrupted job says what it was."""
+    for f in sorted(FX.glob("*.jpg")):
+        shutil.copyfile(f, sandbox_tree.photos / f.name)
+    client = TestClient(create_app(dsn=embedded_pg.dsn))
+    w = WorkerAgent(
+        client,
+        roots=sandbox_tree.roots,
+        home=tmp_path / "w",
+        backend=FakeBackend(vlm_p=0.9),
+        embedder=FakeBackend(scores="high"),
+    )
+    w.register()
+    src = client.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": ""}).json()["id"]
+    pv = client.post("/api/v1/previews", json={"source_id": src, "k": 4}).json()
+    j = client.post("/api/v1/jobs", json={**JOB, "source_id": src}).json()
+    while w.run_once():
+        pass
+    client2 = TestClient(create_app(dsn=embedded_pg.dsn))
+    WorkerAgent(client2, roots=sandbox_tree.roots, home=tmp_path / "w", worker_id=w.worker_id).register()
+    ops = {o["id"]: o for o in client2.get("/api/v1/operations").json()}
+    assert pv["id"] not in ops or ops[pv["id"]]["status"] not in ("interrupted", "paused", "running")
+    assert ops[j["id"]]["status"] == "interrupted"
+    assert ops[j["id"]]["subject"]["job_kind"] == "organize" and ops[j["id"]]["subject"]["folder"]

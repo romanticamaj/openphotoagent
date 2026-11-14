@@ -1,0 +1,365 @@
+{
+  "id": "M0-S4-variants",
+  "status": "measured",
+  "machine": {
+    "hostname_label": "rtx5070ti-win11",
+    "os": "Windows",
+    "os_release": "10",
+    "arch": "AMD64",
+    "python": "3.10.11",
+    "cpu_count": 24
+  },
+  "metrics": {
+    "reference": "torch 2.15 CPU fp32 of google/siglip2-so400m-patch14-384 @ e8e48729; 500 images, 200 texts; onnxruntime-directml 1.24.4",
+    "public_repo": "onnx-community/siglip2-so400m-patch14-384-ONNX @ 8ecf3f2bbb135bec33f4bb721c11479bf6a8a254 (no licence tag or LICENSE file)",
+    "runs": [
+      {
+        "label": "onnx-community-fp16",
+        "ep": "DML",
+        "vision_io": [
+          [
+            [
+              "pixel_values",
+              [
+                "batch_size",
+                "num_channels",
+                "height",
+                "width"
+              ],
+              "tensor(float)"
+            ]
+          ],
+          [
+            [
+              "last_hidden_state",
+              [
+                "floor(batch_size*floor(height/14)*floor(width/14)/729)",
+                729,
+                1152
+              ],
+              "tensor(float)"
+            ],
+            [
+              "pooler_output",
+              [
+                "floor(batch_size*floor(height/14)*floor(width/14)/729)",
+                1152
+              ],
+              "tensor(float)"
+            ]
+          ]
+        ],
+        "text_io": [
+          [
+            [
+              "input_ids",
+              [
+                "batch_size",
+                "sequence_length"
+              ],
+              "tensor(int64)"
+            ]
+          ],
+          [
+            [
+              "last_hidden_state",
+              [
+                "batch_size",
+                "sequence_length",
+                1152
+              ],
+              "tensor(float)"
+            ],
+            [
+              "pooler_output",
+              [
+                "batch_size",
+                1152
+              ],
+              "tensor(float)"
+            ]
+          ]
+        ],
+        "picked": [
+          "pooler_output",
+          "pooler_output"
+        ],
+        "images_per_s": 25.41617293046214,
+        "image_cos_min": 0.9997973442077637,
+        "image_cos_mean": 0.9999819993972778,
+        "text_cos_min": 0.9999777674674988,
+        "text_cos_mean": 0.9999939799308777,
+        "nan": false
+      },
+      {
+        "label": "ours-fp32-single-file-text",
+        "ep": "CPU",
+        "vision_io": [
+          [
+            [
+              "pixel_values",
+              [
+                "b",
+                3,
+                384,
+                384
+              ],
+              "tensor(float)"
+            ]
+          ],
+          [
+            [
+              "emb",
+              [
+                "b",
+                1152
+              ],
+              "tensor(float)"
+            ]
+          ]
+        ],
+        "text_io": [
+          [
+            [
+              "input_ids",
+              [
+                "b",
+                64
+              ],
+              "tensor(int64)"
+            ]
+          ],
+          [
+            [
+              "emb",
+              [
+                "b",
+                1152
+              ],
+              "tensor(float)"
+            ]
+          ]
+        ],
+        "picked": [
+          "emb",
+          "emb"
+        ],
+        "images_per_s": 1.3117627751696561,
+        "image_cos_min": 0.9999997615814209,
+        "image_cos_mean": 1.0,
+        "text_cos_min": 0.9999997615814209,
+        "text_cos_mean": 1.0,
+        "nan": false
+      },
+      {
+        "label": "onnx-community-fp16",
+        "ep": "CPU",
+        "failed": "Fail: [ONNXRuntimeError] : 1 : FAIL : Exception during initialization: E:\\_work\\1\\s\\onnxruntime\\core\\graph\\graph_utils.cc:30 onnxruntime::graph_utils::GetIndexFromName itr != node_args.end() was false. Attempting to get index by a name which does not exist:InsertedPrecisionFreeCast_/vision_model/encoder/layers.0/layer_norm1/Constant_output_0for node: /vision_model/encoder/layers.0/layer_norm1/Mul/"
+      },
+      {
+        "label": "onnx-community-int8",
+        "ep": "CPU",
+        "vision_io": [
+          [
+            [
+              "pixel_values",
+              [
+                "batch_size",
+                "num_channels",
+                "height",
+                "width"
+              ],
+              "tensor(float)"
+            ]
+          ],
+          [
+            [
+              "last_hidden_state",
+              [
+                "floor(batch_size*floor(height/14)*floor(width/14)/729)",
+                729,
+                1152
+              ],
+              "tensor(float)"
+            ],
+            [
+              "pooler_output",
+              [
+                "floor(batch_size*floor(height/14)*floor(width/14)/729)",
+                1152
+              ],
+              "tensor(float)"
+            ]
+          ]
+        ],
+        "text_io": [
+          [
+            [
+              "input_ids",
+              [
+                "batch_size",
+                "sequence_length"
+              ],
+              "tensor(int64)"
+            ]
+          ],
+          [
+            [
+              "last_hidden_state",
+              [
+                "batch_size",
+                "sequence_length",
+                1152
+              ],
+              "tensor(float)"
+            ],
+            [
+              "pooler_output",
+              [
+                "batch_size",
+                1152
+              ],
+              "tensor(float)"
+            ]
+          ]
+        ],
+        "picked": [
+          "pooler_output",
+          "pooler_output"
+        ],
+        "images_per_s": 1.8064534813609232,
+        "image_cos_min": 0.2630980610847473,
+        "image_cos_mean": 0.5441174507141113,
+        "text_cos_min": 0.5629132390022278,
+        "text_cos_mean": 0.8426515460014343,
+        "nan": false
+      },
+      {
+        "label": "onnx-community-fp16",
+        "ep": "CPU",
+        "opt": "ORT_DISABLE_ALL",
+        "vision_io": [
+          [
+            [
+              "pixel_values",
+              [
+                "batch_size",
+                "num_channels",
+                "height",
+                "width"
+              ],
+              "tensor(float)"
+            ]
+          ],
+          [
+            [
+              "last_hidden_state",
+              [
+                "floor(batch_size*floor(height/14)*floor(width/14)/729)",
+                729,
+                1152
+              ],
+              "tensor(float)"
+            ],
+            [
+              "pooler_output",
+              [
+                "floor(batch_size*floor(height/14)*floor(width/14)/729)",
+                1152
+              ],
+              "tensor(float)"
+            ]
+          ]
+        ],
+        "text_io": [
+          [
+            [
+              "input_ids",
+              [
+                "batch_size",
+                "sequence_length"
+              ],
+              "tensor(int64)"
+            ]
+          ],
+          [
+            [
+              "last_hidden_state",
+              [
+                "batch_size",
+                "sequence_length",
+                1152
+              ],
+              "tensor(float)"
+            ],
+            [
+              "pooler_output",
+              [
+                "batch_size",
+                1152
+              ],
+              "tensor(float)"
+            ]
+          ]
+        ],
+        "picked": [
+          "pooler_output",
+          "pooler_output"
+        ],
+        "images_per_s": 0.9679025319950908,
+        "image_cos_min": 0.9999828934669495,
+        "image_cos_mean": 0.9999982714653015,
+        "text_cos_min": 0.9999973177909851,
+        "text_cos_mean": 0.9999997019767761,
+        "nan": false
+      }
+    ],
+    "quiet_gpu_runs": [
+      {
+        "label": "quiet-fp16",
+        "ep": "DML",
+        "batch": 1,
+        "images_per_s": 28.263107462116192,
+        "image_cos_min": 0.9997983574867249,
+        "text_cos_min": 0.9999791979789734
+      },
+      {
+        "label": "quiet-fp16",
+        "ep": "DML",
+        "batch": 8,
+        "images_per_s": 45.90848395264446,
+        "image_cos_min": 0.9997973442077637,
+        "text_cos_min": 0.9999777674674988
+      },
+      {
+        "label": "quiet-fp16",
+        "ep": "DML",
+        "batch": 32,
+        "images_per_s": 44.53630879664445,
+        "image_cos_min": 0.9997973442077637,
+        "text_cos_min": 0.9999777674674988
+      },
+      {
+        "label": "quiet-fp32",
+        "ep": "DML",
+        "batch": 8,
+        "images_per_s": 20.89303692721747,
+        "image_cos_min": 0.9999997615814209,
+        "text_cos_min": 0.9999998807907104
+      }
+    ],
+    "cuda_ep_extra": {
+      "onnxruntime_gpu": "1.31.1",
+      "needs": "CUDA 13 DLLs (cudart64_13, cublas64_13, cublasLt64_13) and cuDNN 9 for CUDA 13 (nvidia-cudnn-cu13 9.28) on PATH",
+      "model": "public fp16 pair",
+      "batch": 8,
+      "images_per_s": 59.44930750948012,
+      "image_cos_min": 0.9999421834945679,
+      "text_cos_min": 0.9999901652336121,
+      "without_the_dlls": "session silently fell back to CPUExecutionProvider (1.04 img/s) with only a warning; check session.get_providers()",
+      "fp16_on_cpu_in_1_31_1": "loads with default graph optimisation (image cos min 0.99998); the load failure was seen only in onnxruntime-directml 1.24.4"
+    }
+  },
+  "pass": false,
+  "notes": "pass=false because the public int8 pair fails the 0.999 criterion on CPU (image cos min 0.263). fp16 passes on DirectML, and on CPU only with ORT_DISABLE_ALL (with default optimisation the session fails to load). Single-file repack of our fp32 text model passes. metrics.runs images_per_s was taken with S3 on the same GPU; quiet_gpu_runs has the GPU free of compute (0% utilisation before the run, another idle llama-server resident)."
+}

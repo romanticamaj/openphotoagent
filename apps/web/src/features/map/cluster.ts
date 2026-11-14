@@ -1,7 +1,7 @@
 // Grid clustering for the map (10 §2.5; MAP-003). Pure and deterministic: points fall into Web-Mercator grid cells
 // sized for the zoom level (about 60 px on screen), so every photo belongs to exactly one cluster and totals add up.
 
-export type GeoPoint = { id: string; lat: number; lon: number };
+export type GeoPoint = { id: string; lat: number; lon: number; ch?: string | null };
 export type Cluster = { key: string; ids: string[]; count: number; lat: number; lon: number; bbox: [number, number, number, number] };
 
 const CELL_PX = 60;

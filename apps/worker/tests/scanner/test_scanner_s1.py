@@ -1,5 +1,6 @@
 import os
 import shutil
+import subprocess
 from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 
@@ -128,6 +129,23 @@ def test_scan_018_symlinks_skipped_and_listed(sb, sandbox_tree):
     res = scan(sb, "photos", "", INC, [], tz=TW)
     assert [e.rel for e in res.entries] == ["real.jpg"]
     assert sorted((s.rel, s.reason) for s in res.skipped) == [("link.jpg", "symlink"), ("linkdir", "symlink")]
+
+
+@pytest.mark.unit
+@pytest.mark.os_windows
+@pytest.mark.tc("SCAN-026")
+def test_scan_026_junction_is_not_followed_out_of_the_root(sb, sandbox_tree):
+    """回歸: on Windows ``DirEntry.is_symlink()`` is False for a junction and ``is_dir(follow_symlinks=False)`` is True,
+    so the walk left the root. Junctions need no privilege: any local program can plant one."""
+    put(sandbox_tree, "real.jpg", FX / "basic/IMG_0001.jpg")
+    shutil.copyfile(FX / "basic/IMG_0002.jpg", sandbox_tree.outside / "secret.jpg")
+    junction = sandbox_tree.photos / "linkdir"
+    subprocess.run(
+        ["cmd", "/c", "mklink", "/J", str(junction), str(sandbox_tree.outside)], check=True, capture_output=True
+    )
+    res = scan(sb, "photos", "", INC, [], tz=TW)
+    assert [e.rel for e in res.entries] == ["real.jpg"]
+    assert [(s.rel, s.reason) for s in res.skipped] == [("linkdir", "symlink")]
 
 
 @pytest.mark.unit

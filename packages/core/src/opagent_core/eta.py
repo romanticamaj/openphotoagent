@@ -13,6 +13,7 @@ ROUGH_MIN_WIDTH = 0.4
 PRECISE_MAX_P50 = 600.0
 HYSTERESIS_S = 10.0
 STALL_MIN_S = 30.0
+DRIFT_MIN, DRIFT_MAX = 0.04, 0.1  # 06 §5.5.5
 
 
 class Ewma:
@@ -109,6 +110,15 @@ def multi_phase(phases: list[tuple[float, float]]) -> tuple[float, float]:
 def interval(p50: float, sigma_rel: float) -> tuple[float, float]:
     s = min(sigma_rel, SIGMA_CAP)
     return p50 * (1 - Z80 * s), p50 * (1 + Z80 * s)
+
+
+def sigma_rel(cv: float, remaining: int, done: int, dt: float, tau: float, p50: float) -> float:
+    """Relative error of a remaining time (06 §5.5.5, ADR-0028): noise over what is left, error in the rate itself
+    (an EWMA remembers about (2-a)/a samples), and drift, which only has the time left to act in."""
+    a = 1 - math.exp(-dt / tau) if dt > 0 else 1.0
+    n_eff = max(1.0, min(float(done), (2 - a) / a))
+    drift = min(DRIFT_MAX, max(DRIFT_MIN, DRIFT_MAX * math.sqrt(p50 / 3600)))
+    return cv * math.sqrt(1 / max(1, remaining) + 1 / n_eff) + drift
 
 
 class EtaTracker:
@@ -261,16 +271,19 @@ class CascadeMix:
 
 
 class ItemsEta:
-    """items-based ETA (06 §5.5.2 / §5.5.5): batch-rate EWMA (tau 60 s) with relative error
-    cv / sqrt(batches remaining) + drift delta, capped at 0.9."""
+    """items-based ETA (06 §5.5.2 / §5.5.5): batch-rate EWMA (tau 60 s), relative error from sigma_rel."""
 
-    def __init__(self, total: int, batch_size: int, tau: float = 60.0, delta: float = 0.1) -> None:
-        self.total, self.batch_size, self.delta = total, batch_size, delta
+    def __init__(self, total: int, batch_size: int, tau: float = 60.0) -> None:
+        self.total, self.batch_size, self.tau = total, batch_size, tau
         self.done = 0
+        self._batches = 0
+        self._seconds = 0.0
         self._rate = Ewma(tau)
 
     def batch_done(self, items: int, seconds: float) -> None:
         self.done += items
+        self._batches += 1
+        self._seconds += seconds
         self._rate.add(items / seconds, seconds)
 
     def estimate(self) -> tuple[float, float, float]:
@@ -281,10 +294,102 @@ class ItemsEta:
         p50 = remaining / rate
         cv = math.sqrt(self._rate.var) / rate
         batches = max(1, math.ceil(remaining / self.batch_size))
-        p10, p90 = interval(p50, cv / math.sqrt(batches) + self.delta)
+        dt = self._seconds / max(1, self._batches)
+        p10, p90 = interval(p50, sigma_rel(cv, batches, self._batches, dt, self.tau, p50))
         return p10, p50, p90
 
 
 def queue_ahead(p50s: list[float]) -> float:
     """Queue wait = sum of the p50s of operations ahead in the same lane (ETA-017)."""
     return float(sum(p50s))
+
+
+MIN_SAMPLE_S = 0.5  # a download reports every 250 ms: too close together to be a rate
+RATE_TAU = {"items": 60.0, "bytes": 30.0}  # 06 §5.5.1, §5.5.2
+
+
+def eta_active_s(eta: dict[str, Any] | None, t: float) -> float:
+    """Seconds the operation has really been working: suspended stretches do not count."""
+    if not eta:
+        return 0.0
+    last = eta.get("_t")
+    return float(eta.get("active_s", 0.0)) + (t - last if last is not None else 0.0)
+
+
+def suspend_eta(eta: dict[str, Any], t: float) -> dict[str, Any]:
+    """Paused or waiting: the clock stops, and the next report starts a new rate sample (ETA-021)."""
+    return {**eta, "active_s": eta_active_s(eta, t), "_t": None, "_pt": None}
+
+
+def seed_eta(prev: dict[str, Any] | None, t_start: float) -> dict[str, Any]:
+    """The baseline at the operation's start (0 done), so the first report is already a rate sample (ETA-029); an
+    estimate that is already running is left as it is."""
+    prev = dict(prev or {})
+    if prev.get("_pt") is not None or prev.get("samples"):
+        return prev
+    return {
+        **prev,
+        "_pt": t_start,
+        "_pf": 0.0,
+        "_t": t_start,
+        "active_s": 0.0,
+        "state": "estimating",
+        "samples": 0,
+        "_seeded": True,  # the first sample also holds the scan and the model loading (ETA-033)
+    }
+
+
+def live_eta(prev: dict[str, Any] | None, t: float, fraction: float | None, unit: str = "items") -> dict[str, Any]:
+    """One progress report in, the next ``operation.eta`` out. The state is plain JSON kept on the operation, so it
+    survives a restart and needs no process holding it. Keys with a leading underscore are working state."""
+    prev = dict(prev or {})
+    base: dict[str, Any] = {
+        **prev,
+        "active_s": eta_active_s(prev, t),
+        "_t": t,
+        "samples": prev.get("samples", 0),
+        "state": prev.get("state", "estimating"),
+    }
+    if fraction is None:
+        return {**base, "state": "unknown"}
+    if prev.get("_pt") is None:
+        return {**base, "_pt": t, "_pf": fraction}
+    dt, df = t - prev["_pt"], fraction - prev["_pf"]
+    if dt < MIN_SAMPLE_S:
+        return base
+    kind = "bytes" if unit == "bytes" else "items"
+    tracker = EtaTracker(kind)
+    if df <= 0:
+        tracker.progress(prev["_pt"], 0, prev.get("_iv") or 0.0)
+        stalled = tracker.stalled_state(t)
+        return {**base, "state": "stalled", "since_s": stalled["since_s"]} if stalled else base
+
+    rate = Ewma(RATE_TAU[kind])
+    rate.mean, rate.var = prev.get("_mean"), prev.get("_var", 0.0)
+    if prev.get("_seeded") and prev.get("samples", 0) == 1:
+        # the second sample is the first with photos flowing: it replaces the start-up one (ETA-033)
+        rate.mean, rate.var = None, 0.0
+        prev = {k: v for k, v in prev.items() if k != "_seeded"}
+        base.pop("_seeded", None)
+    mean = rate.add(df / dt, dt)
+    iv = dt if prev.get("_iv") is None else 0.8 * prev["_iv"] + 0.2 * dt
+    out = {**base, "_pt": t, "_pf": fraction, "_mean": mean, "_var": rate.var, "_iv": iv}
+    out["samples"] = samples = base["samples"] + 1
+    out.pop("since_s", None)
+    state = tracker.state(out["active_s"], samples, False)
+    if state != "rough":
+        return {**out, "state": state}
+
+    remaining = max(0.0, 1.0 - fraction)
+    p50 = remaining / mean
+    batches = max(1, math.ceil(remaining / (mean * iv)))
+    p10, p90 = interval(p50, sigma_rel(math.sqrt(rate.var) / mean, batches, samples, iv, RATE_TAU[kind], p50))
+    tracker.current = prev.get("state", "rough")
+    tracker._eligible_since = prev.get("_since")
+    out["state"] = tracker.update(t, p50, p10, p90, samples, False, True)
+    out["_since"] = tracker._eligible_since
+    out.update(p50_s=p50, p10_s=p10, p90_s=p90)
+    if "first" not in out:  # what the user was first told, as a total: this is what V7 judges (06 §5.8)
+        a = out["active_s"]
+        out["first"] = {"p50_s": a + p50, "p10_s": a + p10, "p90_s": a + p90}
+    return out

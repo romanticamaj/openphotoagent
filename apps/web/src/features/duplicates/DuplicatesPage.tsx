@@ -7,6 +7,10 @@ import { useTranslation } from "react-i18next";
 import { Button } from "../../components/Button";
 import { api, mediaUrl, type DuplicateGroup } from "../../lib/api";
 import { formatBytes } from "../../lib/format";
+import { useLibraryReadOnly } from "../../components/TrashButton";
+import { cardMembers } from "./cardMembers";
+
+const CARD_MAX = 4; // thumbnails on a card; the rest are counted
 
 function dropCount(g: DuplicateGroup): number {
   return g.members.length - 1;
@@ -16,6 +20,7 @@ export function DuplicatesPage() {
   const { t, i18n } = useTranslation();
   const nav = useNavigate();
   const q = useQuery({ queryKey: ["duplicates"], queryFn: api.duplicates });
+  const { readOnly } = useLibraryReadOnly();
   const groups = useMemo(() => q.data?.groups ?? [], [q.data]);
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const all = groups.length > 0 && picked.size === groups.length;
@@ -28,7 +33,10 @@ export function DuplicatesPage() {
   return (
     <section className="mx-auto max-w-5xl space-y-4 p-8">
       <h1 className="text-xl font-semibold">{t("duplicates.title")}</h1>
-      <p className="text-sm text-[var(--text-muted)]">{t("duplicates.explain")}</p>
+      <p data-testid="dup-intro" className="text-sm text-[var(--text-muted)]">
+        {/* on a read-only library nothing can go to the trash: the intro says so too (audit round 65) */}
+        {t(readOnly ? "duplicates.explainReadOnly" : "duplicates.explain")}
+      </p>
       {groups.length === 0 ? (
         <p>{t("duplicates.empty")}</p>
       ) : (
@@ -41,7 +49,14 @@ export function DuplicatesPage() {
             <span className="text-sm text-[var(--text-muted)]">{t("duplicates.groups", { count: groups.length })}</span>
             <Button
               disabledReason={
-                picked.size === 0 ? { code: "NOTHING_SELECTED", message: t("duplicates.selectAll") } : make.isPending ? { code: "BUSY", message: t("common.working") } : null
+                // said before anything is sent: copies in read-only folders cannot go to the trash (SRCH-DUP-010)
+                readOnly
+                  ? { code: "FS_NOT_WRITABLE", message: t("trash.allReadOnly") }
+                  : picked.size === 0
+                    ? { code: "NOTHING_SELECTED", message: t("duplicates.selectAll") }
+                    : make.isPending
+                      ? { code: "BUSY", message: t("common.working") }
+                      : null
               }
               onClick={() => make.mutate()}
             >
@@ -63,17 +78,31 @@ export function DuplicatesPage() {
                     }}
                   />
                   <span>{t(g.reason === "hash" ? "duplicates.exact" : "duplicates.near")}</span>
-                  <span className="tnum text-[var(--text-muted)]">{t("duplicates.reclaimable", { size: formatBytes(g.reclaimable_bytes, i18n.language) })}</span>
+                  {readOnly ? null : (
+                    <span className="tnum text-[var(--text-muted)]">{t("duplicates.reclaimable", { size: formatBytes(g.reclaimable_bytes, i18n.language) })}</span>
+                  )}
                 </label>
-                <div className="flex gap-2">
-                  {g.members.map((m, i) => (
-                    <figure key={`${m.asset_id}-${i}`} className="w-24 space-y-1">
-                      <img src={mediaUrl(m.asset_id, "t256", m.ch)} alt="" className="aspect-square w-full rounded-[var(--radius-photo)] object-cover" />
-                      <figcaption className="truncate text-xs" title={m.rel_path ?? ""}>
-                        {(g.reason === "hash" ? i === 0 : m.asset_id === g.representative.asset_id) ? t("duplicates.representative") : m.rel_path}
-                      </figcaption>
-                    </figure>
-                  ))}
+                <div className="flex flex-wrap gap-2">
+                  {(() => {
+                    const c = cardMembers(g.members, g.representative.asset_id, CARD_MAX);
+                    return (
+                      <>
+                        {c.shown.map((m, i) => (
+                          <figure key={`${m.asset_id}-${i}`} className="w-20 min-w-0 space-y-1">
+                            <img src={mediaUrl(m.asset_id, "t256", m.ch)} alt="" className="aspect-square w-full rounded-[var(--radius-photo)] object-cover" />
+                            <figcaption className={i === 0 ? "truncate text-xs font-medium" : "truncate text-xs text-[var(--text-muted)]"} title={m.rel_path ?? ""}>
+                              {i === 0 ? t("duplicates.representative") : m.rel_path}
+                            </figcaption>
+                          </figure>
+                        ))}
+                        {c.more ? (
+                          <div className="grid aspect-square w-20 place-items-center rounded-[var(--radius-photo)] bg-[var(--surface-2)] text-sm text-[var(--text-muted)] tnum">
+                            +{c.more.toLocaleString(i18n.language)}
+                          </div>
+                        ) : null}
+                      </>
+                    );
+                  })()}
                 </div>
               </li>
             ))}

@@ -355,7 +355,7 @@ def test_prv_003_only_the_face_repository_switches_role():
     from pathlib import Path
 
     src = Path(__file__).resolve().parents[2] / "src"
-    hits = [p.name for p in src.rglob("*.py") if "opagent_bio" in p.read_text()]
+    hits = [p.name for p in src.rglob("*.py") if "opagent_bio" in p.read_text(encoding="utf-8")]
     assert hits == ["faces.py"]
 
 
@@ -457,3 +457,644 @@ def test_clu_005_large_pool_uses_the_knn_graph_path(f, monkeypatch):
     run = f.post("/faces/cluster")
     assert run["algo"] == "knn_graph+chinese_whispers" and run["clusters"] == 3
     assert f.sql("select algo from face_cluster_run").scalar() == "knn_graph+chinese_whispers"
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-BKL-001")
+def test_face_bkl_001_backlog_lists_photos_that_never_had_a_face_step(f):
+    """回歸: the face step rides on a job's decode, and a cached photo never reaches it, so turning faces on after
+    organizing left the whole library unscanned for good."""
+
+    def backlog(**params):
+        return f.client.get("/worker-api/v1/faces/backlog", params=params, headers=f.ui).json()
+
+    a = f.add("old/a.jpg")
+    b = f.add("old/b.jpg")
+    assert backlog()["items"] == []  # off by default: nothing is even listed (FACE-GATE-001)
+    f.enable()
+    got = backlog()
+    assert {i["asset_id"] for i in got["items"]} == {a, b}
+    assert {i["rel"] for i in got["items"]} == {"old/a.jpg", "old/b.jpg"}
+    assert all(i["root_alias"] for i in got["items"])
+    first = backlog(limit=1)
+    assert len(first["items"]) == 1 and first["next"] == first["items"][0]["asset_id"]
+    rest = backlog(after=first["next"])
+    assert [i["asset_id"] for i in rest["items"]] == [({a, b} - {first["next"]}).pop()]
+    done, _ = f.photo("old/p1.jpg")  # a photo that went through a job already has its faces
+    assert done not in {i["asset_id"] for i in backlog()["items"]}
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-CLU-010")
+def test_face_clu_010_grouping_runs_when_new_faces_are_waiting(f):
+    """回歸 (seen on the reference machine): 3,082 faces found, 0 people. Nothing but the tests called the clustering."""
+    f.enable()
+    _library(f, people=range(1, 4), per=8)
+
+    def due(n):
+        return f.client.post("/worker-api/v1/faces/cluster-due", json={"min_new": n}, headers=f.ui).json()
+
+    assert due(1000)["ran"] is False
+    r = due(1)
+    assert r["ran"] is True and r["clusters"] == 3
+    assert due(1)["ran"] is False  # nothing new since that run
+    ops = f.get("/operations?status=all&type=face.cluster")
+    assert [o["status"] for o in ops] == ["succeeded"]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-CLU-010")
+def test_face_clu_010_off_means_off(f):
+    r = f.client.post("/worker-api/v1/faces/cluster-due", json={"min_new": 1}, headers=f.ui).json()
+    assert r["ran"] is False
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-CLU-011")
+def test_face_clu_011_a_person_has_a_face_to_show(f):
+    f.enable()
+    _library(f, people=range(1, 3), per=6)
+    f.post("/faces/cluster")
+    for p in f.get("/people")["people"]:
+        assert p["cover"]["asset_id"] and p["cover"]["ch"]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-DET-010")
+def test_face_det_010_analysing_a_photo_again_adds_no_faces(f):
+    """回歸 (seen on the reference machine): 1,781 faces stored as 3,868 rows. Three copies of one face are a perfect
+    HDBSCAN cluster, so one library became 439 groups, and every copy filled a k-NN slot of a real neighbour."""
+    f.enable()
+    aid, first = f.photo("2025/1/IMG_0_p1.jpg")
+    faces = [{k: v for k, v in x.items() if k != "person_hint"} for x in f.fb.detect("2025/1/IMG_0_p1.jpg")]
+    r = f.client.post(
+        "/worker-api/v1/faces",
+        json={"worker_id": "w1", "asset_id": aid, "fingerprint": f.fb.fingerprint, "truncated": False, "faces": faces},
+        headers=f.ui,
+    )
+    assert r.status_code == 200, r.text
+    assert sorted(r.json()["face_ids"]) == sorted(first)
+    assert f.sql("select count(*) from face where asset_id=:a", a=aid).scalar() == len(first)
+    from opagent_api.faces import bio_session
+
+    with bio_session(f.client.app.state.opa) as c:
+        assert c.execute(sqlalchemy.text("select count(*) from bio.face_embedding")).scalar() == len(first)
+
+
+def _small(f, person, n, tag):
+    """Faces too small to be assigned automatically (tier 1): the ones a person has to say yes to."""
+    return [
+        f.photo(f"2025/x/{tag}_{i}_p{person}.jpg", plan=[FaceSpec(person=person, min_side=40)])[1][0] for i in range(n)
+    ]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-FIND-011")
+def test_find_011_who_else_might_this_be(f):
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p1 = f.sql("select person_id from face where id=:i", i=ids[1][0]).scalar()
+    more = _small(f, 1, 4, "kid")
+    others = _small(f, 2, 3, "other")
+    out = f.get(f"/people/{p1}/candidates")
+    got = [c["face_id"] for c in out["items"]]
+    assert set(more) <= set(got) and not set(others) & set(got)
+    assert not set(ids[1]) & set(got)  # already theirs
+    c = out["items"][0]
+    assert c["asset_id"] and len(c["bbox"]) == 4 and c["score"] >= 0.42
+    assert [x["score"] for x in out["items"]] == sorted((x["score"] for x in out["items"]), reverse=True)
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-FIND-012")
+def test_find_012_yes_and_no_in_one_go(f):
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p1 = f.sql("select person_id from face where id=:i", i=ids[1][0]).scalar()
+    more = _small(f, 1, 4, "kid")
+    r = f.post(f"/people/{p1}/review", {"yes": more[:3], "no": more[3:]})
+    assert r == {"confirmed": 3, "rejected": 1}
+    assert {f.sql("select state from face where id=:i", i=i).scalar() for i in more[:3]} == {"confirmed"}
+    assert f.sql("select person_id from face where id=:i", i=more[0]).scalar() == p1
+    left = [c["face_id"] for c in f.get(f"/people/{p1}/candidates")["items"]]
+    assert not set(more) & set(left)  # yes: theirs now; no: never asked again
+    assert f.get("/people")["people"][0]["name"] is None  # a yes is a decision, not a name
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-FIND-013")
+def test_find_013_ignored_people_stay_out_of_it(f):
+    """回歸 (security review): someone the person chose to ignore must not come back as 「可能也是他」."""
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p1 = f.sql("select person_id from face where id=:i", i=ids[1][0]).scalar()
+    p2 = f.sql("select person_id from face where id=:i", i=ids[2][0]).scalar()
+    more = _small(f, 1, 2, "kid")
+    f.post(f"/people/{p2}/ignore", {"delete_biometrics": False})
+    # p2's faces stay out even when they look like p1, and an ignored person has no candidates at all
+    f.sql("update face set person_id=:p, state='auto' where id = any(:ids)", p=p2, ids=more)
+    assert not set(more) & {c["face_id"] for c in f.get(f"/people/{p1}/candidates")["items"]}
+    assert f.get(f"/people/{p2}/candidates")["items"] == []
+    r = f.client.post(f"/api/v1/people/{p1}/review", json={"yes": more, "no": []}, headers=f.ui)
+    assert r.status_code == 409 and r.json()["code"] == "FACE_IGNORED"
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-CLU-012")
+def test_face_clu_012_a_group_shows_its_photos_right_away(f):
+    """回歸 (audit round 1): every person's photo grid was empty. Grouping and naming queued the search index update,
+    but only a job's results drained that queue, so a library analysed earlier never learned who is in its photos."""
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p1 = f.sql("select person_id from face where id=:i", i=ids[1][0]).scalar()
+    r = f.client.post("/api/v1/search", json={"q": None, "filters": {"persons_any": [p1]}, "limit": 50}, headers=f.ui)
+    assert r.status_code == 200 and r.json()["total"] == 6
+    more = _small(f, 1, 1, "kid")
+    f.post(f"/people/{p1}/review", {"yes": more, "no": []})
+    r = f.client.post("/api/v1/search", json={"q": None, "filters": {"persons_any": [p1]}, "limit": 50}, headers=f.ui)
+    assert r.json()["total"] == 7
+
+
+@pytest.mark.integration
+@pytest.mark.tc("VIEW-021")
+def test_view_021_who_is_in_this_photo(f):
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    aid = f.sql("select asset_id from face where id=:i", i=ids[1][0]).scalar()
+    p1 = f.sql("select person_id from face where id=:i", i=ids[1][0]).scalar()
+    f.post(f"/people/{p1}/name", {"name": "小明"})
+    assert f.get(f"/assets/{aid}")["people"] == [{"id": p1, "name": "小明"}]
+    f.post(f"/people/{p1}/ignore", {"delete_biometrics": False})
+    assert f.get(f"/assets/{aid}")["people"] == []
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-UI-012")
+def test_face_ui_012_people_in_the_order_people_expect(f):
+    """回歸 (audit round 1): cards showed photo counts but were sorted by face count (… 5, 4, 5 …)."""
+    f.enable()
+    ids = _library(f, people=(1, 2, 3), per=5)
+    f.post("/faces/cluster")
+    pid = {n: f.sql("select person_id from face where id=:i", i=ids[n][0]).scalar() for n in (1, 2, 3)}
+    for i in range(3):  # person 1: three more faces in photos they are already in -> most faces, 5 photos
+        f.sql(
+            "insert into face(id, workspace_id, asset_id, space_id, bbox, det_score, quality, quality_tier, state, person_id) "
+            "select id || :n, workspace_id, asset_id, space_id, bbox, det_score, quality, 3, 'auto', person_id from face where id = :i",
+            n=str(i),
+            i=ids[1][0],
+        )
+    f.photo("2025/3/IMG_9_p3.jpg")  # person 3: a sixth photo, joins them online
+    f.post(f"/people/{pid[2]}/name", {"name": "小華"})
+    people = f.get("/people")["people"]
+    assert people[0]["name"] == "小華"  # named first
+    assert [p["id"] for p in people[1:3]] == [pid[3], pid[1]]  # then by photos: 6 before 5, whatever the faces
+
+
+@pytest.mark.integration
+@pytest.mark.tc("VIEW-025")
+def test_view_025_the_people_of_a_photo_show_their_faces(f):
+    """回歸 (audit round 2): 「照片中的人物」 showed a bare 「未命名」 with no face to tell who it is."""
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    aid = f.sql("select asset_id from face where id=:i", i=ids[1][0]).scalar()
+    d = f.get(f"/assets/{aid}")
+    (p,) = d["people"]
+    assert len(d["people_faces"][p["id"]]["bbox"]) == 4 and d["people_faces"][p["id"]]["ch"]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-MGT-010")
+def test_mgt_010_the_likeliest_pairs_first_and_no_means_no(f):
+    """回歸 (reference library): 1,101 merge suggestions among 52 groups, none shown anywhere. The page asks about the
+    likeliest few; 「不是同一人」 closes the pair for good."""
+    f.enable()
+    _library(f, people=(1, 2, 3), per=6)
+    f.post("/faces/cluster")
+    ids = [p["id"] for p in f.get("/people")["people"]]
+    with f.eng.begin() as c:
+        for (a, b), sc in zip([(ids[0], ids[1]), (ids[0], ids[2]), (ids[1], ids[2])], (0.6, 0.9, 0.7), strict=True):
+            c.execute(
+                sqlalchemy.text(
+                    "insert into person_link(workspace_id, person_a, person_b, kind, score) values ('default', :a, :b,"
+                    " 'merge_suggestion', :s) on conflict (workspace_id, person_a, person_b, kind) do update set score = :s"
+                ),
+                {"a": a, "b": b, "s": sc},
+            )
+    sug = f.get("/people")["merge_suggestions"]
+    assert [round(s["score"], 2) for s in sug[:3]] == [0.9, 0.7, 0.6]
+    top = sug[0]
+    f.post("/people/merge-suggestions/dismiss", {"a": top["a"], "b": top["b"]})
+    assert (top["a"], top["b"]) not in {(s["a"], s["b"]) for s in f.get("/people")["merge_suggestions"]}
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-MGT-011")
+def test_mgt_011_suggestions_about_people_that_are_gone_are_not_shown(f):
+    """回歸 (audit round 3): the 「這兩組是同一個人嗎？」 card never appeared: the top pairs named groups a re-grouping
+    had deleted (person_link has no cascade), so the page found nobody to show."""
+    f.enable()
+    _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    ids = [p["id"] for p in f.get("/people")["people"]]
+    with f.eng.begin() as c:
+        c.execute(
+            sqlalchemy.text(
+                "insert into person_link(workspace_id, person_a, person_b, kind, score) values"
+                " ('default', 'gone-1', 'gone-2', 'merge_suggestion', 0.99), ('default', :a, :b, 'merge_suggestion', 0.7)"
+                " on conflict (workspace_id, person_a, person_b, kind) do update set score = excluded.score"
+            ),
+            {"a": ids[0], "b": ids[1]},
+        )
+    sug = f.get("/people")["merge_suggestions"]
+    assert [(s["a"], s["b"]) for s in sug] == [(ids[0], ids[1])]
+    f.post("/faces/cluster")
+    assert f.sql("select count(*) from person_link where person_a = 'gone-1'").scalar() == 0
+
+
+@pytest.mark.integration
+@pytest.mark.tc("VIEW-027")
+def test_view_027_a_photo_says_when_its_folder_is_not_checked_for_faces(f):
+    """回歸 (audit round 5): group photos of the 「photos」 folder had no boxes and no people, with nothing saying that
+    faces were turned on for the family folders only."""
+    f.enable()
+    aid, _ = f.photo("2025/1/IMG_0_p1.jpg")
+    assert f.get(f"/assets/{aid}")["faces_state"] == "on"
+    f.sql("update workspace set settings = jsonb_set(settings, '{faces,sources}', '[\"elsewhere\"]')")
+    assert f.get(f"/assets/{aid}")["faces_state"] == "folder_off"
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-FIND-016")
+def test_find_016_the_last_review_can_be_taken_back(f):
+    """回歸 (audit round 5): 「全部都是」 then 送出 moved a dozen faces to a person with no way back."""
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p1 = f.sql("select person_id from face where id=:i", i=ids[1][0]).scalar()
+    more = _small(f, 1, 4, "kid")
+    before = {i: f.sql("select person_id, state from face where id=:i", i=i).one() for i in more}
+    f.post(f"/people/{p1}/review", {"yes": more[:3], "no": more[3:]})
+    r = f.post(f"/people/{p1}/review/undo", {})
+    assert r == {"restored": 4}
+    assert {i: f.sql("select person_id, state from face where id=:i", i=i).one() for i in more} == before
+    got = {c["face_id"] for c in f.get(f"/people/{p1}/candidates")["items"]}
+    assert set(more) <= got  # the 「不是」 is gone too: they are asked again
+    r = f.client.post(f"/api/v1/people/{p1}/review/undo", json={}, headers=f.ui)
+    assert r.status_code == 404  # only once
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-MGT-013")
+def test_mgt_013_a_person_lists_faces_to_compare(f):
+    """回歸 (audit round 5): 「可能是同一人？」 showed one face per group, too little to decide on."""
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p1 = f.sql("select person_id from face where id=:i", i=ids[1][0]).scalar()
+    fs = f.get(f"/people/{p1}")["faces"]
+    assert len(fs) == 6 and all(len(x["bbox"]) == 4 and x["ch"] for x in fs)
+
+
+@pytest.mark.integration
+@pytest.mark.tc("VIEW-028")
+def test_view_028_a_photo_says_its_faces_belong_to_nobody_yet(f):
+    """回歸 (audit round 6): a team photo in 「photos」 had 12 faces found, all too small or of people seen only once,
+    and the info panel said nothing about people at all."""
+    f.enable()
+    aid, _ = f.photo("2025/t/team.jpg", plan=[FaceSpec(person=None, min_side=12), FaceSpec(person=None)])
+    f.post("/faces/cluster")
+    a = f.get(f"/assets/{aid}")
+    assert a["people"] == [] and a["faces_found"] == {"total": 2, "small": 1}
+
+
+@pytest.mark.integration
+@pytest.mark.tc("VIEW-029")
+def test_view_029_the_faces_of_nobody_are_marked_too(f):
+    """回歸 (audit round 7): 「找到 11 張臉」 with no box on the photo; nobody could see which faces it meant."""
+    f.enable()
+    aid, _ = f.photo(
+        "2025/t/team2.jpg",
+        plan=[FaceSpec(person=None, min_side=12, bbox=(0.1, 0.1, 0.05, 0.05)), FaceSpec(person=None)],
+    )
+    f.post("/faces/cluster")
+    got = sorted(f.get(f"/assets/{aid}")["unknown_faces"], key=lambda x: x["small"])
+    assert [x["small"] for x in got] == [False, True]
+    assert got[1]["bbox"] == pytest.approx([0.1, 0.1, 0.05, 0.05])
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-FIND-018")
+def test_find_018_a_candidate_says_how_clear_it_is(f):
+    """回歸 (audit round 7): about 1 in 4 candidates was wrong, mostly blurry crops; each one now carries its quality
+    tier so the page can say which are hard to judge."""
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p1 = f.sql("select person_id from face where id=:i", i=ids[1][0]).scalar()
+    _small(f, 1, 2, "kid")
+    items = f.get(f"/people/{p1}/candidates")["items"]
+    assert items and all(x["tier"] in (1, 2, 3) for x in items)
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-FIND-019")
+def test_find_019_hard_candidates_say_so_and_come_last(f):
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p1 = f.sql("select person_id from face where id=:i", i=ids[1][0]).scalar()
+    small = _small(f, 1, 2, "kid")  # min_side 40
+    items = f.get(f"/people/{p1}/candidates")["items"]
+    by = {x["face_id"]: x for x in items}
+    assert all(by[i]["clear"] is False for i in small if i in by) and any(i in by for i in small)
+    flags = [x["clear"] for x in items]
+    assert flags == sorted(flags, reverse=True)  # the clear ones first
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-UI-017")
+def test_face_ui_017_grouping_picks_each_cover(f):
+    f.enable()
+    _library(f, people=range(1, 3), per=6)
+    f.post("/faces/cluster")
+    for p in f.get("/people")["people"]:
+        cf = f.sql("select cover_face_id from person where id=:i", i=p["id"]).scalar()
+        assert cf is not None
+        assert f.sql("select person_id from face where id=:i", i=cf).scalar() == p["id"]
+        assert p["cover"]["asset_id"] == f.sql("select asset_id from face where id=:i", i=cf).scalar()
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-UI-017")
+def test_face_ui_017_a_library_grouped_before_gets_its_covers(f):
+    """A library grouped by an older version has no cover_face_id; the people page fills them in once."""
+    f.enable()
+    _library(f, people=range(1, 3), per=6)
+    f.post("/faces/cluster")
+    f.sql("update person set cover_face_id = null")
+    f.get("/people")
+    assert f.sql("select count(*) from person where cover_face_id is null and merged_into is null").scalar() == 0
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-FIND-020")
+def test_find_020_candidates_say_which_are_sure(f):
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p1 = f.sql("select person_id from face where id=:i", i=ids[1][0]).scalar()
+    _small(f, 1, 2, "kid")
+    items = f.get(f"/people/{p1}/candidates")["items"]
+    assert items and all(x["sure"] is (x["score"] >= 0.6) for x in items)
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-ASN-007")
+def test_asn_007_a_small_face_is_only_suggested_for_a_named_person(f):
+    """ADR-0036: a 24-31 px face is embedded, but only a person's yes puts it anywhere, and only for someone named."""
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p1 = f.sql("select person_id from face where id=:i", i=ids[1][0]).scalar()
+    _, (tiny,) = f.photo("2025/s/tiny_a_p1.jpg", plan=[FaceSpec(person=1, min_side=28)])
+    assert f.sql("select state from face where id=:i", i=tiny).scalar() == "unassigned"
+    f.post(f"/people/{p1}/name", {"name": "小明"})
+    _, (tiny2,) = f.photo("2025/s/tiny_b_p1.jpg", plan=[FaceSpec(person=1, min_side=28)])
+    assert f.sql("select state from face where id=:i", i=tiny2).scalar() == "suggested"
+    assert f.sql("select person_id from face where id=:i", i=tiny2).scalar() is None  # never automatic
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-DET-013")
+def test_det_013_faces_stored_too_small_are_embedded_again(f):
+    """ADR-0036: faces stored as tier 0 at 24-31 px get an embedding from the worker, once."""
+    f.enable()
+    aid, (fid,) = f.photo("2025/s/team_p1.jpg", plan=[FaceSpec(person=1, min_side=28)])
+    # as an older version stored it: tier 0, no embedding
+    f.sql("update face set quality_tier = 0 where id=:i", i=fid)
+    f.sql("delete from bio.face_embedding where face_id=:i", i=fid)
+    r = f.client.get("/worker-api/v1/faces/reembed", params={"limit": 10}, headers=f.ui).json()
+    assert [x["face_id"] for it in r["items"] for x in it["faces"]] == [fid]
+    assert r["items"][0]["asset_id"] == aid and r["items"][0]["rel"]
+    vec = [1.0] + [0.0] * 511
+    ok = f.client.post(f"/worker-api/v1/faces/{fid}/embedding", json={"vec": vec, "quality_tier": 1}, headers=f.ui)
+    assert ok.status_code == 200, ok.text
+    assert f.sql("select quality_tier from face where id=:i", i=fid).scalar() == 1
+    assert f.sql("select count(*) from bio.face_embedding where face_id=:i", i=fid).scalar() == 1
+    assert f.client.get("/worker-api/v1/faces/reembed", params={"limit": 10}, headers=f.ui).json()["items"] == []
+    # no match in the photo any more: tried once, not listed again
+    _, (fid2,) = f.photo("2025/s/team2_p1.jpg", plan=[FaceSpec(person=1, min_side=28)])
+    f.sql("update face set quality_tier = 0 where id=:i", i=fid2)
+    f.sql("delete from bio.face_embedding where face_id=:i", i=fid2)
+    f.client.post(f"/worker-api/v1/faces/{fid2}/embedding", json={"vec": None}, headers=f.ui)
+    assert f.client.get("/worker-api/v1/faces/reembed", params={"limit": 10}, headers=f.ui).json()["items"] == []
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-DET-014")
+def test_det_014_a_late_embedding_respects_consent_eligibility_and_decisions(f):
+    """回歸 (security review, ADR-0036): the re-embed answer wrote a vector without checking faces were still on, nor
+    that the face was one the backlog listed, and could move a face a person had decided on."""
+    f.enable()
+    vec = [1.0] + [0.0] * 511
+    post = lambda fid: f.client.post(f"/worker-api/v1/faces/{fid}/embedding", json={"vec": vec}, headers=f.ui)
+    _, (big,) = f.photo("2025/s/big_p1.jpg", plan=[FaceSpec(person=1)])
+    assert post(big).status_code == 409  # not on the backlog: a normal face with its own vector
+    _, (dec,) = f.photo("2025/s/dec_p1.jpg", plan=[FaceSpec(person=1, min_side=28)])
+    f.sql("update face set quality_tier = 0, state = 'confirmed' where id=:i", i=dec)
+    f.sql("delete from bio.face_embedding where face_id=:i", i=dec)
+    listed = [
+        x["face_id"]
+        for it in f.client.get("/worker-api/v1/faces/reembed", headers=f.ui).json()["items"]
+        for x in it["faces"]
+    ]
+    assert dec not in listed and post(dec).status_code == 409  # a person's decision is not reopened
+    _, (off,) = f.photo("2025/s/off_p1.jpg", plan=[FaceSpec(person=1, min_side=28)])
+    f.sql("update face set quality_tier = 0 where id=:i", i=off)
+    f.sql("delete from bio.face_embedding where face_id=:i", i=off)
+    f.sql("update workspace set settings = jsonb_set(settings, '{faces,enabled}', 'false')")
+    assert post(off).status_code == 409
+    assert f.sql("select count(*) from bio.face_embedding where face_id = any(:ids)", ids=[dec, off]).scalar() == 0
+
+
+@pytest.mark.integration
+@pytest.mark.tc("VIEW-032")
+def test_view_032_a_face_nobody_grouped_gets_a_name_from_the_photo(f):
+    """回歸 (audit round 11): someone seen once or twice is never grouped, and there was no way to say who they are."""
+    f.enable()
+    a1, (x,) = f.photo("2025/o/once_a.jpg", plan=[FaceSpec(person=None)])
+    f.post("/faces/cluster")
+    ids = [u["id"] for u in f.get(f"/assets/{a1}")["unknown_faces"]]
+    assert ids == [x]
+    r = f.post(f"/faces/{x}/name", {"name": "阿姨"})
+    pid = r["person_id"]
+    assert f.sql("select display_name from person where id=:i", i=pid).scalar() == "阿姨"
+    assert f.sql("select state, person_id from face where id=:i", i=x).one() == ("confirmed", pid)
+    _, (y,) = f.photo("2025/o/once_b.jpg", plan=[FaceSpec(person=None)])
+    assert f.post(f"/faces/{y}/name", {"name": " 阿姨 "})["person_id"] == pid  # the same name: the same person
+    assert f.get(f"/assets/{a1}")["people"] == [{"id": pid, "name": "阿姨"}]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-PLAN-022")
+def test_plan_022_a_named_persons_name_finds_their_photos(f):
+    """回歸 (audit round 13, P0): after naming a group 測試A, searching 「測試A」 returned unrelated 以文搜圖 photos and
+    「測試B」 nothing: the search route never told the planner who is named, and dropped persons_all anyway."""
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p1 = f.sql("select person_id from face where id=:i", i=ids[1][0]).scalar()
+    f.post(f"/people/{p1}/name", {"name": "測試A"})
+    mine = {r[0] for r in f.sql("select distinct asset_id from face where person_id=:p", p=p1).all()}
+    for q in ("測試A", "測試a", "測試A的照片"):
+        r = f.client.post("/api/v1/search", json={"q": q, "limit": 50, "plan": True}, headers=f.ui).json()
+        assert {x["asset_id"] for x in r["items"]} == mine, q
+        assert r["total"] == len(mine)
+        assert r["planner"]["filters"]["persons_all"] == [p1] and "persons_all" not in r["planner"]["unapplied"]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-GRD-008", "ASK-PRV-006", "ASK-PRV-007", "ASK-PRV-008")
+def test_ask_grd_008_how_many_photos_of_a_named_person(f):
+    """回歸 (audit round 13): 「測試B有幾張照片？」 answered 「共有 0 張」. The name is a person filter; the count is
+    theirs, and where people may not be used (a cloud model without assistant.cloud_people, ADR-0039) the answer says
+    where to allow it, never 0."""
+    import json
+
+    from opagent_assistant.llm import FakeLLM, Reply
+
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p2 = f.sql("select person_id from face where id=:i", i=ids[2][0]).scalar()
+    f.post(f"/people/{p2}/name", {"name": "測試B"})
+    n = f.sql("select count(distinct asset_id) from face where person_id=:p", p=p2).scalar()
+
+    def answer():
+        f.client.app.state.opa.llm = FakeLLM([Reply(text="共有 0 張。")])
+        r = f.client.post("/api/v1/ask", json={"message": "測試B有幾張照片？"}, headers=f.ui)
+        return "".join(
+            json.loads(line[6:])["text"]
+            for b in r.text.split("\n\n")
+            if "event: token" in b
+            for line in b.splitlines()
+            if line.startswith("data: ")
+        )
+
+    local = answer()  # ASK-PRV-006: a local model, faces on, mcp.faces_enabled off: the user's own people work
+    assert str(n) in local and "0 張" not in local
+    f.sql(
+        "update workspace set settings = jsonb_set(settings, '{assistant}',"
+        " coalesce(settings->'assistant', '{}'::jsonb) || '{\"provider\": \"openai_compat\"}')"
+    )
+    closed = answer()  # ASK-PRV-007: a cloud model needs its own switch
+    assert "助手設定" in closed and "0 張" not in closed
+    f.sql(
+        "update workspace set settings = jsonb_set(settings, '{assistant}',"
+        " settings->'assistant' || '{\"cloud_people\": true}')"
+    )
+    opened = answer()  # ASK-PRV-008: allowed, names still leave only as aliases (ASK-PRV-004)
+    assert str(n) in opened and "0 張" not in opened
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-FIND-026")
+def test_find_026_after_send_the_group_still_searches(f):
+    """回歸 (audit round 13, ADR-0038): references = the confirmed faces and the group's clustering faces."""
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p1 = f.sql("select person_id from face where id=:i", i=ids[1][0]).scalar()
+    more = _small(f, 1, 4, "kid")
+    assert f.get(f"/people/{p1}/candidates")["references"] == 6
+    f.post(f"/people/{p1}/review", {"yes": more[:2], "no": []})
+    out = f.get(f"/people/{p1}/candidates")
+    assert out["references"] == 8  # 2 confirmed and the 6 the grouping gave, not 2
+    left = {c["face_id"] for c in out["items"]}
+    assert set(more[2:]) <= left
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-PRV-009")
+def test_ask_prv_009_no_real_name_reaches_a_cloud_model(f):
+    """回歸 (security review of ADR-0039): in cloud mode the aliases came from a list the client sent and covered only
+    the final prompt; the loop's messages and the tool results could carry real names. Every message to a cloud model
+    is aliased from the server's own named people, and only this machine turns 人物A back into the name."""
+    from opagent_assistant.llm import FakeLLM, Reply
+
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p2 = f.sql("select person_id from face where id=:i", i=ids[2][0]).scalar()
+    f.post(f"/people/{p2}/name", {"name": "王小美"})
+    f.sql(
+        "update workspace set settings = jsonb_set(settings, '{assistant}', coalesce(settings->'assistant', '{}'::jsonb)"
+        ' || \'{"provider": "openai_compat", "cloud_people": true}\')'
+    )
+    llm = FakeLLM([Reply(text="人物A 有照片。")])
+    f.client.app.state.opa.llm = llm
+    r = f.client.post("/api/v1/ask", json={"message": "王小美有幾張照片？"}, headers=f.ui)
+    assert r.status_code == 200
+    sent = "".join(str(m.get("content")) for call in llm.seen for m in call)
+    assert llm.seen and "王小美" not in sent
+    assert "王小美" in r.text  # the answer, on this machine, says the name
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-PRV-010")
+def test_ask_prv_010_every_form_of_a_name_is_aliased_or_the_call_is_refused(f):
+    """回歸 (security review of ASK-PRV-009): tool output carries a name as the sanitiser made it (zero-width marks
+    gone) or JSON-escaped (backslash-u escapes); a replacement on the stored form missed those. Every form is aliased, and a
+    payload that still holds one is not sent."""
+    import json
+
+    from opagent_assistant.llm import FakeLLM, Reply
+
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p2 = f.sql("select person_id from face where id=:i", i=ids[2][0]).scalar()
+    f.post(f"/people/{p2}/name", {"name": "王​小美"})
+    f.sql(
+        "update workspace set settings = jsonb_set(settings, '{assistant}', coalesce(settings->'assistant', '{}'::jsonb)"
+        ' || \'{"provider": "openai_compat", "cloud_people": true}\')'
+    )
+    llm = FakeLLM([Reply(text="人物A 有照片。")])
+    f.client.app.state.opa.llm = llm
+    f.client.post("/api/v1/ask", json={"message": "王小美的照片"}, headers=f.ui)
+    for call in llm.seen:
+        for form in (json.dumps(call, ensure_ascii=False), json.dumps(call)):
+            assert "小美" not in form and "\u5c0f\u7f8e" not in form
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-PRV-011")
+def test_ask_prv_011_a_name_in_another_case_or_width_never_reaches_a_cloud_model(f):
+    """回歸 (security review of ASK-PRV-010): 「AMY」 or full-width 「Ａｍｙ」 for a person named Amy slipped past an exact
+    replacement. The check runs on the normalised payload (NFKC, case-folded, format characters gone)."""
+    import unicodedata
+
+    from opagent_assistant.llm import FakeLLM, Reply
+
+    f.enable()
+    ids = _library(f, people=(1, 2), per=6)
+    f.post("/faces/cluster")
+    p2 = f.sql("select person_id from face where id=:i", i=ids[2][0]).scalar()
+    f.post(f"/people/{p2}/name", {"name": "Amy"})
+    f.sql(
+        "update workspace set settings = jsonb_set(settings, '{assistant}', coalesce(settings->'assistant', '{}'::jsonb)"
+        ' || \'{"provider": "openai_compat", "cloud_people": true}\')'
+    )
+    for q in ("AMY 的照片", "Ａｍｙ 在海邊"):
+        llm = FakeLLM([Reply(text="好的")])
+        f.client.app.state.opa.llm = llm
+        f.client.post("/api/v1/ask", json={"message": q}, headers=f.ui)
+        for call in llm.seen:
+            blob = unicodedata.normalize("NFKC", "".join(str(m.get("content")) for m in call)).casefold()
+            assert "amy" not in blob, q

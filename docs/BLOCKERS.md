@@ -5,18 +5,18 @@
 
 | # | 類別 | 事項 | 影響 | 現況／建議下一步 | 里程碑 |
 |---|------|------|------|------------------|--------|
-| B-1 | 硬體 | 執行 pending-hardware 的 M0 實驗（S1a Win/Mac、S1c、S3、S3b、S4、S4b、S7、T1c、T2 參考機錄製） | cascade 信心方案、ONNX 一致性、tool-calling 是否開放完整迴圈、安裝包實測 | 步驟見 `docs/research/m0-results.md` §3 | M0-hardware |
+| B-1 | 硬體 | 執行 pending-hardware 的 M0 實驗（S1a Win/Mac、S1c、S3、S3b、S4、S4b、S7、V7、V9、T1c、T2 參考機錄製），以及需要真模型或參考機的測試：INF-CAL-003、PERF-005、DOC-020、ETA-019、ASK-EVAL-002、ASK-PERF-001（nightly-gpu 或使用者本機） | cascade 信心方案、ONNX 一致性、tool-calling 是否開放完整迴圈、安裝包實測、真模型的準確度與吞吐量 | 步驟見 `docs/research/m0-results.md` §3 | M0-hardware |
 | B-2 | 資料授權 | 人臉測試影像的授權來源（09 Q-T1）；M0-S5 的 TAR@FAR 需要授權允許的人臉資料集 | FACE-N-001 與真模型準確度驗證 | 確認前 FACE-* 只用 FakeFaceBackend | M0、v0.2-C |
 | B-3 | 金錢／帳號 | Apple Developer Program（每年 99 美元）、Developer ID 憑證與 notarize 用 API key（M0-S6） | macOS dmg 簽章與 notarize | 取得後設定 secrets，依 `spikes/m0/S6/README.md` 演練 | M0、v0.1-D |
 | B-4 | 帳號 | SignPath Foundation OSS 申請（Windows 簽章） | Windows SmartScreen | 未核准前以未簽章版本 + sha256 發佈（08 §9.3，不擋發佈） | v0.1-D |
-| B-5 | 憑證 | Tauri updater 與 runtime pack 的 minisign 私鑰（`TAURI_SIGNING_PRIVATE_KEY`、pack 簽章金鑰） | 自動更新與 pack 驗證的正式金鑰 | 測試用金鑰對只放在 `tests/support/packserver`；正式私鑰由使用者產生並存為 GitHub secret | v0.1-D |
+| B-5 | 憑證 | Tauri updater 與 runtime pack 的 minisign 私鑰（`TAURI_SIGNING_PRIVATE_KEY`、pack 簽章金鑰） | 自動更新與 pack 驗證的正式金鑰 | 測試用金鑰對只放在 `tests/support/packserver`；正式私鑰由使用者產生並存為 GitHub secret。**2026-11-04 CI**：repo 已設定 `TAURI_SIGNING_PRIVATE_KEY`，但 desktop-build 在 macOS 解不開（"incorrect updater private key password: Missing comment in secret key"）。請用 `cargo tauri signer generate` 重新產生，並把完整的金鑰檔內容（含註解行）與密碼放進 secrets。在那之前 macOS dmg 已建置成功（127 MB，≤ 200 MB），只在 updater 簽章那一步失敗 | v0.1-D |
 | B-6 | 法律意見 | 人臉模型訓練資料集授權對再散布的影響；人臉功能的法規（BIPA、EU AI Act、台灣個資法，11 V-10） | v0.2 人臉功能發佈前的文案與預設 | 需要有經驗的人審閱 | v0.2-C |
 | B-7 | 硬體驗證 | AuraFace v1 的授權檔與 sha（HF 在雲端被擋） | 預設辨識模型能否打包 | 在可連 HF 的機器確認 `fal/AuraFace-v1` LICENSE | v0.2-C |
 | B-8 | 帳號 | GitHub org、PyPI、npm 名稱與 `openphotoagent.org` 網域註冊（11 D-7） | 套件發佈、bundle id | 盡快註冊 | v0.1-D |
 | B-9 | 發版 | 每個里程碑的 release-please Release PR 合併、tag 與 GitHub Release | 版本發佈 | 雲端 session 不能 push tag；由使用者合併 Release PR | 每個里程碑 |
 | B-10 | 帳號 | `registry-pin.yml` 需要的 GitHub App token（bot PR 才會觸發 CI）；第一次執行該 workflow 並審閱、合併 `chore(registry): pin …` PR（ADR-0002） | 內建模型的 size／sha256 釘選；INF-REG-013 release gate | 建立 GitHub App、設定 secret，觸發 workflow 後人工審閱 diff 再合併 | v0.1-C、v0.1-D |
 | B-11 | 參考機手動驗證 | v0.1-C 的介面在參考機（Windows 11、RTX 5070 Ti 16GB）走一遍：歡迎精靈的硬體結論與推薦組合、真實下載（需 B-10 釘選）、整理（依日期／依內容）、待確認、搜尋、Lightbox、環境檢查；並確認視覺快照在 Windows 字型渲染下的差異只當參考（基準以 Linux Chromium 為準） | 真模型路徑與實機畫面的驗收 | 雲端以 FakeBackend 與合成 hw profile 驗證，步驟見 1C PR 的「需要人工驗證」 | v0.1-C |
-| B-12 | CI 首次執行 | 新 workflow 的第一次執行與審閱：`desktop-build.yml`（三平台 pg pack、Python runtime、Tauri bundle、200 MB 門檻 DESK-030）、`docker.yml`（DOCK-001～003）、`nightly.yml`（ORG-005、DL-019、PG-010、PERF-004、OUT-CRASH-012、mutation）、`release-gate.yml`；`nightly-gpu.yml` 需要註冊標籤為 `gpu` 的 self-hosted runner | 桌面安裝包、Docker 映像、nightly 與 release gate 的實際結果 | 雲端 session 不能觸發 workflow、沒有 Docker daemon 與 WebView 標頭；Tauri 殼（`apps/desktop/src-tauri`）只在 CI 編譯。合併 1D PR 或手動 dispatch 後檢查結果 | v0.1-D |
+| B-12 | CI 首次執行 | 新 workflow 的第一次執行與審閱。**已在 PR #12 的 CI 通過**：`desktop-build.yml`（三平台安裝包、DESK-030／037／039，見 ADR-0022 的量測）與 `docker.yml`。**仍待執行**：`nightly.yml`（ORG-005、DL-019、PG-010、PERF-004、OUT-CRASH-012、mutation）、`release-gate.yml`；`nightly-gpu.yml` 需要註冊標籤為 `gpu` 的 self-hosted runner | 桌面安裝包、Docker 映像、nightly 與 release gate 的實際結果 | 雲端 session 不能觸發 workflow、沒有 Docker daemon 與 WebView 標頭；Tauri 殼（`apps/desktop/src-tauri`）只在 CI 編譯。合併 1D PR 或手動 dispatch 後檢查結果 | v0.1-D |
 | B-13 | 參考機／VM 驗證 | 桌面 D／M 類案例：DESK-001（啟動畫面 < 300 ms）、DESK-002～005（kill -9 各進程）、DESK-007、DESK-018～024、DESK-031（乾淨 VM 一般帳號安裝）、DESK-033、DESK-034（tauri-driver 煙霧）、PG-010 的 Windows（Defender）／macOS 部分、PG-011、PERF-001（參考規格 runner）、PERF-005、PERF-007、UPD-001～003（VM 更新流程） | v0.1 DoD 5.1／5.4 的桌面條目 | 判斷邏輯已在 `opagent-supervisor` 以 cargo test 驗證（DESK-002/003/004/006/008、UPD-003/004/005）；實機步驟見 `docs/checklists/release-v0.1.md` | v0.1-D |
 | B-14 | 環境清理（2026-11-02 經使用者同意已清除；之後的 gate 未再洩漏） | 雲端 session 的 `/tmp` 留有測試叢集：約 260 個 `/tmp/opagent-pg-*`（每個 pytest session 留下一個約 63 MB 的叢集，合計約 16 GB）與約 89 個 `/tmp/opagent-e2e-*`（約 8 GB，其中數個仍有 postmaster 在跑；Playwright 以 SIGKILL 結束 web server，舊版 stack 無法自行清理）。刪除被權限分類器以「Shared Scratch Sweep」拒絕 | 磁碟額度（這次 session 曾因此寫滿） | 已修正來源：e2e stack 改用每個 port 固定一個目錄、啟動時先停掉殘留的 postmaster 再清空；`embedded_pg` session 結束時刪除叢集。雲端剩餘空間曾低到 0.35 GB，下載類測試因 2 GB 預留而失敗。請手動執行：先 `pg_ctl -D <dir>/home/pg/data stop`，再 `rm -rf /tmp/opagent-e2e-* /tmp/opagent-pg-* /tmp/pytest-of-root/*`。2026-11-02 v0.2-C 期間剩餘空間只有約 0.45 GB，API 整合測試與 e2e 跑到一半就寫滿磁碟，無法完成完整 gate | v0.1-D、v0.2-C |
 | B-15 | 手動驗證 | 在真的 AI client 中走一遍 MCP：Claude Desktop、Claude Code、Cursor 用精靈寫入的設定啟動 `opagent mcp`；搜尋、`propose_organize`、`apply_organize`；在 app 內核准；macOS Keychain／Windows 認證管理員實際存放權杖；桌面 deep link `openphotoagent://approvals/{id}` 與 OS 通知（MCP-APPR-003 的 D 部分）；各 client 對 2026-07-28 `input_required`／2025-11-25 URL elicitation 的實際支援 | v0.2 MCP 的實機相容性 | 協定與流程已在雲端以 JSON-RPC 與 stdio 子程序驗證（MCP-TRN-001～005、MCP-APPR-*）；client 設定步驟見 `docs/mcp-clients.md` | v0.2-B |
@@ -24,3 +24,32 @@
 | B-17 | CI 首次執行 + 憑證 | runtime pack 的實際建置（`packs/<id>/assemble.sh` 各平台 recipe 目前標 pending）與 `packs.yml` 第一次執行；需要 `PACK_SIGNING_KEY`（B-5）與 macOS／Windows／GPU runner | v0.4 的 MLX、vLLM、torch pack 真正可下載 | 在 CI 補上各平台 recipe、提供簽章金鑰後手動觸發 `packs.yml` | v0.4 |
 | B-18 | 帳號 | 套件管理器上架：winget-pkgs PR、Homebrew tap／cask、Flathub 新 app 審核（manifest 已可由 `tools/gen_dist_manifests.py` 產生，評估見 `docs/research/distribution.md`） | 使用者能用套件管理器安裝 | 建立 tap repo、簽章到位後送 winget、確認 Linux sandbox 權限後送 Flathub | v0.4 |
 | B-19 | 手動驗證 | v0.5 control plane 的實機部署：(1) NAS（Synology／Unraid）上以 `deploy/compose/controlplane.yml` 搭配 HTTPS reverse proxy，GPU 桌機以 `opagent worker enroll` 配對（真的兩台機器、跨網段）；(2) 真的 IdP（Authentik／Keycloak／Google Workspace）OIDC 登入；(3) 真的 MCP client 以 OAuth 2.1＋CIMD 連 `/mcp`（Claude 的遠端 connector 等），確認同意頁與撤銷；(4) 桌面 app 的 `connection.json` 遠端模式在 Windows／macOS 實際開啟（MU-DEPLOY-002 的 M 部分）；(5) compose 雙機 E2E 在 nightly CI 的第一次執行（本環境沒有 Docker daemon） | v0.5 的實機相容性 | 流程已在雲端以兩個獨立進程（`opagent controlplane`＋`opagent worker run --headless`）、假 OIDC provider、假 CIMD 主機與 cargo test 驗證；步驟見 `docs/deploy/controlplane.md` | v0.5 |
+| B-20 | 外部審查＋發版 | v1.0：(1) 外部安全審查（SEC-AUDIT-001）：路徑沙箱、MCP 與 OAuth、人臉刪除、control plane 認證，由有經驗的審查者完成並記錄；審查材料見 `docs/security/review-v1.0.md`。(2) 合併 release-please 的 Release PR，發佈 `v1.0.0`（雲端 session 不能 push tag） | v1.0 穩定版的承諾 | 雲端已完成的自動化部分：1,000,000 例沙箱 fuzz、110 條 MCP 紅隊、可驗證的人臉刪除、SBOM 與漏洞掃描、介面快照；手動項目見 `docs/checklists/release-v1.0.md` | v1.0 |
+| B-21 | CI 首次執行（人工審閱） | 視覺基準改在釘選的 Playwright 映像產生（ADR-0019）：(1) 在 `feat/v1.0` dispatch `visual-baselines.yml`；(2) 下載 artifact，逐張確認差異只是字型算繪，再提交新的 `*-snapshots/`；(3) dispatch 一次 `nightly.yml`，確認 VIS-001～003、ACT-006 為綠 | 新基準提交前，這四條在 CI nightly 是紅的；雲端開發容器內的結果是綠的 | 雲端 session 沒有 Docker，也不能觸發 workflow | v1.0 |
+
+> **2026-11-05 地端更新**：B-10 的釘選已在本機完成（`pins.lock` 9 個 variant），只剩 bot PR 的 App token。B-11 主要流程已在參考機走過（見 HANDOFF-local 開頭）。B-7 查證結果：`fal/AuraFace-v1` 的 LICENSE.md 是未填寫的 Apache-2.0 範本，模型卡未列訓練資料，只有 `glintr100.onnx` 可用，**需要法律審閱（併入 B-6）**。新增授權確認：`onnx-community/siglip2-so400m-patch14-384-ONNX` 沒有授權檔（上游 Apache-2.0），請確認或改發佈自己的匯出。
+
+> **2026-11-06 地端更新**：B-11 完成（實測見 `docs/checklists/release-v0.1.md`）。B-13：DESK-001 以外的 002～007、PERF-001、PERF-007 已實測通過；VM 全新帳號（DESK-031）、更新（UPD-001／002）、拖放、OS 通知未做。B-15：Claude Code 通過；Claude Desktop、Cursor 待測。B-1：S3、S7（8B）、S4、S1a 通過，S4b 只有替代資料集（0.605，未達 0.80，尚無定論），V7、V9、S1a 管理員未跑。
+
+## 附錄：還沒有綠燈的測試 ID 與對應項目
+
+> 依 `docs/generated/coverage-status.md`（2026-11-03，feat/v1.0）。這裡列出每一條沒有綠燈的 ID，說明為什麼沒有在雲端執行，以及由哪一項 B-x 負責。其餘 ID 全部是綠燈。
+
+| 測試 ID | 版本 | 為什麼沒有在雲端執行 | 對應 |
+|---|---|---|---|
+| OUT-EXE-010 | v0.1 | 需要不分大小寫的檔案系統（APFS／NTFS）；已標記 `os_macos`／`os_windows`，由 CI 的 OS 矩陣執行 | B-12 |
+| INF-REG-013 | v0.1 | release gate：發版前所有模型都要釘選雜湊 | B-9、B-10 |
+| INF-CAL-003、PERF-005、ASK-EVAL-002、ASK-PERF-001 | v0.1／v0.3 | 需要真模型與參考機（nightly-gpu） | B-1、B-11 |
+| DOC-020、ETA-019 | v0.1 | 需要五類真機或三台參考機 | B-1、B-13 |
+| PERF-001 | v0.1 | 雲端量到 p95 16.8 ms、0% 掉幀；門檻 16.7 ms 以參考規格的 runner 為準 | B-13 |
+| PERF-007、DESK-001／005／007／018／019／021／024／031／033／034 | v0.1 | 桌面 D／M 類，需要真的 WebView 與 OS（tauri-driver 或 VM） | B-13 |
+| PG-007 | v0.1 | 需要已發佈版本的 `fixtures/db/v0.0.x.dump`，目前還沒有任何正式發版；各里程碑 schema 的升級已由 MIG-001 涵蓋 | B-9 |
+| PG-011 | v0.1 | Windows 管理員帳號 | B-13 |
+| PG-014、DOCK-001～003 | v0.1 | 需要 Docker daemon（雲端沒有）；`docker.yml` | B-12 |
+| UPD-001、UPD-002 | v0.1 | 真的 updater 套件與 VM（規則已由 UPD-003～006、UPD-010 的 cargo test 涵蓋） | B-5、B-13 |
+| MCP-TRN-006 | v0.1（選用） | 11 §5.5 的選用例外，v0.1 沒有開啟；v0.2 已提供完整的 stdio server（MCP-TRN-001～005） | 不需處理 |
+| SRCH-RRF-008 | v0.2 | 需要 pgvector 0.8 的 `iterative_scan`；雲端只有 0.6，CI 使用 PG 17 + pgvector 0.8 | B-12 |
+| XMP-002 | v0.2 | 需要 digiKam、Lightroom Classic 的範例檔與手動匯入 | B-11 |
+| FACE-N-001 | v0.2 | 需要真人臉模型與授權允許的資料集 | B-2、B-7 |
+| DIST-002、WINML-001 | v0.4 | M 類（人工審閱）：`docs/research/distribution.md`、`docs/research/windows-ml.md` 已寫好，等待審閱 | B-18 |
+| SEC-AUDIT-001 | v1.0 | 外部安全審查 | B-20 |

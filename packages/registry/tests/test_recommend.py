@@ -62,7 +62,7 @@ def test_inf_rt_005_no_gpu():
     assert "GPU_NOT_FOUND" in [w.code for w in r.warnings]
     opt = [a for a in r.alternatives if a.vlm]
     assert opt and "PERF_CPU_ONLY_SLOW" in [w.code for w in opt[0].warnings]
-    assert r.embed == "siglip2-so400m-384@onnx-int8" and r.ort_ep == "cpu"
+    assert r.embed == "siglip2-so400m-384@onnx-fp16-cpu" and r.ort_ep == "cpu"
 
 
 @pytest.mark.unit
@@ -225,3 +225,18 @@ def test_inf_vram_008_external_use_does_not_change_level():
     assert idle.level == busy.level == "ok"
     assert idle.fits_now is True
     assert busy.fits_now is False and busy.fits_now_reason == "GPU_BUSY_EXTERNAL"
+
+
+@pytest.mark.unit
+@pytest.mark.tc("INF-REG-014")
+def test_inf_reg_014_empty_catalog_recommends_without_crashing(tmp_path):
+    """回歸: the Docker image shipped without `registry/`; recommend() then indexed a model it never found and
+    job.start answered 500. An empty catalog is a state to report (MODEL_NOT_PINNED), not a crash."""
+    (tmp_path / "models").mkdir()
+    (tmp_path / "runtimes").mkdir()
+    (tmp_path / "pins.lock").write_text('{"schema_version": 1, "pins": []}', encoding="utf-8")
+    (tmp_path / "gpu_classes.yaml").write_text("classes: []\n", encoding="utf-8")
+    reg = load_registry(tmp_path)
+    r = recommend(reg, load_profile("rtx5070ti-win11"))
+    assert r.embed in r.not_pinned or r.embed is not None
+    assert r.download_bytes >= 0

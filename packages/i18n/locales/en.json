@@ -1,6 +1,7 @@
 {
   "app": {
-    "title": "OpenPhotoAgent"
+    "title": "OpenPhotoAgent",
+    "skipToMain": "Skip to main content"
   },
   "common": {
     "working": "Working…",
@@ -12,8 +13,8 @@
     "pickFolder": "Choose a folder to organize",
     "useThisFolder": "Use this folder",
     "method": "How to organize",
-    "byDate": "By date",
-    "byDateHint": "Year / month folders from the capture date — no model download needed",
+    "byDate": "By date (no AI)",
+    "byDateHint": "Sorts into year and month folders only. Content isn't analysed, so you can't search what's in the photos.",
     "pickMethodFirst": "Choose a method first",
     "noWritableTarget": "No writable output location",
     "output": "Output",
@@ -24,8 +25,8 @@
     "doneTitle": "All done",
     "undo": "Undo",
     "undoneTitle": "Undone",
-    "byContent": "By content (12 built-in categories)",
-    "byContentHint": "Image similarity plus a vision-language model sort photos into 12 categories",
+    "byContent": "By content (AI, 12 built-in categories)",
+    "byContentHint": "AI looks at each photo and sorts it into 12 categories. You can then search by what's in them.",
     "custom": "Custom categories",
     "customHint": "Define your own categories and teach them with a description and example photos",
     "advanced": "Advanced",
@@ -68,7 +69,8 @@
       "cancelled": "Cancelled",
       "undoing": "Undoing",
       "undone": "Undone",
-      "failed": "Failed"
+      "failed": "Failed",
+      "discarded": "Discarded"
     },
     "summaryMove": "Will move {count} photos into {folders} folders. Each original is copied and verified, then kept in .opagent-trash/; you can undo anytime",
     "cancel": "Cancel",
@@ -84,7 +86,35 @@
     "moveNeedAck": "Tick the confirmation first",
     "moveNeedText": "Type the confirmation text",
     "close": "Cancel",
-    "summaryTrash": "Move {count} to the trash, keeping one copy of each group. You can undo at any time"
+    "summaryTrash": "Move {count} to the trash, keeping one copy of each group. You can undo at any time",
+    "addFolder": "Add a folder…",
+    "intro": "Organizing copies photos into an output folder, sorted by category or date. The originals stay as they are, and it can be undone.",
+    "fromLibrary": "Pick a folder in the library",
+    "organizeThis": "Organize this folder",
+    "otherFolder": "Or another folder",
+    "samplingProgress": "Analysing samples {done}/{total} · {elapsed} so far",
+    "timeLeft": "about {left} left",
+    "secs": "{n} s",
+    "mins": "{m} min {s} s",
+    "readingFolder": "Reading the folder… · {elapsed} so far",
+    "elapsed": "{elapsed} so far",
+    "title": "Organize photos",
+    "steps": "Organizing steps",
+    "step1": "Choose photos",
+    "step2": "How to organize",
+    "step3": "Output and preview",
+    "stripFrom": "From:",
+    "stripTo": "→ To:",
+    "stripCopy": "(copied, originals untouched)",
+    "fromPhotos": "Pick from photos or albums",
+    "fromPhotosHint": "Select photos in search or an album, then Copy to folder.",
+    "outside": "A folder outside the library…",
+    "discard": "Discard plan",
+    "discarded": "Plan discarded. No files were changed.",
+    "backToOrganize": "Back to Organize",
+    "summaryTrashChosen": "Move {count} files to the trash. You can undo at any time",
+    "planTitleTrash": "Plan: move to the trash",
+    "planning": "Building the plan…"
   },
   "eta": {
     "slow": {
@@ -183,7 +213,8 @@
       "succeeded": "Done",
       "waiting": "Waiting",
       "interrupted": "Interrupted",
-      "cancelled": "Cancelled"
+      "cancelled": "Cancelled",
+      "awaitingApproval": "Waiting for you"
     },
     "eta": {
       "rough": "About",
@@ -194,10 +225,21 @@
     "type": {
       "model.download": "Model download",
       "scan": "Scanning",
-      "job.label": "Organizing",
+      "job.label": "Organize",
       "output.apply": "Applying",
       "output.undo": "Undoing",
-      "search.reindex": "Building search index"
+      "search.reindex": "Building search index",
+      "face.cluster": "Grouping faces",
+      "job.analyze": "AI analysis",
+      "map.download": "Download street map",
+      "job.preview": "Organize preview (not run)",
+      "output.plan": "Making the organize plan",
+      "dedup": "Finding duplicates",
+      "face.reembed": "Recomputing faces",
+      "preview.stage": "Preparing the preview",
+      "model.load": "Loading a model",
+      "job.planWaiting": "Organize plan waiting for approval",
+      "job.discarded": "Organize plan discarded (no files changed)"
     },
     "open": "Activity",
     "resume": "Resume",
@@ -219,6 +261,18 @@
       "model_load": "Load model",
       "infer": "Infer",
       "postprocess": "Post-process"
+    },
+    "recent": "Recently finished",
+    "group": {
+      "control": "System"
+    },
+    "inFolder": "{name} ({folder})",
+    "noThanks": "No thanks",
+    "resumeMeans": {
+      "job.analyze": "“Resume all” analyses the remaining photos; no file is touched.",
+      "job.label": "“Resume all” keeps analysing; you still see the plan before any file moves.",
+      "model.download": "“Resume all” continues the download where it stopped.",
+      "default": "“Resume all” continues where it stopped."
     }
   },
   "fix": {
@@ -341,7 +395,10 @@
     "retry_later": "Try again later",
     "confirm_remote_code": "Review and confirm the code",
     "immich": "Open the Immich settings",
-    "retype": "Type it again"
+    "retype": "Type it again",
+    "consequence_label": "If you choose this:",
+    "compose__f_compose_cuda_yml": "Copy the GPU compose command",
+    "worker_run": "Show the start command"
   },
   "nav": {
     "label": "Main navigation",
@@ -356,12 +413,21 @@
     "duplicates": "Duplicates",
     "people": "People",
     "ask": "Ask AI",
-    "map": "Map"
+    "map": "Map",
+    "import": "Import",
+    "groupLibrary": "Library",
+    "groupWork": "Work",
+    "groupSystem": "System",
+    "explore": "Categories",
+    "albums": "Albums",
+    "importHint": "Add folders to the library",
+    "organizeHint": "Copy into tidy folders",
+    "menu": "Menu"
   },
   "viewer": {
     "title": "Photos",
     "grid": "Photo grid",
-    "empty": "No photos yet. Pick a folder to get started.",
+    "empty": "No photos yet",
     "unknownDate": "Unknown date",
     "dateFromMtime": "From file time",
     "count_one": "{count} photo",
@@ -374,7 +440,10 @@
     "jumpGo": "Go",
     "jumpInvalid": "That date wasn't understood; try e.g. 2019-03",
     "photoAlt": "Photo, {date}",
-    "loading": "Loading…"
+    "loading": "Loading…",
+    "emptyHint": "Pick a folder and see what it holds before you add it. Your originals stay as they are.",
+    "emptyAction": "Import photos",
+    "arriving": "Your photos are on their way…"
   },
   "lightbox": {
     "label": "Photo viewer",
@@ -396,7 +465,7 @@
       "date": "Taken",
       "size": "Dimensions",
       "fileSize": "File size",
-      "locations": "Locations"
+      "locations": "File location"
     },
     "ai": {
       "title": "AI results",
@@ -406,7 +475,10 @@
       "layer": "Decided by",
       "human": "Your correction",
       "none": "Not analysed yet",
-      "advanced": "Advanced details"
+      "advanced": "Advanced details",
+      "tags": "Tags",
+      "history": "Earlier analyses ({n})",
+      "details": "How the AI decided"
     },
     "layer": {
       "embedding": "Image similarity",
@@ -424,7 +496,53 @@
     },
     "correct": "Correct category",
     "correctSave": "Save correction",
-    "correctionSaved": "Correction saved"
+    "correctionSaved": "Correction saved",
+    "people": "People in this photo",
+    "facesFolderOff": "Face recognition is not on for this folder, so no people are marked here.",
+    "facesSettings": "Face settings",
+    "facesNobody": "{n} faces found. These people appear too rarely in the library to be grouped yet.",
+    "facesNobodySmall": "{n} faces found; {small} are too small to recognise, and the others appear too rarely to be grouped yet.",
+    "facesNobodyAllSmall": "{n} faces found, all too small to tell who they are.",
+    "facesNobodyShort": "{n} faces not grouped yet · Why?",
+    "nameFaces": "Name these faces",
+    "faceName": "Name",
+    "whoIsThis": "Who is this?",
+    "saveFaceName": "Save",
+    "faceNamePlaceholder": "e.g. Auntie, Max",
+    "nameFacesSmall": "{n} more faces are too small to tell who they are.",
+    "showMoreFaces": "Show {n} more",
+    "correctShort": "Wrong category? Change…",
+    "rotate": "Rotate",
+    "slideshow": "Play slideshow",
+    "slideshowStop": "Stop slideshow",
+    "keys": "Keyboard shortcuts",
+    "k": {
+      "prevNext": "Previous / next",
+      "space": "Space",
+      "play": "Play or stop the slideshow",
+      "fav": "Favourite",
+      "rotate": "Rotate 90°",
+      "info": "Info",
+      "zoom": "Zoom in, out, fit",
+      "close": "Close"
+    },
+    "copies": "{n} near-duplicates",
+    "copiesBack": "Back to all photos",
+    "copiesPosition": "Near-duplicate {n} of {total}",
+    "share": "Share",
+    "copyImage": "Copy image",
+    "shareSaved": "Saved to your Downloads folder: {name}",
+    "shareFailed": "Couldn't share this photo",
+    "copied": "Image copied — paste it into a chat or document",
+    "copyFailed": "Couldn't copy the image: this window can't put images on the clipboard. Use Share to save it as a file",
+    "storyEnd": "The end",
+    "playAgain": "Play again",
+    "storyPlayed": "Played {n} of {total}",
+    "storyKeep": "Save {n} as album",
+    "storyKept": "Saved as album “{name}”",
+    "storyKeepFailed": "Couldn't save the album",
+    "storySeeAll": "See all {n}",
+    "storyOpenAlbum": "Open album"
   },
   "onboarding": {
     "welcome": "Welcome to OpenPhotoAgent",
@@ -448,7 +566,8 @@
       "vulkan": "Vulkan (compatibility)",
       "cuda": "CUDA",
       "cpu": "CPU",
-      "metal": "Metal"
+      "metal": "Metal",
+      "allInstalled": "The models are already installed. Nothing to download."
     },
     "download": "Start download",
     "pickTitle": "Choose your photo folder",
@@ -481,7 +600,40 @@
     "loadMore": "Load more",
     "none": "No matching photos",
     "indexing": "{have} / {total} photos searchable (text-to-image)",
-    "degraded": "Text-to-image search is unavailable right now; showing text matches only"
+    "degraded": "Text-to-image search is unavailable right now; showing text matches only",
+    "related": "Possibly related",
+    "relaxed": "No photo shows “{words}”. Below are photos that match the rest.",
+    "personChip": "Person: {name}",
+    "countCapped": "{n}+ photos · by relevance",
+    "softDivider": "The {n} below don't clearly show “{word}” but match the rest",
+    "softNone": "No photo clearly shows “{word}”. Below are photos that match the rest.",
+    "softOnly": "Only “{word}” ({n})",
+    "softChip": "Only “{word}”",
+    "cappedNote": "Showing the {n} most relevant; the rest are less alike.",
+    "weakMore": "Show {n} less related",
+    "softImpliedDivider": "The {n} below don't clearly show “{word}”, but all show “{by}”",
+    "weakCount": "{n} less related",
+    "busy": "Searching…",
+    "busyLabel": "Searching",
+    "relaxedMeaning": "No photo says “{words}” outright. Below are photos with a similar meaning.",
+    "copies": "{n} more copies of this photo",
+    "partialCount": "No photo matches everything · {count} match the rest",
+    "relaxedNone": "No photo shows 「{words}」.",
+    "possible": "Possibly related: {n} (not counted)",
+    "noneSure": "No photo is a sure match",
+    "tryInstead": "Try:",
+    "tryWord": "{q} ({n}+)",
+    "askInstead": "Ask AI “{q}”",
+    "partialNone": "No photo matches all of it",
+    "loadMoreLeft": "Load more ({n} left)",
+    "collapsed": "{n} near-duplicates folded into their group's photo",
+    "resultsFor": "Results for “{q}”",
+    "moreFailed": "Could not load more photos",
+    "retry": "Try again",
+    "loadingMore": "Loading…",
+    "retrying": "Retrying…",
+    "loadedNote": "{n} of {total} loaded",
+    "browseInstead": "Browse categories"
   },
   "problem": {
     "chosen": "Switched to {what}"
@@ -492,13 +644,18 @@
     "none": "Nothing to review",
     "suggestion": "Suggestion",
     "accept": "Accept suggestion (Enter)",
-    "other": "Other (0)",
+    "other": "Other",
     "skip": "Skip (S)",
     "skipRest": "Skip the remaining {n}…",
     "skipRestTitle": "Skip the remaining photos?",
     "skipRestBody": "The remaining {n} go to “Other”; you can still correct them later in Photos.",
     "keys": "1–9 choose · 0 other · Enter accept · S skip",
-    "backToPlan": "Back to organize"
+    "backToPlan": "Back to organize",
+    "why": {
+      "low_confidence": "The AI isn't sure enough about this one. Your call.",
+      "conflict": "The two models disagree on this one. Your call.",
+      "shortlist": "With this many categories the AI compared only the closest few. Please check."
+    }
   },
   "batch": {
     "selected": "{n} selected",
@@ -507,13 +664,26 @@
     "addTag": "Add tag",
     "category": "Category",
     "applyCategory": "Apply category",
-    "moveToFolder": "Move to folder…",
-    "moveTitle": "Move to folder",
+    "moveToFolder": "Copy to folder…",
+    "moveTitle": "Copy to folder",
     "root": "Destination",
     "subPath": "Subfolder",
     "createPlan": "Create plan",
     "updated": "{n} photos updated",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "copyNote": "You approve a plan first; the photos are copied here and the originals stay untouched."
+  },
+  "share": {
+    "many": "Share {n}…",
+    "preparing": "Preparing…",
+    "tooMany": "Share up to {max} at a time; choose fewer",
+    "inRoot": "That folder is inside your library. Choose a folder outside it so the photos are not added to the library.",
+    "failed": "Couldn't share. Try again",
+    "savedTo": "Saved {n} to {dir}",
+    "zipped": "Saved as {name}",
+    "shared": "Shared {n}",
+    "someFailed": "{n} couldn't be shared",
+    "openFolder": "Open folder"
   },
   "compat": {
     "ok": "Compatible",
@@ -541,7 +711,28 @@
       "installed": "Installed",
       "downloading": "Downloading"
     },
-    "back": "Back to models"
+    "back": "Back to models",
+    "kinds": {
+      "vlm": "Understands photos (captions, categories, tags)",
+      "embedding": "Search photos by text",
+      "face_detector": "Finds faces",
+      "face_embedder": "Recognises faces",
+      "text_embedding": "Search by description",
+      "llm": "Ask about photos",
+      "text_embedder": "Search by description"
+    },
+    "installedBadge": "Installed",
+    "names": {
+      "qwen3-vl-8b-instruct": "Qwen3-VL 8B (captions and categories)",
+      "qwen3-vl-4b-instruct": "Qwen3-VL 4B (captions and categories)",
+      "qwen3-vl-2b-instruct": "Qwen3-VL 2B (captions and categories)",
+      "siglip2-so400m-384": "SigLIP 2 (search by description)",
+      "qwen3-embedding-0.6b": "Qwen3 Embedding (caption search)",
+      "yunet-2023mar": "YuNet (finds faces)",
+      "auraface-v1": "AuraFace (recognises faces)",
+      "sface-2021dec": "SFace (recognises faces)",
+      "insightface-buffalo-l": "InsightFace (recognises faces)"
+    }
   },
   "readiness": {
     "title": "Readiness",
@@ -587,7 +778,8 @@
     "near": "Similar",
     "makePlan": "Create clean-up plan (move {count} to trash)",
     "empty": "No duplicates found",
-    "explain": "Each group keeps its best copy (highest resolution, largest file, earliest date); the others move to the folder's trash and can be restored at any time."
+    "explain": "Each group keeps its best copy (highest resolution, largest file, earliest date); the others move to the folder's trash and can be restored at any time.",
+    "explainReadOnly": "Photos that are the same or nearly the same. Every folder of the library is read-only, so you can look, but copies cannot go to the trash."
   },
   "mcp": {
     "title": "Connect AI assistants",
@@ -629,7 +821,10 @@
     "skipWrite": "I'll set it up myself",
     "written": "Wrote {path}",
     "backup": "The previous config is at {path}",
-    "restartClient": "Restart {client}."
+    "restartClient": "Restart {client}.",
+    "enabled": "Enable MCP Server",
+    "test": "Test connection",
+    "testOk": "Connected: this app can search your photos"
   },
   "approval": {
     "title": {
@@ -693,7 +888,45 @@
     "typeName": "Type the library name “{name}” to confirm",
     "typeNameFirst": "Type the library name first",
     "disableAndDelete": "Turn off and delete",
-    "disableOnly": "Turn off only"
+    "disableOnly": "Turn off only",
+    "whoIsThis": "Who is this?",
+    "saveName": "Save name",
+    "nameFirst": "Enter a name first",
+    "grouping": "No people yet. Once analysis finishes, the same faces are grouped together here.",
+    "thisPerson": "this person",
+    "candidatesTitle": "Is this also {name}? ({n})",
+    "candidatesHint": "Click once for yes, twice for no. What you confirm widens the next search.",
+    "noCandidates": "No other likely faces right now.",
+    "allYes": "All of them",
+    "send": "Send ({yes} yes, {no} no)",
+    "markFirst": "Mark some faces first",
+    "similarity": "{n}% similar",
+    "photos": "Photos ({n})",
+    "mark": {
+      "none": "Not marked; click for yes",
+      "yes": "Yes; click again for no",
+      "no": "No; click again to clear"
+    },
+    "more": "{n} more",
+    "openPhoto": "Open photo",
+    "sameQuestion": "Are these the same person?",
+    "sameCounts": "{a} and {b} photos",
+    "sameYes": "Same person",
+    "sameNo": "Not the same",
+    "sameLater": "Later",
+    "reviewSent": "Sent: {yes} yes, {no} no.",
+    "undoReview": "Undo",
+    "moreOf": "More of {name}",
+    "groupLabel": "{name} · {n} photos",
+    "hardToJudge": "Hard to tell",
+    "allYesHint": "{n} more are less certain: decide them one at a time",
+    "candidateKeys": "Keys: Y yes · N no · S or → skip · ← back",
+    "photosWithMaybe": "{n} photos ({sure} confirmed, {maybe} likely)",
+    "maybe": "Likely",
+    "maybePhoto": "A photo they are likely in",
+    "rename": "Rename",
+    "faint": "Less alike",
+    "backToPeople": "← People"
   },
   "ask": {
     "open": "✦ Ask AI",
@@ -746,8 +979,12 @@
       "retention": "Keep conversations for (days, 0 = never)",
       "save": "Save",
       "saved": "Saved",
-      "cloudNote": "With an external service, questions and photo text descriptions are sent; images are not, and names are replaced by placeholders."
-    }
+      "cloudNote": "With an external service, questions and photo text descriptions are sent; images are not, and names are replaced by placeholders.",
+      "cloudPeople": "Let the cloud model answer about named people (names go only as aliases such as “Person A”; face images and features never leave)"
+    },
+    "seeAll": "See all {n} on the search page",
+    "chipPerson": "Person: {names}",
+    "chipDay": "{day}, every year"
   },
   "map": {
     "title": "Map",
@@ -755,7 +992,12 @@
     "cluster": "{n} photos",
     "noLocation": "No location: {n}",
     "inArea": "{n} photos in this area",
-    "photo": "Photo"
+    "photo": "Photo",
+    "oneSpot": "All {n} were taken within about {m} m: one place.",
+    "basemapOffer": "Borders and coastlines only for now. Download the Taiwan street map for streets and place names (about 100–300 MB, once; works offline).",
+    "basemapDownload": "Download Taiwan street map",
+    "basemapDownloading": "Downloading the Taiwan street map… the map switches when it is ready.",
+    "basemapNoThanks": "No thanks"
   },
   "compare": {
     "title": "Compare",
@@ -775,7 +1017,9 @@
     "building": "Building a new index: {model}",
     "progress": "Build progress",
     "switch": "Switch to the new index",
-    "notReady": "The new index is still being built; search keeps using the current one until you switch"
+    "notReady": "The new index is still being built; search keeps using the current one until you switch",
+    "missing": "{n} newly analysed photos are not in it yet",
+    "update": "Update"
   },
   "auth": {
     "title": "Sign in to OpenPhotoAgent",
@@ -788,5 +1032,174 @@
     "rateLimited": "Too many attempts. Wait a minute and try again.",
     "workspace": "Workspace",
     "signOut": "Sign out"
+  },
+  "fix_consequence": {
+    "capable_model": "Uses a different model that supports this task; results may differ from your usual model.",
+    "continue_anyway": "Keeps going, but noticeably slower than usual.",
+    "continue_unverified": "The file's integrity cannot be checked; continue only if you trust this source.",
+    "cpu": "Runs on the CPU: much slower, but independent of the GPU driver.",
+    "cpu_build": "Uses the CPU build of the runtime: slower until the pack is repaired.",
+    "cpu_combo": "Runs entirely on the CPU with smaller models: slower and slightly less accurate.",
+    "cpu_ep": "Uses the CPU instead: search vectors and face detection are slower.",
+    "force_rerun": "Runs inference again on photos that already have results; uses GPU time.",
+    "installed_q4": "Uses the smaller variant you already have: slightly lower accuracy.",
+    "keep_skipping": "Videos and RAW files that need ffmpeg stay skipped.",
+    "llamacpp": "Uses llama.cpp instead: broader hardware support, possibly slower.",
+    "llamacpp_vulkan": "Uses llama.cpp with Vulkan: works on this GPU, usually slower than the native runtime.",
+    "local_model": "Runs on this workspace's own worker; nothing is sent to the external service.",
+    "lower_resolution": "Analyses smaller copies of the photos: less detail in captions and tags.",
+    "other_variant": "Uses another variant of the model: speed and accuracy may differ.",
+    "q4_k_m": "Uses the Q4_K_M variant: fits in less VRAM, slightly lower accuracy.",
+    "queue_after": "Starts when the running job finishes.",
+    "reapply_thresholds": "Re-applies the new thresholds to existing results without running inference again.",
+    "skip_conflicts": "Files changed since organizing stay where they are; everything else is undone.",
+    "smaller_model": "Uses a smaller model: needs less memory, slightly lower accuracy.",
+    "smaller_variant": "Uses a smaller variant: less space and memory, slightly lower accuracy.",
+    "t256_only": "Keeps only the smallest thumbnails: less detail in the viewer until there is space.",
+    "vulkan": "Uses the Vulkan runtime: works with this driver, may be slower."
+  },
+  "boot": {
+    "starting": "Starting OpenPhotoAgent…",
+    "failed": "OpenPhotoAgent could not start",
+    "failedHelp": "Your photos and data were not touched. Please include the details below in your report.",
+    "logs": "Log folder",
+    "copy": "Copy diagnostics",
+    "reconnecting": "Reconnecting… everything on screen is still here."
+  },
+  "library": {
+    "importTitle": "Import photos",
+    "importLede": "After you add a folder, its photos appear in the library and AI analyses them in the background. Organizing into folders is a later choice.",
+    "pickTitle": "Choose a folder",
+    "pickHint": "Pick a folder on the left to see what it holds.",
+    "counting": "Counting…",
+    "previewFailed": "Can't show this folder right now. You can still add it.",
+    "empty": "This folder has no photos.",
+    "emptyTryChild": "No photos at this level. Open a subfolder on the left.",
+    "skips": "{n} files that aren't photos will be skipped.",
+    "truncated": "This folder is very large: counts stop at the first 50,000 files.",
+    "safe": "Nothing in this folder will be changed or moved.",
+    "photos": "photos",
+    "videos": "videos",
+    "size": "total size",
+    "dates": "dates taken (sampled)",
+    "sampleAlt": "A sample photo from this folder",
+    "outputFolder": "Output",
+    "addAndAnalyze": "Add to library and analyse",
+    "scanOnly": "Add the photos without AI analysis for now",
+    "inLibrary": "Folders in the library",
+    "wholeRoot": "The whole folder",
+    "folderCounts": "{photos} photos · {analysed} analysed",
+    "analysedShare": "Share analysed",
+    "analyse": "Analyse",
+    "analyseRest": "Analyse the rest",
+    "reanalyse": "Analyse again",
+    "orAddNew": "Or add a new folder",
+    "upToDate": "Everything in “{name}” is analysed; only new or changed photos are checked.",
+    "analysing": "Analysing “{name}”; progress is at the bottom left.",
+    "newOnDisk": "{n} new photos not added yet"
+  },
+  "dock": {
+    "label": "Progress",
+    "title": "Working on your photos",
+    "minimize": "Minimize",
+    "close": "Close",
+    "waitingScan": "after the scan",
+    "keepUsing": "Keep using the app. Photos appear as they are ready.",
+    "done": "Analysis finished",
+    "doneCount": "Analysis finished: {n} photos",
+    "seePhotos": "See photos",
+    "organize": "Organize into folders",
+    "stage": {
+      "scan": "Scanning files",
+      "job.label": "AI analysis",
+      "output.apply": "Copying files",
+      "output.undo": "Undoing",
+      "face.cluster": "Grouping faces",
+      "job.organize": "Organize"
+    },
+    "preparing": "Getting ready: loading the AI model…",
+    "now": "Analysing now",
+    "latest": "Just finished",
+    "folders": "Folder progress",
+    "failed": "{n} failed",
+    "state": {
+      "queued": "Queued",
+      "scanning": "Scanning"
+    },
+    "elapsed": "{elapsed} so far",
+    "estimating": "estimating the time left…",
+    "scanning": "Finding the photos in the folder…",
+    "nothingNew": "Everything was already analysed; nothing to update",
+    "waiting": "Getting ready…"
+  },
+  "explore": {
+    "title": "Categories",
+    "categories": "Categories",
+    "tags": "Tags",
+    "photo": "Photo",
+    "analysed": "AI has analysed {n} photos.",
+    "left": "{n} more to go.",
+    "more": "Load more",
+    "none": "No analysis results yet",
+    "noneHint": "Import a folder and AI analyses each photo. The results show up here.",
+    "analyseRest": "Analyse the remaining {n}",
+    "started": "Analysis started. Progress is in the corner.",
+    "categoryRow": "Category"
+  },
+  "albums": {
+    "title": "Albums",
+    "favorite": "Add to favourites",
+    "unfavorite": "Remove from favourites",
+    "addTo": "Add to album",
+    "newName": "New album name",
+    "createAndAdd": "Create and add",
+    "added": "Added to “{name}”",
+    "favorites": "Favourites",
+    "empty": "No photos yet. Press ★ or “Add to album” on a photo.",
+    "count": "{n} photos",
+    "create": "New album",
+    "rename": "Rename",
+    "delete": "Delete album",
+    "deleteNote": "Only the album goes; the photos stay.",
+    "remove": "Remove from album",
+    "back": "← All albums",
+    "none": "No albums yet.",
+    "save": "Save",
+    "open": "Open photo",
+    "confirmDelete": "Delete the album “{name}”? The photos are not deleted.",
+    "confirm": "Delete",
+    "cancel": "Cancel",
+    "removed": "Removed from the album",
+    "undo": "Undo",
+    "undoFailed": "Not undone. Please try again.",
+    "nameNeeded": "Type a name for the album",
+    "undone": "Undone: {n} photos"
+  },
+  "memories": {
+    "onThisDay": "On this day",
+    "notToday": "Not today",
+    "yearsAgo_one": "{count} year ago today",
+    "yearsAgo_other": "{count} years ago today",
+    "open": "{year}, photo {n}",
+    "more": "See {n} more from {year}",
+    "picked": "{n} picked of {total}",
+    "themes": "Themes",
+    "themeTitle": "{name} in {year}",
+    "themeOpen": "{title}, {n} photos",
+    "themeCount": "{n} photos · {k} picked",
+    "themeAll": "See all",
+    "events": "Recent events",
+    "play": "Play {title}",
+    "playShort": "Play"
+  },
+  "trash": {
+    "move": "Move to trash",
+    "readOnly": "{roots} is read-only, so photos there cannot go to the trash.",
+    "nothingMoved": "No file was moved.",
+    "reAdd": "Add the folder again as writable",
+    "orCopy": ", or use Copy to folder.",
+    "failed": "No plan was made. Please try again.",
+    "close": "Close",
+    "allReadOnly": "Every folder in the library is read-only, so photos cannot go to the trash."
   }
 }

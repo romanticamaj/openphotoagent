@@ -1,5 +1,23 @@
 import { endpoint, platform } from "./platform";
 // Thin REST client for /api/v1 (replaced by the OpenAPI-generated ts-client in slice 9/10).
+export type AnalysisStatus = {
+  jobs: Array<{ job_id: string; folder: string; state: "queued" | "scanning" | "analysing"; done: number; total: number; failed: number }>;
+  current: Array<{ asset_id: string; ch: string | null; rel: string }>;
+  recent: Array<{ asset_id: string; ch: string | null; rel: string; caption: string | null; category: string | null; category_name: string | null }>;
+};
+
+export type FolderPreview = {
+  photos: number;
+  videos: number;
+  others: number;
+  bytes: number;
+  truncated: boolean;
+  subfolders: Array<{ name: string; photos: number; videos: number }>;
+  samples: string[];
+  taken_from: string | null;
+  taken_to: string | null;
+};
+
 export class ApiError extends Error {
   constructor(public status: number, public body: unknown) {
     super(`HTTP ${status}`);
@@ -38,7 +56,7 @@ export type McpToken = {
   images_returned: number;
   last_used_at: string | null;
 };
-export type McpSettings = { allow_apply_requests: boolean; faces_enabled: boolean; media_policy: string; exif_free_text: boolean };
+export type McpSettings = { enabled: boolean; allow_apply_requests: boolean; faces_enabled: boolean; media_policy: string; exif_free_text: boolean };
 export type McpClientProposal = { client: string; path: string; exists: boolean; before: unknown; after: { command: string; args: string[] }; command_line: string | null };
 export type Approval = {
   id: string;
@@ -53,10 +71,11 @@ export type Approval = {
   counts: Record<string, number>;
 };
 export type FaceSettings = { enabled: boolean; prompt_dismissed: boolean; workspace_name: string; worker_purge_pending: boolean; space_id: number | null };
-export type PersonRow = { id: string; name: string | null; status: string; face_count: number; asset_count: number };
+export type PersonRow = { id: string; name: string | null; status: string; face_count: number; asset_count: number; cover?: { asset_id: string; ch: string | null; bbox?: number[] } | null };
+export type FaceCandidate = { face_id: string; asset_id: string; ch: string | null; bbox: number[]; score: number; tier?: number; clear?: boolean; sure?: boolean; faint?: boolean; group: string | null };
 export type FaceSuggestion = { face_id: string; person_id: string; person: string | null; score: number | null; asset_id: string };
 export type PurgeReport = { faces: number; embeddings: number; prototypes: number; persons: number; worker_pending: boolean };
-export type TimelineAsset = { id: string; ch?: string | null; w: number | null; h: number | null; thumbhash: string | null; taken_at: string | null; flags: string[] };
+export type TimelineAsset = { id: string; ch?: string | null; w: number | null; h: number | null; thumbhash: string | null; taken_at: string | null; flags: string[]; rot?: number };
 export type Label = {
   result_id: string;
   category: string | null;
@@ -66,8 +85,16 @@ export type Label = {
   model_fingerprint: string;
   caption: string | null;
   tags: string[] | null;
+  tag_names?: Record<string, string>;
 };
+export type Album = { id: string; name: string; kind: "favorites" | "album"; count: number; cover: { asset_id: string; ch: string | null } | null };
+export type AlbumDetail = { id: string; name: string; kind: "favorites" | "album"; photos: Array<{ asset_id: string; ch: string | null; taken_at: string | null; rot?: number }> };
 export type AssetInfo = {
+  /** turned in the app (ROT-001) */
+  rotation?: number;
+  /** ★ and the albums it is in (ADR-0041) */
+  favorite?: boolean;
+  albums?: Array<{ id: string; name: string }>;
   id: string;
   width: number | null;
   height: number | null;
@@ -78,12 +105,40 @@ export type AssetInfo = {
   labels: Label[];
   human_label: { category: string; source: string } | null;
   locations?: Array<{ source_id: string; root_alias: string; rel_path: string; missing: boolean }>;
+  people?: Array<{ id: string; name: string | null }>;
+  people_faces?: Record<string, { bbox: number[]; ch: string | null }>;
+  faces_state?: "off" | "folder_off" | "on";
+  faces_found?: { total: number; small: number };
+  unknown_faces?: Array<{ id?: string; bbox: number[]; small: boolean; ch?: string | null }>;
 };
-export type Variant = "t256" | "t512" | "p1024";
+export type Variant = "t256" | "t512" | "p1024" | "p2048";
 
 /** A photo's derived image. Desktop: straight from the local cache through the asset protocol, keyed by the
  *  content hash `ch` (10 §5.4); web: the API endpoint. */
 const knownHash = new Map<string, string>(); // ids seen with their hash (e.g. dragged examples carry only the id)
+
+/** Have the 2048 px preview made (VIEW-035): the worker writes it on first request; then mediaUrl finds it, on desktop
+ * straight from the thumbnail cache. Resolves false when there is none (no worker, a video). */
+export async function preparePreview(id: string): Promise<boolean> {
+  const { url, headers } = await endpoint(`/api/v1/assets/${encodeURIComponent(id)}/media?variant=p2048`);
+  try {
+    const r = await fetch(url, { headers });
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+
+/** A photo's largest derived preview as a blob, for sharing (ADR-0050): 2048 px, or 1024 px when that is not made
+ *  (a video, no worker). Derived images only: the API opens no original (invariant 1). */
+export async function previewBlob(id: string): Promise<Blob> {
+  for (const v of ["p2048", "p1024"] as const) {
+    const { url, headers } = await endpoint(`/api/v1/assets/${encodeURIComponent(id)}/media?variant=${v}`);
+    const r = await fetch(url, { headers }).catch(() => null);
+    if (r?.ok) return r.blob();
+  }
+  throw new Error("THUMB_MISSING");
+}
 
 export function mediaUrl(id: string, variant: Variant, ch?: string | null): string {
   const p = platform();
@@ -98,7 +153,7 @@ export function mediaUrl(id: string, variant: Variant, ch?: string | null): stri
 export type Recommendation = {
   mode: "standard" | "fast" | "unsupported";
   hardware: { os: string; gpu: string | null; vram_gb: number | null; ram_gb: number };
-  combo: { variants: string[]; packs: string[]; download_bytes: number; download_minutes: number; estimated: boolean };
+  combo: { variants: string[]; packs: string[]; runtime?: string; download_bytes: number; download_minutes: number; estimated: boolean };
   per_1000_minutes: [number, number] | null;
   licenses: string[];
   requires_acceptance: boolean;
@@ -118,12 +173,18 @@ export type Operation = {
 export type SearchBody = {
   q?: string | null;
   plan?: boolean;
-  filters?: { tags_all?: string[]; taken_from?: string; taken_to?: string; category?: string };
+  soft_only?: boolean;
+  filters?: { tags_all?: string[]; taken_from?: string; taken_to?: string; category?: string; persons_any?: string[]; month_day?: string };
   limit?: number;
   cursor?: string | null;
   facets?: string[];
+  lang?: string;
+  /** false: every copy counts (05 §2.1); search folds near-duplicates by default */
+  collapse_duplicates?: boolean;
 };
-export type SearchHit = { asset_id: string; ch?: string | null; score: number; matched_by: string[]; category: string | null; tags: string[]; caption: string | null; taken_at: string | null };
+/** 「可能相關」 (ADR-0047): found by vectors only, unlike the photos the words found; never counted */
+export type PossibleHit = { asset_id: string; ch?: string | null; caption: string | null; taken_at: string | null; matched_by: string[] };
+export type SearchHit = { asset_id: string; ch?: string | null; rot?: number; score: number; matched_by: string[]; category: string | null; tags: string[]; caption: string | null; taken_at: string | null; /** copies folded into this one (05 §2.1) */ duplicates?: number };
 export type Planner = {
   source: string;
   confidence: number;
@@ -135,9 +196,28 @@ export type Planner = {
 export type SearchResult = {
   items: SearchHit[];
   facets: Record<string, Record<string, number>>;
+  tag_names?: Record<string, string>;
   next_cursor: string | null;
   total: number;
-  degraded: boolean;
+  total_capped?: boolean;
+  /** near misses, shown apart: outside `total`, facets and selections (ADR-0027) */
+  related?: { asset_id: string; ch: string | null; caption: string | null }[];
+  relaxed?: string[];
+  /** no word was shown: the phrase's caption meaning answered (SRCH-CNC-016) */
+  meaning_only?: boolean;
+  /** expressions that rank without filtering, and how many photos show them (SRCH-CNC-007) */
+  soft?: { word: string; key: string; shown: number; implied_by?: string }[];
+  /** weak look-alikes, last: how many and from where (ADR-0040) */
+  weak?: number;
+  weak_from?: number | null;
+  /** 「可能相關」 (ADR-0047): vector-only and unlike the confirmed hits; not counted */
+  possible_total?: number;
+  /** near-duplicates folded into their group's photo, when browsing (SRCH-DUP-010) */
+  collapsed?: number;
+  possible?: PossibleHit[];
+  /** nothing found: words inside the query that find photos (SRCH-SUG-001) */
+  suggest?: { q: string; n: number }[];
+  degraded: string[];
   planner?: Planner;
 };
 
@@ -153,6 +233,7 @@ export type VariantView = {
   installation: { id: string; status: string } | null;
   perf: { basis: string; prior: { items_per_s?: Record<string, [number, number]> } | null };
 };
+export type LibrarySource = { id: string; root_alias: string; sub_path: string; photos: number; analysed: number; tree_photos?: number; tree_analysed?: number };
 export type ModelView = {
   id: string;
   display_name: string;
@@ -185,12 +266,15 @@ export type Plan = {
   id: string;
   job_id: string;
   status: string;
-  summary: { copy: number; folders: number; total: number; move?: number; trash?: number };
+  /** 捨棄計畫 (ORG-018): a draft closed without output */
+  discarded?: boolean;
+  summary: { copy: number; folders: number; total: number; move?: number; trash?: number; kind?: string };
   outcome: { done: number; renamed: number; same_skipped: number; skipped: number; failed: number } | null;
   actions?: PlanAction[];
 };
 export type PreviewItem = { asset_id: string; ch?: string | null; rel: string; category_key: string; decision: string; confidence: number; source: string; dst_rel: string };
 export type Preview = {
+  progress?: { done: number; total: number; elapsed_s: number };
   id: string;
   status: "running" | "ready";
   items: PreviewItem[];
@@ -203,6 +287,7 @@ export type Review = {
   ch?: string | null;
   job_id: string;
   status: string;
+  reason?: string | null;
   suggested: { category: string; confidence: number; candidates: Array<string | { id?: string; key?: string }> };
   final: { category: string } | null;
 };
@@ -226,6 +311,7 @@ export type Me = { id: string; email: string; roles: Record<string, string>; csr
 export type Workspace = { id: string; name: string };
 
 export type AssistantSettings = {
+  cloud_people?: boolean;
   provider: "local" | "openai_compat";
   endpoint_url: string | null;
   media_policy: string;
@@ -237,14 +323,18 @@ export type AssistantSettings = {
 export type AskSuggestion = { kind: string; text: string };
 
 export type CaptionIndexState = {
-  active: { id: number; model_key: string; count: number } | null;
+  active: { id: number; model_key: string; count: number; missing?: number } | null;
   building: { id: number; model_key: string; done: number; total: number; ready: boolean; operation_id: string | null } | null;
 };
+
+/** The vector paths that could not answer; empty when search ran in full (05 §2.6). */
+export const isDegraded = (r?: { degraded: string[] }) => (r?.degraded.length ?? 0) > 0;
 
 export const api = {
   captionIndex: () => req<CaptionIndexState>("GET", "/search/caption-index"),
   buildCaptionIndex: (model_key: string) => req<unknown>("POST", "/search/caption-index", { model_key }),
   switchCaptionIndex: () => req<CaptionIndexState>("POST", "/search/caption-index/switch"),
+  topupCaptionIndex: () => req<{ queued: number }>("POST", "/search/caption-index/topup"),
   assistantSettings: () => req<AssistantSettings>("GET", "/assistant-settings"),
   putAssistantSettings: (patch: Partial<AssistantSettings>) => req<AssistantSettings>("PATCH", "/assistant-settings", patch),
   askSuggestions: (photoId?: string) =>
@@ -254,8 +344,23 @@ export const api = {
   enableFaces: (sources: string[] | null = null) => req<FaceSettings>("POST", "/faces/enable", { consent: true, consent_text_version: "faces-v1", sources }),
   dismissFacePrompt: () => req<FaceSettings>("POST", "/faces/prompt/dismiss"),
   disableFaces: (del: boolean, confirm: string) => req<{ purged: PurgeReport | null }>("POST", "/faces/disable", { delete: del, confirm }),
-  people: () => req<{ people: PersonRow[]; others: number }>("GET", "/people"),
+  people: () => req<{ people: PersonRow[]; others: number; merge_suggestions?: Array<{ a: string; b: string; score: number }> }>("GET", "/people"),
+  person: (pid: string) =>
+    req<PersonRow & { faces: Array<{ id: string; asset_id: string; ch: string | null; state: string; tier: number; bbox: number[] }> }>(
+      "GET",
+      `/people/${encodeURIComponent(pid)}`,
+    ),
+  basemap: () => req<{ region: string; available: boolean; bytes: number; operation_id: string | null }>("GET", "/map/basemap"),
+  downloadBasemap: () => req<{ operation_id: string }>("POST", "/map/basemap/download", {}),
+  nameFace: (fid: string, name: string) =>
+    req<{ person_id: string; name: string }>("POST", `/faces/${encodeURIComponent(fid)}/name`, { name }),
+  undoReview: (pid: string) => req<{ restored: number }>("POST", `/people/${encodeURIComponent(pid)}/review/undo`, {}),
+  mergePeople: (from: string, into: string) => req<{ undo_token: string; moved: number }>("POST", `/people/${encodeURIComponent(from)}/merge`, { into }),
+  dismissMerge: (a: string, b: string) => req<unknown>("POST", "/people/merge-suggestions/dismiss", { a, b }),
   namePerson: (id: string, name: string) => req<unknown>("POST", `/people/${encodeURIComponent(id)}/name`, { name }),
+  personCandidates: (id: string) => req<{ items: FaceCandidate[]; references: number }>("GET", `/people/${encodeURIComponent(id)}/candidates`),
+  reviewPerson: (id: string, body: { yes: string[]; no: string[] }) =>
+    req<{ confirmed: number; rejected: number }>("POST", `/people/${encodeURIComponent(id)}/review`, body),
   faceReview: () => req<FaceSuggestion[]>("GET", "/faces/review"),
   confirmFace: (faceId: string, personId: string) => req<unknown>("POST", `/faces/${encodeURIComponent(faceId)}/confirm`, { person_id: personId }),
   rejectFace: (faceId: string, personId: string) => req<unknown>("POST", `/faces/${encodeURIComponent(faceId)}/reject`, { person_id: personId }),
@@ -279,6 +384,28 @@ export const api = {
   roots: () => req<Root[]>("GET", "/roots"),
   browse: (root: string, path: string) =>
     req<{ dirs: string[] }>("GET", `/fs/browse?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`),
+  folderPreview: (root: string, path: string) =>
+    req<FolderPreview>("GET", `/fs/preview?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`),
+  folderThumb: (root: string, path: string) =>
+    req<{ thumbnail_b64: string }>("GET", `/fs/thumb?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`),
+  memoryEvents: (lang: string) =>
+    req<{ events: Array<{ day: string; last?: string | null; key: string | null; name: string | null; count: number; photos: Array<{ asset_id: string; ch: string | null; rot?: number; taken_at?: string | null }> }> }>("GET", `/memories/events?lang=${encodeURIComponent(lang)}`),
+  memoryThemes: (lang: string) =>
+    req<{ themes: Array<{ year: number; key: string; name: string; count: number; photos: Array<{ asset_id: string; ch: string | null; taken_at: string | null; rot?: number }> }> }>("GET", `/memories/themes?lang=${encodeURIComponent(lang)}`),
+  onThisDay: () => req<{ today: string; groups: Array<{ year: number; years_ago: number; total?: number; photos: Array<{ asset_id: string; ch: string | null; taken_at: string | null; rot?: number }> }> }>("GET", "/memories/on-this-day"),
+  albums: () => req<{ albums: Album[] }>("GET", "/albums"),
+  album: (id: string) => req<AlbumDetail>("GET", `/albums/${encodeURIComponent(id)}`),
+  createAlbum: (name: string) => req<{ id: string; name: string }>("POST", "/albums", { name }),
+  renameAlbum: (id: string, name: string) => req<{ id: string; name: string }>("PATCH", `/albums/${encodeURIComponent(id)}`, { name }),
+  deleteAlbum: (id: string) => req<unknown>("DELETE", `/albums/${encodeURIComponent(id)}`),
+  addToAlbum: (id: string, asset_ids: string[]) => req<{ count: number }>("POST", `/albums/${encodeURIComponent(id)}/photos`, { asset_ids }),
+  /** several out at once: undoing a batch add (COL-017) */
+  removeManyFromAlbum: (id: string, asset_ids: string[]) => req<{ count: number }>("POST", `/albums/${encodeURIComponent(id)}/photos/remove`, { asset_ids }),
+  removeFromAlbum: (id: string, assetId: string) => req<{ count: number }>("DELETE", `/albums/${encodeURIComponent(id)}/photos/${encodeURIComponent(assetId)}`),
+  setRotation: (assetId: string, degrees: number) => req<{ rotation: number }>("PUT", `/assets/${encodeURIComponent(assetId)}/rotation`, { degrees }),
+  setFavorite: (assetId: string, on: boolean) => req<{ favorite: boolean }>(on ? "PUT" : "DELETE", `/assets/${encodeURIComponent(assetId)}/favorite`),
+  analysisStatus: (lang: string) => req<AnalysisStatus>("GET", `/analysis/status?lang=${encodeURIComponent(lang)}`),
+  analyzeSource: (id: string) => req<{ job_id: string }>("POST", `/sources/${encodeURIComponent(id)}/analyze`),
   createSource: (root_alias: string, sub_path: string) => req<{ id: string }>("POST", "/sources", { root_alias, sub_path }),
   createJob: (source_id: string, preset: string, target: { root_alias: string; sub_path: string }, extra: Record<string, unknown> = {}) =>
     req<Job>("POST", "/jobs", { kind: "organize", source_id, preset, target, ...extra }),
@@ -288,14 +415,20 @@ export const api = {
     req<{ id: string }>("POST", "/previews", { source_id, preset, categories, k: 10 }),
   preview: (id: string) => req<Preview>("GET", `/previews/${id}`),
   rerender: (id: string, thresholds: Record<string, number>) => req<{ items: PreviewItem[] }>("POST", `/previews/${id}/rerender`, { thresholds }),
+  reviewCount: async () => (await req<{ count: number }>("GET", "/reviews?limit=0")).count,
   reviews: (job: string, status = "pending") => req<{ count: number; items: Review[] }>("GET", `/reviews?job_id=${job}&status=${status}`),
   actReview: (id: string, action: "accept" | "correct" | "skip", category?: string) => req<unknown>("POST", `/reviews/${id}`, { action, category }),
   skipRest: (job: string) => req<unknown>("POST", `/jobs/${job}/reviews/skip-rest`),
   job: (id: string) => req<Job>("GET", `/jobs/${id}`),
   plan: (id: string) => req<Plan>("GET", `/output-plans/${id}`),
+  /** 捨棄計畫 (ORG-018): closed without output; files untouched */
+  discardPlan: (id: string) => req<{ id: string; discarded: boolean }>("POST", `/output-plans/${id}/discard`),
   approve: (id: string, body: { move_confirmed?: boolean; confirm_text?: string } = {}) => req<Plan>("POST", `/output-plans/${id}/approve`, body),
   undo: (id: string) => req<Plan>("POST", `/output-plans/${id}/undo`),
   duplicates: () => req<{ groups: DuplicateGroup[] }>("GET", "/duplicates"),
+  /** a photo's near-duplicate group, its kept photo first (SRCH-DUP-011) */
+  assetDuplicates: (id: string) =>
+    req<{ photos: Array<{ asset_id: string; ch: string | null; rot?: number; taken_at?: string | null }> }>("GET", `/assets/${encodeURIComponent(id)}/duplicates`),
   cleanupPlan: (group_ids: string[]) => req<{ plan_id: string; trash: number }>("POST", "/duplicates/cleanup-plan", { group_ids }),
   recommendation: (worker_id: string) => req<Recommendation>("GET", `/onboarding/recommendation?worker_id=${encodeURIComponent(worker_id)}`),
   installCombo: (worker_id: string, variants: string[]) =>
@@ -303,11 +436,15 @@ export const api = {
   operations: (params = "status=all") => req<Operation[]>("GET", `/operations?${params}`),
   preflight: (action: string, params: Record<string, unknown> = {}) =>
     req<{ blockers: Array<{ code: string; params: Record<string, unknown> }>; warnings: unknown[] }>("POST", "/preflight", { action, params }),
-  sources: () => req<Array<{ id: string; root_alias: string; sub_path: string }>>("GET", "/sources"),
+  sources: () => req<LibrarySource[]>("GET", "/sources"),
   scanSource: (id: string) => req<{ task_id: string }>("POST", `/sources/${encodeURIComponent(id)}/scan`),
   search: (body: SearchBody) => req<SearchResult>("POST", "/search", body),
   searchIndex: () => req<{ searchable: number; total: number }>("GET", "/search-index"),
-  createSelection: (body: { query?: SearchBody; asset_ids?: string[] }) => req<{ id: string; count: number }>("POST", "/selections", body),
+  createSelection: (body: { query?: Partial<SearchBody> & { collapse_duplicates?: boolean }; asset_ids?: string[]; exclude?: string[] }) => req<{ id: string; count: number }>("POST", "/selections", body),
+  /** 移到垃圾桶 (TRASH-011): a draft plan to approve; nothing moves until then */
+  selectionTrash: (id: string) => req<{ plan_id: string; job_id: string; trash: number }>("POST", `/selections/${id}/trash`),
+  /** a selection into an album or 收藏 at once (COL-014) */
+  selectionAlbum: (id: string, albumId: string) => req<{ id: string; count: number; added: string[] }>("POST", `/selections/${id}/album`, { album_id: albumId }),
   selectionLabels: (id: string, body: { category?: string; tags?: string[] }) => req<{ updated: number }>("POST", `/selections/${id}/labels`, body),
   selectionOrganize: (id: string, target: { root_alias: string; sub_path: string }) =>
     req<{ plan_id: string; job_id: string }>("POST", `/selections/${id}/organize`, { target }),
@@ -324,7 +461,7 @@ export const api = {
     ),
   buckets: () => req<{ buckets: Array<{ month: string; count: number }> }>("GET", "/timeline/buckets"),
   bucket: (month: string) => req<{ month: string; assets: TimelineAsset[] }>("GET", `/timeline/buckets/${month}`),
-  asset: (id: string) => req<AssetInfo>("GET", `/assets/${encodeURIComponent(id)}`),
+  asset: (id: string, lang = "zh-TW") => req<AssetInfo>("GET", `/assets/${encodeURIComponent(id)}?lang=${encodeURIComponent(lang)}`),
   correct: (id: string, category: string) => req<unknown>("PATCH", `/assets/${encodeURIComponent(id)}/labels`, { category }),
   preset: (key: string, lang: string) =>
     req<{ key: string; categories: Category[] }>("GET", `/presets/${encodeURIComponent(key)}?lang=${encodeURIComponent(lang)}`),

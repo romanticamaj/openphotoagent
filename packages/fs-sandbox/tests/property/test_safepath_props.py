@@ -95,7 +95,7 @@ def test_fs_025_real_tree_with_random_symlinks(spec):
     root, outside = base / "root", base / "outside"
     root.mkdir()
     outside.mkdir()
-    (outside / "secret.txt").write_text("s")
+    (outside / "secret.txt").write_text("s", encoding="utf-8")
     for d in dirs:
         (root / d).mkdir(parents=True, exist_ok=True)
     targets = {"in": root / "a", "out": outside, "out_file": outside / "secret.txt", "root": root}

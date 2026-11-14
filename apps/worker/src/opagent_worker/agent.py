@@ -6,6 +6,7 @@ change through the journaled executor (invariant 3).
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 import threading
@@ -15,12 +16,23 @@ from pathlib import Path
 from typing import Any, Literal
 
 from opagent_core.clock import SystemClock
+from opagent_core.operation import NullReporter
 from opagent_fs.executor import Action, Executor
 from opagent_fs.fsops import RealFs
 from opagent_fs.journal import Journal
 from opagent_fs.safepath import RootConfig, RootUnavailable, Sandbox
 
 from .scanner import HashCache, scan
+
+
+def _iou(a: list[float], b: list[float]) -> float:
+    """Overlap of two [x, y, w, h] boxes (0..1 coordinates)."""
+    ax2, ay2, bx2, by2 = a[0] + a[2], a[1] + a[3], b[0] + b[2], b[1] + b[3]
+    w = max(0.0, min(ax2, bx2) - max(a[0], b[0]))
+    h = max(0.0, min(ay2, by2) - max(a[1], b[1]))
+    inter = w * h
+    union = a[2] * a[3] + b[2] * b[3] - inter
+    return inter / union if union > 0 else 0.0
 
 
 class _Waiting(Exception):
@@ -34,12 +46,17 @@ class _Abandoned(Exception):
 
 
 WATCH_SYNC_S = 15.0
+CLUSTER_CHECK_S = 60.0
+VLM_IDLE_UNLOAD_S = 600.0  # 03 §4: an idle large slot gives the GPU and RAM back after ten minutes (INF-VRAM-005)
+CLUSTER_TIMEOUT_S = 600.0  # 20,000 faces take minutes (07 §7)
 _log = logging.getLogger("opagent.worker")
+REPORT_EVERY = 4  # photos per results report within a leased batch (ETA-030)
 # The only messages the control plane can send (02 §6.3, MU-SEC-004). There is no "run a command" kind; anything
 # else is refused and logged, never looked up dynamically.
 RPC_KINDS = frozenset(
     {
         "apply",
+        "basemap",  # ADR-0037: payload ignored; a pinned, hash-checked tool with fixed arguments; local workers only
         "benchmark",
         "browse",
         "download",
@@ -51,17 +68,41 @@ RPC_KINDS = frozenset(
         "face_embed_query",
         "face_purge",
         "fix",
+        "folder_preview",
+        "folder_thumb",
         "hash_sha1",
+        "preview",  # a 2048 px preview into the thumbnail cache, on demand (VIEW-035)
         "probe_root",
         "remove",
         "scan",
         "scan_models",
         "thumb_fetch",
+        "query_plan",
         "try_one",
         "undo",
         "vlm_ask",
     }
 )
+
+
+# quick and read-only: a person is waiting on these, so they do not queue behind a scan (IMP-004)
+QUICK_KINDS = ("browse", "folder_preview", "folder_thumb")
+
+
+class _ScanReporter(NullReporter):
+    """A scan's count, at most once a second (invariant 9); the last one always goes out."""
+
+    def __init__(self, client: Any, clock: Any, task_id: str) -> None:
+        self.client, self.clock, self.task_id = client, clock, task_id
+        self.last = -1e9
+
+    def progress(self, done: int, total: int | None = None) -> None:
+        now = self.clock.monotonic()
+        if now - self.last < 1.0 and done != total:
+            return
+        self.last = now
+        body = {"progress": {"done": done, "total": total, "unit": "files"}}
+        self.client.post(f"/worker-api/v1/tasks/{self.task_id}/progress", json=body)
 
 
 class WorkerAgent:
@@ -88,6 +129,7 @@ class WorkerAgent:
         self.backend = backend
         self.bench_backends: dict[str, Any] = {}  # benchmark candidates by name (03 §6); loaded on demand
         self.text_embedders: dict[str, Any] = {}  # caption text models by registry key (R2, ADR-0014)
+        self.backend_factory: Any = None  # production: rebuilds the adapters from the models on disk (backends.py)
         self.face_backend = face_backend  # detection + embedding run only here, on the decoded image (07 §2.2)
         self._faces: dict[str, tuple[str, list[dict[str, Any]]]] = {}
         self._active_child: Any = None  # the running download child (ADR-0007)
@@ -98,6 +140,7 @@ class WorkerAgent:
         self.doctor_env: dict[str, Any] = {}  # raw-fact overrides for the doctor (tests / FakeWorkerLink)
         self.models_root = Path(models_root) if models_root else self.home / "models"
         self.download_sources = download_sources or ["https://huggingface.co"]
+        self._outbox().close()  # create it in WAL now, single-threaded, before any loop or RPC thread opens it (Q-029)
         caps = backend.describe().task_types if backend is not None else ()
         self.embedder = embedder if embedder is not None else (backend if "embed" in caps else None)
         self._cascade: Any = None
@@ -109,7 +152,10 @@ class WorkerAgent:
         self.cache = HashCache(self.home / "scan-cache.db")
         self.clock = clock or SystemClock()
         self.waiting: dict[str, tuple[dict[str, Any], float]] = {}
-        self.page_size = 1000
+        self._cluster_checked = -1e9
+        self._vlm_used = -1e18
+        self.page_size = 100  # small enough that a long scan shows photos early (IMP-006)
+        self.scan_threads = max(1, min(8, (os.cpu_count() or 2) - 2))
         self.crash_after_pages: int | None = None  # test hook: simulate kill -9 after N reported pages
         self.last_scan_skipped_before_cursor = 0
         self._dl_thread: threading.Thread | None = None
@@ -159,10 +205,42 @@ class WorkerAgent:
     def _load_id(self) -> str:
         f = self.home / "worker_id"
         if f.exists():
-            return f.read_text().strip()
+            return f.read_text(encoding="utf-8").strip()
         wid = "w-" + uuid.uuid4().hex[:12]
-        f.write_text(wid)
+        f.write_text(wid, encoding="utf-8")
         return wid
+
+    def refresh_backends(self) -> None:
+        """A model that finished downloading goes live here, with no restart; a running one is left alone."""
+        if self.backend_factory is None:
+            return
+
+        def fp(b: Any) -> str | None:
+            return b.describe().model_fingerprint if b is not None else None
+
+        try:
+            new = self.backend_factory()
+        except Exception:  # a broken model must cost that model, not the worker and its running download
+            _log.exception("cannot load the models on disk")
+            return
+        faces = getattr(new, "faces", None)
+        if fp(faces) != fp(self.face_backend):
+            self.face_backend = faces  # the fingerprint travels with each result, so no re-registration
+        texts = getattr(new, "text_embedders", None) or {}
+        for key, emb in texts.items():  # caption text models: build an index once one is on disk (SRCH-R2-006)
+            if fp(self.text_embedders.get(key)) != fp(emb):
+                self.text_embedders[key] = emb
+        if fp(new.vlm) == fp(self.backend) and fp(new.embedder) == fp(self.embedder):
+            return
+        old = self.backend
+        if fp(new.vlm) != fp(old):
+            self.backend = new.vlm
+            if old is not None and hasattr(old, "close"):
+                old.close()
+        if fp(new.embedder) != fp(self.embedder):
+            self.embedder = new.embedder
+        self._cascade = None
+        self.register()
 
     def register(self) -> None:
         models: dict[str, str] = {}
@@ -284,6 +362,8 @@ class WorkerAgent:
             result, ok = {"error": code, "detail": str(e)[:500]}, False
         self.waiting.pop(task["id"], None)
         self.client.post(f"/worker-api/v1/tasks/{task['id']}/complete", json={"result": result, "ok": ok})
+        if ok and task.get("kind") == "download":
+            self.refresh_backends()
 
     RETRY_WAITING_S = 5.0
 
@@ -311,12 +391,93 @@ class WorkerAgent:
             return 0
         r.raise_for_status()
         items = r.json()["items"]
-        reports = self._infer(items)
         from opagent_fs.crash import crash_point
 
-        crash_point("worker_after_infer")  # chaos: die after inference, before reporting (Q-022)
-        self._send_results(reports)
-        self._send_faces(reports)
+        # a few photos at a time within the batch: progress and the time left move while the VLM works (ETA-030)
+        for i in range(0, len(items), REPORT_EVERY):
+            reports = self._infer(items[i : i + REPORT_EVERY])
+            crash_point("worker_after_infer")  # chaos: die after inference, before reporting (Q-022)
+            self._send_results(reports)
+            self._send_faces(reports)
+        return len(items)
+
+    def _backlog_cursor(self) -> Path:
+        """Per model: a new one starts over. Inside ``faces/``, so a purge removes it with the rest (07 §6.3)."""
+        name = hashlib.sha256(self.face_backend.fingerprint.encode()).hexdigest()[:16]
+        return self.home / "faces" / f"backlog-{name}.txt"
+
+    def faces_cluster_once(self, scanned: int) -> None:
+        """Group the faces found so far (07 §2.3): a full batch while the backlog runs, the rest once it is done."""
+        if self.face_backend is None or self.remote:
+            return
+        now = self.clock.monotonic()
+        if not scanned and now - self._cluster_checked < CLUSTER_CHECK_S:
+            return
+        if not scanned:
+            self._cluster_checked = now
+        self.client.post(
+            "/worker-api/v1/faces/cluster-due", json={"min_new": 200 if scanned else 1}, timeout=CLUSTER_TIMEOUT_S
+        )
+
+    def faces_backlog_once(self, limit: int = 32) -> int:
+        """Photos that never had a face step, one page at a time, when there is nothing else to do."""
+        if self.face_backend is None or self.remote:
+            return 0
+        from .imaging import open_image, oriented
+
+        cursor = self._backlog_cursor()
+        after = cursor.read_text(encoding="utf-8").strip() if cursor.exists() else ""
+        r = self.client.get("/worker-api/v1/faces/backlog", params={"after": after, "limit": limit})
+        r.raise_for_status()
+        page = r.json()
+        for it in page["items"]:
+            try:
+                sp = self.sb.resolve(it["root_alias"], it["rel"])
+                with open_image(sp.real) as im:
+                    faces = self.face_backend.detect(it["rel"], oriented(im).convert("RGB"))
+            except Exception:  # a moved or unreadable photo costs that photo, not the scan
+                _log.warning("face scan skipped a photo", exc_info=True)
+                continue
+            self.client.post(
+                "/worker-api/v1/faces",
+                json={
+                    "worker_id": self.worker_id,
+                    "asset_id": it["asset_id"],
+                    "fingerprint": self.face_backend.fingerprint,
+                    "faces": [{k: v for k, v in f.items() if k != "person_hint"} for f in faces],
+                },
+            )
+        cursor.parent.mkdir(parents=True, exist_ok=True)
+        cursor.write_text(str(page["next"]), encoding="utf-8")
+        return len(page["items"])
+
+    def faces_reembed_once(self, limit: int = 8) -> int:
+        """Faces stored too small by an older version that the small-face lane embeds now (ADR-0036): detect again,
+        match each stored box by overlap, send its vector, or none when the photo no longer shows it."""
+        if self.face_backend is None or self.remote:
+            return 0
+        from .imaging import open_image, oriented
+
+        r = self.client.get("/worker-api/v1/faces/reembed", params={"limit": limit})
+        r.raise_for_status()
+        items = r.json()["items"]
+        for it in items:
+            try:
+                sp = self.sb.resolve(it["root_alias"], it["rel"])
+                with open_image(sp.real) as im:
+                    found = self.face_backend.detect(it["rel"], oriented(im).convert("RGB"))
+            except Exception:  # a moved or unreadable photo: each face is tried once
+                _log.warning("face re-embed skipped a photo", exc_info=True)
+                found = []
+            for f in it["faces"]:
+                best = max(found, key=lambda d: _iou(d["bbox"], f["bbox"]), default=None)
+                hit = best is not None and _iou(best["bbox"], f["bbox"]) >= 0.5 and best.get("vec") is not None
+                body = (
+                    {"vec": best["vec"], "quality_tier": best["quality_tier"]}
+                    if best is not None and hit
+                    else {"vec": None}
+                )
+                self.client.post(f"/worker-api/v1/faces/{f['face_id']}/embedding", json=body)
         return len(items)
 
     def _send_faces(self, reports: list[dict[str, Any]]) -> None:
@@ -341,11 +502,19 @@ class WorkerAgent:
                 },
             )
 
+    def close(self) -> None:
+        """Release the database files: Windows cannot delete or replace a file that is still open."""
+        self.executor.journal.close()
+        self.cache.close()
+
     # ---- offline tolerance: results go to a local outbox when the CP is unreachable (02 §4.3, Q-013) ----
     def _outbox(self) -> Any:
         import sqlite3
 
         db = sqlite3.connect(self.home / "outbox.db")
+        db.execute(
+            "PRAGMA journal_mode=WAL"
+        )  # like scanner/journal: no rollback journal, append while flushing (Q-029)
         db.execute("CREATE TABLE IF NOT EXISTS outbox(k TEXT PRIMARY KEY, body TEXT NOT NULL)")
         return db
 
@@ -509,6 +678,9 @@ class WorkerAgent:
         fp = self.cascade_fingerprint
         reports = []
         for (it, _), r in zip(prepared, results, strict=True):
+            if r.retryable and r.error:  # no guess under the real cache key: the item is asked again (INF-CAS-018)
+                reports.append(self._fail(it, r.error, retryable=True))
+                continue
             o = r.outcome
             reports.append(
                 {
@@ -558,6 +730,8 @@ class WorkerAgent:
 
         watch = WatchManager(self)  # watch folders (05 §5): synced with the API every WATCH_SYNC_S
         synced_at: float | None = None
+        if self.channel is None:
+            threading.Thread(target=self._quick_loop, args=(stop,), daemon=True).start()
         try:
             while not stop.is_set():
                 now = self.clock.monotonic()
@@ -575,14 +749,36 @@ class WorkerAgent:
         finally:
             watch.stop()
 
+    def _quick_loop(self, stop: Any) -> None:
+        """Browsing and folder previews answer while the main loop is inside a scan (IMP-004)."""
+        body = {"worker_id": self.worker_id, "wait_s": 0.5, "boot_id": self.boot_id, "only_kinds": list(QUICK_KINDS)}
+        while not stop.is_set():
+            try:
+                r = self.client.post("/worker-api/v1/lease", json=body)
+                if r.status_code == 200:
+                    self._run_task(r.json())
+                elif r.status_code != 204:
+                    stop.wait(1.0)
+            except Exception:  # the API may be restarting
+                stop.wait(1.0)
+
     def _loop_once(self, stop: Any) -> None:
         try:
             busy = self.run_once(wait_s=0.5, background_downloads=True)
             if self.backend is not None:
-                busy = bool(self.process_items_once()) or busy
+                worked = bool(self.process_items_once())
+                if worked:
+                    self.vlm_used()
+                busy = worked or busy
             self.tick_waiting()
             if self.outbox_size():
                 self.flush_outbox()
+            if not busy:
+                self.unload_idle_vlm()
+                self.warm_embedder()
+                scanned = self.faces_backlog_once()
+                self.faces_cluster_once(scanned)
+                busy = scanned > 0 or self.faces_reembed_once() > 0
             if not busy:
                 stop.wait(0.2)
         except Exception:
@@ -590,22 +786,25 @@ class WorkerAgent:
 
     # ---- task handlers -------------------------------------------------
     def _do_scan(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
-        try:
-            res = self._scan(p)
-        except RootUnavailable:
-            raise _Waiting("SOURCE_OFFLINE") from None
-        self.last_scan_skipped_before_cursor = res.skipped_before_cursor
-        entries = [self._entry(e) for e in res.entries]
-        if self.remote:
-            self._upload_thumbs(entries)
-        # pages with a resume cursor (SCAN-019)
-        for pages, i in enumerate(range(0, len(entries), self.page_size), start=1):
-            page = entries[i : i + self.page_size]
+        pages = 0
+
+        def send(found: list[Any]) -> None:  # pages with a resume cursor (SCAN-019), as the scan goes (IMP-006)
+            nonlocal pages
+            page = [self._entry(e) for e in found]
+            if self.remote:
+                self._upload_thumbs(page)
             self.client.post(
                 f"/worker-api/v1/tasks/{task_id}/progress", json={"entries": page, "cursor": page[-1]["rel"]}
             ).raise_for_status()
+            pages += 1
             if self.crash_after_pages is not None and pages >= self.crash_after_pages:
                 raise SystemExit(137)
+
+        try:
+            res = self._scan(p, _ScanReporter(self.client, self.clock, task_id) if task_id else None, send)
+        except RootUnavailable:
+            raise _Waiting("SOURCE_OFFLINE") from None
+        self.last_scan_skipped_before_cursor = res.skipped_before_cursor
         return {
             "entries": [],
             "skipped": [{"rel": s.rel, "reason": s.reason} for s in res.skipped],
@@ -653,7 +852,7 @@ class WorkerAgent:
             **e.extra,
         }
 
-    def _scan(self, p: dict[str, Any]) -> Any:
+    def _scan(self, p: dict[str, Any], reporter: Any = None, sink: Any = None) -> Any:
         return scan(
             self.sb,
             p["root_alias"],
@@ -665,6 +864,10 @@ class WorkerAgent:
             exclude_subtrees=p.get("exclude_subtrees") or [],
             after=self.egress.resolve(p["cursor"]) if self.egress is not None and p.get("cursor") else p.get("cursor"),
             thumbs_dir=self.home / "thumbs",
+            reporter=reporter,
+            sink=sink,
+            page_size=self.page_size,
+            threads=self.scan_threads,
         )
 
     def _do_apply(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
@@ -833,6 +1036,41 @@ class WorkerAgent:
         self._post_embeddings(images)
         return {"embedded": len(images)}
 
+    def _do_query_plan(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """No LLM planner here yet: an empty answer sends the API to its rule planner at once (SRCH-PLAN-011)."""
+        return {}
+
+    @staticmethod
+    def _ensure_loaded(emb: Any) -> None:
+        """Real adapters load on demand; only a job used to do it, so search died with every worker restart."""
+        import asyncio
+
+        from opagent_inference.types import LoadOptions
+
+        if not getattr(emb, "loaded", True):
+            asyncio.run(emb.load(LoadOptions()))
+
+    def vlm_used(self) -> None:
+        self._vlm_used = self.clock.monotonic()
+
+    def unload_idle_vlm(self) -> bool:
+        """Let the VLM go after ten idle minutes: llama-server held 17.6 GB of RAM long after the work ended. The next
+        job loads it again on demand (the cascade and the plain path both call load first)."""
+        b = self.backend
+        if b is None or not getattr(b, "loaded", False):
+            return False
+        if self.clock.monotonic() - self._vlm_used < VLM_IDLE_UNLOAD_S:
+            return False
+        import asyncio
+
+        asyncio.run(b.unload())
+        return True
+
+    def warm_embedder(self) -> None:
+        """A cold load takes seconds and a search waits 2: idle time is when to pay for it."""
+        if self.embedder is not None:
+            self._ensure_loaded(self.embedder)
+
     def _do_embed_text(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         """``embed.text`` RPC (05 §2.6): the query vector must come from the same space as the stored vectors."""
         import asyncio
@@ -846,7 +1084,10 @@ class WorkerAgent:
             own = f"caption:{p.get('model')}:{own}"
         if p.get("fingerprint") and p["fingerprint"] != own:
             return {"error": "MODEL_UNAVAILABLE", "reason": "space mismatch"}
-        res: Any = emb.embed_texts([p["text"]])
+        self._ensure_loaded(emb)
+        # a search is a query: text models that tell queries from documents get the query side (SRCH-R2-006)
+        query = getattr(emb, "embed_queries", None) if p.get("modality") == "caption" else None
+        res: Any = query([p["text"]]) if query else emb.embed_texts([p["text"]])
         if inspect.isawaitable(res):
 
             async def _wait(a: Any) -> Any:
@@ -860,12 +1101,23 @@ class WorkerAgent:
         emb = self.text_embedders.get(p["model"])
         if emb is None:
             raise RuntimeError("MODEL_UNAVAILABLE")
+        import asyncio
+        import inspect
+
+        self._ensure_loaded(emb)
         items = p["items"]
-        vecs = emb.embed_texts([it["text"] for it in items])
+        res: Any = emb.embed_texts([it["text"] for it in items])
+        if inspect.isawaitable(res):
+
+            async def _wait(a: Any) -> Any:
+                return await a
+
+            res = asyncio.run(_wait(res))
+        vecs = res
         return {
             "vectors": {it["asset_id"]: [float(x) for x in v] for it, v in zip(items, vecs, strict=True)},
             "fingerprint": emb.describe().model_fingerprint,
-            "dim": len(vecs[0]) if vecs else 0,
+            "dim": len(vecs[0]) if len(vecs) else 0,  # numpy: no truth value (SRCH-R2-006)
         }
 
     def _do_hash_sha1(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
@@ -877,7 +1129,7 @@ class WorkerAgent:
         for it in p["items"]:
             try:
                 sp = self.sb.resolve(it["root_alias"], it["rel"])
-                h = hashlib.sha1()  # noqa: S324 - Immich's checksum format, not a security use
+                h = hashlib.sha1(usedforsecurity=False)  # Immich's checksum format, not a security use
                 with open(sp.real, "rb") as fh:
                     for chunk in iter(lambda: fh.read(1 << 20), b""):
                         h.update(chunk)
@@ -1009,6 +1261,30 @@ class WorkerAgent:
             return {"error": "DECODE_FAILED"}
         faces = self.face_backend.detect(p.get("name") or "query", pic)
         return {"faces": [{k: v for k, v in f.items() if k != "person_hint"} for f in faces]}
+
+    basemap_io: dict[str, Any] | None = None  # tests inject fetch / get_json / run / pin (ADR-0037)
+
+    def _do_basemap(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """map.download (ADR-0037): the offline street map, into the data folder next to this worker's own."""
+        from . import basemap as B
+
+        if self.remote:  # the map is read by this machine's app only
+            return {"status": "failed", "error_code": "MAP_NO_DATA_DIR", "permanent": True}
+        io = self.basemap_io or {"fetch": B.http_fetch, "get_json": B.http_json, "run": B.run_tool}
+        last = [-1.0]
+
+        def post(d: dict[str, Any]) -> None:  # the stage the Operation shows, at most twice a second
+            now = self.clock.monotonic()
+            if d.get("line") and now - last[0] < 0.5:
+                return
+            last[0] = now
+            self.client.post(f"/worker-api/v1/tasks/{task_id}/progress", json={"progress": d})
+
+        try:
+            got = B.install(self.home.parent, on_progress=post, **io)
+        except B.BasemapError as e:
+            return {"status": "failed", "error_code": e.code, "permanent": e.code == "DL_CHECKSUM_MISMATCH"}
+        return {"status": "succeeded", "build": got.build, "bytes": got.bytes}
 
     def _do_face_purge(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         """Worker side of the one-click purge (07 §6.3): face thumbnails and any vault go, the workspace key is
@@ -1187,6 +1463,40 @@ class WorkerAgent:
                 cdef.examples = [v.tolist() for v in asyncio.run(cas.image_vectors(imgs))]
         return tax
 
+    def _do_folder_preview(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        from .folder_preview import folder_preview
+
+        return folder_preview(self.sb, p["root_alias"], p.get("path", ""), self.tz)  # type: ignore[arg-type]
+
+    def _do_preview(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        """A sharper preview for zoom (10 §3.4, VIEW-035): one photo, through the sandbox, into the thumbnail cache."""
+        import re
+
+        from PIL import Image
+
+        from .imaging import open_image, oriented
+
+        h, size = str(p["content_hash"]), int(p.get("size") or 2048)
+        if not re.fullmatch(r"[0-9a-f]{16,128}", h) or size != 2048:
+            raise ValueError("bad preview request")
+        d = self.home / "thumbs" / h[:2]
+        dst = d / f"{h}.p{size}.webp"
+        if not dst.is_file():
+            sp = self.sb.resolve(p["root_alias"], p["rel"])
+            with open_image(sp.real) as im:
+                pic = oriented(im)
+                pic.thumbnail((size, size), Image.Resampling.LANCZOS)
+                d.mkdir(parents=True, exist_ok=True)
+                tmp = dst.with_suffix(".part")
+                pic.convert("RGB").save(tmp, "WEBP", quality=85)
+                tmp.replace(dst)  # whole or not at all: the API serves it as soon as it exists
+        return {"ok": True}
+
+    def _do_folder_thumb(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
+        from .folder_preview import folder_thumb
+
+        return folder_thumb(self.sb, p["root_alias"], p["path"])
+
     def _do_browse(self, p: dict[str, Any], task_id: str = "") -> dict[str, Any]:
         sp = self.sb.resolve(p["root_alias"], p.get("path", ""))
         dirs = sorted(
@@ -1201,7 +1511,9 @@ def _taxonomy(tc: dict[str, Any]) -> Any:
     classes = [ClassDef(c["id"], c.get("name") or c["id"], c.get("description") or "") for c in tc.get("classes") or []]
     if not classes:
         classes = [ClassDef(k, k) for k in tc.get("categories") or []]
-    return Taxonomy(classes=classes, rules=list(tc.get("rules") or []))
+    return Taxonomy(
+        classes=classes, rules=list(tc.get("rules") or []), vlm_max_candidates=int(tc.get("vlm_max_candidates") or 16)
+    )
 
 
 def _version() -> str:

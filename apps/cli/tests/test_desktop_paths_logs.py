@@ -1,5 +1,7 @@
 import json
 import logging
+import os
+from pathlib import Path
 
 import pytest
 from opagent_cli.paths import app_dirs
@@ -42,8 +44,51 @@ def test_desk_026_json_lines_rotation_and_redaction(tmp_path):
     log = logging.getLogger("opagent.test")
     log.warning("scanned /home/a/Pictures/2024/x.jpg with token %s", secret)
     h.flush()
-    lines = (tmp_path / "api.log").read_text().splitlines()
+    lines = (tmp_path / "api.log").read_text(encoding="utf-8").splitlines()
     rec = json.loads(lines[-1])
     assert rec["level"] == "WARNING" and rec["proc"] == "api" and "ts" in rec
     assert "photos:2024/x.jpg" in rec["msg"] and "/home/a" not in rec["msg"] and secret not in rec["msg"]
     assert h.maxBytes == 10 * 1024 * 1024 and h.backupCount == 5
+
+
+@pytest.mark.unit
+@pytest.mark.tc("ETA-028")
+def test_eta_028_the_command_looks_in_the_desktop_data_folder(monkeypatch, tmp_path, capsys):
+    """回歸 (seen on the reference machine): it looked in ~/.opagent, where the desktop app keeps nothing."""
+    from opagent_cli.main import main
+    from opagent_cli.paths import app_dirs, current_os
+
+    monkeypatch.delenv("OPAGENT_DSN", raising=False)
+    monkeypatch.delenv("OPAGENT_HOME", raising=False)
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    with pytest.raises(SystemExit) as e:
+        main(["ops", "export-calibration"])
+    assert app_dirs(current_os(), os.environ, str(Path.home()))["data"] in str(e.value)
+
+
+@pytest.mark.unit
+@pytest.mark.tc("ETA-028")
+def test_eta_028_reading_needs_no_postgres_binaries(monkeypatch, tmp_path):
+    """回歸 (seen on the installed app): the dsn came from EmbeddedPg, which looks for the server binaries first; the
+    command only connects, and in the install it found none."""
+    import opagent_db.embedded as E
+    import opagent_db.schema as S
+    from opagent_cli.main import main
+
+    (tmp_path / "pg").mkdir()
+    (tmp_path / "pg" / "port").write_text("54321", encoding="utf-8")
+
+    def no_binaries():
+        raise RuntimeError("PostgreSQL binaries not found")
+
+    def stop(dsn):
+        raise SystemExit(dsn)
+
+    monkeypatch.delenv("OPAGENT_DSN", raising=False)
+    monkeypatch.setattr(E, "find_pg_bin", no_binaries)
+    monkeypatch.setattr(S, "engine_for", stop)
+    with pytest.raises(SystemExit) as e:
+        main(["ops", "export-calibration", "--home", str(tmp_path)])
+    assert "54321" in str(e.value) or "port=54321" in str(e.value)

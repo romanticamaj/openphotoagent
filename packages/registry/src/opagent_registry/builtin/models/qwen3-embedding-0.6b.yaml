@@ -1,0 +1,25 @@
+# Caption text vectors for search (R2, ADR-0014): runs in the llama.cpp already in the app (--embedding --pooling last).
+# Queries carry Qwen3-Embedding's instruction; captions go in as they are (the model card's retrieval usage).
+schema_version: 1
+id: qwen3-embedding-0.6b
+display_name: "Qwen3-Embedding 0.6B"
+family: qwen3-embedding
+kind: text_embedder
+capabilities: [text_embed]
+languages: [en, zh-Hant, zh-Hans, ja]
+license: { spdx: Apache-2.0, weights: Apache-2.0, commercial_use: true, redistributable: true, requires_acceptance: false, url: "https://huggingface.co/Qwen/Qwen3-Embedding-0.6B" }
+source: { hf_repo: Qwen/Qwen3-Embedding-0.6B, revision: main }
+structured_output: none
+embedding: { min_cosine: 0.5, dim: 1024, normalize: true, similarity: cosine, multilingual: true, query_prefix: "Instruct: Given a photo search query, retrieve photo captions that match the query\nQuery: " }
+tiers: [all]
+variants:
+  - id: q8_0
+    runtime: llama.cpp
+    quant: Q8_0
+    revision: main
+    files:
+      - { repo: Qwen/Qwen3-Embedding-0.6B-GGUF, path: "Qwen3-Embedding-0.6B-Q8_0.gguf", role: weights }
+    vram_gb: { weights: 0.7, runtime_overhead: 0.3 }
+    recommended_batch: 32
+    requires: { runtime_pack: ["llamacpp-*"], os: [windows, macos, linux], min_ram_gb: 4, accel_any: [cuda, metal, vulkan, rocm, cpu] }
+notes: "照片說明的多語文字向量（以文字描述找照片）；只在本機計算。"

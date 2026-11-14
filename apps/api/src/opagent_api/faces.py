@@ -16,7 +16,7 @@ from collections.abc import Iterator
 from datetime import timedelta
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Request
+from fastapi import APIRouter, HTTPException, Query, Request
 from opagent_core import faces as F
 from opagent_core.ids import uuid7
 from opagent_db.schema import (
@@ -37,7 +37,7 @@ from opagent_db.schema import (
     workspace,
 )
 from pydantic import BaseModel, Field
-from sqlalchemy import and_, delete, func, insert, select, text, update
+from sqlalchemy import and_, delete, func, insert, select, text, true, update
 
 from .approvals import ui_only
 from .state import DEFAULT_WS, AppState
@@ -76,7 +76,7 @@ ALTER TABLE bio.face_embedding OWNER TO {BIO_ROLE};
 ALTER TABLE bio.person_prototype OWNER TO {BIO_ROLE};
 REVOKE ALL ON SCHEMA bio FROM PUBLIC;
 REVOKE ALL ON SCHEMA bio FROM {API_ROLE};
-"""  # noqa: S608 - module constants only, no input
+"""  # noqa: S608  # nosec B608 - module constants only, no input
 
 
 def install_roles(engine: Any) -> None:
@@ -297,6 +297,148 @@ def face_plan(asset_id: str, req: Request) -> dict[str, Any]:
         return {"run": enabled_for(c, sid)}
 
 
+@worker_router.get("/faces/backlog")
+def backlog(req: Request, after: str = "", limit: int = 32) -> dict[str, Any]:
+    """Photos with no face step yet. It rides on a job's decode, and a cached photo never reaches that, so a library
+    organized before faces were turned on is scanned from here, when the worker is idle. Ordered by asset id: the
+    worker keeps the cursor, so a photo with no faces in it is not listed forever."""
+    with _st(req).engine.begin() as c:
+        s = fsettings(c)
+        if not s.get("enabled"):
+            return {"items": [], "next": after}
+        q = (
+            select(
+                asset_location.c.asset_id, asset_location.c.rel_path, asset_location.c.source_id, source.c.root_alias
+            )
+            .join(source, source.c.id == asset_location.c.source_id)
+            .where(asset_location.c.missing.is_(False), asset_location.c.asset_id > after)
+            .order_by(asset_location.c.asset_id)
+            .limit(limit)
+        )
+        rows = c.execute(q).all()
+        seen = {r for (r,) in c.execute(select(face.c.asset_id).where(face.c.asset_id.in_([r.asset_id for r in rows])))}
+        items = [
+            {"asset_id": r.asset_id, "root_alias": r.root_alias, "rel": r.rel_path}
+            for r in rows
+            if r.asset_id not in seen and enabled_for(c, r.source_id)
+        ]
+    return {"items": items, "next": rows[-1].asset_id if rows else after}
+
+
+REEMBED_PAGE = 32
+
+
+@worker_router.get("/faces/reembed")
+def reembed_backlog(req: Request, limit: int = Query(8, ge=1, le=REEMBED_PAGE)) -> dict[str, Any]:
+    """Faces an older version stored as tier 0 that the small-face lane now embeds (24-31 px, not turned away,
+    not blurred; ADR-0036), grouped by photo; each is tried once."""
+    st = _st(req)
+    with st.engine.begin() as c:
+        s = fsettings(c)
+        if not s.get("enabled") or s.get("space_id") is None:
+            return {"items": []}
+        side = face.c.quality["min_side_px"].as_float()
+        yaw = func.abs(face.c.quality["yaw"].as_float())
+        blur = face.c.quality["blur"].as_float()
+        rows = c.execute(
+            select(
+                face.c.id,
+                face.c.bbox,
+                face.c.asset_id,
+                asset_location.c.rel_path,
+                asset_location.c.source_id,
+                source.c.root_alias,
+            )
+            .join(asset_location, asset_location.c.asset_id == face.c.asset_id)
+            .join(source, source.c.id == asset_location.c.source_id)
+            .where(
+                face.c.workspace_id == DEFAULT_WS,
+                face.c.quality_tier == 0,
+                face.c.state == "unassigned",  # never reopens a face a person decided on (FACE-DET-014)
+                side >= F.SMALL_FACE_MIN,
+                side < F.CLUSTER_MIN_SIDE,
+                yaw <= 75,
+                blur >= 20,
+                face.c.quality["reembed_tried"].as_boolean().is_not(True),
+                asset_location.c.missing.is_(False),
+            )
+            .order_by(face.c.asset_id, face.c.id)
+            .limit(limit * 8)
+        ).all()
+        rows = [r for r in rows if enabled_for(c, r.source_id)]
+    if rows:
+        with bio_session(st) as b:
+            have = {
+                r[0]
+                for r in b.execute(
+                    text("SELECT face_id FROM bio.face_embedding WHERE face_id = ANY(:ids)"),
+                    {"ids": [r.id for r in rows]},
+                )
+            }
+        rows = [r for r in rows if r.id not in have]
+    items: dict[str, dict[str, Any]] = {}
+    for r in rows:
+        it = items.setdefault(
+            r.asset_id, {"asset_id": r.asset_id, "root_alias": r.root_alias, "rel": r.rel_path, "faces": []}
+        )
+        if not any(x["face_id"] == r.id for x in it["faces"]):
+            it["faces"].append({"face_id": r.id, "bbox": list(r.bbox)})
+    return {"items": list(items.values())[:limit]}
+
+
+class EmbeddingIn(BaseModel):
+    vec: list[float] | None = None
+    quality_tier: int | None = None
+
+
+@worker_router.post("/faces/{fid}/embedding")
+def put_embedding(fid: str, body: EmbeddingIn, req: Request) -> dict[str, Any]:
+    """The worker's answer for one face of the re-embed backlog: a vector, or none when the photo no longer shows it."""
+    st = _st(req)
+    with st.engine.begin() as c:
+        row = c.execute(
+            select(face.c.quality, face.c.space_id, face.c.quality_tier, face.c.state, asset_location.c.source_id)
+            .join(asset_location, asset_location.c.asset_id == face.c.asset_id)
+            .where(face.c.id == fid, face.c.workspace_id == DEFAULT_WS)
+            .with_for_update(of=face)
+        ).first()
+        if row is None:
+            raise HTTPException(404, detail={"code": "NOT_FOUND"})
+        # the same consent and eligibility as the backlog that listed it (FACE-DET-014)
+        if not fsettings(c).get("enabled") or not enabled_for(c, row.source_id):
+            raise HTTPException(409, detail={"code": "FACES_DISABLED"})
+        m = _measures(row.quality)
+        with bio_session(st) as b:
+            has_vec = b.execute(text("SELECT 1 FROM bio.face_embedding WHERE face_id = :f"), {"f": fid}).first()
+        if (
+            row.quality_tier != 0
+            or row.state != "unassigned"
+            or not F.small_face(m["min_side"])
+            or (row.quality or {}).get("reembed_tried")
+            or has_vec is not None
+        ):
+            raise HTTPException(409, detail={"code": "FACE_NOT_REEMBEDDABLE"})
+        q = {**(row.quality or {}), "reembed_tried": True}
+        tier = max(1, body.quality_tier or 1) if body.vec is not None else 0
+        c.execute(update(face).where(face.c.id == fid).values(quality=q, quality_tier=tier))
+    if body.vec is None:
+        return {"ok": True, "embedded": False}
+    with bio_session(st) as b:
+        b.execute(
+            text(
+                "INSERT INTO bio.face_embedding(workspace_id, face_id, space_id, vec) VALUES (:w,:f,:s,:v)"
+                " ON CONFLICT DO NOTHING"
+            ),
+            {"w": DEFAULT_WS, "f": fid, "s": row.space_id, "v": str(body.vec)},
+        )
+    assign_online(st, DEFAULT_WS, row.space_id, fid, body.vec, tier, small=F.small_face(q.get("min_side_px")))
+    with st.engine.begin() as c:
+        aid = c.execute(select(face.c.asset_id).where(face.c.id == fid)).scalar()
+        c.execute(insert(index_outbox).values(asset_id=aid))
+        _drain(c)
+    return {"ok": True, "embedded": True}
+
+
 @worker_router.post("/faces")
 def ingest(body: FacesIn, req: Request) -> dict[str, Any]:
     st = _st(req)
@@ -310,6 +452,16 @@ def ingest(body: FacesIn, req: Request) -> dict[str, Any]:
         space = s.get("space_id") or _space(c, body.fingerprint)
         if not s.get("space_id"):
             _put(c, DEFAULT_WS, {**s, "space_id": space})
+        # a photo is analysed again and again; the job and the idle backlog can also meet on it, hence the row lock
+        c.execute(select(asset.c.id).where(asset.c.id == body.asset_id).with_for_update())
+        known = c.execute(
+            select(face.c.id).where(
+                face.c.asset_id == body.asset_id, face.c.space_id == space, face.c.source == "detected"
+            )
+        )
+        existing = [r[0] for r in known]
+        if existing:
+            return {"face_ids": existing, "truncated": False}
         kept, truncated = F.cap_faces([f.model_dump() for f in body.faces])
         ids = []
         for f in kept:
@@ -337,9 +489,11 @@ def ingest(body: FacesIn, req: Request) -> dict[str, Any]:
                 )
     for fid, f in zip(ids, kept, strict=True):
         if f["vec"] is not None and f["quality_tier"] >= 1:
-            assign_online(st, DEFAULT_WS, space, fid, f["vec"], f["quality_tier"])
+            small = F.small_face((f.get("quality") or {}).get("min_side_px"))
+            assign_online(st, DEFAULT_WS, space, fid, f["vec"], f["quality_tier"], small=small)
     with st.engine.begin() as c:
         c.execute(insert(index_outbox).values(asset_id=body.asset_id))
+        _drain(c)
     return {"face_ids": ids, "truncated": truncated}
 
 
@@ -386,7 +540,9 @@ def _write(c: Any, st: AppState, fid: str, pid: str | None, kind: str, method: s
     )
 
 
-def assign_online(st: AppState, ws: str, space: int, fid: str, vec: list[float], tier: int) -> F.Decision:
+def assign_online(
+    st: AppState, ws: str, space: int, fid: str, vec: list[float], tier: int, small: bool = False
+) -> F.Decision:
     near = _knn(st, ws, space, vec, K, exclude=fid)
     with st.engine.begin() as c:
         owners = dict(
@@ -405,6 +561,8 @@ def assign_online(st: AppState, ws: str, space: int, fid: str, vec: list[float],
                     person.c.id.in_(set(owners.values()) or {"-"}),
                     person.c.merged_into.is_(None),
                     person.c.status != "ignored",
+                    # a small face is only ever suggested for someone named (ADR-0036)
+                    person.c.display_name.is_not(None) if small else true(),
                 )
             ).all()
         }
@@ -465,6 +623,50 @@ def assign_online(st: AppState, ws: str, space: int, fid: str, vec: list[float],
 @router.post("/faces/cluster")
 def cluster(req: Request) -> dict[str, Any]:
     return run_cluster(_st(req), DEFAULT_WS)
+
+
+class ClusterDueIn(BaseModel):
+    min_new: int = 1
+
+
+CLUSTER_BATCH = 200  # 07 §2.3: a batch run once the unassigned pool has grown by this much
+
+
+@worker_router.post("/faces/cluster-due")
+def cluster_due(body: ClusterDueIn, req: Request) -> dict[str, Any]:
+    """The idle worker asks; faces found since the last run decide. A long run, so it is an Operation (invariant 9)."""
+    from .operations import ensure_operation, set_op_status
+
+    st = _st(req)
+    with st.engine.begin() as c:
+        if not fsettings(c).get("enabled"):
+            return {"ran": False, "new": 0}
+        last = c.execute(select(func.max(face_cluster_run.c.id)).where(face_cluster_run.c.workspace_id == DEFAULT_WS))
+        since = last.scalar() or ""
+        new = c.execute(
+            select(func.count())
+            .select_from(face)
+            .where(
+                face.c.workspace_id == DEFAULT_WS,
+                face.c.quality_tier >= 2,
+                face.c.state == "unassigned",
+                face.c.id > since,
+            )
+        ).scalar_one()
+        if new < body.min_new:
+            return {"ran": False, "new": int(new)}
+        oid = uuid7(st.clock)
+        ensure_operation(c, st.clock, oid, "face.cluster", {"kind": "faces", "id": DEFAULT_WS})
+        set_op_status(c, st.clock, oid, "running")
+    try:
+        out = run_cluster(st, DEFAULT_WS)
+    except Exception:
+        with st.engine.begin() as c:
+            set_op_status(c, st.clock, oid, "failed")
+        raise
+    with st.engine.begin() as c:
+        set_op_status(c, st.clock, oid, "succeeded")
+    return {"ran": True, **out}
 
 
 def run_cluster(st: AppState, ws: str) -> dict[str, Any]:
@@ -583,27 +785,45 @@ def run_cluster(st: AppState, ws: str) -> dict[str, Any]:
         )
         for (aid,) in c.execute(select(face.c.asset_id).where(face.c.workspace_id == ws).distinct()).all():
             c.execute(insert(index_outbox).values(asset_id=aid))
+        _drain(c)
     _merge_suggestions(st, ws, space)
     return {"run_id": run_id, "algo": algo, "clusters": len(groups), "noise": noise, "input_faces": len(ids)}
 
 
 def _merge_suggestions(st: AppState, ws: str, space: int) -> None:
     with st.engine.begin() as c:
+        # person_link has no cascade: links about groups a re-grouping deleted go here (FACE-MGT-011)
+        gone = ~person_link.c.person_a.in_(select(person.c.id)) | ~person_link.c.person_b.in_(select(person.c.id))
+        c.execute(delete(person_link).where(person_link.c.workspace_id == ws, gone))
         members: dict[str, list[str]] = {}
-        for fid, pid in c.execute(
-            select(face.c.id, face.c.person_id).where(face.c.workspace_id == ws, face.c.person_id.is_not(None))
+        clear: dict[str, bool] = {}
+        sharp: dict[str, float] = {}
+        for fid, pid, q in c.execute(
+            select(face.c.id, face.c.person_id, face.c.quality).where(
+                face.c.workspace_id == ws, face.c.person_id.is_not(None), _clusterable()
+            )
         ):
             members.setdefault(pid, []).append(fid)
+            clear[fid] = not F.hard_to_judge(**_measures(q))
+            sharp[fid] = _measures(q)["blur"] or 0.0
     vecs = _vectors(st, ws, space, [f for fs in members.values() for f in fs])
-    protos = {}
-    for pid, fs in members.items():
-        vs = [vecs[f] for f in fs if f in vecs]
-        if vs:
-            protos[pid] = [[sum(col) / len(vs) for col in zip(*vs, strict=True)]]
+    groups = {pid: [vecs[f] for f in fs if f in vecs] for pid, fs in members.items()}
+    covers = {pid: F.typical_face({f: vecs[f] for f in fs if f in vecs}, clear, sharp) for pid, fs in members.items()}
     from sqlalchemy.dialects.postgresql import insert as pg_insert
 
     with st.engine.begin() as c:
-        for a, b, sc in F.merge_suggestions(protos):
+        # open cards are recomputed every time; an answered pair (dismissed) stays answered (ADR-0033)
+        c.execute(
+            delete(person_link).where(
+                person_link.c.workspace_id == ws,
+                person_link.c.kind == "merge_suggestion",
+                person_link.c.status == "open",
+            )
+        )
+        for pid, cf in covers.items():  # the face that looks most like the group (FACE-UI-017)
+            if cf is not None:
+                c.execute(update(person).where(person.c.id == pid).values(cover_face_id=cf))
+        for a, b, sc in F.cohesive_merges(groups):
             c.execute(
                 pg_insert(person_link)
                 .values(workspace_id=ws, person_a=a, person_b=b, kind="merge_suggestion", score=sc)
@@ -628,11 +848,31 @@ def _people(c: Any, ws: str) -> list[dict[str, Any]]:
         .join(face, face.c.person_id == person.c.id)
         .where(person.c.workspace_id == ws, person.c.merged_into.is_(None), person.c.status != "ignored")
         .group_by(person.c.id)
-        .order_by(func.count(face.c.id).desc(), person.c.id)
+        # named people first, then by the number shown on the card: photos, not faces (FACE-UI-012)
+        .order_by(person.c.display_name.is_(None), func.count(func.distinct(face.c.asset_id)).desc(), person.c.id)
     ).all()
+    covers = {
+        r.person_id: {"asset_id": r.asset_id, "ch": r.content_hash, "bbox": list(r.bbox)}
+        for r in c.execute(
+            select(face.c.person_id, face.c.asset_id, asset.c.content_hash, face.c.bbox)
+            .join(asset, asset.c.id == face.c.asset_id)
+            .join(person, person.c.id == face.c.person_id)
+            .where(face.c.person_id.in_([r.id for r in rows]))
+            .distinct(face.c.person_id)
+            # the group's most typical face when grouping chose one and it is still theirs (FACE-UI-017)
+            .order_by(
+                face.c.person_id,
+                (face.c.id == person.c.cover_face_id).desc(),
+                face.c.quality_tier.desc(),
+                face.c.det_score.desc(),
+                face.c.id,
+            )
+        )
+    }
     return [
         {
             "id": r.id,
+            "cover": covers.get(r.id),
             "name": r.display_name,
             "status": r.status,
             "frozen": r.is_frozen,
@@ -644,12 +884,55 @@ def _people(c: Any, ws: str) -> list[dict[str, Any]]:
     ]
 
 
+def _fill_covers(st: AppState, ws: str) -> None:
+    """Groups with no cover chosen yet (a library grouped by an older version): the most typical face of each
+    (FACE-UI-017). Once; the next grouping keeps them current."""
+    with st.engine.begin() as c:
+        space = fsettings(c).get("space_id")
+        missing = [
+            r[0]
+            for r in c.execute(
+                select(person.c.id).where(
+                    person.c.workspace_id == ws, person.c.cover_face_id.is_(None), person.c.merged_into.is_(None)
+                )
+            )
+        ]
+        if space is None or not missing:
+            return
+        members: dict[str, list[str]] = {}
+        clear: dict[str, bool] = {}
+        sharp: dict[str, float] = {}
+        for fid, pid, q in c.execute(
+            select(face.c.id, face.c.person_id, face.c.quality).where(face.c.person_id.in_(missing))
+        ):
+            members.setdefault(pid, []).append(fid)
+            clear[fid] = not F.hard_to_judge(**_measures(q))
+            sharp[fid] = _measures(q)["blur"] or 0.0
+    vecs = _vectors(st, ws, space, [f for fs in members.values() for f in fs])
+    with st.engine.begin() as c:
+        for pid, fs in members.items():
+            cf = F.typical_face({f: vecs[f] for f in fs if f in vecs}, clear, sharp)
+            if cf is not None:
+                c.execute(update(person).where(person.c.id == pid).values(cover_face_id=cf))
+
+
 @router.get("/people")
 def people(req: Request) -> dict[str, Any]:
+    _fill_covers(_st(req), DEFAULT_WS)
     with _st(req).engine.begin() as c:
         rows = _people(c, DEFAULT_WS)
+        # the likeliest first, a few at a time: 52 groups gave 1,101 open pairs (FACE-MGT-010)
+        live = select(person.c.id).where(person.c.merged_into.is_(None), person.c.status != "ignored")
         sug = c.execute(
-            select(person_link).where(person_link.c.kind == "merge_suggestion", person_link.c.status == "open")
+            select(person_link)
+            .where(
+                person_link.c.kind == "merge_suggestion",
+                person_link.c.status == "open",
+                person_link.c.person_a.in_(live),  # never about a group that is gone (FACE-MGT-011)
+                person_link.c.person_b.in_(live),
+            )
+            .order_by(person_link.c.score.desc(), person_link.c.person_a, person_link.c.person_b)
+            .limit(MERGE_SHOWN)
         ).all()
     shown, others = F.fold_small({r["id"]: r["face_count"] for r in rows})
     return {
@@ -666,11 +949,26 @@ def person_detail(pid: str, req: Request) -> dict[str, Any]:
         if p is None:
             raise HTTPException(404, detail={"code": "NOT_FOUND"})
         fs = c.execute(
-            select(face.c.id, face.c.asset_id, face.c.state, face.c.quality_tier)
+            select(face.c.id, face.c.asset_id, face.c.state, face.c.quality_tier, face.c.bbox, asset.c.content_hash)
+            .join(asset, asset.c.id == face.c.asset_id)
             .where(face.c.person_id == pid)
             .order_by(face.c.id)
         ).all()
-    return {**p, "faces": [{"id": f.id, "asset_id": f.asset_id, "state": f.state, "tier": f.quality_tier} for f in fs]}
+    # bbox and ch: the merge card shows a few of the faces (FACE-MGT-013)
+    return {
+        **p,
+        "faces": [
+            {
+                "id": f.id,
+                "asset_id": f.asset_id,
+                "state": f.state,
+                "tier": f.quality_tier,
+                "bbox": list(f.bbox),
+                "ch": f.content_hash,
+            }
+            for f in fs
+        ],
+    }
 
 
 def _freeze(c: Any, st: AppState, pid: str) -> None:
@@ -686,6 +984,16 @@ def _reindex(c: Any, pid_or_faces: Any) -> None:
     )
     for (aid,) in c.execute(q).all():
         c.execute(insert(index_outbox).values(asset_id=aid))
+    _drain(c)
+
+
+def _drain(c: Any) -> None:
+    """Who is in a photo is answered by the search index (persons filter, people's photos). Face changes queue the
+    update; draining it here, in the same transaction, is what makes them visible: only a job's results did before
+    (FACE-CLU-012)."""
+    from .labels import drain_index
+
+    drain_index(c)
 
 
 class NameIn(BaseModel):
@@ -715,6 +1023,49 @@ class PersonIn(BaseModel):
     person_id: str
 
 
+class FaceNameIn(BaseModel):
+    name: str = Field(min_length=1, max_length=80)
+
+
+@router.post("/faces/{fid}/name")
+def name_face(fid: str, body: FaceNameIn, req: Request) -> dict[str, Any]:
+    """「這是誰？」 on a face no group took (seen once or twice, VIEW-032): the person with that name, or a new one,
+    and this face confirmed as them."""
+    st = _st(req)
+    name = body.name.strip()
+    if not name:
+        raise HTTPException(422, detail={"code": "NAME_REQUIRED"})
+    with st.engine.begin() as c:
+        if c.execute(select(face.c.id).where(face.c.id == fid, face.c.workspace_id == DEFAULT_WS)).first() is None:
+            raise HTTPException(404, detail={"code": "NOT_FOUND"})
+        pid = c.execute(
+            select(person.c.id).where(
+                person.c.workspace_id == DEFAULT_WS,
+                person.c.display_name == name,
+                person.c.merged_into.is_(None),
+                person.c.status != "ignored",
+            )
+        ).scalar()
+        if pid is None:
+            pid = uuid7(st.clock)
+            c.execute(
+                insert(person).values(
+                    id=pid,
+                    workspace_id=DEFAULT_WS,
+                    origin="named_face",
+                    status="named",
+                    display_name=name,
+                    is_frozen=True,
+                    created_by="user:local",
+                    created_at=st.clock.now(),
+                )
+            )
+        _write(c, st, fid, pid, "confirmed", "name", "user:local")
+        _freeze(c, st, pid)
+        _reindex(c, [fid])
+    return {"person_id": pid, "name": name}
+
+
 @router.post("/faces/{fid}/confirm")
 def confirm(fid: str, body: PersonIn, req: Request) -> dict[str, Any]:
     st = _st(req)
@@ -725,32 +1076,304 @@ def confirm(fid: str, body: PersonIn, req: Request) -> dict[str, Any]:
     return {"ok": True}
 
 
+def _reject(c: Any, st: AppState, fid: str, pid: str, method: str = "review", **kw: Any) -> None:
+    cur = _current(c, [fid]).get(fid)  # auto, confirmed or a pending suggestion for this person
+    replaced = None
+    if cur is not None and cur.person_id == pid:
+        _write(c, st, fid, None, "unassigned", method, "user:local")
+        replaced = cur.id  # so an undo can bring the suggestion back
+    c.execute(
+        insert(face_assignment).values(
+            id=uuid7(st.clock),
+            face_id=fid,
+            person_id=pid,
+            kind="rejected",
+            method=method,
+            actor="user:local",
+            created_at=st.clock.now(),
+            replaces=replaced,
+            **kw,
+        )
+    )
+
+
 @router.post("/faces/{fid}/reject")
 def reject(fid: str, body: PersonIn, req: Request) -> dict[str, Any]:
     """「不是此人」: a cannot-link that online assignment and clustering always respect (FACE-ASN-006)."""
     st = _st(req)
     with st.engine.begin() as c:
-        cur = _current(c, [fid]).get(fid)  # auto, confirmed or a pending suggestion for this person
-        if cur is not None and cur.person_id == body.person_id:
-            _write(c, st, fid, None, "unassigned", "review", "user:local")
-        c.execute(
-            insert(face_assignment).values(
-                id=uuid7(st.clock),
-                face_id=fid,
-                person_id=body.person_id,
-                kind="rejected",
-                method="review",
-                actor="user:local",
-                created_at=st.clock.now(),
-            )
-        )
+        _reject(c, st, fid, body.person_id)
         _freeze(c, st, body.person_id)
         _reindex(c, [fid])
     return {"ok": True}
 
 
+def _margins(
+    st: AppState, *, c_ws: str, space: int, pid: str, refs: list[list[float]], faces: list[str]
+) -> dict[str, float]:
+    """For each face: cosine to this person's reference centroid minus cosine to the closest other group's centroid,
+    a face's own group without it (ADR-0034)."""
+    import numpy as np
+
+    if not refs or not faces:
+        return {}
+    with st.engine.begin() as c:
+        owner = dict(
+            c.execute(
+                select(face.c.id, face.c.person_id)
+                .outerjoin(person, person.c.id == face.c.person_id)
+                .where(
+                    face.c.workspace_id == c_ws,
+                    face.c.person_id.is_not(None),
+                    face.c.person_id != pid,
+                    person.c.status.is_distinct_from("ignored"),
+                    person.c.merged_into.is_(None),
+                    _clusterable(),
+                )
+            ).all()
+        )
+    vecs = _vectors(st, c_ws, space, list({*owner, *faces}))
+    if not vecs:
+        return {}
+
+    def unit(v: Any) -> Any:
+        n = float(np.linalg.norm(v))
+        return v / n if n else v
+
+    sums: dict[str, Any] = {}
+    counts: dict[str, int] = {}
+    for fid, g in owner.items():
+        if fid in vecs:
+            sums[g] = sums.get(g, 0) + unit(np.asarray(vecs[fid], dtype=np.float64))
+            counts[g] = counts.get(g, 0) + 1
+    groups = list(sums)
+    mine = unit(np.mean([unit(np.asarray(v, dtype=np.float64)) for v in refs], axis=0))
+    out: dict[str, float] = {}
+    for fid in faces:
+        if fid not in vecs:
+            continue
+        v = unit(np.asarray(vecs[fid], dtype=np.float64))
+        rival = -1.0
+        for g in groups:
+            s, n = sums[g], counts[g]
+            if owner.get(fid) == g:  # its own group, without it
+                if n < 2:
+                    continue
+                s, n = s - v, n - 1
+            rival = max(rival, float(unit(s) @ v))
+        out[fid] = float(mine @ v) - rival if groups else 1.0
+    return out
+
+
+def person_aliases(c: Any) -> dict[str, str]:
+    """Names people gave, for the query planner: {name: person id}. Empty while faces are off, so a name stays plain
+    text (07 §3.3)."""
+    if not fsettings(c).get("enabled"):
+        return {}
+    rows = c.execute(
+        select(person.c.display_name, person.c.id).where(
+            person.c.workspace_id == DEFAULT_WS,
+            person.c.display_name.is_not(None),
+            person.c.merged_into.is_(None),
+            person.c.status != "ignored",
+        )
+    ).all()
+    return {r.display_name: r.id for r in rows if r.display_name}
+
+
+def _clusterable() -> Any:
+    """Faces big enough for grouping and group centroids: 32 px and up (ADR-0036)."""
+    side = face.c.quality["min_side_px"].as_float()
+    return (side.is_(None)) | (side >= F.CLUSTER_MIN_SIDE)
+
+
+def _measures(q: dict[str, Any] | None) -> dict[str, float | None]:
+    q = q or {}
+    side, blur = q.get("min_side_px"), q.get("blur")
+    return {
+        "min_side": float(side) if isinstance(side, int | float) else None,
+        "blur": float(blur) if isinstance(blur, int | float) else None,
+    }
+
+
+CANDIDATE_REFS = 24  # the newest confirmed faces; one k-NN query each
+CANDIDATE_K = 200
+
+
+@router.get("/people/{pid}/candidates")
+def person_candidates(pid: str, req: Request, limit: int = Query(60, ge=1, le=200)) -> dict[str, Any]:
+    """「可能也是他」: faces like the ones confirmed for this person (before any: the faces of their group), best
+    first. Only confirmed faces widen the search, so look-alike children do not pull it astray (FACE-FIND-003)."""
+    st = _st(req)
+    with st.engine.begin() as c:
+        space = fsettings(c).get("space_id")
+        who = c.execute(select(person.c.status, person.c.merged_into).where(person.c.id == pid)).first()
+        if space is None or who is None or who.status == "ignored" or who.merged_into is not None:
+            return {"items": [], "references": 0}
+        prev = face_assignment.alias("prev")
+        mine = c.execute(
+            select(face_assignment.c.face_id, face_assignment.c.kind, face_assignment.c.method, prev.c.method)
+            .outerjoin(prev, prev.c.id == face_assignment.c.replaces)
+            .where(face_assignment.c.person_id == pid, face_assignment.c.superseded_at.is_(None))
+            .order_by(face_assignment.c.created_at.desc(), face_assignment.c.id.desc())
+        ).all()
+        rejected = {r[0] for r in mine if r[1] == "rejected"}
+        confirmed = F.reference_faces([(r[0], r[1]) for r in mine])
+        # the confirmed faces, then the faces the grouping gave (ADR-0038): never online auto-assignments
+        refs = F.candidate_references([(r[0], r[1], r[2], r[3]) for r in mine], cap=CANDIDATE_REFS)
+    vecs = _vectors(st, DEFAULT_WS, space, refs)
+    sure_refs = set(confirmed)
+    best: dict[str, float] = {}
+    via_confirmed: dict[str, float] = {}
+    for rid, v in vecs.items():
+        for n in _knn(st, DEFAULT_WS, space, v, CANDIDATE_K):
+            best[n.face_id] = max(best.get(n.face_id, -1.0), float(n.s))
+            if rid in sure_refs:
+                via_confirmed[n.face_id] = max(via_confirmed.get(n.face_id, -1.0), float(n.s))
+    seed_only = {f for f in best if via_confirmed.get(f, -1.0) < F.CANDIDATE_MIN}
+    with st.engine.begin() as c:
+        rows = c.execute(
+            select(
+                face.c.id,
+                face.c.asset_id,
+                face.c.person_id,
+                face.c.state,
+                face.c.bbox,
+                face.c.quality_tier,
+                face.c.quality,
+                asset.c.content_hash,
+            )
+            .join(asset, asset.c.id == face.c.asset_id)
+            .outerjoin(person, person.c.id == face.c.person_id)
+            .where(
+                face.c.workspace_id == DEFAULT_WS,
+                face.c.id.in_(list(best) or ["-"]) | (face.c.person_id == pid),
+                person.c.status.is_distinct_from("ignored"),  # someone set aside never comes back this way
+            )
+        ).all()
+    facts = {r.id: (r.asset_id, r.person_id, r.state) for r in rows}
+    meta = {r.id: r for r in rows}
+    margins = _margins(st, c_ws=DEFAULT_WS, space=space, pid=pid, refs=list(vecs.values()), faces=list(best))
+    with st.engine.begin() as c:
+        named = c.execute(select(person.c.display_name).where(person.c.id == pid)).scalar() is not None
+    small = {fid for fid, r in meta.items() if F.small_face(_measures(r.quality)["min_side"])}
+    ranked = F.person_candidates(
+        pid,
+        best,
+        facts,
+        rejected,
+        low=F.candidate_floor(confirmed=bool(confirmed)),
+        margins=margins,
+        small=small,
+        named=named,
+        seed_only=seed_only if confirmed else None,
+    )
+    # the clear ones first, best first within each; the hard ones last (ADR-0035)
+    clear = {fid: not F.hard_to_judge(**_measures(meta[fid].quality)) for fid, _ in ranked}
+    order = F.candidate_order([(fid, s, clear[fid]) for fid, s in ranked])  # likely, faint, hard (FACE-FIND-028)
+    score = dict(ranked)
+    ranked = [(fid, score[fid]) for fid in order][:limit]
+    return {
+        "references": len(vecs),
+        "items": [
+            {
+                "face_id": fid,
+                "asset_id": meta[fid].asset_id,
+                "ch": meta[fid].content_hash,
+                "bbox": list(meta[fid].bbox),
+                "score": round(s, 4),
+                "tier": meta[fid].quality_tier,
+                "clear": clear[fid],  # false: too small or soft to judge (FACE-FIND-018, ADR-0035)
+                "sure": F.sure_candidate(s),  # 「全部都是」 only marks these (FACE-FIND-020)
+                "faint": F.faint_candidate(s),  # 「不太像」 (FACE-FIND-028)
+                "group": meta[fid].person_id,
+            }
+            for fid, s in ranked
+        ],
+    }
+
+
+class ReviewIn(BaseModel):
+    yes: list[str] = Field(default_factory=list, max_length=500)
+    no: list[str] = Field(default_factory=list, max_length=500)
+
+
+@router.post("/people/{pid}/review")
+def person_review(pid: str, body: ReviewIn, req: Request) -> dict[str, Any]:
+    """Several 「是他」 and 「不是」 at once, from the candidates above."""
+    st = _st(req)
+    with st.engine.begin() as c:
+        ignored = c.execute(
+            select(face.c.id)
+            .join(person, person.c.id == face.c.person_id)
+            .where(face.c.id.in_([*body.yes, *body.no] or ["-"]), person.c.status == "ignored")
+        ).first()
+        if ignored is not None or c.execute(select(person.c.status).where(person.c.id == pid)).scalar() == "ignored":
+            raise HTTPException(409, detail={"code": "FACE_IGNORED"})
+        token = "rv_" + secrets.token_hex(8)  # 「復原」 takes the whole review back (FACE-FIND-016)
+        for fid in body.yes:
+            _write(c, st, fid, pid, "confirmed", "find", "user:local", undo_of=token)
+        for fid in body.no:
+            _reject(c, st, fid, pid, "find", undo_of=token)
+        c.execute(
+            insert(audit_log).values(actor="user:local", action="person.review", target=pid, details={"token": token})
+        )
+        _freeze(c, st, pid)
+        _reindex(c, [*body.yes, *body.no])
+    return {"confirmed": len(body.yes), "rejected": len(body.no)}
+
+
+@router.post("/people/{pid}/review/undo")
+def undo_review(pid: str, req: Request) -> dict[str, Any]:
+    """Take back this person's last 「送出」, once."""
+    st = _st(req)
+    with st.engine.begin() as c:
+        last = c.execute(
+            select(audit_log.c.id, audit_log.c.details)
+            .where(audit_log.c.action == "person.review", audit_log.c.target == pid)
+            .order_by(audit_log.c.id.desc())
+            .limit(1)
+        ).first()
+        rows = (
+            c.execute(select(face_assignment).where(face_assignment.c.undo_of == last.details["token"])).all()
+            if last is not None and not last.details.get("undone")
+            else []
+        )
+        if last is None or not rows:
+            raise HTTPException(404, detail={"code": "NOT_FOUND"})
+        _restore(c, rows)
+        c.execute(update(audit_log).where(audit_log.c.id == last.id).values(details={**last.details, "undone": True}))
+        _freeze(c, st, pid)
+        _reindex(c, [r.face_id for r in rows])
+    return {"restored": len(rows)}
+
+
 class MergeIn(BaseModel):
     into: str
+
+
+MERGE_SHOWN = 12
+
+
+class PairIn(BaseModel):
+    a: str
+    b: str
+
+
+@router.post("/people/merge-suggestions/dismiss")
+def dismiss_merge(body: PairIn, req: Request) -> dict[str, Any]:
+    """「不是同一人」: the pair is closed and never suggested again (FACE-MGT-010)."""
+    with _st(req).engine.begin() as c:
+        c.execute(
+            update(person_link)
+            .where(
+                person_link.c.kind == "merge_suggestion",
+                ((person_link.c.person_a == body.a) & (person_link.c.person_b == body.b))
+                | ((person_link.c.person_a == body.b) & (person_link.c.person_b == body.a)),
+            )
+            .values(status="dismissed")
+        )
+    return {"ok": True}
 
 
 @router.post("/people/{pid}/merge")
@@ -784,6 +1407,29 @@ def merge(pid: str, body: MergeIn, req: Request) -> dict[str, Any]:
     return {"undo_token": token, "moved": len(fs)}
 
 
+def _restore(c: Any, rows: Any) -> None:
+    """Drop the assignments a merge or a review wrote and bring back what each one replaced."""
+    for r in rows:
+        prev = (
+            c.execute(select(face_assignment).where(face_assignment.c.id == r.replaces)).first() if r.replaces else None
+        )
+        c.execute(delete(face_assignment).where(face_assignment.c.id == r.id))
+        if r.kind == "rejected" and prev is None:
+            continue  # this 「不是」 only added a cannot-link
+        if prev is not None:
+            c.execute(update(face_assignment).where(face_assignment.c.id == prev.id).values(superseded_at=None))
+        state = prev.kind if prev is not None and prev.kind in ("auto", "confirmed", "suggested") else "unassigned"
+        c.execute(
+            update(face)
+            .where(face.c.id == r.face_id)
+            .values(
+                person_id=prev.person_id if prev is not None and state in ("auto", "confirmed") else None,
+                state=state,
+                confidence=prev.confidence if prev is not None else None,
+            )
+        )
+
+
 @router.post("/people/merges/{token}/undo")
 def undo_merge(token: str, req: Request) -> dict[str, Any]:
     st = _st(req)
@@ -796,25 +1442,7 @@ def undo_merge(token: str, req: Request) -> dict[str, Any]:
                 audit_log.c.action == "person.merge", audit_log.c.details["token"].astext == token
             )
         ).scalar()
-        for r in rows:
-            prev = (
-                c.execute(select(face_assignment).where(face_assignment.c.id == r.replaces)).first()
-                if r.replaces
-                else None
-            )
-            c.execute(delete(face_assignment).where(face_assignment.c.id == r.id))
-            if prev is not None:
-                c.execute(update(face_assignment).where(face_assignment.c.id == prev.id).values(superseded_at=None))
-                state = prev.kind if prev.kind in ("auto", "confirmed", "suggested") else "unassigned"
-                c.execute(
-                    update(face)
-                    .where(face.c.id == r.face_id)
-                    .values(
-                        person_id=prev.person_id if state in ("auto", "confirmed") else None,
-                        state=state,
-                        confidence=prev.confidence,
-                    )
-                )
+        _restore(c, rows)
         c.execute(update(person).where(person.c.id == a).values(merged_into=None))
         _reindex(c, [r.face_id for r in rows])
     return {"restored": len(rows)}
@@ -952,12 +1580,14 @@ def find(body: FindIn, req: Request) -> dict[str, Any]:
             if n.face_id not in best or n.s > best[n.face_id][1]:
                 best[n.face_id] = ("", float(n.s))
     with st.engine.begin() as c:
-        owner = dict(
-            c.execute(
-                select(face.c.id, face.c.asset_id).where(face.c.id.in_(list(best) or ["-"]), face.c.workspace_id == ws)
-            ).all()
-        )
-    tiers = F.find_tiers({f: (owner[f], s) for f, (_x, s) in best.items() if f in owner})
+        found = c.execute(
+            select(face.c.id, face.c.asset_id, face.c.quality).where(
+                face.c.id.in_(list(best) or ["-"]), face.c.workspace_id == ws
+            )
+        ).all()
+    owner = {r.id: r.asset_id for r in found}
+    small = {r.id for r in found if F.small_face(_measures(r.quality)["min_side"])}
+    tiers = F.find_tiers({f: (owner[f], s) for f, (_x, s) in best.items() if f in owner}, small=small)
     return {k: [{"asset_id": a, "score": round(s, 4)} for a, s in v] for k, v in tiers.items()}
 
 
@@ -1176,6 +1806,7 @@ def purge_workspace(st: AppState, ws: str) -> dict[str, Any]:
             .where(workspace.c.id == ws)
             .values(settings={**cur, "faces": {"enabled": False, "prompt_dismissed": True}})
         )
+        _drain(c)  # after faces are off: the index then records "no face data", not "nobody"
         c.execute(
             insert(face_consent).values(
                 id=uuid7(st.clock),
@@ -1186,23 +1817,98 @@ def purge_workspace(st: AppState, ws: str) -> dict[str, Any]:
                 at=st.clock.now(),
             )
         )
-        report = {
+        report: dict[str, Any] = {
+            "id": uuid7(st.clock),
+            "workspace": ws,
+            "at": st.clock.now().isoformat(),
             "faces": int(n_faces),
             "embeddings": int(emb or 0),
             "prototypes": int(protos or 0),
             "persons": int(n_persons),
             "locations": ["database:bio", "database:face", "worker:faces"],
+            "worker_tasks": [],
         }
+        workers = [r[0] for r in c.execute(text("SELECT id FROM worker")).all()]
+        report["worker_tasks"] = [uuid7(st.clock) for _ in workers]
+        report["sha256"] = report_hash(report)  # SEC-FACE-001: the report itself is tamper-evident
         c.execute(
             insert(audit_log).values(actor="user:local", action="faces.purge", target=ws, outcome="ok", details=report)
         )
-        for (wid,) in c.execute(text("SELECT id FROM worker")).all():  # pending until the worker is back (PRG-003)
+        for wid, tid in zip(workers, report["worker_tasks"], strict=True):  # pending until the worker is back (PRG-003)
             c.execute(
                 insert(worker_task).values(
-                    id=uuid7(st.clock), kind="face_purge", worker_id=wid, lane="control", payload={"workspace_id": ws}
+                    id=tid, kind="face_purge", worker_id=wid, lane="control", payload={"workspace_id": ws}
                 )
             )
     return {**report, "worker_pending": True}
+
+
+def report_hash(report: dict[str, Any]) -> str:
+    import hashlib
+    import json
+
+    body = {k: v for k, v in report.items() if k != "sha256"}
+    return hashlib.sha256(json.dumps(body, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+class VerifyIn(BaseModel):
+    report_id: str
+
+
+@router.post("/faces/purge/verify")
+def verify_purge(body: VerifyIn, req: Request) -> dict[str, Any]:
+    """Re-check a deletion report (09b SEC-FACE-001): its hash, that no face datum from before it exists in the
+    database or the ``bio`` schema, and that every worker confirmed destroying its key and face crops."""
+    from datetime import datetime
+
+    st = _st(req)
+    with st.engine.begin() as c:
+        row = c.execute(
+            select(audit_log.c.details).where(
+                audit_log.c.action == "faces.purge", audit_log.c.details["id"].astext == body.report_id
+            )
+        ).first()
+        if row is None:
+            raise HTTPException(404, detail={"code": "NOT_FOUND"})
+        rep = dict(row.details)
+        at = datetime.fromisoformat(rep["at"])
+        ws = rep["workspace"]
+        left = c.execute(
+            select(func.count()).select_from(face).where(face.c.workspace_id == ws, face.c.created_at <= at)
+        ).scalar_one()
+        left += c.execute(
+            select(func.count()).select_from(person).where(person.c.workspace_id == ws, person.c.created_at <= at)
+        ).scalar_one()
+        tasks = c.execute(
+            select(worker_task.c.status, worker_task.c.result).where(
+                worker_task.c.id.in_(rep.get("worker_tasks") or ["-"])
+            )
+        ).all()
+    with bio_session(st) as c:
+        bio_left = (
+            c.execute(
+                text("SELECT count(*) FROM bio.face_embedding WHERE workspace_id = :w AND created_at <= :at"),
+                {"w": ws, "at": at},
+            ).scalar()
+            + c.execute(  # prototypes of people that no longer exist
+                text(
+                    "SELECT count(*) FROM bio.person_prototype pp WHERE pp.workspace_id = :w"
+                    " AND NOT EXISTS (SELECT 1 FROM person p WHERE p.id = pp.person_id)"
+                ),
+                {"w": ws},
+            ).scalar()
+        )
+    worker_ok = len(tasks) == len(rep.get("worker_tasks") or []) > 0 and all(
+        t.status == "done" and bool((t.result or {}).get("key_destroyed")) and (t.result or {}).get("vault_removed")
+        for t in tasks
+    )
+    checks = [
+        {"id": "report_hash", "ok": rep.get("sha256") == report_hash(rep)},
+        {"id": "database", "ok": left == 0, "remaining": int(left)},
+        {"id": "bio_schema", "ok": bio_left == 0, "remaining": int(bio_left or 0)},
+        {"id": "worker", "ok": worker_ok, "workers": len(tasks)},
+    ]
+    return {"report": rep, "verified": all(c["ok"] for c in checks), "checks": checks}
 
 
 @router.post("/faces/maintenance")

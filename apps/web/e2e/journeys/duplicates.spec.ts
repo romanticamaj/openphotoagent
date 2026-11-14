@@ -22,3 +22,22 @@ test("[TRASH-005] 重複照片一鍵計畫：選 20 組 → 保留代表張、�
   const restored = snapshot(lib.dups);
   for (const [k, v] of Object.entries(before)) expect(restored[k]).toEqual(v); // every file back, bytes and mtime
 });
+
+test("[TRASH-014] 選一張照片 → 移到垃圾桶 → 計畫頁核准 → 檔案在 .opagent-trash → 復原後原樣回來", async ({ page, request }) => {
+  const lib = await (await request.post("/__e2e/dup-library")).json(); // 20 photos × 2 locations on a writable root
+  const before = snapshot(lib.dups);
+  await page.goto("/");
+  await page.getByRole("grid", { name: "照片網格" }).getByRole("gridcell").first().click({ modifiers: ["ControlOrMeta"] });
+  await page.getByTestId("timeline-batch").getByRole("button", { name: "移到垃圾桶" }).click();
+  await expect(page.getByTestId("plan-summary")).toHaveText("將移到垃圾桶 2 個檔案，可隨時復原", { timeout: 30_000 }); // not 「保留代表張」
+  const moved = snapshot(lib.dups);
+  for (const [k, v] of Object.entries(before)) expect(moved[k]).toEqual(v); // nothing moves before approval
+  await page.getByRole("button", { name: "核准並開始" }).click();
+  await expect(page.getByTestId("done-title")).toBeVisible({ timeout: 30_000 });
+  const root = snapshot(tree().sorted);
+  expect(Object.keys(root).filter((k) => k.startsWith(".opagent-trash/") && root[k] !== "dir")).toHaveLength(2); // both copies
+  await page.getByRole("button", { name: "復原" }).click();
+  await expect(page.getByTestId("undone-title")).toHaveText("已復原", { timeout: 30_000 });
+  const restored = snapshot(lib.dups);
+  for (const [k, v] of Object.entries(before)) expect(restored[k]).toEqual(v); // every file back, bytes and mtime
+});

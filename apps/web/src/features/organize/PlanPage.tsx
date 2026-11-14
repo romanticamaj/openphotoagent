@@ -2,7 +2,7 @@
 // > 10,000 moves a typed string) → applying with cancel → outcome (renamed / identical skipped) → undo.
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../../components/Button";
 import { api, type Plan, type PlanAction } from "../../lib/api";
@@ -31,6 +31,17 @@ export function PlanPage({ planId }: { planId: string }) {
     },
   });
   const cancel = useMutation({ mutationFn: () => api.cancelJob(p!.job_id) });
+  // 捨棄計畫 (ORG-020): a plan you do not want; nothing on disk changes (ADR-0045)
+  const discard = useMutation({
+    mutationFn: () => api.discardPlan(planId),
+    onSuccess: () => void qc.invalidateQueries({ queryKey: ["plan", planId] }),
+  });
+  // the button pressed goes away: focus to the way back (audit round 58: it fell to the page)
+  const backRef = useRef<HTMLAnchorElement>(null);
+  const discardedNow = Boolean(plan.data?.discarded);
+  useEffect(() => {
+    if (discardedNow && discard.isSuccess) backRef.current?.focus();
+  }, [discardedNow, discard.isSuccess]);
   const undo = useMutation({
     mutationFn: () => api.undo(planId),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["plan", planId] }),
@@ -42,15 +53,24 @@ export function PlanPage({ planId }: { planId: string }) {
 
   return (
     <section className="mx-auto max-w-3xl space-y-6 p-8">
-      <h1 className="text-xl font-semibold">{t("organize.planTitle")}</h1>
+      <h1 className="text-xl font-semibold">{t(p.summary.trash ? "organize.planTitleTrash" : "organize.planTitle")}</h1>
       <p data-testid="plan-status" className="text-sm text-[var(--text-muted)]">
-        {t(`organize.planStatus.${status}`, { defaultValue: status })}
+        {p.discarded ? t("organize.planStatus.discarded") : t(`organize.planStatus.${status}`, { defaultValue: status })}
       </p>
-      {status === "draft" && (
+      {status === "draft" && p.discarded ? (
+        <div data-testid="plan-discarded" role="status" className="space-y-2">
+          <p>{t("organize.discarded")}</p>
+          <Link ref={backRef} to="/organize" className="underline">
+            {t("organize.backToOrganize")}
+          </Link>
+        </div>
+      ) : null}
+      {status === "draft" && !p.discarded && (
         <>
           <p data-testid="plan-summary" className="text-lg">
             {p.summary.trash
-              ? t("organize.summaryTrash", { count: p.summary.trash })
+              ? // photos you chose are not duplicates: no 「保留代表張」 for them (TRASH-014)
+                t(p.summary.kind === "trash" ? "organize.summaryTrashChosen" : "organize.summaryTrash", { count: p.summary.trash })
               : moves
                 ? t("organize.summaryMove", { count: moves, folders: p.summary.folders })
                 : t("organize.summaryCopy", { count: p.summary.copy, folders: p.summary.folders })}
@@ -61,6 +81,9 @@ export function PlanPage({ planId }: { planId: string }) {
             onClick={() => (moves ? setConfirming(true) : approve.mutate({}))}
           >
             {t("organize.approve")}
+          </Button>
+          <Button variant="ghost" disabledReason={discard.isPending ? { code: "BUSY", message: t("common.working") } : null} onClick={() => discard.mutate()}>
+            {t("organize.discard")}
           </Button>
           {approve.error && <Blockers error={approve.error} />}
         </>
@@ -134,7 +157,9 @@ function PlanTree({ actions }: { actions: PlanAction[] }) {
   const { t } = useTranslation();
   const groups = new Map<string, PlanAction[]>();
   for (const a of actions.slice(0, 2000)) {
-    const dir = a.dst_rel.includes("/") ? a.dst_rel.slice(0, a.dst_rel.lastIndexOf("/")) : ".";
+    // the folder by its name: 「.」 said nothing about where the copies go (ORG-021)
+    const sub = a.dst_rel.includes("/") ? a.dst_rel.slice(0, a.dst_rel.lastIndexOf("/")) : "";
+    const dir = sub ? `${a.dst_alias}/${sub}` : a.dst_alias;
     if (!groups.has(dir)) groups.set(dir, []);
     groups.get(dir)!.push(a);
   }

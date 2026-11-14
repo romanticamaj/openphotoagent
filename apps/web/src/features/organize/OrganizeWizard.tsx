@@ -9,9 +9,12 @@ import { Button, type DisabledReason } from "../../components/Button";
 import { CompatBadge } from "../../components/CompatBadge";
 import { useServerEvents } from "../../lib/events";
 import { FolderPicker } from "../../components/FolderPicker";
+import { LibraryFolders } from "../../components/LibraryFolders";
 import { ProblemCard, type Problem } from "../../components/ProblemCard";
 import { ApiError, api, mediaUrl, type Category, type Job, type PreviewItem } from "../../lib/api";
 import { formatDuration } from "../../lib/format";
+import { PreviewProgress } from "./PreviewProgress";
+import { modelName } from "./modelName";
 
 type Method = "by-date" | "by-content-12" | "custom";
 
@@ -94,8 +97,48 @@ export function OrganizeWizard() {
     },
   });
 
+  // what 整理 is, on every screen (ADR-0044): three steps, and where the copies go with the originals untouched
+  const frame = (step: 1 | 2 | 3) => (
+    <div className="space-y-3">
+      <ol aria-label={t("organize.steps")} className="organize-steps">
+        {(["organize.step1", "organize.step2", "organize.step3"] as const).map((k, i) => (
+          <li key={k} aria-current={i + 1 === step ? "step" : undefined}>
+            <span className="organize-step-n tnum">{i + 1}</span>
+            {t(k)}
+          </li>
+        ))}
+      </ol>
+      <p data-testid="organize-strip" className="organize-strip">
+        {t("organize.stripFrom")} <strong>{folder ? `${folder.root}${folder.path ? `/${folder.path}` : ""}` : "—"}</strong> {t("organize.stripTo")}{" "}
+        <strong>{target?.alias ?? "—"}</strong> <span className="text-[var(--text-muted)]">{t("organize.stripCopy")}</span>
+      </p>
+    </div>
+  );
+
   if (!folder) {
-    return <FolderPicker onPick={(root, path) => pick.mutate({ root, path })} />;
+    // 整理 starts from what is already in the library (IMP-033): photo sources as tiles; a folder outside the library
+    // stays one click away, folded, so the page no longer looks like 匯入 (ADR-0044)
+    return (
+      <div className="mx-auto max-w-5xl space-y-6 p-8">
+        <header className="space-y-1">
+          <h1 className="text-xl font-semibold">{t("organize.title")}</h1>
+          <p className="text-[var(--text-muted)]">{t("organize.intro")}</p>
+        </header>
+        {frame(1)}
+        <section className="space-y-2">
+          <h2 className="font-semibold">{t("organize.fromLibrary")}</h2>
+          <LibraryFolders action={() => t("organize.organizeThis")} onAct={(s) => setFolder({ root: s.root_alias, path: s.sub_path, source: s.id })} />
+        </section>
+        <Link to="/search" search={{ q: "" }} className="organize-source-tile">
+          <strong>{t("organize.fromPhotos")}</strong>
+          <span className="text-sm text-[var(--text-muted)]">{t("organize.fromPhotosHint")}</span>
+        </Link>
+        <details className="organize-outside">
+          <summary>{t("organize.outside")}</summary>
+          <FolderPicker title={t("organize.otherFolder")} onPick={(root, path) => pick.mutate({ root, path })} />
+        </details>
+      </div>
+    );
   }
 
   // a running job: progress, waiting reason, pending reviews
@@ -119,6 +162,7 @@ export function OrganizeWizard() {
   return (
     <section className="space-y-6">
       {live}
+      {frame(previewId ? 3 : 2)}
       <fieldset className="space-y-2">
         <legend className="text-lg font-semibold">{t("organize.method")}</legend>
         {(
@@ -169,6 +213,9 @@ export function OrganizeWizard() {
         />
       )}
 
+      {previewId && method !== "by-date" && preview.data ? (
+        <PreviewProgress status={preview.data.status} progress={preview.data.progress} hasEstimate={Boolean(preview.data.estimate)} />
+      ) : null}
       {previewId && method !== "by-date" && (
         <PreviewPanel
           previewId={previewId}
@@ -277,8 +324,8 @@ export function ReadinessChecklist({
       <ul>
         {models.map((m) => (
           <li key={m.key} data-testid={`model-${m.key}`} className="flex items-center gap-3 text-sm">
-            <span>
-              {t("readiness.model")}: {m.key}
+            <span title={m.key}>
+              {t("readiness.model")}: {modelName(t, m.key)}
             </span>
             <CompatBadge compat={m.compat} />
           </li>
@@ -458,6 +505,11 @@ function CategoryEditor({
   );
 }
 
+/** 依日期 asks no model: it builds the plan, it does not analyse (ORG-022, ACT-020). */
+export function runningKey(job: Pick<Job, "params">): string {
+  return job.params?.preset === "by-date" ? "organize.planning" : "organize.running";
+}
+
 function JobProgress({ job, onSkipped }: { job: Job; onSkipped: (planId: string) => void }) {
   const { t } = useTranslation();
   const skip = useMutation({
@@ -470,7 +522,7 @@ function JobProgress({ job, onSkipped }: { job: Job; onSkipped: (planId: string)
   return (
     <section className="space-y-4">
       <p className="flex items-center gap-3">
-        <span>{t("organize.running")}</span>
+        <span>{t(runningKey(job))}</span>
         <span data-testid="source-status" className="rounded-[var(--radius-sm)] border border-[var(--border)] px-2 text-xs">
           {job.source_status === "offline" ? t("organize.sourceOffline") : t("organize.sourceOnline")}
         </span>

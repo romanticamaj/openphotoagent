@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { groupOps, type Op } from "./model";
+import { groupOps, type Op, opStatusKey, opTypeKey } from "./model";
 import { OperationProgress } from "./OperationProgress";
 
 /** 06 §6.1 Activity Center drawer: operations grouped by worker × lane; failed rows show the problem's fixes. */
@@ -11,15 +11,17 @@ export function ActivityCenter({
   onToggle,
   onFix,
   actions,
+  recent = [],
 }: {
   open: boolean;
   ops: Op[];
+  recent?: Array<Pick<Op, "id" | "type" | "status"> & { subject?: unknown; finished_at?: string | null }>;
   onClose: () => void;
   onToggle?: () => void;
   onFix?: (op: Op, fixId: string) => void;
   actions?: (op: Op) => ReactNode;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "j") {
@@ -38,11 +40,11 @@ export function ActivityCenter({
       {ops.length === 0 ? <p className="text-[var(--text-muted)]">{t("activity.empty")}</p> : null}
       {groupOps(ops).map((g) => (
         <section key={g.key} aria-label={g.key}>
-          <h3 className="text-xs text-[var(--text-muted)]">{g.key}</h3>
+          <h3 className="text-xs text-[var(--text-muted)]">{t(`activity.group.${g.key}`, { defaultValue: g.key })}</h3>
           <ul>
             {g.ops.map((op) => (
               <li key={op.id} data-op={op.id}>
-                <span>{t(`activity.type.${op.type}`, { defaultValue: op.type })}</span>
+                <span>{t(`activity.type.${opTypeKey(op)}`, { defaultValue: op.type })}</span>
                 <OperationProgress op={op} variant="compact" />
                 {op.auto_resumed ? <span className="text-xs text-[var(--text-muted)]">{t("activity.autoResumed")}</span> : null}
                 {actions?.(op)}
@@ -61,6 +63,23 @@ export function ActivityCenter({
           </ul>
         </section>
       ))}
+      {recent.length > 0 ? (
+        // what just finished stays visible: the drawer went blank the moment a job ended (ACT-008)
+        <section aria-labelledby="recent-h" className="space-y-1">
+          <h3 id="recent-h" className="text-xs text-[var(--text-muted)]">{t("activity.recent")}</h3>
+          <ul aria-labelledby="recent-h" className="space-y-1 text-sm">
+            {recent.map((op) => (
+              <li key={op.id} className="flex justify-between gap-2">
+                <span>{t(`activity.type.${opTypeKey(op)}`, { defaultValue: op.type })}</span>
+                <span className="tnum text-xs text-[var(--text-muted)]">
+                  {t(`activity.status.${opStatusKey(op)}`, { defaultValue: op.status })}
+                  {op.finished_at ? ` · ${new Date(op.finished_at).toLocaleTimeString(i18n.language, { hour: "2-digit", minute: "2-digit" })}` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </aside>
   );
 }

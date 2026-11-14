@@ -170,6 +170,8 @@ def sweep(conn: Any, clock: Any) -> int:
 
 
 def report(conn: Any, clock: Any, worker_id: str, items: list[dict[str, Any]]) -> dict[str, int]:
+    from opagent_search.tokenize import to_hant
+
     accepted = 0
     for it in items:
         ji = conn.execute(select(job_item).where(job_item.c.id == it["job_item_id"]).with_for_update()).first()
@@ -191,7 +193,7 @@ def report(conn: Any, clock: Any, worker_id: str, items: list[dict[str, Any]]) -
                     task_type=(params.get("task_config") or {}).get("task_type", ji.task),
                     category=out.get("category"),
                     confidence=out.get("confidence"),
-                    caption=out.get("caption"),
+                    caption=to_hant(out.get("caption")),  # the model slips into Simplified now and then (Q-030)
                     tags=out.get("tags"),
                     raw={"provenance": it.get("provenance") or {}, "output": out},
                 )

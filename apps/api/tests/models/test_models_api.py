@@ -5,34 +5,34 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 from opagent_api.app import create_app
-from opagent_db.schema import engine_for
+from opagent_db.schema import engine_for, installation
 from opagent_registry.loader import BUILTIN_DIR
 from opagent_testing.hfserver import HfFile, HfServer
 from opagent_worker.agent import WorkerAgent
-from sqlalchemy import text
+from sqlalchemy import insert, text
 
 ROOT = Path(__file__).resolve().parents[4]
 EMB = "siglip2-so400m-384"
-INT8 = ["vision_model_int8.onnx", "text_model_int8.onnx", "tokenizer.json"]
+INT8 = ["onnx/vision_model_fp16.onnx", "onnx/text_model_fp16.onnx", "tokenizer.json"]
 
 
 @pytest.fixture
 def env(embedded_pg, sandbox_tree, tmp_path):
     """Registry copy with fixture pins for SigLIP2 int8 whose bytes the fake HF server serves (ADR-0002)."""
     files = [HfFile(p, 200_000 + i * 1000, seed=i) for i, p in enumerate(INT8)]
-    srv = HfServer("openphotoagent/siglip2-so400m-patch14-384-onnx", files).start()
+    srv = HfServer("onnx-community/siglip2-so400m-patch14-384-ONNX", files).start()
     reg = tmp_path / "registry"
     shutil.copytree(BUILTIN_DIR, reg)
     shutil.copy(ROOT / "fixtures/registry/models/fixture-nc-vlm.yaml", reg / "models")
     pins = [
         {
             "model": EMB,
-            "variant": "onnx-int8",
+            "variant": "onnx-fp16",
             "revision": "0123456789abcdef0123456789abcdef01234567",
             "files": [{"path": f.path, "size": f.size, "sha256": f.sha256, "lfs_oid": f.sha256} for f in files],
         }
     ]
-    (reg / "pins.lock").write_text(json.dumps({"schema_version": 1, "pins": pins}))
+    (reg / "pins.lock").write_text(json.dumps({"schema_version": 1, "pins": pins}), encoding="utf-8")
     user = tmp_path / "custom-models"
     user.mkdir()
     client = TestClient(create_app(dsn=embedded_pg.dsn, registry_dir=reg, user_models_dir=user))
@@ -83,9 +83,10 @@ def test_mdl_012_list_models_has_compat_and_legacy_fits_now(env):
 def test_inf_reg_003_user_yaml_shows_up(env):
     (env["user"] / "mine.yaml").write_text(
         (ROOT / "fixtures/registry/models/fixture-nc-vlm.yaml")
-        .read_text()
+        .read_text(encoding="utf-8")
         .replace("fixture-nc-vlm", "my-user-vlm")
-        .replace('"nc-q4.gguf" }', '"nc-q4.gguf", size: 10, sha256: "' + "d" * 64 + '" }')
+        .replace('"nc-q4.gguf" }', '"nc-q4.gguf", size: 10, sha256: "' + "d" * 64 + '" }'),
+        encoding="utf-8",
     )
     m = _models(env["client"])["my-user-vlm"]
     assert m["source"] == "user" and m["status"] == "valid"
@@ -96,13 +97,13 @@ def test_inf_reg_003_user_yaml_shows_up(env):
 @pytest.mark.tc("DL-002")
 def test_dl_002_install_flow_writes_installation_and_event(env):
     c, w = env["client"], env["worker"]
-    r = c.post("/api/v1/workers/w1/installs", json={"variant": f"{EMB}@onnx-int8"})
+    r = c.post("/api/v1/workers/w1/installs", json={"variant": f"{EMB}@onnx-fp16"})
     assert r.status_code == 202, r.text
     op = r.json()["operation_id"]
     _drain(w)
     o = c.get(f"/api/v1/operations/{op}").json()
     assert o["type"] == "model.download" and o["status"] == "succeeded"
-    v = next(x for x in _models(c)[EMB]["variants"] if x["id"] == "onnx-int8")
+    v = next(x for x in _models(c)[EMB]["variants"] if x["id"] == "onnx-fp16")
     assert v["installation"]["status"] == "installed"
     assert "MODEL_NOT_INSTALLED" not in [p["code"] for p in v["compat"]["prep"]]
     assert "event: model.installed" in _events(c)
@@ -121,16 +122,16 @@ def test_install_unpinned_builtin_is_blocked(env):
 @pytest.mark.tc("MDL-007")
 def test_mdl_007_delete_in_use_then_after_job(env):
     c, w = env["client"], env["worker"]
-    c.post("/api/v1/workers/w1/installs", json={"variant": f"{EMB}@onnx-int8"})
+    c.post("/api/v1/workers/w1/installs", json={"variant": f"{EMB}@onnx-fp16"})
     _drain(w)
-    inst = next(x for x in _models(c)[EMB]["variants"] if x["id"] == "onnx-int8")["installation"]
+    inst = next(x for x in _models(c)[EMB]["variants"] if x["id"] == "onnx-fp16")["installation"]
     eng = engine_for(env["dsn"])
     with eng.begin() as conn:  # a running job depends on the model
         conn.execute(
             text(
                 "insert into job(id, workspace_id, kind, status, params) values ('jx','default','organize','running', :p)"
             ),
-            {"p": json.dumps({"models": [f"{EMB}@onnx-int8"]})},
+            {"p": json.dumps({"models": [f"{EMB}@onnx-fp16"]})},
         )
     r = c.delete(f"/api/v1/workers/w1/installations/{inst['id']}")
     assert r.status_code == 409 and r.json()["blockers"][0]["code"] == "MODEL_IN_USE"
@@ -144,7 +145,7 @@ def test_mdl_007_delete_in_use_then_after_job(env):
     assert r.json()["freed_bytes"] == sum(200_000 + i * 1000 for i in range(3))
     assert not list((env["tmp"] / "models" / "hf").rglob("*.onnx"))
     assert "event: model.removed" in _events(c)
-    assert next(x for x in _models(c)[EMB]["variants"] if x["id"] == "onnx-int8")["installation"] is None
+    assert next(x for x in _models(c)[EMB]["variants"] if x["id"] == "onnx-fp16")["installation"] is None
 
 
 @pytest.mark.integration
@@ -193,12 +194,57 @@ def test_dl_020_onboarding_downloads_siglip_first_then_index(env):
     c, w = env["client"], env["worker"]
     r = c.post(
         "/api/v1/onboarding/install",
-        json={"worker_id": "w1", "variants": ["qwen3-vl-8b-instruct@q5_k_m", f"{EMB}@onnx-int8"]},
+        json={"worker_id": "w1", "variants": ["qwen3-vl-8b-instruct@q5_k_m", f"{EMB}@onnx-fp16"]},
     )
     assert r.status_code == 202
     plan = r.json()
-    assert plan["order"][0] == f"{EMB}@onnx-int8"
+    assert plan["order"][0] == f"{EMB}@onnx-fp16"
     assert plan["blocked"] == [{"variant": "qwen3-vl-8b-instruct@q5_k_m", "code": "MODEL_NOT_PINNED"}]
     _drain(w)
     ops = c.get("/api/v1/operations", params={"status": "all", "type": "search.reindex"}).json()
     assert ops and ops[0]["status"] in ("queued", "running", "succeeded")
+
+
+@pytest.mark.integration
+@pytest.mark.tc("MDL-016")
+def test_mdl_016_the_plan_counts_only_what_is_still_to_download(env):
+    """回歸: with every model on disk, onboarding still asked for an 8.9 GB download."""
+    c = env["client"]
+
+    def combo():
+        return c.get("/api/v1/onboarding/recommendation", params={"worker_id": "w1"}).json()["combo"]
+
+    before = combo()
+    assert before["download_bytes"] > 0
+    with env["client"].app.state.opa.engine.begin() as db:
+        for key in before["variants"]:
+            db.execute(
+                insert(installation).values(
+                    id=key, worker_id="w1", kind="model", key=key, status="installed", size_bytes=1, files=[]
+                )
+            )
+    assert combo()["download_bytes"] == 0
+
+
+@pytest.mark.integration
+@pytest.mark.tc("MDL-017")
+def test_mdl_017_the_plan_names_the_runtime_that_will_really_run(env):
+    """回歸: the card said CUDA because a CUDA pack was recommended; no pack was installed and Vulkan did the work."""
+    combo = env["client"].get("/api/v1/onboarding/recommendation", params={"worker_id": "w1"}).json()["combo"]
+    assert combo["packs"] == ["llamacpp-cuda13"]  # still what the machine should move to
+    assert combo["runtime"] == "vulkan"  # what is inside the installer (ADR-0025)
+
+
+@pytest.mark.integration
+@pytest.mark.tc("OP-019")
+def test_op_019_the_index_operation_after_a_download_finishes(env):
+    """回歸 (seen on the reference machine): nothing ever ran search.reindex, so it sat in queued for good and the
+    activity indicator never went idle."""
+    c, w = env["client"], env["worker"]
+    assert (
+        c.post("/api/v1/onboarding/install", json={"worker_id": "w1", "variants": [f"{EMB}@onnx-fp16"]}).status_code
+        == 202
+    )
+    _drain(w)
+    ops = c.get("/api/v1/operations", params={"status": "all", "type": "search.reindex"}).json()
+    assert [o["status"] for o in ops] == ["succeeded"]

@@ -21,8 +21,8 @@ export type Turn = {
   intent: string | null;
   path: string | null;
   steps: Step[];
-  filters: { applied: Record<string, unknown>; text: string; explain: string[] } | null;
-  photos: { total: number; items: string[]; role: string } | null;
+  filters: { applied: Record<string, unknown>; text: string; explain: string[]; names?: Record<string, string> } | null;
+  photos: { total: number; items: string[]; role: string; hashes?: Record<string, string | null> } | null;
   text: string;
   cards: PlanCard[];
   notices: Array<{ code: string; text: string; level: string }>;
@@ -79,9 +79,17 @@ export function reduce(s: Turn, e: SseEvent): Turn {
         steps: s.steps.map((x) => (x.id === d.step_id ? { ...x, status: d.status === "ok" ? "ok" : "error", elapsed_ms: d.elapsed_ms, summary: d.summary } : x)),
       };
     case "filters":
-      return { ...s, filters: { applied: d.applied_filters ?? {}, text: d.text ?? "", explain: d.planner_explain ?? [] } };
+      return { ...s, filters: { applied: d.applied_filters ?? {}, text: d.text ?? "", explain: d.planner_explain ?? [], ...(d.tag_names ? { names: d.tag_names } : {}) } };
     case "photos":
-      return { ...s, photos: { total: d.total ?? 0, items: (d.items ?? []).map((i: D) => i.id), role: d.role } };
+      return {
+        ...s,
+        photos: {
+          total: d.total ?? 0,
+          items: (d.items ?? []).map((i: D) => i.id),
+          role: d.role,
+          ...((d.items ?? []).some((i: D) => i.ch) ? { hashes: Object.fromEntries((d.items ?? []).map((i: D) => [i.id, i.ch ?? null])) } : {}),
+        },
+      };
     case "token":
       return { ...s, text: s.text + String(d.text ?? "") };
     case "card":
@@ -143,3 +151,18 @@ export async function streamAsk(body: Record<string, unknown>, on: (e: SseEvent)
     out.events.forEach(on);
   }
 }
+
+/** What 「問這張」 says besides the answer (ASK-ONE-003): the step it is on, or that no answer came. */
+export function photoStatus(turn: Turn | undefined, lang: string): string | null {
+  if (!turn) return null;
+  const zh = lang.startsWith("zh");
+  if (turn.status === "streaming") {
+    const step = [...turn.steps].reverse().find((s) => s.status === "running");
+    return `${step?.label ?? (zh ? "思考中" : "Thinking")}…`;
+  }
+  if (turn.text.trim()) return null;
+  if (turn.status === "failed") return zh ? "出了點問題，請再問一次。" : "Something went wrong. Ask again.";
+  if (turn.status === "completed") return zh ? "沒有得到回答，請再問一次。" : "No answer came. Ask again.";
+  return null;
+}
+

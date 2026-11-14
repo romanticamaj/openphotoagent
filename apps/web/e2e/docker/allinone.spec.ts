@@ -8,6 +8,7 @@ test("[DOCK-001] Docker all-in-one：健康檢查通過，完成 onboarding 與�
   await page.goto("/");
   await expect(page).toHaveURL(/\/welcome/); // empty library starts with onboarding
   await page.goto("/organize");
+  await page.getByText("圖庫以外的資料夾…").click(); // the folder tree is folded on 整理 (ADR-0044)
   await page.getByRole("button", { name: "photos" }).click();
   await page.getByRole("button", { name: "trip", exact: true }).click();
   await page.getByRole("button", { name: "選擇此資料夾" }).click();

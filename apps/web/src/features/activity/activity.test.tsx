@@ -8,6 +8,11 @@ import { OperationProgress } from "./OperationProgress";
 const op = (o: Record<string, unknown>) => ({ id: "x", type: "model.download", status: "running", seq: 1, lane: "download", worker: "w1", fraction: 0.4, ...o });
 
 describe("activity center", () => {
+  it("[ETA-025] a finished operation has no time left to estimate", () => {
+    const { container } = render(<OperationProgress op={op({ status: "succeeded", eta: { state: "estimating" } })} />);
+    expect(container.querySelector("[data-eta]")).toBeNull();
+  });
+
   it("[ACT-001] five indicator states", () => {
     expect(indicatorState([])).toEqual({ state: "idle", icon: "check", token: "--text-muted", labelKey: "activity.indicator.idle" });
     expect(indicatorState([op({})]).state).toBe("running");
@@ -60,5 +65,37 @@ describe("activity center", () => {
     render(<ActivityCenter open={false} ops={[]} onClose={() => {}} onToggle={toggle} />);
     fireEvent.keyDown(window, { key: "j", ctrlKey: true });
     expect(open).toBe(true);
+  });
+});
+
+describe("what each activity is called (audit round 57)", () => {
+  it("[ACT-015] 回歸：預覽寫成「預覽整理（未執行）」，不是「整理 完成」；內部名稱都有中文名（output.plan、dedup…）", async () => {
+    const { opTypeKey } = await import("./model");
+    const zh = (await import("@opa/i18n/locales/zh-TW.json")).default as { activity: { type: Record<string, string> } };
+    expect(opTypeKey({ type: "job.label", subject: { job_kind: "preview" } })).toBe("job.preview");
+    expect(zh.activity.type["job.preview"]).toBe("預覽整理（未執行）");
+    for (const k of ["output.plan", "dedup", "face.reembed", "preview.stage", "model.load"]) expect(zh.activity.type[k], k).toBeTruthy();
+  });
+});
+
+describe("an organize job named by where its plan stands (audit round 58)", () => {
+  it("[ACT-017] 回歸：待核准的整理寫「整理計畫待核准」，捨棄的寫「已捨棄整理計畫」，不是「整理 完成」", async () => {
+    const { opTypeKey } = await import("./model");
+    const zh = (await import("@opa/i18n/locales/zh-TW.json")).default as { activity: { type: Record<string, string> } };
+    const waiting = opTypeKey({ type: "job.label", subject: { job_kind: "organize", job_status: "awaiting_approval" } });
+    const gone = opTypeKey({ type: "job.label", subject: { job_kind: "organize", job_status: "completed", outcome: "discarded" } });
+    expect(zh.activity.type[waiting]).toBe("整理計畫待核准");
+    expect(zh.activity.type[gone]).toBe("已捨棄整理計畫（未變更檔案）");
+    expect(opTypeKey({ type: "job.label", subject: { job_kind: "organize", job_status: "completed" } })).toBe("job.label"); // applied: 整理
+  });
+});
+
+describe("a waiting plan is not done (audit round 59)", () => {
+  it("[ACT-018] 回歸：待核准的整理計畫狀態寫「等你核准」，不是「完成」", async () => {
+    const { opStatusKey } = await import("./model");
+    const zh = (await import("@opa/i18n/locales/zh-TW.json")).default as { activity: { status: Record<string, string> } };
+    const waiting = { type: "job.label", status: "succeeded", subject: { job_kind: "organize", job_status: "awaiting_approval" } };
+    expect(zh.activity.status[opStatusKey(waiting)]).toBe("等你核准");
+    expect(opStatusKey({ type: "model.download", status: "succeeded" })).toBe("succeeded");
   });
 });

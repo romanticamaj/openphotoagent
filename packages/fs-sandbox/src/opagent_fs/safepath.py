@@ -73,11 +73,19 @@ def is_within(root: Path, path: Path) -> bool:
     return os.path.commonpath([r, p]) == r
 
 
+_WIN_FORBIDDEN = frozenset('<>"|?*') | {chr(c) for c in range(1, 32)}
+
+
+def _windows_invalid(seg: str) -> bool:
+    """Characters Windows refuses in a name, or a trailing dot/space it silently strips (two names, one file)."""
+    return any(ch in _WIN_FORBIDDEN for ch in seg) or seg.endswith((".", " "))
+
+
 def _is_reserved(seg: str) -> bool:
     return seg.split(".")[0].rstrip(" .").upper() in _RESERVED
 
 
-def check_rel(rel: str, alias: str = "") -> list[str]:
+def check_rel(rel: str, alias: str = "", windows: bool = sys.platform == "win32") -> list[str]:
     """Pure lexical validation; returns the NFC path components."""
     if "\x00" in rel:
         raise PathViolation("nul", alias, rel)
@@ -95,6 +103,8 @@ def check_rel(rel: str, alias: str = "") -> list[str]:
         raise PathViolation("name_too_long", alias, rel)
     if any(_is_reserved(p) for p in parts):
         raise PathViolation("reserved_name", alias, rel)
+    if windows and any(_windows_invalid(p) for p in parts):  # FS-028; other OSes keep names that are legal there
+        raise PathViolation("windows_invalid_name", alias, rel)
     return parts
 
 
@@ -128,7 +138,10 @@ class Sandbox:
         cur = root
         disk: list[str] = []
         missing = False
+        parent_is_file = False
         for part in parts:
+            if parent_is_file:  # same answer on every OS (Windows says "not found" where POSIX says ENOTDIR, FS-030)
+                raise PathViolation("not_a_directory", alias, rel)
             name = part if missing else self._disk_name(cur, part)
             cur = cur / name
             disk.append(name)
@@ -147,6 +160,7 @@ class Sandbox:
                 raise
             if stat.S_ISLNK(st.st_mode) or _is_reparse_point(st):
                 raise PathViolation("symlink", alias, rel)
+            parent_is_file = not stat.S_ISDIR(st.st_mode)
         if not is_within(root, cur):
             raise PathViolation("escape", alias, rel)
         return SafePath(alias, "/".join(unicodedata.normalize("NFC", d) for d in disk), cur)

@@ -16,6 +16,7 @@ import { fromApi } from "../activity/model";
 type Step = "welcome" | "plan" | "folder";
 
 function runtimeOf(r: Recommendation, chosen: string | null): string {
+  if (!chosen && r.combo.runtime) return r.combo.runtime; // what runs today, not the pack it could move to
   const p = chosen ?? r.combo.packs[0] ?? "";
   if (p.includes("vulkan")) return "vulkan";
   if (p.includes("cuda")) return "cuda";
@@ -27,7 +28,8 @@ export function Welcome() {
   const { t, i18n } = useTranslation();
   const [step, setStep] = useState<Step>("welcome");
   const [pack, setPack] = useState<string | null>(null);
-  const roots = useQuery({ queryKey: ["roots"], queryFn: api.roots });
+  // the page can open before the worker has registered: keep asking until it has
+  const roots = useQuery({ queryKey: ["roots"], queryFn: api.roots, refetchInterval: (q) => (q.state.data?.length ? false : 1000) });
   const workerId = roots.data?.[0]?.worker_id;
   const reco = useQuery({
     queryKey: ["recommendation", workerId],
@@ -89,7 +91,7 @@ export function Welcome() {
             </p>
           )}
           <p className="tnum">
-            {t("onboarding.plan.download", { size: formatBytes(r.combo.download_bytes, i18n.language), min: r.combo.download_minutes })}
+            {r.combo.download_bytes === 0 ? t("onboarding.plan.allInstalled") : t("onboarding.plan.download", { size: formatBytes(r.combo.download_bytes, i18n.language), min: r.combo.download_minutes })}
           </p>
           {r.per_1000_minutes && (
             <p className="tnum" data-testid="per-1000">

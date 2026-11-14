@@ -68,7 +68,8 @@ test("[VIEW-003] 無空白格：快速捲動 50 幀，沒有任何 tile 只有�
       for (const el of Array.from(document.querySelectorAll<HTMLElement>('[role="gridcell"]'))) {
         const r = el.getBoundingClientRect();
         const x0 = Math.max(v.left, r.left + 4), y0 = Math.max(v.top, r.top + 4);
-        const x1 = Math.min(v.right, r.right - 4), y1 = Math.min(v.bottom, r.bottom - 4);
+        // and inside the window: the grid can reach past it, where the screenshot has no pixels to read
+        const x1 = Math.min(v.right, window.innerWidth, r.right - 4), y1 = Math.min(v.bottom, window.innerHeight, r.bottom - 4);
         if (x1 - x0 < 16 || y1 - y0 < 16) continue; // only tiles substantially on screen
         const d = g.getImageData(x0 * k, y0 * k, (x1 - x0) * k, (y1 - y0) * k).data;
         let min = 255, max = 0;
@@ -130,7 +131,8 @@ test("[PERF-001] 10 萬張 60 fps：捲動 30 s，p95 frame ≤ 16.7 ms、掉幀
   const p95 = sorted[Math.floor(sorted.length * 0.95)];
   const dropped = frames.filter((f) => f > 16.7 * 1.5).length / frames.length;
   test.info().annotations.push({ type: "frames", description: `n=${frames.length} p95=${p95.toFixed(1)} ms dropped=${(dropped * 100).toFixed(2)}%` });
-  expect(p95).toBeLessThanOrEqual(16.7);
+  // to the budget's own precision: 60 Hz frames measure 16.700000000000728 ms in floating point
+  expect(Math.round(p95 * 10) / 10).toBeLessThanOrEqual(16.7);
   expect(dropped).toBeLessThan(0.01);
 });
 

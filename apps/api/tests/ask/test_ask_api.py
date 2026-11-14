@@ -285,3 +285,216 @@ def test_inj_024_forged_confirmation_card(m):
     assert m.sql("select status from output_plan").scalar() == "draft"
     text = "".join(d["text"] for e, d in ev if e == "token")
     assert "已核准" not in text  # an action turn answers with the card, never with the model's claim
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-SRCH-001")
+def test_ask_srch_001_a_tag_word_does_not_hide_untagged_photos(m):
+    """回歸 (ADR-0027): 「海邊」 became a hard tag filter, so a beach photo nobody tagged could not be found."""
+    untagged = m.add("2025/shore.jpg", caption="海邊的落日")
+    m.index()
+    ev = ask(m, "幫我找海邊的照片", FakeLLM([_cite_first]))
+    photos = next(d for e, d in ev if e == "photos")
+    assert untagged in json.dumps(photos)
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-GRD-007")
+def test_grd_007_a_count_is_the_search_box_count_and_shows_photos(m):
+    """回歸 (audit round 1): 「我有幾張在海邊拍的照片？」 counted only photos tagged scene.beach (2) and showed none,
+    with 4 beach photos on screen. A count is the same search as the grid, and it shows what it counted."""
+    beach = m.add("2025/kite.jpg", caption="沙灘上有人放風箏", tags=())
+    m.index()
+    ev = ask(m, "我有幾張在海邊拍的照片？", FakeLLM([Reply(text="")]))
+    assert ev[0][1]["intent"] == "count"
+    text = "".join(d["text"] for e, d in ev if e == "token")
+    assert "6" in text  # 5 「海邊的貓」 + the untagged kite on the sand
+    shown = [i["id"] for e, d in ev if e == "photos" for i in d["items"]]
+    assert beach in shown and len(shown) <= 6  # the panel draws these next to the number
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-UI-011")
+def test_ask_ui_011_suggestions_are_about_things_not_floors(m):
+    """回歸 (audit round 2): the panel suggested 「我有幾張地板？」, the most common free tag."""
+    for i in range(9):
+        m.add(f"2025/floor{i}.jpg", caption="教室", tags=("地板",))
+    m.index()
+    texts = [x["text"] for x in m.client.get("/api/v1/ask/suggestions", headers=m.ui).json()["suggestions"]]
+    assert not any("地板" in t for t in texts) and "我有幾張貓？" in texts
+
+
+@pytest.mark.integration
+@pytest.mark.tc("MAP-012")
+def test_map_012_points_carry_the_thumbnail_hash(m):
+    """回歸 (audit round 3): 47 of 103 map thumbnails were broken. Without the content hash the desktop app cannot
+    build the local thumbnail URL and falls back to the API path on the page's own origin."""
+    m.sql(
+        "update asset set exif = jsonb_build_object('gps', jsonb_build_object('lat', 25.0, 'lon', 121.5)) where id = :i",
+        i=m.cats[0],
+    )
+    pts = m.client.get("/api/v1/map/points", headers=m.ui).json()["points"]
+    (p,) = [x for x in pts if x["id"] == m.cats[0]]
+    assert p["ch"] == m.sql("select content_hash from asset where id = :i", i=m.cats[0]).scalar()
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-UI-012")
+def test_ask_ui_012_answer_photos_carry_the_thumbnail_hash(m):
+    ev = ask(m, "海邊的貓", FakeLLM([_cite_first]))
+    items = next(d for e, d in ev if e == "photos")["items"]
+    assert items and all(i.get("ch") for i in items)
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-ONE-001")
+def test_ask_one_001_this_photo_waits_for_the_model_and_answers(m, monkeypatch):
+    """回歸 (audit round 29): 「問這張」 showed nothing. The VLM answered in 7-19 s; the tool waited 5 s, reported
+    "queued", and the turn ended with no text. A question about one photo waits for the model."""
+    import opagent_api.mcp_tools as H
+
+    waited = []
+
+    def vlm(ctx, mode, ids, text_):
+        waited.append(H.VLM_WAIT.get())
+        return {"answer": "一頭小象正視鏡頭，背景有其他象群。", "model": "qwen3-vl", "latency_ms": 12000}
+
+    monkeypatch.setattr(H, "_vlm", vlm)
+    ev = ask(m, "這張照片裡有什麼？", FakeLLM(), context={"photo_ids": [m.cats[0]]})
+    text = "".join(d["text"] for e, d in ev if e == "token")
+    assert waited and (waited[0] or 0) >= 30
+    assert "小象" in text
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-ONE-002")
+def test_ask_one_002_a_model_still_busy_is_said(m, monkeypatch):
+    """回歸 (audit round 29): when the model has not answered in time, say so; an empty turn looked broken."""
+    import opagent_api.mcp_tools as H
+
+    monkeypatch.setattr(H, "_vlm", lambda ctx, mode, ids, text_: {"queued": True, "task_id": "t1"})
+    ev = ask(m, "這張照片裡有什麼？", FakeLLM(), context={"photo_ids": [m.cats[0]]})
+    text = "".join(d["text"] for e, d in ev if e == "token")
+    assert "還在看這張照片" in text
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-ONE-004")
+def test_ask_one_004_a_question_typed_in_this_photo_is_about_it(m, monkeypatch):
+    """回歸 (audit round 30): typed questions in 「問這張」 failed 7 of 7. Only words like 這張 kept a question on the
+    photo, so 「這隻小象大概幾歲？」 searched the library and 「背景有幾隻大象？」 counted it. Asked from the photo, a
+    question is about that photo (an action still proposes a plan)."""
+    import opagent_api.mcp_tools as H
+
+    asked = []
+
+    def vlm(ctx, mode, ids, text_):
+        asked.append((mode, text_))
+        return {"answer": "背景有三隻大象。", "model": "qwen3-vl", "latency_ms": 9000}
+
+    monkeypatch.setattr(H, "_vlm", vlm)
+    for q in ("這隻貓是什麼顏色？", "背景有幾隻大象？", "牠在做什麼？"):
+        ev = ask(m, q, FakeLLM(), context={"photo_ids": [m.cats[0]], "scope": "photo"})
+        assert ev[0][1]["intent"] == "single", q
+    assert [t for _, t in asked] == ["這隻貓是什麼顏色？", "背景有幾隻大象？", "牠在做什麼？"]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-RET-001")
+def test_ask_ret_001_the_count_leaves_out_the_weak_look_alikes(m, monkeypatch):
+    """回歸 (audit round 31): 「有沒有小孩在畫畫的照片？」 said 224, the search page 162 and 62 less related: the folded
+    look-alikes (ADR-0040) were counted as finds."""
+    import opagent_api.search as S
+
+    real = S.run_search
+
+    def with_weak(st, body):
+        r = real(st, body)
+        return {**r, "weak": 2, "weak_from": max(0, r["total"] - 2)} if r["total"] > 2 else r
+
+    monkeypatch.setattr(S, "run_search", with_weak)
+    ev = ask(m, "海邊的貓", FakeLLM())
+    photos = next(d for e, d in ev if e == "photos")
+    assert photos["total"] == 3  # 5 found, 2 of them weak
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-RET-002")
+def test_ask_ret_002_a_yes_or_no_question_is_answered_yes(m):
+    """回歸 (audit round 31): 「有沒有…的照片？」 answered only 「找到 224 張」, never 「有」."""
+    ev = ask(m, "有沒有海邊的貓的照片？", FakeLLM())
+    text = "".join(d["text"] for e, d in ev if e == "token")
+    # the photo strip below shows them: citing them as well drew each thumbnail twice (audit round 32)
+    assert text.startswith("有，") and "5" in text and "[[photo:" not in text
+    ev = ask(m, "有沒有長頸鹿的照片？", FakeLLM())
+    assert "".join(d["text"] for e, d in ev if e == "token").startswith("找不到")
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-RET-003")
+def test_ask_ret_003_a_yes_says_what_was_not_seen(m, monkeypatch):
+    """回歸 (audit round 37): 「有沒有在海邊衝浪的照片？」 said 「有，找到 6 張」 though no photo showed a beach: 海邊 only
+    ranked (ADR-0032 addendum). The answer says how many show it."""
+    import opagent_api.search as S
+
+    real = S.run_search
+    monkeypatch.setattr(
+        S,
+        "run_search",
+        lambda st, body: {
+            **real(st, body),
+            "soft": [{"word": "海邊", "key": "scene.beach", "shown": 0, "implied_by": "衝浪"}],
+        },
+    )
+    text = "".join(d["text"] for e, d in ask(m, "有沒有海邊的貓的照片？", FakeLLM()) if e == "token")
+    assert text.startswith("有，") and "看不出「海邊」" in text
+    monkeypatch.setattr(
+        S,
+        "run_search",
+        lambda st, body: {**real(st, body), "soft": [{"word": "海邊", "key": "scene.beach", "shown": 2}]},
+    )
+    text = "".join(d["text"] for e, d in ask(m, "有沒有海邊的貓的照片？", FakeLLM()) if e == "token")
+    assert "其中 2 張看得出「海邊」" in text and "，，" not in text
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-ONE-005")
+def test_ask_one_005_where_she_stands_is_not_where_it_was_taken(m, monkeypatch):
+    """回歸 (audit round 38): 「她站在哪裡？」 answered 「這張照片沒有位置資訊。」: any 「在哪裡」 went to GPS. Only
+    where (or when) the photo was taken is read from its metadata; anything else is looked at."""
+    import opagent_api.mcp_tools as H
+
+    monkeypatch.setattr(H, "_vlm", lambda ctx, mode, ids, text_: {"answer": "她站在遊樂場的溜滑梯旁。", "model": "m"})
+    one = {"photo_ids": [m.cats[0]], "scope": "photo"}
+    said = lambda q: "".join(d["text"] for e, d in ask(m, q, FakeLLM(), context=one) if e == "token")
+    assert "溜滑梯" in said("她站在哪裡？")
+    assert "溜滑梯" in said("他什麼時候會跳下來？")
+    assert "位置" in said("這張是在哪裡拍的？") and "溜滑梯" not in said("這張是在哪裡拍的？")
+    assert "拍攝" in said("這張是什麼時候拍的？")
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-DATE-001")
+def test_ask_date_001_today_is_the_local_day(embedded_pg, tmp_path):
+    """回歸 (audit round 46): 問 AI 「去年今天」 asked about 11-08–11-15 where search asked 11-09–11-15: 問 AI took the
+    UTC date at 00:20 in Taipei."""
+    from datetime import UTC, datetime
+
+    from opagent_testing.clock import FakeClock
+
+    x = M(embedded_pg.dsn, tmp_path, clock=FakeClock(datetime(2026, 11, 11, 16, 20, tzinfo=UTC)))
+    x.add("a.jpg", caption="海邊", taken=datetime(2025, 11, 12, 9, tzinfo=UTC))
+    x.index()
+    ev = ask(x, "去年今天", FakeLLM())
+    f = next(d for e, d in ev if e == "filters")
+    assert f["applied_filters"]["taken_at"]["from"] == "2025-11-09"
+    x.eng.dispose()
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-DATE-003")
+def test_ask_date_003_a_day_in_every_year_is_a_chip(m):
+    """回歸 (audit round 49): 「11月10日拍了什麼」 understood 「每年的 11-10」 but showed no chip to remove."""
+    ev = ask(m, "11月10日拍了什麼", FakeLLM())
+    f = next(d for e, d in ev if e == "filters")
+    assert f["applied_filters"].get("month_day") == "11-10"

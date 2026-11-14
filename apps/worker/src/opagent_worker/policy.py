@@ -37,7 +37,9 @@ class FakeGpu:
         """Parse the raw probe outputs of a fixtures/hw profile (the doctor parses the same data)."""
         doc = json.loads(
             "\n".join(
-                ln for ln in (FIXTURES / f"{name}.yaml").read_text().splitlines() if not ln.lstrip().startswith("#")
+                ln
+                for ln in (FIXTURES / f"{name}.yaml").read_text(encoding="utf-8").splitlines()
+                if not ln.lstrip().startswith("#")
             )
         )
         probes = doc["probes"]

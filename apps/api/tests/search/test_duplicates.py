@@ -85,3 +85,44 @@ def test_dup_002_near_duplicates_group_and_different_photos_do_not(embedded_pg):
     assert near[0]["representative"]["asset_id"] == "orig"  # highest resolution (SRCH-DUP-003)
     assert near[0]["reclaimable_bytes"] == sum(3_000 + i for i in range(4))
     eng.dispose()
+
+
+@pytest.mark.integration
+@pytest.mark.tc("TRASH-011")
+def test_trash_011_chosen_photos_go_to_the_trash_through_a_plan(embedded_pg):
+    """The user approved 「移到垃圾桶」 in the viewer (2026-11-12): chosen photos become a draft plan that moves each
+    of their files to its own root's .opagent-trash/ once approved, and can be undone (invariant 3). Nothing moves
+    before approval."""
+    c, src, eng = _env(embedded_pg.dsn)
+    _asset(eng, src, "x", 1_000, "0f0f0f0f0f0f0f0f", ["a/x.jpg", "b/x copy.jpg"])
+    _asset(eng, src, "y", 2_000, "ffff0000ffff0000", ["a/y.jpg"])
+    _asset(eng, src, "z", 3_000, "00ff00ff00ff00ff", ["a/z.jpg"])
+    sid = c.post("/api/v1/selections", json={"asset_ids": ["x", "y"]}).json()["id"]
+    r = c.post(f"/api/v1/selections/{sid}/trash")
+    assert r.status_code == 200, r.text
+    plan = c.get(f"/api/v1/output-plans/{r.json()['plan_id']}").json()
+    assert plan["status"] == "draft" and plan["summary"]["trash"] == 3
+    acts = plan["actions"]
+    assert {a["action"] for a in acts} == {"trash"} and {a["src_rel"] for a in acts} == {
+        "a/x.jpg",
+        "b/x copy.jpg",
+        "a/y.jpg",
+    }
+    assert all(a["dst_alias"] == a["src_alias"] for a in acts)  # into its own root's trash
+    eng.dispose()
+
+
+@pytest.mark.integration
+@pytest.mark.tc("TRASH-012")
+def test_trash_012_a_read_only_folder_says_so_instead(embedded_pg):
+    """A photo in a read-only folder cannot go to the trash: the plan is refused with the reason, never turned into
+    another action (TRASH-004)."""
+    c = TestClient(create_app(dsn=embedded_pg.dsn))
+    c.post("/worker-api/v1/register", json={"worker_id": "w1", "roots": [{"alias": "photos", "mode": "ro"}]})
+    src = c.post("/api/v1/sources", json={"root_alias": "photos", "sub_path": ""}).json()["id"]
+    eng = engine_for(embedded_pg.dsn)
+    _asset(eng, src, "x", 1_000, "0f0f0f0f0f0f0f0f", ["a/x.jpg"])
+    sid = c.post("/api/v1/selections", json={"asset_ids": ["x"]}).json()["id"]
+    r = c.post(f"/api/v1/selections/{sid}/trash")
+    assert r.status_code == 409 and r.json()["code"] == "FS_NOT_WRITABLE" and r.json().get("roots") == ["photos"]
+    eng.dispose()

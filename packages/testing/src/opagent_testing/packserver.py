@@ -143,7 +143,7 @@ class PackServer:
         if tamper:
             idx = idx[:-2] + (b"X" if idx[-2:-1] != b"X" else b"Y") + idx[-1:]
         (self.root / "packs-index.json").write_bytes(idx)
-        (self.root / "packs-index.json.minisig").write_text(sig)
+        (self.root / "packs-index.json.minisig").write_text(sig, encoding="utf-8")
 
     def start(self) -> PackServer:
         handler = functools.partial(SimpleHTTPRequestHandler, directory=str(self.root))

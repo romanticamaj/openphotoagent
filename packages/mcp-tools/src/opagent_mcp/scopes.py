@@ -32,6 +32,7 @@ READONLY_SCOPES = frozenset({"photos:read", "photos:media", "faces:read", "faces
 class Settings:
     """Workspace MCP settings (05 §3.5–§3.6, 07 §5)."""
 
+    enabled: bool = True  # `mcp.enabled`: a workspace may turn MCP off entirely (05 §3, 06 §4.7 #60)
     allow_apply_requests: bool = False
     faces_enabled: bool = False
     media_policy: str = "thumb_256"  # none | thumb_256 | thumb_512 | thumb_1024

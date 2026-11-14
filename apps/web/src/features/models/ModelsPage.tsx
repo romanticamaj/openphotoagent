@@ -41,9 +41,14 @@ export function ModelsPage() {
                     {m.display_name}
                   </Link>
                 </td>
-                <td>{m.kind}</td>
+                <td>{t(`models.kinds.${m.kind}`, { defaultValue: m.kind })}</td>
                 <td>
-                  <CompatBadge compat={best?.compat} />
+                  <span className="flex flex-wrap items-center gap-2">
+                    <CompatBadge compat={best?.compat} />
+                    {m.variants.some((x) => x.installation?.status === "installed") ? (
+                      <span className="rounded-full bg-[var(--surface-2)] px-2 py-0.5 text-xs">{t("models.installedBadge")}</span>
+                    ) : null}
+                  </span>
                 </td>
               </tr>
             );

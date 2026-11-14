@@ -1,10 +1,33 @@
 {
   "id": "M0-S3",
-  "status": "pending-hardware",
+  "status": "measured",
   "machine": {
-    "hostname_label": "not-run"
+    "hostname_label": "rtx5070ti-win11",
+    "os": "Windows",
+    "os_release": "11",
+    "arch": "AMD64",
+    "python": "3.12.13",
+    "cpu_count": 24
   },
-  "metrics": {},
-  "pass": null,
-  "notes": "Needs GPU reference machines (5070 Ti CUDA13, 4060 CUDA, AMD/Intel Vulkan, M2 Metal) and Qwen3-VL GGUF; HF blocked in cloud."
+  "metrics": {
+    "n": 1000,
+    "key_order": "caption_first",
+    "first_try_valid_rate": 1.0,
+    "after_repair_valid_rate": 1.0,
+    "enum_violation_rate": 0.0,
+    "logprobs_available_rate": 1.0,
+    "category_first_token_logprob_rate": 1.0,
+    "images_per_s": 0.765572432131684,
+    "wall_s": 1306.2121335999109,
+    "latency_s_p50": 1.2870253501459956,
+    "latency_s_max": 2.6153315999545157,
+    "vram_peak_mib": 13191,
+    "http_errors": 0,
+    "finish_length": 0,
+    "failure_samples": [],
+    "accuracy": 0.243,
+    "labelled": 1000
+  },
+  "pass": true,
+  "notes": "server=http://127.0.0.1:8080; logprobs requirement evaluated separately (rate above). llama.cpp b12121 CUDA 13.4 on driver 591.86, Qwen3VL-8B Q4_K_M + mmproj F16 read from NVMe, flags -c 8192 -ngl 99 --parallel 2, requests sequential, temperature 0. Dataset: COCO val2017, 1000 images about 640x480, labels DERIVED from COCO annotations and captions, 9 of 12 classes (no travel, documents, screenshots), so accuracy is a proxy. vram_peak_mib includes other apps (baseline about 2.3 GiB). PROMPT DEFECT: this run used the spike's original prompt, which never lists the categories; the model sees them only through the grammar and answers 'other' for most photos, so accuracy 0.243 says nothing about the model. Validity, logprob and speed figures stand. See M0-S3b-* for accuracy with the product prompt. images_per_s was reduced by the S4 parity runs sharing the machine."
 }

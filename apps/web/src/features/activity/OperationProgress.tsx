@@ -1,6 +1,7 @@
+import { opTypeKey } from "./model";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { formatDuration } from "../../lib/format";
+import { etaText, formatDuration } from "../../lib/format";
 import { ElapsedClock } from "../../lib/operations";
 import type { Op } from "./model";
 
@@ -32,6 +33,7 @@ export function OperationProgress({ op, variant = "compact" }: { op: Op; variant
   const elapsed = clock.elapsedMs(Date.now());
   const pct = Math.round((op.fraction ?? 0) * 100);
   const eta = op.eta?.state;
+  const etaLabel = running && op.eta ? etaText(op.eta, i18n.language) : null;
   return (
     <div className={`op-progress op-${variant}`} data-status={op.status}>
       <div
@@ -39,14 +41,14 @@ export function OperationProgress({ op, variant = "compact" }: { op: Op; variant
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={pct}
-        aria-label={t(`activity.type.${op.type}`, { defaultValue: op.type })}
+        aria-label={t(`activity.type.${opTypeKey(op)}`, { defaultValue: op.type })}
         className="h-1.5 w-full rounded bg-[var(--surface-2)]"
       >
         <div className="h-full rounded bg-[var(--accent)]" style={{ width: `${pct}%` }} />
       </div>
       <div className="flex justify-between text-xs tabular-nums text-[var(--text-muted)]">
         <span>{t(`activity.status.${op.status}`, { defaultValue: op.status })}</span>
-        {eta ? <span data-eta={eta}>{t(`activity.eta.${eta}`, { defaultValue: eta })}</span> : null}
+        {eta && running ? <span data-eta={eta}>{etaLabel ?? t(`activity.eta.${eta}`, { defaultValue: eta })}</span> : null}
         <span data-testid="elapsed">{formatDuration(elapsed, i18n.language)}</span>
       </div>
       {variant === "full" && Array.isArray(op.phases) ? (

@@ -80,3 +80,61 @@ def group_near(
     for i in range(n):
         groups.setdefault(uf.find(i), []).append(items[i][0])
     return sorted(sorted(g) for g in groups.values() if len(g) > 1)
+
+
+def group_duplicates(
+    items: list[tuple[str, str | None, Any]],
+    rank: dict[str, Any],
+    max_hamming: int = 6,
+    veto_cosine: float = 0.90,
+    vector: Callable[[str], Any] | None = None,
+) -> list[list[str]]:
+    """Duplicates as search collapses them and cleanup offers them (ADR-0043): a pHash near-copy (Hamming ≤ max) of
+    the photo kept, not a look-alike. An embedding cosine under ``veto_cosine`` vetoes a hash collision (flat images
+    collide); with a vector missing the hash decides. Groups form around the representative, the highest ``rank``
+    (then the id): each member is itself a near-copy of it, so a chain A~B~C does not hide C behind A. ``vector``
+    fetches a photo's vector when ``items`` carries none: only photos with a hash match are ever asked."""
+    n = len(items)
+    hashes = [int(h, 16) if h else None for _, h, _ in items]
+    edges: dict[int, set[int]] = {i: set() for i in range(n)}
+    buckets: dict[tuple[int, int], list[int]] = {}
+    for i, h in enumerate(hashes):
+        if h is not None:
+            for key in _blocks(h, max_hamming + 1):
+                buckets.setdefault(key, []).append(i)
+    for members in buckets.values():
+        for x in range(len(members)):
+            for y in range(x + 1, len(members)):
+                i, j = members[x], members[y]
+                hi, hj = hashes[i], hashes[j]
+                if hi is None or hj is None or j in edges[i] or bin(hi ^ hj).count("1") > max_hamming:
+                    continue
+                vi = items[i][2] if items[i][2] is not None or vector is None else vector(items[i][0])
+                vj = items[j][2] if items[j][2] is not None or vector is None else vector(items[j][0])
+                if vi and vj and cosine(vi, vj) < veto_cosine:
+                    continue  # the same hash, different pictures
+                edges[i].add(j)
+                edges[j].add(i)
+    uf = _UF(n)
+    for i, js in edges.items():
+        for j in js:
+            uf.union(i, j)
+    comps: dict[int, list[int]] = {}
+    for i in range(n):
+        if edges[i]:
+            comps.setdefault(uf.find(i), []).append(i)
+
+    def order(i: int) -> tuple[Any, ...]:
+        r = rank.get(items[i][0])  # ranked photos first; unranked ones never compare their missing rank
+        return (1, r, items[i][0]) if r is not None else (0, 0, items[i][0])
+
+    out: list[list[str]] = []
+    for comp in comps.values():
+        left = set(comp)
+        while len(left) > 1:
+            rep = max(left, key=order)
+            group = {rep} | (edges[rep] & left)
+            left -= group
+            if len(group) > 1:
+                out.append(sorted(items[i][0] for i in group))
+    return sorted(out)

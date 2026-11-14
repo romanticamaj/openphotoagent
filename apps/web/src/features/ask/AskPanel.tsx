@@ -2,12 +2,13 @@
 // while running and the elapsed time after (invariant 9); the parsed conditions are chips the user can remove and
 // re-run without re-parsing (ASK-SSE-004); cloud mode is always visible (ASK-PRV-001); a machine without a GPU
 // gets two ways forward instead of an error (ASK-PRV-005). Plan cards come from the plan's own data (ASK-ACT-002).
+import { takePendingAsk, useAskRequest } from "../../lib/askBus";
 import { Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, mediaUrl } from "../../lib/api";
-import { initialTurn, reduce, renderAnswer, seconds, streamAsk, type Step, type Turn } from "./stream";
+import { initialTurn, photoStatus, reduce, renderAnswer, seconds, streamAsk, type Step, type Turn } from "./stream";
 
 const SLOW_OK = "opa.ask.slowLocal";
 
@@ -54,16 +55,22 @@ function StepRow({ s }: { s: Step }) {
   );
 }
 
-function chipLabel(t: (k: string, o?: Record<string, unknown>) => string, key: string, v: unknown): string {
+export function chipLabel(t: (k: string, o?: Record<string, unknown>) => string, key: string, v: unknown, names: Record<string, string> = {}): string {
   if (key === "taken_at") {
     const r = (v ?? {}) as { from?: string; to?: string };
-    return t("ask.chipDate", { from: r.from ?? "", to: r.to ?? "" });
+    // the last day in it, as the planner says it: the range's end is exclusive (ASK-DATE-002)
+    const last = r.to ? new Date(Date.parse(`${r.to}T00:00:00Z`) - 86_400_000).toISOString().slice(0, 10) : "";
+    return t("ask.chipDate", { from: r.from ?? "", to: last });
   }
-  if (key === "tags_any" || key === "tags_all") return t("ask.chipTag", { tag: ((v as string[]) ?? []).join("、") });
+  if (key === "month_day") return t("ask.chipDay", { day: String(v ?? "") }); // every year's (SRCH-PLAN-026)
+  if (key === "tags_any" || key === "tags_all") return t("ask.chipTag", { tag: ((v as string[]) ?? []).map((x) => names[x] ?? x).join("、") });
+  if (key === "persons_all" || key === "persons_any") return t("ask.chipPerson", { names: ((v as string[]) ?? []).map((x) => names[x] ?? "?").join("、") });
   return key;
 }
 
-function Answer({ text, onPhoto }: { text: string; onPhoto?: (id: string) => void }) {
+const STRIP = 8;
+
+function Answer({ text, onPhoto, hashes }: { text: string; onPhoto?: (id: string) => void; hashes?: Record<string, string | null> }) {
   const { t } = useTranslation();
   const parts = renderAnswer(text);
   const photos = parts.filter((p) => p.kind === "photo");
@@ -78,7 +85,7 @@ function Answer({ text, onPhoto }: { text: string; onPhoto?: (id: string) => voi
             p.kind === "photo" ? (
               <li key={p.id}>
                 <button type="button" onClick={() => onPhoto?.(p.id)} aria-label={t("ask.openPhoto")} className="block overflow-hidden rounded-[var(--radius-sm)]">
-                  <img src={mediaUrl(p.id, "t512")} alt="" width={72} height={72} className="h-[72px] w-[72px] object-cover" />
+                  <img src={mediaUrl(p.id, "t512", hashes?.[p.id])} alt="" width={72} height={72} className="h-[72px] w-[72px] object-cover" />
                 </button>
               </li>
             ) : null,
@@ -89,7 +96,7 @@ function Answer({ text, onPhoto }: { text: string; onPhoto?: (id: string) => voi
   );
 }
 
-function TurnView({ turn, onRerun }: { turn: Turn; onRerun: (filters: Record<string, unknown>, text: string) => void }) {
+export function TurnView({ turn, onRerun }: { turn: Turn; onRerun: (filters: Record<string, unknown>, text: string) => void }) {
   const { t } = useTranslation();
   const [edited, setEdited] = useState<Record<string, unknown> | null>(null);
   const filters = edited ?? turn.filters?.applied ?? {};
@@ -110,11 +117,11 @@ function TurnView({ turn, onRerun }: { turn: Turn; onRerun: (filters: Record<str
             <button
               key={k}
               type="button"
-              aria-label={t("ask.removeChip", { label: chipLabel(t, k, v) })}
+              aria-label={t("ask.removeChip", { label: chipLabel(t, k, v, turn.filters?.names) })}
               onClick={() => setEdited(Object.fromEntries(Object.entries(filters).filter(([x]) => x !== k)))}
               className="rounded-full border border-[var(--border)] px-2 py-0.5 text-xs"
             >
-              {chipLabel(t, k, v)} ×
+              {chipLabel(t, k, v, turn.filters?.names)} ×
             </button>
           ))}
           {edited !== null ? (
@@ -129,6 +136,21 @@ function TurnView({ turn, onRerun }: { turn: Turn; onRerun: (filters: Record<str
           {t("ask.found", { n: turn.photos.total.toLocaleString() })}
         </p>
       ) : null}
+      {turn.photos && turn.photos.role === "candidates" && turn.photos.items.length > 0 ? (
+        // what the answer is about, next to it: a number alone is hard to trust (ASK-UI-010)
+        <div className="space-y-1">
+          <ul data-testid="ask-photos" aria-label={t("ask.cited")} className="grid grid-cols-4 gap-1">
+            {turn.photos.items.slice(0, STRIP).map((id) => (
+              <li key={id}>
+                <img src={mediaUrl(id, "t256", turn.photos?.hashes?.[id])} alt="" loading="lazy" className="aspect-square w-full rounded-[var(--radius-sm)] object-cover" />
+              </li>
+            ))}
+          </ul>
+          <Link to="/search" search={{ q: turn.filters?.text || turn.question }} className="text-sm text-[var(--accent)] underline">
+            {t("ask.seeAll", { n: turn.photos.total.toLocaleString() })}
+          </Link>
+        </div>
+      ) : null}
       {turn.cards.map((c) => (
         <div key={c.payload.plan_id} data-testid="ask-plan-card" className="space-y-1 rounded-[var(--radius-md)] border border-[var(--border)] p-3 text-sm">
           <p className="flex justify-between font-semibold">
@@ -142,7 +164,7 @@ function TurnView({ turn, onRerun }: { turn: Turn; onRerun: (filters: Record<str
           </Link>
         </div>
       ))}
-      {turn.text ? <Answer text={turn.text} /> : null}
+      {turn.text ? <Answer text={turn.text} hashes={turn.photos?.hashes} /> : null}
       {turn.status === "cancelled" ? <p className="text-xs text-[var(--text-muted)]">{t("ask.cancelled")}</p> : null}
       {turn.status === "failed" ? <p role="alert" className="text-xs">{t("ask.failed")}</p> : null}
     </article>
@@ -157,10 +179,31 @@ export function AskPanel({ open, onClose }: { open: boolean; onClose: () => void
   const { turns, busy, run, stop } = useAsk();
   const [q, setQ] = useState("");
   const [slow, setSlow] = useState(slowAccepted);
+  // filled in, sent when you press ask (ASK-UI-020); a question asked before the panel was loaded too (ASK-UI-021)
+  useAskRequest((question) => {
+    setQ(question);
+    input.current?.focus();
+  });
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    if (open) input.current?.focus();
+    if (!open) return;
+    const waiting = takePendingAsk();
+    if (waiting) setQ(waiting);
+    input.current?.focus();
   }, [open]);
+  // Esc closes the panel from anywhere inside it; the shell returns focus to whatever opened it (A11Y-011)
+  useEffect(() => {
+    if (!open) return;
+    const on = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      if (document.querySelector('[data-testid="lightbox"]')) return; // the lightbox owns Esc while it is open
+      e.preventDefault();
+      if (busy) stop();
+      onClose();
+    };
+    window.addEventListener("keydown", on);
+    return () => window.removeEventListener("keydown", on);
+  }, [open, busy, stop, onClose]);
   if (!open) return null;
   const s = settings.data;
   const cloud = s?.provider === "openai_compat";
@@ -261,7 +304,7 @@ export function AskPanel({ open, onClose }: { open: boolean; onClose: () => void
 
 /** Lightbox: ask about this one photo (10 §9.1). Metadata answers first; nothing is guessed. */
 export function AskPhoto({ assetId }: { assetId: string }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const sugg = useQuery({ queryKey: ["ask-suggestions", assetId], queryFn: () => api.askSuggestions(assetId) });
   const { turns, busy, run } = useAsk();
   const [q, setQ] = useState("");
@@ -269,7 +312,7 @@ export function AskPhoto({ assetId }: { assetId: string }) {
   const go = (text: string) => {
     if (!text.trim() || busy) return;
     setQ("");
-    void run(text, { context: { photo_ids: [assetId] } });
+    void run(text, { context: { photo_ids: [assetId], scope: "photo" } }); // about this photo (ASK-ONE-004)
   };
   return (
     <section role="region" aria-label={t("ask.photo.title")} className="space-y-2">
@@ -277,13 +320,15 @@ export function AskPhoto({ assetId }: { assetId: string }) {
       <ul className="flex flex-wrap gap-2">
         {(sugg.data?.suggestions ?? []).map((x) => (
           <li key={x.text}>
-            <button type="button" onClick={() => go(x.text)} className="rounded-full border border-[var(--border)] px-2 py-0.5 text-xs">
+            <button type="button" onClick={() => go(x.text)} className="facet-chip text-xs">
               {x.text}
             </button>
           </li>
         ))}
       </ul>
+      {/* a rounded field that says what it is for, with a send button: an empty box looked like a form (audit round 27) */}
       <form
+        className="ask-photo-field"
         onSubmit={(e) => {
           e.preventDefault();
           go(q);
@@ -291,11 +336,22 @@ export function AskPhoto({ assetId }: { assetId: string }) {
       >
         <input
           aria-label={t("ask.photo.input")}
+          placeholder={`${t("ask.photo.input")}…`}
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          className="w-full rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-2 py-1 text-sm"
+          className="min-w-0 flex-1 bg-transparent px-1 text-sm outline-none"
         />
+        <button type="submit" aria-label={t("ask.send")} title={t("ask.send")} className="icon-button">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M5 12h14M13 6l6 6-6 6" />
+          </svg>
+        </button>
       </form>
+      {photoStatus(last, i18n.language) ? (
+        <p role="status" data-testid="ask-photo-status" className="text-sm text-[var(--text-muted)]">
+          {photoStatus(last, i18n.language)}
+        </p>
+      ) : null}
       {last?.text ? <Answer text={last.text} /> : null}
     </section>
   );

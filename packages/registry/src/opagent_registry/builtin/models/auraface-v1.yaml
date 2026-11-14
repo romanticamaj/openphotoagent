@@ -1,0 +1,23 @@
+# AuraFace v1 — default face embedder (07 §1.4). 249 MiB fp32: downloaded on opt-in, too big for the installer. Licence review: B-7.
+schema_version: 1
+id: auraface-v1
+display_name: "AuraFace v1"
+family: auraface
+kind: face_embedder
+capabilities: [face_embed]
+license: { spdx: Apache-2.0, weights: Apache-2.0, commercial_use: true, redistributable: true, requires_acceptance: false, url: "https://huggingface.co/fal/AuraFace-v1" }
+source: { hf_repo: fal/AuraFace-v1, revision: main }
+embedding: { dim: 512, normalize: true, similarity: cosine }
+defaults: { bundled: false, thresholds: { auto: 0.60, suggest: 0.45, margin: 0.08, merge: 0.55, find_high: 0.55, find_low: 0.42 } }
+privacy: { local_only: true }
+variants:
+  - id: onnx-fp32
+    runtime: onnx
+    quant: fp32
+    revision: main
+    files:
+      - { repo: fal/AuraFace-v1, path: "glintr100.onnx", role: embedder }
+    vram_gb: { weights: 0.3, runtime_overhead: 0.2 }
+    recommended_batch: 64
+    requires: { runtime_pack: ["ort-*"], os: [windows, macos, linux], accel_any: [cuda, directml, coreml, cpu] }
+notes: "512 維人臉 embedding；只在本機計算。"

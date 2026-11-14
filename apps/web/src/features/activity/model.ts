@@ -12,10 +12,28 @@ export type Op = {
   active_ms?: number;
   updated_at_ms?: number;
   server_now_ms?: number;
-  eta?: { state?: string; p50_s?: number } | null;
+  eta?: { state?: string; p50_s?: number; since_s?: number } | null;
   waiting_reason?: string | null;
   [k: string]: unknown;
 };
+
+/** The name to show: every job is a "job.label" operation, but analysing a folder is not organizing it (OP-020). */
+export function opTypeKey(op: Pick<Op, "type"> & { subject?: unknown }): string {
+  const sub = op.subject as { job_kind?: string; job_status?: string; outcome?: string } | undefined;
+  const kind = sub?.job_kind;
+  // an organize plan says where it stands (ACT-017): a 依日期 preview waits for approval; 「整理 完成」 read as done
+  if (op.type === "job.label" && kind !== "label" && sub?.outcome === "discarded") return "job.discarded";
+  if (op.type === "job.label" && kind !== "label" && sub?.job_status === "awaiting_approval") return "job.planWaiting";
+  if (op.type === "job.label" && kind === "label") return "job.analyze";
+  // a preview plans and changes nothing: 「整理 完成」 read as if files had been organized (ACT-015)
+  if (op.type === "job.label" && kind === "preview") return "job.preview";
+  return op.type;
+}
+
+/** The status a row shows: an organize plan waiting for approval is not 「完成」 (ACT-018), though its analysis is. */
+export function opStatusKey(op: Pick<Op, "type" | "status"> & { subject?: unknown }): string {
+  return opTypeKey(op) === "job.planWaiting" ? "awaitingApproval" : op.status;
+}
 
 export type Indicator = { state: "idle" | "running" | "paused" | "failed" | "interrupted"; icon: string; token: string; labelKey: string };
 

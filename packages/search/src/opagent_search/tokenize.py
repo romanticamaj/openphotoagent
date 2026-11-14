@@ -22,12 +22,25 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from opagent_core.vocabularies import VOCAB_DIR
 
-TOKENIZER_VERSION = "jieba-zh-hant@1+opencc-s2twp+bigram"
-VOCAB = Path(__file__).resolve().parents[3] / "inference-sdk" / "vocabularies" / "general-photo.yaml"
+# @23 鞦韆, 蹺蹺板 kinds of their own (ADR-0053); @22 雪花冰, 鐵馬; @21 拔河, 熱氣球; history in git
+TOKENIZER_VERSION = "jieba-zh-hant@23+opencc-s2twp+bigram"
+# Names that hold a vocabulary word but are not that thing: a caption reading a sign 「日落大道」 (Sunset Blvd) is not a
+# sunset (SRCH-TOK-018). Weighed above the vocabulary's words, so the name is one word.
+NAMES = ("日落大道", "夕陽大道")
+VOCAB = VOCAB_DIR / "general-photo.yaml"  # package data in opagent_core (ADR-0023)
 _ZW = re.compile("[​‌‍⁠﻿­]")
 _CJK = re.compile(r"[぀-ヿ㐀-䶿一-鿿豈-﫿]+")
 _WORD = re.compile(r"[0-9a-z]+(?:['._-][0-9a-z]+)*|[぀-ヿ㐀-䶿一-鿿豈-﫿]+")
+# verbs that only say what one does with the thing named next (SRCH-TOK-024): 去爬山, 搭飛機, 堆沙堡, 看海
+LIGHT_VERBS = {"去", "搭", "坐", "堆", "跳", "騎", "看", "玩", "放", "做"}
+# after a single character, a place: 河邊, 山上 relate to 河 and 山 (ADR-0051)
+PLACE_WORDS = {"邊", "旁", "畔", "裡", "上", "下"}
+# a verb on its object, not part of a compound: 戴口罩, 抱寶寶 (ADR-0052)
+OBJECT_VERBS = set("戴穿抱拿牽吹抓餵摸背推拉")
+# vocabulary kinds that are not things: an unknown word before one of these is not a compound (ADR-0052)
+NOT_THINGS = ("activity.", "scene.", "mood.", "event.")
 STOP = {"的", "了", "在", "是", "和", "與", "a", "an", "the", "of", "in", "on", "and", "with"}
 
 
@@ -36,6 +49,35 @@ def _opencc() -> tuple[Any, Any]:
     import opencc
 
     return opencc.OpenCC("s2twp"), opencc.OpenCC("t2s")
+
+
+def to_hant(text: str | None) -> str | None:
+    """Text as zh-TW keeps it (Q-030): a caption the model wrote with Simplified characters, 「开心」, becomes 「開心」.
+    Only characters Traditional text cannot have are converted, those outside Big5 (cp950): converting whole text
+    also rewrote correct Taiwan wording, 設備→裝置, 台→臺, 家具→傢俱 (SRCH-TOK-019). Latin text passes through."""
+    if not text:
+        return text
+    out = []
+    for ch in text:
+        if "一" <= ch <= "鿿" and not _big5(ch):
+            ch = str(_s2tw().convert(ch))
+        out.append(ch)
+    return "".join(out)
+
+
+def _big5(ch: str) -> bool:
+    try:
+        ch.encode("cp950")
+    except UnicodeEncodeError:
+        return False
+    return True
+
+
+@lru_cache(maxsize=1)
+def _s2tw() -> Any:
+    import opencc
+
+    return opencc.OpenCC("s2tw")
 
 
 def normalize(s: str) -> str:
@@ -51,6 +93,7 @@ class ParsedQuery:
     bigram: list[str] | None
     tag_keys: list[str]
     english: str = ""
+    alts: dict[str, list[str]] = field(default_factory=dict)  # word -> other names of its vocabulary term
 
 
 def _jieba() -> Any:
@@ -60,12 +103,93 @@ def _jieba() -> Any:
     return jieba
 
 
+# words that frame a question about photos rather than say what is in them (ADR-0032)
+FILLER = {
+    "照片",
+    "相片",
+    "圖",
+    "圖片",
+    "張",
+    "拍",
+    "拍的",
+    "幾張",
+    "有幾張",
+    "多少",
+    "我",
+    "有",
+    "嗎",
+    "呢",
+    # place words on their own: 「兩隻狗在草地上」 made a photo show 上 (SRCH-TOK-017)
+    "上",
+    "下",
+    "裡",
+    "裡面",
+    "上面",
+    "下面",
+    "旁",
+    "旁邊",
+    "附近",
+    "中間",
+    # quantity words: 「一張有很多彩色方塊的圖」 made a photo show 一張 and 很多 (SRCH-TOK-015)
+    "一張",
+    "一個",
+    "一隻",
+    "很多",
+    "許多",
+    "好多",
+    "一些",
+    "幾個",
+    "好幾",
+    # degree words: 「很開心」 made every photo show 很 (SRCH-TOK-013)
+    "很",
+    "非常",
+    "十分",
+    "相當",
+    "超級",
+    "有點",
+    "真的",
+    "photo",
+    "photos",
+    "picture",
+    "pictures",
+    "image",
+    "images",
+    "pic",
+    "pics",
+}
+
+
+# numbers and measure words: 「好多隻貓」 said no photo showed 「隻」 (SRCH-TOK-016); 「三個小朋友」 is children
+MEASURE = re.compile(r"^[一二兩三四五六七八九十百幾好多]*[隻個些位群條頭件本台輛把朵幅張顆塊片雙對]?$")
+
+
+@dataclass(frozen=True)
+class Concept:
+    """One thing the photo must show: a vocabulary term with all its names, or a word the vocabulary does not know."""
+
+    word: str
+    key: str | None
+    forms: tuple[str, ...]
+    # part of a compound the tokenizer cut (蘿蔔 + 糕): required with its siblings, never set aside alone (ADR-0052)
+    bound: bool = False
+
+
 @dataclass
 class Tokenizer:
     custom_words: list[str] = field(default_factory=list)
     vocab_path: Path = VOCAB
     _jb: Any = None
     _index: dict[str, str] = field(default_factory=dict)
+    _names: dict[str, dict[str, str]] = field(default_factory=dict)
+    _forms: dict[str, list[str]] = field(default_factory=dict)
+    _implies: dict[str, set[str]] = field(default_factory=dict)
+    _includes: dict[str, set[str]] = field(default_factory=dict)
+    _beside: dict[str, set[str]] = field(default_factory=dict)
+    _no_theme: set[str] = field(default_factory=set)
+    _suggest: dict[str, list[str]] = field(default_factory=dict)
+    _unrelated: dict[str, set[str]] = field(default_factory=dict)
+    _offered: dict[str, str] = field(default_factory=dict)
+    _seen_by: dict[str, set[str]] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         import jieba
@@ -75,13 +199,34 @@ class Tokenizer:
         _, t2s = _opencc()
         d = yaml.safe_load(self.vocab_path.read_text(encoding="utf-8")) if self.vocab_path.exists() else {"terms": []}
         for t in d.get("terms", []):
+            self._names[t["id"]] = {"zh": t["zh"], "en": t["en"]}
+            self._implies[t["id"]] = set(t.get("implies") or [])
+            self._includes[t["id"]] = set(t.get("includes") or [])
+            self._beside[t["id"]] = set(t.get("ranks_beside") or [])
+            self._suggest[t["id"]] = list(t.get("suggest") or [])  # what an event is seen by (SRCH-TOK-027)
+            self._unrelated[t["id"]] = set(t.get("unrelated") or [])  # written inside it, no part of it (SRCH-TOK-033)
+            for w in t.get("offered_by") or []:  # words that offer it as a chip, never its names (ADR-0051)
+                self._offered[normalize(w)] = t["id"]
+            # tags that show an activity: a photo tagged 食物 shows 吃飯, through the tag route only (SRCH-TOK-031)
+            self._seen_by[t["id"]] = set(t.get("seen_by") or [])
+            if t.get("theme") is False:  # true of any year: not a memory theme (MEM-012)
+                self._no_theme.add(t["id"])
+            # words a caption uses for it that already name another term: 球 is in 足球, 踢球 (SRCH-TOK-025); matched in
+            # text only, never a name of this term, never a new word to the segmenter
+            for f in t.get("text_forms") or []:
+                self._forms.setdefault(t["id"], []).append(normalize(f))
             for s in [t["zh"], t["en"], *t.get("synonyms", [])]:
                 self._index.setdefault(normalize(s), t["id"])
                 self.custom_words.append(s)
+                if " " not in s.strip():  # one lexeme: a phrase cannot be an OR alternative
+                    self._forms.setdefault(t["id"], []).append(normalize(s))
         for w in self.custom_words:
             nw = normalize(w)
-            if _CJK.fullmatch(nw):
+            # a single character is already a token; as a heavy custom word it would split real words apart
+            if _CJK.fullmatch(nw) and len(nw) > 1:
                 self._jb.add_word(t2s.convert(nw), freq=200000)
+        for name in NAMES:
+            self._jb.add_word(t2s.convert(normalize(name)), freq=400000)
 
     # ---- words ----
     def _cut_cjk(self, run: str) -> list[str]:
@@ -112,8 +257,140 @@ class Tokenizer:
             out.extend("§" + run[i : i + 2] for i in range(len(run) - 1))
         return out
 
+    def seen_by(self, key: str | None) -> set[str]:
+        """Tags whose photos show this activity (ADR-0048 addendum 7): never forms of its word, never backwards."""
+        return set(self._seen_by.get(key or "", set()))
+
+    def included(self, key: str | None) -> set[str]:
+        """The kinds a broader term includes (SRCH-TOK-020): 車子 is a car, a bus, a train or a bicycle."""
+        return set(self._includes.get(key or "", set()))
+
+    def _forms_of(self, key: str) -> list[str]:
+        """A term's own names, then those of the kinds it includes: a photo of any of them shows it."""
+        out = list(self._forms.get(key, []))
+        for k in sorted(self.included(key)):
+            out += [f for f in self._forms.get(k, []) if f not in out]
+        return out
+
+    def implied(self, key: str | None) -> set[str]:
+        """The scenes an activity implies (ADR-0032 addendum): 衝浪 happens at the sea or a beach."""
+        return set(self._implies.get(key or "", set()))
+
+    def bigram_query(self, text: str) -> str:
+        """The character-pair fallback (05 §1.3 rule 3) as a tsquery: each word's pairs AND-ed; a vocabulary word by
+        any of its Chinese names, OR-ed, so 沙灘 and 海邊 find the same photos (SRCH-TOK-025)."""
+        parts: list[str] = []
+        for w in self.words(text):
+            if not _CJK.search(w):
+                continue
+            k = self.tag_key(w)
+            names = [f for f in self._forms_of(k) if _CJK.fullmatch(f) and len(f) > 1] if k else []
+            names = list(dict.fromkeys([normalize(w), *names])) if names else [normalize(w)]
+            groups = [to_tsquery(self.bigrams(n)) for n in names if self.bigrams(n)]
+            if groups:
+                parts.append(groups[0] if len(groups) == 1 else "(" + " | ".join(f"({g})" for g in groups) + ")")
+        return " & ".join(parts)
+
+    def without_verbs(self, text: str) -> str:
+        """A light verb before other words is not something a photo shows: 「去爬山」 is 「爬山」, 「搭飛機」 「飛機」
+        (SRCH-TOK-024); then 吃 beside a food (SRCH-TOK-023)."""
+        out = text
+        for c in self.concepts(text):  # one word to the segmenter, a verb and a term to a person: 看海
+            w = normalize(c.word)
+            if c.key is None and len(w) > 1 and w[0] in LIGHT_VERBS and self.tag_key(w[1:]):
+                out = out.replace(c.word, " " + c.word[1:], 1)
+        cs = self.concepts(out)
+        verbs = [c for c in cs if c.key is None and normalize(c.word) in LIGHT_VERBS]
+        if verbs and len(verbs) < len(cs):
+            for v in verbs:
+                out = out.replace(v.word, " ", 1)
+        out = re.sub(r"\s+", " ", out).strip()
+        return self.without_eating(out)
+
+    def without_eating(self, text: str) -> str:
+        """吃 beside only foods, or words the vocabulary does not know, is eating that thing: 「吃蛋糕」 is 「蛋糕」 and
+        「吃香蕉」 「香蕉」 (SRCH-TOK-023). Beside anything else (a place), or alone, it stays a concept."""
+        cs = self.concepts(text)
+        verbs = [c for c in cs if self.ranks_beside(c.key)]
+        others = [c for c in cs if c not in verbs]
+        if not verbs or not others:
+            return text
+        for c in others:
+            if c.key is None and c.word.isascii():
+                return text
+            if c.key is not None and not any(c.key.split(".")[0] == g for v in verbs for g in self.ranks_beside(v.key)):
+                return text
+        out = text
+        for v in verbs:
+            out = (
+                re.sub(rf"(?<![a-z]){re.escape(v.word)}(?![a-z])", " ", out, count=1)
+                if v.word.isascii()
+                else out.replace(v.word, " ", 1)
+            )
+        return re.sub(r"\s+", " ", out).strip()
+
+    def not_themes(self) -> frozenset[str]:
+        """Terms the vocabulary marks ``theme: false``: true of any year (室內, 玩耍), never a memory theme."""
+        return frozenset(self._no_theme)
+
+    def ranks_beside(self, key: str | None) -> set[str]:
+        """The kinds of term beside which this one only ranks (SRCH-CNC-020): 吃 beside a food is eating that food."""
+        return set(self._beside.get(key or "", set()))
+
     def tag_key(self, word: str) -> str | None:
         return self._index.get(normalize(word))
+
+    def related(self, text: str) -> list[str]:
+        """The vocabulary's words a query that found nothing can try, by their Chinese name (SRCH-TOK-022, ADR-0051).
+
+        A name of two or more characters counts when it is written inside the query (生日派對 → 生日); so does a word
+        that offers a term (`offered_by`: 荷花 → 花). A single character does not: 河馬 is no river and 熱氣球 no ball.
+        It counts as a word of its own (「海 夕陽」), as a light verb's object (看海, 騎馬) or before a place word
+        (河邊, 山上). Written links come after: what a term suggests, implies, or the broader term that includes it."""
+        q = normalize(text)
+        own = self.tag_key(q)
+        found: dict[str, int] = {}
+
+        def put(key: str | None, n: int) -> None:
+            if key and key != own:
+                found[key] = max(found.get(key, 0), n)
+
+        for form, key in self._index.items():
+            if len(form) > 1 and _CJK.fullmatch(form) and form in q and form != q:
+                put(key, len(form))
+        # a word offered inside a longer offered word gives way to it: 鳳梨酥 offers 食物, not 水果 for its 鳳梨
+        # (ADR-0053, audit round 123)
+        offered = [(w, k) for w, k in self._offered.items() if w in q]
+        for word, key in offered:
+            if not any(word != w2 and word in w2 and key != k2 for w2, k2 in offered):
+                put(key, len(word))
+        for w in (normalize(x) for x in self.words(q)):
+            ones = [w] if len(w) == 1 else []
+            if len(w) == 2 and w[0] in LIGHT_VERBS:
+                ones.append(w[1])  # 看海, 騎馬 (the light verbs of SRCH-TOK-024)
+            if len(w) == 2 and w[1] in PLACE_WORDS:
+                ones.append(w[0])  # 河邊, 山上
+            for one in ones:
+                if _CJK.fullmatch(one):
+                    put(self._index.get(one), 1)
+        # a word written inside a term but no part of it is not offered: 拔河 does not suggest 河 (SRCH-TOK-033)
+        unrelated = {u for k in [own or "", *found] for u in self._unrelated.get(k, set())}
+        found = {k: n for k, n in found.items() if k not in unrelated}
+        keys = sorted(found, key=lambda k: (-found[k], k))
+        # written links: an event names the things it is seen by (SRCH-TOK-027, 生日派對 holds 生日: SRCH-TOK-029), an
+        # activity the scene it implies (爬山 → 山), a kind the broader word that includes it (火車 → 車子)
+        for k in [own or "", *list(found)]:
+            broader = sorted(b for b, inc in self._includes.items() if k and k in inc)
+            links = [*self._suggest.get(k, []), *sorted(self._implies.get(k, set())), *broader]
+            for x in links:  # once each: 鞦韆 suggests 遊樂場 and is included by it (SRCH-TOK-042, audit round 124)
+                if x not in keys and x != own and x not in unrelated:
+                    keys.append(x)
+        return [n for k in keys if (n := self.term_name(k, "zh"))]
+
+    def term_name(self, key: str, lang: str) -> str | None:
+        """What a person calls a vocabulary id; None when the tag is not a vocabulary id."""
+        names = self._names.get(key)
+        return names["zh" if lang.startswith("zh") else "en"] if names else None
 
     # ---- documents / queries ----
     def document(
@@ -139,13 +416,106 @@ class Tokenizer:
         d += self.bigrams(" ".join([caption or "", *(tags or [])]))
         return {"A": a, "B": b, "C": c, "D": d}
 
+    def vector_text(self, text: str) -> str | None:
+        """What the image model is asked (ADR-0031). SigLIP does not separate Chinese queries from noise on real
+        photos, English ones it does: CJK words go through the vocabulary to their English name; words it does not
+        know are left out; when none is known the image route is skipped (None). Latin script is passed as it is, but
+        a vocabulary word in it asks by its concept's English name, as the Chinese word does (SRCH-TOK-021)."""
+        if not _CJK.search(text):
+            if not text.strip():
+                return None
+            if (k := self.tag_key(text)) and (n := self.term_name(k, "en")):
+                return n
+            parts = re.split(r"([a-z][a-z0-9'-]*)", normalize(text))
+            for i in range(1, len(parts), 2):
+                if (k := self.tag_key(parts[i])) and (n := self.term_name(k, "en")):
+                    parts[i] = n
+            return "".join(parts).strip() or None
+        # the query's own terms: 車子 asks for "vehicle", not for each kind it includes (SRCH-TOK-020)
+        own = sorted({k for w in [*self.words(text), text] if (k := self.tag_key(w))})
+        names = [n for k in own if (n := self.term_name(k, "en"))]
+        latin = re.findall(r"[a-z][a-z0-9'-]*", normalize(text))
+        out = list(dict.fromkeys([*names, *latin]))
+        return " ".join(out) or None
+
+    def concepts(self, text: str) -> list[Concept]:
+        """The query's concepts (ADR-0032): filler and stop words out; words with the same vocabulary id are one.
+
+        Parts of a compound the tokenizer cut are bound (ADR-0052): two parts with nothing between them (no space, stop
+        or filler word, punctuation, or removed light verb) are one compound when either is a single character the
+        vocabulary does not know (蘿蔔 + 糕, 花生 + 湯), or an unknown word stands before a thing the vocabulary knows
+        (雞 + 蛋糕, 海綿 + 寶寶). A verb on its object (戴口罩) is not a compound."""
+        t = normalize(text)
+        items: list[tuple[str, str | None, bool]] = []  # word, its vocabulary id, joined to the word before it
+        seen: set[str] = set()
+        cur = 0
+        prev_end: int | None = None
+        for w in self.words(text):
+            nw = normalize(w)
+            at = t.find(nw, cur)
+            if at < 0:
+                at = cur
+            joined = prev_end is not None and at == prev_end
+            cur = at + len(nw)
+            if nw in FILLER or MEASURE.fullmatch(nw):
+                prev_end = None  # a filler word separates
+                continue
+            prev_end = cur
+            k = self.tag_key(w)
+            ident = k or nw
+            if ident in seen:
+                continue
+            seen.add(ident)
+            items.append((w, k, joined))
+
+        def lone(w: str, k: str | None) -> bool:  # a character the vocabulary does not know, not a verb on an object
+            return k is None and len(w) == 1 and bool(_CJK.fullmatch(w)) and w not in OBJECT_VERBS
+
+        def thing(k: str | None) -> bool:  # a thing the vocabulary knows: not an activity, scene, mood or event
+            return k is not None and not k.startswith(NOT_THINGS)
+
+        groups: list[list[tuple[str, str | None]]] = []
+        for i, (w, k, joined) in enumerate(items):
+            if i and joined:
+                pw, pk, _ = items[i - 1]
+                if lone(pw, pk) or lone(w, k) or (pk is None and pw not in OBJECT_VERBS and thing(k)):
+                    groups[-1].append((w, k))
+                    continue
+            groups.append([(w, k)])
+        out: list[Concept] = []
+        for g in groups:
+            for w, k in g:
+                forms = [normalize(w), *(f for f in self._forms_of(k) if f != normalize(w))] if k else [normalize(w)]
+                out.append(Concept(word=w, key=k, forms=tuple(forms), bound=len(g) > 1))
+        return out
+
     def query(self, text: str) -> ParsedQuery:
         words = self.words(text)
-        keys = sorted({k for w in [*words, text] if (k := self.tag_key(w))})
+        own = {k for w in [*words, text] if (k := self.tag_key(w))}
+        keys = sorted(
+            own | {i for k in own for i in self.included(k)} | {i for k in own for i in self.seen_by(k)}
+        )  # its kinds' tags too (SRCH-TOK-020), and the tags it is seen by (SRCH-TOK-031)
         bi = self.bigrams(text)
+        alts = {w: [f for f in self._forms_of(k) if f != normalize(w)] for w in words if (k := self.tag_key(w))}
         return ParsedQuery(
-            words=words, bigram=bi or None, tag_keys=keys, english=" ".join(re.findall(r"[a-z]+", normalize(text)))
+            words=words,
+            bigram=bi or None,
+            tag_keys=keys,
+            english=" ".join(re.findall(r"[a-z]+", normalize(text))),
+            alts={w: a for w, a in alts.items() if a},
         )
+
+
+def to_tsquery_alts(words: list[str], alts: dict[str, list[str]], op: str = "&") -> str:
+    """Like ``to_tsquery``, each word also matching the other names of its vocabulary term: 「海邊」 finds captions
+    that say 沙灘 (SRCH-TOK-010)."""
+    parts = []
+    for w in words:
+        if not w:
+            continue
+        forms = [w, *alts.get(w, [])]
+        parts.append(f"({' | '.join(_lit(f) for f in forms)})" if len(forms) > 1 else _lit(w))
+    return f" {op} ".join(parts)
 
 
 def _lit(t: str) -> str:

@@ -20,6 +20,7 @@ export function CaptionIndex() {
   const refresh = () => void qc.invalidateQueries({ queryKey: ["caption-index"] });
   const build = useMutation({ mutationFn: () => api.buildCaptionIndex(model), onSuccess: refresh });
   const sw = useMutation({ mutationFn: api.switchCaptionIndex, onSuccess: refresh });
+  const top = useMutation({ mutationFn: api.topupCaptionIndex, onSuccess: refresh });
   const b = st.data?.building ?? null;
   const op = b?.operation_id ? (ops.data ?? []).find((o) => o.id === b.operation_id) : undefined;
   return (
@@ -29,6 +30,13 @@ export function CaptionIndex() {
       <p data-testid="caption-active" className="text-sm">
         {st.data?.active ? t("captionIndex.active", { model: st.data.active.model_key, n: st.data.active.count.toLocaleString() }) : t("captionIndex.none")}
       </p>
+      {st.data?.active?.missing ? (
+        // photos analysed since it was built (SRCH-R2-013): said, with the one button that adds them
+        <p data-testid="caption-missing" className="flex flex-wrap items-center gap-2 text-sm">
+          <span>{t("captionIndex.missing", { n: st.data.active.missing.toLocaleString() })}</span>
+          <Button variant="ghost" onClick={() => top.mutate()}>{t("captionIndex.update")}</Button>
+        </p>
+      ) : null}
       <div className="flex flex-wrap items-end gap-2">
         <label className="flex flex-col gap-1 text-sm">
           {t("captionIndex.model")}
@@ -45,11 +53,17 @@ export function CaptionIndex() {
       {b ? (
         <div className="space-y-2">
           <p className="text-sm">{t("captionIndex.building", { model: b.model_key })}</p>
-          <progress max={Math.max(1, b.total)} value={b.done} aria-label={t("captionIndex.progress")} className="w-full" />
-          <p className="tnum text-xs text-[var(--text-muted)]">
-            {b.done.toLocaleString()} / {b.total.toLocaleString()}
-          </p>
-          {op ? <OperationProgress op={op as unknown as Op} /> : null}
+          {/* one bar: the Operation's once it is in (time left included), a plain one until then (SRCH-R2-012) */}
+          {op ? (
+            <OperationProgress op={op as unknown as Op} />
+          ) : (
+            <>
+              <progress max={Math.max(1, b.total)} value={b.done} aria-label={t("captionIndex.progress")} className="w-full" />
+              <p className="tnum text-xs text-[var(--text-muted)]">
+                {b.done.toLocaleString()} / {b.total.toLocaleString()}
+              </p>
+            </>
+          )}
           <Button
             variant="ghost"
             disabledReason={b.ready ? null : { code: "REINDEX_NOT_READY", message: t("captionIndex.notReady") }}

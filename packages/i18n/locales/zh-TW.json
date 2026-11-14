@@ -1,6 +1,7 @@
 {
   "app": {
-    "title": "OpenPhotoAgent"
+    "title": "OpenPhotoAgent",
+    "skipToMain": "跳到主要內容"
   },
   "common": {
     "working": "處理中…",
@@ -12,8 +13,8 @@
     "pickFolder": "選擇要整理的資料夾",
     "useThisFolder": "選擇此資料夾",
     "method": "整理方式",
-    "byDate": "依日期",
-    "byDateHint": "依拍攝年／月分資料夾，不需要下載模型",
+    "byDate": "依日期（不使用 AI）",
+    "byDateHint": "只依拍攝年／月分資料夾。不會分析內容，之後也搜尋不到照片裡的東西。",
     "pickMethodFirst": "請先選擇整理方式",
     "noWritableTarget": "沒有可寫入的輸出位置",
     "output": "輸出位置",
@@ -24,8 +25,8 @@
     "doneTitle": "整理完成",
     "undo": "復原",
     "undoneTitle": "已復原",
-    "byContent": "依內容（內建 12 類）",
-    "byContentHint": "用影像相似度與視覺語言模型分到 12 個類別",
+    "byContent": "依內容（AI，內建 12 類）",
+    "byContentHint": "AI 看每張照片，分到 12 個類別，之後也能用文字搜尋。",
     "custom": "自訂類別",
     "customHint": "自己定義類別，用描述和範例照片教 AI",
     "advanced": "進階",
@@ -68,7 +69,8 @@
       "cancelled": "已取消",
       "undoing": "復原中",
       "undone": "已復原",
-      "failed": "失敗"
+      "failed": "失敗",
+      "discarded": "已捨棄"
     },
     "summaryMove": "將移動 {count} 張到 {folders} 個資料夾。原檔會先複製驗證再移入 .opagent-trash/，可隨時復原",
     "cancel": "取消",
@@ -84,7 +86,35 @@
     "moveNeedAck": "請先勾選確認",
     "moveNeedText": "請輸入確認字串",
     "close": "取消",
-    "summaryTrash": "將移到垃圾桶 {count} 張，保留每組的代表張。可隨時復原"
+    "summaryTrash": "將移到垃圾桶 {count} 張，保留每組的代表張。可隨時復原",
+    "addFolder": "加入資料夾…",
+    "intro": "整理會把照片「複製」到輸出資料夾，依類別或日期分好。原來的檔案不會動，整理完也能一鍵復原。",
+    "fromLibrary": "選一個已在圖庫的資料夾",
+    "organizeThis": "整理這個資料夾",
+    "otherFolder": "或選其他資料夾",
+    "samplingProgress": "正在分析樣本 {done}／{total} 張 · 已經過 {elapsed}",
+    "timeLeft": "約剩 {left}",
+    "secs": "{n} 秒",
+    "mins": "{m} 分 {s} 秒",
+    "readingFolder": "正在讀取資料夾… · 已經過 {elapsed}",
+    "elapsed": "已經過 {elapsed}",
+    "title": "整理照片",
+    "steps": "整理步驟",
+    "step1": "選照片",
+    "step2": "整理方式",
+    "step3": "輸出與預覽",
+    "stripFrom": "來源：",
+    "stripTo": "→ 輸出：",
+    "stripCopy": "（複製，原檔不動）",
+    "fromPhotos": "從照片或相簿挑選",
+    "fromPhotosHint": "在搜尋或相簿裡選好照片，按「複製到資料夾…」。",
+    "outside": "圖庫以外的資料夾…",
+    "discard": "捨棄計畫",
+    "discarded": "已捨棄計畫，原檔沒有任何變更。",
+    "backToOrganize": "回到整理",
+    "summaryTrashChosen": "將移到垃圾桶 {count} 個檔案，可隨時復原",
+    "planTitleTrash": "移到垃圾桶的計畫",
+    "planning": "正在建立計畫…"
   },
   "eta": {
     "slow": {
@@ -183,7 +213,8 @@
       "succeeded": "完成",
       "waiting": "等待中",
       "interrupted": "已中斷",
-      "cancelled": "已取消"
+      "cancelled": "已取消",
+      "awaitingApproval": "等你核准"
     },
     "eta": {
       "rough": "大約",
@@ -197,7 +228,18 @@
       "job.label": "整理",
       "output.apply": "套用",
       "output.undo": "復原",
-      "search.reindex": "建立搜尋索引"
+      "search.reindex": "建立搜尋索引",
+      "face.cluster": "分組人臉",
+      "job.analyze": "AI 分析",
+      "map.download": "下載街道圖",
+      "job.preview": "預覽整理（未執行）",
+      "output.plan": "建立整理計畫",
+      "dedup": "找出重複照片",
+      "face.reembed": "重新計算人臉",
+      "preview.stage": "準備預覽",
+      "model.load": "載入模型",
+      "job.planWaiting": "整理計畫待核准",
+      "job.discarded": "已捨棄整理計畫（未變更檔案）"
     },
     "open": "活動",
     "resume": "繼續",
@@ -219,6 +261,18 @@
       "model_load": "載入模型",
       "infer": "推論",
       "postprocess": "整理結果"
+    },
+    "recent": "最近完成",
+    "group": {
+      "control": "系統工作"
+    },
+    "inFolder": "{name}（{folder}）",
+    "noThanks": "不用了",
+    "resumeMeans": {
+      "job.analyze": "「全部繼續」會繼續分析剩下的照片，不會動任何檔案。",
+      "job.label": "「全部繼續」會繼續分析；要動檔案前，仍會先給你看計畫。",
+      "model.download": "「全部繼續」會從中斷的地方接著下載。",
+      "default": "「全部繼續」會從中斷的地方接著做。"
     }
   },
   "fix": {
@@ -341,7 +395,10 @@
     "retry_later": "稍後再試",
     "confirm_remote_code": "檢視並確認程式碼",
     "immich": "開啟 Immich 設定",
-    "retype": "重新輸入"
+    "retype": "重新輸入",
+    "consequence_label": "選擇這個的話：",
+    "compose__f_compose_cuda_yml": "複製 GPU 的 compose 指令",
+    "worker_run": "顯示啟動指令"
   },
   "nav": {
     "label": "主要導覽",
@@ -356,12 +413,21 @@
     "duplicates": "重複照片",
     "people": "人物",
     "ask": "問 AI",
-    "map": "地圖"
+    "map": "地圖",
+    "import": "匯入",
+    "groupLibrary": "圖庫",
+    "groupWork": "工作",
+    "groupSystem": "系統",
+    "explore": "分類",
+    "albums": "相簿",
+    "importHint": "把資料夾加進圖庫",
+    "organizeHint": "複製成整理好的資料夾",
+    "menu": "選單"
   },
   "viewer": {
     "title": "照片",
     "grid": "照片網格",
-    "empty": "還沒有照片。先選一個資料夾開始。",
+    "empty": "還沒有照片",
     "unknownDate": "未知日期",
     "dateFromMtime": "依檔案時間",
     "count_one": "{count} 張",
@@ -374,7 +440,10 @@
     "jumpGo": "前往",
     "jumpInvalid": "看不懂這個日期，請輸入例如 2019-03",
     "photoAlt": "照片，{date}",
-    "loading": "載入中…"
+    "loading": "載入中…",
+    "emptyHint": "選一個資料夾，先看裡面有什麼再加入。原檔不會被修改。",
+    "emptyAction": "匯入照片",
+    "arriving": "照片馬上出現…"
   },
   "lightbox": {
     "label": "照片檢視",
@@ -396,7 +465,7 @@
       "date": "拍攝時間",
       "size": "尺寸",
       "fileSize": "檔案大小",
-      "locations": "位置"
+      "locations": "檔案位置"
     },
     "ai": {
       "title": "AI 結果",
@@ -406,7 +475,10 @@
       "layer": "判斷依據",
       "human": "你的修正",
       "none": "尚未分析",
-      "advanced": "進階資訊"
+      "advanced": "進階資訊",
+      "tags": "標籤",
+      "history": "之前的分析（{n}）",
+      "details": "判斷細節"
     },
     "layer": {
       "embedding": "影像相似度",
@@ -424,7 +496,53 @@
     },
     "correct": "修正類別",
     "correctSave": "儲存修正",
-    "correctionSaved": "已記錄修正"
+    "correctionSaved": "已記錄修正",
+    "people": "照片中的人物",
+    "facesFolderOff": "這個資料夾沒有開啟人臉辨識，所以這張不會標出人物。",
+    "facesSettings": "人臉設定",
+    "facesNobody": "找到 {n} 張臉，這些人在圖庫裡出現的次數還不夠，所以還沒分成人物。",
+    "facesNobodySmall": "找到 {n} 張臉，其中 {small} 張太小認不出；其餘的人出現次數還不夠，所以還沒分成人物。",
+    "facesNobodyAllSmall": "找到 {n} 張臉，但都太小，認不出是誰。",
+    "facesNobodyShort": "{n} 張臉還沒分成人物 · 為什麼？",
+    "nameFaces": "替這些臉命名",
+    "faceName": "名字",
+    "whoIsThis": "這是誰？",
+    "saveFaceName": "儲存",
+    "faceNamePlaceholder": "例如：阿姨、小明",
+    "nameFacesSmall": "另有 {n} 張臉太小，認不出是誰。",
+    "showMoreFaces": "再顯示 {n} 張",
+    "correctShort": "分類不對？修改…",
+    "rotate": "旋轉",
+    "slideshow": "播放幻燈片",
+    "slideshowStop": "停止幻燈片",
+    "keys": "快捷鍵",
+    "k": {
+      "prevNext": "上一張／下一張",
+      "space": "空白鍵",
+      "play": "播放或停止幻燈片",
+      "fav": "收藏",
+      "rotate": "旋轉 90 度",
+      "info": "資訊",
+      "zoom": "放大、縮小、原尺寸",
+      "close": "關閉"
+    },
+    "copies": "另有 {n} 張近似重複",
+    "copiesBack": "返回全部照片",
+    "copiesPosition": "近似重複 第 {n} 張，共 {total} 張",
+    "share": "分享",
+    "copyImage": "複製圖片",
+    "shareSaved": "已存到「下載」資料夾：{name}",
+    "shareFailed": "沒能分享這張照片",
+    "copied": "已複製圖片，可以貼到聊天或文件",
+    "copyFailed": "沒能複製圖片：這個視窗不支援把圖片放到剪貼簿，可以改用「分享」存成檔案",
+    "storyEnd": "播完了",
+    "playAgain": "再播一次",
+    "storyPlayed": "播放了 {n} 張，共 {total} 張",
+    "storyKeep": "存成相簿（{n} 張）",
+    "storyKept": "已存成相簿「{name}」",
+    "storyKeepFailed": "沒能存成相簿",
+    "storySeeAll": "看全部 {n} 張",
+    "storyOpenAlbum": "打開相簿"
   },
   "onboarding": {
     "welcome": "歡迎使用 OpenPhotoAgent",
@@ -448,7 +566,8 @@
       "vulkan": "Vulkan（相容模式）",
       "cuda": "CUDA",
       "cpu": "CPU",
-      "metal": "Metal"
+      "metal": "Metal",
+      "allInstalled": "模型都已安裝，不需要下載。"
     },
     "download": "開始下載",
     "pickTitle": "選擇照片資料夾",
@@ -481,7 +600,40 @@
     "loadMore": "載入更多",
     "none": "找不到符合的照片",
     "indexing": "已可搜尋 {have} / {total} 張（以文搜圖）",
-    "degraded": "以文搜圖暫時無法使用，只顯示文字結果"
+    "degraded": "以文搜圖暫時無法使用，只顯示文字結果",
+    "related": "可能相關的照片",
+    "relaxed": "沒有照片拍到「{words}」，下面是符合其他條件的照片。",
+    "personChip": "人物：{name}",
+    "countCapped": "{n} 張以上 · 依相關度排序",
+    "softDivider": "以下 {n} 張沒看出「{word}」，仍符合其他條件",
+    "softNone": "沒有看得出「{word}」的照片，下面是符合其他條件的照片。",
+    "softOnly": "只看{word}（{n} 張）",
+    "softChip": "只看{word}",
+    "cappedNote": "只列出最相關的 {n} 張，其餘照片相似度較低。",
+    "weakMore": "顯示較不相關的 {n} 張",
+    "softImpliedDivider": "以下 {n} 張沒看出「{word}」，但都在「{by}」",
+    "weakCount": "另有 {n} 張較不相關",
+    "busy": "正在搜尋…",
+    "busyLabel": "搜尋中",
+    "relaxedMeaning": "沒有照片直接寫到「{words}」，下面是意思相近的照片。",
+    "copies": "另有 {n} 張近似重複",
+    "partialCount": "沒有完全符合的照片 · 符合其他條件的有 {count}",
+    "relaxedNone": "沒有照片拍到「{words}」。",
+    "possible": "可能相關 {n} 張（不算在張數裡）",
+    "noneSure": "沒有確定符合的照片",
+    "tryInstead": "試試：",
+    "tryWord": "{q}（{n} 張以上）",
+    "askInstead": "問 AI「{q}」",
+    "partialNone": "沒有完全符合的照片",
+    "loadMoreLeft": "載入更多（還有 {n} 張）",
+    "collapsed": "另有 {n} 張近似重複收在代表照片裡",
+    "resultsFor": "「{q}」的搜尋結果",
+    "moreFailed": "沒能載入更多照片",
+    "retry": "重試",
+    "loadingMore": "載入中…",
+    "retrying": "重試中…",
+    "loadedNote": "已載入 {n} 張，共 {total} 張",
+    "browseInstead": "瀏覽分類"
   },
   "problem": {
     "chosen": "已改用 {what}"
@@ -492,13 +644,18 @@
     "none": "沒有待確認的照片",
     "suggestion": "建議",
     "accept": "接受建議（Enter）",
-    "other": "其他（0）",
+    "other": "其他",
     "skip": "略過（S）",
     "skipRest": "略過剩下的 {n} 張…",
     "skipRestTitle": "略過剩下的照片？",
     "skipRestBody": "剩下 {n} 張會放到「其他」，之後仍可在照片中修正。",
     "keys": "1–9 選類別 · 0 其他 · Enter 接受 · S 略過",
-    "backToPlan": "回到整理"
+    "backToPlan": "回到整理",
+    "why": {
+      "low_confidence": "AI 對這張的分類把握不夠，請你決定。",
+      "conflict": "兩個模型看法不同，請你決定。",
+      "shortlist": "類別太多，AI 只比對了最像的幾個，請你確認。"
+    }
   },
   "batch": {
     "selected": "已選 {n} 張",
@@ -507,13 +664,26 @@
     "addTag": "加上標籤",
     "category": "類別",
     "applyCategory": "套用類別",
-    "moveToFolder": "移到資料夾…",
-    "moveTitle": "移到資料夾",
+    "moveToFolder": "複製到資料夾…",
+    "moveTitle": "複製到資料夾",
     "root": "輸出位置",
     "subPath": "子資料夾",
     "createPlan": "建立計畫",
     "updated": "已更新 {n} 張",
-    "cancel": "取消"
+    "cancel": "取消",
+    "copyNote": "會先建立計畫給你核准；照片複製一份到這裡，原檔不動。"
+  },
+  "share": {
+    "many": "分享 {n} 張…",
+    "preparing": "準備中…",
+    "tooMany": "一次最多分享 {max} 張；請少選一些",
+    "inRoot": "這個資料夾在相片庫裡。請選相片庫以外的資料夾，照片才不會混進相片庫。",
+    "failed": "分享失敗，請再試一次",
+    "savedTo": "已存 {n} 張到 {dir}",
+    "zipped": "已存成 {name}",
+    "shared": "已分享 {n} 張",
+    "someFailed": "{n} 張無法分享",
+    "openFolder": "開啟資料夾"
   },
   "compat": {
     "ok": "可用",
@@ -541,7 +711,28 @@
       "installed": "已安裝",
       "downloading": "下載中"
     },
-    "back": "回到模型清單"
+    "back": "回到模型清單",
+    "kinds": {
+      "vlm": "看懂照片（說明、分類、標籤）",
+      "embedding": "以文搜圖",
+      "face_detector": "找出人臉",
+      "face_embedder": "辨認人臉",
+      "text_embedding": "以文字描述找照片",
+      "llm": "AI 問照片",
+      "text_embedder": "以文字描述找照片"
+    },
+    "installedBadge": "已安裝",
+    "names": {
+      "qwen3-vl-8b-instruct": "Qwen3-VL 8B（看圖說明與分類）",
+      "qwen3-vl-4b-instruct": "Qwen3-VL 4B（看圖說明與分類）",
+      "qwen3-vl-2b-instruct": "Qwen3-VL 2B（看圖說明與分類）",
+      "siglip2-so400m-384": "SigLIP 2（以文搜圖）",
+      "qwen3-embedding-0.6b": "Qwen3 Embedding（說明文字搜尋）",
+      "yunet-2023mar": "YuNet（找出人臉）",
+      "auraface-v1": "AuraFace（辨識人臉）",
+      "sface-2021dec": "SFace（辨識人臉）",
+      "insightface-buffalo-l": "InsightFace（辨識人臉）"
+    }
   },
   "readiness": {
     "title": "準備狀態",
@@ -587,7 +778,8 @@
     "near": "近似",
     "makePlan": "產生清理計畫（移到垃圾桶 {count} 張）",
     "empty": "沒有找到重複照片",
-    "explain": "每組保留代表張（解析度最高、檔案最大、最早拍攝），其餘移到原資料夾的垃圾桶，可隨時復原。"
+    "explain": "每組保留代表張（解析度最高、檔案最大、最早拍攝），其餘移到原資料夾的垃圾桶，可隨時復原。",
+    "explainReadOnly": "這裡列出內容相同或幾乎相同的照片。圖庫的資料夾都是唯讀的，所以只能看，不能把多的移到垃圾桶。"
   },
   "mcp": {
     "title": "連接 AI 助手",
@@ -629,7 +821,10 @@
     "skipWrite": "我自己設定",
     "written": "已寫入 {path}",
     "backup": "原設定備份在 {path}",
-    "restartClient": "請重新啟動 {client}。"
+    "restartClient": "請重新啟動 {client}。",
+    "enabled": "啟用 MCP Server",
+    "test": "測試連線",
+    "testOk": "連線正常：這個 App 可以搜尋你的照片"
   },
   "approval": {
     "title": {
@@ -693,7 +888,45 @@
     "typeName": "輸入圖庫名稱「{name}」以確認",
     "typeNameFirst": "請先輸入圖庫名稱",
     "disableAndDelete": "停用並刪除",
-    "disableOnly": "只停用"
+    "disableOnly": "只停用",
+    "whoIsThis": "這個人是誰？",
+    "saveName": "儲存名字",
+    "nameFirst": "先輸入名字",
+    "grouping": "還沒有人物。系統正在把相同的臉分在一起，請稍等；照片還在分析時會晚一點出現。",
+    "thisPerson": "這個人",
+    "candidatesTitle": "可能也是{name}？（{n}）",
+    "candidatesHint": "點一下標「是」，再點一下標「不是」。送出後會用確認過的臉繼續找。",
+    "noCandidates": "目前沒有其他可能的臉。",
+    "allYes": "全部都是",
+    "send": "送出（{yes} 是、{no} 不是）",
+    "markFirst": "先點選要確認的臉",
+    "similarity": "相似度 {n}%",
+    "photos": "照片（{n}）",
+    "mark": {
+      "none": "未標記，點一下標為是",
+      "yes": "是，再點一下改成不是",
+      "no": "不是，再點一下取消"
+    },
+    "more": "再看 {n} 張",
+    "openPhoto": "打開照片",
+    "sameQuestion": "這兩組是同一個人嗎？",
+    "sameCounts": "{a} 張和 {b} 張照片",
+    "sameYes": "是同一人",
+    "sameNo": "不是同一人",
+    "sameLater": "稍後再說",
+    "reviewSent": "已送出：{yes} 張是、{no} 張不是。",
+    "undoReview": "復原",
+    "moreOf": "{name} 的其他照片",
+    "groupLabel": "{name} · {n} 張照片",
+    "hardToJudge": "看不清",
+    "allYesHint": "另有 {n} 張沒把握，請一張一張決定",
+    "candidateKeys": "鍵盤：Y 是 · N 不是 · S 或 → 略過 · ← 上一張",
+    "photosWithMaybe": "照片 {n} 張（{sure} 張確定、{maybe} 張可能）",
+    "maybe": "可能",
+    "maybePhoto": "可能有這個人的照片",
+    "rename": "改名",
+    "faint": "不太像",
+    "backToPeople": "← 人物"
   },
   "ask": {
     "open": "✦ 問 AI",
@@ -746,8 +979,12 @@
       "retention": "對話保存天數（0 = 不保存）",
       "save": "儲存",
       "saved": "已儲存",
-      "cloudNote": "使用外部服務時，問題與照片的文字描述會送出；照片影像不會送出，人名以代稱取代。"
-    }
+      "cloudNote": "使用外部服務時，問題與照片的文字描述會送出；照片影像不會送出，人名以代稱取代。",
+      "cloudPeople": "雲端也可以依人物回答（人名只以「人物A」這類代稱送出；臉部影像與特徵永遠不送出）"
+    },
+    "seeAll": "在搜尋頁看全部 {n} 張",
+    "chipPerson": "人物：{names}",
+    "chipDay": "每年的 {day}"
   },
   "map": {
     "title": "地圖",
@@ -755,7 +992,12 @@
     "cluster": "{n} 張照片",
     "noLocation": "沒有位置：{n} 張",
     "inArea": "這個範圍有 {n} 張",
-    "photo": "照片"
+    "photo": "照片",
+    "oneSpot": "這 {n} 張都拍在約 {m} 公尺的範圍內，是同一個地方。",
+    "basemapOffer": "現在只有國界與海岸線。下載台灣街道圖就能看到街道與地名（約 100–300 MB，只下載一次，離線也能用）。",
+    "basemapDownload": "下載台灣街道圖",
+    "basemapDownloading": "正在下載台灣街道圖…完成後地圖會自動換上。",
+    "basemapNoThanks": "不用了"
   },
   "compare": {
     "title": "比較",
@@ -775,7 +1017,9 @@
     "building": "正在建立新索引：{model}",
     "progress": "建立進度",
     "switch": "切換到新索引",
-    "notReady": "新索引還在建立中，完成後才能切換；切換前搜尋會繼續使用目前的索引"
+    "notReady": "新索引還在建立中，完成後才能切換；切換前搜尋會繼續使用目前的索引",
+    "missing": "有 {n} 張新分析的照片還沒加入",
+    "update": "更新"
   },
   "auth": {
     "title": "登入 OpenPhotoAgent",
@@ -788,5 +1032,174 @@
     "rateLimited": "嘗試次數過多，請等一分鐘再試。",
     "workspace": "工作區",
     "signOut": "登出"
+  },
+  "fix_consequence": {
+    "capable_model": "改用支援這項工作的模型；結果可能和平常使用的模型不同。",
+    "continue_anyway": "繼續執行，但會比平常明顯慢。",
+    "continue_unverified": "無法驗證檔案完整性；只有在信任這個來源時才繼續。",
+    "cpu": "改用 CPU：慢很多，但不受 GPU 驅動程式版本影響。",
+    "cpu_build": "改用 CPU 版本的 runtime：修好之前會比較慢。",
+    "cpu_combo": "完全以 CPU 搭配較小的模型執行：較慢，準確度略低。",
+    "cpu_ep": "改用 CPU 執行：搜尋向量與人臉偵測會變慢。",
+    "force_rerun": "對已經有結果的照片重新推論，會花費 GPU 時間。",
+    "installed_q4": "改用已安裝的較小版本：準確度略低。",
+    "keep_skipping": "需要 ffmpeg 的影片與 RAW 檔會繼續被略過。",
+    "llamacpp": "改用 llama.cpp：支援的硬體較廣，速度可能較慢。",
+    "llamacpp_vulkan": "改用 llama.cpp（Vulkan）：這張 GPU 可以用，但通常比原生 runtime 慢。",
+    "local_model": "改在這個工作區自己的 Worker 上執行，不會送出任何資料。",
+    "lower_resolution": "以較小的照片副本分析：說明與標籤的細節較少。",
+    "other_variant": "改用這個模型的其他版本：速度與準確度可能不同。",
+    "q4_k_m": "改用 Q4_K_M 版本：佔用較少 VRAM，準確度略低。",
+    "queue_after": "等目前的工作完成後才開始。",
+    "reapply_thresholds": "以新的門檻重新套用現有結果，不重新推論。",
+    "skip_conflicts": "整理後被修改過的檔案留在原處，其餘照常復原。",
+    "smaller_model": "改用較小的模型：需要的記憶體較少，準確度略低。",
+    "smaller_variant": "改用較小的版本：佔用的空間與記憶體較少，準確度略低。",
+    "t256_only": "只保留最小的縮圖：空間足夠之前，檢視器顯示的細節較少。",
+    "vulkan": "改用 Vulkan runtime：這個驅動程式可以用，但可能較慢。"
+  },
+  "boot": {
+    "starting": "正在啟動 OpenPhotoAgent…",
+    "failed": "OpenPhotoAgent 無法啟動",
+    "failedHelp": "你的照片和資料都沒有被動到。請把下面的診斷資訊附在回報中。",
+    "logs": "記錄檔位置",
+    "copy": "複製診斷資訊",
+    "reconnecting": "正在重新連線…畫面上的內容都還在。"
+  },
+  "library": {
+    "importTitle": "匯入照片",
+    "importLede": "加入資料夾後，照片會先出現在圖庫，AI 接著在背景分析。之後才決定要不要整理到資料夾。",
+    "pickTitle": "選擇資料夾",
+    "pickHint": "從左邊選一個資料夾，這裡會顯示裡面有什麼。",
+    "counting": "正在計算…",
+    "previewFailed": "暫時看不到這個資料夾的內容，仍然可以加入。",
+    "empty": "這個資料夾沒有照片。",
+    "emptyTryChild": "這層沒有照片。從左邊打開子資料夾看看。",
+    "skips": "會略過 {n} 個非照片檔案。",
+    "truncated": "檔案很多，數字只算到前 50,000 個。",
+    "safe": "不會修改或移動這個資料夾裡的任何檔案。",
+    "photos": "張照片",
+    "videos": "部影片",
+    "size": "總大小",
+    "dates": "拍攝日期（抽樣）",
+    "sampleAlt": "資料夾裡的照片樣本",
+    "outputFolder": "輸出",
+    "addAndAnalyze": "加入圖庫並開始分析",
+    "scanOnly": "先只加入照片，不做 AI 分析",
+    "inLibrary": "已在圖庫的資料夾",
+    "wholeRoot": "整個資料夾",
+    "folderCounts": "{photos} 張 · 已分析 {analysed} 張",
+    "analysedShare": "已分析的比例",
+    "analyse": "分析",
+    "analyseRest": "分析剩下的照片",
+    "reanalyse": "重新分析",
+    "orAddNew": "或加入新的資料夾",
+    "upToDate": "「{name}」的照片都已分析過；只會補上新增或有變動的照片。",
+    "analysing": "已開始分析「{name}」，進度在左下角。",
+    "newOnDisk": "有 {n} 張新照片還沒加入"
+  },
+  "dock": {
+    "label": "進度",
+    "title": "正在處理照片",
+    "minimize": "縮小",
+    "close": "關閉",
+    "waitingScan": "等掃描完成",
+    "keepUsing": "可以繼續使用 app，照片會陸續出現。",
+    "done": "分析完成",
+    "doneCount": "分析完成：{n} 張照片",
+    "seePhotos": "看照片",
+    "organize": "整理到資料夾",
+    "stage": {
+      "scan": "掃描檔案",
+      "job.label": "AI 分析",
+      "output.apply": "複製檔案",
+      "output.undo": "復原",
+      "face.cluster": "分組人臉",
+      "job.organize": "整理"
+    },
+    "preparing": "準備中：載入 AI 模型…",
+    "now": "正在分析",
+    "latest": "剛完成",
+    "folders": "資料夾進度",
+    "failed": "{n} 張失敗",
+    "state": {
+      "queued": "排隊中",
+      "scanning": "掃描中"
+    },
+    "elapsed": "已經過 {elapsed}",
+    "estimating": "估算剩餘時間中…",
+    "scanning": "正在找出資料夾裡的照片…",
+    "nothingNew": "都已分析過，沒有要更新的照片",
+    "waiting": "準備中…"
+  },
+  "explore": {
+    "title": "分類",
+    "categories": "分類",
+    "tags": "標籤",
+    "photo": "照片",
+    "analysed": "AI 已分析 {n} 張照片。",
+    "left": "還有 {n} 張沒分析。",
+    "more": "載入更多",
+    "none": "還沒有分析結果",
+    "noneHint": "匯入資料夾後，AI 會分析每張照片，結果會顯示在這裡。",
+    "analyseRest": "分析剩下的 {n} 張",
+    "started": "已開始分析，進度在右下角",
+    "categoryRow": "類別"
+  },
+  "albums": {
+    "title": "相簿",
+    "favorite": "加入收藏",
+    "unfavorite": "取消收藏",
+    "addTo": "加入相簿",
+    "newName": "新相簿名稱",
+    "createAndAdd": "建立並加入",
+    "added": "已加入「{name}」",
+    "favorites": "收藏",
+    "empty": "還沒有照片。在照片上按 ★ 或「加入相簿」。",
+    "count": "{n} 張",
+    "create": "新增相簿",
+    "rename": "改名",
+    "delete": "刪除相簿",
+    "deleteNote": "只刪除相簿，照片不會被刪除。",
+    "remove": "從相簿移除",
+    "back": "← 所有相簿",
+    "none": "還沒有相簿。",
+    "save": "儲存",
+    "open": "開啟照片",
+    "confirmDelete": "刪除相簿「{name}」？照片不會被刪除。",
+    "confirm": "確定刪除",
+    "cancel": "取消",
+    "removed": "已從相簿移除",
+    "undo": "復原",
+    "undoFailed": "沒有復原，請再試一次",
+    "nameNeeded": "請輸入相簿名稱",
+    "undone": "已復原 {n} 張"
+  },
+  "memories": {
+    "onThisDay": "那年今日",
+    "notToday": "今天先不看",
+    "yearsAgo_one": "{count} 年前的今天",
+    "yearsAgo_other": "{count} 年前的今天",
+    "open": "{year} 年的第 {n} 張",
+    "more": "看 {year} 年的其他 {n} 張",
+    "picked": "精選 {n} 張 · 共 {total} 張",
+    "themes": "回憶主題",
+    "themeTitle": "{year} 的{name}",
+    "themeOpen": "{title}，{n} 張",
+    "themeCount": "{n} 張 · 精選 {k} 張",
+    "themeAll": "看全部",
+    "events": "最近的活動",
+    "play": "播放 {title}",
+    "playShort": "播放"
+  },
+  "trash": {
+    "move": "移到垃圾桶",
+    "readOnly": "{roots}是唯讀資料夾，照片不能移到垃圾桶。",
+    "nothingMoved": "沒有任何檔案被移動。",
+    "reAdd": "以可寫入的方式重新加入這個資料夾",
+    "orCopy": "，或改用「複製到資料夾…」。",
+    "failed": "沒有建立計畫，請再試一次。",
+    "close": "關閉",
+    "allReadOnly": "圖庫的資料夾都是唯讀的，照片不能移到垃圾桶。"
   }
 }

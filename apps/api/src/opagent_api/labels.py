@@ -15,6 +15,8 @@ from opagent_db.schema import asset, event, index_outbox, job_item, result, revi
 from sqlalchemy import and_, func, insert, select, update
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 
+LOCAL_TZ = "Asia/Taipei"  # the planner's zone for dates (05 §2.3)
+
 
 def emit(c: Any, kind: str, payload: dict[str, Any]) -> None:
     c.execute(insert(event).values(kind=kind, payload=payload))
@@ -49,6 +51,11 @@ def human_label(c: Any, asset_id: str, job_id: str | None) -> dict[str, Any] | N
 
 def on_result(st: Any, c: Any, job_id: str, asset_id: str, result_id: str, out: dict[str, Any]) -> None:
     """Called for every new model result: review queue for needs_review, search index outbox."""
+    c.execute(  # a question about a replaced result has no answer worth asking for (IMP-024)
+        update(review)
+        .where(review.c.asset_id == asset_id, review.c.status == "pending", review.c.job_id != job_id)
+        .values(status="superseded", resolved_at=st.clock.now())
+    )
     if out.get("decision") == "needs_review" and human_label(c, asset_id, None) is None:
         exists = c.execute(select(review.c.id).where(review.c.asset_id == asset_id, review.c.job_id == job_id)).first()
         if exists is None:
@@ -161,6 +168,12 @@ def index_asset(c: Any, asset_id: str) -> None:
     doc = tok.document(caption=caption, tags=tags, category=cat, path=rel)
     en = " ".join(w for w in (caption or "").lower().split() if w.isascii())
     taken = a.taken_at
+    if taken is None and getattr(a, "local_at", None) is not None:
+        # no capture date: the file time the timeline places it by, so a date search finds what the timeline shows
+        # (SRCH-IDX-010: 「11月」 found 0 of the 80 photos the timeline had in 2026-11)
+        from zoneinfo import ZoneInfo
+
+        taken = a.local_at.replace(tzinfo=ZoneInfo(LOCAL_TZ))
     vals = {
         "workspace_id": a.workspace_id,
         "caption": caption,
@@ -298,3 +311,30 @@ def skip_rest(st: Any, c: Any, job_id: str) -> int:
         c.execute(insert(index_outbox).values(asset_id=r.asset_id))
     emit(c, "review.skipped_rest", {"job_id": job_id, "n": len(res)})
     return len(res)
+
+
+RETOKENIZE_BATCH = 500
+
+
+def retokenize(st: Any) -> int:
+    """When the search tokenizer changed (TOKENIZER_VERSION), every photo's text is indexed again (SRCH-TOK-012).
+    Returns how many photos were queued; the drain runs in batches so a big library does not hold one transaction."""
+    from opagent_db.schema import workspace
+    from opagent_search.tokenize import TOKENIZER_VERSION
+
+    with st.engine.begin() as c:
+        cur = c.execute(select(workspace.c.settings).where(workspace.c.id == "default")).scalar()
+        if cur is None or cur.get("search_tokenizer") == TOKENIZER_VERSION:
+            return 0
+        n = c.execute(select(func.count()).select_from(search_doc)).scalar_one()
+        c.execute(index_outbox.insert().from_select(["asset_id"], select(search_doc.c.asset_id)))
+        c.execute(
+            update(workspace)
+            .where(workspace.c.id == "default")
+            .values(settings={**cur, "search_tokenizer": TOKENIZER_VERSION})
+        )
+    while True:
+        with st.engine.begin() as c:
+            if not drain_index(c, limit=RETOKENIZE_BATCH):
+                break
+    return int(n or 0)

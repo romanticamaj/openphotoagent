@@ -1,0 +1,21 @@
+import { readFileSync } from "node:fs";
+import { describe, expect, it } from "vitest";
+
+describe("where the progress card sits", () => {
+  it("[ACT-010] 回歸：進度卡在側欄裡、導覽下方，不蓋住「設定」（驗證第 19 輪）", () => {
+    const css = readFileSync(`${process.cwd()}/src/styles.css`, "utf-8");
+    const router = readFileSync(`${process.cwd()}/src/router.tsx`, "utf-8");
+    expect(css).toMatch(/\.sidebar \.progress-dock\s*\{[^}]*position:\s*static/);
+    expect(css).toMatch(/\.sidebar\s*\{[^}]*flex-direction:\s*column/);
+    // the nav and the card share one sidebar column
+    // the same structure, with the attributes the narrow drawer added to the sidebar (VIEW-051) allowed on its tag
+    expect(router).toMatch(/<div\s+className="sidebar"[^>]*>\s*<nav className="sidenav"[\s\S]*<ProgressDock \/>\s*<\/div>[\s\S]*?<main/);
+  });
+});
+
+describe("the stage name on the progress card", () => {
+  it("[ACT-011] 回歸：「AI 分析」不在旁邊文字變長時斷成兩行（驗證第 20 輪：「AI 分 / 析」）", () => {
+    const dock = readFileSync(`${process.cwd()}/src/features/activity/ProgressDock.tsx`, "utf-8");
+    expect(dock).toMatch(/<span className="shrink-0 whitespace-nowrap">\{t\(`dock\.stage\.\$\{s\.type\}`\)\}<\/span>/);
+  });
+});

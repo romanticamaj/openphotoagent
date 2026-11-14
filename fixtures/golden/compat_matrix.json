@@ -1,404 +1,451 @@
 {
- "amd-rx7800-win|fixture-nc-vlm@q4": {
-  "level": "ok",
-  "prep": [
-   "RUNTIME_PACK_MISSING",
-   "MODEL_NOT_INSTALLED",
-   "LICENSE_CONSENT_REQUIRED"
-  ],
-  "reasons": []
- },
- "amd-rx7800-win|qwen3-vl-2b-instruct@q4_k_m": {
-  "level": "ok",
-  "prep": [
-   "RUNTIME_PACK_MISSING",
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": []
- },
- "amd-rx7800-win|qwen3-vl-4b-instruct@q4_k_m": {
-  "level": "ok",
-  "prep": [
-   "RUNTIME_PACK_MISSING",
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": []
- },
- "amd-rx7800-win|qwen3-vl-8b-instruct@q4_k_m": {
-  "level": "ok",
-  "prep": [
-   "RUNTIME_PACK_MISSING",
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": []
- },
- "amd-rx7800-win|qwen3-vl-8b-instruct@q5_k_m": {
-  "level": "ok",
-  "prep": [
-   "RUNTIME_PACK_MISSING",
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": []
- },
- "amd-rx7800-win|qwen3-vl-8b-instruct@q8_0": {
-  "level": "ok",
-  "prep": [
-   "RUNTIME_PACK_MISSING",
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": []
- },
- "amd-rx7800-win|siglip2-so400m-384@onnx-fp16": {
-  "level": "ok",
-  "prep": [
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": []
- },
- "amd-rx7800-win|siglip2-so400m-384@onnx-int8": {
-  "level": "ok",
-  "prep": [
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": []
- },
- "intel-mac|fixture-nc-vlm@q4": {
-  "level": "blocked",
-  "prep": [
-   "MODEL_NOT_INSTALLED",
-   "LICENSE_CONSENT_REQUIRED"
-  ],
-  "reasons": [
-   "RUNTIME_UNSUPPORTED_PLATFORM"
-  ]
- },
- "intel-mac|qwen3-vl-2b-instruct@q4_k_m": {
-  "level": "blocked",
-  "prep": [
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": [
-   "RUNTIME_UNSUPPORTED_PLATFORM"
-  ]
- },
- "intel-mac|qwen3-vl-4b-instruct@q4_k_m": {
-  "level": "blocked",
-  "prep": [
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": [
-   "RUNTIME_UNSUPPORTED_PLATFORM"
-  ]
- },
- "intel-mac|qwen3-vl-8b-instruct@q4_k_m": {
-  "level": "blocked",
-  "prep": [
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": [
-   "RUNTIME_UNSUPPORTED_PLATFORM"
-  ]
- },
- "intel-mac|qwen3-vl-8b-instruct@q5_k_m": {
-  "level": "blocked",
-  "prep": [
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": [
-   "RUNTIME_UNSUPPORTED_PLATFORM"
-  ]
- },
- "intel-mac|qwen3-vl-8b-instruct@q8_0": {
-  "level": "blocked",
-  "prep": [
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": [
-   "RUNTIME_UNSUPPORTED_PLATFORM"
-  ]
- },
- "intel-mac|siglip2-so400m-384@onnx-fp16": {
-  "level": "blocked",
-  "prep": [
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": [
-   "RUNTIME_UNSUPPORTED_PLATFORM"
-  ]
- },
- "intel-mac|siglip2-so400m-384@onnx-int8": {
-  "level": "blocked",
-  "prep": [
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": [
-   "RUNTIME_UNSUPPORTED_PLATFORM"
-  ]
- },
- "m3-16|fixture-nc-vlm@q4": {
-  "level": "blocked",
-  "prep": [
-   "MODEL_NOT_INSTALLED",
-   "LICENSE_CONSENT_REQUIRED"
-  ],
-  "reasons": [
-   "RUNTIME_UNSUPPORTED_PLATFORM"
-  ]
- },
- "m3-16|qwen3-vl-2b-instruct@q4_k_m": {
-  "level": "ok",
-  "prep": [
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": []
- },
- "m3-16|qwen3-vl-4b-instruct@q4_k_m": {
-  "level": "ok",
-  "prep": [
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": []
- },
- "m3-16|qwen3-vl-8b-instruct@q4_k_m": {
-  "level": "degraded",
-  "prep": [
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": [
-   "VRAM_SEQUENTIAL"
-  ]
- },
- "m3-16|qwen3-vl-8b-instruct@q5_k_m": {
-  "level": "blocked",
-  "prep": [
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": [
-   "VRAM_INSUFFICIENT"
-  ]
- },
- "m3-16|qwen3-vl-8b-instruct@q8_0": {
-  "level": "blocked",
-  "prep": [
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": [
-   "VRAM_INSUFFICIENT"
-  ]
- },
- "m3-16|siglip2-so400m-384@onnx-fp16": {
-  "level": "ok",
-  "prep": [
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": []
- },
- "m3-16|siglip2-so400m-384@onnx-int8": {
-  "level": "ok",
-  "prep": [
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": []
- },
- "no-gpu-linux|fixture-nc-vlm@q4": {
-  "level": "degraded",
-  "prep": [
-   "MODEL_NOT_INSTALLED",
-   "LICENSE_CONSENT_REQUIRED"
-  ],
-  "reasons": [
-   "PERF_CPU_ONLY_SLOW"
-  ]
- },
- "no-gpu-linux|qwen3-vl-2b-instruct@q4_k_m": {
-  "level": "degraded",
-  "prep": [
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": [
-   "PERF_CPU_ONLY_SLOW"
-  ]
- },
- "no-gpu-linux|qwen3-vl-4b-instruct@q4_k_m": {
-  "level": "degraded",
-  "prep": [
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": [
-   "PERF_CPU_ONLY_SLOW"
-  ]
- },
- "no-gpu-linux|qwen3-vl-8b-instruct@q4_k_m": {
-  "level": "degraded",
-  "prep": [
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": [
-   "PERF_CPU_ONLY_SLOW"
-  ]
- },
- "no-gpu-linux|qwen3-vl-8b-instruct@q5_k_m": {
-  "level": "degraded",
-  "prep": [
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": [
-   "PERF_CPU_ONLY_SLOW"
-  ]
- },
- "no-gpu-linux|qwen3-vl-8b-instruct@q8_0": {
-  "level": "blocked",
-  "prep": [
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": [
-   "GPU_NOT_FOUND"
-  ]
- },
- "no-gpu-linux|siglip2-so400m-384@onnx-fp16": {
-  "level": "ok",
-  "prep": [
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": []
- },
- "no-gpu-linux|siglip2-so400m-384@onnx-int8": {
-  "level": "ok",
-  "prep": [
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": []
- },
- "rtx4060-laptop|fixture-nc-vlm@q4": {
-  "level": "ok",
-  "prep": [
-   "RUNTIME_PACK_MISSING",
-   "MODEL_NOT_INSTALLED",
-   "LICENSE_CONSENT_REQUIRED"
-  ],
-  "reasons": []
- },
- "rtx4060-laptop|qwen3-vl-2b-instruct@q4_k_m": {
-  "level": "ok",
-  "prep": [
-   "RUNTIME_PACK_MISSING",
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": []
- },
- "rtx4060-laptop|qwen3-vl-4b-instruct@q4_k_m": {
-  "level": "ok",
-  "prep": [
-   "RUNTIME_PACK_MISSING",
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": []
- },
- "rtx4060-laptop|qwen3-vl-8b-instruct@q4_k_m": {
-  "level": "degraded",
-  "prep": [
-   "RUNTIME_PACK_MISSING",
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": [
-   "VRAM_SEQUENTIAL"
-  ]
- },
- "rtx4060-laptop|qwen3-vl-8b-instruct@q5_k_m": {
-  "level": "degraded",
-  "prep": [
-   "RUNTIME_PACK_MISSING",
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": [
-   "VRAM_OFFLOAD"
-  ]
- },
- "rtx4060-laptop|qwen3-vl-8b-instruct@q8_0": {
-  "level": "degraded",
-  "prep": [
-   "RUNTIME_PACK_MISSING",
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": [
-   "VRAM_OFFLOAD"
-  ]
- },
- "rtx4060-laptop|siglip2-so400m-384@onnx-fp16": {
-  "level": "ok",
-  "prep": [
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": []
- },
- "rtx4060-laptop|siglip2-so400m-384@onnx-int8": {
-  "level": "ok",
-  "prep": [
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": []
- },
- "rtx5070ti-win11|fixture-nc-vlm@q4": {
-  "level": "ok",
-  "prep": [
-   "RUNTIME_PACK_MISSING",
-   "MODEL_NOT_INSTALLED",
-   "LICENSE_CONSENT_REQUIRED"
-  ],
-  "reasons": []
- },
- "rtx5070ti-win11|qwen3-vl-2b-instruct@q4_k_m": {
-  "level": "ok",
-  "prep": [
-   "RUNTIME_PACK_MISSING",
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": []
- },
- "rtx5070ti-win11|qwen3-vl-4b-instruct@q4_k_m": {
-  "level": "ok",
-  "prep": [
-   "RUNTIME_PACK_MISSING",
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": []
- },
- "rtx5070ti-win11|qwen3-vl-8b-instruct@q4_k_m": {
-  "level": "ok",
-  "prep": [
-   "RUNTIME_PACK_MISSING",
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": []
- },
- "rtx5070ti-win11|qwen3-vl-8b-instruct@q5_k_m": {
-  "level": "ok",
-  "prep": [
-   "RUNTIME_PACK_MISSING",
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": []
- },
- "rtx5070ti-win11|qwen3-vl-8b-instruct@q8_0": {
-  "level": "ok",
-  "prep": [
-   "RUNTIME_PACK_MISSING",
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": []
- },
- "rtx5070ti-win11|siglip2-so400m-384@onnx-fp16": {
-  "level": "ok",
-  "prep": [
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": []
- },
- "rtx5070ti-win11|siglip2-so400m-384@onnx-int8": {
-  "level": "ok",
-  "prep": [
-   "MODEL_NOT_INSTALLED"
-  ],
-  "reasons": []
- }
+  "amd-rx7800-win|fixture-nc-vlm@q4": {
+    "level": "ok",
+    "prep": [
+      "RUNTIME_PACK_MISSING",
+      "MODEL_NOT_INSTALLED",
+      "LICENSE_CONSENT_REQUIRED"
+    ],
+    "reasons": []
+  },
+  "amd-rx7800-win|qwen3-embedding-0.6b@q8_0": {
+    "level": "ok",
+    "reasons": [],
+    "prep": [
+      "RUNTIME_PACK_MISSING",
+      "MODEL_NOT_INSTALLED"
+    ]
+  },
+  "amd-rx7800-win|qwen3-vl-2b-instruct@q4_k_m": {
+    "level": "ok",
+    "prep": [
+      "RUNTIME_PACK_MISSING",
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": []
+  },
+  "amd-rx7800-win|qwen3-vl-4b-instruct@q4_k_m": {
+    "level": "ok",
+    "prep": [
+      "RUNTIME_PACK_MISSING",
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": []
+  },
+  "amd-rx7800-win|qwen3-vl-8b-instruct@q4_k_m": {
+    "level": "ok",
+    "prep": [
+      "RUNTIME_PACK_MISSING",
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": []
+  },
+  "amd-rx7800-win|qwen3-vl-8b-instruct@q5_k_m": {
+    "level": "ok",
+    "prep": [
+      "RUNTIME_PACK_MISSING",
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": []
+  },
+  "amd-rx7800-win|qwen3-vl-8b-instruct@q8_0": {
+    "level": "ok",
+    "prep": [
+      "RUNTIME_PACK_MISSING",
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": []
+  },
+  "amd-rx7800-win|siglip2-so400m-384@onnx-fp16": {
+    "level": "ok",
+    "prep": [
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": []
+  },
+  "amd-rx7800-win|siglip2-so400m-384@onnx-fp16-cpu": {
+    "level": "ok",
+    "prep": [
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": []
+  },
+  "intel-mac|fixture-nc-vlm@q4": {
+    "level": "blocked",
+    "prep": [
+      "MODEL_NOT_INSTALLED",
+      "LICENSE_CONSENT_REQUIRED"
+    ],
+    "reasons": [
+      "RUNTIME_UNSUPPORTED_PLATFORM"
+    ]
+  },
+  "intel-mac|qwen3-embedding-0.6b@q8_0": {
+    "level": "blocked",
+    "reasons": [
+      "RUNTIME_UNSUPPORTED_PLATFORM"
+    ],
+    "prep": [
+      "MODEL_NOT_INSTALLED"
+    ]
+  },
+  "intel-mac|qwen3-vl-2b-instruct@q4_k_m": {
+    "level": "blocked",
+    "prep": [
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": [
+      "RUNTIME_UNSUPPORTED_PLATFORM"
+    ]
+  },
+  "intel-mac|qwen3-vl-4b-instruct@q4_k_m": {
+    "level": "blocked",
+    "prep": [
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": [
+      "RUNTIME_UNSUPPORTED_PLATFORM"
+    ]
+  },
+  "intel-mac|qwen3-vl-8b-instruct@q4_k_m": {
+    "level": "blocked",
+    "prep": [
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": [
+      "RUNTIME_UNSUPPORTED_PLATFORM"
+    ]
+  },
+  "intel-mac|qwen3-vl-8b-instruct@q5_k_m": {
+    "level": "blocked",
+    "prep": [
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": [
+      "RUNTIME_UNSUPPORTED_PLATFORM"
+    ]
+  },
+  "intel-mac|qwen3-vl-8b-instruct@q8_0": {
+    "level": "blocked",
+    "prep": [
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": [
+      "RUNTIME_UNSUPPORTED_PLATFORM"
+    ]
+  },
+  "intel-mac|siglip2-so400m-384@onnx-fp16": {
+    "level": "blocked",
+    "prep": [
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": [
+      "RUNTIME_UNSUPPORTED_PLATFORM"
+    ]
+  },
+  "intel-mac|siglip2-so400m-384@onnx-fp16-cpu": {
+    "level": "blocked",
+    "prep": [
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": [
+      "RUNTIME_UNSUPPORTED_PLATFORM"
+    ]
+  },
+  "m3-16|fixture-nc-vlm@q4": {
+    "level": "blocked",
+    "prep": [
+      "MODEL_NOT_INSTALLED",
+      "LICENSE_CONSENT_REQUIRED"
+    ],
+    "reasons": [
+      "RUNTIME_UNSUPPORTED_PLATFORM"
+    ]
+  },
+  "m3-16|qwen3-embedding-0.6b@q8_0": {
+    "level": "ok",
+    "reasons": [],
+    "prep": [
+      "MODEL_NOT_INSTALLED"
+    ]
+  },
+  "m3-16|qwen3-vl-2b-instruct@q4_k_m": {
+    "level": "ok",
+    "prep": [
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": []
+  },
+  "m3-16|qwen3-vl-4b-instruct@q4_k_m": {
+    "level": "ok",
+    "prep": [
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": []
+  },
+  "m3-16|qwen3-vl-8b-instruct@q4_k_m": {
+    "level": "degraded",
+    "prep": [
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": [
+      "VRAM_SEQUENTIAL"
+    ]
+  },
+  "m3-16|qwen3-vl-8b-instruct@q5_k_m": {
+    "level": "blocked",
+    "prep": [
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": [
+      "VRAM_INSUFFICIENT"
+    ]
+  },
+  "m3-16|qwen3-vl-8b-instruct@q8_0": {
+    "level": "blocked",
+    "prep": [
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": [
+      "VRAM_INSUFFICIENT"
+    ]
+  },
+  "m3-16|siglip2-so400m-384@onnx-fp16": {
+    "level": "ok",
+    "prep": [
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": []
+  },
+  "m3-16|siglip2-so400m-384@onnx-fp16-cpu": {
+    "level": "ok",
+    "prep": [
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": []
+  },
+  "no-gpu-linux|fixture-nc-vlm@q4": {
+    "level": "degraded",
+    "prep": [
+      "MODEL_NOT_INSTALLED",
+      "LICENSE_CONSENT_REQUIRED"
+    ],
+    "reasons": [
+      "PERF_CPU_ONLY_SLOW"
+    ]
+  },
+  "no-gpu-linux|qwen3-embedding-0.6b@q8_0": {
+    "level": "ok",
+    "reasons": [],
+    "prep": [
+      "MODEL_NOT_INSTALLED"
+    ]
+  },
+  "no-gpu-linux|qwen3-vl-2b-instruct@q4_k_m": {
+    "level": "degraded",
+    "prep": [
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": [
+      "PERF_CPU_ONLY_SLOW"
+    ]
+  },
+  "no-gpu-linux|qwen3-vl-4b-instruct@q4_k_m": {
+    "level": "degraded",
+    "prep": [
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": [
+      "PERF_CPU_ONLY_SLOW"
+    ]
+  },
+  "no-gpu-linux|qwen3-vl-8b-instruct@q4_k_m": {
+    "level": "degraded",
+    "prep": [
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": [
+      "PERF_CPU_ONLY_SLOW"
+    ]
+  },
+  "no-gpu-linux|qwen3-vl-8b-instruct@q5_k_m": {
+    "level": "degraded",
+    "prep": [
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": [
+      "PERF_CPU_ONLY_SLOW"
+    ]
+  },
+  "no-gpu-linux|qwen3-vl-8b-instruct@q8_0": {
+    "level": "blocked",
+    "prep": [
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": [
+      "GPU_NOT_FOUND"
+    ]
+  },
+  "no-gpu-linux|siglip2-so400m-384@onnx-fp16": {
+    "level": "ok",
+    "prep": [
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": []
+  },
+  "no-gpu-linux|siglip2-so400m-384@onnx-fp16-cpu": {
+    "level": "ok",
+    "prep": [
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": []
+  },
+  "rtx4060-laptop|fixture-nc-vlm@q4": {
+    "level": "ok",
+    "prep": [
+      "RUNTIME_PACK_MISSING",
+      "MODEL_NOT_INSTALLED",
+      "LICENSE_CONSENT_REQUIRED"
+    ],
+    "reasons": []
+  },
+  "rtx4060-laptop|qwen3-embedding-0.6b@q8_0": {
+    "level": "ok",
+    "reasons": [],
+    "prep": [
+      "RUNTIME_PACK_MISSING",
+      "MODEL_NOT_INSTALLED"
+    ]
+  },
+  "rtx4060-laptop|qwen3-vl-2b-instruct@q4_k_m": {
+    "level": "ok",
+    "prep": [
+      "RUNTIME_PACK_MISSING",
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": []
+  },
+  "rtx4060-laptop|qwen3-vl-4b-instruct@q4_k_m": {
+    "level": "ok",
+    "prep": [
+      "RUNTIME_PACK_MISSING",
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": []
+  },
+  "rtx4060-laptop|qwen3-vl-8b-instruct@q4_k_m": {
+    "level": "degraded",
+    "prep": [
+      "RUNTIME_PACK_MISSING",
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": [
+      "VRAM_SEQUENTIAL"
+    ]
+  },
+  "rtx4060-laptop|qwen3-vl-8b-instruct@q5_k_m": {
+    "level": "degraded",
+    "prep": [
+      "RUNTIME_PACK_MISSING",
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": [
+      "VRAM_OFFLOAD"
+    ]
+  },
+  "rtx4060-laptop|qwen3-vl-8b-instruct@q8_0": {
+    "level": "degraded",
+    "prep": [
+      "RUNTIME_PACK_MISSING",
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": [
+      "VRAM_OFFLOAD"
+    ]
+  },
+  "rtx4060-laptop|siglip2-so400m-384@onnx-fp16": {
+    "level": "ok",
+    "prep": [
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": []
+  },
+  "rtx4060-laptop|siglip2-so400m-384@onnx-fp16-cpu": {
+    "level": "ok",
+    "prep": [
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": []
+  },
+  "rtx5070ti-win11|fixture-nc-vlm@q4": {
+    "level": "ok",
+    "prep": [
+      "RUNTIME_PACK_MISSING",
+      "MODEL_NOT_INSTALLED",
+      "LICENSE_CONSENT_REQUIRED"
+    ],
+    "reasons": []
+  },
+  "rtx5070ti-win11|qwen3-embedding-0.6b@q8_0": {
+    "level": "ok",
+    "reasons": [],
+    "prep": [
+      "RUNTIME_PACK_MISSING",
+      "MODEL_NOT_INSTALLED"
+    ]
+  },
+  "rtx5070ti-win11|qwen3-vl-2b-instruct@q4_k_m": {
+    "level": "ok",
+    "prep": [
+      "RUNTIME_PACK_MISSING",
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": []
+  },
+  "rtx5070ti-win11|qwen3-vl-4b-instruct@q4_k_m": {
+    "level": "ok",
+    "prep": [
+      "RUNTIME_PACK_MISSING",
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": []
+  },
+  "rtx5070ti-win11|qwen3-vl-8b-instruct@q4_k_m": {
+    "level": "ok",
+    "prep": [
+      "RUNTIME_PACK_MISSING",
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": []
+  },
+  "rtx5070ti-win11|qwen3-vl-8b-instruct@q5_k_m": {
+    "level": "ok",
+    "prep": [
+      "RUNTIME_PACK_MISSING",
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": []
+  },
+  "rtx5070ti-win11|qwen3-vl-8b-instruct@q8_0": {
+    "level": "ok",
+    "prep": [
+      "RUNTIME_PACK_MISSING",
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": []
+  },
+  "rtx5070ti-win11|siglip2-so400m-384@onnx-fp16": {
+    "level": "ok",
+    "prep": [
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": []
+  },
+  "rtx5070ti-win11|siglip2-so400m-384@onnx-fp16-cpu": {
+    "level": "ok",
+    "prep": [
+      "MODEL_NOT_INSTALLED"
+    ],
+    "reasons": []
+  }
 }

@@ -76,6 +76,20 @@ test.describe("big library", () => {
   });
 });
 
+test("[SRCH-UI-011] 回歸：滑鼠點一下結果就打開照片；已經在選取時，點一下是加選（驗證第 2 輪）", async ({ page }) => {
+  await page.goto("/search?q=photo");
+  const hits = page.getByTestId("search-result");
+  await expect(hits.nth(2)).toBeVisible();
+  await hits.nth(1).click();
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await hits.nth(0).click({ modifiers: ["Control"] });
+  await hits.nth(2).click();
+  await expect(page.getByTestId("batch-bar")).toContainText("已選 2 張");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
 test("[E2E-SEL-002] Shift 範圍選取 → 標籤、類別寫 review；「移到資料夾」產生計畫並導到核准頁", async ({ page, request }) => {
   await page.goto("/search?q=photo");
   const hits = page.getByTestId("search-result");
@@ -90,15 +104,16 @@ test("[E2E-SEL-002] Shift 範圍選取 → 標籤、類別寫 review；「移到
   await bar.getByRole("button", { name: "加上標籤" }).click();
   await expect(page.getByRole("status").filter({ hasText: "已更新 10 張" })).toBeVisible();
   // category
-  await bar.getByRole("combobox", { name: "類別" }).selectOption({ label: "寵物" });
+  await bar.getByRole("combobox", { name: "類別" }).selectOption({ label: "動物" });
   await bar.getByRole("button", { name: "套用類別" }).click();
   await expect(page.getByRole("status").filter({ hasText: "已更新 10 張" })).toBeVisible();
   for (const id of ids) {
     await expect.poll(async () => (await (await request.get(`/api/v1/assets/${id}`)).json()).human_label?.category).toBe("pets");
   }
   // move to folder → a draft plan, then the approval page
-  await bar.getByRole("button", { name: "移到資料夾…" }).click();
-  const dlg = page.getByRole("dialog", { name: "移到資料夾" });
+  // it copies by default, and says so (audit round 57: 「移到」 contradicted 整理's 「複製，原檔不動」)
+  await bar.getByRole("button", { name: "複製到資料夾…" }).click();
+  const dlg = page.getByRole("dialog", { name: "複製到資料夾" });
   await dlg.getByLabel("子資料夾").fill("精選");
   await dlg.getByRole("button", { name: "建立計畫" }).click();
   await expect(page).toHaveURL(/\/plans\//);
@@ -123,4 +138,34 @@ test.describe("planner chips", () => {
     await expect(date).toHaveCount(0);
     await expect(page.getByTestId("result-count")).not.toContainText(api.total.toLocaleString("en-US"));
   });
+});
+
+test("[SRCH-UI-026] 回歸：批次 ★ 復原後焦點回到 ★，在頁面任何地方按 Esc 都會取消選取（驗證第 55 輪）", async ({ page }) => {
+  await page.goto("/search?q=photo");
+  const hits = page.getByTestId("search-result");
+  await hits.nth(0).click({ modifiers: ["ControlOrMeta"] });
+  await hits.nth(1).click({ modifiers: ["ControlOrMeta"] });
+  const bar = page.getByTestId("batch-bar");
+  await expect(bar).toContainText("已選 2 張");
+  const star = bar.getByRole("button", { name: "加入收藏" });
+  await star.click();
+  await bar.getByRole("button", { name: "復原" }).click();
+  await expect(bar.getByText("已復原 2 張")).toBeVisible();
+  await expect(star).toBeFocused();
+  await page.locator("body").click({ position: { x: 5, y: 5 } }); // somewhere that is not the results
+  await page.keyboard.press("Escape");
+  await expect(bar).toHaveCount(0);
+});
+
+test("[SRCH-UI-027] 回歸：「複製到資料夾」說原檔不動、打開時焦點在對話框裡、Esc 回到按鈕（驗證第 58 輪）", async ({ page }) => {
+  await page.goto("/search?q=photo");
+  await page.getByTestId("search-result").nth(0).click({ modifiers: ["ControlOrMeta"] });
+  const trigger = page.getByTestId("batch-bar").getByRole("button", { name: "複製到資料夾…" });
+  await trigger.click();
+  const dlg = page.getByRole("dialog", { name: "複製到資料夾" });
+  await expect(dlg).toContainText("原檔不動");
+  await expect.poll(() => dlg.evaluate((el) => el.contains(document.activeElement))).toBe(true);
+  await page.keyboard.press("Escape");
+  await expect(dlg).toHaveCount(0);
+  await expect(trigger).toBeFocused();
 });

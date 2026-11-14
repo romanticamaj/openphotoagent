@@ -101,16 +101,36 @@ def worker_rpc(st: AppState, worker_id: str, kind: str, payload: dict[str, Any],
     raise HTTPException(504, detail={"code": "WORKER_OFFLINE"})
 
 
-@router.get("/fs/browse")
-def browse(root: str, req: Request, path: str = "") -> dict[str, Any]:
-    st = _st(req)
+def _root_owner(st: AppState, root: str) -> str:
     with st.engine.begin() as c:
         w = c.execute(select(worker.c.id, worker.c.roots)).all()
     owner = next((wid for wid, rs in w if any(r["alias"] == root for r in rs)), None)
     if owner is None:
         raise HTTPException(409, detail={"code": "FS_ROOT_NOT_ALLOWED"})
-    res = worker_rpc(st, owner, "browse", {"root_alias": root, "path": path})
+    return str(owner)
+
+
+@router.get("/fs/browse")
+def browse(root: str, req: Request, path: str = "") -> dict[str, Any]:
+    st = _st(req)
+    res = worker_rpc(st, _root_owner(st, root), "browse", {"root_alias": root, "path": path})
     return {"root": root, "path": path, "dirs": res["dirs"]}
+
+
+@router.get("/fs/preview")
+def folder_preview(root: str, req: Request, path: str = "") -> dict[str, Any]:
+    """What a folder holds, before it is added (ADR-0029). A big folder takes the worker a few seconds to count."""
+    st = _st(req)
+    res = worker_rpc(st, _root_owner(st, root), "folder_preview", {"root_alias": root, "path": path}, timeout_s=30.0)
+    return {"root": root, "path": path, **res}
+
+
+@router.get("/fs/thumb")
+def folder_thumb(root: str, path: str, req: Request) -> dict[str, Any]:
+    """A sample photo of a folder that is not in the library: made on the worker, kept nowhere (ADR-0029)."""
+    st = _st(req)
+    owner = _root_owner(st, root)
+    return dict(worker_rpc(st, owner, "folder_thumb", {"root_alias": root, "path": path}, timeout_s=15.0))
 
 
 @router.post("/sources", status_code=201)
@@ -145,8 +165,46 @@ def create_source(body: SourceIn, req: Request) -> dict[str, Any]:
 
 @router.get("/sources")
 def list_sources(req: Request) -> list[dict[str, Any]]:
+    """The library's folders, each with its photos and how many have an AI result (IMP-033)."""
+    from opagent_db.schema import asset_location, search_doc
+
     with _st(req).engine.begin() as c:
-        return [dict(r._mapping) for r in c.execute(select(source.c.id, source.c.root_alias, source.c.sub_path))]
+        photos = func.count(func.distinct(asset_location.c.asset_id))
+        analysed = func.count(func.distinct(search_doc.c.asset_id)).filter(search_doc.c.category.is_not(None))
+        rows = c.execute(
+            select(
+                source.c.id, source.c.root_alias, source.c.sub_path, photos.label("photos"), analysed.label("analysed")
+            )
+            .select_from(source)
+            .outerjoin(
+                asset_location,
+                (asset_location.c.source_id == source.c.id) & asset_location.c.missing.is_(False),
+            )
+            .outerjoin(search_doc, search_doc.c.asset_id == asset_location.c.asset_id)
+            .group_by(source.c.id)
+            .order_by(source.c.root_alias, source.c.sub_path)
+        )
+        out = [dict(r._mapping) for r in rows]
+        # a folder's whole tree, each photo once: its subfolders added later are folded into it on 匯入 (IMP-036)
+        for s in out:
+            inner = [
+                o["id"]
+                for o in out
+                if o["root_alias"] == s["root_alias"]
+                and (
+                    s["sub_path"] == ""
+                    or o["sub_path"] == s["sub_path"]
+                    or o["sub_path"].startswith(s["sub_path"] + "/")
+                )
+            ]
+            t = c.execute(
+                select(photos, analysed)
+                .select_from(asset_location)
+                .outerjoin(search_doc, search_doc.c.asset_id == asset_location.c.asset_id)
+                .where(asset_location.c.source_id.in_(inner), asset_location.c.missing.is_(False))
+            ).one()
+            s["tree_photos"], s["tree_analysed"] = int(t[0]), int(t[1])
+        return out
 
 
 @router.post("/preflight")
@@ -177,6 +235,12 @@ def start_job(st: AppState, c: Any, body: JobIn, extra: dict[str, Any] | None = 
     s = c.execute(select(source).where(source.c.id == body.source_id)).first()
     if s is None:
         raise HTTPException(404, detail={"code": "NOT_FOUND"})
+    from . import organize
+
+    try:
+        organize.preset(body.preset, body.categories, c)
+    except KeyError:  # found only when the scan ended, it left a job nothing could finish or cancel (ORG-011)
+        raise HTTPException(404, detail={"code": "PRESET_NOT_FOUND", "preset": body.preset}) from None
     from .preflight import enforce
 
     enforce(c, st, "job.start", body.model_dump())  # server-side enforcement (PF-073)
@@ -193,7 +257,12 @@ def start_job(st: AppState, c: Any, body: JobIn, extra: dict[str, Any] | None = 
     )
     from .operations import ensure_operation
 
-    ensure_operation(c, st.clock, jid, "job.label", {"kind": "job", "id": jid})  # visible in Activity (OP-001)
+    # visible in Activity (OP-001); job_kind tells 「AI 分析」 from 「整理」 (OP-020)
+    # uses_ai: 依日期 asks no model; the card says 「整理 · 準備中…」, not 「AI 分析 · 載入 AI 模型」 (OP-025)
+    uses_ai = organize.task_config_for(body.preset, body.categories, c) is not None
+    ensure_operation(
+        c, st.clock, jid, "job.label", {"kind": "job", "id": jid, "job_kind": body.kind, "uses_ai": uses_ai}
+    )
     # never index the output folder when it lives inside the source (SCAN-024)
     inside = body.target.root_alias == s.root_alias and body.target.sub_path.strip("/")
     from .routes_viewer import scan_task
@@ -487,9 +556,20 @@ def get_preview(preview_id: str, req: Request) -> dict[str, Any]:
             raise HTTPException(404, detail={"code": "NOT_FOUND"})
         ready = bool(j.params.get("preview_ready"))
         items = _preview_items(c, j, None, None) if ready else []
+        from opagent_db.schema import job_item
+
+        n_total = c.execute(select(func.count()).where(job_item.c.job_id == preview_id)).scalar_one()
+        n_done = c.execute(
+            select(func.count()).where(
+                job_item.c.job_id == preview_id, job_item.c.status.in_(("done", "cached", "failed", "skipped"))
+            )
+        ).scalar_one()
+        elapsed = (_st(req).clock.now() - j.created_at).total_seconds() if j.created_at else 0.0
     return {
         "id": preview_id,
         "status": "ready" if ready else "running",
+        # how far the samples are, for the wizard while it waits (ORG-013, invariant 9)
+        "progress": {"done": int(n_done), "total": int(n_total), "elapsed_s": round(max(0.0, elapsed), 1)},
         "items": items,
         "estimate": j.params.get("estimate"),  # library-wide forecast (ORG-007); null until the worker reports
     }
@@ -572,6 +652,7 @@ def get_plan(plan_id: str, req: Request) -> dict[str, Any]:
         p = c.execute(select(output_plan).where(output_plan.c.id == plan_id)).first()
         if p is None:
             raise HTTPException(404, detail={"code": "NOT_FOUND"})
+        params = c.execute(select(job.c.params).where(job.c.id == p.job_id)).scalar() or {}
         acts = c.execute(
             select(output_action).where(output_action.c.plan_id == plan_id).order_by(output_action.c.seq)
         ).all()
@@ -580,6 +661,7 @@ def get_plan(plan_id: str, req: Request) -> dict[str, Any]:
         "job_id": p.job_id,
         "status": p.status,
         "summary": p.summary,
+        "discarded": params.get("outcome") == "discarded",  # 捨棄 (ORG-018): a draft that can no longer be approved
         "outcome": _outcome(acts) if p.status not in ("draft", "superseded") else None,
         "actions": [{k: v for k, v in a._mapping.items() if k != "plan_id"} for a in acts],
     }
@@ -617,12 +699,33 @@ class ApproveIn(BaseModel):
     confirm_text: str | None = None
 
 
+@router.post("/output-plans/{plan_id}/discard")
+def discard(plan_id: str, req: Request) -> dict[str, Any]:
+    """捨棄計畫 (ORG-018): a plan waiting for approval is closed without output, through the existing 「只標註不輸出」
+    edge (awaiting_approval -> completed, CORE-SM-005). Nothing on disk is touched and nothing needs undoing; the plan
+    stays a draft and the job says it was discarded. Again on a discarded plan: nothing more happens."""
+    st = _st(req)
+    with st.engine.begin() as c:
+        p, j = _plan_job(c, plan_id)
+        params = dict(j.params or {})
+        if params.get("outcome") == "discarded":
+            return {"id": plan_id, "discarded": True}
+        if j.status != "awaiting_approval" or p.status != "draft":
+            raise HTTPException(409, detail={"code": "PLAN_NOT_DRAFT", "status": p.status})
+        set_job_status(c, j.id, JobStatus.completed, clock=st.clock, finished_at=st.clock.now())
+        c.execute(update(job).where(job.c.id == j.id).values(params={**params, "outcome": "discarded"}))
+    return {"id": plan_id, "discarded": True}
+
+
 @router.post("/output-plans/{plan_id}/approve")
 def approve(plan_id: str, req: Request, body: ApproveIn | None = None) -> dict[str, Any]:
     st = _st(req)
     body = body or ApproveIn()
     with st.engine.begin() as c:
         p, j = _plan_job(c, plan_id)
+        if (j.params or {}).get("outcome") == "discarded" or j.status != "awaiting_approval":
+            # a discarded draft stays a draft (CORE-SM-005): the job's state, not the plan's, says it is closed
+            raise HTTPException(409, detail={"code": "PLAN_DISCARDED", "status": j.status})
         if p.status != "draft":
             raise HTTPException(409, detail={"code": "PLAN_NOT_DRAFT", "status": p.status})
         moves = c.execute(

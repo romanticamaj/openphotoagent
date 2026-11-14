@@ -1,4 +1,4 @@
-"""Generate packages/core/src/opagent_core/lunar_table.py (ADR-0008): Gregorian date of 正月初一 per year,
+"""Generate packages/core/src/opagent_core/lunar_table.py (ADR-0008): Gregorian dates of 正月初一 and 中秋 per year,
 1900–2099, from the ``lunardate`` package (dev-time only; core stays pure — the table is plain Python data).
 
     uv run --with lunardate python tools/gen_lunar_table.py [--check]
@@ -26,12 +26,19 @@ def render() -> str:
         d = LunarDate(y, 1, 1).toSolarDate()
         rows.append(f"    ({d.month}, {d.day}),  # {y}")
     rows.append(")")
+    # holidays on the lunar calendar (SRCH-PLAN-028, SRCH-PLAN-030)
+    for name, (lm, ld) in (("MID_AUTUMN", (8, 15)), ("DRAGON_BOAT", (5, 5)), ("LANTERN", (1, 15)), ("QIXI", (7, 7))):
+        rows += ["", f"{name}: tuple[tuple[int, int], ...] = ("]
+        for y in range(1900, 2100):
+            d = LunarDate(y, lm, ld).toSolarDate()
+            rows.append(f"    ({d.month}, {d.day}),  # {y}")
+        rows.append(")")
     return "\n".join(rows) + "\n"
 
 
 if __name__ == "__main__":
     text = render()
     if "--check" in sys.argv:
-        raise SystemExit(0 if OUT.read_text() == text else 1)
-    OUT.write_text(text)
+        raise SystemExit(0 if OUT.read_text(encoding="utf-8") == text else 1)
+    OUT.write_text(text, encoding="utf-8")
     print(f"wrote {OUT}")

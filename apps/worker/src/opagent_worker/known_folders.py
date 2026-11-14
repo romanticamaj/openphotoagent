@@ -10,6 +10,7 @@ from __future__ import annotations
 import ntpath
 import posixpath
 import subprocess
+import sys
 from collections.abc import Callable
 
 FOLDERID_PICTURES = "{33E28130-4E1E-4676-835A-98395C3BC3BB}"
@@ -17,6 +18,8 @@ NAME = {"zh-TW": "OpenPhotoAgent 整理結果", "en": "OpenPhotoAgent Sorted"}
 
 
 def _win_known_folder(fid: str) -> str:  # pragma: no cover - Windows only (CI OS matrix)
+    if sys.platform != "win32":  # also tells mypy that windll exists below, on every checking OS
+        raise OSError("known folders are a Windows API")
     import ctypes
     import uuid
     from ctypes import wintypes
@@ -27,13 +30,13 @@ def _win_known_folder(fid: str) -> str:  # pragma: no cover - Windows only (CI O
     u = uuid.UUID(fid)
     g = GUID(u.fields[0], u.fields[1], u.fields[2], (ctypes.c_ubyte * 8)(*u.bytes[8:]))
     out = ctypes.c_wchar_p()
-    shell32 = ctypes.windll.shell32  # type: ignore[attr-defined]
+    shell32 = ctypes.windll.shell32
     if shell32.SHGetKnownFolderPath(ctypes.byref(g), 0, None, ctypes.byref(out)) != 0:
         raise OSError("SHGetKnownFolderPath failed")
     try:
         return str(out.value)
     finally:
-        ctypes.windll.ole32.CoTaskMemFree(out)  # type: ignore[attr-defined]
+        ctypes.windll.ole32.CoTaskMemFree(out)
 
 
 def _run(cmd: list[str]) -> str:

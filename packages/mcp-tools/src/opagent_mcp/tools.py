@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from typing import Any
 
 SERVER_VERSION = "0.3.0"
+MANIFEST_VERSION = "1.0.0"  # the tool manifest (VERSIONING §4): a removed/renamed tool or new required param = major
 SCHEMA_DIALECT = "https://json-schema.org/draft/2020-12/schema"
 
 UNTRUSTED_TEXT: dict[str, Any] = {
@@ -54,6 +55,11 @@ PHOTO_FILTERS: dict[str, Any] = {
                 "from": {"type": "string", "format": "date", "description": "含當日，workspace 時區"},
                 "to": {"type": "string", "format": "date", "description": "不含當日"},
             },
+        },
+        "month_day": {
+            "type": "string",
+            "pattern": "^(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$",
+            "description": "MM-DD：每年的這一天（本地時間）",
         },
         "place": {
             "type": "object",

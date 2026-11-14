@@ -3,6 +3,7 @@ and the shell agree. ``OPAGENT_HOME`` puts everything under one folder (portable
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Mapping
 from pathlib import PurePosixPath, PureWindowsPath
 
@@ -52,3 +53,7 @@ def app_dirs(os_name: str, env: Mapping[str, str], home: str) -> dict[str, str]:
 
 
 _KEYS = ("data", "config", "models", "packs", "cache", "logs", "backups")
+
+
+def current_os() -> str:
+    return {"win32": "windows", "darwin": "macos"}.get(sys.platform, "linux")

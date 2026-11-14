@@ -1,0 +1,1010 @@
+{
+  "properties": {
+    "gpu_classes": {
+      "$defs": {
+        "GpuClass": {
+          "additionalProperties": false,
+          "properties": {
+            "bandwidth_gbs": {
+              "title": "Bandwidth Gbs",
+              "type": "number"
+            },
+            "compute_capability": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Compute Capability"
+            },
+            "fp16_tflops": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Fp16 Tflops"
+            },
+            "id": {
+              "title": "Id",
+              "type": "string"
+            },
+            "match": {
+              "items": {
+                "type": "string"
+              },
+              "title": "Match",
+              "type": "array"
+            }
+          },
+          "required": [
+            "id",
+            "match",
+            "bandwidth_gbs"
+          ],
+          "title": "GpuClass",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "classes": {
+          "items": {
+            "$ref": "#/properties/gpu_classes/$defs/GpuClass"
+          },
+          "title": "Classes",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "classes"
+      ],
+      "title": "GpuClasses",
+      "type": "object"
+    },
+    "model": {
+      "$defs": {
+        "FileRef": {
+          "additionalProperties": false,
+          "properties": {
+            "path": {
+              "title": "Path",
+              "type": "string"
+            },
+            "repo": {
+              "title": "Repo",
+              "type": "string"
+            },
+            "role": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Role"
+            },
+            "sha256": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Sha256"
+            },
+            "size": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Size"
+            }
+          },
+          "required": [
+            "repo",
+            "path"
+          ],
+          "title": "FileRef",
+          "type": "object"
+        },
+        "License": {
+          "additionalProperties": false,
+          "properties": {
+            "biometric": {
+              "default": false,
+              "title": "Biometric",
+              "type": "boolean"
+            },
+            "code": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Code"
+            },
+            "commercial_use": {
+              "default": false,
+              "title": "Commercial Use",
+              "type": "boolean"
+            },
+            "redistributable": {
+              "default": false,
+              "title": "Redistributable",
+              "type": "boolean"
+            },
+            "requires_acceptance": {
+              "default": false,
+              "title": "Requires Acceptance",
+              "type": "boolean"
+            },
+            "spdx": {
+              "title": "Spdx",
+              "type": "string"
+            },
+            "url": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Url"
+            },
+            "weights": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Weights"
+            }
+          },
+          "required": [
+            "spdx"
+          ],
+          "title": "License",
+          "type": "object"
+        },
+        "Requires": {
+          "additionalProperties": false,
+          "properties": {
+            "accel_any": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Accel Any",
+              "type": "array"
+            },
+            "min_compute_capability": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Min Compute Capability"
+            },
+            "min_ram_gb": {
+              "default": 0.0,
+              "title": "Min Ram Gb",
+              "type": "number"
+            },
+            "os": {
+              "default": [
+                "windows",
+                "macos",
+                "linux"
+              ],
+              "items": {
+                "enum": [
+                  "windows",
+                  "macos",
+                  "linux"
+                ],
+                "type": "string"
+              },
+              "title": "Os",
+              "type": "array"
+            },
+            "runtime_pack": {
+              "default": [],
+              "items": {
+                "type": "string"
+              },
+              "title": "Runtime Pack",
+              "type": "array"
+            }
+          },
+          "title": "Requires",
+          "type": "object"
+        },
+        "Source": {
+          "additionalProperties": false,
+          "properties": {
+            "hf_repo": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Hf Repo"
+            },
+            "revision": {
+              "default": "main",
+              "title": "Revision",
+              "type": "string"
+            }
+          },
+          "title": "Source",
+          "type": "object"
+        },
+        "Variant": {
+          "additionalProperties": false,
+          "properties": {
+            "cpu_moe_layers": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Cpu Moe Layers"
+            },
+            "device": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Device"
+            },
+            "endpoint": {
+              "anyOf": [
+                {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Endpoint"
+            },
+            "files": {
+              "default": [],
+              "items": {
+                "$ref": "#/properties/model/$defs/FileRef"
+              },
+              "title": "Files",
+              "type": "array"
+            },
+            "id": {
+              "pattern": "^[a-z0-9][a-z0-9._-]*$",
+              "title": "Id",
+              "type": "string"
+            },
+            "launch": {
+              "anyOf": [
+                {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Launch"
+            },
+            "perf_prior": {
+              "anyOf": [
+                {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Perf Prior"
+            },
+            "quant": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Quant"
+            },
+            "ram_gb": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Ram Gb"
+            },
+            "recommended_batch": {
+              "default": 1,
+              "title": "Recommended Batch",
+              "type": "integer"
+            },
+            "requires": {
+              "$ref": "#/properties/model/$defs/Requires",
+              "default": {
+                "accel_any": [],
+                "min_compute_capability": null,
+                "min_ram_gb": 0.0,
+                "os": [
+                  "windows",
+                  "macos",
+                  "linux"
+                ],
+                "runtime_pack": []
+              }
+            },
+            "revision": {
+              "default": "main",
+              "title": "Revision",
+              "type": "string"
+            },
+            "runtime": {
+              "enum": [
+                "vllm",
+                "llama.cpp",
+                "ollama",
+                "transformers",
+                "onnx",
+                "openai-compatible",
+                "mlx"
+              ],
+              "title": "Runtime",
+              "type": "string"
+            },
+            "trust_remote_code": {
+              "default": false,
+              "title": "Trust Remote Code",
+              "type": "boolean"
+            },
+            "vram_gb": {
+              "$ref": "#/properties/model/$defs/VramSpec",
+              "default": {
+                "kv_per_1k_tokens": 0.0,
+                "mmproj": 0.0,
+                "runtime_overhead": 0.0,
+                "weights": 0.0
+              }
+            }
+          },
+          "required": [
+            "id",
+            "runtime"
+          ],
+          "title": "Variant",
+          "type": "object"
+        },
+        "VramSpec": {
+          "additionalProperties": false,
+          "properties": {
+            "kv_per_1k_tokens": {
+              "default": 0.0,
+              "title": "Kv Per 1K Tokens",
+              "type": "number"
+            },
+            "mmproj": {
+              "default": 0.0,
+              "title": "Mmproj",
+              "type": "number"
+            },
+            "runtime_overhead": {
+              "default": 0.0,
+              "title": "Runtime Overhead",
+              "type": "number"
+            },
+            "weights": {
+              "default": 0.0,
+              "title": "Weights",
+              "type": "number"
+            }
+          },
+          "title": "VramSpec",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "capabilities": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Capabilities",
+          "type": "array"
+        },
+        "context_length": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Context Length"
+        },
+        "defaults": {
+          "additionalProperties": true,
+          "default": {},
+          "title": "Defaults",
+          "type": "object"
+        },
+        "display_name": {
+          "title": "Display Name",
+          "type": "string"
+        },
+        "embedding": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Embedding"
+        },
+        "family": {
+          "title": "Family",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "image": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "type": "integer"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Image"
+        },
+        "kind": {
+          "enum": [
+            "vlm",
+            "embedding",
+            "text_embedder",
+            "tagger",
+            "captioner",
+            "face_detector",
+            "face_embedder",
+            "face_quality",
+            "ocr",
+            "reranker"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "languages": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Languages",
+          "type": "array"
+        },
+        "license": {
+          "$ref": "#/properties/model/$defs/License"
+        },
+        "max_images_per_request": {
+          "default": 1,
+          "title": "Max Images Per Request",
+          "type": "integer"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        },
+        "privacy": {
+          "additionalProperties": true,
+          "default": {},
+          "title": "Privacy",
+          "type": "object"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "source": {
+          "$ref": "#/properties/model/$defs/Source",
+          "default": {
+            "hf_repo": null,
+            "revision": "main"
+          }
+        },
+        "structured_output": {
+          "default": "none",
+          "enum": [
+            "none",
+            "json_object",
+            "json_schema",
+            "grammar"
+          ],
+          "title": "Structured Output",
+          "type": "string"
+        },
+        "supports_logprobs": {
+          "default": false,
+          "title": "Supports Logprobs",
+          "type": "boolean"
+        },
+        "tagger": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tagger"
+        },
+        "tasks_default_rank": {
+          "additionalProperties": {
+            "type": "integer"
+          },
+          "default": {},
+          "title": "Tasks Default Rank",
+          "type": "object"
+        },
+        "tiers": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Tiers",
+          "type": "array"
+        },
+        "variants": {
+          "items": {
+            "$ref": "#/properties/model/$defs/Variant"
+          },
+          "minItems": 1,
+          "title": "Variants",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "display_name",
+        "family",
+        "kind",
+        "capabilities",
+        "license",
+        "variants"
+      ],
+      "title": "ModelSpec",
+      "type": "object"
+    },
+    "pins": {
+      "$defs": {
+        "Pin": {
+          "additionalProperties": false,
+          "properties": {
+            "files": {
+              "items": {
+                "$ref": "#/properties/pins/$defs/PinnedFile"
+              },
+              "minItems": 1,
+              "title": "Files",
+              "type": "array"
+            },
+            "model": {
+              "title": "Model",
+              "type": "string"
+            },
+            "revision": {
+              "title": "Revision",
+              "type": "string"
+            },
+            "variant": {
+              "title": "Variant",
+              "type": "string"
+            }
+          },
+          "required": [
+            "model",
+            "variant",
+            "revision",
+            "files"
+          ],
+          "title": "Pin",
+          "type": "object"
+        },
+        "PinnedFile": {
+          "additionalProperties": false,
+          "properties": {
+            "lfs_oid": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Lfs Oid"
+            },
+            "path": {
+              "title": "Path",
+              "type": "string"
+            },
+            "sha256": {
+              "title": "Sha256",
+              "type": "string"
+            },
+            "size": {
+              "exclusiveMinimum": 0,
+              "title": "Size",
+              "type": "integer"
+            }
+          },
+          "required": [
+            "path",
+            "size",
+            "sha256"
+          ],
+          "title": "PinnedFile",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "pins": {
+          "default": [],
+          "items": {
+            "$ref": "#/properties/pins/$defs/Pin"
+          },
+          "title": "Pins",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        }
+      },
+      "title": "PinsLock",
+      "type": "object"
+    },
+    "runtime_pack": {
+      "$defs": {
+        "PackPlatform": {
+          "additionalProperties": false,
+          "properties": {
+            "arch": {
+              "enum": [
+                "x86_64",
+                "arm64"
+              ],
+              "title": "Arch",
+              "type": "string"
+            },
+            "kind": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Kind"
+            },
+            "os": {
+              "enum": [
+                "windows",
+                "macos",
+                "linux"
+              ],
+              "title": "Os",
+              "type": "string"
+            },
+            "sha256": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Sha256"
+            },
+            "size": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Size"
+            },
+            "url": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Url"
+            }
+          },
+          "required": [
+            "os",
+            "arch"
+          ],
+          "title": "PackPlatform",
+          "type": "object"
+        },
+        "PackRequires": {
+          "additionalProperties": false,
+          "properties": {
+            "compute_capability_min": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Compute Capability Min"
+            },
+            "cuda_architectures": {
+              "anyOf": [
+                {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Cuda Architectures"
+            },
+            "nvidia_driver_min": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Nvidia Driver Min"
+            }
+          },
+          "title": "PackRequires",
+          "type": "object"
+        }
+      },
+      "additionalProperties": false,
+      "properties": {
+        "advanced": {
+          "default": false,
+          "title": "Advanced",
+          "type": "boolean"
+        },
+        "builtin": {
+          "default": false,
+          "title": "Builtin",
+          "type": "boolean"
+        },
+        "id": {
+          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+          "title": "Id",
+          "type": "string"
+        },
+        "install_dir": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Install Dir"
+        },
+        "license": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "default": {},
+          "title": "License",
+          "type": "object"
+        },
+        "notes": {
+          "default": "",
+          "title": "Notes",
+          "type": "string"
+        },
+        "platforms": {
+          "items": {
+            "$ref": "#/properties/runtime_pack/$defs/PackPlatform"
+          },
+          "title": "Platforms",
+          "type": "array"
+        },
+        "provides": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Provides",
+          "type": "object"
+        },
+        "requires": {
+          "$ref": "#/properties/runtime_pack/$defs/PackRequires",
+          "default": {
+            "compute_capability_min": null,
+            "cuda_architectures": null,
+            "nvidia_driver_min": null
+          }
+        },
+        "schema_version": {
+          "const": 1,
+          "default": 1,
+          "title": "Schema Version",
+          "type": "integer"
+        },
+        "self_test": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Self Test"
+        },
+        "size_est": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Size Est"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        }
+      },
+      "required": [
+        "id",
+        "provides",
+        "platforms"
+      ],
+      "title": "RuntimePack",
+      "type": "object"
+    }
+  },
+  "required": [
+    "gpu_classes",
+    "model",
+    "pins",
+    "runtime_pack"
+  ],
+  "type": "object"
+}

@@ -1,4 +1,4 @@
-import { useId, type ButtonHTMLAttributes, type MouseEvent } from "react";
+import { useId, type ButtonHTMLAttributes, type MouseEvent, type Ref } from "react";
 
 /** Reason a control is unavailable — rendered next to it (invariant 8: never a bare disabled button). */
 export type DisabledReason = { code: string; message: string };
@@ -6,6 +6,8 @@ export type DisabledReason = { code: string; message: string };
 type Props = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "disabled"> & {
   disabledReason?: DisabledReason | null;
   variant?: "primary" | "ghost";
+  /** React 19: a plain prop, passed on to the <button> */
+  ref?: Ref<HTMLButtonElement>;
 };
 
 /**
@@ -35,7 +37,7 @@ export function Button({ disabledReason, variant = "primary", className = "", ch
           }
           onClick?.(e);
         }}
-        className={`rounded-[var(--radius-md)] px-4 py-2 text-sm font-medium aria-disabled:cursor-not-allowed aria-disabled:opacity-50 ${base} ${className}`}
+        className={`rounded-[var(--radius-md)] px-4 py-2 text-sm font-medium aria-disabled:cursor-not-allowed aria-disabled:opacity-50 aria-disabled:grayscale ${base} ${className}`}
       >
         {children}
       </button>

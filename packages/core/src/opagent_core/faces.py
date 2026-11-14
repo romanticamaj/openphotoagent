@@ -20,6 +20,7 @@ THRESHOLDS: dict[str, float] = {  # AuraFace starting values; per embedding spac
     "margin": 0.08,
     "margin_hard": 0.12,  # age_variation / confusable
     "merge": 0.55,
+    "merge_ratio": 0.92,  # ADR-0033: cross-mean / min(intra-mean); one person split >= 0.959, two children <= 0.892
     "find_high": 0.55,
     "find_low": 0.42,
 }
@@ -31,9 +32,18 @@ SKIP_MEDIA = {"document"}
 
 
 # ---- quality (07 §2.2) -------------------------------------------------------
+SMALL_FACE_MIN = 24  # px: embedded from here (ADR-0036; 84% nearest-person right at 24 px, 94% at 32)
+CLUSTER_MIN_SIDE = 32  # px: under this a face never joins grouping, centroids or merge cards (ADR-0036)
+
+
+def small_face(min_side: float | None) -> bool:
+    """A 24-31 px face: embedded, offered only to a person to confirm, for someone named (ADR-0036)."""
+    return min_side is not None and SMALL_FACE_MIN <= min_side < CLUSTER_MIN_SIDE
+
+
 def quality_tier(*, min_side: float, yaw: float, laplacian: float, fiqa: float) -> int:
     """0 reject (bbox only, no embedding) · 1 low (searchable, never automatic) · 2 ok · 3 good."""
-    if min_side < 32 or abs(yaw) > 75 or laplacian < 20:
+    if min_side < SMALL_FACE_MIN or abs(yaw) > 75 or laplacian < 20:
         return 0
     if min_side < 48 or abs(yaw) > 45 or fiqa < 0.3:
         return 1
@@ -156,6 +166,91 @@ def merge_suggestions(
     return out
 
 
+HARD_MIN_SIDE = 60.0  # px: ADR-0035, 68 candidates judged on the reference library
+HARD_BLUR = 50.0  # variance of the Laplacian of the aligned crop (40 -> 50: FACE-FIND-021)
+CANDIDATE_SURE = 0.6  # 「全部都是」 only from here (FACE-FIND-020)
+
+
+def sure_candidate(score: float) -> bool:
+    return score >= CANDIDATE_SURE
+
+
+def faint_candidate(score: float) -> bool:
+    """Under 0.55: shown as 「不太像」, after the likelier ones (FACE-FIND-028)."""
+    return score < CANDIDATE_MIN_UNCONFIRMED
+
+
+def candidate_order(rows: Iterable[tuple[str, float, bool]]) -> list[str]:
+    """(face, score, clear) → the order the candidates are shown: likely, then faint, then hard to judge; best first."""
+    return [f for f, s, clear in sorted(rows, key=lambda r: (not r[2], faint_candidate(r[1]), -r[1], r[0]))]
+
+
+def hard_to_judge(min_side: float | None, blur: float | None) -> bool:
+    """Too small or too soft for a person to say who it is (ADR-0035). The tier says nothing here: it also drops
+    turned heads, which people recognise fine."""
+    return (min_side is not None and min_side < HARD_MIN_SIDE) or (blur is not None and blur < HARD_BLUR)
+
+
+TYPICAL_SHORTLIST = 5
+
+
+def typical_face(
+    vecs: Mapping[str, Sequence[float]], clear: Mapping[str, bool], sharp: Mapping[str, float] | None = None
+) -> str | None:
+    """The face that looks most like the group: of the clear ones closest to the centroid (FACE-UI-017), the
+    sharpest of the first five (FACE-UI-018); when none is clear, the closest of all."""
+    if not vecs:
+        return None
+    n = len(next(iter(vecs.values())))
+    cen = [sum(v[i] for v in vecs.values()) for i in range(n)]
+
+    def cos(v: Sequence[float]) -> float:
+        nv = math.sqrt(sum(x * x for x in v)) or 1.0
+        return sum(a * b for a, b in zip(v, cen, strict=True)) / nv
+
+    pool = [f for f in vecs if clear.get(f)] or list(vecs)
+    near = sorted(sorted(pool), key=lambda f: -cos(vecs[f]))[:TYPICAL_SHORTLIST]
+    if not sharp:
+        return near[0]
+    return max(near, key=lambda f: sharp.get(f, 0.0))
+
+
+MERGE_MIN_GROUP = 3
+
+
+def cohesive_merges(
+    groups: Mapping[str, Sequence[Sequence[float]]],
+    tau: float = THRESHOLDS["merge"],
+    ratio: float = THRESHOLDS["merge_ratio"],
+    min_group: int = MERGE_MIN_GROUP,
+) -> list[tuple[str, str, float]]:
+    """Pairs of groups worth a 「可能是同一人？」 card (ADR-0033): centroids within ``tau`` and the two groups about
+    as alike across as each is inside. Vectors are unit length; only per-group sums and counts are needed:
+    cross-mean = Σa·Σb / (na·nb), intra-mean = (|Σa|² - na) / (na(na-1)). Best ratio first; never merges."""
+    stats = {}
+    for g, vs in groups.items():
+        n = len(vs)
+        if n < min_group:
+            continue
+        s = [sum(col) for col in zip(*vs, strict=True)]
+        sq = sum(x * x for x in s)
+        stats[g] = (s, n, math.sqrt(sq), (sq - n) / (n * (n - 1)))
+    out = []
+    ids = sorted(stats)
+    for i, a in enumerate(ids):
+        sa, na, la, ia = stats[a]
+        for b in ids[i + 1 :]:
+            sb, nb, lb, ib = stats[b]
+            dot = sum(x * y for x, y in zip(sa, sb, strict=True))
+            if not la or not lb or dot / (la * lb) < tau:
+                continue
+            inner = min(ia, ib)
+            r = (dot / (na * nb)) / inner if inner > 0 else 0.0
+            if r >= ratio:
+                out.append((a, b, round(r, 6)))
+    return sorted(out, key=lambda x: (-x[2], x[0], x[1]))
+
+
 def folder_name(name: str) -> str:
     """A person's name as one safe path segment for ``{person}`` (FACE-MGT-005; CORE-TPL rules)."""
     seg = sanitize_segment(name)
@@ -164,18 +259,40 @@ def folder_name(name: str) -> str:
 
 # ---- find this person (07 §2.5) ------------------------------------------------
 def find_tiers(
-    faces: dict[str, tuple[str, float]], t: dict[str, float] = THRESHOLDS
+    faces: dict[str, tuple[str, float]], t: dict[str, float] = THRESHOLDS, small: set[str] | None = None
 ) -> dict[str, list[tuple[str, float]]]:
     """``faces``: face → (asset, best cosine to any reference). An asset scores its best face; 「確定」 ≥ find_high,
-    「可能」 ≥ find_low."""
+    「可能」 ≥ find_low. A small face (ADR-0036) is never 「確定」 on its own."""
+    small = small or set()
     best: dict[str, float] = {}
-    for asset, s in faces.values():
+    sure: dict[str, float] = {}
+    for fid, (asset, s) in faces.items():
         best[asset] = max(s, best.get(asset, -1.0))
+        if fid not in small:
+            sure[asset] = max(s, sure.get(asset, -1.0))
     ranked = sorted(best.items(), key=lambda x: (-x[1], x[0]))
+    yes = {a for a, s in sure.items() if s >= t["find_high"]}
     return {
-        "sure": [(a, s) for a, s in ranked if s >= t["find_high"]],
-        "maybe": [(a, s) for a, s in ranked if t["find_low"] <= s < t["find_high"]],
+        "sure": sorted(((a, sure[a]) for a in yes), key=lambda x: (-x[1], x[0])),
+        "maybe": [(a, s) for a, s in ranked if a not in yes and s >= t["find_low"]],
     }
+
+
+REFERENCE_CAP = 24
+
+
+def candidate_references(
+    rows: Iterable[tuple[str, str, str | None, str | None]], cap: int = REFERENCE_CAP
+) -> list[str]:
+    """``rows``: (face, kind, method, method of the assignment it replaced), newest first. The confirmed faces, then the
+    seed the grouping gave (``cluster``, or a ``merge`` of a ``cluster`` face), at most ``cap`` (ADR-0038). Online
+    auto-assignments are never references: that is the snowball FACE-FIND-003 keeps out."""
+    rows = list(rows)
+    confirmed = [f for f, kind, _m, _p in rows if kind == "confirmed"]
+    seed = [
+        f for f, kind, m, prev in rows if kind == "auto" and (m == "cluster" or (m == "merge" and prev == "cluster"))
+    ]
+    return (confirmed + seed)[:cap]
 
 
 def reference_faces(assignments: Iterable[tuple[str, str]]) -> list[str]:
@@ -221,3 +338,48 @@ def chinese_whispers(
     for n, lab in label.items():
         groups.setdefault(lab, set()).add(n)
     return sorted(groups.values(), key=lambda g: sorted(g)[0])
+
+
+# 「可能也是他」 asks a person to look. At 0.5, two faces in one photo (always two people) pass 1.76% of the time on
+# the reference library; at find_low about 6% (FACE-FIND-014)
+CANDIDATE_MIN = 0.5
+CANDIDATE_MIN_UNCONFIRMED = 0.55  # the group's own faces, wrong ones included, are the references (FACE-FIND-015)
+CANDIDATE_MIN_SMALL = 0.55  # a 24-31 px face (ADR-0036)
+
+
+def candidate_floor(*, confirmed: bool) -> float:
+    return CANDIDATE_MIN if confirmed else CANDIDATE_MIN_UNCONFIRMED
+
+
+def person_candidates(
+    pid: str,
+    scores: dict[str, float],
+    facts: dict[str, tuple[str, str | None, str]],
+    rejected: set[str],
+    low: float = THRESHOLDS["find_low"],
+    margins: Mapping[str, float] | None = None,
+    small: set[str] | None = None,
+    named: bool = True,
+    seed_only: set[str] | None = None,
+) -> list[tuple[str, float]]:
+    """Faces that might be ``pid``, best first. ``facts``: face → (asset, person, state), the person's own faces
+    included. Left out: faces already theirs, ones said not to be them, ones in a photo they are already in (one
+    person, one face per photo), and ones someone confirmed as another person. Unnamed groups are still offered.
+    ``margins``: likeness to this person minus likeness to the closest other group; a face at or under 0 looks
+    more like someone else and is left out (ADR-0034)."""
+    theirs = {a for a, p, s in facts.values() if p == pid and s in ("auto", "confirmed")}
+    out = []
+    for fid, s in scores.items():
+        if fid not in facts or s < low or fid in rejected:
+            continue
+        asset, p, state = facts[fid]
+        if p == pid or asset in theirs or (p is not None and state == "confirmed"):
+            continue
+        if margins is not None and margins.get(fid, 1.0) <= 0:
+            continue
+        if small and fid in small and (not named or s < CANDIDATE_MIN_SMALL):  # ADR-0036
+            continue
+        if seed_only and fid in seed_only and s < CANDIDATE_MIN_UNCONFIRMED:  # reached only through the seed (ADR-0038)
+            continue
+        out.append((fid, s))
+    return sorted(out, key=lambda x: (-x[1], x[0]))
