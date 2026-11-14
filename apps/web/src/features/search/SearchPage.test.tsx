@@ -448,4 +448,17 @@ describe("a page that finds nothing says it once (audit round 123)", () => {
     expect(screen.getByRole("button", { name: "瀏覽分類" })).toBeTruthy(); // the next steps stay
     s.result = null;
   });
+
+  it("[SRCH-UI-053] 回歸：0 張且有被略過的字時，標題旁仍和其他查無結果頁一樣寫「0 張」（驗證第 124 輪：旋轉木馬等 4 頁沒有張數、留下空位）", async () => {
+    s.result = { items: [], facets: {}, total: 0, next_cursor: null, degraded: [], possible_total: 0, possible: [], relaxed: ["旋轉", "木馬"] };
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SearchPage q="旋轉木馬" />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText("找不到符合的照片")).toBeTruthy();
+    expect((await screen.findByTestId("result-count")).textContent).toBe("0 張");
+    expect(screen.queryByText("沒有完全符合的照片")).toBeNull();
+    s.result = null;
+  });
 });

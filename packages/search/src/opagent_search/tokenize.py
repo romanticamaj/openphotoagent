@@ -382,7 +382,9 @@ class Tokenizer:
         for k in [own or "", *list(found)]:
             broader = sorted(b for b, inc in self._includes.items() if k and k in inc)
             links = [*self._suggest.get(k, []), *sorted(self._implies.get(k, set())), *broader]
-            keys += [x for x in links if x not in keys and x != own and x not in unrelated]
+            for x in links:  # once each: 鞦韆 suggests 遊樂場 and is included by it (SRCH-TOK-042, audit round 124)
+                if x not in keys and x != own and x not in unrelated:
+                    keys.append(x)
         return [n for k in keys if (n := self.term_name(k, "zh"))]
 
     def term_name(self, key: str, lang: str) -> str | None:

@@ -198,12 +198,13 @@ export function SearchPage({ q, tag, year, name }: { q: string; tag?: string; ye
           {/* a memory theme's photos are titled with the theme (audit round 83) */}
           {tag && year && !q && chips.some((c) => c.kind === "tag" && c.value === tag) && chips.some((c) => c.kind === "year" && c.value === year) ? t("memories.themeTitle", { year, name: { ...tagNames, ...first?.tag_names }[tag] ?? name ?? tag }) : q ? t("search.resultsFor", { q }) : t("search.results")}
         </h1>
-        {/* nothing found with words set aside: 「找不到」 says it once below (SRCH-UI-052, audit round 123) */}
-        {first && (total > 0 || !first.possible_total) && !(total === 0 && first.relaxed?.length) ? (
+        {/* nothing found with words set aside: 「找不到」 says it once below (SRCH-UI-052), the count reads 「0 張」 as on
+            every page that finds nothing (SRCH-UI-053, audit round 124) */}
+        {first && (total > 0 || !first.possible_total) ? (
           // no count until the answer is here: 「0 張」 flashed before every result (audit round 2); none over
           // 「沒有確定符合的照片」 either, which says it (SRCH-UI-036)
           <span data-testid="result-count" className="tnum text-[var(--text-muted)]">
-            {headerCount(t, total, first.weak ?? 0, Boolean(first.total_capped), i18n.language, first.meaning_only ? [] : first.relaxed)}
+            {headerCount(t, total, first.weak ?? 0, Boolean(first.total_capped), i18n.language, first.meaning_only || total === 0 ? [] : first.relaxed)}
             {first.collapsed ? ` · ${t("search.collapsed", { n: first.collapsed.toLocaleString(i18n.language) })}` : ""}
           </span>
         ) : null}

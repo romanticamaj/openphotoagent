@@ -633,3 +633,15 @@ def test_srch_tok_041_more_foods_and_fruits_offer_their_word():
     for q in ("鳳梨", "藍莓"):
         assert "水果" in tok.related(q), (q, tok.related(q))
     assert "水果" not in tok.related("鳳梨酥") and "食物" in tok.related("鳳梨酥")
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-042")
+def test_srch_tok_042_a_word_is_suggested_once():
+    """回歸 (audit round 124): 鞦韆 both suggests 遊樂場 and is included by it, so 遊樂場 was offered twice and its
+    chip showed twice on five pages. A word is offered once, however many links lead to it."""
+    tok = Tokenizer()
+    for q in ("鞦韆", "盪鞦韆", "swing", "蹺蹺板", "seesaw", "火車", "爬山", "生日派對", "荷花"):
+        got = tok.related(q)
+        assert len(got) == len(set(got)), (q, got)
+    assert tok.related("鞦韆") == ["遊樂場"]
