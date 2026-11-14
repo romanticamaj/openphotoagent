@@ -538,7 +538,7 @@
     "storyEnd": "The end",
     "playAgain": "Play again",
     "storyPlayed": "Played {n} of {total}",
-    "storyKeep": "Save as album",
+    "storyKeep": "Save {n} as album",
     "storyKept": "Saved as album “{name}”",
     "storyKeepFailed": "Couldn't save the album",
     "storySeeAll": "See all {n}"

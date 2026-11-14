@@ -538,7 +538,7 @@
     "storyEnd": "播完了",
     "playAgain": "再播一次",
     "storyPlayed": "播放了 {n} 張，共 {total} 張",
-    "storyKeep": "存成相簿",
+    "storyKeep": "存成相簿（{n} 張）",
     "storyKept": "已存成相簿「{name}」",
     "storyKeepFailed": "沒能存成相簿",
     "storySeeAll": "看全部 {n} 張"

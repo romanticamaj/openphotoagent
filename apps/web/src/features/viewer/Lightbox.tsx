@@ -177,9 +177,12 @@ export function Lightbox({
     mutationFn: async () => {
       const got = await Promise.all(Array.from({ length: grid.total }, (_, i) => grid.at(i)));
       const ids = got.flatMap((r) => (r ? [r.asset.id] : []));
-      const album = await api.createAlbum(title ?? t("lightbox.label"));
+      // an album name is never a path (INJ-017): the server turns a slash into "_", so a date's slashes become "-" here
+      // and the card says the name it kept (audit round 116, VIEW-072)
+      const album = await api.createAlbum((title ?? t("lightbox.label")).replaceAll("/", "-"));
       for (let i = 0; i < ids.length; i += 500) await api.addToAlbum(album.id, ids.slice(i, i + 500)); // the API takes 500 a request
       void qcr.invalidateQueries({ queryKey: ["albums"] });
+      return album.name;
     },
     onError: () => setToast(t("lightbox.storyKeepFailed")),
   });
@@ -282,7 +285,7 @@ export function Lightbox({
               {t("lightbox.storyPlayed", { n: grid.total.toLocaleString(i18n.language), total: seeAll.n.toLocaleString(i18n.language) })}
             </p>
           ) : null}
-          {keep.isSuccess ? <p role="status">{t("lightbox.storyKept", { name: title })}</p> : null}
+          {keep.isSuccess ? <p role="status">{t("lightbox.storyKept", { name: keep.data })}</p> : null}
           <div className="flex flex-wrap justify-center gap-2">
             <button
               type="button"
@@ -295,7 +298,7 @@ export function Lightbox({
             {title && !keep.isSuccess ? (
               // the story kept as an album, named by its title, with the photos it played (VIEW-069, audit round 115)
               <button type="button" className="story-end-close" aria-busy={keep.isPending || undefined} onClick={() => !keep.isPending && keep.mutate()}>
-                {t("lightbox.storyKeep")}
+                {t("lightbox.storyKeep", { n: grid.total.toLocaleString(i18n.language) })}
               </button>
             ) : null}
             {seeAll ? (
@@ -500,7 +503,10 @@ export function Lightbox({
 
 function trapFocus(e: React.KeyboardEvent, root: HTMLElement | null) {
   if (!root) return;
-  const f = [...root.querySelectorAll<HTMLElement>("button, select, input, textarea, a[href], [tabindex='0']")].filter((x) => !x.hasAttribute("disabled"));
+  // hidden controls are not in the round: behind the end card, Tab from 關閉 went to the page (audit round 116, VIEW-071)
+  const f = [...root.querySelectorAll<HTMLElement>("button, select, input, textarea, a[href], [tabindex='0']")].filter(
+    (x) => !x.hasAttribute("disabled") && !x.closest("[style*='visibility: hidden']"),
+  );
   if (!f.length) return;
   const first = f[0];
   const last = f[f.length - 1];

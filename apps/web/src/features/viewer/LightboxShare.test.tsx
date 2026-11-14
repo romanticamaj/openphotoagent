@@ -21,7 +21,7 @@ vi.mock("../../lib/api", async (orig) => ({
       return { favorite: on };
     },
     albums: async () => ({ albums: [] }),
-    createAlbum: async (name: string) => (s.createAlbum(name), { id: "al1", name }),
+    createAlbum: async (name: string) => (s.createAlbum(name), { id: "al1", name: name.replaceAll("/", "_") }), // as the server names it (INJ-017)
     addToAlbum: async (id: string, ids: string[]) => (s.addToAlbum(id, ids), { count: ids.length }),
     setRotation: async (id: string, deg: number) => (s.setRotation(id, deg), { asset_id: id, rotation: deg }),
     roots: async () => [{ alias: "photos", mode: "rw" }],
@@ -282,11 +282,11 @@ describe("a story to keep (audit round 115)", () => {
     try {
       await toEnd({ n: 120, go });
       expect(screen.getByText("播放了 3 張，共 120 張")).toBeTruthy();
-      fireEvent.click(screen.getByRole("button", { name: "存成相簿" }));
+      fireEvent.click(screen.getByRole("button", { name: "存成相簿（3 張）" }));
       await waitFor(() => expect(s.addToAlbum).toHaveBeenCalledWith("al1", ["p0", "p1", "p2"]));
       expect(s.createAlbum).toHaveBeenCalledWith("2025 的足球");
       expect(await screen.findByText("已存成相簿「2025 的足球」")).toBeTruthy();
-      expect(screen.queryByRole("button", { name: "存成相簿" })).toBeNull(); // kept once, not twice
+      expect(screen.queryByRole("button", { name: /存成相簿/ })).toBeNull(); // kept once, not twice
       fireEvent.click(screen.getByRole("button", { name: "看全部 120 張" }));
       expect(go).toHaveBeenCalled();
     } finally {
@@ -309,6 +309,47 @@ describe("a story to keep (audit round 115)", () => {
       await toEnd();
       expect(screen.getByTestId("lightbox").className).toContain("ended");
       expect(screen.queryByRole("button", { name: "加入收藏" })).toBeNull(); // hidden, out of the Tab order too
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe("the end card's keyboard and album name (audit round 116)", () => {
+  async function toEnd(title: string) {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const tick = (ms: number) => act(async () => void (await vi.advanceTimersByTimeAsync(ms)));
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Lightbox start={0} grid={grid} onClose={vi.fn()} autoplay title={title} seeAll={{ n: 17, go: vi.fn() }} />
+      </QueryClientProvider>,
+    );
+    await screen.findByRole("button", { name: "停止幻燈片" });
+    for (let i = 0; i < 3; i++) await tick(4000);
+    return screen.findByRole("button", { name: "再播一次" });
+  }
+
+  it("[VIEW-071] 回歸：結尾卡上 Tab 在卡片的按鈕間循環，不跑到隱藏的控制列或 Lightbox 外（驗證第 116 輪：從「關閉」Tab 到背後的頁面）", async () => {
+    try {
+      const again = await toEnd("足球");
+      const lb = screen.getByTestId("lightbox");
+      const close = screen.getAllByRole("button", { name: "關閉" }).at(-1)!;
+      close.focus();
+      fireEvent.keyDown(lb, { key: "Tab" });
+      expect(document.activeElement).toBe(again); // from the last of the card to its first
+      fireEvent.keyDown(lb, { key: "Tab", shiftKey: true });
+      expect(document.activeElement).toBe(close); // and back
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("[VIEW-072] 回歸：存成的相簿名稱與畫面所說的一致：日期的斜線改成連字號，狀態列寫伺服器存下的名稱（驗證第 116 輪：說「2026/1/26」，存成「2026_1_26」）", async () => {
+    try {
+      await toEnd("2026/1/26 · 遊樂場");
+      fireEvent.click(screen.getByRole("button", { name: "存成相簿（3 張）" }));
+      await waitFor(() => expect(s.createAlbum).toHaveBeenCalledWith("2026-1-26 · 遊樂場"));
+      expect(await screen.findByText("已存成相簿「2026-1-26 · 遊樂場」")).toBeTruthy();
     } finally {
       vi.useRealTimers();
     }
