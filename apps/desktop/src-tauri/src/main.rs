@@ -365,6 +365,7 @@ fn supervise(app: tauri::AppHandle, shell: Arc<Shell>, dsn: String) {
 /// The platform seam the SPA reads (apps/web/src/lib/platform.ts, 10 §5.4). Injected before any page script.
 fn platform_script(thumbs: &Path) -> String {
     let dir = serde_json::to_string(&thumbs.to_string_lossy()).unwrap_or_else(|_| "\"\"".into());
+    let share = share::PLATFORM_JS;
     format!(
         r#"window.__OPA_PLATFORM__ = {{
   kind: "desktop",
@@ -385,15 +386,7 @@ fn platform_script(thumbs: &Path) -> String {
   status: () => window.__TAURI_INTERNALS__.invoke("shell_status"),
   addRoot: (mode) => window.__TAURI_INTERNALS__.invoke("add_root", {{ mode }}),
   revealInFileManager: (rootAlias, relPath) => window.__TAURI_INTERNALS__.invoke("reveal_in_file_manager", {{ rootAlias, relPath }}),
-  saveShared: async (day, files) => {{
-    const inv = window.__TAURI_INTERNALS__.invoke;
-    const handle = await inv("share_pick", {{ day, count: files.length }});
-    if (!handle) return null;
-    for (const f of files) await inv("share_write", f.bytes, {{ headers: {{ "x-share": handle, "x-name": f.name }} }});
-    return {{ handle, dir: await inv("share_open", {{ handle }}), n: files.length }};
-  }},
-  openShared: (handle) => window.__TAURI_INTERNALS__.invoke("share_open", {{ handle }}),
-}};"#
+{share}}};"#
     )
 }
 
@@ -537,7 +530,7 @@ fn share_pick(
     dirs: tauri::State<'_, ShareDirs>,
     day: String,
     count: usize,
-) -> Result<Option<String>, String> {
+) -> Result<Option<SharePicked>, String> {
     use tauri_plugin_dialog::DialogExt;
     let Some(picked) = app.dialog().file().blocking_pick_folder() else {
         return Ok(None);
@@ -549,8 +542,15 @@ fn share_pick(
     let dir =
         share::new_dir(&parent, &share::folder_name(&day, count)).map_err(|e| e.to_string())?;
     let handle = launch_token();
+    let shown = roots::plain_path(&dir).to_string_lossy().into_owned();
     dirs.0.lock().unwrap().insert(handle.clone(), dir);
-    Ok(Some(handle))
+    Ok(Some(SharePicked { handle, dir: shown }))
+}
+
+#[derive(Serialize)]
+struct SharePicked {
+    handle: String,
+    dir: String,
 }
 
 /// One photo's JPEG, as the raw body; `x-share` is the handle from `share_pick`, `x-name` the file name.

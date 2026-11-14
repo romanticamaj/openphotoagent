@@ -120,7 +120,14 @@ export function SearchPage({ q, tag, year, name }: { q: string; tag?: string; ye
     const esc = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || typingIn(e.target) || e.defaultPrevented) return;
       if ((e.target as HTMLElement | null)?.closest?.('[role="dialog"], [role="alertdialog"], [role="menu"]')) return; // theirs
+      // from the bar, which goes with the selection: focus back on the results, not the page (round 127, SRCH-UI-055)
+      const fromBar = Boolean((e.target as HTMLElement | null)?.closest?.('[data-testid="batch-bar"]'));
       setSel({ all: false, ids: new Set(), anchor: null });
+      if (fromBar)
+        window.setTimeout(() => {
+          const tiles = [...document.querySelectorAll<HTMLElement>('[data-testid="search-result"]')];
+          (tiles.find((x) => x.tabIndex === 0) ?? tiles[0])?.focus();
+        }, 0);
     };
     window.addEventListener("keydown", esc);
     return () => window.removeEventListener("keydown", esc);

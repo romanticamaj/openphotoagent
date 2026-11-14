@@ -84,6 +84,20 @@ pub fn write_new(dir: &Path, name: &str, bytes: &[u8]) -> io::Result<()> {
     f.sync_all()
 }
 
+/// The page's `saveShared` / `openShared` (apps/web/src/lib/platform.ts), injected by the shell.
+/// Saving writes and says where (`share_pick` gives the handle and the folder); only 「開啟資料夾」 opens it: opening it
+/// by itself took the foreground from the toast (audit round 127, SHARE-028).
+pub const PLATFORM_JS: &str = r#"
+  saveShared: async (day, files) => {
+    const inv = window.__TAURI_INTERNALS__.invoke;
+    const picked = await inv("share_pick", { day, count: files.length });
+    if (!picked) return null;
+    for (const f of files) await inv("share_write", f.bytes, { headers: { "x-share": picked.handle, "x-name": f.name } });
+    return { handle: picked.handle, dir: picked.dir, n: files.length };
+  },
+  openShared: (handle) => window.__TAURI_INTERNALS__.invoke("share_open", { handle }),
+"#;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -149,5 +163,16 @@ mod tests {
         assert_eq!(std::fs::read(a.join("photo-0c1e2a11.jpg")).unwrap(), b"one");
         assert!(write_new(&a, "../photo-x.jpg", b"x").is_err());
         assert!(!d.join("photo-x.jpg").exists());
+    }
+
+    #[test]
+    fn share_028_saving_does_not_open_explorer() {
+        // 回歸 (audit round 127): every share opened Explorer, which took the foreground from the toast and its
+        // 開啟資料夾. Saving says where it went; the folder opens only when the person asks.
+        let save = PLATFORM_JS.split("openShared").next().unwrap();
+        assert!(save.contains("saveShared"), "{PLATFORM_JS}");
+        assert!(save.contains("share_pick") && save.contains("share_write"));
+        assert!(!save.contains("share_open"), "saving opened the folder");
+        assert!(PLATFORM_JS.contains("openShared") && PLATFORM_JS.contains("share_open"));
     }
 }

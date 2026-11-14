@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "../../lib/i18n";
 
@@ -477,6 +477,27 @@ describe("the search selection bar fits one row (audit round 126)", () => {
     expect(screen.getByRole("option", { name: "類別…" })).toBeTruthy();
     expect(bar.querySelectorAll("label").length).toBe(0); // no stacked caption above a field
     expect(bar.className).toContain("items-center");
+  });
+});
+
+describe("Esc from the selection bar keeps focus (audit round 127)", () => {
+  it("[SRCH-UI-055] 回歸：焦點在選取列時按 Esc 取消選取，焦點回到結果的照片，不掉到頁面（驗證第 127 輪：第二次 Esc 後焦點在 BODY）", async () => {
+    const hit = (id: string) => ({ asset_id: id, ch: null, score: 1, matched_by: ["fulltext"], category: null, tags: [], caption: "花", taken_at: null });
+    s.result = { items: [hit("a1"), hit("a2"), hit("a3")], facets: {}, total: 3, next_cursor: null, degraded: [] };
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SearchPage q="花" />
+      </QueryClientProvider>,
+    );
+    const tiles = await screen.findAllByTestId("search-result");
+    fireEvent.click(tiles[0]!, { ctrlKey: true });
+    fireEvent.click(tiles[1]!, { ctrlKey: true });
+    const share = await screen.findByRole("button", { name: "分享 2 張…" });
+    share.focus();
+    fireEvent.keyDown(share, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByTestId("batch-bar")).toBeNull());
+    expect(document.activeElement?.getAttribute("data-testid")).toBe("search-result");
+    s.result = null;
   });
 });
 

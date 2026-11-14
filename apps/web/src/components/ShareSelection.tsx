@@ -51,9 +51,20 @@ export function ShareSelection({
   };
   // Esc closes the toast only; it bubbled to the bar and cleared the selection, and focus was lost (SHARE-026)
   const onToastKey = (e: KeyboardEvent) => {
-    if (e.key !== "Escape") return;
-    e.stopPropagation();
-    close();
+    if (e.key === "Escape") {
+      e.stopPropagation();
+      close();
+      return;
+    }
+    // Tab goes round the toast's buttons and back to 分享, not to the top of the page (audit round 127, SHARE-030)
+    if (e.key !== "Tab") return;
+    const bs = [...(toastRef.current?.querySelectorAll("button") ?? [])];
+    const at = bs.indexOf(document.activeElement as HTMLButtonElement);
+    if ((e.shiftKey && at === 0) || (!e.shiftKey && at === bs.length - 1)) {
+      e.preventDefault();
+      e.stopPropagation();
+      shareRef.current?.focus();
+    }
   };
   const go = async () => {
     if (!ids || busy) return;
@@ -76,7 +87,17 @@ export function ShareSelection({
     <>
       {/* busy says so in its label: a reason line under it moved the bar's buttons (audit round 126, SHARE-027) */}
       <Button ref={shareRef} variant="ghost" disabledReason={reason} aria-busy={busy || undefined} onClick={() => void go()}>
-        {busy ? t("share.preparing") : t("share.many", { n: fmt(n) })}
+        {busy ? (
+          // the label it had holds its width while it prepares: the bar's buttons slid for 3 s (round 127, SHARE-029)
+          <span className="inline-grid">
+            <span aria-hidden="true" className="invisible col-start-1 row-start-1">
+              {t("share.many", { n: fmt(n) })}
+            </span>
+            <span className="col-start-1 row-start-1">{t("share.preparing")}</span>
+          </span>
+        ) : (
+          t("share.many", { n: fmt(n) })
+        )}
       </Button>
       {done
         ? // a toast over the page, not a line inside the selection bar (SHARE-025)

@@ -102,5 +102,32 @@ describe("分享 N 張 on the selection bar (ADR-0054; audit round 124: one phot
     const alert = await screen.findByRole("alert");
     expect(container.querySelector("[data-testid=bar]")!.contains(alert)).toBe(false);
   });
+
+  it("[SHARE-029] 回歸：準備中時按鈕保持原本的寬度：原本的字留在按鈕裡佔位（隱藏、不唸出）（驗證第 127 輪：按鈕縮 16 px，旁邊的按鈕滑動 3 秒）", async () => {
+    const run = vi.fn(() => new Promise<ManyResult>(() => undefined));
+    render(<ShareSelection ids={["a"]} run={run} />);
+    fireEvent.click(screen.getByRole("button", { name: "分享 1 張…" }));
+    const busy = await screen.findByRole("button", { name: "準備中…" });
+    const holder = busy.querySelector("[aria-hidden=true]");
+    expect(holder?.textContent).toBe("分享 1 張…"); // the label it had holds the width
+    expect(holder?.className).toContain("invisible");
+  });
+
+  it("[SHARE-030] 回歸：在提示上按 Tab 在提示的按鈕間輪流，最後一個之後回到分享按鈕（驗證第 127 輪：Tab 跳到頁面頂端）", async () => {
+    const run = vi.fn(async (): Promise<ManyResult> => ({ kind: "saved", handle: "h", dir: "D:\分享（2 張）", n: 2, failed: 0 }));
+    render(<ShareSelection ids={["a", "b"]} run={run} open={async () => ""} />);
+    const share = screen.getByRole("button", { name: "分享 2 張…" });
+    fireEvent.click(share);
+    const openBtn = await screen.findByRole("button", { name: "開啟資料夾" });
+    const x = screen.getByRole("button", { name: "關閉" });
+    await vi.waitFor(() => expect(document.activeElement).toBe(openBtn));
+    x.focus();
+    fireEvent.keyDown(x, { key: "Tab" });
+    expect(document.activeElement).toBe(share);
+    openBtn.focus();
+    fireEvent.keyDown(openBtn, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(share);
+    expect(screen.getByRole("status")).toBeTruthy(); // the toast stays
+  });
 });
 
