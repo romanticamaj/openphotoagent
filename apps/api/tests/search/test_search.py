@@ -1622,3 +1622,22 @@ def test_srch_plan_032_a_planned_query_pages(s):
     nxt = s.client.post("/api/v1/search", json={**body, "cursor": first["next_cursor"]})
     assert nxt.status_code == 200, nxt.text
     assert len(nxt.json()["items"]) == 2
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-CNC-026")
+def test_srch_cnc_026_a_compound_is_not_answered_by_one_of_its_parts(s):
+    """回歸 (audit round 122, ADR-0052): 蘿蔔糕 showed a carrot plate, 雞蛋糕 a birthday cake (「沒有照片拍到『雞』」),
+    花生湯 a fruit still life, 海綿寶寶 a baby: one part was set aside and the other answered. A compound's parts are
+    all required; the photo that has the compound is still found."""
+    s.add(1, caption="一盤紅蘿蔔和雞肉飯", tags=("食物",))
+    s.add(2, caption="生日蛋糕", tags=("蛋糕",))
+    s.add(3, caption="睡著的嬰兒", tags=("嬰兒",))
+    s.add(4, caption="桌上的花生和水果", tags=("水果",))
+    want = s.add(5, caption="早餐有蘿蔔糕")
+    s.index()
+    for q in ("雞蛋糕", "海綿寶寶", "花生湯"):
+        res = s.search(q=q, semantic=False)
+        assert res["total"] == 0 and not res.get("relaxed"), (q, res["total"], res.get("relaxed"))
+    res = s.search(q="蘿蔔糕", semantic=False)
+    assert [h["asset_id"] for h in res["items"]] == [want] and not res.get("relaxed")

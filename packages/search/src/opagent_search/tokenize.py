@@ -37,6 +37,10 @@ _WORD = re.compile(r"[0-9a-z]+(?:['._-][0-9a-z]+)*|[぀-ヿ㐀-䶿一-鿿豈-﫿
 LIGHT_VERBS = {"去", "搭", "坐", "堆", "跳", "騎", "看", "玩", "放", "做"}
 # after a single character, a place: 河邊, 山上 relate to 河 and 山 (ADR-0051)
 PLACE_WORDS = {"邊", "旁", "畔", "裡", "上", "下"}
+# a verb on its object, not part of a compound: 戴口罩, 抱寶寶 (ADR-0052)
+OBJECT_VERBS = set("戴穿抱拿牽吹抓餵摸背推拉")
+# vocabulary kinds that are not things: an unknown word before one of these is not a compound (ADR-0052)
+NOT_THINGS = ("activity.", "scene.", "mood.", "event.")
 STOP = {"的", "了", "在", "是", "和", "與", "a", "an", "the", "of", "in", "on", "and", "with"}
 
 
@@ -166,6 +170,8 @@ class Concept:
     word: str
     key: str | None
     forms: tuple[str, ...]
+    # part of a compound the tokenizer cut (蘿蔔 + 糕): required with its siblings, never set aside alone (ADR-0052)
+    bound: bool = False
 
 
 @dataclass
@@ -428,19 +434,54 @@ class Tokenizer:
         return " ".join(out) or None
 
     def concepts(self, text: str) -> list[Concept]:
-        """The query's concepts (ADR-0032): filler and stop words out; words with the same vocabulary id are one."""
-        out: list[Concept] = []
+        """The query's concepts (ADR-0032): filler and stop words out; words with the same vocabulary id are one.
+
+        Parts of a compound the tokenizer cut are bound (ADR-0052): two parts with nothing between them (no space, stop
+        or filler word, punctuation, or removed light verb) are one compound when either is a single character the
+        vocabulary does not know (蘿蔔 + 糕, 花生 + 湯), or an unknown word stands before a thing the vocabulary knows
+        (雞 + 蛋糕, 海綿 + 寶寶). A verb on its object (戴口罩) is not a compound."""
+        t = normalize(text)
+        items: list[tuple[str, str | None, bool]] = []  # word, its vocabulary id, joined to the word before it
         seen: set[str] = set()
+        cur = 0
+        prev_end: int | None = None
         for w in self.words(text):
-            if normalize(w) in FILLER or MEASURE.fullmatch(normalize(w)):
+            nw = normalize(w)
+            at = t.find(nw, cur)
+            if at < 0:
+                at = cur
+            joined = prev_end is not None and at == prev_end
+            cur = at + len(nw)
+            if nw in FILLER or MEASURE.fullmatch(nw):
+                prev_end = None  # a filler word separates
                 continue
+            prev_end = cur
             k = self.tag_key(w)
-            ident = k or normalize(w)
+            ident = k or nw
             if ident in seen:
                 continue
             seen.add(ident)
-            forms = [normalize(w), *(f for f in self._forms_of(k) if f != normalize(w))] if k else [normalize(w)]
-            out.append(Concept(word=w, key=k, forms=tuple(forms)))
+            items.append((w, k, joined))
+
+        def lone(w: str, k: str | None) -> bool:  # a character the vocabulary does not know, not a verb on an object
+            return k is None and len(w) == 1 and bool(_CJK.fullmatch(w)) and w not in OBJECT_VERBS
+
+        def thing(k: str | None) -> bool:  # a thing the vocabulary knows: not an activity, scene, mood or event
+            return k is not None and not k.startswith(NOT_THINGS)
+
+        groups: list[list[tuple[str, str | None]]] = []
+        for i, (w, k, joined) in enumerate(items):
+            if i and joined:
+                pw, pk, _ = items[i - 1]
+                if lone(pw, pk) or lone(w, k) or (pk is None and pw not in OBJECT_VERBS and thing(k)):
+                    groups[-1].append((w, k))
+                    continue
+            groups.append([(w, k)])
+        out: list[Concept] = []
+        for g in groups:
+            for w, k in g:
+                forms = [normalize(w), *(f for f in self._forms_of(k) if f != normalize(w))] if k else [normalize(w)]
+                out.append(Concept(word=w, key=k, forms=tuple(forms), bound=len(g) > 1))
         return out
 
     def query(self, text: str) -> ParsedQuery:

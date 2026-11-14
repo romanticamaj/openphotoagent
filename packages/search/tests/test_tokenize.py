@@ -574,3 +574,19 @@ def test_srch_tok_038_common_foods_and_fruits_offer_their_word():
     for q in ("溪流", "河口"):
         assert "河" in tok.related(q), (q, tok.related(q))
     assert "水果" not in tok.related("鳳梨酥")
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-039")
+def test_srch_tok_039_a_compound_the_tokenizer_cut_is_bound():
+    """回歸 (audit round 122, ADR-0052): 蘿蔔糕 is cut into 蘿蔔 + 糕 and 雞蛋糕 into 雞 + 蛋糕; each part was a concept of
+    its own, so the one no photo shows was set aside and its sibling answered (a carrot plate, a birthday cake). Parts
+    with nothing between them form one compound when one is a character the vocabulary does not know, or an unknown
+    word stands before a thing the vocabulary knows; such parts are bound. Words a space, a filler word or a removed
+    light verb separates are not, nor is a verb on its object (戴口罩)."""
+    tok = Tokenizer()
+    for q in ("蘿蔔糕", "花生湯", "鳳梨酥", "海產店", "草莓園", "車輪餅", "雞蛋糕", "海綿寶寶"):
+        cs = tok.concepts(q)
+        assert len(cs) >= 2 and all(c.bound for c in cs), (q, cs)
+    for q in ("海邊夕陽", "小孩玩沙", "弟弟踢球", "戴口罩的小女孩", "媽媽抱寶寶", "小孩在玩水", "海綿 寶寶"):
+        assert not any(c.bound for c in tok.concepts(q)), (q, tok.concepts(q))

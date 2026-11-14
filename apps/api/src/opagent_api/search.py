@@ -425,10 +425,12 @@ def _all_concepts(
     concepts = concepts[:MAX_CONCEPTS]
     by_meaning = by_meaning or {}
     conds = [(cpt, _concept_cond(i, cpt, by_meaning.get(cpt.word))) for i, cpt in enumerate(concepts)]
-    required = [cond for cpt, cond in conds if cpt.key]
+    # a vocabulary term is required; so is a part of a compound the tokenizer cut: 蘿蔔糕 is not answered by its 蘿蔔
+    # nor 雞蛋糕 by its 蛋糕 (ADR-0052)
+    required = [cond for cpt, cond in conds if cpt.key or cpt.bound]
     relaxed: list[str] = []
     for cpt, cond in conds:
-        if cpt.key:
+        if cpt.key or cpt.bound:
             continue
         n = c.execute(select(func.count()).select_from(search_doc).where(and_(*where, *required, cond))).scalar_one()
         if n:
