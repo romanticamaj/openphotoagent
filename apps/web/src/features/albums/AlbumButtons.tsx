@@ -21,7 +21,9 @@ function Star({ on }: { on: boolean }) {
 export function useFavorite(assetId: string) {
   const { i18n } = useTranslation();
   const qc = useQueryClient();
-  const info = useQuery({ queryKey: ["asset", assetId, i18n.language], queryFn: () => api.asset(assetId, i18n.language) });
+  // the photo before is kept while the next one's state comes, so ★ stays put and keeps focus (COL-030, audit round 113)
+  const info = useQuery({ queryKey: ["asset", assetId, i18n.language], queryFn: () => api.asset(assetId, i18n.language), placeholderData: (prev) => prev });
+  const ready = info.isSuccess && !info.isPlaceholderData;
   const on = Boolean(info.data?.favorite);
   const flip = useMutation({
     mutationFn: () => api.setFavorite(assetId, !on),
@@ -31,16 +33,16 @@ export function useFavorite(assetId: string) {
     },
   });
   // until this photo's state is in, F does nothing: right after → it toggled the photo before (audit round 33)
-  return { on, toggle: () => info.isSuccess && !flip.isPending && flip.mutate(), ready: info.isSuccess };
+  return { on, toggle: () => ready && !flip.isPending && flip.mutate(), ready, shown: info.data !== undefined };
 }
 
 export function FavoriteButton({ assetId }: { assetId: string }) {
   const { t } = useTranslation();
   const fav = useFavorite(assetId);
-  if (!fav.ready) return null;
+  if (!fav.shown) return null;
   const label = t(fav.on ? "albums.unfavorite" : "albums.favorite");
   return (
-    <button type="button" aria-pressed={fav.on} aria-label={label} title={`${label} (F)`} onClick={fav.toggle} className={`icon-button ${fav.on ? "text-[var(--accent)]" : ""}`}>
+    <button type="button" aria-busy={fav.ready ? undefined : true} aria-pressed={fav.on} aria-label={label} title={`${label} (F)`} onClick={fav.toggle} className={`icon-button ${fav.on ? "text-[var(--accent)]" : ""}`}>
       <Star on={fav.on} />
     </button>
   );

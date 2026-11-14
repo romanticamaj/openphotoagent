@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "../../lib/i18n";
 
@@ -143,5 +143,65 @@ describe("a slideshow that plays as a story (audit round 112)", () => {
     await screen.findByRole("button", { name: "播放幻燈片" });
     expect(screen.getByTestId("lightbox").className).not.toContain("story"); // stopped: every control back
     expect(screen.queryByTestId("story-title")).toBeNull();
+  });
+});
+
+describe("focus on ★ as the photo changes (audit round 113)", () => {
+  it("[COL-030] 回歸：焦點在 ★ 時換照片，焦點留在 ★（驗證第 113 輪：掉到頁面，下一個 Tab 跑到背後的「跳到主要內容」）", async () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Lightbox start={0} grid={grid} onClose={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    const star = await screen.findByRole("button", { name: "加入收藏" });
+    star.focus();
+    fireEvent.keyDown(screen.getByTestId("lightbox"), { key: "ArrowRight" });
+    await waitFor(() => expect(screen.getByTestId("lightbox-position").textContent).toContain("2"));
+    expect(document.activeElement).toBe(star); // the same button, kept while the next photo's state comes
+    await waitFor(() => expect(star.getAttribute("aria-busy")).toBeNull());
+    expect(document.activeElement).toBe(star);
+  });
+});
+
+describe("the end of a story, and a pointer that moves (audit round 113)", () => {
+  it("[VIEW-064] 回歸：播完最後一張出現結尾卡「再播一次」「關閉」，焦點在「再播一次」；按了從第 1 張重播（驗證第 113 輪：停在 12/12 沒有結尾）", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const tick = (ms: number) => act(async () => void (await vi.advanceTimersByTimeAsync(ms)));
+    try {
+      const onClose = vi.fn();
+      render(
+        <QueryClientProvider client={new QueryClient()}>
+          <Lightbox start={0} grid={grid} onClose={onClose} autoplay title="足球" />
+        </QueryClientProvider>,
+      );
+      await screen.findByRole("button", { name: "停止幻燈片" });
+      expect(screen.queryByRole("button", { name: "再播一次" })).toBeNull();
+      await tick(4000);
+      await tick(4000);
+      await tick(4000); // past the last photo
+      const again = await screen.findByRole("button", { name: "再播一次" });
+      expect(screen.getByText("播完了")).toBeTruthy();
+      expect(document.activeElement).toBe(again);
+      fireEvent.click(again);
+      expect(screen.getByTestId("lightbox-position").textContent).toBe("第 1 張，共 3 張");
+      expect(screen.getByRole("button", { name: "停止幻燈片" })).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "再播一次" })).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("[VIEW-065] 回歸：播放中移動滑鼠，控制列暫時回來（驗證第 113 輪：只有滑到控制列本身才出現）", async () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Lightbox start={0} grid={grid} onClose={vi.fn()} autoplay />
+      </QueryClientProvider>,
+    );
+    await screen.findByRole("button", { name: "停止幻燈片" });
+    const lb = screen.getByTestId("lightbox");
+    expect(lb.className).toContain("story");
+    fireEvent.mouseMove(lb);
+    expect(lb.className).not.toContain("story");
+    expect(screen.getByRole("button", { name: "停止幻燈片" })).toBeTruthy(); // still playing
   });
 });

@@ -154,13 +154,30 @@ export function Lightbox({
   // a slideshow (VIEW-039): the next photo every SLIDE_MS, stopping on the last; moving by hand stops it
   const [playing, setPlaying] = useState(autoplay);
   const [showKeys, setShowKeys] = useState(false);
+  // played to the last photo: an end card offers it again (VIEW-064, audit round 113)
+  const [ended, setEnded] = useState(false);
+  // playing, a moving pointer brings the controls back for a moment (VIEW-065, audit round 113)
+  const [awake, setAwake] = useState(false);
+  const awakeTimer = useRef<number | undefined>(undefined);
+  const wake = () => {
+    setAwake(true);
+    window.clearTimeout(awakeTimer.current);
+    awakeTimer.current = window.setTimeout(() => setAwake(false), 2500);
+  };
+  useEffect(() => () => window.clearTimeout(awakeTimer.current), []);
   const step = (d: number) => {
     setPlaying(false);
+    setEnded(false);
     go(d);
   };
   useEffect(() => {
     if (!playing) return;
-    const id = window.setTimeout(() => (ord >= grid.total - 1 ? setPlaying(false) : setOrd(ord + 1)), SLIDE_MS);
+    const id = window.setTimeout(() => {
+      if (ord >= grid.total - 1) {
+        setPlaying(false);
+        setEnded(true);
+      } else setOrd(ord + 1);
+    }, SLIDE_MS);
     return () => window.clearTimeout(id);
   }, [playing, ord, grid.total]);
 
@@ -213,13 +230,37 @@ export function Lightbox({
       aria-label={title ? `${title} · ${t("lightbox.label")}` : t("lightbox.label")}
       tabIndex={-1}
       // playing, it is a story: the controls fade until the pointer or focus comes to them, photos fade in (VIEW-063)
-      className={playing ? "lightbox story" : "lightbox"}
+      className={playing && !awake ? "lightbox story" : "lightbox"}
       onKeyDown={onKey}
+      onMouseMove={playing ? wake : undefined}
       data-testid="lightbox"
     >
       {playing && title && ord === start ? (
         <div className="story-title" data-testid="story-title" aria-hidden="true">
           <p>{title}</p>
+        </div>
+      ) : null}
+      {ended ? (
+        <div className="story-end" role="group" aria-labelledby="story-end-h">
+          <p id="story-end-h" className="story-end-h">{t("lightbox.storyEnd")}</p>
+          {title ? <p className="story-end-title">{title}</p> : null}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="story-end-again"
+              ref={(el) => el?.focus()}
+              onClick={() => {
+                setEnded(false);
+                setOrd(0);
+                setPlaying(true);
+              }}
+            >
+              {t("lightbox.playAgain")}
+            </button>
+            <button type="button" className="story-end-close" onClick={close}>
+              {t("lightbox.close")}
+            </button>
+          </div>
         </div>
       ) : null}
       {showKeys ? <KeyList onClose={() => (setShowKeys(false), dialog.current?.focus())} /> : null}

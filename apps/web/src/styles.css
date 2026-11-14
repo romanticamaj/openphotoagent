@@ -1249,4 +1249,50 @@ body {
   .lightbox.story .stage img { animation: none; }
   .story-title { animation-duration: 1ms; animation-delay: 3000ms; }
 }
+/* the ‹ › arrows rest with the other controls while a story plays */
+.lightbox.story .stage > button {
+  opacity: 0;
+  transition: opacity 400ms var(--ease);
+}
+.lightbox.story .stage > button:focus-visible {
+  opacity: 1;
+}
+/* the end of a story (VIEW-064) */
+.story-end {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgb(0 0 0 / 0.6);
+  color: #fff;
+  animation: fade-in 500ms var(--ease);
+}
+.story-end-h {
+  font-size: 0.875rem;
+  letter-spacing: 0.08em;
+  opacity: 0.8;
+}
+.story-end-title {
+  font-size: clamp(1.25rem, 3vw, 2.25rem);
+  font-weight: 600;
+  text-align: center;
+  padding: 0 16px;
+}
+.story-end-again,
+.story-end-close {
+  padding: 8px 20px;
+  border-radius: 999px;
+  font-weight: 500;
+}
+.story-end-again {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+.story-end-close {
+  border: 1px solid rgb(255 255 255 / 0.5);
+}
 

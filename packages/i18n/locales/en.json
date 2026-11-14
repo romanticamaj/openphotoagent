@@ -534,7 +534,9 @@
     "shareSaved": "Saved to your Downloads folder: {name}",
     "shareFailed": "Couldn't share this photo",
     "copied": "Image copied — paste it into a chat or document",
-    "copyFailed": "Couldn't copy the image: this window can't put images on the clipboard. Use Share to save it as a file"
+    "copyFailed": "Couldn't copy the image: this window can't put images on the clipboard. Use Share to save it as a file",
+    "storyEnd": "The end",
+    "playAgain": "Play again"
   },
   "onboarding": {
     "welcome": "Welcome to OpenPhotoAgent",
