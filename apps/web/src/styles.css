@@ -1295,4 +1295,54 @@ body {
 .story-end-close {
   border: 1px solid rgb(255 255 255 / 0.5);
 }
+/* a story's progress (VIEW-070): thin segments across the top, the current one filling over its 4 s */
+.story-progress {
+  position: absolute;
+  top: 6px;
+  left: 12px;
+  right: 12px;
+  z-index: 4;
+  display: flex;
+  gap: 3px;
+  height: 3px;
+  pointer-events: none;
+}
+.story-progress > span {
+  flex: 1;
+  border-radius: 2px;
+  background: rgb(255 255 255 / 0.3);
+  overflow: hidden;
+  position: relative;
+}
+.story-progress > span.done {
+  background: rgb(255 255 255 / 0.9);
+}
+.story-progress > span.now::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgb(255 255 255 / 0.9);
+  transform-origin: left;
+  animation: story-fill 4000ms linear forwards;
+}
+@keyframes story-fill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+/* a slow drift while a photo shows: `scale`, not transform, so the photo's turn and zoom stay */
+.lightbox.story .stage img {
+  animation: story-in 700ms var(--ease), story-drift 4600ms linear;
+}
+@keyframes story-drift {
+  from { scale: 1; }
+  to { scale: 1.05; }
+}
+.story-end-count {
+  font-size: 0.875rem;
+  opacity: 0.85;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lightbox.story .stage img { animation: none; }
+  .story-progress > span.now::after { animation: none; transform: scaleX(1); opacity: 0.5; }
+}
 

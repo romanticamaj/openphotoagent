@@ -536,7 +536,12 @@
     "copied": "已複製圖片，可以貼到聊天或文件",
     "copyFailed": "沒能複製圖片：這個視窗不支援把圖片放到剪貼簿，可以改用「分享」存成檔案",
     "storyEnd": "播完了",
-    "playAgain": "再播一次"
+    "playAgain": "再播一次",
+    "storyPlayed": "播放了 {n} 張，共 {total} 張",
+    "storyKeep": "存成相簿",
+    "storyKept": "已存成相簿「{name}」",
+    "storyKeepFailed": "沒能存成相簿",
+    "storySeeAll": "看全部 {n} 張"
   },
   "onboarding": {
     "welcome": "歡迎使用 OpenPhotoAgent",

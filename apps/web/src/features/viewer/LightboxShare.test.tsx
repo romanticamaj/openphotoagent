@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "../../lib/i18n";
 
@@ -7,7 +7,7 @@ beforeAll(async () => {
   await i18n.changeLanguage("zh-TW");
 });
 
-const s = vi.hoisted(() => ({ favs: new Set<string>(), setFavorite: vi.fn(), setRotation: vi.fn(), select: vi.fn(), trash: vi.fn() }));
+const s = vi.hoisted(() => ({ createAlbum: vi.fn(), addToAlbum: vi.fn(), favs: new Set<string>(), setFavorite: vi.fn(), setRotation: vi.fn(), select: vi.fn(), trash: vi.fn() }));
 vi.mock("../../lib/api", async (orig) => ({
   ...(await orig<typeof import("../../lib/api")>()),
   mediaUrl: (id: string, v: string) => `/m/${id}/${v}`,
@@ -21,6 +21,8 @@ vi.mock("../../lib/api", async (orig) => ({
       return { favorite: on };
     },
     albums: async () => ({ albums: [] }),
+    createAlbum: async (name: string) => (s.createAlbum(name), { id: "al1", name }),
+    addToAlbum: async (id: string, ids: string[]) => (s.addToAlbum(id, ids), { count: ids.length }),
     setRotation: async (id: string, deg: number) => (s.setRotation(id, deg), { asset_id: id, rotation: deg }),
     roots: async () => [{ alias: "photos", mode: "rw" }],
     createSelection: async (b: { asset_ids: string[] }) => (s.select(b), { id: "sel1", count: 1 }),
@@ -258,5 +260,57 @@ describe("Space on a button presses the button (audit round 115)", () => {
     screen.getByTestId("lightbox").focus();
     fireEvent.keyDown(screen.getByTestId("lightbox"), { key: " " });
     expect(screen.getByRole("button", { name: "停止幻燈片" })).toBeTruthy();
+  });
+});
+
+describe("a story to keep (audit round 115)", () => {
+  async function toEnd(seeAll?: { n: number; go: () => void }) {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const tick = (ms: number) => act(async () => void (await vi.advanceTimersByTimeAsync(ms)));
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Lightbox start={0} grid={grid} onClose={vi.fn()} autoplay title="2025 的足球" seeAll={seeAll} />
+      </QueryClientProvider>,
+    );
+    await screen.findByRole("button", { name: "停止幻燈片" });
+    for (let i = 0; i < 3; i++) await tick(4000);
+    return screen.findByRole("button", { name: "再播一次" });
+  }
+
+  it("[VIEW-069] 回歸：結尾卡可「存成相簿」（以標題為名，放入播過的照片）與「看全部 N 張」（驗證第 115 輪：播完什麼都留不下）", async () => {
+    const go = vi.fn();
+    try {
+      await toEnd({ n: 120, go });
+      expect(screen.getByText("播放了 3 張，共 120 張")).toBeTruthy();
+      fireEvent.click(screen.getByRole("button", { name: "存成相簿" }));
+      await waitFor(() => expect(s.addToAlbum).toHaveBeenCalledWith("al1", ["p0", "p1", "p2"]));
+      expect(s.createAlbum).toHaveBeenCalledWith("2025 的足球");
+      expect(await screen.findByText("已存成相簿「2025 的足球」")).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "存成相簿" })).toBeNull(); // kept once, not twice
+      fireEvent.click(screen.getByRole("button", { name: "看全部 120 張" }));
+      expect(go).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("[VIEW-070] 回歸：播放中頂端有進度段落；結尾卡後方的控制列、底片列與箭頭隱藏（驗證第 115 輪：結尾卡壓在控制列上）", async () => {
+    try {
+      render(
+        <QueryClientProvider client={new QueryClient()}>
+          <Lightbox start={0} grid={grid} onClose={vi.fn()} autoplay title="足球" />
+        </QueryClientProvider>,
+      );
+      await screen.findByRole("button", { name: "停止幻燈片" });
+      const bar = screen.getByTestId("story-progress");
+      expect(bar.children).toHaveLength(3);
+      expect(bar.getAttribute("aria-hidden")).toBe("true");
+      cleanup();
+      await toEnd();
+      expect(screen.getByTestId("lightbox").className).toContain("ended");
+      expect(screen.queryByRole("button", { name: "加入收藏" })).toBeNull(); // hidden, out of the Tab order too
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

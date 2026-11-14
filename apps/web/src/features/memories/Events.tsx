@@ -7,9 +7,12 @@ import { api, mediaUrl } from "../../lib/api";
 import { turnStyle } from "../../lib/turn";
 import type { MemoryPhoto } from "./OnThisDay";
 
+/** a story's whole set: its count and the search that shows it all (VIEW-069) */
+export type StoryAll = { n: number; search: { q: string; tag?: string; year?: string; name?: string } };
+
 const parts = (iso: string) => iso.split("-").map(Number) as [number, number, number];
 
-export function Events({ onOpen }: { onOpen: (photos: MemoryPhoto[], start: number, play?: boolean, title?: string) => void }) {
+export function Events({ onOpen }: { onOpen: (photos: MemoryPhoto[], start: number, play?: boolean, title?: string, all?: StoryAll) => void }) {
   const { t, i18n } = useTranslation();
   const q = useQuery({ queryKey: ["memory-events", i18n.language], queryFn: () => api.memoryEvents(i18n.language), staleTime: 10 * 60 * 1000 });
   const list = q.data?.events ?? [];
@@ -48,7 +51,7 @@ export function Events({ onOpen }: { onOpen: (photos: MemoryPhoto[], start: numb
                   className="memory-play ml-auto"
                   aria-label={t("memories.play", { title })}
                   // the photos as a story: the Lightbox opens with its slideshow running (MEM-024, audit round 109)
-                  onClick={() => onOpen(ev.photos.map((p) => ({ id: p.asset_id, ch: p.ch ?? undefined, rot: p.rot })), 0, true, title)}
+                  onClick={() => onOpen(ev.photos.map((p) => ({ id: p.asset_id, ch: p.ch ?? undefined, rot: p.rot })), 0, true, title, { n: ev.count, search: { q: ask } })}
                 >
                   <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true">
                     <path d="M8 5.5v13l10.5-6.5z" />

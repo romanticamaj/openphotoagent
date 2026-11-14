@@ -1,13 +1,13 @@
 // 分類 (ADR-0029): what the AI found, at a glance. Categories and tags with their counts, biggest first; choosing one
 // narrows the photos below. Filtering only: nothing here changes a label or a file.
 import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../../components/Button";
 import { api, mediaUrl, type SearchBody } from "../../lib/api";
 import { memoryGrid } from "../memories/OnThisDay";
-import { Events } from "../memories/Events";
+import { Events, type StoryAll } from "../memories/Events";
 import { Themes } from "../memories/Themes";
 import { Lightbox } from "../viewer/Lightbox";
 import type { GridApi } from "../viewer/PhotoGrid";
@@ -31,7 +31,8 @@ export function ExplorePage({ initial = null, onPick }: { initial?: Pick; onPick
     onPick?.(p);
   };
   const [viewing, setViewing] = useState<number | null>(null);
-  const [memory, setMemory] = useState<{ start: number; grid: GridApi; play?: boolean; title?: string } | null>(null);
+  const [memory, setMemory] = useState<{ start: number; grid: GridApi; play?: boolean; title?: string; all?: StoryAll } | null>(null);
+  const navigate = useNavigate();
   const preset = useQuery({ queryKey: ["preset", "by-content-12", i18n.language], queryFn: () => api.preset("by-content-12", i18n.language) });
   const names = useMemo(() => new Map((preset.data?.categories ?? []).map((c) => [c.key, c.name])), [preset.data]);
   const all = useQuery({
@@ -116,8 +117,8 @@ export function ExplorePage({ initial = null, onPick }: { initial?: Pick; onPick
         ) : null}
       </header>
       {/* a year's frequent subjects, before the counts (MEM-011) */}
-      {!pick ? <Events onOpen={(photos, start, play, title) => setMemory({ start, grid: memoryGrid(photos), play, title })} /> : null}
-      {!pick ? <Themes onOpen={(photos, start, play, title) => setMemory({ start, grid: memoryGrid(photos), play, title })} /> : null}
+      {!pick ? <Events onOpen={(photos, start, play, title, all) => setMemory({ start, grid: memoryGrid(photos), play, title, all })} /> : null}
+      {!pick ? <Themes onOpen={(photos, start, play, title, all) => setMemory({ start, grid: memoryGrid(photos), play, title, all })} /> : null}
       {/* each row says what it is: 類別 (one per photo) and 標籤 (any number) were two unlabelled rows (IMP-038) */}
       <section aria-labelledby="explore-cat-h" className="explore-row">
         <h2 id="explore-cat-h" className="explore-row-h">{t("explore.categoryRow")}</h2>
@@ -148,7 +149,21 @@ export function ExplorePage({ initial = null, onPick }: { initial?: Pick; onPick
         </Button>
       ) : null}
       {viewing !== null ? <Lightbox start={viewing} grid={grid} onClose={() => setViewing(null)} /> : null}
-      {memory ? <Lightbox start={memory.start} grid={memory.grid} autoplay={memory.play} title={memory.title} onClose={() => setMemory(null)} /> : null}
+      {memory ? <Lightbox start={memory.start} grid={memory.grid} autoplay={memory.play}
+          title={memory.title}
+          seeAll={
+            memory.all
+              ? {
+                  n: memory.all.n,
+                  go: () => {
+                    const search = memory.all!.search;
+                    setMemory(null);
+                    void navigate({ to: "/search", search });
+                  },
+                }
+              : undefined
+          }
+          onClose={() => setMemory(null)} /> : null}
     </div>
   );
 }

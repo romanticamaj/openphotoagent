@@ -536,7 +536,12 @@
     "copied": "Image copied — paste it into a chat or document",
     "copyFailed": "Couldn't copy the image: this window can't put images on the clipboard. Use Share to save it as a file",
     "storyEnd": "The end",
-    "playAgain": "Play again"
+    "playAgain": "Play again",
+    "storyPlayed": "Played {n} of {total}",
+    "storyKeep": "Save as album",
+    "storyKept": "Saved as album “{name}”",
+    "storyKeepFailed": "Couldn't save the album",
+    "storySeeAll": "See all {n}"
   },
   "onboarding": {
     "welcome": "Welcome to OpenPhotoAgent",

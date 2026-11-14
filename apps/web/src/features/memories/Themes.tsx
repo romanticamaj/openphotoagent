@@ -5,9 +5,10 @@ import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { api, mediaUrl } from "../../lib/api";
 import { turnStyle } from "../../lib/turn";
+import type { StoryAll } from "./Events";
 import type { MemoryPhoto } from "./OnThisDay";
 
-export function Themes({ onOpen }: { onOpen: (photos: MemoryPhoto[], start: number, play?: boolean, title?: string) => void }) {
+export function Themes({ onOpen }: { onOpen: (photos: MemoryPhoto[], start: number, play?: boolean, title?: string, all?: StoryAll) => void }) {
   const { t, i18n } = useTranslation();
   const q = useQuery({ queryKey: ["memory-themes", i18n.language], queryFn: () => api.memoryThemes(i18n.language), staleTime: 10 * 60 * 1000 });
   const list = q.data?.themes ?? [];
@@ -41,7 +42,7 @@ export function Themes({ onOpen }: { onOpen: (photos: MemoryPhoto[], start: numb
                   className="memory-play ml-auto"
                   aria-label={t("memories.play", { title })}
                   // the photos as a story: the Lightbox opens with its slideshow running (MEM-024, audit round 109)
-                  onClick={() => onOpen(th.photos.map((p) => ({ id: p.asset_id, ch: p.ch ?? undefined, rot: p.rot })), 0, true, title)}
+                  onClick={() => onOpen(th.photos.map((p) => ({ id: p.asset_id, ch: p.ch ?? undefined, rot: p.rot })), 0, true, title, { n: th.count, search: { q: "", tag: th.key, year: String(th.year), name: th.name } })}
                 >
                   <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true">
                     <path d="M8 5.5v13l10.5-6.5z" />

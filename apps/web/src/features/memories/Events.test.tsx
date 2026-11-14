@@ -64,6 +64,9 @@ describe("an outing plays as a story (audit round 109)", () => {
       </QueryClientProvider>,
     );
     fireEvent.click(await screen.findByRole("button", { name: "播放 2025/11/11–11/12 · 足球" }));
-    expect(open).toHaveBeenCalledWith([{ id: "a", rot: undefined }, { id: "b", rot: undefined }], 0, true, "2025/11/11–11/12 · 足球"); // its title opens the story (round 112)
+    expect(open).toHaveBeenCalledWith([{ id: "a", rot: undefined }, { id: "b", rot: undefined }], 0, true, "2025/11/11–11/12 · 足球", {
+      n: 273,
+      search: { q: "2025年11月11日到11月12日" },
+    }); // its title opens the story (round 112); its whole count and search end it (round 115)
   });
 });

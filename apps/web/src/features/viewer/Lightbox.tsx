@@ -28,6 +28,7 @@ export function Lightbox({
   onClose,
   autoplay = false,
   title,
+  seeAll,
 }: {
   start: number;
   grid: GridApi;
@@ -36,6 +37,8 @@ export function Lightbox({
   autoplay?: boolean;
   /** what is playing, 「2025/11/11–11/12 · 足球」: a title card opens the story (VIEW-063) */
   title?: string;
+  /** the story's whole set, for 「看全部 N 張」 on its end card (VIEW-069) */
+  seeAll?: { n: number; go: () => void };
 }) {
   const { t, i18n } = useTranslation();
   const [ord, setOrd] = useState(start);
@@ -170,6 +173,16 @@ export function Lightbox({
     setEnded(false);
     go(d);
   };
+  const keep = useMutation({
+    mutationFn: async () => {
+      const got = await Promise.all(Array.from({ length: grid.total }, (_, i) => grid.at(i)));
+      const ids = got.flatMap((r) => (r ? [r.asset.id] : []));
+      const album = await api.createAlbum(title ?? t("lightbox.label"));
+      for (let i = 0; i < ids.length; i += 500) await api.addToAlbum(album.id, ids.slice(i, i + 500)); // the API takes 500 a request
+      void qcr.invalidateQueries({ queryKey: ["albums"] });
+    },
+    onError: () => setToast(t("lightbox.storyKeepFailed")),
+  });
   // from the end card, by 再播一次 or Space: from the first photo with its title card, focus kept in the dialog (the
   // button goes with the card: focus fell out of it, audit round 114, VIEW-066/067)
   const replay = () => {
@@ -183,11 +196,11 @@ export function Lightbox({
     const id = window.setTimeout(() => {
       if (ord >= grid.total - 1) {
         setPlaying(false);
-        setEnded(true);
+        setEnded(Boolean(title)); // a story ends on its end card; a plain slideshow just stops (VIEW-039)
       } else setOrd(ord + 1);
     }, SLIDE_MS);
     return () => window.clearTimeout(id);
-  }, [playing, ord, grid.total]);
+  }, [playing, ord, grid.total, title]);
 
   const onKey = (e: React.KeyboardEvent) => {
     if (typingIn(e.target)) return; // text in a field, not a shortcut (COL-008)
@@ -240,7 +253,7 @@ export function Lightbox({
       aria-label={title ? `${title} · ${t("lightbox.label")}` : t("lightbox.label")}
       tabIndex={-1}
       // playing, it is a story: the controls fade until the pointer or focus comes to them, photos fade in (VIEW-063)
-      className={playing && !awake ? "lightbox story" : "lightbox"}
+      className={ended ? "lightbox ended" : playing && !awake ? "lightbox story" : "lightbox"}
       onKeyDown={onKey}
       onMouseMove={playing ? wake : undefined}
       data-testid="lightbox"
@@ -250,11 +263,27 @@ export function Lightbox({
           <p>{title}</p>
         </div>
       ) : null}
+      {playing ? (
+        // where the story is: one segment a photo, the current one filling over its time (VIEW-070)
+        <div className="story-progress" data-testid="story-progress" aria-hidden="true">
+          {grid.total <= STORY_SEGMENTS ? (
+            Array.from({ length: grid.total }, (_, i) => <span key={i === ord ? `now-${ord}` : i} className={i < ord ? "done" : i === ord ? "now" : undefined} />)
+          ) : (
+            <span className="done" style={{ width: `${((ord + 1) / grid.total) * 100}%` }} />
+          )}
+        </div>
+      ) : null}
       {ended ? (
         <div className="story-end" role="group" aria-labelledby="story-end-h">
           <p id="story-end-h" className="story-end-h">{t("lightbox.storyEnd")}</p>
           {title ? <p className="story-end-title">{title}</p> : null}
-          <div className="flex gap-2">
+          {seeAll ? (
+            <p className="story-end-count tnum">
+              {t("lightbox.storyPlayed", { n: grid.total.toLocaleString(i18n.language), total: seeAll.n.toLocaleString(i18n.language) })}
+            </p>
+          ) : null}
+          {keep.isSuccess ? <p role="status">{t("lightbox.storyKept", { name: title })}</p> : null}
+          <div className="flex flex-wrap justify-center gap-2">
             <button
               type="button"
               className="story-end-again"
@@ -263,6 +292,17 @@ export function Lightbox({
             >
               {t("lightbox.playAgain")}
             </button>
+            {title && !keep.isSuccess ? (
+              // the story kept as an album, named by its title, with the photos it played (VIEW-069, audit round 115)
+              <button type="button" className="story-end-close" aria-busy={keep.isPending || undefined} onClick={() => !keep.isPending && keep.mutate()}>
+                {t("lightbox.storyKeep")}
+              </button>
+            ) : null}
+            {seeAll ? (
+              <button type="button" className="story-end-close" onClick={seeAll.go}>
+                {t("lightbox.storySeeAll", { n: seeAll.n.toLocaleString(i18n.language) })}
+              </button>
+            ) : null}
             <button type="button" className="story-end-close" onClick={close}>
               {t("lightbox.close")}
             </button>
@@ -270,7 +310,7 @@ export function Lightbox({
         </div>
       ) : null}
       {showKeys ? <KeyList onClose={() => (setShowKeys(false), dialog.current?.focus())} /> : null}
-      <div className="col-span-1 flex items-center gap-2 px-3">
+      <div className="col-span-1 flex items-center gap-2 px-3" style={ended ? { visibility: "hidden" } : undefined}>
         <button type="button" onClick={close} className="rounded-[var(--radius-sm)] px-2 py-1 hover:bg-[var(--surface-2)]">{t("lightbox.close")}</button>
         {/* playing, each step is not read out: it stops when the person stops it (VIEW-062, audit round 112) */}
         <span aria-live={playing ? "off" : "polite"} className="tnum text-[var(--text)]" data-testid="lightbox-position">{position}</span>
@@ -430,14 +470,14 @@ export function Lightbox({
           </>
         )}
         {asset && showInfo && natural && scale === 1 && !rot ? <PhotoFaces id={asset.id} photo={natural} /> : null}
-        {grid.total > 1 ? (
+        {grid.total > 1 && !ended ? (
           <>
             <button type="button" onClick={() => step(-1)} aria-label={t("lightbox.prev")} className="absolute left-2 rounded-full bg-black/40 px-3 py-2">‹</button>
             <button type="button" onClick={() => step(1)} aria-label={t("lightbox.next")} className="absolute right-2 rounded-full bg-black/40 px-3 py-2">›</button>
           </>
         ) : null}
       </div>
-      <nav className="filmstrip" aria-label={t("lightbox.filmstrip")}>
+      <nav className="filmstrip" aria-label={t("lightbox.filmstrip")} style={ended ? { visibility: "hidden" } : undefined}>
         {film.map((f) => (
           <button
             key={f.a.id}
@@ -834,6 +874,8 @@ function PhotoFaces({ id, photo }: { id: string; photo: { w: number; h: number }
 }
 
 const SLIDE_MS = 4000;
+/** up to this many photos, the progress is a segment each; more, one bar */
+const STORY_SEGMENTS = 60;
 
 /** The Lightbox's keys, from 「?」 or its button (VIEW-040). Esc closes the list, not the Lightbox. */
 function KeyList({ onClose }: { onClose: () => void }) {
