@@ -44,3 +44,17 @@ describe("主題 (10 §2.8)", () => {
     expect(title.textContent).toBe("2025 的足球");
   });
 });
+
+describe("a theme plays as a story (audit round 109)", () => {
+  it("[MEM-025] 主題卡有「播放」：從第 1 張開始以幻燈片播放", async () => {
+    s.themes = [{ year: 2025, key: "activity.soccer", name: "足球", count: 120, photos: [{ asset_id: "a", ch: null, taken_at: null }] }];
+    const open = vi.fn();
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Themes onOpen={open} />
+      </QueryClientProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "播放 2025 的足球" }));
+    expect(open).toHaveBeenCalledWith([expect.objectContaining({ id: "a" })], 0, true);
+  });
+});

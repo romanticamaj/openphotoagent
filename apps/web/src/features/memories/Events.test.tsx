@@ -53,3 +53,17 @@ describe("an outing over days (audit round 99)", () => {
     expect(JSON.parse(screen.getByText("看全部").closest("a")?.getAttribute("data-search") ?? "{}")).toEqual({ q: "2026年4月8日到4月9日" });
   });
 });
+
+describe("an outing plays as a story (audit round 109)", () => {
+  it("[MEM-024] 活動卡有「播放」：從第 1 張開始以幻燈片播放那次活動（驗證第 109 輪：回憶不能當故事看）", async () => {
+    s.events = [{ day: "2025-11-11", last: "2025-11-12", key: "activity.soccer", name: "足球", count: 273, photos: [{ asset_id: "a", ch: null }, { asset_id: "b", ch: null }] }];
+    const open = vi.fn();
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Events onOpen={open} />
+      </QueryClientProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "播放 2025/11/11–11/12 · 足球" }));
+    expect(open).toHaveBeenCalledWith([{ id: "a", rot: undefined }, { id: "b", rot: undefined }], 0, true);
+  });
+});

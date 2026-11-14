@@ -7,7 +7,7 @@ import { api, mediaUrl } from "../../lib/api";
 import { turnStyle } from "../../lib/turn";
 import type { MemoryPhoto } from "./OnThisDay";
 
-export function Themes({ onOpen }: { onOpen: (photos: MemoryPhoto[], start: number) => void }) {
+export function Themes({ onOpen }: { onOpen: (photos: MemoryPhoto[], start: number, play?: boolean) => void }) {
   const { t, i18n } = useTranslation();
   const q = useQuery({ queryKey: ["memory-themes", i18n.language], queryFn: () => api.memoryThemes(i18n.language), staleTime: 10 * 60 * 1000 });
   const list = q.data?.themes ?? [];
@@ -36,7 +36,19 @@ export function Themes({ onOpen }: { onOpen: (photos: MemoryPhoto[], start: numb
                 <span className="tnum text-[var(--text-muted)]">
                   {t("memories.themeCount", { n: th.count.toLocaleString(i18n.language), k: th.photos.length.toLocaleString(i18n.language) })}
                 </span>
-                <Link to="/search" search={{ q: "", tag: th.key, year: String(th.year), name: th.name }} className="ml-auto underline">
+                <button
+                  type="button"
+                  className="memory-play ml-auto"
+                  aria-label={t("memories.play", { title })}
+                  // the photos as a story: the Lightbox opens with its slideshow running (MEM-024, audit round 109)
+                  onClick={() => onOpen(th.photos.map((p) => ({ id: p.asset_id, ch: p.ch ?? undefined, rot: p.rot })), 0, true)}
+                >
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true">
+                    <path d="M8 5.5v13l10.5-6.5z" />
+                  </svg>
+                  {t("memories.playShort")}
+                </button>
+                <Link to="/search" search={{ q: "", tag: th.key, year: String(th.year), name: th.name }} className="underline">
                   {t("memories.themeAll")}
                 </Link>
               </p>

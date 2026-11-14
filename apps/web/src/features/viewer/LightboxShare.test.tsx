@@ -96,3 +96,21 @@ describe("the Lightbox's toast (audit round 111)", () => {
     expect(Number(m![1])).toBeGreaterThan(strip);
   });
 });
+
+describe("a Lightbox opened to play (audit round 109)", () => {
+  it("[VIEW-061] 以「播放」打開時幻燈片已在播放；一般打開時沒有", async () => {
+    const { unmount } = render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Lightbox start={0} grid={grid} onClose={vi.fn()} autoplay />
+      </QueryClientProvider>,
+    );
+    expect((await screen.findByRole("button", { name: "停止幻燈片" })).getAttribute("aria-pressed")).toBe("true");
+    unmount();
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Lightbox start={0} grid={grid} onClose={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    expect((await screen.findByRole("button", { name: "幻燈片" })).getAttribute("aria-pressed")).toBe("false");
+  });
+});

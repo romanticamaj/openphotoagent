@@ -1167,7 +1167,9 @@
     "themeOpen": "{title}，{n} 張",
     "themeCount": "{n} 張 · 精選 {k} 張",
     "themeAll": "看全部",
-    "events": "最近的活動"
+    "events": "最近的活動",
+    "play": "播放 {title}",
+    "playShort": "播放"
   },
   "trash": {
     "move": "移到垃圾桶",

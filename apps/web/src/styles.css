@@ -1185,3 +1185,16 @@ body {
   .memory-theme { scroll-snap-align: start; }
 }
 
+/* 播放 on a memory card (MEM-024): a small pill beside the count */
+.memory-play {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+.memory-play:hover {
+  background: var(--surface-2);
+}

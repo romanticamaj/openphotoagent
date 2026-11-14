@@ -9,7 +9,7 @@ import type { MemoryPhoto } from "./OnThisDay";
 
 const parts = (iso: string) => iso.split("-").map(Number) as [number, number, number];
 
-export function Events({ onOpen }: { onOpen: (photos: MemoryPhoto[], start: number) => void }) {
+export function Events({ onOpen }: { onOpen: (photos: MemoryPhoto[], start: number, play?: boolean) => void }) {
   const { t, i18n } = useTranslation();
   const q = useQuery({ queryKey: ["memory-events", i18n.language], queryFn: () => api.memoryEvents(i18n.language), staleTime: 10 * 60 * 1000 });
   const list = q.data?.events ?? [];
@@ -43,7 +43,19 @@ export function Events({ onOpen }: { onOpen: (photos: MemoryPhoto[], start: numb
                 <span className="tnum text-[var(--text-muted)]">
                   {t("memories.themeCount", { n: ev.count.toLocaleString(i18n.language), k: ev.photos.length.toLocaleString(i18n.language) })}
                 </span>
-                <Link to="/search" search={{ q: ask }} className="ml-auto underline">
+                <button
+                  type="button"
+                  className="memory-play ml-auto"
+                  aria-label={t("memories.play", { title })}
+                  // the photos as a story: the Lightbox opens with its slideshow running (MEM-024, audit round 109)
+                  onClick={() => onOpen(ev.photos.map((p) => ({ id: p.asset_id, ch: p.ch ?? undefined, rot: p.rot })), 0, true)}
+                >
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor" aria-hidden="true">
+                    <path d="M8 5.5v13l10.5-6.5z" />
+                  </svg>
+                  {t("memories.playShort")}
+                </button>
+                <Link to="/search" search={{ q: ask }} className="underline">
                   {t("memories.themeAll")}
                 </Link>
               </p>

@@ -31,7 +31,7 @@ export function ExplorePage({ initial = null, onPick }: { initial?: Pick; onPick
     onPick?.(p);
   };
   const [viewing, setViewing] = useState<number | null>(null);
-  const [memory, setMemory] = useState<{ start: number; grid: GridApi } | null>(null);
+  const [memory, setMemory] = useState<{ start: number; grid: GridApi; play?: boolean } | null>(null);
   const preset = useQuery({ queryKey: ["preset", "by-content-12", i18n.language], queryFn: () => api.preset("by-content-12", i18n.language) });
   const names = useMemo(() => new Map((preset.data?.categories ?? []).map((c) => [c.key, c.name])), [preset.data]);
   const all = useQuery({
@@ -116,8 +116,8 @@ export function ExplorePage({ initial = null, onPick }: { initial?: Pick; onPick
         ) : null}
       </header>
       {/* a year's frequent subjects, before the counts (MEM-011) */}
-      {!pick ? <Events onOpen={(photos, start) => setMemory({ start, grid: memoryGrid(photos) })} /> : null}
-      {!pick ? <Themes onOpen={(photos, start) => setMemory({ start, grid: memoryGrid(photos) })} /> : null}
+      {!pick ? <Events onOpen={(photos, start, play) => setMemory({ start, grid: memoryGrid(photos), play })} /> : null}
+      {!pick ? <Themes onOpen={(photos, start, play) => setMemory({ start, grid: memoryGrid(photos), play })} /> : null}
       {/* each row says what it is: 類別 (one per photo) and 標籤 (any number) were two unlabelled rows (IMP-038) */}
       <section aria-labelledby="explore-cat-h" className="explore-row">
         <h2 id="explore-cat-h" className="explore-row-h">{t("explore.categoryRow")}</h2>
@@ -148,7 +148,7 @@ export function ExplorePage({ initial = null, onPick }: { initial?: Pick; onPick
         </Button>
       ) : null}
       {viewing !== null ? <Lightbox start={viewing} grid={grid} onClose={() => setViewing(null)} /> : null}
-      {memory ? <Lightbox start={memory.start} grid={memory.grid} onClose={() => setMemory(null)} /> : null}
+      {memory ? <Lightbox start={memory.start} grid={memory.grid} autoplay={memory.play} onClose={() => setMemory(null)} /> : null}
     </div>
   );
 }

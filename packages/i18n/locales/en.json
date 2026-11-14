@@ -1167,7 +1167,9 @@
     "themeOpen": "{title}, {n} photos",
     "themeCount": "{n} photos · {k} picked",
     "themeAll": "See all",
-    "events": "Recent events"
+    "events": "Recent events",
+    "play": "Play {title}",
+    "playShort": "Play"
   },
   "trash": {
     "move": "Move to trash",

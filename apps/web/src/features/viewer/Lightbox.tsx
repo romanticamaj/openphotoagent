@@ -22,7 +22,18 @@ const AskPhoto = lazy(() => import("../ask/AskPanel").then((m) => ({ default: m.
 
 const FILM = 7;
 
-export function Lightbox({ start, grid: outer, onClose }: { start: number; grid: GridApi; onClose: (assetId: string | null) => void }) {
+export function Lightbox({
+  start,
+  grid: outer,
+  onClose,
+  autoplay = false,
+}: {
+  start: number;
+  grid: GridApi;
+  onClose: (assetId: string | null) => void;
+  /** opened to play: the slideshow is running from the start (VIEW-061) */
+  autoplay?: boolean;
+}) {
   const { t, i18n } = useTranslation();
   const [ord, setOrd] = useState(start);
   // a photo's folded near-duplicates, looked through in place; 「返回全部照片」 goes back where it was (VIEW-052)
@@ -138,7 +149,7 @@ export function Lightbox({ start, grid: outer, onClose }: { start: number; grid:
   const close = useCallback(() => onClose(copies ? copies.backId : (asset?.id ?? null)), [asset, copies, onClose]);
   const go = useCallback((d: number) => setOrd((o) => Math.max(0, Math.min(grid.total - 1, o + d))), [grid.total]);
   // a slideshow (VIEW-039): the next photo every SLIDE_MS, stopping on the last; moving by hand stops it
-  const [playing, setPlaying] = useState(false);
+  const [playing, setPlaying] = useState(autoplay);
   const [showKeys, setShowKeys] = useState(false);
   const step = (d: number) => {
     setPlaying(false);
