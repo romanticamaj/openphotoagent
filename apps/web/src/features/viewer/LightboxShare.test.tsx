@@ -85,3 +85,14 @@ describe("sharing from the Lightbox (audit round 109: no share or export)", () =
     expect(screen.queryByText(/已存成|沒能分享/)).toBeNull();
   });
 });
+
+describe("the Lightbox's toast (audit round 111)", () => {
+  it("[SHARE-010] 回歸：Lightbox 裡的提示在底片列上方，不蓋住底片列（驗證第 111 輪）", async () => {
+    const { readFileSync } = await import("node:fs");
+    const css = readFileSync(`${process.cwd()}/src/styles.css`, "utf-8");
+    const strip = Number(/\.filmstrip button\s*\{[^}]*height:\s*(\d+)px/.exec(css)![1]) + 16; // tile + padding
+    const m = /\.lightbox \.toast\s*\{[^}]*bottom:\s*(\d+)px/.exec(css);
+    expect(m).not.toBeNull();
+    expect(Number(m![1])).toBeGreaterThan(strip);
+  });
+});

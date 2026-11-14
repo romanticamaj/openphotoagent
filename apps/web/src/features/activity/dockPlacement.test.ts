@@ -8,7 +8,8 @@ describe("where the progress card sits", () => {
     expect(css).toMatch(/\.sidebar \.progress-dock\s*\{[^}]*position:\s*static/);
     expect(css).toMatch(/\.sidebar\s*\{[^}]*flex-direction:\s*column/);
     // the nav and the card share one sidebar column
-    expect(router).toMatch(/<div className="sidebar">[\s\S]*<nav className="sidenav"[\s\S]*<ProgressDock \/>[\s\S]*<\/div>\s*<main/);
+    // the same structure, with the attributes the narrow drawer added to the sidebar (VIEW-051) allowed on its tag
+    expect(router).toMatch(/<div\s+className="sidebar"[^>]*>\s*<nav className="sidenav"[\s\S]*<ProgressDock \/>\s*<\/div>[\s\S]*?<main/);
   });
 });
 

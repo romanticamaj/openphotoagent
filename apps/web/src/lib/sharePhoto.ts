@@ -17,10 +17,12 @@ export type ShareDeps = {
   writeClipboard: ((png: Blob) => Promise<void>) | undefined;
 };
 
-/** photo-2025-11-11.jpg, or photo-<first 8 of its id>.jpg: plain characters only, whatever the id holds */
+/** photo-2025-11-11-0192ab34.jpg: the day it was taken and the first 8 of its id, so two photos of one day are two
+ *  files (audit round 111, SHARE-009); plain characters only, whatever the id holds */
 export function photoFileName(p: { id: string; takenAt: string | null }, ext: string): string {
   const day = p.takenAt && /^\d{4}-\d{2}-\d{2}/.test(p.takenAt) ? p.takenAt.slice(0, 10) : null;
-  return `photo-${day ?? p.id.replace(/[^0-9A-Za-z]/g, "").slice(0, 8)}.${ext}`;
+  const short = p.id.replace(/[^0-9A-Za-z]/g, "").slice(0, 8);
+  return `photo-${day ? `${day}-` : ""}${short}.${ext}`;
 }
 
 /** The system share sheet when it takes files; otherwise the photo is saved as a file. A cancelled sheet is no error. */

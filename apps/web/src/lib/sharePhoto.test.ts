@@ -29,7 +29,7 @@ describe("sharing one photo (audit round 109: no share or export)", () => {
     expect(d.encoded).toEqual([["image/jpeg", 90]]); // turned as it is shown
     const files = (share.mock.calls[0] as unknown as [{ files: File[] }])[0].files;
     expect(files).toHaveLength(1);
-    expect(files[0]!.name).toBe("photo-2025-11-11.jpg");
+    expect(files[0]!.name).toBe("photo-2025-11-11-a1.jpg"); // the day and the id (round 111)
     expect(files[0]!.type).toBe("image/jpeg");
     expect(d.saved).toEqual([]);
   });
@@ -61,8 +61,8 @@ describe("sharing one photo (audit round 109: no share or export)", () => {
     await expect(copyPhoto({ id: "a1", rot: 0, takenAt: null }, deps())).rejects.toThrow("CLIPBOARD_UNSUPPORTED");
   });
 
-  it("[SHARE-005] 檔名：有拍攝日期用日期，否則用照片編號前 8 碼，只用安全字元", () => {
-    expect(photoFileName({ id: "0192ab34-cdef", takenAt: "2024-02-10T00:00:00Z" }, "jpg")).toBe("photo-2024-02-10.jpg");
+  it("[SHARE-005] 檔名：拍攝日期（有的話）加照片編號前 8 碼，只用安全字元", () => {
+    expect(photoFileName({ id: "0192ab34-cdef", takenAt: "2024-02-10T00:00:00Z" }, "jpg")).toBe("photo-2024-02-10-0192ab34.jpg");
     expect(photoFileName({ id: "0192ab34-cdef", takenAt: null }, "png")).toBe("photo-0192ab34.png");
     expect(photoFileName({ id: "../../x", takenAt: null }, "jpg")).toBe("photo-x.jpg");
   });
@@ -74,5 +74,14 @@ describe("sharing on the desktop (audit round 110: the share sheet never came)",
     expect(browserDeps("desktop", nav).share).toBeUndefined();
     expect(browserDeps("desktop", nav).canShare).toBeUndefined();
     expect(browserDeps("web", nav).share).toBeDefined();
+  });
+});
+
+describe("two photos, two files (audit round 111)", () => {
+  it("[SHARE-009] 回歸：同一天的兩張照片存成不同檔名（驗證第 111 輪：兩張都叫 photo-2026-11-05.jpg）", () => {
+    const a = photoFileName({ id: "0192ab34-0001", takenAt: "2026-11-05T09:00:00" }, "jpg");
+    const b = photoFileName({ id: "0192ab99-0002", takenAt: "2026-11-05T10:00:00" }, "jpg");
+    expect(a).not.toBe(b);
+    expect(a).toBe("photo-2026-11-05-0192ab34.jpg");
   });
 });

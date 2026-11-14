@@ -788,6 +788,10 @@ body {
   background-size: cover;
   opacity: 0.6;
 }
+/* in the Lightbox the toast sits over the filmstrip's top edge, not on its photos (audit round 111, SHARE-010) */
+.lightbox .toast {
+  bottom: 104px;
+}
 .filmstrip button[aria-current="true"] {
   opacity: 1;
   box-shadow: 0 0 0 2px var(--accent);
