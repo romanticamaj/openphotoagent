@@ -563,7 +563,7 @@ function BatchBar({
           {t("batch.applyCategory")}
         </Button>
       ) : null}
-      <ShareSelection ids={shareIds} />
+      <ShareSelection ids={shareIds} count={count} />
       <TrashButton select={makeSelection} />
       <CopyToFolderButton select={makeSelection} />
     </div>
