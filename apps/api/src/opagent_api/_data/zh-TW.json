@@ -673,6 +673,18 @@
     "cancel": "取消",
     "copyNote": "會先建立計畫給你核准；照片複製一份到這裡，原檔不動。"
   },
+  "share": {
+    "many": "分享 {n} 張…",
+    "preparing": "準備中…",
+    "tooMany": "一次最多分享 {max} 張；請少選一些",
+    "inRoot": "這個資料夾在相片庫裡。請選相片庫以外的資料夾，照片才不會混進相片庫。",
+    "failed": "分享失敗，請再試一次",
+    "savedTo": "已存 {n} 張到 {dir}",
+    "zipped": "已存成 {name}",
+    "shared": "已分享 {n} 張",
+    "someFailed": "{n} 張無法分享",
+    "openFolder": "開啟資料夾"
+  },
   "compat": {
     "ok": "可用",
     "degraded": "不建議",

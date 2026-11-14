@@ -20,6 +20,11 @@ export type Platform = {
   status?: () => Promise<BootStatus>;
   /** desktop: the OS folder dialog; the only way a root is added (invariant 2, C-09). Resolves to its alias, or null */
   addRoot?: (mode: "ro" | "rw") => Promise<string | null>;
+  /** desktop: several photos into a new folder inside one picked in the OS dialog, then opened (ADR-0054); null when
+   *  cancelled; rejects with SHARE_IN_ROOT for a folder inside the library */
+  saveShared?: (day: string, files: Array<{ name: string; bytes: Uint8Array }>) => Promise<{ handle: string; dir: string; n: number } | null>;
+  /** desktop: open a share folder again */
+  openShared?: (handle: string) => Promise<string>;
 };
 
 declare global {

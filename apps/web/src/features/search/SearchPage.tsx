@@ -14,6 +14,7 @@ import { turnStyle } from "../../lib/turn";
 import { AddToAlbum, FavoriteSelection, typingIn } from "../albums/AlbumButtons";
 import { askAbout } from "../../lib/askBus";
 import { CopyToFolderButton } from "../../components/CopyToFolder";
+import { ShareSelection } from "../../components/ShareSelection";
 import { TrashButton } from "../../components/TrashButton";
 import { bodyFor, cappedNote, chipLabel, chipsFrom, dateWords, gridAssetOf, headerCount, loadMoreText, onlyByMeaning, relaxedText, softView, tileLabel, type Chip, weakNeedsMore, weakTail, withoutPerson, withoutWords } from "./searchPlan";
 
@@ -283,6 +284,7 @@ export function SearchPage({ q, tag, year, name }: { q: string; tag?: string; ye
           makeSelection={handle}
           onDone={(n) => setToast(t("batch.updated", { n: n.toLocaleString(i18n.language) }))}
           onCompare={sel.all ? undefined : () => setComparing([...sel.ids])}
+          shareIds={sel.all ? null : [...sel.ids]}
         />
       )}
       {comparing ? (
@@ -495,11 +497,14 @@ function BatchBar({
   makeSelection,
   onDone,
   onCompare,
+  shareIds = null,
 }: {
   count: number;
   makeSelection: () => Promise<{ id: string; count: number }>;
   onDone: (n: number) => void;
   onCompare?: () => void;
+  /** the chosen photos one by one, for 分享 (ADR-0054); null when all are selected */
+  shareIds?: string[] | null;
 }) {
   const { t, i18n } = useTranslation();
   const [tag, setTag] = useState("");
@@ -558,6 +563,7 @@ function BatchBar({
           {t("batch.applyCategory")}
         </Button>
       ) : null}
+      <ShareSelection ids={shareIds} />
       <TrashButton select={makeSelection} />
       <CopyToFolderButton select={makeSelection} />
     </div>

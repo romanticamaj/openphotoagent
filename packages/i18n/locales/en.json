@@ -673,6 +673,18 @@
     "cancel": "Cancel",
     "copyNote": "You approve a plan first; the photos are copied here and the originals stay untouched."
   },
+  "share": {
+    "many": "Share {n}…",
+    "preparing": "Preparing…",
+    "tooMany": "Share up to {max} at a time; choose fewer",
+    "inRoot": "That folder is inside your library. Choose a folder outside it so the photos are not added to the library.",
+    "failed": "Couldn't share. Try again",
+    "savedTo": "Saved {n} to {dir}",
+    "zipped": "Saved as {name}",
+    "shared": "Shared {n}",
+    "someFailed": "{n} couldn't be shared",
+    "openFolder": "Open folder"
+  },
   "compat": {
     "ok": "Compatible",
     "degraded": "Not recommended",

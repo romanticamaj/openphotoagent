@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { api } from "../../lib/api";
 import { AddToAlbum, FavoriteSelection, typingIn } from "../albums/AlbumButtons";
 import { CopyToFolderButton } from "../../components/CopyToFolder";
+import { ShareSelection } from "../../components/ShareSelection";
 import { TrashButton } from "../../components/TrashButton";
 import { memoryGrid, OnThisDay } from "../memories/OnThisDay";
 import { Lightbox } from "./Lightbox";
@@ -105,6 +106,7 @@ function TimelineBatch({ sel, onClear }: { sel: Selection; onClear: () => void }
       <strong className="tnum">{t("batch.selected", { n: n.toLocaleString(i18n.language) })}</strong>
       <FavoriteSelection put={put} />
       <AddToAlbum put={put} />
+      <ShareSelection ids={sel.all ? null : [...sel.ids]} />
       <CopyToFolderButton select={select} />
       <TrashButton select={select} />
       <button type="button" className="ml-auto text-sm underline" onClick={onClear}>

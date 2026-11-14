@@ -13,6 +13,7 @@ use opagent_supervisor::logs;
 use opagent_supervisor::paths::{self, Os};
 use opagent_supervisor::remote;
 use opagent_supervisor::roots;
+use opagent_supervisor::share;
 use opagent_supervisor::updater;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
@@ -384,6 +385,14 @@ fn platform_script(thumbs: &Path) -> String {
   status: () => window.__TAURI_INTERNALS__.invoke("shell_status"),
   addRoot: (mode) => window.__TAURI_INTERNALS__.invoke("add_root", {{ mode }}),
   revealInFileManager: (rootAlias, relPath) => window.__TAURI_INTERNALS__.invoke("reveal_in_file_manager", {{ rootAlias, relPath }}),
+  saveShared: async (day, files) => {{
+    const inv = window.__TAURI_INTERNALS__.invoke;
+    const handle = await inv("share_pick", {{ day, count: files.length }});
+    if (!handle) return null;
+    for (const f of files) await inv("share_write", f.bytes, {{ headers: {{ "x-share": handle, "x-name": f.name }} }});
+    return {{ handle, dir: await inv("share_open", {{ handle }}), n: files.length }};
+  }},
+  openShared: (handle) => window.__TAURI_INTERNALS__.invoke("share_open", {{ handle }}),
 }};"#
     )
 }
@@ -515,6 +524,83 @@ fn reveal_in_file_manager(
     r.map(|_| ()).map_err(|e| e.to_string())
 }
 
+/// Folders made for a share this run, by a handle the page holds: the page names no path (ADR-0054).
+#[derive(Default)]
+struct ShareDirs(Mutex<std::collections::HashMap<String, PathBuf>>);
+
+/// 「分享 N 張」 on the desktop (ADR-0054, SHARE-012～015): the person picks a folder in the OS dialog; a new folder for
+/// this share is made in it. A folder inside the library is refused (invariant 3: files reach a root only by a plan).
+#[tauri::command(async)]
+fn share_pick(
+    app: tauri::AppHandle,
+    shell: tauri::State<'_, Arc<Shell>>,
+    dirs: tauri::State<'_, ShareDirs>,
+    day: String,
+    count: usize,
+) -> Result<Option<String>, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let Some(picked) = app.dialog().file().blocking_pick_folder() else {
+        return Ok(None);
+    };
+    let parent = picked.into_path().map_err(|e| e.to_string())?;
+    if share::inside_a_root(&roots::load(&shell.roots_file()), &parent) {
+        return Err("SHARE_IN_ROOT".into());
+    }
+    let dir =
+        share::new_dir(&parent, &share::folder_name(&day, count)).map_err(|e| e.to_string())?;
+    let handle = launch_token();
+    dirs.0.lock().unwrap().insert(handle.clone(), dir);
+    Ok(Some(handle))
+}
+
+/// One photo's JPEG, as the raw body; `x-share` is the handle from `share_pick`, `x-name` the file name.
+#[tauri::command(async)]
+fn share_write(
+    request: tauri::ipc::Request<'_>,
+    dirs: tauri::State<'_, ShareDirs>,
+) -> Result<(), String> {
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
+        return Err("expected the photo's bytes".into());
+    };
+    let header = |k: &str| {
+        request
+            .headers()
+            .get(k)
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("")
+            .to_string()
+    };
+    let dir = dirs
+        .0
+        .lock()
+        .unwrap()
+        .get(&header("x-share"))
+        .cloned()
+        .ok_or("unknown share")?;
+    share::write_new(&dir, &header("x-name"), bytes).map_err(|e| e.to_string())
+}
+
+/// The share folder opened in the file manager; its path, to say where the photos went.
+#[tauri::command]
+fn share_open(dirs: tauri::State<'_, ShareDirs>, handle: String) -> Result<String, String> {
+    let dir = dirs
+        .0
+        .lock()
+        .unwrap()
+        .get(&handle)
+        .cloned()
+        .ok_or("unknown share")?;
+    let dir = roots::plain_path(&dir);
+    #[cfg(windows)]
+    let r = std::process::Command::new("explorer").arg(&dir).spawn();
+    #[cfg(target_os = "macos")]
+    let r = std::process::Command::new("open").arg(&dir).spawn();
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let r = std::process::Command::new("xdg-open").arg(&dir).spawn();
+    r.map_err(|e| e.to_string())?;
+    Ok(dir.to_string_lossy().into_owned())
+}
+
 fn main() {
     let home = data_home();
     let _ = std::fs::create_dir_all(&home);
@@ -552,7 +638,10 @@ fn main() {
             backend_info,
             shell_status,
             add_root,
-            reveal_in_file_manager
+            reveal_in_file_manager,
+            share_pick,
+            share_write,
+            share_open
         ])
         .setup(move |app| {
             let resources = paths::plain(&app.path().resource_dir()?);
@@ -574,6 +663,7 @@ fn main() {
                 _lock: lock,
             });
             app.manage(shell.clone());
+            app.manage(ShareDirs::default());
             build_tray(app, shell.clone())?;
             // thumbnails are read straight from the cache; the scope is exactly that directory (+ roots later)
             let thumbs = home.join("worker").join("thumbs");

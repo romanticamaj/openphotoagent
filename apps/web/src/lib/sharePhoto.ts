@@ -51,7 +51,7 @@ export async function copyPhoto(p: SharedPhoto, d: ShareDeps = browserDeps()): P
   return "copied";
 }
 
-async function encodeTurned(b: Blob, type: string, rot: number): Promise<Blob> {
+export async function encodeTurned(b: Blob, type: string, rot: number): Promise<Blob> {
   const img = await createImageBitmap(b);
   const quarter = rot === 90 || rot === 270;
   const c = document.createElement("canvas");
@@ -66,7 +66,7 @@ async function encodeTurned(b: Blob, type: string, rot: number): Promise<Blob> {
   return new Promise((ok, no) => c.toBlob((out) => (out ? ok(out) : no(new Error("ENCODE_FAILED"))), type, 0.92));
 }
 
-function saveFile(b: Blob, name: string): void {
+export function saveFile(b: Blob, name: string): void {
   const url = URL.createObjectURL(b);
   const a = document.createElement("a");
   a.href = url;

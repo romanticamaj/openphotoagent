@@ -140,7 +140,7 @@ apps/web（同一份原始碼）
 | 機制 | 說明 |
 |------|------|
 | `GET /api/v1/capabilities` | `{deployment: "desktop"\|"allinone"\|"controlplane", auth: "launch_token"\|"local"\|"oidc", single_user: bool, features: {faces, ask_ai, mcp_http, multi_worker, ...}, gpu_summary}`。**UI 依伺服器宣告隱藏或顯示功能**（例如 Org/Workspace/Workers 頁），不靠 build flag 硬切。這樣「桌面殼連到自架 NAS」這種組合也能用同一份 bundle |
-| `platform` 模組 | `pickFolder()`：桌面用原生對話框，Web 用遠端資料夾瀏覽器（04 §3.3）；`notify()`：OS 通知或 Web Notification；`revealInFileManager()`：桌面才有；`openExternal()`；`secureStore`：keyring 或不提供。`@tauri-apps/api` 以 dynamic import 載入，Web build 會 tree-shake 掉 |
+| `platform` 模組 | `pickFolder()`：桌面用原生對話框，Web 用遠端資料夾瀏覽器（04 §3.3）；`notify()`：OS 通知或 Web Notification；`revealInFileManager()`：桌面才有；`saveShared()`／`openShared()`：桌面才有，分享多張照片時由殼以原生對話框選資料夾、在其中建新資料夾寫入 2048 px 預覽並開啟（`share_pick`／`share_write`／`share_open`，頁面不能指定路徑，相片庫內的資料夾一律拒絕，ADR-0054）；`openExternal()`；`secureStore`：keyring 或不提供。`@tauri-apps/api` 以 dynamic import 載入，Web build 會 tree-shake 掉 |
 | API base | 桌面由 `backend_info()` 取得；Web 是同源的 `/api/v1` |
 | WebView 差異 | WebView2（Chromium）、WKWebView、WebKitGTK。View Transitions、`fetch` streaming、`createImageBitmap` 在 WebKitGTK 上要降級（04 §5.6 已列）；Linux 的 WebKitGTK 版本以 Ubuntu 22.04 為基準【未驗證：各 API 的可用度】 |
 
