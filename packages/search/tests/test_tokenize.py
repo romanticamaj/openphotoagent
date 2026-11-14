@@ -558,3 +558,19 @@ def test_srch_tok_037_words_the_single_character_rule_left_without_a_chip():
     assert tok.words("雪花冰") == ["雪花冰"]
     assert not {"雪", "花"} & set(tok.related("雪花冰"))
     assert "食物" in tok.related("雪花冰")
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-038")
+def test_srch_tok_038_common_foods_and_fruits_offer_their_word():
+    """回歸 (audit round 122): 15 common foods (牛肉麵, 小籠包, 滷肉飯 …) got no 食物 chip while 冰淇淋 did; 西瓜, 草莓,
+    火龍果, 山竹 got no 水果; 溪流, 河口 no 河. They offer their word (offered_by), with no wrong chip: 鳳梨酥 (a pastry)
+    does not offer 水果."""
+    tok = Tokenizer()
+    for q in ("牛肉麵", "小籠包", "滷肉飯", "蘿蔔糕", "花生湯", "鳳梨酥", "車輪餅", "臭豆腐", "水餃", "粽子"):
+        assert "食物" in tok.related(q), (q, tok.related(q))
+    for q in ("西瓜", "草莓", "火龍果", "山竹", "芒果", "香蕉"):
+        assert "水果" in tok.related(q), (q, tok.related(q))
+    for q in ("溪流", "河口"):
+        assert "河" in tok.related(q), (q, tok.related(q))
+    assert "水果" not in tok.related("鳳梨酥")
