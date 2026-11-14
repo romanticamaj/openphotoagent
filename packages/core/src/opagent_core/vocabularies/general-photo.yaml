@@ -76,6 +76,8 @@ terms:
   - { id: scene.sandbox, zh: 沙坑, en: sandbox, group: 場景, synonyms: [沙池, sandpit] }
   - { id: activity.bath, zh: 洗澡, en: bath, group: 活動, synonyms: [泡澡, 澡盆] }
   - { id: activity.jump_rope, zh: 跳繩, en: jump rope, group: 活動, synonyms: [跳繩子] }
+  # 河 is written inside 拔河 but is no part of it (audit round 119, SRCH-TOK-033)
+  - { id: activity.tug_of_war, zh: 拔河, en: tug of war, group: 活動, synonyms: [拔河比賽], suggest: [event.sports_day], unrelated: [scene.river] }
   - { id: scene.night_market, zh: 夜市, en: night market, group: 場景, synonyms: [攤販] }
   - { id: object.snowman, zh: 雪人, en: snowman, group: 物件, synonyms: [堆雪人] }
   - { id: object.dinosaur, zh: 恐龍, en: dinosaur, group: 物件, synonyms: [恐龍模型] }

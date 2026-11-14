@@ -1366,7 +1366,8 @@ body {
 /* the next has loaded and fades in: the one before fades out under it, mostly there early and gone by the end, so the
    middle does not dim and its edges do not go in one frame (VIEW-076) */
 .lightbox .stage img.story-prev.out {
-  animation: story-out 750ms cubic-bezier(0.55, 0, 1, 0.45) forwards;
+  /* ease-in-out, ending flat: a steep end dropped 0.21 to 0 in one frame (audit round 119) */
+  animation: story-out 900ms cubic-bezier(0.45, 0, 0.55, 1) forwards;
 }
 @keyframes story-out {
   from { opacity: 1; }

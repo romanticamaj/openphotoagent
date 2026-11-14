@@ -936,7 +936,7 @@ function PhotoFaces({ id, photo }: { id: string; photo: { w: number; h: number }
 
 const SLIDE_MS = 4000;
 /** how long the photo before fades under the next (as long as its CSS animation) */
-const PREV_FADE_MS = 800;
+const PREV_FADE_MS = 950;
 /** the longest the photo before waits for the next one to load */
 const PREV_HOLD_MS = 3000;
 /** up to this many photos, the progress is a segment each; more, one bar */

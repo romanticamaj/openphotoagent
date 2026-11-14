@@ -179,6 +179,7 @@ class Tokenizer:
     _beside: dict[str, set[str]] = field(default_factory=dict)
     _no_theme: set[str] = field(default_factory=set)
     _suggest: dict[str, list[str]] = field(default_factory=dict)
+    _unrelated: dict[str, set[str]] = field(default_factory=dict)
     _seen_by: dict[str, set[str]] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -194,6 +195,7 @@ class Tokenizer:
             self._includes[t["id"]] = set(t.get("includes") or [])
             self._beside[t["id"]] = set(t.get("ranks_beside") or [])
             self._suggest[t["id"]] = list(t.get("suggest") or [])  # what an event is seen by (SRCH-TOK-027)
+            self._unrelated[t["id"]] = set(t.get("unrelated") or [])  # written inside it, no part of it (SRCH-TOK-033)
             # tags that show an activity: a photo tagged 食物 shows 吃飯, through the tag route only (SRCH-TOK-031)
             self._seen_by[t["id"]] = set(t.get("seen_by") or [])
             if t.get("theme") is False:  # true of any year: not a memory theme (MEM-012)
@@ -336,6 +338,9 @@ class Tokenizer:
         for form, key in self._index.items():
             if key != own and _CJK.fullmatch(form) and form in q and form != q:
                 found[key] = max(found.get(key, 0), len(form))
+        # a word written inside a term but no part of it is not offered: 拔河 does not suggest 河 (SRCH-TOK-033)
+        unrelated = {u for k in [own or "", *found] for u in self._unrelated.get(k, set())}
+        found = {k: n for k, n in found.items() if k not in unrelated}
         keys = sorted(found, key=lambda k: (-found[k], k))
         # an event names the things it is seen by: 生日 tries 蛋糕 (SRCH-TOK-027)
         for k in [own or "", *list(found)]:  # 「生日派對」 holds 生日: its suggestions too (SRCH-TOK-029)

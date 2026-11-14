@@ -452,3 +452,18 @@ def test_srch_tok_032_a_food_suggests_food():
     for q in ("冰淇淋", "拉麵", "蛋糕", "火鍋", "牛排"):
         assert "食物" in tok.related(q), q
     assert tok.tag_key("火鍋") == "food.hotpot" and tok.tag_key("牛排") == "food.steak"
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-033")
+def test_srch_tok_033_a_word_inside_another_by_its_letters_only_is_not_related():
+    """回歸 (audit round 119): 「拔河」 (tug of war) found nothing and suggested 「河」, which opened a riverside photo: 河
+    is written inside 拔河 but has nothing to do with it. 拔河 is an activity of its own, which names what it is not
+    (unrelated) and suggests 運動會; 荷花 still suggests 花 and 爬山 still suggests 山."""
+    tok = Tokenizer()
+    assert tok.tag_key("拔河") == "activity.tug_of_war"
+    assert "河" not in tok.related("拔河")
+    assert "運動會" in tok.related("拔河")
+    assert "河" not in tok.related("拔河比賽")
+    assert tok.related("荷花") == ["花"]
+    assert tok.related("爬山") == ["山"]

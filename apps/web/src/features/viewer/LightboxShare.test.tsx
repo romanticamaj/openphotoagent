@@ -373,7 +373,7 @@ describe("one photo into the next (audit round 116)", () => {
       const prev = await screen.findByTestId("story-prev");
       expect(prev.getAttribute("src")).toContain("p0");
       for (const img of screen.getByTestId("lightbox-stage").querySelectorAll("img:not(.story-prev)")) fireEvent.load(img); // the next one came (round 117)
-      await tick(800); // and faded in over it
+      await tick(1000); // and faded in over it (its fade: 950 ms, round 119)
       expect(screen.queryByTestId("story-prev")).toBeNull(); // gone once it has faded
       fireEvent.click(screen.getByRole("button", { name: "停止幻燈片" }));
       fireEvent.keyDown(screen.getByTestId("lightbox"), { key: "ArrowRight" });
@@ -426,7 +426,7 @@ describe("the end card holds still, and a fade has no black frame (audit round 1
       await tick(1500); // the next has not loaded: the one before stays, whole
       expect(screen.getByTestId("story-prev")).toBe(prev);
       for (const img of screen.getByTestId("lightbox-stage").querySelectorAll("img:not(.story-prev)")) fireEvent.load(img);
-      await tick(800);
+      await tick(1000); // its fade: 950 ms (round 119)
       expect(screen.queryByTestId("story-prev")).toBeNull();
       // to the end, keep it, and open the album
       await tick(4000);
