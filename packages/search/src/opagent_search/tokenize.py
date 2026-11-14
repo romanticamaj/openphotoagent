@@ -24,8 +24,8 @@ from typing import Any
 import yaml
 from opagent_core.vocabularies import VOCAB_DIR
 
-# @21 拔河, 熱氣球 of their own (ADR-0051); @20 火鍋, 牛排 of their own; @19 food suggests 食物; history in git
-TOKENIZER_VERSION = "jieba-zh-hant@21+opencc-s2twp+bigram"
+# @22 雪花冰, 鐵馬 (ADR-0051 addendum 1); @21 拔河, 熱氣球 of their own (ADR-0051); @20 火鍋, 牛排; history in git
+TOKENIZER_VERSION = "jieba-zh-hant@22+opencc-s2twp+bigram"
 # Names that hold a vocabulary word but are not that thing: a caption reading a sign 「日落大道」 (Sunset Blvd) is not a
 # sunset (SRCH-TOK-018). Weighed above the vocabulary's words, so the name is one word.
 NAMES = ("日落大道", "夕陽大道")

@@ -542,3 +542,19 @@ def test_srch_tok_036_offered_by_words_offer_a_term_without_being_its_names():
             assert len(w) >= 2 and all("一" <= c <= "鿿" for c in w), (t["id"], w)
             assert w not in names, (t["id"], w)
         assert t["id"] in ids
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-037")
+def test_srch_tok_037_words_the_single_character_rule_left_without_a_chip():
+    """回歸 (audit round 121, ADR-0051 addendum 1): after ADR-0051, 圖書館 lost 書 and 河堤 lost 河; 鐵馬 (Taiwanese for a
+    bicycle) found no bicycle; 雪花冰 was split into 雪花 + 冰 and showed a snowy slope as 意思相近. 圖書館 and 河堤 offer
+    their word, 鐵馬 is a name of the bicycle, and 雪花冰 is a food of its own that suggests no snow or flower."""
+    tok = Tokenizer()
+    assert "書" in tok.related("圖書館")
+    assert "河" in tok.related("河堤")
+    assert tok.tag_key("鐵馬") == "object.bicycle"
+    assert tok.tag_key("雪花冰") == "food.shaved_ice"
+    assert tok.words("雪花冰") == ["雪花冰"]
+    assert not {"雪", "花"} & set(tok.related("雪花冰"))
+    assert "食物" in tok.related("雪花冰")
