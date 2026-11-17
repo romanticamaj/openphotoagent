@@ -11,6 +11,7 @@ export function ActivityCenter({
   onToggle,
   onFix,
   actions,
+  onOpenPlan,
   recent = [],
 }: {
   open: boolean;
@@ -20,6 +21,7 @@ export function ActivityCenter({
   onToggle?: () => void;
   onFix?: (op: Op, fixId: string) => void;
   actions?: (op: Op) => ReactNode;
+  onOpenPlan?: (planId: string) => void;
 }) {
   const { t, i18n } = useTranslation();
   useEffect(() => {
@@ -68,18 +70,44 @@ export function ActivityCenter({
         <section aria-labelledby="recent-h" className="space-y-1">
           <h3 id="recent-h" className="text-xs text-[var(--text-muted)]">{t("activity.recent")}</h3>
           <ul aria-labelledby="recent-h" className="space-y-1 text-sm">
-            {recent.map((op) => (
-              <li key={op.id} className="flex justify-between gap-2">
-                <span>{t(`activity.type.${opTypeKey(op)}`, { defaultValue: op.type })}</span>
+            {oneRowPerPlan(recent).map((op) => {
+              const sub = (op.subject ?? {}) as { plan_id?: string; photos?: number; target?: string };
+              const name = t(`activity.type.${opTypeKey(op)}`, { defaultValue: op.type });
+              // which plan, how many and where to, and a way back to it (ACT-022)
+              const detail = sub.photos != null ? ` · ${t(sub.target ? "activity.planTo" : "activity.planN", { n: sub.photos, target: sub.target })}` : "";
+              const when = (
                 <span className="tnum text-xs text-[var(--text-muted)]">
                   {t(`activity.status.${opStatusKey(op)}`, { defaultValue: op.status })}
                   {op.finished_at ? ` · ${new Date(op.finished_at).toLocaleTimeString(i18n.language, { hour: "2-digit", minute: "2-digit" })}` : ""}
                 </span>
-              </li>
-            ))}
+              );
+              return (
+                <li key={op.id}>
+                  {sub.plan_id && onOpenPlan ? (
+                    <button type="button" className="recent-row" onClick={() => onOpenPlan(sub.plan_id!)}>
+                      <span>{name}{detail}</span>
+                      {when}
+                    </button>
+                  ) : (
+                    <span className="flex justify-between gap-2">
+                      <span>{name}{detail}</span>
+                      {when}
+                    </span>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </section>
       ) : null}
     </aside>
   );
+}
+
+type Recent = Pick<Op, "type"> & { subject?: unknown };
+
+/** A plan and the job that made it were two rows (ACT-023): the job's row names the plan, so the plan's goes. */
+export function oneRowPerPlan<T extends Recent>(ops: T[]): T[] {
+  const named = new Set(ops.map((o) => (o.subject as { plan_id?: string } | undefined)?.plan_id).filter(Boolean));
+  return ops.filter((o) => !(o.type === "output.plan" && named.has((o.subject as { id?: string } | undefined)?.id)));
 }

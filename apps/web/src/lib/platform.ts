@@ -23,6 +23,10 @@ export type Platform = {
   /** desktop: several photos into a new folder inside one picked in the OS dialog, then opened (ADR-0054); null when
    *  cancelled; rejects with SHARE_IN_ROOT for a folder inside the library */
   saveShared?: (day: string, files: Array<{ name: string; bytes: Uint8Array }>) => Promise<{ handle: string; dir: string; n: number } | null>;
+  /** desktop: the share's OS folder dialog and new folder alone, so it opens before the photos are made (SHARE-031) */
+  pickShared?: (day: string, count: number) => Promise<{ handle: string; dir: string } | null>;
+  /** desktop: one photo into the folder `pickShared` made */
+  writeShared?: (handle: string, file: { name: string; bytes: Uint8Array }) => Promise<void>;
   /** desktop: open a share folder again */
   openShared?: (handle: string) => Promise<string>;
 };

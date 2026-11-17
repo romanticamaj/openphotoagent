@@ -273,7 +273,9 @@
       "job.label": "“Resume all” keeps analysing; you still see the plan before any file moves.",
       "model.download": "“Resume all” continues the download where it stopped.",
       "default": "“Resume all” continues where it stopped."
-    }
+    },
+    "planTo": "{n} → {target}",
+    "planN": "{n} photos"
   },
   "fix": {
     "hf_token": "Add Hugging Face token",
@@ -620,6 +622,7 @@
     "partialCount": "No photo matches everything · {count} match the rest",
     "relaxedNone": "No photo shows 「{words}」.",
     "possible": "Possibly related: {n} (not counted)",
+    "noWordsTitle": "Nothing to search for",
     "noWords": "Type a word to look for, such as “beach” or “cat”",
     "noneSure": "No photo is a sure match",
     "tryInstead": "Try:",

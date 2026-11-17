@@ -273,7 +273,9 @@
       "job.label": "「全部繼續」會繼續分析；要動檔案前，仍會先給你看計畫。",
       "model.download": "「全部繼續」會從中斷的地方接著下載。",
       "default": "「全部繼續」會從中斷的地方接著做。"
-    }
+    },
+    "planTo": "{n} 張 → {target}",
+    "planN": "{n} 張"
   },
   "fix": {
     "hf_token": "新增 Hugging Face token",
@@ -620,6 +622,7 @@
     "partialCount": "沒有完全符合的照片 · 符合其他條件的有 {count}",
     "relaxedNone": "沒有照片拍到「{words}」。",
     "possible": "可能相關 {n} 張（不算在張數裡）",
+    "noWordsTitle": "沒有可搜尋的字",
     "noWords": "請輸入要找的字或詞，例如「海邊」或「貓」",
     "noneSure": "沒有確定符合的照片",
     "tryInstead": "試試：",

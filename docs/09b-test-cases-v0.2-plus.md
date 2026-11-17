@@ -133,6 +133,10 @@
 | SRCH-UI-057 | 選取列是一條工具列：控制項同高 2rem、間距與留白收緊（回歸，驗證第 129 輪：1024 px 仍兩行；按鈕高 28／30／38 px）ADR-0056 | 選 1 張 | batch-bar 有 toolbar；styles.css 的 .toolbar 規則 height: 2rem、icon-button width: 2rem | C | #— |
 | SRCH-UI-058 | 只有標點的查詢請你輸入字詞，不問 AI「##」（回歸，驗證第 130 輪） | no_words 的回應 | 「請輸入要找的字或詞…」；沒有問 AI 按鈕；仍有瀏覽分類 | C | #— |
 | SRCH-UI-059 | 標籤與類別收在「標籤與類別…」彈出框，選取列本身沒有欄位（回歸，驗證第 130 輪：1024 px 仍兩行）ADR-0056 補充 1 | 選 3 張 | 列內沒有 input／select；按鈕 aria-haspopup=dialog、aria-expanded 切換；焦點到標籤欄；加上標籤與類別在彈出框內 | C | #— |
+| SRCH-UI-060 | 只有標點時標題不重複那些標點、不寫「0 張」（回歸，驗證第 131 輪：「「##」的搜尋結果 · 0 張」） | 「##」，回應 no_words | 標題「沒有可搜尋的字」；沒有張數；下方仍是「請輸入要找的字或詞…」 | U | #98 |
+| SRCH-UI-061 | 網址裡只有空白的查詢就是瀏覽（回歸，驗證第 131 輪：「「　」的搜尋結果 665 張」） | q「　 」 | 送出的 q 為空；標題「搜尋結果」 | U | #98 |
+| SRCH-UI-062 | 標籤與類別彈出框：Esc 先清掉選好的類別；關閉後不留沒送出的字與類別（回歸，驗證第 131 輪） | 選「植物」後 Esc；打「測試字」後關閉再開 | 類別回到空、彈出框仍開著；重開時標籤欄是空的 | U | #98 |
+| SRCH-UI-063 | 彈出框裡的按鈕與欄位同高（回歸，驗證第 131 輪：欄位 32 px、按鈕 38 px） | styles.css | `.labels-popover button` 高 2rem | U | #98 |
 | SHARE-001 | 有系統分享時分享一個 JPEG：由衍生預覽轉成並套用旋轉，不讀原檔（ADR-0050，驗證第 109 輪：沒有分享） | canShare 為真、旋轉 90° | 分享 1 個 `photo-2025-11-11-a1.jpg`，預覽來自 p2048，未存檔 | C | #— |
 | SHARE-002 | 沒有系統分享、或不能分享檔案時存成 JPEG 檔 | 無 share；canShare 為假 | 存成 `photo-<id 前 8 碼>.jpg` | C | #— |
 | SHARE-003 | 取消分享不算失敗也不改存檔；其他錯誤往外拋 | share 拋 AbortError；預覽缺少 | 回傳 cancelled、未存檔；THUMB_MISSING 往外拋 | C | #— |
@@ -163,6 +167,8 @@
 | SHARE-028 | 存好時不自動開檔案總管，只有按「開啟資料夾」才開；share_pick 直接告訴頁面資料夾在哪（回歸，驗證第 127 輪：每次都開檔案總管，搶走提示的焦點） | 殼注入的 saveShared | 不呼叫 share_open；openShared 才呼叫 | U | #— |
 | SHARE-029 | 準備中時按鈕保持原寬度：原本的字隱藏佔位（回歸，驗證第 127 輪：按鈕縮 16 px、旁邊的按鈕滑動） | 進行中 | aria-hidden、invisible 的「分享 1 張…」 | C | #— |
 | SHARE-030 | 提示上的 Tab 在提示按鈕間輪流，最後一個之後回到分享按鈕（回歸，驗證第 127 輪：Tab 跳到頁首） | Tab、Shift+Tab | 焦點回到分享按鈕，提示仍在 | C | #— |
+| SHARE-031 | 桌面版先開資料夾對話框，選好才轉檔；取消就一張都不轉（回歸，驗證第 131 輪：2048 px 照片按下後 2.9–3.9 s 才出現對話框） | 2 張，pickShared／writeShared；取消 | 第一步是 pick（張數 2），之後逐張寫入；結果 saved n 2；取消時沒有讀任何預覽 | U | #98 |
+| SHARE-032 | 殼的橋接提供單獨的對話框與逐張寫入 | PLATFORM_JS | `pickShared` 只呼叫 share_pick；`writeShared` 呼叫 share_write 並帶 x-share；都不開資料夾 | U（cargo） | #98 |
 | VIEW-061 | 以「播放」打開 Lightbox 時幻燈片已在播放；一般打開時沒有 | autoplay | 「停止幻燈片」aria-pressed=true；一般打開為「幻燈片」false | C | #— |
 | VIEW-062 | 播放中不逐張唸出位置；停止時按鈕叫「播放幻燈片」（回歸，驗證第 112 輪） | autoplay | 位置 aria-live=off；停止後為 polite | C | #— |
 | VIEW-063 | 以「播放」打開時先顯示標題卡（aria-hidden，對話框名稱已含標題）；播放中是故事模式（控制列淡出、照片淡入）；停止後恢復（回歸，驗證第 112 輪：沒有標題、硬切） | autoplay、title | story-title 含標題；class 含 story；停止後兩者皆無 | C | #— |

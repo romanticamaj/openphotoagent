@@ -843,6 +843,24 @@ body {
   padding: 8px 0;
   border-bottom: 1px solid var(--border);
 }
+/* a plan's row opens it (ACT-021) */
+.activity-center .recent-row {
+  display: flex;
+  width: 100%;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  border-radius: var(--radius-sm);
+  text-align: left;
+}
+.activity-center .recent-row:hover {
+  background: var(--surface-2);
+}
+.activity-center .recent-row:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
 
 .op-stepper {
   display: flex;
@@ -1012,6 +1030,12 @@ body {
 .toolbar .icon-button { width: 2rem; }
 /* 標籤與類別… (ADR-0056 addendum 1): under its button, over the photos, never in the bar's row */
 .labels-popover { position: absolute; top: calc(100% + 0.375rem); left: 0; z-index: 30; display: flex; flex-direction: column; gap: 0.5rem; padding: 0.75rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); box-shadow: 0 8px 24px rgb(0 0 0 / 0.35); white-space: nowrap; }
+/* the same 2rem as its fields: 加上標籤 stood 38 px beside 32 px fields (round 131, SRCH-UI-063) */
+.labels-popover button {
+  height: 2rem;
+  padding-block: 0;
+  padding-inline: 0.75rem;
+}
 
 /* search facets: one sideways-scrolling row of soft chips (audit round 26) */
 .facet-row { display: flex; gap: 1.25rem; overflow-x: auto; scrollbar-width: none; mask-image: linear-gradient(to right, #000 92%, transparent); }

@@ -87,8 +87,8 @@ def test_col_021_everything_but_the_photos_taken_back_out(lib):
 
 
 @pytest.mark.integration
-@pytest.mark.tc("ACT-020")
-def test_act_020_a_plan_from_the_selection_bar_is_in_activity(lib):
+@pytest.mark.tc("ACT-021")
+def test_act_021_a_plan_from_the_selection_bar_is_in_activity(lib):
     """回歸 (audit rounds 128–129): a 複製到資料夾 plan made from the selection bar never showed in 活動's 最近完成; the
     依日期 plan made a minute later did. Both kinds of plan are listed, and so is the job, by its outcome."""
     client, _, _ = lib
@@ -104,3 +104,21 @@ def test_act_020_a_plan_from_the_selection_bar_is_in_activity(lib):
     assert (
         job_ops and job_ops[0]["status"] == "succeeded" and job_ops[0]["subject"]["job_status"] == "awaiting_approval"
     )
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ACT-022")
+def test_act_022_a_plan_row_says_which_plan(lib):
+    """回歸 (audit round 131): 活動 rows read only 「建立整理計畫 · 完成」, so two plans could not be told apart or
+    opened. A plan job's row carries its plan, how many photos and where to."""
+    client, _, _ = lib
+    ids = [a["asset_id"] for a in client.post("/api/v1/search", json={}).json()["items"]][:2]
+    sel = client.post("/api/v1/selections", json={"asset_ids": ids}).json()
+    r = client.post(
+        f"/api/v1/selections/{sel['id']}/organize", json={"target": {"root_alias": "sorted", "sub_path": "picked"}}
+    ).json()
+    ops = client.get("/api/v1/operations", params={"status": "all"}).json()
+    sub = next(o["subject"] for o in ops if (o.get("subject") or {}).get("id") == r["job_id"])
+    assert sub["plan_id"] == r["plan_id"]
+    assert sub["photos"] == 2
+    assert sub["target"] == "sorted/picked"

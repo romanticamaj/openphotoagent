@@ -746,7 +746,9 @@
 | ACT-017 | 整理工作依計畫狀態命名 | 待核准；已捨棄；已套用 | 「整理計畫待核准」；「已捨棄整理計畫（未變更檔案）」；「整理」 | U | #— |
 | ACT-018 | 待核准的整理計畫狀態不寫「完成」（回歸，驗證第 59 輪） | 分析已完成、計畫待核准的工作 | 狀態「等你核准」；其他工作照常顯示 | U | #— |
 | ACT-019 | 進度卡只有 AI 分析在等時寫「載入 AI 模型」（回歸，驗證第 70～71 輪） | job.label、output.apply、face.cluster、scan、掃描中 | dock.preparing、dock.waiting、dock.waiting、dock.scanning、dock.waitingScan | C | #— |
-| ACT-020 | 選取列建的計畫列在活動（回歸，驗證第 128～129 輪：複製到資料夾的計畫不在最近完成） | 選 2 張 → 複製到資料夾；移到垃圾桶同 | output.plan 與 job 的 operation 都 succeeded，job 依結果命名（awaiting_approval） | I | #— |
+| ACT-021 | 選取列建的計畫列在活動（原誤用 ACT-020，與下一列重號；回歸，驗證第 128～129 輪：複製到資料夾的計畫不在最近完成） | 選 2 張 → 複製到資料夾；移到垃圾桶同 | output.plan 與 job 的 operation 都 succeeded，job 依結果命名（awaiting_approval） | I | #— |
+| ACT-022 | 計畫那一列寫出幾張、到哪裡，按下開啟那個計畫（回歸，驗證第 131 輪：只寫「建立整理計畫 · 完成」，也點不開） | 選 2 張 → 複製到 sorted/picked；最近完成的那一列 | 工作的 `subject` 帶 `plan_id`、`photos` 2、`target`「sorted/picked」；列上「… · 2 張 → sorted/picked」，是按鈕，按下開啟 /plans/<id> 並關閉抽屜 | I＋U | #98 |
+| ACT-023 | 一個計畫只佔一列（回歸，驗證第 131 輪：兩個計畫顯示成四列） | 工作列帶 plan_id p1；output.plan p1；output.plan p2 | 最近完成 2 列：p1 只留工作那一列，p2 的計畫列保留 | U | #98 |
 | ACT-020 | 不使用 AI 的整理在進度卡寫「整理」（回歸，驗證第 72 輪） | job.label、uses_ai false／true／沒有 | job.organize「整理」＋準備中…；其餘 job.label | C | #— |
 
 ## 10. ORG、REV — 整理流程與待確認（killer ①；03 §10、04 §3.7、08 §8.1）

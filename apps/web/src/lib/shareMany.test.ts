@@ -63,6 +63,20 @@ describe("sharing several photos (ADR-0054; audit round 124: one at a time only)
     expect(d.saveZip).not.toHaveBeenCalled();
   });
 
+  it("[SHARE-031] 回歸：桌面版先開資料夾對話框，選好才轉檔；取消就一張都不轉（驗證第 131 輪：大照片按下後 3–4 秒才出現對話框）", async () => {
+    const order: string[] = [];
+    const pickShared = vi.fn(async (_day: string, n: number) => (order.push(`pick:${n}`), { handle: "h", dir: "D:\out\分享" }));
+    const writeShared = vi.fn(async (_h: string, f: { name: string; bytes: Uint8Array }) => void order.push(`write:${f.name}`));
+    const preview = vi.fn(async (id: string) => (order.push(`preview:${id}`), new Blob([id])));
+    const r = await shareMany(["a1", "b2"], deps({ pickShared, writeShared, preview }), "2026-11-14");
+    expect(order[0]).toBe("pick:2"); // the dialog before any photo is made
+    expect(order.filter((o) => o.startsWith("write:"))).toEqual(["write:photo-2025-11-11-a1.jpg", "write:photo-b2.jpg"]);
+    expect(r).toEqual({ kind: "saved", handle: "h", dir: "D:\out\分享", n: 2, failed: 0 });
+    const none = vi.fn(async () => new Blob(["x"]));
+    expect(await shareMany(["a1"], deps({ pickShared: async () => null, writeShared, preview: none }), "2026-11-14")).toEqual({ kind: "cancelled" });
+    expect(none).not.toHaveBeenCalled();
+  });
+
   it("[SHARE-017] 取消選資料夾不算失敗、什麼都不存；資料夾在相片庫裡時說出原因", async () => {
     expect(await shareMany(["a1"], deps({ saveShared: async () => null }), "2026-11-14")).toEqual({ kind: "cancelled" });
     const inRoot = deps({ saveShared: async () => Promise.reject(new Error("SHARE_IN_ROOT")) });

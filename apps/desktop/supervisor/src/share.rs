@@ -95,6 +95,9 @@ pub const PLATFORM_JS: &str = r#"
     for (const f of files) await inv("share_write", f.bytes, { headers: { "x-share": picked.handle, "x-name": f.name } });
     return { handle: picked.handle, dir: picked.dir, n: files.length };
   },
+  pickShared: (day, count) => window.__TAURI_INTERNALS__.invoke("share_pick", { day, count }),
+  writeShared: (handle, f) =>
+    window.__TAURI_INTERNALS__.invoke("share_write", f.bytes, { headers: { "x-share": handle, "x-name": f.name } }),
   openShared: (handle) => window.__TAURI_INTERNALS__.invoke("share_open", { handle }),
 "#;
 
@@ -174,5 +177,34 @@ mod tests {
         assert!(save.contains("share_pick") && save.contains("share_write"));
         assert!(!save.contains("share_open"), "saving opened the folder");
         assert!(PLATFORM_JS.contains("openShared") && PLATFORM_JS.contains("share_open"));
+    }
+
+    #[test]
+    fn share_032_the_dialog_alone_before_the_photos() {
+        // 回歸 (audit round 131): the page made every photo before the folder dialog, 3–4 s for 2048 px photos.
+        // The bridge offers the dialog alone and one write per photo, so the page asks first.
+        let pick = PLATFORM_JS
+            .split("pickShared")
+            .nth(1)
+            .unwrap()
+            .split("writeShared")
+            .next()
+            .unwrap();
+        assert!(
+            pick.contains("share_pick") && !pick.contains("share_write"),
+            "{PLATFORM_JS}"
+        );
+        let write = PLATFORM_JS
+            .split("writeShared")
+            .nth(1)
+            .unwrap()
+            .split("openShared")
+            .next()
+            .unwrap();
+        assert!(
+            write.contains("share_write")
+                && write.contains("x-share")
+                && !write.contains("share_open")
+        );
     }
 }

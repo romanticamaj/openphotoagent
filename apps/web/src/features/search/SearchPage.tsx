@@ -23,7 +23,9 @@ const sameChips = (a: Chip[], b: Chip[]) => a.length === b.length && a.every((c,
 /** tries for a search page beyond the first: the page says it failed instead of waiting through three (SRCH-UI-047) */
 export const searchRetry = 1;
 
-export function SearchPage({ q, tag, year, name }: { q: string; tag?: string; year?: string; name?: string }) {
+export function SearchPage({ q: asked, tag, year, name }: { q: string; tag?: string; year?: string; name?: string }) {
+  // blanks alone are no query: a URL of 「　」 was titled 「「　」的搜尋結果」 over the whole library (SRCH-UI-061)
+  const q = asked.trim();
   const { t, i18n } = useTranslation();
   const nav = useNavigate();
   // a theme's 「看全部」 asks by its tag and year, not by words (SRCH-UI-037)
@@ -206,11 +208,12 @@ export function SearchPage({ q, tag, year, name }: { q: string; tag?: string; ye
       <div className="flex items-baseline gap-3">
         <h1 id="search-h" className="text-lg font-semibold">
           {/* a memory theme's photos are titled with the theme (audit round 83) */}
-          {tag && year && !q && chips.some((c) => c.kind === "tag" && c.value === tag) && chips.some((c) => c.kind === "year" && c.value === year) ? t("memories.themeTitle", { year, name: { ...tagNames, ...first?.tag_names }[tag] ?? name ?? tag }) : q ? t("search.resultsFor", { q }) : t("search.results")}
+          {tag && year && !q && chips.some((c) => c.kind === "tag" && c.value === tag) && chips.some((c) => c.kind === "year" && c.value === year) ? t("memories.themeTitle", { year, name: { ...tagNames, ...first?.tag_names }[tag] ?? name ?? tag }) : first?.no_words ? t("search.noWordsTitle") : q ? t("search.resultsFor", { q }) : t("search.results")}
         </h1>
         {/* nothing found with words set aside: 「找不到」 says it once below (SRCH-UI-052), the count reads 「0 張」 as on
             every page that finds nothing (SRCH-UI-053, audit round 124) */}
-        {first && (total > 0 || !first.possible_total) ? (
+        {/* marks alone: no echo and no 「0 張」 over the ask for words (SRCH-UI-060) */}
+        {first && !first.no_words && (total > 0 || !first.possible_total) ? (
           // no count until the answer is here: 「0 張」 flashed before every result (audit round 2); none over
           // 「沒有確定符合的照片」 either, which says it (SRCH-UI-036)
           <span data-testid="result-count" className="tnum text-[var(--text-muted)]">
@@ -533,6 +536,12 @@ export function BatchBar({
   useEffect(() => {
     if (labelsOpen) tagRef.current?.focus(); // the popover takes the keyboard as it opens
   }, [labelsOpen]);
+  // closing without adding drops what was typed or chosen: a draft came back on reopening (round 131, SRCH-UI-062)
+  const closeLabels = () => {
+    setLabelsOpen(false);
+    setTag("");
+    setCat("");
+  };
   return (
     <div data-testid="batch-bar" className="toolbar flex flex-wrap items-center rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3">
       <strong className="tnum">{t("batch.selected", { n: count.toLocaleString(i18n.language) })}</strong>
@@ -557,10 +566,10 @@ export function BatchBar({
       <span
         className="relative"
         onBlur={(e) => {
-          if (labelsOpen && !e.currentTarget.contains(e.relatedTarget as Node | null)) setLabelsOpen(false);
+          if (labelsOpen && !e.currentTarget.contains(e.relatedTarget as Node | null)) closeLabels();
         }}
       >
-        <Button ref={labelsRef} variant="ghost" aria-haspopup="dialog" aria-expanded={labelsOpen} onClick={() => setLabelsOpen((o) => !o)}>
+        <Button ref={labelsRef} variant="ghost" aria-haspopup="dialog" aria-expanded={labelsOpen} onClick={() => (labelsOpen ? closeLabels() : setLabelsOpen(true))}>
           {t("batch.labels")}
         </Button>
         {labelsOpen ? (
@@ -571,7 +580,7 @@ export function BatchBar({
             onKeyDown={(e) => {
               if (e.key !== "Escape") return;
               e.stopPropagation(); // the popover first, the selection on the next Esc (SRCH-UI-056)
-              setLabelsOpen(false);
+              closeLabels();
               labelsRef.current?.focus();
             }}
           >
@@ -597,7 +606,16 @@ export function BatchBar({
               ) : null}
             </span>
             <span className="flex items-center gap-2">
-              <select aria-label={t("batch.category")} value={cat} onChange={(e) => setCat(e.target.value)} className="h-8 w-40 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-1.5 text-sm">
+              <select
+                aria-label={t("batch.category")}
+                value={cat}
+                onChange={(e) => setCat(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key !== "Escape" || !cat) return;
+                  e.stopPropagation(); // the choice first, like typed words (SRCH-UI-062)
+                  setCat("");
+                }}
+                className="h-8 w-40 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-1.5 text-sm">
                 <option value="">{t("batch.categoryHint")}</option>
                 {(preset.data?.categories ?? []).map((c) => (
                   <option key={c.key} value={c.key}>

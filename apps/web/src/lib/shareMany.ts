@@ -15,6 +15,10 @@ export type ManyDeps = {
   encode: (b: Blob, type: string, rot: number) => Promise<Blob>;
   /** desktop: the OS folder dialog, a new folder in it, the files written and the folder opened; null when cancelled */
   saveShared: ((day: string, files: Array<{ name: string; bytes: Uint8Array }>) => Promise<{ handle: string; dir: string; n: number } | null>) | undefined;
+  /** desktop: the OS folder dialog alone, before any photo is made (SHARE-031); null when cancelled */
+  pickShared?: ((day: string, count: number) => Promise<{ handle: string; dir: string } | null>) | undefined;
+  /** desktop: one made photo into the picked folder */
+  writeShared?: ((handle: string, file: { name: string; bytes: Uint8Array }) => Promise<void>) | undefined;
   share: ((d: { files: File[] }) => Promise<void>) | undefined;
   canShare: ((d: { files: File[] }) => boolean) | undefined;
   saveZip: (b: Blob, name: string) => void;
@@ -29,6 +33,9 @@ export type ManyResult =
 export const SHARE_MAX = 200;
 
 export async function shareMany(ids: string[], d: ManyDeps = browserManyDeps(), day: string): Promise<ManyResult> {
+  // the folder first, then the photos: with 2048 px photos the dialog came 3–4 s after the click (round 131, SHARE-031)
+  const picked = d.pickShared && d.writeShared ? await d.pickShared(day, ids.length) : undefined;
+  if (picked === null) return { kind: "cancelled" };
   const made: Array<{ name: string; bytes: Uint8Array; blob: Blob }> = [];
   let failed = 0;
   let firstError: unknown = null;
@@ -43,6 +50,10 @@ export async function shareMany(ids: string[], d: ManyDeps = browserManyDeps(), 
     }
   }
   if (!made.length) throw firstError instanceof Error ? firstError : new Error("SHARE_FAILED");
+  if (picked && d.writeShared) {
+    for (const { name, bytes } of made) await d.writeShared(picked.handle, { name, bytes });
+    return { kind: "saved", handle: picked.handle, dir: picked.dir, n: made.length, failed };
+  }
   if (d.saveShared) {
     const r = await d.saveShared(day, made.map(({ name, bytes }) => ({ name, bytes })));
     return r ? { kind: "saved", handle: r.handle, dir: r.dir, n: r.n, failed } : { kind: "cancelled" };
@@ -141,6 +152,8 @@ export function browserManyDeps(nav: Navigator | undefined = typeof navigator ==
     preview: previewBlob,
     encode: encodeTurned,
     saveShared: p.saveShared,
+    pickShared: p.pickShared,
+    writeShared: p.writeShared,
     share: sheet ? (d) => sheet.share(d) : undefined,
     canShare: sheet?.canShare ? (d) => sheet.canShare(d) : undefined,
     saveZip: saveFile,

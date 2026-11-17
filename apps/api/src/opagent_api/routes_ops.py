@@ -44,20 +44,30 @@ def list_operations(
 def _with_job_state(c: Any, ops: list[dict[str, Any]]) -> None:
     """A job's row carries where the job is and how it ended (ACT-016): a 依日期 preview is an organize job waiting
     for approval, and its row said 「整理 完成」. The page names it from `job_status` and `outcome`."""
-    from opagent_db.schema import job
+    from opagent_db.schema import job, output_plan
 
     ids = [o["subject"]["id"] for o in ops if (o.get("subject") or {}).get("kind") == "job" and o["subject"].get("id")]
     if not ids:
         return
-    state = {
-        r.id: (r.status, (r.params or {}).get("outcome"))
-        for r in c.execute(select(job.c.id, job.c.status, job.c.params).where(job.c.id.in_(ids)))
-    }
+    rows = c.execute(
+        select(job.c.id, job.c.status, job.c.params, job.c.plan_id, output_plan.c.summary)
+        .select_from(job.outerjoin(output_plan, output_plan.c.id == job.c.plan_id))
+        .where(job.c.id.in_(ids))
+    ).all()
+    state = {}
+    for r in rows:
+        p = r.params or {}
+        extra: dict[str, Any] = {"outcome": p.get("outcome")}
+        if r.plan_id:  # which plan, how many and where to (ACT-022): rows read only 「建立整理計畫 · 完成」
+            tgt: dict[str, Any] = p["target"] if isinstance(p.get("target"), dict) else {}
+            where = "/".join(x for x in (tgt.get("root_alias"), (tgt.get("sub_path") or "").strip("/")) if x)
+            extra |= {"plan_id": r.plan_id, "photos": (r.summary or {}).get("total"), "target": where or None}
+        state[r.id] = (r.status, {k: v for k, v in extra.items() if v is not None})
     for o in ops:
         sub = o.get("subject") or {}
         if sub.get("kind") == "job" and sub.get("id") in state:
-            status, outcome = state[sub["id"]]
-            o["subject"] = {**sub, "job_status": status, **({"outcome": outcome} if outcome else {})}
+            status, extra = state[sub["id"]]
+            o["subject"] = {**sub, "job_status": status, **extra}
 
 
 @router.get("/operations/{op_id}")

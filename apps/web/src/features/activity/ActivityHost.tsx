@@ -1,6 +1,7 @@
 // Activity Center wiring (06 §6.1): top-bar indicator, ⌘J drawer, row actions (resume / cancel with modes),
 // and the recovery card after a restart (OP-006).
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../../components/Button";
@@ -34,6 +35,7 @@ export function ActivityButton({ onToggle }: { onToggle: () => void }) {
 export function ActivityDrawer({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => void }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const nav = useNavigate();
   const ops = useActivity().data ?? [];
   const [cancelling, setCancelling] = useState<Op | null>(null);
   const refresh = () => void qc.invalidateQueries({ queryKey: ["operations"] });
@@ -60,6 +62,10 @@ export function ActivityDrawer({ open, setOpen }: { open: boolean; setOpen: (v: 
         recent={(recent.data ?? []) as never}
         onClose={() => setOpen(false)}
         onToggle={() => setOpen(!open)}
+        onOpenPlan={(planId) => {
+          setOpen(false);
+          void nav({ to: "/plans/$planId", params: { planId } });
+        }}
         actions={(op) => (
           <span className="flex gap-2">
             {["paused", "interrupted"].includes(op.status) && (

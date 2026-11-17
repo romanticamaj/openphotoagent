@@ -18,7 +18,7 @@ vi.mock("../../lib/api", async (orig) => ({
       return s.result ? Promise.resolve(s.result) : new Promise(() => undefined); // still searching unless set
     },
     searchIndex: async () => ({ total: 10, searchable: 10 }),
-    preset: async () => ({ categories: [] }),
+    preset: async () => ({ categories: [{ key: "plants", name: "植物" }] }),
     roots: async () => [],
   },
 }));
@@ -558,6 +558,55 @@ describe("Esc from the selection bar keeps focus (audit round 127)", () => {
     expect(screen.queryByRole("button", { name: /問 AI/ })).toBeNull();
     expect(screen.getByRole("button", { name: /瀏覽/ })).toBeTruthy(); // still a way on
     s.result = null;
+  });
+  it("[SRCH-UI-060] 回歸：只有標點時標題不重複那些標點、也不寫「0 張」（驗證第 131 輪：「「##」的搜尋結果 · 0 張」）", async () => {
+    s.result = { items: [], facets: {}, total: 0, next_cursor: null, degraded: [], no_words: true, suggest: [] } as never;
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SearchPage q="##" />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText("請輸入要找的字或詞，例如「海邊」或「貓」")).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("沒有可搜尋的字");
+    expect(screen.queryByTestId("result-count")).toBeNull();
+    s.result = null;
+  });
+  it("[SRCH-UI-061] 回歸：網址裡只有空白的查詢就是瀏覽，標題不是「「　」的搜尋結果」（驗證第 131 輪）", async () => {
+    s.result = { items: [], facets: {}, total: 0, next_cursor: null, degraded: [], suggest: [] } as never;
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SearchPage q={"　 "} />
+      </QueryClientProvider>,
+    );
+    await waitFor(() => expect(s.last).toBeTruthy());
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("搜尋結果");
+    expect((s.last as { q?: string }).q ?? "").toBe("");
+    s.result = null;
+  });
+  it("[SRCH-UI-062] 回歸：彈出框裡 Esc 先清掉選好的類別；關掉再打開時，沒送出的字和類別都不留著（驗證第 131 輪）", async () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <BatchBar count={3} makeSelection={async () => ({ id: "s", count: 3 })} onDone={() => undefined} shareIds={["a", "b", "c"]} />
+      </QueryClientProvider>,
+    );
+    const trigger = screen.getByRole("button", { name: "標籤與類別…" });
+    fireEvent.click(trigger);
+    await screen.findByRole("option", { name: "植物" });
+    const cat = screen.getByRole("combobox", { name: "類別" }) as HTMLSelectElement;
+    fireEvent.change(cat, { target: { value: "plants" } });
+    expect(cat.value).toBe("plants");
+    fireEvent.keyDown(cat, { key: "Escape" });
+    expect(cat.value).toBe(""); // the choice first
+    expect(screen.getByRole("dialog", { name: "標籤與類別" })).toBeTruthy(); // still open
+    fireEvent.change(screen.getByRole("textbox", { name: "標籤" }), { target: { value: "測試字" } });
+    fireEvent.click(trigger); // closed without adding
+    fireEvent.click(trigger);
+    expect((screen.getByRole("textbox", { name: "標籤" }) as HTMLInputElement).value).toBe("");
+  });
+  it("[SRCH-UI-063] 回歸：彈出框裡的按鈕與欄位同高（驗證第 131 輪：欄位 32 px、加上標籤 38 px）", async () => {
+    const { readFileSync } = await import("node:fs");
+    const css = readFileSync(`${process.cwd()}/src/styles.css`, "utf-8").replace(/\s+/g, " ");
+    expect(css.match(/\.labels-popover button \{([^}]*)\}/)?.[1]).toContain("height: 2rem");
   });
   it("[SRCH-UI-059] 回歸：標籤與類別收在「標籤與類別…」彈出框，選取列本身沒有欄位；打開時焦點到標籤欄（驗證第 130 輪：1024 px 仍兩行）", async () => {
     render(
