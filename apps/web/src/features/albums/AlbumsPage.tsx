@@ -191,7 +191,7 @@ export function AlbumPage({ albumId }: { albumId: string }) {
         )}
         <span className="tnum text-[var(--text-muted)]">{t("albums.count", { n: photos.length.toLocaleString() })}</span>
         {/* the whole album at once, as the selection bars do (ADR-0054, COL-031) */}
-        {photos.length ? <ShareSelection ids={photos.map((p) => p.asset_id)} /> : null}
+        {photos.length ? <ShareSelection ids={photos.map((p) => p.asset_id)} check={api.facesPresent} /> : null}
         {!fav && q.data ? (
           <span className="ml-auto flex gap-3 text-sm">
             <button ref={renameBtn} type="button" className="underline" onClick={() => setRenaming(q.data.name)}>{t("albums.rename")}</button>

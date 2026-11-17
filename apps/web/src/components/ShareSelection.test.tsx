@@ -131,3 +131,23 @@ describe("分享 N 張 on the selection bar (ADR-0054; audit round 124: one phot
   });
 });
 
+
+describe("faces before a share (ADR-0049 addendum 8)", () => {
+  it("[SHARE-037] 回歸：人臉功能開著時，分享前說出幾張有人臉，可以全部分享、只分享其他的或取消；關著時直接分享（驗證第 138～139 輪：14 個封面 13 個有人臉，分享時沒有任何提示）", async () => {
+    const run = vi.fn(async (): Promise<ManyResult> => ({ kind: "saved", handle: "h", dir: "D:\\x", n: 1, failed: 0 }));
+    const check = vi.fn(async () => ({ enabled: true, with_faces: ["a", "b"] }));
+    const { unmount } = render(<ShareSelection ids={["a", "b", "c"]} run={run} open={async () => ""} check={check} />);
+    fireEvent.click(screen.getByRole("button", { name: "分享 3 張…" }));
+    const ask = await screen.findByRole("alertdialog");
+    expect(ask.textContent).toContain("3 張中有 2 張有人臉");
+    expect(run).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "只分享其他 1 張" }));
+    await vi.waitFor(() => expect(run).toHaveBeenCalledWith(["c"]));
+    unmount();
+    const run2 = vi.fn(async (): Promise<ManyResult> => ({ kind: "cancelled" }));
+    render(<ShareSelection ids={["a", "b", "c"]} run={run2} open={async () => ""} check={async () => ({ enabled: false })} />);
+    fireEvent.click(screen.getByRole("button", { name: "分享 3 張…" }));
+    await vi.waitFor(() => expect(run2).toHaveBeenCalledWith(["a", "b", "c"]));
+    expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
+});

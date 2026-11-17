@@ -1098,3 +1098,31 @@ def test_ask_prv_011_a_name_in_another_case_or_width_never_reaches_a_cloud_model
         for call in llm.seen:
             blob = unicodedata.normalize("NFKC", "".join(str(m.get("content")) for m in call)).casefold()
             assert "amy" not in blob, q
+
+
+@pytest.mark.integration
+@pytest.mark.tc("FACE-SHR-001")
+def test_face_shr_001_which_photos_have_faces_before_a_share(f):
+    """ADR-0049 addendum 8 (audit rounds 138–139: faces on 13 of 14 memory covers, shared with no warning): before a
+    share, which of the chosen photos have a face, only when faces are on, never who. An ignored face and a reject-tier
+    face do not count; with faces turned off (rows kept) nothing is said and nothing is inferred."""
+    from opagent_db.schema import face, workspace
+    from sqlalchemy import select, update
+
+    f.enable()
+    with_face = [f.photo(f"2025/1/IMG_{i}_p1.jpg")[0] for i in range(3)]
+    ignored, ign_faces = f.photo("2025/2/IMG_0_p2.jpg")
+    low, low_faces = f.photo("2025/3/IMG_0_p3.jpg")
+    plain = f.photo("2025/x/empty.jpg", plan=[])[0]
+    with f.eng.begin() as c:
+        c.execute(update(face).where(face.c.id.in_(ign_faces)).values(state="ignored"))
+        c.execute(update(face).where(face.c.id.in_(low_faces)).values(quality_tier=0))
+    ids = [*with_face, ignored, low, plain]
+    r = f.post("/faces/present", {"asset_ids": ids})
+    assert r == {"enabled": True, "with_faces": sorted(with_face)}
+    assert set(r) == {"enabled", "with_faces"}  # no person, name or count per person
+    assert f.client.post("/api/v1/faces/present", json={"asset_ids": ["a"] * 201}, headers=f.ui).status_code == 422
+    with f.eng.begin() as c:  # turned off, the rows kept
+        s = c.execute(select(workspace.c.settings).where(workspace.c.id == "default")).scalar() or {}
+        c.execute(update(workspace).values(settings={**s, "faces": {**s.get("faces", {}), "enabled": False}}))
+    assert f.post("/faces/present", {"asset_ids": ids}) == {"enabled": False}

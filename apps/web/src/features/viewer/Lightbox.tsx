@@ -352,7 +352,7 @@ export function Lightbox({
                 {t("lightbox.storyKeep", { n: grid.total.toLocaleString(i18n.language) })}
               </button>
             ) : null}
-            {title && endIds?.length ? <ShareSelection ids={endIds} /> : null}
+            {title && endIds?.length ? <ShareSelection ids={endIds} check={api.facesPresent} /> : null}
             {seeAll ? (
               <button type="button" className="story-end-close" onClick={seeAll.go}>
                 {t("lightbox.storySeeAll", { n: seeAll.n.toLocaleString(i18n.language) })}

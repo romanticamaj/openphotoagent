@@ -24,6 +24,7 @@ export function ShareSelection({
   count,
   run,
   open = platform().openShared,
+  check,
 }: {
   /** the chosen photos; null when they are not listed one by one (all selected) */
   ids: string[] | null;
@@ -31,6 +32,8 @@ export function ShareSelection({
   count?: number;
   run?: (ids: string[]) => Promise<ManyResult>;
   open?: (handle: string) => Promise<string>;
+  /** which of them have a face, when faces are on (FACE-SHR-001): asked before the share, never who */
+  check?: (ids: string[]) => Promise<{ enabled: boolean; with_faces?: string[] }>;
 }) {
   const { t, i18n } = useTranslation();
   const [busy, setBusy] = useState(false);
@@ -69,7 +72,21 @@ export function ShareSelection({
       shareRef.current?.focus();
     }
   };
-  const go = async () => {
+  // faces in the chosen photos, said before they leave (ADR-0049 addendum 8, SHARE-037): 13 of 14 memory covers had
+  // faces and went with no word. Only when faces are on; nothing is guessed when they are off
+  const [faced, setFaced] = useState<string[] | null>(null);
+  const start = async () => {
+    if (!ids || busy) return;
+    if (check) {
+      const r = await check(ids).catch(() => ({ enabled: false }) as { enabled: boolean; with_faces?: string[] });
+      if (r.enabled && r.with_faces?.length) {
+        setFaced(r.with_faces);
+        return;
+      }
+    }
+    void go(ids);
+  };
+  const go = async (ids: string[] | null) => {
     if (!ids || busy) return;
     setBusy(true);
     setDone(null);
@@ -91,7 +108,7 @@ export function ShareSelection({
   return (
     <>
       {/* busy says so in its label: a reason line under it moved the bar's buttons (audit round 126, SHARE-027) */}
-      <Button ref={shareRef} variant="ghost" disabledReason={reason} aria-busy={busy || undefined} onClick={() => void go()}>
+      <Button ref={shareRef} variant="ghost" disabledReason={reason} aria-busy={busy || undefined} onClick={() => void start()}>
         {busy ? (
           // the label it had holds its width while it prepares: the bar's buttons slid for 3 s (round 127, SHARE-029)
           <span className="inline-grid">
@@ -114,6 +131,44 @@ export function ShareSelection({
           </span>
         )}
       </Button>
+      {faced && ids
+        ? createPortal(
+            <div className="fixed inset-0 z-40 grid place-items-center bg-black/50">
+              <div
+                role="alertdialog"
+                aria-modal="true"
+                aria-labelledby="share-faces-h"
+                className="max-w-sm space-y-3 rounded-[var(--radius-lg)] bg-[var(--surface)] p-5"
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    e.stopPropagation();
+                    setFaced(null);
+                    shareRef.current?.focus();
+                  }
+                }}
+              >
+                <h2 id="share-faces-h" className="font-semibold">
+                  {t("share.facesTitle", { n: fmt(ids.length), k: fmt(faced.length) })}
+                </h2>
+                <p className="text-sm text-[var(--text-muted)]">{t("share.facesNote")}</p>
+                <div className="flex flex-wrap gap-2">
+                  <Button autoFocus onClick={() => (setFaced(null), void go(ids))}>
+                    {t("share.facesAll")}
+                  </Button>
+                  {ids.length > faced.length ? (
+                    <Button variant="ghost" onClick={() => (setFaced(null), void go(ids.filter((x) => !faced.includes(x))))}>
+                      {t("share.facesOthers", { n: fmt(ids.length - faced.length) })}
+                    </Button>
+                  ) : null}
+                  <Button variant="ghost" onClick={() => (setFaced(null), shareRef.current?.focus())}>
+                    {t("batch.cancel")}
+                  </Button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
       {done
         ? // a toast over the page, not a line inside the selection bar (SHARE-025)
           createPortal(

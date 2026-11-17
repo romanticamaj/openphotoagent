@@ -1809,6 +1809,23 @@
         "title": "PreflightIn",
         "type": "object"
       },
+      "PresentIn": {
+        "properties": {
+          "asset_ids": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 200,
+            "title": "Asset Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "asset_ids"
+        ],
+        "title": "PresentIn",
+        "type": "object"
+      },
       "PreviewIn": {
         "properties": {
           "categories": {

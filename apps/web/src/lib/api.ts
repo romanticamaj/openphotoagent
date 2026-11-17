@@ -392,6 +392,8 @@ export const api = {
     req<{ thumbnail_b64: string }>("GET", `/fs/thumb?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`),
   memoryEvents: (lang: string) =>
     req<{ events: Array<{ day: string; last?: string | null; key: string | null; name: string | null; count: number; photos: Array<{ asset_id: string; ch: string | null; rot?: number; taken_at?: string | null }> }> }>("GET", `/memories/events?lang=${encodeURIComponent(lang)}`),
+  /** which chosen photos have a face, only when faces are on; never who (FACE-SHR-001) */
+  facesPresent: (ids: string[]) => req<{ enabled: boolean; with_faces?: string[] }>("POST", "/faces/present", { asset_ids: ids.slice(0, 200) }),
   /** 隱藏這個回憶 / 少一點「X」 (MEM-041) */
   memoryFeedback: (kind: "hide" | "fewer", ref: string) => req<{ id: string; kind: string; ref: string }>("POST", "/memories/feedback", { kind, ref }),
   memoryFeedbackRemove: (id: string) => req<void>("DELETE", `/memories/feedback/${encodeURIComponent(id)}`),

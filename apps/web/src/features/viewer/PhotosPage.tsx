@@ -106,7 +106,7 @@ function TimelineBatch({ sel, onClear }: { sel: Selection; onClear: () => void }
       <strong className="tnum">{t("batch.selected", { n: n.toLocaleString(i18n.language) })}</strong>
       <FavoriteSelection put={put} />
       <AddToAlbum put={put} />
-      <ShareSelection ids={sel.all ? null : [...sel.ids]} count={n} />
+      <ShareSelection ids={sel.all ? null : [...sel.ids]} count={n} check={api.facesPresent} />
       <CopyToFolderButton select={select} />
       <TrashButton select={select} />
       <button type="button" className="ml-auto text-sm underline" onClick={onClear}>

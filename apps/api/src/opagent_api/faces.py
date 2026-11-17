@@ -128,6 +128,37 @@ def enabled_for(c: Any, source_id: str | None, ws: str = DEFAULT_WS) -> bool:
     return srcs is None or source_id in srcs
 
 
+class PresentIn(BaseModel):
+    asset_ids: list[str] = Field(max_length=200)
+
+
+@router.post("/faces/present")
+def faces_present(body: PresentIn, req: Request) -> dict[str, Any]:
+    """Which of the chosen photos have a face, before a share (ADR-0049 addendum 8, FACE-SHR-001): faces were on 13 of
+    14 memory covers and went out with no word. Only when faces are on, from sources faces are on for; an ignored or
+    reject-tier face does not count. Never who: no person, name or count per person. Off, nothing is said or guessed."""
+    ui_only(req)  # the app's own question, not an AI client's
+    with _st(req).engine.begin() as c:
+        s = fsettings(c)
+        if not s.get("enabled"):
+            return {"enabled": False}
+        q = (
+            select(face.c.asset_id)
+            .distinct()
+            .join(asset_location, asset_location.c.asset_id == face.c.asset_id)
+            .where(
+                face.c.workspace_id == DEFAULT_WS,
+                face.c.asset_id.in_(body.asset_ids or ["-"]),
+                face.c.state != "ignored",
+                face.c.quality_tier >= 1,
+            )
+        )
+        if s.get("sources") is not None:
+            q = q.where(asset_location.c.source_id.in_(list(s["sources"]) or ["-"]))
+        found = sorted(r[0] for r in c.execute(q))
+    return {"enabled": True, "with_faces": found}
+
+
 @router.get("/faces/settings")
 def get_settings(req: Request) -> dict[str, Any]:
     with _st(req).engine.begin() as c:

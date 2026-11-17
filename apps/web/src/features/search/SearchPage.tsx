@@ -632,7 +632,7 @@ export function BatchBar({
           </div>
         ) : null}
       </span>
-      <ShareSelection ids={shareIds} count={count} />
+      <ShareSelection ids={shareIds} count={count} check={api.facesPresent} />
       <TrashButton select={makeSelection} />
       <CopyToFolderButton select={makeSelection} />
     </div>
