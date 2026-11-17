@@ -479,6 +479,33 @@ def _names_subject(caption: str | None, key: str | None) -> bool:
     return any(f in (caption or "") for f in tokenizer()._forms_of(key) if f and not f.isascii())
 
 
+def _image_vecs(c: Any, ids: list[str]) -> dict[str, list[float]]:
+    """The active image space's vectors of these photos (none in fast mode without one), for covers (MEM-051)."""
+    from opagent_db.schema import asset_embedding
+
+    from .search import active_space
+
+    space = active_space(c)
+    if space is None or not ids:
+        return {}
+    rows = c.execute(
+        select(asset_embedding.c.asset_id, asset_embedding.c.vec).where(
+            asset_embedding.c.space_id == space.id, asset_embedding.c.asset_id.in_(ids)
+        )
+    ).all()
+    import json
+
+    # pgvector's text form ("[1,0.1]") when no vector type is registered on the connection
+    return {r[0]: [float(x) for x in (json.loads(r[1]) if isinstance(r[1], str) else r[1])] for r in rows}
+
+
+def _lead(ids: list[str] | tuple[str, ...], key: str | None, info: dict[str, Any], vecs: dict[str, list[float]]) -> str:
+    """A memory's cover: the most typical photo of those whose caption names the subject (MEM-050/051)."""
+    from opagent_core.memories import cover
+
+    return cover(list(ids), vecs, prefer=lambda a: _names_subject(info[a].caption, key)) or ids[0]
+
+
 THEME_OVERLAP = 0.5  # 「2025 的運動場」 shared 28 of 64 photos with 「2025 的足球」 (audit round 80)
 
 
@@ -541,7 +568,6 @@ def memory_themes(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
     shown = [e for e in listed if not hid(e)]
     shown = sorted(shown, key=lambda e: e.key in fewer)[:EVENTS_MAX]
     listed = shown + [e for e in listed if hid(e)]
-    event_covers = {e.asset_ids[0] for e in shown if e.asset_ids}
     # the count is what 「看全部」 finds, duplicates too; a theme mostly another's is not shown twice (MEM-013)
     found = themes(
         [(r.id, r.at.year, list(r.tags or [])) for r in rows],
@@ -554,15 +580,18 @@ def memory_themes(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
         demote=fewer,
     )
     names = tag_names([t.key for t in found], lang)
+    with _st(req).engine.connect() as c:
+        vecs = _image_vecs(c, [a for e in shown for a in e.asset_ids] + [a for t in found for a in t.asset_ids])
+    event_covers = {_lead(e.asset_ids, e.key, info, vecs) for e in shown if e.asset_ids}
 
     def cover_first(key: str, ids: tuple[str, ...]) -> list[str]:
-        """The first photo whose caption names the subject leads: a staircase opened 「2026 的運動場」 (MEM-014). Not a
-        listed event's cover, when another will do: 「2025 的笑容」 had 「2025/11/10 · 玩具」's (MEM-044)."""
+        """The most typical photo whose caption names the subject leads (MEM-014, MEM-051), and not a listed event's
+        cover when another will do: 「2025 的笑容」 had 「2025/11/10 · 玩具」's (MEM-044)."""
+        if not ids:
+            return []
         free = [a for a in ids if a not in event_covers] or list(ids)
-        lead = next((a for a in free if _names_subject(info[a].caption, key)), None) or (
-            free[0] if free[0] != ids[0] else None
-        )
-        return [lead, *(a for a in ids if a != lead)] if lead else list(ids)
+        lead = _lead(free, key, info, vecs)
+        return [lead, *(a for a in ids if a != lead)]
 
     return {
         "themes": [
@@ -650,6 +679,16 @@ def memory_events(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
     )[:EVENTS_MAX]
 
     names = tag_names([e.key for e in found if e.key], lang)
+    with _st(req).engine.connect() as c:
+        vecs = _image_vecs(c, [a for e in found for a in e.asset_ids])
+
+    def led(e: Any) -> list[str]:
+        """The most typical photo naming the subject first, as the themes count it (MEM-051, MEM-044)."""
+        if not e.asset_ids:
+            return []
+        lead = _lead(e.asset_ids, e.key, info, vecs)
+        return [lead, *(a for a in e.asset_ids if a != lead)]
+
     return {
         "events": [
             {
@@ -665,7 +704,7 @@ def memory_events(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
                         "rot": info[a].rotation,
                         "taken_at": info[a].at.isoformat(),
                     }
-                    for a in e.asset_ids
+                    for a in led(e)
                 ],
             }
             for e in found

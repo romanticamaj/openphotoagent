@@ -368,3 +368,35 @@ def test_mem_046_the_hidden_list_names_its_subjects(embedded_pg, tmp_path):
     x.eng.dispose()
     names = {i["ref"]: i["name"] for i in items}
     assert names == {"theme:2025:activity.soccer": "足球", "tag:mood.smile": "笑容", "event:2026-06-22": None}
+
+
+@pytest.mark.integration
+@pytest.mark.tc("MEM-051")
+def test_mem_051_a_themes_cover_is_its_most_typical_photo(embedded_pg, tmp_path):
+    """ADR-0049 addendum 8 (audit rounds 138–139): the cover was the first pick. With image vectors, a theme's cover is
+    the photo nearest the mean of its picks; the first one, an outlier, is not."""
+    from sqlalchemy import text as sql
+
+    x = M(embedded_pg.dsn, tmp_path)
+    ids = [x.add(f"s{i}.jpg", tags=("足球",), taken=datetime(2025, 3, 1 + i, 9, tzinfo=UTC)) for i in range(9)]
+    for i in range(20):
+        x.add(f"o{i}.jpg", taken=datetime(2025, 9, 1 + i, 9, tzinfo=UTC))
+    x.index()
+    vec = {ids[0]: "[0,1]"} | {a: "[1,0.1]" for a in ids[1:]} | {ids[5]: "[1,0]"}
+    with x.eng.begin() as c:
+        sid = c.execute(
+            sql(
+                "insert into embedding_space(model_key, fingerprint, dim, modality, status)"
+                " values ('fake-img', 'fake-img@x', 2, 'image', 'active') returning id"
+            )
+        ).scalar()
+        for a, v in vec.items():
+            c.execute(
+                sql("insert into asset_embedding(asset_id, space_id, vec) values (:a, :s, CAST(:v AS vector))"),
+                {"a": a, "s": sid, "v": v},
+            )
+    th = x.client.get("/api/v1/memories/themes", headers=x.ui).json()["themes"]
+    x.eng.dispose()
+    cover = th[0]["photos"][0]["asset_id"]
+    assert cover != ids[0]  # the outlier, first by date
+    assert cover in ids[1:]

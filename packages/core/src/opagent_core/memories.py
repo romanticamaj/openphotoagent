@@ -3,8 +3,9 @@ time (ADR-0049); nothing here reads a clock, a file or a model."""
 
 from __future__ import annotations
 
+import math
 from collections import Counter
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 
@@ -195,3 +196,30 @@ def events(
         )
         for first, last, key, ids in kept
     ]
+
+
+def cover(
+    ids: Sequence[str],
+    vecs: Mapping[str, Sequence[float]],
+    prefer: Callable[[str], bool] | None = None,
+) -> str | None:
+    """A memory's cover (ADR-0049 addendum 8, MEM-050): among the photos ``prefer`` says show the subject (all of them
+    when none does), the one nearest by cosine to the mean image vector of those that have one; without vectors (fast
+    mode) the first. Ties go to the earlier photo. The first pick was always the cover (audit rounds 138-139)."""
+    pool = [a for a in ids if prefer(a)] if prefer else []
+    pool = pool or list(ids)
+    if not pool:
+        return None
+    have = [a for a in pool if vecs.get(a)]
+    if not have:
+        return pool[0]
+    dim = len(vecs[have[0]])
+    mean = [sum(vecs[a][i] for a in have) / len(have) for i in range(dim)]
+    norm = math.sqrt(sum(x * x for x in mean)) or 1.0
+
+    def sim(a: str) -> float:
+        v = vecs[a]
+        n = math.sqrt(sum(x * x for x in v)) or 1.0
+        return sum(x * y for x, y in zip(v, mean, strict=False)) / (n * norm)
+
+    return max(have, key=lambda a: (sim(a), -ids.index(a)))

@@ -256,3 +256,19 @@ def test_mem_040_fewer_like_this_puts_a_subject_last():
     assert [t.key for t in themes(rows, demote={"activity.soccer"})] == ["activity.dance", "food.meal", "activity.art"]
     few = [r for r in rows if r[2] in (["activity.soccer"], ["activity.dance"], [])]
     assert [t.key for t in themes(few, demote={"activity.soccer"})] == ["activity.dance", "activity.soccer"]
+
+
+@pytest.mark.unit
+@pytest.mark.tc("MEM-050")
+def test_mem_050_a_cover_is_the_most_typical_photo():
+    """ADR-0049 addendum 8 (audit rounds 138–139: the cover was always the first pick): among the photos whose caption
+    names the subject (all of them when none does), the cover is the one nearest the mean image vector of them; without
+    vectors (fast mode) the first stays. Ties go to the earlier photo."""
+    from opagent_core.memories import cover
+
+    vecs = {"a": [1.0, 0.0], "b": [0.7, 0.7], "c": [0.0, 1.0], "d": [0.6, 0.8]}
+    assert cover(["a", "b", "c", "d"], vecs) == "b"  # the mean is (0.575, 0.625): b is nearest
+    assert cover(["a", "b", "c", "d"], vecs, prefer=lambda x: x in {"a", "c"}) in {"a", "c"}
+    assert cover(["a", "b"], {}) == "a"  # no vectors: the first
+    assert cover(["a", "x"], {"a": [1.0, 0.0]}) == "a"  # a photo without a vector is not chosen over one with
+    assert cover([], vecs) is None
