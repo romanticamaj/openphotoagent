@@ -925,7 +925,7 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
                     tried.append({"q": w, "n": n})
             if tried:
                 answer = (
-                    answer.rstrip() + "可以試試" + "、".join(f"「{x['q']}」（{x['n']:,} 張）" for x in tried) + "。"
+                    answer.rstrip() + "可以試試" + "、".join(f"「{x['q']}」（{x['n']:,} 張以上）" for x in tried) + "。"
                 )
         for chunk in re.findall(r".{1,24}", answer, re.S):
             yield "token", {"text": chunk}

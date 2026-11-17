@@ -1072,7 +1072,8 @@ body {
 
 /* 那年今日 (10 §2.8) */
 .on-this-day { margin: 0.75rem 1rem 0; padding: 0.75rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); }
-.on-this-day-years { display: flex; gap: 1.5rem; overflow-x: auto; padding-top: 0.5rem; scrollbar-width: thin; }
+/* the years wrap when they do not fit: at 1024 px the third was hidden behind a scrollbar (MEM-034) */
+.on-this-day-years { display: flex; flex-wrap: wrap; gap: 0.75rem 1.5rem; padding-top: 0.5rem; }
 .on-this-day-year { flex: none; }
 .on-this-day-tile { display: block; width: 72px; height: 72px; overflow: hidden; border-radius: var(--radius-photo); background: var(--surface-2); transition: transform 120ms ease; }
 .on-this-day-tile:hover { transform: scale(1.04); }

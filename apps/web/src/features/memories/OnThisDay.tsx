@@ -71,6 +71,8 @@ export function OnThisDay({ onOpen, away = false }: { onOpen: (photos: MemoryPho
               /* not remembered: it comes back on the next visit */
             }
             setHidden(true);
+            // the button goes with the card: the timeline takes the keyboard, not the page (round 137, MEM-035)
+            requestAnimationFrame(() => document.querySelector<HTMLElement>('[role="grid"]')?.focus());
           }}
         >
           {t("memories.notToday")}

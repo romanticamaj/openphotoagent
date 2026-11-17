@@ -52,3 +52,11 @@ describe("ask chips", () => {
     expect(screen.getByText(/人物：測試B/)).toBeTruthy();
   });
 });
+
+describe("nothing found", () => {
+  it("[ASK-UI-022] 回歸：找不到時的相關詞是可以點的 chip，寫法和搜尋頁一樣（驗證第 137 輪：只是文字，且寫「14 張」不是「14 張以上」）", () => {
+    render(<TurnView turn={turn({ photos: null, text: "找不到符合條件的照片。", suggest: [{ q: "遊樂場", n: 14 }] })} onRerun={() => {}} />);
+    const chip = screen.getByText("遊樂場（14 張以上）");
+    expect(chip.closest("a")?.getAttribute("data-q")).toBe("遊樂場");
+  });
+});

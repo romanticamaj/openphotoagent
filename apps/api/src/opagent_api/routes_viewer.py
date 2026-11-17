@@ -274,7 +274,21 @@ def _memory_months(c: Any, oldest: int, now: date) -> dict[int, tuple[list[Any],
         if not r.dup:
             kept.setdefault(r.at.year, []).append(r)
     # picked evenly over the month: the first 24 by time were one morning of 424 (round 136, MEM-030)
-    return {y: (_spread(kept.get(y, []), MEMORY_MAX), n) for y, n in counts.items()}
+    return {y: (_by_day(_spread(kept.get(y, []), MEMORY_MAX)), n) for y, n in counts.items()}
+
+
+def _by_day(picked: list[Any]) -> list[Any]:
+    """The picks a day at a time, round the days: listed by time, the 4 tiles shown were all one morning (MEM-033)."""
+    days: dict[Any, list[Any]] = {}
+    for r in picked:
+        days.setdefault(r.at.date(), []).append(r)
+    rounds = [list(d) for d in days.values()]
+    out: list[Any] = []
+    while any(rounds):
+        for d in rounds:
+            if d:
+                out.append(d.pop(0))
+    return out
 
 
 @router.get("/memories/on-this-day")

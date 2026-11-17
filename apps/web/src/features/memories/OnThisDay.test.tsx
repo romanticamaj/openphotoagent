@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "../../lib/i18n";
 
@@ -120,5 +120,24 @@ describe("那年今日 (10 §2.8)", () => {
     expect(s.asked).toBe(before); // not asked while the timeline's first photos load
     expect(await screen.findByRole("heading", { name: "那年今日" })).toBeTruthy();
     expect(s.asked).toBe(before + 1);
+  });
+
+  it("[MEM-034] 回歸：放不下時年份換行，不藏在捲軸後面（驗證第 137 輪：1024 px 第三年被切掉 135 px）", async () => {
+    const { readFileSync } = await import("node:fs");
+    const css = readFileSync(`${process.cwd()}/src/styles.css`, "utf-8").replace(/\s+/g, " ");
+    const rule = css.match(/\.on-this-day-years \{([^}]*)\}/)?.[1] ?? "";
+    expect(rule).toContain("flex-wrap: wrap");
+    expect(rule).not.toContain("overflow-x: auto");
+  });
+  it("[MEM-035] 回歸：「今天先不看」之後焦點到時間軸，不落到頁面（驗證第 137 輪）", async () => {
+    s.groups = [{ year: 2025, years_ago: 1, photos: [{ asset_id: "a", ch: null, taken_at: null }] }];
+    const grid = document.createElement("div");
+    grid.setAttribute("role", "grid");
+    grid.tabIndex = 0;
+    document.body.appendChild(grid);
+    wrap();
+    fireEvent.click(await screen.findByRole("button", { name: "今天先不看" }));
+    await waitFor(() => expect(document.activeElement).toBe(grid));
+    grid.remove();
   });
 });

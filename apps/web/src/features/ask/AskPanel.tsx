@@ -151,6 +151,17 @@ export function TurnView({ turn, onRerun }: { turn: Turn; onRerun: (filters: Rec
           </Link>
         </div>
       ) : null}
+      {turn.suggest?.length ? (
+        // clickable, worded as the search page words them: text alone was a dead end (round 137, ASK-UI-022)
+        <p className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-[var(--text-muted)]">{t("search.tryInstead")}</span>
+          {turn.suggest.map((x) => (
+            <Link key={x.q} to="/search" search={{ q: x.q }} className="chip">
+              {t("search.tryWord", { q: x.q, n: x.n.toLocaleString() })}
+            </Link>
+          ))}
+        </p>
+      ) : null}
       {turn.cards.map((c) => (
         <div key={c.payload.plan_id} data-testid="ask-plan-card" className="space-y-1 rounded-[var(--radius-md)] border border-[var(--border)] p-3 text-sm">
           <p className="flex justify-between font-semibold">

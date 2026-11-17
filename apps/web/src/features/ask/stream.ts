@@ -26,6 +26,8 @@ export type Turn = {
   text: string;
   cards: PlanCard[];
   notices: Array<{ code: string; text: string; level: string }>;
+  /** nothing found: words that find photos, as the search page offers them (ASK-UI-022) */
+  suggest?: Array<{ q: string; n: number }>;
   status: "streaming" | "completed" | "cancelled" | "failed";
 };
 
@@ -94,6 +96,8 @@ export function reduce(s: Turn, e: SseEvent): Turn {
       return { ...s, text: s.text + String(d.text ?? "") };
     case "card":
       return d.kind === "plan" ? { ...s, cards: [...s.cards, { kind: "plan", payload: d.payload }] } : s;
+    case "suggest":
+      return { ...s, suggest: (d.items ?? []).map((x: D) => ({ q: String(x.q), n: Number(x.n) })) };
     case "notice":
       return { ...s, notices: [...s.notices, { code: d.code, text: d.text, level: d.level }] };
     case "turn.completed":

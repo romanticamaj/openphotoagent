@@ -225,3 +225,23 @@ def test_mem_030_the_months_photos_are_picked_across_it(embedded_pg, tmp_path, m
     g = body["groups"][0]
     assert g["total"] == 20
     assert [p["asset_id"] for p in g["photos"]] == [ids[0], ids[6], ids[13], ids[19]]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("MEM-033")
+def test_mem_033_the_months_first_photos_are_from_different_days(embedded_pg, tmp_path, monkeypatch):
+    """回歸 (audit round 137): the month's picks spread over its days, but listed by time the 4 tiles shown were all
+    from its first morning. They are listed a day at a time, round the days, so the first ones are different days."""
+    import opagent_api.routes_viewer as V
+
+    monkeypatch.setattr(V, "MEMORY_MAX", 8)
+    x = M(embedded_pg.dsn, tmp_path)
+    for d in range(4):
+        for h in range(6):
+            x.add(f"d{d}h{h}.jpg", taken=datetime(2025, 11, 10 + d, 8 + h, tzinfo=UTC))
+    x.index()
+    body = x.client.get("/api/v1/memories/on-this-day", params={"today": "2026-11-05"}, headers=x.ui).json()
+    x.eng.dispose()
+    days = [p["taken_at"][:10] for p in body["groups"][0]["photos"]]
+    assert len(days) == 8
+    assert len(set(days[:4])) == 4, days
