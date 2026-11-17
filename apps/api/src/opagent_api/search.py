@@ -532,6 +532,10 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
 
     # control characters carry no meaning in a query, and PostgreSQL cannot store NUL in text/JSON (SRCH-TOK-009)
     body = body.model_copy(update={"q": _tidy(body.q)}) if body.q else body
+    # marks alone are no words: the image model picked 158–200 photos for 「##」 (audit round 130, SRCH-TOK-047)
+    no_words = bool(body.q) and not any(ch.isalnum() for ch in body.q or "")
+    if no_words:
+        body = body.model_copy(update={"semantic": False})
     f0 = body.filters
     if f0.persons_all or f0.persons_any or f0.persons_none:
         from .faces import fsettings
@@ -998,6 +1002,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
         "possible_total": len(possible),
         "collapsed": int(collapsed),  # near-duplicates folded into their group's photo, when browsing (SRCH-DUP-010)
         "suggest": suggest,  # nothing found: words inside the query that find photos (SRCH-SUG-001)
+        "no_words": no_words,  # a query of marks alone: the page asks for words (SRCH-TOK-047)
         "possible": [
             {
                 "asset_id": a,

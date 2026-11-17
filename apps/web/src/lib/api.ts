@@ -217,6 +217,8 @@ export type SearchResult = {
   possible?: PossibleHit[];
   /** nothing found: words inside the query that find photos (SRCH-SUG-001) */
   suggest?: { q: string; n: number }[];
+  /** a query of marks alone (「##」): the page asks for words (SRCH-TOK-047) */
+  no_words?: boolean;
   degraded: string[];
   planner?: Planner;
 };

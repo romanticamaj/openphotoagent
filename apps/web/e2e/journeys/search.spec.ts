@@ -67,6 +67,7 @@ test.describe("big library", () => {
     await page.getByTestId("search-result").first().click({ modifiers: ["Shift"] }); // focus the results without opening
     await page.keyboard.press("ControlOrMeta+a");
     await expect(page.getByTestId("batch-bar")).toContainText("已選 3,214 張");
+    await page.getByTestId("batch-bar").getByRole("button", { name: "標籤與類別…" }).click(); // ADR-0056 addendum 1
     await page.getByTestId("batch-bar").getByRole("combobox", { name: "類別" }).selectOption({ label: "旅行" });
     await page.getByTestId("batch-bar").getByRole("button", { name: "套用類別" }).click();
     await expect(page.getByRole("status").filter({ hasText: "已更新 3,214 張" })).toBeVisible({ timeout: 60_000 });
@@ -100,6 +101,7 @@ test("[E2E-SEL-002] Shift 範圍選取 → 標籤、類別寫 review；「移到
   await expect(bar).toContainText("已選 10 張");
   const ids = await hits.evaluateAll((els) => els.slice(0, 10).map((e) => e.getAttribute("data-asset")!));
   // tag
+  await bar.getByRole("button", { name: "標籤與類別…" }).click(); // the fields' popover (ADR-0056 addendum 1)
   await bar.getByRole("textbox", { name: "標籤" }).fill("家庭旅行");
   await bar.getByRole("button", { name: "加上標籤" }).click();
   await expect(page.getByRole("status").filter({ hasText: "已更新 10 張" })).toBeVisible();

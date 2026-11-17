@@ -1688,3 +1688,17 @@ def test_srch_tok_046_marks_around_a_query_change_nothing(s):
         res = s.search(q=q, semantic=False)
         assert res["total"] == plain["total"] and res["suggest"] == plain["suggest"], q
     assert plain["suggest"] and plain["suggest"][0]["q"] == "遊樂場"
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-TOK-047")
+def test_srch_tok_047_a_query_of_marks_alone_finds_nothing_and_says_so(s):
+    """回歸 (audit round 130): 「##」, 「!!!」 and 「?」 showed a 可能相關 group of 158–200 photos picked by the image
+    model for punctuation. A query with no letter, digit or character asks for words instead."""
+    s.add(1, caption="海邊的貓", tags=("貓",))
+    s.index()
+    for q in ("##", "!!!", "?", "「」", "**"):
+        res = s.search(q=q)
+        assert res["total"] == 0 and not res["items"] and not res.get("possible"), q
+        assert res.get("no_words") is True, q
+    assert not s.search(q="貓").get("no_words")

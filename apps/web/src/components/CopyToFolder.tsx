@@ -47,7 +47,12 @@ function MoveToFolder({ onCancel, onCreate }: { onCancel: () => void; onCreate: 
   const first = useRef<HTMLSelectElement>(null);
   useEffect(() => first.current?.focus(), []);
   return (
-    <div role="dialog" aria-modal="true" aria-labelledby="mtf-h" className="fixed inset-0 z-40 grid place-items-center bg-black/50" onKeyDown={(e) => e.key === "Escape" && onCancel()}>
+    <div role="dialog" aria-modal="true" aria-labelledby="mtf-h" className="fixed inset-0 z-40 grid place-items-center bg-black/50" onKeyDown={(e) => {
+        if (e.key !== "Escape") return;
+        e.stopPropagation(); // its own: on the timeline Esc also cleared the selection (audit round 130, COL-032)
+        onCancel();
+      }}
+    >
       <div className="w-96 space-y-3 rounded-[var(--radius-lg)] bg-[var(--surface)] p-6">
         <h2 id="mtf-h" className="text-lg font-semibold">{t("batch.moveTitle")}</h2>
         <p className="text-sm text-[var(--text-muted)]">{t("batch.copyNote")}</p>

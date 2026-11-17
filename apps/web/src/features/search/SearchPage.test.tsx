@@ -471,6 +471,7 @@ describe("the search selection bar fits one row (audit round 126)", () => {
       </QueryClientProvider>,
     );
     const bar = screen.getByTestId("batch-bar");
+    fireEvent.click(screen.getByRole("button", { name: "標籤與類別…" })); // in its popover since ADR-0056 addendum 1
     const tag = screen.getByRole("textbox", { name: "標籤" });
     expect(tag.getAttribute("placeholder")).toBe("標籤…");
     expect(screen.getByRole("combobox", { name: "類別" })).toBeTruthy();
@@ -510,13 +511,19 @@ describe("Esc from the selection bar keeps focus (audit round 127)", () => {
     const tiles = await screen.findAllByTestId("search-result");
     fireEvent.click(tiles[0]!, { ctrlKey: true });
     fireEvent.click(tiles[1]!, { ctrlKey: true });
+    const trigger = await screen.findByRole("button", { name: "標籤與類別…" });
+    fireEvent.click(trigger); // the fields are in a popover (ADR-0056 addendum 1)
     const field = await screen.findByRole("textbox", { name: "標籤" });
     field.focus();
     fireEvent.change(field, { target: { value: "x" } });
     fireEvent.keyDown(field, { key: "Escape" });
     expect((field as HTMLInputElement).value).toBe("");
     expect(screen.getByTestId("batch-bar")).toBeTruthy(); // the text went first
-    fireEvent.keyDown(field, { key: "Escape" });
+    fireEvent.keyDown(field, { key: "Escape" }); // then the popover, back to its button; the selection stays
+    expect(screen.queryByRole("textbox", { name: "標籤" })).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+    expect(screen.getByTestId("batch-bar")).toBeTruthy();
+    fireEvent.keyDown(trigger, { key: "Escape" }); // then the selection
     await waitFor(() => expect(screen.queryByTestId("batch-bar")).toBeNull());
     await waitFor(() => expect(document.activeElement?.getAttribute("data-testid")).toBe("search-result"));
     s.result = null;
@@ -539,6 +546,38 @@ describe("Esc from the selection bar keeps focus (audit round 127)", () => {
     expect(rule?.[1]).toContain("height: 2rem");
     expect(css).toMatch(/\.toolbar \.icon-button \{[^}]*width: 2rem/);
     s.result = null;
+  });
+  it("[SRCH-UI-058] 回歸：只有標點的查詢請你輸入字詞，不問 AI「##」（驗證第 130 輪：「##」出現 200 張可能相關）", async () => {
+    s.result = { items: [], facets: {}, total: 0, next_cursor: null, degraded: [], no_words: true, suggest: [] } as never;
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SearchPage q="##" />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText("請輸入要找的字或詞，例如「海邊」或「貓」")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /問 AI/ })).toBeNull();
+    expect(screen.getByRole("button", { name: /瀏覽/ })).toBeTruthy(); // still a way on
+    s.result = null;
+  });
+  it("[SRCH-UI-059] 回歸：標籤與類別收在「標籤與類別…」彈出框，選取列本身沒有欄位；打開時焦點到標籤欄（驗證第 130 輪：1024 px 仍兩行）", async () => {
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <BatchBar count={3} makeSelection={async () => ({ id: "s", count: 3 })} onDone={() => undefined} shareIds={["a", "b", "c"]} />
+      </QueryClientProvider>,
+    );
+    const bar = screen.getByTestId("batch-bar");
+    expect(bar.querySelectorAll("input, select").length).toBe(0);
+    const trigger = screen.getByRole("button", { name: "標籤與類別…" });
+    expect(trigger.getAttribute("aria-haspopup")).toBe("dialog");
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(trigger);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    const pop = screen.getByRole("dialog", { name: "標籤與類別" });
+    const field = screen.getByRole("textbox", { name: "標籤" });
+    await waitFor(() => expect(document.activeElement).toBe(field));
+    fireEvent.change(field, { target: { value: "家庭" } });
+    expect(pop.contains(screen.getByRole("button", { name: "加上標籤" }))).toBe(true); // it grows the popover, not the bar
+    expect(pop.contains(screen.getByRole("combobox", { name: "類別" }))).toBe(true);
   });
 });
 

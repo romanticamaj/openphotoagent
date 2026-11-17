@@ -318,7 +318,7 @@ export function SearchPage({ q, tag, year, name }: { q: string; tag?: string; ye
           </div>
         </>
       ) : null}
-      {res.isSuccess && hits.length === 0 && <p>{t(first?.possible_total ? "search.noneSure" : "search.none")}</p>}
+      {res.isSuccess && hits.length === 0 && <p>{t(first?.no_words ? "search.noWords" : first?.possible_total ? "search.noneSure" : "search.none")}</p>}
       {res.isSuccess && hits.length === 0 ? (
         // nothing found: the words inside the query that do find photos (SRCH-UI-030), and the same words for 問 AI
         // (SRCH-UI-031): a page that finds nothing still has a next step, with or without 「可能相關」 (SRCH-UI-034)
@@ -334,7 +334,7 @@ export function SearchPage({ q, tag, year, name }: { q: string; tag?: string; ye
               {t("search.tryWord", { q: x.q, n: x.n })}
             </button>
           ))}
-          {q ? (
+          {q && !first?.no_words ? (
             <button type="button" className="chip" onClick={() => askAbout(q)}>
               {t("search.askInstead", { q })}
             </button>
@@ -527,6 +527,12 @@ export function BatchBar({
     onSuccess: (r) => onDone(r.updated),
   });
   const busy = labels.isPending ? { code: "BUSY", message: t("common.working") } : null;
+  const [labelsOpen, setLabelsOpen] = useState(false);
+  const labelsRef = useRef<HTMLButtonElement>(null);
+  const tagRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (labelsOpen) tagRef.current?.focus(); // the popover takes the keyboard as it opens
+  }, [labelsOpen]);
   return (
     <div data-testid="batch-bar" className="toolbar flex flex-wrap items-center rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3">
       <strong className="tnum">{t("batch.selected", { n: count.toLocaleString(i18n.language) })}</strong>
@@ -547,35 +553,67 @@ export function BatchBar({
       {/* ★ and 加入相簿 for the selection (COL-015): only organising and tags were offered (audit round 49) */}
       <FavoriteSelection put={async (aid) => api.selectionAlbum((await makeSelection()).id, aid)} />
       <AddToAlbum put={async (aid) => api.selectionAlbum((await makeSelection()).id, aid)} />
-      {/* named, not captioned: a caption above each field made the bar two rows at 1280 px (audit round 126, SRCH-UI-054) */}
-      <input
-        aria-label={t("batch.tag")}
-        placeholder={t("batch.tagHint")}
-        value={tag}
-        onChange={(e) => setTag(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key !== "Escape" || !tag) return;
-          e.stopPropagation(); // the words first, the selection on the next Esc (SRCH-UI-056)
-          setTag("");
-        }} className="w-24 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-2 text-sm" />
-      {tag.trim() ? (
-        <Button variant="ghost" disabledReason={busy} onClick={() => labels.mutate({ tags: [tag.trim()] })}>
-          {t("batch.addTag")}
+      {/* tags and category in one popover: two fields made the bar two rows at 1024 px (round 130, ADR-0056 addendum 1) */}
+      <span
+        className="relative"
+        onBlur={(e) => {
+          if (labelsOpen && !e.currentTarget.contains(e.relatedTarget as Node | null)) setLabelsOpen(false);
+        }}
+      >
+        <Button ref={labelsRef} variant="ghost" aria-haspopup="dialog" aria-expanded={labelsOpen} onClick={() => setLabelsOpen((o) => !o)}>
+          {t("batch.labels")}
         </Button>
-      ) : null}
-      <select aria-label={t("batch.category")} value={cat} onChange={(e) => setCat(e.target.value)} className="max-w-24 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-1.5 text-sm">
-          <option value="">{t("batch.categoryHint")}</option>
-          {(preset.data?.categories ?? []).map((c) => (
-            <option key={c.key} value={c.key}>
-              {c.name}
-            </option>
-          ))}
-        </select>
-      {cat ? (
-        <Button variant="ghost" disabledReason={busy} onClick={() => labels.mutate({ category: cat })}>
-          {t("batch.applyCategory")}
-        </Button>
-      ) : null}
+        {labelsOpen ? (
+          <div
+            role="dialog"
+            aria-label={t("batch.labelsTitle")}
+            className="labels-popover"
+            onKeyDown={(e) => {
+              if (e.key !== "Escape") return;
+              e.stopPropagation(); // the popover first, the selection on the next Esc (SRCH-UI-056)
+              setLabelsOpen(false);
+              labelsRef.current?.focus();
+            }}
+          >
+            {/* named, not captioned: a caption above each field took a row of its own (round 126, SRCH-UI-054) */}
+            <span className="flex items-center gap-2">
+              <input
+                ref={tagRef}
+                aria-label={t("batch.tag")}
+                placeholder={t("batch.tagHint")}
+                value={tag}
+                onChange={(e) => setTag(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key !== "Escape" || !tag) return;
+                  e.stopPropagation(); // the words first (SRCH-UI-056)
+                  setTag("");
+                }}
+                className="h-8 w-40 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-2 text-sm"
+              />
+              {tag.trim() ? (
+                <Button variant="ghost" disabledReason={busy} onClick={() => labels.mutate({ tags: [tag.trim()] })}>
+                  {t("batch.addTag")}
+                </Button>
+              ) : null}
+            </span>
+            <span className="flex items-center gap-2">
+              <select aria-label={t("batch.category")} value={cat} onChange={(e) => setCat(e.target.value)} className="h-8 w-40 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-1.5 text-sm">
+                <option value="">{t("batch.categoryHint")}</option>
+                {(preset.data?.categories ?? []).map((c) => (
+                  <option key={c.key} value={c.key}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              {cat ? (
+                <Button variant="ghost" disabledReason={busy} onClick={() => labels.mutate({ category: cat })}>
+                  {t("batch.applyCategory")}
+                </Button>
+              ) : null}
+            </span>
+          </div>
+        ) : null}
+      </span>
       <ShareSelection ids={shareIds} count={count} />
       <TrashButton select={makeSelection} />
       <CopyToFolderButton select={makeSelection} />
