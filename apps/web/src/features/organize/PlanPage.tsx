@@ -66,10 +66,11 @@ export function PlanPage({ planId }: { planId: string }) {
               ? t("organize.wasTrash", { count: p.summary.trash })
               : t(moves ? "organize.wasMove" : "organize.wasCopy", { count: moves || p.summary.copy, folders: p.summary.folders })}
           </p>
+          <PlanTree actions={p.actions ?? []} />
+          {/* after what it was: between the note and the tree it split them (round 134, ORG-024) */}
           <Link ref={backRef} to="/organize" className="underline">
             {t("organize.backToOrganize")}
           </Link>
-          <PlanTree actions={p.actions ?? []} />
         </div>
       ) : null}
       {status === "draft" && !p.discarded && (

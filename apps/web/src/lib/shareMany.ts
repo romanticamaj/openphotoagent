@@ -45,11 +45,22 @@ export async function shareMany(
   const made: Array<{ name: string; bytes: Uint8Array; blob: Blob }> = [];
   let failed = 0;
   let firstError: unknown = null;
-  for (const id of ids) {
+  // up to 3 previews asked at once: a 2048 px preview never zoomed is made on demand, about 0.5 s each, and one after
+  // another the count stood still for 4 s (round 134, SHARE-036); they are still made and saved in order
+  const AHEAD = 3;
+  const asked: Array<Promise<Blob>> = [];
+  const ask = (i: number) => {
+    if (i < ids.length && !asked[i]) {
+      asked[i] = d.preview(ids[i]!);
+      asked[i]!.catch(() => undefined); // its failure is counted when its turn comes
+    }
+  };
+  for (const [i, id] of ids.entries()) {
+    for (let k = i; k < i + AHEAD; k++) ask(k);
     let one: { name: string; bytes: Uint8Array; blob: Blob };
     try {
       const { rot, takenAt } = await d.info(id);
-      const blob = await d.encode(await d.preview(id), "image/jpeg", rot);
+      const blob = await d.encode(await asked[i]!, "image/jpeg", rot);
       one = { name: photoFileName({ id, takenAt }, "jpg"), bytes: new Uint8Array(await blob.arrayBuffer()), blob };
     } catch (e) {
       failed += 1; // one photo whose preview is missing does not stop the rest; the result says so (SHARE-018)

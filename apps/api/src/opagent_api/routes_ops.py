@@ -61,7 +61,11 @@ def _with_job_state(c: Any, ops: list[dict[str, Any]]) -> None:
         if r.plan_id:  # which plan, how many and where to (ACT-022): rows read only 「建立整理計畫 · 完成」
             tgt: dict[str, Any] = p["target"] if isinstance(p.get("target"), dict) else {}
             where = "/".join(x for x in (tgt.get("root_alias"), (tgt.get("sub_path") or "").strip("/")) if x)
-            extra |= {"plan_id": r.plan_id, "photos": (r.summary or {}).get("total"), "target": where or None}
+            sm = r.summary or {}
+            # what kind of plan (ACT-026): a 複製到資料夾 plan and a 依日期 plan read alike in 活動
+            kind = "trash" if sm.get("trash") else p.get("preset")
+            extra |= {"plan_id": r.plan_id, "photos": sm.get("total") or sm.get("trash"), "target": where or None}
+            extra |= {"plan_kind": kind}
         state[r.id] = (r.status, {k: v for k, v in extra.items() if v is not None})
     for o in ops:
         sub = o.get("subject") or {}

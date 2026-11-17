@@ -122,3 +122,21 @@ def test_act_022_a_plan_row_says_which_plan(lib):
     assert sub["plan_id"] == r["plan_id"]
     assert sub["photos"] == 2
     assert sub["target"] == "sorted/picked"
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ACT-026")
+def test_act_026_a_plan_row_says_what_kind_of_plan(lib):
+    """回歸 (audit rounds 132–134): a 複製到資料夾 plan and a 依日期 plan read alike in 活動. A plan job's row says which
+    kind it is: the preset it came from (a trash plan says trash; the fixture's roots are read-only)."""
+    client, _, _ = lib
+    ids = [a["asset_id"] for a in client.post("/api/v1/search", json={}).json()["items"]][:2]
+    sel = client.post("/api/v1/selections", json={"asset_ids": ids}).json()
+    r = client.post(
+        f"/api/v1/selections/{sel['id']}/organize", json={"target": {"root_alias": "sorted", "sub_path": "picked"}}
+    ).json()
+    ops = client.get("/api/v1/operations", params={"status": "all"}).json()
+    kind = {
+        o["subject"]["id"]: o["subject"].get("plan_kind") for o in ops if (o.get("subject") or {}).get("kind") == "job"
+    }
+    assert kind[r["job_id"]] == "selection"

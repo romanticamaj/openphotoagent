@@ -278,7 +278,12 @@
       "default": "“Resume all” continues where it stopped."
     },
     "planTo": "{n} → {target}",
-    "planN": "{n} photos"
+    "planN": "{n} photos",
+    "planKind": {
+      "selection": "Copy to folder",
+      "by-date": "By date",
+      "trash": "Move to trash"
+    }
   },
   "fix": {
     "hf_token": "Add Hugging Face token",

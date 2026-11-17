@@ -74,6 +74,20 @@ describe("a plan you do not want (ADR-0045)", () => {
     expect(screen.queryByRole("button", { name: "核准並開始" })).toBeNull();
   });
 
+  it("[ORG-024] 回歸：捨棄的計畫頁「回到整理」在資料夾樹之後（驗證第 134 輪：連結夾在說明與資料夾樹中間）", async () => {
+    s.discarded = true;
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <PlanPage planId="p1" />
+      </QueryClientProvider>,
+    );
+    const box = await screen.findByTestId("plan-discarded");
+    const link = screen.getByRole("link", { name: "回到整理" });
+    const tree = screen.getByText(/2024/);
+    expect(box.contains(tree)).toBe(true);
+    expect(tree.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it("[ORG-021] 回歸：計畫的目的地寫出資料夾名稱，不是「.」（驗證第 64 輪：「. (2)」）", async () => {
     s.discarded = false;
     render(

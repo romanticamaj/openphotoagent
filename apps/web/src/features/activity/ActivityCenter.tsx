@@ -83,10 +83,12 @@ export function ActivityCenter({
           <h3 id="recent-h" className="text-xs text-[var(--text-muted)]">{t("activity.recent")}</h3>
           <ul aria-labelledby="recent-h" className="space-y-1 text-sm">
             {oneRowPerPlan(recent).map((op) => {
-              const sub = (op.subject ?? {}) as { plan_id?: string; photos?: number; target?: string };
+              const sub = (op.subject ?? {}) as { plan_id?: string; photos?: number; target?: string; plan_kind?: string };
+              // what kind of plan (ACT-026): a copy and a 依日期 plan read alike
+              const kind = sub.plan_kind ? t(`activity.planKind.${sub.plan_kind}`, { defaultValue: "" }) : "";
               const name = t(`activity.type.${opTypeKey(op)}`, { defaultValue: op.type });
               // which plan, how many and where to, and a way back to it (ACT-022)
-              const detail = sub.photos != null ? ` · ${t(sub.target ? "activity.planTo" : "activity.planN", { n: sub.photos, target: sub.target })}` : "";
+              const detail = `${kind ? ` · ${kind}` : ""}${sub.photos != null ? ` · ${t(sub.target ? "activity.planTo" : "activity.planN", { n: sub.photos, target: sub.target })}` : ""}`;
               const when = (
                 <span className="tnum text-xs text-[var(--text-muted)]">
                   {t(`activity.status.${opStatusKey(op)}`, { defaultValue: op.status })}

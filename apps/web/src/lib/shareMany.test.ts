@@ -83,7 +83,23 @@ describe("sharing several photos (ADR-0054; audit round 124: one at a time only)
     const writeShared = vi.fn(async (_h: string, f: { name: string; bytes: Uint8Array }) => void order.push(`write:${f.name}`));
     const preview = vi.fn(async (id: string) => (order.push(`preview:${id}`), new Blob([id])));
     await shareMany(["a1", "b2"], deps({ pickShared, writeShared, preview }), "2026-11-14", (done, total) => order.push(`progress:${done}/${total}`));
-    expect(order).toEqual(["progress:0/2", "preview:a1", "write:photo-2025-11-11-a1.jpg", "progress:1/2", "preview:b2", "write:photo-b2.jpg", "progress:2/2"]);
+    // the previews are asked ahead (SHARE-036, ADR-0054 addendum 5): the count still follows each save
+    expect(order.filter((o) => !o.startsWith("preview:"))).toEqual(["progress:0/2", "write:photo-2025-11-11-a1.jpg", "progress:1/2", "write:photo-b2.jpg", "progress:2/2"]);
+    expect(order.indexOf("preview:a1")).toBeLessThan(order.indexOf("write:photo-2025-11-11-a1.jpg"));
+  });
+
+  it("[SHARE-036] 回歸：選好資料夾後同時取多張預覽（最多 3 張），不一張等一張（驗證第 134 輪：相簿／★ 的 2048 px 預覽第一次要現做，每張約 0.5 s，計數停住）", async () => {
+    const waiting: Array<() => void> = [];
+    const preview = vi.fn((id: string) => new Promise<Blob>((ok) => waiting.push(() => ok(new Blob([id])))));
+    const writeShared = vi.fn(async () => undefined);
+    const run = shareMany(["a1", "b2", "c3", "d4"], deps({ pickShared: async () => ({ handle: "h", dir: "D:/x" }), writeShared, preview }), "2026-11-14");
+    await vi.waitFor(() => expect(preview).toHaveBeenCalledTimes(3)); // three asked at once, none answered yet
+    expect(writeShared).not.toHaveBeenCalled();
+    while (waiting.length) waiting.shift()!();
+    await vi.waitFor(() => expect(preview).toHaveBeenCalledTimes(4));
+    while (waiting.length) waiting.shift()!();
+    expect((await run).kind).toBe("saved");
+    expect(writeShared.mock.calls.map((c) => (c as unknown as [string, { name: string }])[1].name)).toEqual(["photo-2025-11-11-a1.jpg", "photo-b2.jpg", "photo-c3.jpg", "photo-d4.jpg"]); // still in order
   });
 
   it("[SHARE-017] 取消選資料夾不算失敗、什麼都不存；資料夾在相片庫裡時說出原因", async () => {

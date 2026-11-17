@@ -681,3 +681,14 @@ def test_srch_tok_045_an_english_word_falls_back_to_its_chinese_names_pairs():
     segmenter, is found by 公園 through its character pairs; park had no pairs at all."""
     tok = Tokenizer()
     assert tok.bigram_query("park") == tok.bigram_query("公園") != ""
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-048")
+def test_srch_tok_048_sandbox_and_trampoline_offer_the_playground():
+    """回歸 (audit round 134): 沙坑, trampoline, 彈跳床 and 跳床 found 0 and offered nothing, while 鞦韆 offers 遊樂場
+    (SRCH-TOK-042). They are found at playgrounds: they suggest it, as 鞦韆 does; 跳床 is a name of the trampoline."""
+    tok = Tokenizer()
+    for q in ("沙坑", "sandbox", "彈跳床", "trampoline", "跳床"):
+        assert tok.related(q) == ["遊樂場"], (q, tok.related(q))
+    assert tok.tag_key("跳床") == tok.tag_key("trampoline") == "object.trampoline"

@@ -278,7 +278,12 @@
       "default": "「全部繼續」會從中斷的地方接著做。"
     },
     "planTo": "{n} 張 → {target}",
-    "planN": "{n} 張"
+    "planN": "{n} 張",
+    "planKind": {
+      "selection": "複製到資料夾",
+      "by-date": "依日期",
+      "trash": "移到垃圾桶"
+    }
   },
   "fix": {
     "hf_token": "新增 Hugging Face token",

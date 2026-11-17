@@ -70,13 +70,14 @@ terms:
   - { id: activity.camping, zh: 露營, en: camping, group: 活動, synonyms: [野營, camp], suggest: [object.tent] }
   - { id: object.tent, zh: 帳篷, en: tent, group: 物件, synonyms: [帳棚, tents] }
   - { id: activity.hiking, zh: 爬山, en: hiking, group: 活動, synonyms: [登山, 健行, 郊山, hike], implies: [scene.mountain] }
-  - { id: object.trampoline, zh: 彈跳床, en: trampoline, group: 物件, synonyms: [跳跳床, 蹦床, 彈簧床, trampolines] }
+  - { id: object.trampoline, zh: 彈跳床, en: trampoline, group: 物件, synonyms: [跳跳床, 跳床, 蹦床, 彈簧床, trampolines], suggest: [scene.playground] }
   # 2026-11-13: everyday family words the image model could not be asked (audit round 93; ADR-0031)
   - { id: object.fireworks, zh: 煙火, en: fireworks, group: 物件, synonyms: [煙花, 放煙火] }
   - { id: object.bubbles, zh: 泡泡, en: bubbles, group: 物件, synonyms: [吹泡泡, 肥皂泡] }
   - { id: activity.bbq, zh: 烤肉, en: barbecue, group: 活動, synonyms: [燒烤, bbq], suggest: [food.meal] }
   - { id: activity.picnic, zh: 野餐, en: picnic, group: 活動, synonyms: [野餐墊], suggest: [scene.grass, scene.park] }
-  - { id: scene.sandbox, zh: 沙坑, en: sandbox, group: 場景, synonyms: [沙池, sandpit] }
+  - { id: scene.sandbox, zh: 沙坑, en: sandbox, group: 場景, synonyms: [沙池, sandpit], suggest: [scene.playground] }
+  # found at playgrounds, not all of one: suggested, as 鞦韆 is (SRCH-TOK-048, audit round 134)
   - { id: activity.bath, zh: 洗澡, en: bath, group: 活動, synonyms: [泡澡, 澡盆] }
   - { id: activity.jump_rope, zh: 跳繩, en: jump rope, group: 活動, synonyms: [跳繩子] }
   # 河 is written inside 拔河 but is no part of it (audit round 119, SRCH-TOK-033)

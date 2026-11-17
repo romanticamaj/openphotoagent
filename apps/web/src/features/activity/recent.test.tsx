@@ -36,6 +36,15 @@ describe("what just happened", () => {
     expect(open).toHaveBeenCalledWith("p1");
   });
 
+  it("[ACT-026] 回歸：計畫那一列寫出是哪一種計畫（驗證第 132～134 輪：複製到資料夾與依日期的列看起來一樣）", () => {
+    const row = (id: string, plan_kind: string) => ({ id, type: "job.label", status: "succeeded", subject: { kind: "job", id, job_kind: "organize", job_status: "awaiting_approval", plan_id: `p-${id}`, photos: 2, plan_kind }, finished_at: "2026-11-17T22:37:00+08:00" });
+    render(<ActivityCenter open ops={[]} recent={[row("j1", "selection"), row("j2", "by-date"), row("j3", "trash")]} onClose={() => {}} onOpenPlan={() => {}} />);
+    const items = [...screen.getByRole("list", { name: "最近完成" }).querySelectorAll("li")].map((li) => li.textContent ?? "");
+    expect(items[0]).toContain("複製到資料夾");
+    expect(items[1]).toContain("依日期");
+    expect(items[2]).toContain("移到垃圾桶");
+  });
+
   it("[ACT-023] 回歸：一個計畫只佔一列（驗證第 131 輪：兩個計畫顯示成四列，「建立整理計畫」與工作各一列）", () => {
     const job = { id: "j1", type: "job.label", status: "succeeded", subject: { kind: "job", id: "j1", job_kind: "organize", job_status: "awaiting_approval", plan_id: "p1", photos: 2 }, finished_at: "2026-11-17T22:37:00+08:00" };
     const plan = { id: "p1:plan", type: "output.plan", status: "succeeded", subject: { kind: "plan", id: "p1" }, finished_at: "2026-11-17T22:37:00+08:00" };
