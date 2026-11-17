@@ -106,13 +106,16 @@ export function OnThisDay({ onOpen, away = false }: { onOpen: (photos: MemoryPho
       <div className="on-this-day-years">
         {q.data.groups.map((g) => (
           <div key={g.year} className="on-this-day-year">
-            <p className="text-sm">
-              <span className="font-medium">{t(month ? "memories.monthsAgo" : "memories.yearsAgo", { count: g.years_ago })}</span>{" "}
-              <span className="tnum text-[var(--text-muted)]">{g.year}</span>{" "}
-              {g.total && g.total > g.photos.length ? (
-                // a few of them, said so: 「共 24 張」 read as all there were (MEM-006)
-                <span className="tnum text-xs text-[var(--text-muted)]">{t("memories.picked", { n: g.photos.length.toLocaleString(i18n.language), total: g.total.toLocaleString(i18n.language) })}</span>
-              ) : null}
+            {/* two lines: on one, 247 px a year and three did not fit at 1024 px (round 139, MEM-043) */}
+            <p className="on-this-day-year-head text-sm">
+              <span className="font-medium">{t(month ? "memories.monthsAgo" : "memories.yearsAgo", { count: g.years_ago })}</span>
+              <span className="tnum text-xs text-[var(--text-muted)]">
+                {g.year}
+                {g.total && g.total > g.photos.length ? (
+                  // a few of them, said so: 「共 24 張」 read as all there were (MEM-006)
+                  <> · {t("memories.picked", { n: g.photos.length.toLocaleString(i18n.language), total: g.total.toLocaleString(i18n.language) })}</>
+                ) : null}
+              </span>
             </p>
             <ul className="flex gap-1">
               {g.photos.slice(0, per).map((p, i) => (

@@ -131,6 +131,19 @@ export function TurnView({ turn, onRerun }: { turn: Turn; onRerun: (filters: Rec
           ) : null}
         </div>
       ) : null}
+      {/* the answer first, then what it is about: 「在搜尋頁看全部」 came before it (round 139, ASK-UI-024) */}
+      {turn.text ? <Answer text={turn.text} hashes={turn.photos?.hashes} /> : null}
+      {turn.suggest?.length ? (
+        // clickable, worded as the search page words them (round 137, ASK-UI-022); after the answer (round 138, ASK-UI-023)
+        <p className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-[var(--text-muted)]">{t("search.tryInstead")}</span>
+          {turn.suggest.map((x) => (
+            <Link key={x.q} to="/search" search={{ q: x.q }} className="chip">
+              {t("search.tryWord", { q: x.q, n: x.n.toLocaleString() })}
+            </Link>
+          ))}
+        </p>
+      ) : null}
       {turn.photos && turn.photos.role === "candidates" ? (
         <p data-testid="ask-photos-total" className="text-sm text-[var(--text-muted)]">
           {t("ask.found", { n: turn.photos.total.toLocaleString() })}
@@ -164,18 +177,6 @@ export function TurnView({ turn, onRerun }: { turn: Turn; onRerun: (filters: Rec
           </Link>
         </div>
       ))}
-      {turn.text ? <Answer text={turn.text} hashes={turn.photos?.hashes} /> : null}
-      {turn.suggest?.length ? (
-        // clickable, worded as the search page words them (round 137, ASK-UI-022); after the answer (round 138, ASK-UI-023)
-        <p className="flex flex-wrap items-center gap-2 text-sm">
-          <span className="text-[var(--text-muted)]">{t("search.tryInstead")}</span>
-          {turn.suggest.map((x) => (
-            <Link key={x.q} to="/search" search={{ q: x.q }} className="chip">
-              {t("search.tryWord", { q: x.q, n: x.n.toLocaleString() })}
-            </Link>
-          ))}
-        </p>
-      ) : null}
       {turn.status === "cancelled" ? <p className="text-xs text-[var(--text-muted)]">{t("ask.cancelled")}</p> : null}
       {turn.status === "failed" ? <p role="alert" className="text-xs">{t("ask.failed")}</p> : null}
     </article>

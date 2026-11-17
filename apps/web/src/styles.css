@@ -1075,6 +1075,7 @@ body {
 /* the years wrap when they do not fit: at 1024 px the third was hidden behind a scrollbar (MEM-034) */
 .on-this-day-years { display: flex; flex-wrap: wrap; gap: 0.75rem 1.5rem; padding-top: 0.5rem; }
 .on-this-day-year { flex: none; }
+.on-this-day-year-head { display: flex; flex-direction: column; line-height: 1.25; margin-bottom: 0.25rem; }
 .on-this-day-tile { display: block; width: 72px; height: 72px; overflow: hidden; border-radius: var(--radius-photo); background: var(--surface-2); transition: transform 120ms ease; }
 .on-this-day-tile:hover { transform: scale(1.04); }
 .on-this-day-more { min-width: 44px; height: 72px; padding: 0 10px; border-radius: var(--radius-photo); background: var(--surface-2); color: var(--text-muted); font-size: 0.875rem; }

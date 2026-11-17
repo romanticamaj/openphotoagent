@@ -153,4 +153,21 @@ describe("那年今日 (10 §2.8)", () => {
     expect(tilesFor(1248, 1)).toBe(8);
     expect(tilesFor(undefined, 2)).toBe(6); // not measured yet: by the number of years (MEM-031)
   });
+
+  it("[MEM-043] 回歸：每一年的標題分兩行（「N 年前…」一行、年份與張數一行），三年在 758 px 放得下（驗證第 139 輪：標題一行 247 px，三年要 801 px）", async () => {
+    window.localStorage.clear(); // MEM-035 hid it for today
+    s.scope = "month";
+    s.groups = [{ year: 2025, years_ago: 1, total: 424, photos: Array.from({ length: 24 }, (_, i) => ({ asset_id: `x${i}`, ch: null, taken_at: null })) }];
+    wrap();
+    const first = await screen.findByText("1 年前的這個月");
+    const head = first.closest(".on-this-day-year-head");
+    expect(head?.children).toHaveLength(2);
+    expect(head?.children[1]?.textContent).toContain("2025");
+    expect(head?.children[1]?.textContent).toContain("424");
+    const { readFileSync } = await import("node:fs");
+    const css = readFileSync(`${process.cwd()}/src/styles.css`, "utf-8").replace(/\s+/g, " ");
+    expect(css).toMatch(/\.on-this-day-year-head \{[^}]*flex-direction: column/);
+    expect(3 * Math.max(150, tilesFor(758, 3) * 76 + 52) + 2 * 24).toBeLessThanOrEqual(758);
+    s.scope = undefined;
+  });
 });

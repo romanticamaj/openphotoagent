@@ -301,3 +301,31 @@ def test_mem_041_hide_and_fewer_are_kept_and_undone(embedded_pg, tmp_path):
     ):
         assert x.client.post("/api/v1/memories/feedback", json=bad, headers=x.ui).status_code == 422, bad
     x.eng.dispose()
+
+
+@pytest.mark.integration
+@pytest.mark.tc("MEM-044")
+def test_mem_044_a_theme_does_not_reuse_an_events_cover(embedded_pg, tmp_path):
+    """回歸 (audit round 139): 「2025 的笑容」 had the same cover as 「2025/11/10 · 玩具」 beside it. A theme's cover is a
+    photo no listed event shows first, when it has one."""
+    x = M(embedded_pg.dsn, tmp_path)
+    ev = [
+        x.add(
+            f"e{i}.jpg",
+            tags=("玩具", "笑容") if i < 8 else ("玩具",),
+            taken=datetime(2025, 3, 1, 1 + i % 10, i, tzinfo=UTC),
+        )
+        for i in range(16)
+    ]
+    for i in range(9):
+        x.add(f"s{i}.jpg", tags=("笑容",), taken=datetime(2025, 6, 1 + i, 9, tzinfo=UTC))
+    for i in range(20):
+        x.add(f"o{i}.jpg", taken=datetime(2025, 9, 1 + i, 9, tzinfo=UTC))
+    x.index()
+    evs = x.client.get("/api/v1/memories/events", headers=x.ui).json()["events"]
+    th = x.client.get("/api/v1/memories/themes", headers=x.ui).json()["themes"]
+    x.eng.dispose()
+    covers = {e["photos"][0]["asset_id"] for e in evs}
+    assert ev[0] in covers  # the outing's cover is its first photo
+    smile = next(t for t in th if t["key"] == "mood.smile")
+    assert smile["photos"][0]["asset_id"] not in covers

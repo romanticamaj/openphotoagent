@@ -69,3 +69,13 @@ describe("nothing found, in order", () => {
     expect(answer.compareDocumentPosition(chip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
+
+describe("the answer first", () => {
+  it("[ASK-UI-024] 回歸：回答那句話在照片與「看全部」之前（驗證第 139 輪：先出現「在搜尋頁看全部 N 張」才是回答）", () => {
+    render(<TurnView turn={turn({})} onRerun={() => {}} />);
+    const answer = screen.getByText("共有 14 張。");
+    const all = screen.getByText(/看全部 14 張/);
+    expect(answer.compareDocumentPosition(all) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(answer.compareDocumentPosition(screen.getByTestId("ask-photos")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});

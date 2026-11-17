@@ -456,6 +456,15 @@ def place_or_thing(key: str) -> bool:
     return key.split(".", 1)[0] in {"scene", "object", "food", "mood"} and key not in NOT_A_PLACE_OR_THING
 
 
+def _names_subject(caption: str | None, key: str | None) -> bool:
+    """The caption names the subject in one of its Chinese forms: it leads the card (MEM-014, MEM-019)."""
+    from .labels import tokenizer
+
+    if not key:
+        return False
+    return any(f in (caption or "") for f in tokenizer()._forms_of(key) if f and not f.isascii())
+
+
 THEME_OVERLAP = 0.5  # 「2025 的運動場」 shared 28 of 64 photos with 「2025 的足球」 (audit round 80)
 
 
@@ -507,7 +516,9 @@ def memory_themes(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
         share=EVENT_SHARE,
         hidden_days=hidden_days,
         demote=fewer,
+        prefer=lambda a, key: _names_subject(info[a].caption, key),  # their covers as /memories/events gives them
     )[:EVENTS_MAX]
+    event_covers = {e.asset_ids[0] for e in listed if e.asset_ids}
     # the count is what 「看全部」 finds, duplicates too; a theme mostly another's is not shown twice (MEM-013)
     found = themes(
         [(r.id, r.at.year, list(r.tags or [])) for r in rows],
@@ -522,9 +533,12 @@ def memory_themes(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
     names = tag_names([t.key for t in found], lang)
 
     def cover_first(key: str, ids: tuple[str, ...]) -> list[str]:
-        """The first photo whose caption names the subject leads: a staircase opened 「2026 的運動場」 (MEM-014)."""
-        forms = [f for f in tokenizer()._forms_of(key) if f and not f.isascii()]
-        lead = next((a for a in ids if any(f in (info[a].caption or "") for f in forms)), None)
+        """The first photo whose caption names the subject leads: a staircase opened 「2026 的運動場」 (MEM-014). Not a
+        listed event's cover, when another will do: 「2025 的笑容」 had 「2025/11/10 · 玩具」's (MEM-044)."""
+        free = [a for a in ids if a not in event_covers] or list(ids)
+        lead = next((a for a in free if _names_subject(info[a].caption, key)), None) or (
+            free[0] if free[0] != ids[0] else None
+        )
         return [lead, *(a for a in ids if a != lead)] if lead else list(ids)
 
     return {
