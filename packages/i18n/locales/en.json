@@ -1195,6 +1195,9 @@
   },
   "memories": {
     "onThisDay": "On this day",
+    "thisMonth": "This month, years ago",
+    "monthsAgo_one": "{count} year ago this month",
+    "monthsAgo_other": "{count} years ago this month",
     "notToday": "Not today",
     "yearsAgo_one": "{count} year ago today",
     "yearsAgo_other": "{count} years ago today",

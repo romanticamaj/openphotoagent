@@ -247,6 +247,33 @@ def _memory_year(c: Any, year: int, now: date) -> list[Any]:
     )
 
 
+def _memory_months(c: Any, oldest: int, now: date) -> dict[int, tuple[list[Any], int]]:
+    """The same month of each earlier year, in one query (MEM-026): shown when no photo is within ±3 days of today in
+    any year; per year its photos (one per near-duplicate group, at most MEMORY_MAX) and how many there are."""
+    from opagent_db.schema import duplicate_member
+
+    when = func.coalesce(asset.c.local_at, asset.c.taken_at)
+    hidden = select(duplicate_member.c.asset_id).where(duplicate_member.c.is_representative.is_(False))
+    rows = c.execute(
+        select(
+            asset.c.id, asset.c.content_hash, asset.c.rotation, when.label("at"), asset.c.id.in_(hidden).label("dup")
+        )
+        .where(
+            asset.c.workspace_id == DEFAULT_WS,
+            func.extract("month", when) == now.month,
+            func.extract("year", when).between(oldest, now.year - 1),
+        )
+        .order_by(when, asset.c.id)
+    ).all()
+    out: dict[int, tuple[list[Any], int]] = {}
+    for r in rows:
+        shown, n = out.get(r.at.year, ([], 0))
+        if not r.dup and len(shown) < MEMORY_MAX:
+            shown.append(r)
+        out[r.at.year] = (shown, n + 1)
+    return out
+
+
 @router.get("/memories/on-this-day")
 def on_this_day(req: Request, today: str | None = None) -> dict[str, Any]:
     """那年今日 (10 §2.8, MEM-001): photos taken within ±3 days of today's date in each earlier year, newest year
@@ -269,7 +296,7 @@ def on_this_day(req: Request, today: str | None = None) -> dict[str, Any]:
     with st.engine.connect() as c:
         first = c.execute(select(func.min(when)).where(asset.c.workspace_id == DEFAULT_WS)).scalar()
         if first is None:
-            return {"today": now.isoformat(), "groups": []}
+            return {"today": now.isoformat(), "scope": "days", "groups": []}
         oldest = max(first.year, now.year - MEMORY_YEARS)
         for year in range(now.year - 1, oldest - 1, -1):
             rows = _memory_year(c, year, now)
@@ -290,7 +317,42 @@ def on_this_day(req: Request, today: str | None = None) -> dict[str, Any]:
                         ],
                     }
                 )
-    return {"today": now.isoformat(), "groups": groups}
+    if groups:
+        return {"today": now.isoformat(), "scope": "days", "groups": groups}
+    # none near the day in any year: the same month, said so; 那年今日 never showed on 18 November (round 135, MEM-026)
+    with st.engine.connect() as c:
+        months = _memory_months(c, oldest, now)
+    for year in sorted(months, reverse=True):
+        rows, n = months[year]
+        if rows:
+            groups.append(
+                {
+                    "year": year,
+                    "years_ago": now.year - year,
+                    "total": n,
+                    "photos": [
+                        {
+                            "asset_id": r.id,
+                            "ch": r.content_hash,
+                            "taken_at": r.at.isoformat() if r.at else None,
+                            "rot": r.rotation,
+                        }
+                        for r in rows
+                    ],
+                }
+            )
+    return {"today": now.isoformat(), "scope": "month", "groups": groups}
+
+
+# a place or a thing (MEM-028, ADR-0049 addendum 7): the 6 themes were all about people; one slot a year is kept for
+# these. Not a background (草地, 街道, 植物) and not worn or shown by a person (帽子, 口罩, 笑容)
+NOT_A_PLACE_OR_THING = frozenset(
+    {"scene.grass", "scene.street", "object.plant", "object.hat", "object.mask", "mood.smile"}
+)
+
+
+def place_or_thing(key: str) -> bool:
+    return key.split(".", 1)[0] in {"scene", "object", "food", "mood"} and key not in NOT_A_PLACE_OR_THING
 
 
 THEME_OVERLAP = 0.5  # 「2025 的運動場」 shared 28 of 64 photos with 「2025 的足球」 (audit round 80)
@@ -331,6 +393,7 @@ def memory_themes(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
         skip=tokenizer().not_themes(),
         max_overlap=THEME_OVERLAP,
         hidden=dup,
+        place_or_thing=place_or_thing,
     )
     names = tag_names([t.key for t in found], lang)
 

@@ -7,11 +7,11 @@ beforeAll(async () => {
   await i18n.changeLanguage("zh-TW");
 });
 
-const s = vi.hoisted(() => ({ groups: [] as unknown[] }));
+const s = vi.hoisted(() => ({ groups: [] as unknown[], scope: undefined as string | undefined }));
 vi.mock("../../lib/api", async (orig) => ({
   ...(await orig<typeof import("../../lib/api")>()),
   mediaUrl: (id: string) => `/m/${id}`,
-  api: { onThisDay: async () => ({ today: "2026-11-12", groups: s.groups }) },
+  api: { onThisDay: async () => ({ today: "2026-11-12", groups: s.groups, scope: s.scope }) },
 }));
 
 import { memoryGrid, OnThisDay } from "./OnThisDay";
@@ -91,5 +91,13 @@ describe("那年今日 (10 §2.8)", () => {
     );
     expect(screen.getByRole("heading", { name: "那年今日" })).toBeTruthy();
   });
-});
 
+  it("[MEM-027] 回歸：前後三天都沒有舊照片時，卡片寫「那年這個月」與「N 年前的這個月」（驗證第 135 輪：11 月 18 日什麼都沒出現）", async () => {
+    s.scope = "month";
+    s.groups = [{ year: 2025, years_ago: 1, total: 12, photos: [{ asset_id: "a", ch: null, taken_at: null }] }];
+    wrap();
+    expect(await screen.findByRole("heading", { name: "那年這個月" })).toBeTruthy();
+    expect(screen.getByText("1 年前的這個月")).toBeTruthy();
+    s.scope = undefined;
+  });
+});

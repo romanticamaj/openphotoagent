@@ -35,6 +35,7 @@ def themes(
     skip: set[str] | frozenset[str] = frozenset(),
     max_overlap: float = 1.0,
     hidden: set[str] | frozenset[str] = frozenset(),
+    place_or_thing: Callable[[str], bool] | None = None,
 ) -> list[Theme]:
     """主題 (10 §2.8, MEM-009): per year, newest first, the vocabulary tags on at least ``min_count`` photos, most
     first, at most ``per_year``. A tag on more than ``common_share`` of the year's photos (a child, outdoors) says
@@ -42,7 +43,9 @@ def themes(
     (by date); only vocabulary ids (``group.name``) count, never a free word, and not those in ``skip``: terms the
     vocabulary marks as true of any year (室內, 玩耍; MEM-012). A theme whose photos are more than ``max_overlap``
     another, higher theme's is skipped; the count is every photo with the tag, as 「看全部」 shows it, and only the
-    photos shown leave out ``hidden`` (near-duplicates; MEM-013)."""
+    photos shown leave out ``hidden`` (near-duplicates; MEM-013). With ``place_or_thing``, a year whose first
+    ``per_year - 1`` themes have no place or thing gives its last slot to the strongest one that qualifies; with none,
+    the slot is filled as before (MEM-028, ADR-0049 addendum 7: the 6 themes were all about people)."""
     by_year: dict[int, list[tuple[str, list[str]]]] = {}
     for aid, year, tags in rows:
         by_year.setdefault(year, []).append((aid, tags))
@@ -51,18 +54,44 @@ def themes(
         photos = by_year[year]
         counts = Counter(k for _, tags in photos for k in set(tags) if "." in k and k not in skip)
         taken: list[set[str]] = []
-        for k, n in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0])):
-            if len(taken) == per_year:
-                break
+        picked: list[Theme] = []
+        ranked = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+
+        def take(
+            k: str,
+            n: int,
+            photos: list[tuple[str, list[str]]] = photos,
+            taken: list[set[str]] = taken,
+            picked: list[Theme] = picked,
+            year: int = year,
+        ) -> bool:
             if n < min_count or n > common_share * len(photos):
-                continue
+                return False
             ids = [aid for aid, tags in photos if k in tags]
             mine = set(ids)
             if any(len(mine & other) > max_overlap * len(mine) for other in taken):
-                continue
+                return False
             taken.append(mine)
             shown_ids = [a for a in ids if a not in hidden]
-            out.append(Theme(year=year, key=k, count=n, asset_ids=tuple(_spread(shown_ids, shown))))
+            picked.append(Theme(year=year, key=k, count=n, asset_ids=tuple(_spread(shown_ids, shown))))
+            return True
+
+        reserve = place_or_thing is not None and per_year >= 2
+        for k, n in ranked:
+            if len(picked) == (per_year - 1 if reserve else per_year):
+                break
+            take(k, n)
+        if reserve and len(picked) == per_year - 1:
+            done = {t.key for t in picked}
+            if not any(place_or_thing(k) for k in done):  # type: ignore[misc]
+                for k, n in ranked:
+                    if k not in done and place_or_thing(k) and take(k, n):  # type: ignore[misc]
+                        break
+            if len(picked) < per_year:
+                for k, n in ranked:
+                    if k not in {t.key for t in picked} and take(k, n):
+                        break
+        out.extend(sorted(picked, key=lambda t: (-t.count, t.key)))
     return out
 
 

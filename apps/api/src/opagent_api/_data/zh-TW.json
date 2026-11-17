@@ -1195,6 +1195,9 @@
   },
   "memories": {
     "onThisDay": "那年今日",
+    "thisMonth": "那年這個月",
+    "monthsAgo_one": "{count} 年前的這個月",
+    "monthsAgo_other": "{count} 年前的這個月",
     "notToday": "今天先不看",
     "yearsAgo_one": "{count} 年前的今天",
     "yearsAgo_other": "{count} 年前的今天",

@@ -38,12 +38,14 @@ export function OnThisDay({ onOpen, away = false }: { onOpen: (photos: MemoryPho
   const q = useQuery({ queryKey: ["on-this-day"], queryFn: () => api.onThisDay(), staleTime: 60 * 60 * 1000 });
   const [hidden, setHidden] = useState(false);
   const day = q.data?.today ?? "";
+  const month = q.data?.scope === "month";
   // `away`: the timeline has been scrolled down; the card steps aside and comes back at the top (MEM-009)
   if (!q.data?.groups.length || hidden || away || hiddenToday(day)) return null;
   return (
     <section aria-labelledby="otd-h" className="on-this-day">
       <div className="flex items-baseline gap-3">
-        <h2 id="otd-h" className="font-semibold">{t("memories.onThisDay")}</h2>
+        {/* none near the day: the same month, said so (round 135, MEM-027) */}
+        <h2 id="otd-h" className="font-semibold">{t(month ? "memories.thisMonth" : "memories.onThisDay")}</h2>
         <button
           type="button"
           className="ml-auto text-xs text-[var(--text-muted)] underline"
@@ -63,7 +65,7 @@ export function OnThisDay({ onOpen, away = false }: { onOpen: (photos: MemoryPho
         {q.data.groups.map((g) => (
           <div key={g.year} className="on-this-day-year">
             <p className="text-sm">
-              <span className="font-medium">{t("memories.yearsAgo", { count: g.years_ago })}</span>{" "}
+              <span className="font-medium">{t(month ? "memories.monthsAgo" : "memories.yearsAgo", { count: g.years_ago })}</span>{" "}
               <span className="tnum text-[var(--text-muted)]">{g.year}</span>{" "}
               {g.total && g.total > g.photos.length ? (
                 // a few of them, said so: 「共 24 張」 read as all there were (MEM-006)

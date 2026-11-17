@@ -157,3 +157,47 @@ def test_mem_023_a_run_is_named_by_a_subject_on_enough_of_it():
     got = [(e.day.isoformat(), e.last.isoformat() if e.last else None, e.key) for e in out]
     # the two toy days are one outing; the football day stands alone: no football run takes in the toy days
     assert got == [("2025-11-12", None, "activity.soccer"), ("2025-11-10", "2025-11-11", "object.toy")]
+
+
+def _year(counts: dict[str, int], total: int = 100, overlap: dict[str, str] | None = None) -> list:
+    """``total`` photos of 2025; each tag on its first ``n`` (or on those of the tag named in ``overlap``)."""
+    rows = [[f"p{i}", 2025, []] for i in range(total)]
+    start = 0
+    for k, n in counts.items():
+        for i in range(start, start + n):
+            rows[i % total][2].append(k)
+        start += n
+    return [(a, y, t) for a, y, t in rows]
+
+
+def PLACE(k: str) -> bool:
+    return k.split(".")[0] in {"scene", "object", "food", "mood"}
+
+
+@pytest.mark.unit
+@pytest.mark.tc("MEM-028")
+def test_mem_028_a_year_keeps_a_place_or_a_thing():
+    """回歸 (audit round 135; ADR-0049 addendum 7, one deliberation sub-agent): the 6 themes were all about people. When
+    a year's themes would have no place or thing (場景／物件／食物／氣氛), the last slot goes to the strongest one that
+    qualifies (≥ min_count, ≤ 60%, not overlapping); with none, the rule is today's."""
+    place = PLACE
+
+    def keys(found: list) -> list[str]:
+        return [t.key for t in found]
+
+    base = {"activity.soccer": 40, "activity.dance": 30, "people.baby": 20}
+    assert keys(themes(_year({**base, "food.meal": 12}), place_or_thing=place)) == [
+        "activity.soccer",
+        "activity.dance",
+        "food.meal",
+    ]
+    assert keys(themes(_year({**base, "food.meal": 12}))) == ["activity.soccer", "activity.dance", "people.baby"]
+    assert keys(themes(_year({**base, "food.meal": 7}), place_or_thing=place))[-1] == "people.baby"  # too few
+    skip = frozenset({"scene.indoor"})
+    got = themes(_year({**base, "scene.indoor": 50}), place_or_thing=place, skip=skip)
+    assert keys(got)[-1] == "people.baby"  # theme: false is never reserved
+    got = themes(
+        _year({"activity.soccer": 40, "object.flower": 35, "activity.dance": 30, "food.cake": 25}), place_or_thing=place
+    )
+    assert keys(got) == ["activity.soccer", "object.flower", "activity.dance"]  # one already taken: no reservation
+    assert keys(themes(_year(base), place_or_thing=place, per_year=1)) == ["activity.soccer"]

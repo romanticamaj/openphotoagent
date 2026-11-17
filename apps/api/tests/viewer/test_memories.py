@@ -173,3 +173,36 @@ def test_mem_019_events_merge_an_outing_skip_a_mix_and_lead_with_the_subject(emb
     assert [(e["day"], e["last"], e["name"]) for e in got] == [("2025-11-13", "2025-11-14", "足球")], got
     assert got[0]["photos"][0]["asset_id"] == ids[4]
     x.eng.dispose()
+
+
+@pytest.mark.integration
+@pytest.mark.tc("MEM-026")
+def test_mem_026_no_photo_near_today_falls_back_to_the_month(m):
+    """回歸 (audit round 135): 那年今日 never showed on 18 November: no earlier photo was within ±3 days, and nothing
+    came instead. With none near the day, the same month of earlier years is shown, said so (`scope` month)."""
+    r = m.client.get("/api/v1/memories/on-this-day", params={"today": "2026-11-05"}, headers=m.ui)
+    body = r.json()
+    assert body.get("scope") == "month", body
+    assert [g["year"] for g in body["groups"]] == [2025, 2024, 2023]
+    assert body["groups"][1]["total"] == 1  # the month's photos, counted
+    near = m.client.get("/api/v1/memories/on-this-day", params={"today": "2026-11-12"}, headers=m.ui).json()
+    assert near["scope"] == "days"  # the days when there are some (MEM-001)
+
+
+@pytest.mark.integration
+@pytest.mark.tc("MEM-029")
+def test_mem_029_a_years_themes_keep_a_place_or_a_thing(embedded_pg, tmp_path):
+    """回歸 (audit round 135; ADR-0049 addendum 7): every theme was about people. 10 足球, 10 跳舞, 9 嬰兒, 8 海灘: the
+    third slot goes to 海灘, the place, and 嬰兒 is the one left out; in count order."""
+    x = M(embedded_pg.dsn, tmp_path)
+    day = iter(range(1, 200))
+    for tag, n in (("足球", 10), ("跳舞", 10), ("嬰兒", 9), ("海灘", 8)):
+        for i in range(n):
+            d = next(day)
+            x.add(f"{tag}{i}.jpg", tags=(tag,), taken=datetime(2025, 1 + d // 28, 1 + d % 28, 9, tzinfo=UTC))
+    for i in range(20):
+        x.add(f"o{i}.jpg", taken=datetime(2025, 9, 1 + i, 9, tzinfo=UTC))
+    x.index()
+    th = x.client.get("/api/v1/memories/themes", headers=x.ui).json()["themes"]
+    assert [t["key"] for t in th if t["year"] == 2025] == ["activity.dance", "activity.soccer", "scene.beach"]
+    x.eng.dispose()
