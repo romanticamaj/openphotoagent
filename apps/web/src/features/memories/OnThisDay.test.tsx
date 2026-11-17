@@ -14,7 +14,7 @@ vi.mock("../../lib/api", async (orig) => ({
   api: { onThisDay: async () => (s.asked++, { today: "2026-11-12", groups: s.groups, scope: s.scope }) },
 }));
 
-import { memoryGrid, OnThisDay } from "./OnThisDay";
+import { memoryGrid, OnThisDay, tilesFor } from "./OnThisDay";
 
 const wrap = (onOpen = vi.fn()) =>
   render(
@@ -133,11 +133,24 @@ describe("那年今日 (10 §2.8)", () => {
     s.groups = [{ year: 2025, years_ago: 1, photos: [{ asset_id: "a", ch: null, taken_at: null }] }];
     const grid = document.createElement("div");
     grid.setAttribute("role", "grid");
-    grid.tabIndex = 0;
+    grid.tabIndex = -1;
+    const tile = document.createElement("div");
+    tile.setAttribute("role", "gridcell");
+    tile.tabIndex = 0; // the grid's current photo (roving tabindex)
+    grid.appendChild(tile);
     document.body.appendChild(grid);
     wrap();
     fireEvent.click(await screen.findByRole("button", { name: "今天先不看" }));
-    await waitFor(() => expect(document.activeElement).toBe(grid));
+    // its current photo, not the grid: → then went to photo 2 and no ring showed (round 138, MEM-035 revised)
+    await waitFor(() => expect(document.activeElement).toBe(tile));
     grid.remove();
+  });
+
+  it("[MEM-036] 回歸：每年幾張由卡片的寬度決定，三年放在同一列（驗證第 138 輪：1024 px 換成兩列，卡片高 252 px）", () => {
+    expect(tilesFor(1248, 3)).toBe(4); // 1280 px: as before
+    expect(tilesFor(780, 3)).toBe(2); // 1024 px beside the sidebar: 2 a year, one row
+    expect(tilesFor(400, 3)).toBe(2); // never fewer than 2: then the years wrap (MEM-034)
+    expect(tilesFor(1248, 1)).toBe(8);
+    expect(tilesFor(undefined, 2)).toBe(6); // not measured yet: by the number of years (MEM-031)
   });
 });

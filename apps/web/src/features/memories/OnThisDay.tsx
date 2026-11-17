@@ -1,7 +1,7 @@
 // 那年今日 (10 §2.8): the same day in earlier years, a row per year at the top of 照片. Read-only; 「今天先不看」 hides it
 // until tomorrow, on this computer only.
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, mediaUrl } from "../../lib/api";
 import { turnStyle } from "../../lib/turn";
@@ -26,6 +26,18 @@ const KEY = "opa.memories.hidden";
 const SHOWN = 8; // photos per year in the row; the rest open in the Lightbox
 // fewer each when there are more years, so all fit: at 1280 px the third was cut off (round 136, MEM-031)
 const shownFor = (years: number) => Math.min(SHOWN, Math.max(4, Math.floor(12 / Math.max(1, years))));
+const TILE = 76; // a 72 px tile and its 4 px gap
+const YEAR_EXTRA = 52; // a year's 「+N」 and the gap before it
+const YEAR_GAP = 24;
+
+/** Photos a year, from the card's width so every year is on one row (round 138, MEM-036): at 1024 px the third year
+ *  wrapped and the card grew to 252 px. Never fewer than 2 (then the years wrap, MEM-034); unmeasured, by count. */
+export function tilesFor(width: number | undefined, years: number): number {
+  const most = shownFor(years);
+  if (!width) return most;
+  const n = Math.floor((width - (years - 1) * YEAR_GAP - years * YEAR_EXTRA) / (years * TILE));
+  return Math.max(2, Math.min(most, n));
+}
 
 function hiddenToday(day: string): boolean {
   try {
@@ -53,11 +65,20 @@ export function OnThisDay({ onOpen, away = false }: { onOpen: (photos: MemoryPho
   const [hidden, setHidden] = useState(false);
   const day = q.data?.today ?? "";
   const month = q.data?.scope === "month";
-  const per = shownFor(q.data?.groups.length ?? 1);
+  const [width, setWidth] = useState<number | undefined>(undefined);
+  const box = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    const el = box.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(([e]) => setWidth(e?.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  });
+  const per = tilesFor(width, q.data?.groups.length ?? 1);
   // `away`: the timeline has been scrolled down; the card steps aside and comes back at the top (MEM-009)
   if (!q.data?.groups.length || hidden || away || hiddenToday(day)) return null;
   return (
-    <section aria-labelledby="otd-h" className="on-this-day">
+    <section ref={box} aria-labelledby="otd-h" className="on-this-day">
       <div className="flex items-baseline gap-3">
         {/* none near the day: the same month, said so (round 135, MEM-027) */}
         <h2 id="otd-h" className="font-semibold">{t(month ? "memories.thisMonth" : "memories.onThisDay")}</h2>
@@ -72,7 +93,11 @@ export function OnThisDay({ onOpen, away = false }: { onOpen: (photos: MemoryPho
             }
             setHidden(true);
             // the button goes with the card: the timeline takes the keyboard, not the page (round 137, MEM-035)
-            requestAnimationFrame(() => document.querySelector<HTMLElement>('[role="grid"]')?.focus());
+            // its current photo, not the grid itself: → then skipped to photo 2 (round 138, MEM-035 revised)
+            requestAnimationFrame(() => {
+              const grid = document.querySelector<HTMLElement>('[role="grid"]');
+              (grid?.querySelector<HTMLElement>('[tabindex="0"]') ?? grid)?.focus();
+            });
           }}
         >
           {t("memories.notToday")}

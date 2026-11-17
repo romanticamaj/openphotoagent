@@ -60,3 +60,12 @@ describe("nothing found", () => {
     expect(chip.closest("a")?.getAttribute("data-q")).toBe("遊樂場");
   });
 });
+
+describe("nothing found, in order", () => {
+  it("[ASK-UI-023] 回歸：「試試：」在回答那句話之後（驗證第 138 輪：chip 列在回答上面）", () => {
+    render(<TurnView turn={turn({ photos: null, text: "找不到符合條件的照片。", suggest: [{ q: "遊樂場", n: 14 }] })} onRerun={() => {}} />);
+    const answer = screen.getByText(/找不到符合條件的照片/);
+    const chip = screen.getByText("遊樂場（14 張以上）");
+    expect(answer.compareDocumentPosition(chip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
