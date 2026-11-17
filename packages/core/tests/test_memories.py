@@ -201,3 +201,19 @@ def test_mem_028_a_year_keeps_a_place_or_a_thing():
     )
     assert keys(got) == ["activity.soccer", "object.flower", "activity.dance"]  # one already taken: no reservation
     assert keys(themes(_year(base), place_or_thing=place, per_year=1)) == ["activity.soccer"]
+
+
+@pytest.mark.unit
+@pytest.mark.tc("MEM-037")
+def test_mem_037_a_theme_that_is_mostly_one_event_is_not_shown_twice():
+    """回歸 (audit round 138; one deliberation sub-agent): two themes repeated events listed beside them. A theme whose
+    photos are more than half one listed event's is skipped (the event is the more specific); its slot goes on."""
+    rows = [(f"s{i}", 2025, ["activity.soccer"]) for i in range(20)]
+    rows += [(f"b{i}", 2025, ["scene.beach"]) for i in range(10)]
+    rows += [(f"o{i}", 2025, []) for i in range(30)]
+    event = frozenset(f"s{i}" for i in range(16))  # 16 of the 20 soccer photos are one outing
+    got = [t.key for t in themes(rows, max_overlap=0.5, claimed=[event])]
+    assert got == ["scene.beach"]
+    assert [t.key for t in themes(rows, max_overlap=0.5)] == ["activity.soccer", "scene.beach"]
+    wide = frozenset(f"s{i}" for i in range(8))  # 40% of them: kept
+    assert [t.key for t in themes(rows, max_overlap=0.5, claimed=[wide])] == ["activity.soccer", "scene.beach"]

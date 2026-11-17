@@ -4,7 +4,7 @@ time (ADR-0049); nothing here reads a clock, a file or a model."""
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import date
 
@@ -36,6 +36,7 @@ def themes(
     max_overlap: float = 1.0,
     hidden: set[str] | frozenset[str] = frozenset(),
     place_or_thing: Callable[[str], bool] | None = None,
+    claimed: Sequence[frozenset[str] | set[str]] = (),
 ) -> list[Theme]:
     """主題 (10 §2.8, MEM-009): per year, newest first, the vocabulary tags on at least ``min_count`` photos, most
     first, at most ``per_year``. A tag on more than ``common_share`` of the year's photos (a child, outdoors) says
@@ -45,7 +46,9 @@ def themes(
     another, higher theme's is skipped; the count is every photo with the tag, as 「看全部」 shows it, and only the
     photos shown leave out ``hidden`` (near-duplicates; MEM-013). With ``place_or_thing``, a year whose first
     ``per_year - 1`` themes have no place or thing gives its last slot to the strongest one that qualifies; with none,
-    the slot is filled as before (MEM-028, ADR-0049 addendum 7: the 6 themes were all about people)."""
+    the slot is filled as before (MEM-028, ADR-0049 addendum 7: the 6 themes were all about people). ``claimed`` are
+    the photos of the events listed beside the themes: a theme more than ``max_overlap`` one of them repeats it and is
+    skipped (MEM-037, ADR-0049 addendum 8)."""
     by_year: dict[int, list[tuple[str, list[str]]]] = {}
     for aid, year, tags in rows:
         by_year.setdefault(year, []).append((aid, tags))
@@ -70,6 +73,9 @@ def themes(
             ids = [aid for aid, tags in photos if k in tags]
             mine = set(ids)
             if any(len(mine & other) > max_overlap * len(mine) for other in taken):
+                return False
+            seen = mine - set(hidden)  # an event lists one photo per near-duplicate group
+            if seen and any(len(seen & ev) > max_overlap * len(seen) for ev in claimed):
                 return False
             taken.append(mine)
             shown_ids = [a for a in ids if a not in hidden]
@@ -102,6 +108,7 @@ class Event:
     count: int
     asset_ids: tuple[str, ...]
     last: date | None = None  # the last day, when the outing ran over days next to each other (MEM-018)
+    all_ids: tuple[str, ...] = ()  # every photo of the outing, not only those shown (MEM-037)
 
 
 def events(
@@ -160,6 +167,13 @@ def events(
         return (lead, *_spread([a for a in ids if a != lead], shown - 1))
 
     return [
-        Event(day=first, key=key, count=len(ids), asset_ids=picked(ids, key), last=last if last != first else None)
+        Event(
+            day=first,
+            key=key,
+            count=len(ids),
+            asset_ids=picked(ids, key),
+            last=last if last != first else None,
+            all_ids=tuple(ids),
+        )
         for first, last, key, ids in found
     ]

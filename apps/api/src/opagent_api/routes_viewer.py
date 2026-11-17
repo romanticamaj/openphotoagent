@@ -402,8 +402,24 @@ def memory_themes(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
         ).all()
         dup = {r[0] for r in c.execute(hidden)}
     info = {r.id: r for r in rows}
-    from .labels import tokenizer
+    # the events listed beside the themes, computed the same way: a theme mostly one of them repeats it (MEM-038)
+    from zoneinfo import ZoneInfo
 
+    from opagent_core.memories import events
+
+    from .labels import LOCAL_TZ, tokenizer
+
+    tz = ZoneInfo(LOCAL_TZ)
+    listed = events(
+        [
+            (r.id, r.at.astimezone(tz).date() if r.at.tzinfo else r.at.date(), list(r.tags or []))
+            for r in rows
+            if r.id not in dup
+        ],
+        skip=EVENT_SKIP,
+        named_only=True,
+        share=EVENT_SHARE,
+    )[:EVENTS_MAX]
     # the count is what 「看全部」 finds, duplicates too; a theme mostly another's is not shown twice (MEM-013)
     found = themes(
         [(r.id, r.at.year, list(r.tags or [])) for r in rows],
@@ -411,6 +427,7 @@ def memory_themes(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
         max_overlap=THEME_OVERLAP,
         hidden=dup,
         place_or_thing=place_or_thing,
+        claimed=[frozenset(e.all_ids) for e in listed],
     )
     names = tag_names([t.key for t in found], lang)
 

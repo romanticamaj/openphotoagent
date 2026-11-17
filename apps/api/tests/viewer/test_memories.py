@@ -245,3 +245,25 @@ def test_mem_033_the_months_first_photos_are_from_different_days(embedded_pg, tm
     days = [p["taken_at"][:10] for p in body["groups"][0]["photos"]]
     assert len(days) == 8
     assert len(set(days[:4])) == 4, days
+
+
+@pytest.mark.integration
+@pytest.mark.tc("MEM-038")
+def test_mem_038_themes_leave_out_what_an_event_already_shows(embedded_pg, tmp_path):
+    """回歸 (audit round 138; ADR-0049 addendum 8): 「2025 的足球」 was mostly the 足球 outing listed under 活動. The
+    themes are computed beside the events, and a theme mostly one of them is left out."""
+    x = M(embedded_pg.dsn, tmp_path)
+    for i in range(16):
+        x.add(f"s{i}.jpg", tags=("足球",), taken=datetime(2025, 5, 3, 1 + i % 10, i, tzinfo=UTC))
+    for i in range(4):
+        x.add(f"t{i}.jpg", tags=("足球",), taken=datetime(2025, 6, 1 + i, 9, tzinfo=UTC))
+    for i in range(10):
+        x.add(f"b{i}.jpg", tags=("海灘",), taken=datetime(2025, 7, 1 + i % 3, 9, i, tzinfo=UTC))
+    for i in range(30):
+        x.add(f"o{i}.jpg", taken=datetime(2025, 9, 1 + i % 28, 9, tzinfo=UTC))
+    x.index()
+    ev = x.client.get("/api/v1/memories/events", headers=x.ui).json()["events"]
+    th = x.client.get("/api/v1/memories/themes", headers=x.ui).json()["themes"]
+    x.eng.dispose()
+    assert [e["key"] for e in ev] == ["activity.soccer"]  # the outing is listed
+    assert [t["key"] for t in th if t["year"] == 2025] == ["scene.beach"]
