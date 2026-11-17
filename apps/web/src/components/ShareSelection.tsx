@@ -87,6 +87,7 @@ export function ShareSelection({
     }
   };
   const fmt = (x: number) => x.toLocaleString(i18n.language);
+  const widest = t("share.preparingN", { done: fmt(n), total: fmt(n) });
   return (
     <>
       {/* busy says so in its label: a reason line under it moved the bar's buttons (audit round 126, SHARE-027) */}
@@ -99,12 +100,18 @@ export function ShareSelection({
                 {t("share.many", { n: fmt(n) })}
               </span>
             ) : null}
+            <span aria-hidden="true" className="share-hold col-start-1 row-start-1" data-hold={widest} />
             <span className="col-start-1 row-start-1">
               {made ? t("share.preparingN", { done: fmt(made.done), total: fmt(made.total) }) : run ? t("share.preparing") : t("share.many", { n: fmt(n) })}
             </span>
           </span>
         ) : (
-          t("share.many", { n: fmt(n) })
+          // the widest label it will have holds its place from the start, drawn by CSS and not text: 「準備中 3/3…」
+          // widened it 10 px and moved the bar's next buttons (round 133, SHARE-034)
+          <span className="inline-grid">
+            <span aria-hidden="true" className="share-hold col-start-1 row-start-1" data-hold={widest} />
+            <span className="col-start-1 row-start-1">{t("share.many", { n: fmt(n) })}</span>
+          </span>
         )}
       </Button>
       {done

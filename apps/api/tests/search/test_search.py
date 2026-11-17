@@ -1401,6 +1401,57 @@ def test_srch_sem_026_the_image_alone_on_described_photos_is_no_answer(s, monkey
         assert res["image_only_weak"] is True, q
 
 
+def _described_far(s, ids):
+    cid = s.sql(
+        "insert into embedding_space(model_key, fingerprint, dim, modality, status)"
+        " values ('fake-cap', 'caption:fake-cap:x', 2, 'caption', 'active') returning id"
+    ).scalar()
+    for aid in ids:
+        s.sql(
+            "insert into asset_embedding(asset_id, space_id, vec) values (:a, :s, CAST('[0,1]' AS vector))",
+            a=aid,
+            s=cid,
+        )
+
+
+def _image_only(monkeypatch):
+    import opagent_api.search as S
+
+    monkeypatch.setattr(S, "query_vector", lambda st, t, space, modality="image": [1.0, 0.0])
+    monkeypatch.setattr(S, "vector_floor", lambda _st, _sp: 0.07)
+    monkeypatch.setattr(S, "vector_alone", lambda _st, _sp: 0.082)
+    monkeypatch.setattr(S, "caption_floor", lambda _st, _sp: 0.5)
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-SEM-027")
+def test_srch_sem_027_no_answer_is_not_capped(s, monkeypatch):
+    """回歸 (audit round 133): 「asdf」 and 「undefined」 read 「0 張以上 · 依相關度排序」 and 「只列出最相關的 0 張」: the
+    image route had filled its limit, and the photos it found were set aside (SRCH-SEM-026), so nothing was capped."""
+    import opagent_api.search as S
+
+    ids = _near(s, [0.09, 0.09])
+    _described_far(s, ids)
+    _image_only(monkeypatch)
+    monkeypatch.setattr(S, "PER_ROUTE", 2)  # the image route full, as with 200 on the reference library
+    res = s.search(q="asdf")
+    assert res["total"] == 0 and res.get("possible", []) == []
+    assert not res.get("total_capped"), res
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-SEM-028")
+def test_srch_sem_028_several_non_words_are_no_answer_too(s, monkeypatch):
+    """回歸 (audit round 133): 「asdf qwxz」 still showed 200 as 「可能相關」. Two strings that are not words get no group
+    either, the same as one (SRCH-SEM-026; ADR-0047 addendum 7)."""
+    ids = _near(s, [0.09, 0.09])
+    _described_far(s, ids)
+    _image_only(monkeypatch)
+    res = s.search(q="asdf qwxz")
+    assert res["items"] == [], res
+    assert res.get("possible", []) == [] and res["possible_total"] == 0, res
+
+
 @pytest.mark.integration
 @pytest.mark.tc("SRCH-SEM-022")
 def test_srch_sem_022_a_pair_fallback_hit_does_not_make_an_anchor(s, monkeypatch):

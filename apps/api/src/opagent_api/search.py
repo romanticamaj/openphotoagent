@@ -784,6 +784,16 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                     }
                     possible = [x for x in dict.fromkeys(vec_ids) if x in described_ids]
                     vec_ids = [x for x in vec_ids if x not in described_ids]
+                    if (
+                        possible
+                        and not vec_ids
+                        and not any(routes.get(k) for k in ("fulltext", "tag", "caption_vector"))
+                    ):
+                        # several strings that are not words, the same as one (round 133, SRCH-SEM-028)
+                        ranked = [a for a in ranked if a not in set(possible)]
+                        possible = []
+                        image_only_weak = True
+                        capped = False
                 if whole and vec_ids:
                     match = or_(match, search_doc.c.asset_id.in_(vec_ids))
                 # the routes rank; only photos showing every concept stay (vectors never add one, ADR-0032)
@@ -856,6 +866,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                         ranked = [a for a in ranked if a not in set(possible)]
                         possible = []
                         image_only_weak = True
+                        capped = False  # set aside, nothing is capped: 「0 張以上」 (round 133, SRCH-SEM-027)
                     if counted:
                         member.append(search_doc.c.asset_id.in_(counted))
                     words_found = len(set(routes.get("fulltext") or []) | set(routes.get("tag") or []))

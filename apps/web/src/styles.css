@@ -1411,3 +1411,11 @@ body {
   .lightbox .stage img.story-prev.out { animation-duration: 1ms; }
 }
 
+
+/* a label's place held by CSS, not text: the share button keeps the width of 「準備中 n/n…」 (SHARE-034) */
+.share-hold {
+  visibility: hidden;
+}
+.share-hold::after {
+  content: attr(data-hold);
+}

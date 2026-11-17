@@ -77,6 +77,15 @@ describe("sharing several photos (ADR-0054; audit round 124: one at a time only)
     expect(none).not.toHaveBeenCalled();
   });
 
+  it("[SHARE-035] 回歸：桌面版每張轉好就存，進度數的是存好的張數（驗證第 133 輪：3/3 出現後又停 3–4 秒）", async () => {
+    const order: string[] = [];
+    const pickShared = async () => ({ handle: "h", dir: "D:/x" });
+    const writeShared = vi.fn(async (_h: string, f: { name: string; bytes: Uint8Array }) => void order.push(`write:${f.name}`));
+    const preview = vi.fn(async (id: string) => (order.push(`preview:${id}`), new Blob([id])));
+    await shareMany(["a1", "b2"], deps({ pickShared, writeShared, preview }), "2026-11-14", (done, total) => order.push(`progress:${done}/${total}`));
+    expect(order).toEqual(["progress:0/2", "preview:a1", "write:photo-2025-11-11-a1.jpg", "progress:1/2", "preview:b2", "write:photo-b2.jpg", "progress:2/2"]);
+  });
+
   it("[SHARE-017] 取消選資料夾不算失敗、什麼都不存；資料夾在相片庫裡時說出原因", async () => {
     expect(await shareMany(["a1"], deps({ saveShared: async () => null }), "2026-11-14")).toEqual({ kind: "cancelled" });
     const inRoot = deps({ saveShared: async () => Promise.reject(new Error("SHARE_IN_ROOT")) });

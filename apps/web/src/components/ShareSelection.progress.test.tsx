@@ -31,4 +31,19 @@ describe("a large share says how far it is", () => {
     await act(async () => s.finish?.());
     expect(b.textContent).toBe("分享 3 張…");
   });
+
+  it("[SHARE-034] 回歸：「準備中 k/n…」不讓按鈕變寬：最寬的字一直在按鈕裡佔位（驗證第 133 輪：97 → 107 px，後面兩個按鈕移位）", async () => {
+    render(<ShareSelection ids={["a", "b", "c"]} open={async () => ""} />);
+    const b = screen.getByRole("button", { name: "分享 3 張…" });
+    const holders = () => [...b.querySelectorAll("[data-hold]")].map((x) => x.getAttribute("data-hold"));
+    const atRest = holders();
+    expect(atRest).toContain("準備中 3/3…");
+    fireEvent.click(b);
+    act(() => s.progress?.(1, 3));
+    expect(holders()).toEqual(atRest);
+    const { readFileSync } = await import("node:fs");
+    const css = readFileSync(`${process.cwd()}/src/styles.css`, "utf-8").replace(/\s+/g, " ");
+    expect(css).toMatch(/\.share-hold::after \{ content: attr\(data-hold\); \}/);
+    await act(async () => s.finish?.());
+  });
 });

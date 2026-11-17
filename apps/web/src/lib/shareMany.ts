@@ -46,19 +46,23 @@ export async function shareMany(
   let failed = 0;
   let firstError: unknown = null;
   for (const id of ids) {
+    let one: { name: string; bytes: Uint8Array; blob: Blob };
     try {
       const { rot, takenAt } = await d.info(id);
       const blob = await d.encode(await d.preview(id), "image/jpeg", rot);
-      made.push({ name: photoFileName({ id, takenAt }, "jpg"), bytes: new Uint8Array(await blob.arrayBuffer()), blob });
-      onProgress?.(made.length, ids.length);
+      one = { name: photoFileName({ id, takenAt }, "jpg"), bytes: new Uint8Array(await blob.arrayBuffer()), blob };
     } catch (e) {
       failed += 1; // one photo whose preview is missing does not stop the rest; the result says so (SHARE-018)
       firstError ??= e;
+      continue;
     }
+    // each saved as it is made, and counted when saved: 3/3 showed, then 3–4 s of writing (round 133, SHARE-035)
+    if (picked && d.writeShared) await d.writeShared(picked.handle, { name: one.name, bytes: one.bytes });
+    made.push(one);
+    onProgress?.(made.length, ids.length);
   }
   if (!made.length) throw firstError instanceof Error ? firstError : new Error("SHARE_FAILED");
   if (picked && d.writeShared) {
-    for (const { name, bytes } of made) await d.writeShared(picked.handle, { name, bytes });
     return { kind: "saved", handle: picked.handle, dir: picked.dir, n: made.length, failed };
   }
   if (d.saveShared) {
