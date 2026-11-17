@@ -198,7 +198,7 @@ function Shell() {
         <button ref={askButton} type="button" aria-expanded={asking} onClick={() => setAsking(!asking)} className="rounded-[var(--radius-sm)] px-2 py-1 hover:bg-[var(--surface-2)]">
           {t("ask.open")}
         </button>
-        <ActivityButton onToggle={() => setActivityOpen(!activity)} />
+        <ActivityButton expanded={activity} onToggle={() => setActivityOpen(!activity)} />
       </header>
       {/* the nav and the progress card share the sidebar column: the card never covers 設定 (ACT-010) */}
       {drawer.open ? <div className="nav-scrim" aria-hidden="true" onClick={drawer.close} /> : null}

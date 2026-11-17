@@ -110,6 +110,9 @@
     "fromPhotosHint": "Select photos in search or an album, then Copy to folder.",
     "outside": "A folder outside the library…",
     "discard": "Discard plan",
+    "wasCopy": "It would have copied {count} photos into {folders} folders",
+    "wasMove": "It would have moved {count} photos into {folders} folders",
+    "wasTrash": "It would have moved {count} files to the trash",
     "discarded": "Plan discarded. No files were changed.",
     "backToOrganize": "Back to Organize",
     "summaryTrashChosen": "Move {count} files to the trash. You can undo at any time",
@@ -684,6 +687,7 @@
   "share": {
     "many": "Share {n}…",
     "preparing": "Preparing…",
+    "preparingN": "Preparing {done}/{total}…",
     "tooMany": "Share up to {max} at a time; choose fewer",
     "inRoot": "That folder is inside your library. Choose a folder outside it so the photos are not added to the library.",
     "failed": "Couldn't share. Try again",

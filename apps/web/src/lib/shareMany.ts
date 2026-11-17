@@ -32,10 +32,16 @@ export type ManyResult =
 /** At most this many in one share: each is made in the page. */
 export const SHARE_MAX = 200;
 
-export async function shareMany(ids: string[], d: ManyDeps = browserManyDeps(), day: string): Promise<ManyResult> {
+export async function shareMany(
+  ids: string[],
+  d: ManyDeps = browserManyDeps(),
+  day: string,
+  onProgress?: (done: number, total: number) => void,
+): Promise<ManyResult> {
   // the folder first, then the photos: with 2048 px photos the dialog came 3–4 s after the click (round 131, SHARE-031)
   const picked = d.pickShared && d.writeShared ? await d.pickShared(day, ids.length) : undefined;
   if (picked === null) return { kind: "cancelled" };
+  onProgress?.(0, ids.length);
   const made: Array<{ name: string; bytes: Uint8Array; blob: Blob }> = [];
   let failed = 0;
   let firstError: unknown = null;
@@ -44,6 +50,7 @@ export async function shareMany(ids: string[], d: ManyDeps = browserManyDeps(), 
       const { rot, takenAt } = await d.info(id);
       const blob = await d.encode(await d.preview(id), "image/jpeg", rot);
       made.push({ name: photoFileName({ id, takenAt }, "jpg"), bytes: new Uint8Array(await blob.arrayBuffer()), blob });
+      onProgress?.(made.length, ids.length);
     } catch (e) {
       failed += 1; // one photo whose preview is missing does not stop the rest; the result says so (SHARE-018)
       firstError ??= e;

@@ -110,6 +110,9 @@
     "fromPhotosHint": "在搜尋或相簿裡選好照片，按「複製到資料夾…」。",
     "outside": "圖庫以外的資料夾…",
     "discard": "捨棄計畫",
+    "wasCopy": "原本要複製 {count} 張到 {folders} 個資料夾",
+    "wasMove": "原本要移動 {count} 張到 {folders} 個資料夾",
+    "wasTrash": "原本要移到垃圾桶 {count} 個檔案",
     "discarded": "已捨棄計畫，原檔沒有任何變更。",
     "backToOrganize": "回到整理",
     "summaryTrashChosen": "將移到垃圾桶 {count} 個檔案，可隨時復原",
@@ -684,6 +687,7 @@
   "share": {
     "many": "分享 {n} 張…",
     "preparing": "準備中…",
+    "preparingN": "準備中 {done}/{total}…",
     "tooMany": "一次最多分享 {max} 張；請少選一些",
     "inRoot": "這個資料夾在相片庫裡。請選相片庫以外的資料夾，照片才不會混進相片庫。",
     "failed": "分享失敗，請再試一次",

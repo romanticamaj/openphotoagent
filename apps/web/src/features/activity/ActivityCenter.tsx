@@ -1,4 +1,4 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { groupOps, type Op, opStatusKey, opTypeKey } from "./model";
 import { OperationProgress } from "./OperationProgress";
@@ -35,9 +35,21 @@ export function ActivityCenter({
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, [open, onClose, onToggle]);
+  // the keyboard goes in as it opens and back to 「活動」 as it closes: 15 Tabs to the first row, and Esc dropped
+  // focus on the page (audit round 132, ACT-024)
+  const box = useRef<HTMLElement>(null);
+  const was = useRef(false);
+  useEffect(() => {
+    if (open && !was.current) box.current?.focus();
+    if (!open && was.current) {
+      const a = document.activeElement;
+      if (!a || a === document.body || !document.contains(a)) document.querySelector<HTMLElement>('[data-testid="activity-button"]')?.focus();
+    }
+    was.current = open;
+  }, [open]);
   if (!open) return null;
   return (
-    <aside role="dialog" aria-modal="false" aria-label={t("activity.title")} className="activity-center">
+    <aside ref={box} tabIndex={-1} role="dialog" aria-modal="false" aria-label={t("activity.title")} className="activity-center">
       <h2 className="text-base font-semibold">{t("activity.title")}</h2>
       {ops.length === 0 ? <p className="text-[var(--text-muted)]">{t("activity.empty")}</p> : null}
       {groupOps(ops).map((g) => (

@@ -843,6 +843,19 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                         described,
                         set(word_hits) | own_tag_hits,
                     )
+                    if (
+                        possible
+                        and not counted
+                        and not routes.get("fulltext")
+                        and not routes.get("tag")
+                        and not routes.get("caption_vector")
+                        and all(a in described for a in possible)
+                    ):
+                        # no word, tag or caption meaning: the image model alone, on photos the VLM described, is no
+                        # answer; 「asdf」 showed 200 as 「可能相關」 (round 132, ADR-0047 add. 7, SRCH-SEM-026)
+                        ranked = [a for a in ranked if a not in set(possible)]
+                        possible = []
+                        image_only_weak = True
                     if counted:
                         member.append(search_doc.c.asset_id.in_(counted))
                     words_found = len(set(routes.get("fulltext") or []) | set(routes.get("tag") or []))

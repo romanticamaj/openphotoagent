@@ -22,7 +22,7 @@ function folderName(dir: string): string {
 export function ShareSelection({
   ids,
   count,
-  run = (list) => shareMany(list, undefined, today()),
+  run,
   open = platform().openShared,
 }: {
   /** the chosen photos; null when they are not listed one by one (all selected) */
@@ -34,6 +34,9 @@ export function ShareSelection({
 }) {
   const { t, i18n } = useTranslation();
   const [busy, setBusy] = useState(false);
+  // how far a share is, once its folder is chosen: 準備中… sat for 4 s on large photos (round 132, SHARE-033)
+  const [made, setMade] = useState<{ done: number; total: number } | null>(null);
+  const share = run ?? ((list: string[]) => shareMany(list, undefined, today(), (done, total) => setMade({ done, total })));
   const [done, setDone] = useState<Exclude<ManyResult, { kind: "cancelled" }> | null>(null);
   const [error, setError] = useState<string | null>(null);
   const n = ids?.length ?? count ?? 0;
@@ -72,7 +75,7 @@ export function ShareSelection({
     setDone(null);
     setError(null);
     try {
-      const r = await run(ids);
+      const r = await share(ids);
       if (r.kind !== "cancelled") setDone(r);
     } catch (e) {
       // the shell rejects with a plain string, not an Error (audit round 125, SHARE-023)
@@ -80,6 +83,7 @@ export function ShareSelection({
       setError(code === "SHARE_IN_ROOT" ? t("share.inRoot") : t("share.failed"));
     } finally {
       setBusy(false);
+      setMade(null);
     }
   };
   const fmt = (x: number) => x.toLocaleString(i18n.language);
@@ -90,10 +94,14 @@ export function ShareSelection({
         {busy ? (
           // the label it had holds its width while it prepares: the bar's buttons slid for 3 s (round 127, SHARE-029)
           <span className="inline-grid">
-            <span aria-hidden="true" className="invisible col-start-1 row-start-1">
-              {t("share.many", { n: fmt(n) })}
+            {made || run ? (
+              <span aria-hidden="true" className="invisible col-start-1 row-start-1">
+                {t("share.many", { n: fmt(n) })}
+              </span>
+            ) : null}
+            <span className="col-start-1 row-start-1">
+              {made ? t("share.preparingN", { done: fmt(made.done), total: fmt(made.total) }) : run ? t("share.preparing") : t("share.many", { n: fmt(n) })}
             </span>
-            <span className="col-start-1 row-start-1">{t("share.preparing")}</span>
           </span>
         ) : (
           t("share.many", { n: fmt(n) })

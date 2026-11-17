@@ -60,9 +60,16 @@ export function PlanPage({ planId }: { planId: string }) {
       {status === "draft" && p.discarded ? (
         <div data-testid="plan-discarded" role="status" className="space-y-2">
           <p>{t("organize.discarded")}</p>
+          {/* what it would have done: opened from 活動 it said only 「已捨棄計畫…」 (audit round 132, ORG-023) */}
+          <p className="text-sm text-[var(--text-muted)]">
+            {p.summary.trash
+              ? t("organize.wasTrash", { count: p.summary.trash })
+              : t(moves ? "organize.wasMove" : "organize.wasCopy", { count: moves || p.summary.copy, folders: p.summary.folders })}
+          </p>
           <Link ref={backRef} to="/organize" className="underline">
             {t("organize.backToOrganize")}
           </Link>
+          <PlanTree actions={p.actions ?? []} />
         </div>
       ) : null}
       {status === "draft" && !p.discarded && (

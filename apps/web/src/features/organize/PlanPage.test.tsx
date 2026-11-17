@@ -61,6 +61,19 @@ describe("a plan you do not want (ADR-0045)", () => {
     expect(s.approve).not.toHaveBeenCalled();
   });
 
+  it("[ORG-023] 回歸：捨棄的計畫仍寫出原本要做什麼與資料夾（驗證第 132 輪：從活動打開只看到「已捨棄計畫…」）", async () => {
+    s.discarded = true;
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
+        <PlanPage planId="p1" />
+      </QueryClientProvider>,
+    );
+    const box = await screen.findByTestId("plan-discarded");
+    expect(box.textContent).toContain("原本要複製 2 張到 1 個資料夾");
+    expect(screen.getByText(/2024/)).toBeTruthy(); // the folders it would have made
+    expect(screen.queryByRole("button", { name: "核准並開始" })).toBeNull();
+  });
+
   it("[ORG-021] 回歸：計畫的目的地寫出資料夾名稱，不是「.」（驗證第 64 輪：「. (2)」）", async () => {
     s.discarded = false;
     render(

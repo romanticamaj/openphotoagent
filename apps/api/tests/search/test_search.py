@@ -1371,6 +1371,37 @@ def test_srch_sem_020_a_described_photo_the_words_and_meaning_reject_is_only_pos
 
 
 @pytest.mark.integration
+@pytest.mark.tc("SRCH-SEM-026")
+def test_srch_sem_026_the_image_alone_on_described_photos_is_no_answer(s, monkeypatch):
+    """回歸 (audit round 132; ADR-0047 addendum 7, one deliberation sub-agent): 「asdf」, 「undefined」, 「qwxz」 and
+    「xyz123」 showed 106–200 unrelated photos as 「可能相關」. No word, tag or caption meaning found anything; the group
+    was the image model alone, on photos the VLM had described. That is no answer (ADR-0042): no group, and the page
+    offers its next steps. A photo not yet described still counts by the image (SRCH-SEM-020)."""
+    import opagent_api.search as S
+
+    ids = _near(s, [0.09, 0.09])
+    cid = s.sql(
+        "insert into embedding_space(model_key, fingerprint, dim, modality, status)"
+        " values ('fake-cap', 'caption:fake-cap:x', 2, 'caption', 'active') returning id"
+    ).scalar()
+    for aid in ids:  # both described, both far from the query's meaning
+        s.sql(
+            "insert into asset_embedding(asset_id, space_id, vec) values (:a, :s, CAST('[0,1]' AS vector))",
+            a=aid,
+            s=cid,
+        )
+    monkeypatch.setattr(S, "query_vector", lambda st, t, space, modality="image": [1.0, 0.0])
+    monkeypatch.setattr(S, "vector_floor", lambda _st, _sp: 0.07)
+    monkeypatch.setattr(S, "vector_alone", lambda _st, _sp: 0.082)
+    monkeypatch.setattr(S, "caption_floor", lambda _st, _sp: 0.5)
+    for q in ("asdf", "undefined", "xyz123"):
+        res = s.search(q=q)
+        assert res["items"] == [], q
+        assert res.get("possible", []) == [] and res["possible_total"] == 0, q
+        assert res["image_only_weak"] is True, q
+
+
+@pytest.mark.integration
 @pytest.mark.tc("SRCH-SEM-022")
 def test_srch_sem_022_a_pair_fallback_hit_does_not_make_an_anchor(s, monkeypatch):
     """回歸 (audit round 77 → 78): 「海邊」 fell from 6 to 4. A character-pair hit (「沙灘排球」 on a sports field) was
