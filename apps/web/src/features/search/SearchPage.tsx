@@ -118,10 +118,12 @@ export function SearchPage({ q, tag, year, name }: { q: string; tag?: string; ye
   useEffect(() => {
     if (!choosingNow || viewing !== null) return;
     const esc = (e: KeyboardEvent) => {
-      if (e.key !== "Escape" || typingIn(e.target) || e.defaultPrevented) return;
+      if (e.key !== "Escape" || e.defaultPrevented) return;
       if ((e.target as HTMLElement | null)?.closest?.('[role="dialog"], [role="alertdialog"], [role="menu"]')) return; // theirs
       // from the bar, which goes with the selection: focus back on the results, not the page (round 127, SRCH-UI-055)
       const fromBar = Boolean((e.target as HTMLElement | null)?.closest?.('[data-testid="batch-bar"]'));
+      // the bar's own empty fields too: Esc in 標籤… did nothing (audit round 128, SRCH-UI-056); a field elsewhere keeps it
+      if (typingIn(e.target) && !(fromBar && !(e.target as HTMLInputElement).value)) return;
       setSel({ all: false, ids: new Set(), anchor: null });
       if (fromBar)
         window.setTimeout(() => {
@@ -546,7 +548,16 @@ export function BatchBar({
       <FavoriteSelection put={async (aid) => api.selectionAlbum((await makeSelection()).id, aid)} />
       <AddToAlbum put={async (aid) => api.selectionAlbum((await makeSelection()).id, aid)} />
       {/* named, not captioned: a caption above each field made the bar two rows at 1280 px (audit round 126, SRCH-UI-054) */}
-      <input aria-label={t("batch.tag")} placeholder={t("batch.tagHint")} value={tag} onChange={(e) => setTag(e.target.value)} className="w-28 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5 text-sm" />
+      <input
+        aria-label={t("batch.tag")}
+        placeholder={t("batch.tagHint")}
+        value={tag}
+        onChange={(e) => setTag(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key !== "Escape" || !tag) return;
+          e.stopPropagation(); // the words first, the selection on the next Esc (SRCH-UI-056)
+          setTag("");
+        }} className="w-28 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg)] px-2 py-1.5 text-sm" />
       {tag.trim() ? (
         <Button variant="ghost" disabledReason={busy} onClick={() => labels.mutate({ tags: [tag.trim()] })}>
           {t("batch.addTag")}

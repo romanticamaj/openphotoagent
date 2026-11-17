@@ -57,7 +57,7 @@ export function TrashButton({ select, compact = false }: { select: () => Promise
   }, [open]);
   return (
     <span
-      className="relative inline-flex flex-col"
+      className="relative inline-flex"
       onKeyDown={(e) => {
         // the whole control, as the album menu does: with focus still on the button, Esc closed the card and also the
         // Lightbox, or cleared the selection (audit round 63)
@@ -84,14 +84,22 @@ export function TrashButton({ select, compact = false }: { select: () => Promise
           <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" />
           </svg>
+        ) : why ? (
+          // said where it is seen, on the button's own line: under it the reason made every bar 34 px taller and the
+          // button stood 21 px above its neighbours (audit round 128, ADR-0055, TRASH-020)
+          <>
+            {t("trash.move")}
+            <span aria-hidden="true" className="ml-1 text-xs text-[var(--text-muted)]">
+              · {t("trash.readOnlyShort")}
+            </span>
+          </>
         ) : (
           t("trash.move")
         )}
       </button>
       {why && !compact ? (
-        // shown beside the text button; the Lightbox's icon carries it as its description and tooltip (invariant 8)
-        // as wide as the button, wrapping: its 264 px made the search bar two rows at 1024 px (audit round 127, TRASH-019)
-        <span id={`why-${uid}`} className="w-0 min-w-full text-xs leading-snug text-[var(--text-muted)]">
+        // the whole sentence for screen readers; the button says 唯讀, its tooltip and card the rest (ADR-0055, invariant 8)
+        <span id={`why-${uid}`} className="sr-only">
           {why}
         </span>
       ) : null}

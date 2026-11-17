@@ -1203,6 +1203,7 @@
     "orCopy": ", or use Copy to folder.",
     "failed": "No plan was made. Please try again.",
     "close": "Close",
+    "readOnlyShort": "read-only",
     "allReadOnly": "Every folder in the library is read-only, so photos cannot go to the trash."
   }
 }

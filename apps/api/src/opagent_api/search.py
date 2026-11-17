@@ -600,8 +600,9 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
                 mode = "words"
                 word_hits = list(hits)  # before the pair fallback: what samples the query (SRCH-SEM-022)
                 member.append(_ft_cond(to_tsquery_alts(pq.words, pq.alts), pq.english, "w"))
-                if len(hits) < MIN_WORD_HITS and pq.bigram:
-                    bq = tokenizer().bigram_query(q) or to_tsquery(pq.bigram)  # any of a term's names (SRCH-TOK-025)
+                # any of a term's names (SRCH-TOK-025), an English word's too (SRCH-TOK-045)
+                bq = tokenizer().bigram_query(q) or (to_tsquery(pq.bigram) if pq.bigram else "")
+                if len(hits) < MIN_WORD_HITS and bq:
                     more = _ft(c, where, bq, "")
                     if len(more) > len(hits):
                         hits, mode = list(dict.fromkeys(hits + more)), "bigram"

@@ -110,9 +110,23 @@ describe("移到垃圾桶 (approved 2026-11-12)", () => {
     const b = await screen.findByRole("button", { name: "移到垃圾桶" });
     await waitFor(() => expect(b.getAttribute("aria-describedby")).toBeTruthy());
     const why = document.getElementById(b.getAttribute("aria-describedby")!)!;
-    expect(why.textContent).toContain("唯讀"); // still said beside it (invariant 8)
-    expect(why.className).toContain("w-0");
-    expect(why.className).toContain("min-w-full");
+    expect(why.textContent).toContain("唯讀"); // the full sentence, for screen readers (invariant 8)
+    // ADR-0055: wrapped under the button it made every bar 34 px taller (round 128); the sentence is not in the flow
+    expect(why.className).toContain("sr-only");
+  });
+
+  it("[TRASH-020] 回歸：唯讀寫在按鈕裡（「移到垃圾桶 · 唯讀」），按鈕下方沒有東西，完整原因在提示與說明卡（驗證第 128 輪：選取列高 34 px、按鈕高出 21 px）", async () => {
+    s.roots = [{ alias: "photos", mode: "ro" }];
+    s.sources = [{ id: "s1", root_alias: "photos", sub_path: "" }];
+    wrap(<TrashButton select={vi.fn()} />);
+    const b = await screen.findByRole("button", { name: "移到垃圾桶" });
+    await waitFor(() => expect(b.textContent).toContain("唯讀")); // said where it is seen, on one line
+    expect(b.getAttribute("title")).toContain("唯讀的");
+    const wrapper = b.parentElement!;
+    expect(wrapper.className).not.toContain("flex-col");
+    for (const el of [...wrapper.children].filter((x) => x !== b)) expect(el.className).toMatch(/sr-only|trash-popover/);
+    fireEvent.click(b);
+    expect((await screen.findByRole("alert")).textContent).toContain("唯讀"); // and the card with what to do
   });
 });
 

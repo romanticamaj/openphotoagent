@@ -24,8 +24,8 @@ from typing import Any
 import yaml
 from opagent_core.vocabularies import VOCAB_DIR
 
-# @23 鞦韆, 蹺蹺板 kinds of their own (ADR-0053); @22 雪花冰, 鐵馬; @21 拔河, 熱氣球; history in git
-TOKENIZER_VERSION = "jieba-zh-hant@23+opencc-s2twp+bigram"
+# @24 a tag gives no character pairs (SRCH-TOK-044); @23 鞦韆, 蹺蹺板 (ADR-0053); history in git
+TOKENIZER_VERSION = "jieba-zh-hant@24+opencc-s2twp+bigram"
 # Names that hold a vocabulary word but are not that thing: a caption reading a sign 「日落大道」 (Sunset Blvd) is not a
 # sunset (SRCH-TOK-018). Weighed above the vocabulary's words, so the name is one word.
 NAMES = ("日落大道", "夕陽大道")
@@ -281,10 +281,12 @@ class Tokenizer:
         any of its Chinese names, OR-ed, so 沙灘 and 海邊 find the same photos (SRCH-TOK-025)."""
         parts: list[str] = []
         for w in self.words(text):
-            if not _CJK.search(w):
-                continue
             k = self.tag_key(w)
             names = [f for f in self._forms_of(k) if _CJK.fullmatch(f) and len(f) > 1] if k else []
+            if not _CJK.search(w):
+                if not names:
+                    continue
+                w = names[0]  # park by its Chinese names: 公園 found a caption park did not (SRCH-TOK-045)
             names = list(dict.fromkeys([normalize(w), *names])) if names else [normalize(w)]
             groups = [to_tsquery(self.bigrams(n)) for n in names if self.bigrams(n)]
             if groups:
@@ -413,7 +415,8 @@ class Tokenizer:
         c = [w for p in places or [] for w in self.words(p)]
         stem = re.split(r"[/\\]", path or "")
         d = [w for part in stem for w in self.words(re.sub(r"\.[a-z0-9]{2,5}$", "", part))]
-        d += self.bigrams(" ".join([caption or "", *(tags or [])]))
+        # the caption's pairs only: a tag is a name, whole in A; its pairs found 海邊 in 沙灘鞋 (SRCH-TOK-044)
+        d += self.bigrams(caption or "")
         return {"A": a, "B": b, "C": c, "D": d}
 
     def vector_text(self, text: str) -> str | None:

@@ -499,5 +499,27 @@ describe("Esc from the selection bar keeps focus (audit round 127)", () => {
     expect(document.activeElement?.getAttribute("data-testid")).toBe("search-result");
     s.result = null;
   });
+  it("[SRCH-UI-056] 回歸：在選取列的「標籤…」欄按 Esc：有字先清字，空的就取消選取、焦點回到照片（驗證第 128 輪：按兩次都沒反應）", async () => {
+    const hit = (id: string) => ({ asset_id: id, ch: null, score: 1, matched_by: ["fulltext"], category: null, tags: [], caption: "花", taken_at: null });
+    s.result = { items: [hit("a1"), hit("a2"), hit("a3")], facets: {}, total: 3, next_cursor: null, degraded: [] };
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SearchPage q="花" />
+      </QueryClientProvider>,
+    );
+    const tiles = await screen.findAllByTestId("search-result");
+    fireEvent.click(tiles[0]!, { ctrlKey: true });
+    fireEvent.click(tiles[1]!, { ctrlKey: true });
+    const field = await screen.findByRole("textbox", { name: "標籤" });
+    field.focus();
+    fireEvent.change(field, { target: { value: "x" } });
+    fireEvent.keyDown(field, { key: "Escape" });
+    expect((field as HTMLInputElement).value).toBe("");
+    expect(screen.getByTestId("batch-bar")).toBeTruthy(); // the text went first
+    fireEvent.keyDown(field, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByTestId("batch-bar")).toBeNull());
+    await waitFor(() => expect(document.activeElement?.getAttribute("data-testid")).toBe("search-result"));
+    s.result = null;
+  });
 });
 

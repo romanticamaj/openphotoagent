@@ -129,6 +129,7 @@
 | SRCH-UI-053 | 0 張且有被略過的字時，標題旁仍寫「0 張」，和其他查無結果頁一致（回歸，驗證第 124 輪：4 頁沒有張數、留下空位） | relaxed=[旋轉, 木馬]、0 張 | 「0 張」；仍無「沒有完全符合」 | C | #— |
 | SRCH-UI-054 | 搜尋選取列的標籤與類別以 placeholder 與無障礙名稱表示，不在上方疊標題，按鈕置中（回歸，驗證第 126 輪：1280 px 寬仍兩行） | 選 3 張 | 「標籤…」「類別…」；無 label；items-center | C | #— |
 | SRCH-UI-055 | 焦點在選取列時按 Esc 取消選取，焦點回到結果的照片（回歸，驗證第 127 輪：焦點掉到 BODY） | 選 2 張、焦點在分享 | 選取列消失、焦點在 search-result | C | #— |
+| SRCH-UI-056 | 選取列的「標籤…」欄按 Esc：有字先清字，空的就取消選取、焦點回到照片（回歸，驗證第 128 輪：按兩次都沒反應） | 選 2 張、焦點在標籤欄 | 第一次 Esc 清字、選取仍在；第二次選取列消失、焦點在 search-result | C | #— |
 | SHARE-001 | 有系統分享時分享一個 JPEG：由衍生預覽轉成並套用旋轉，不讀原檔（ADR-0050，驗證第 109 輪：沒有分享） | canShare 為真、旋轉 90° | 分享 1 個 `photo-2025-11-11-a1.jpg`，預覽來自 p2048，未存檔 | C | #— |
 | SHARE-002 | 沒有系統分享、或不能分享檔案時存成 JPEG 檔 | 無 share；canShare 為假 | 存成 `photo-<id 前 8 碼>.jpg` | C | #— |
 | SHARE-003 | 取消分享不算失敗也不改存檔；其他錯誤往外拋 | share 拋 AbortError；預覽缺少 | 回傳 cancelled、未存檔；THUMB_MISSING 往外拋 | C | #— |
@@ -229,7 +230,8 @@
 | TRASH-016 | 所有資料夾都是唯讀時先說原因（回歸，驗證第 61 輪：按了才被拒） | roots 全是 ro | 按鈕 aria-disabled，aria-describedby 指向「…都是唯讀的…」；按下只顯示說明、不送出請求 | C | #— |
 | TRASH-017 | 關掉說明後焦點回到按鈕、Esc 只關說明；唯讀判斷看圖庫資料夾（回歸，驗證第 62 輪：按 × 後燈箱鍵盤沒反應、按鈕在不能用的圖庫上仍可按） | 圖庫資料夾唯讀、輸出資料夾可寫；按 ×；按 Esc | 按鈕事先 aria-disabled；× 與 Esc 後焦點在按鈕；Esc 不傳到燈箱 | C | #— |
 | TRASH-018 | 說明打開時焦點在說明裡；按鈕上按 Esc 也只關說明（回歸，驗證第 63 輪：Esc 連燈箱一起關、清掉選取） | 打開說明；焦點回按鈕再按 Esc | 焦點在說明的「關閉」；Esc 只關說明、不傳到外層、焦點回按鈕 | C | #— |
-| TRASH-019 | 唯讀的原因仍寫在按鈕旁，但折到按鈕的寬度，不把選取列撐寬（回歸，驗證第 127 輪：264 px 的說明使 1024 px 時兩行） | 全部唯讀 | aria-describedby 的說明含「唯讀」、w-0 min-w-full | C | #— |
+| TRASH-019 | 唯讀的原因不把選取列撐寬（回歸，驗證第 127、128 輪：264 px 的說明使 1024 px 時兩行；折到按鈕寬時三行、高 34 px）；ADR-0055 改寫 | 全部唯讀 | aria-describedby 的說明含「唯讀」且為 sr-only（原為 w-0 min-w-full，ADR-0055） | C | #— |
+| TRASH-020 | 唯讀寫在按鈕裡，按鈕下方沒有東西（回歸，驗證第 128 輪：按鈕高出鄰居 21 px） | 全部唯讀 | 按鈕文字含「唯讀」、title 為完整原因、外框不是 flex-col、按下的說明卡含「唯讀」 | C | #— |
 | XMP-001 | 寫入 sidecar | `sidecar_xmp` | `.xmp` 含 `dc:subject`、`dc:description`、`lr:hierarchicalSubject`；exiftool 讀回與預期相同 | I | #50 | v0.2 |
 | XMP-002 | 相容性 | 用 digiKam／Lightroom 範例 XMP schema 驗證；手動清單：digiKam、Lightroom Classic 匯入 | 讀出 tags | C/M | #50 | v0.2 |
 | XMP-003 | 合併既有 XMP | 已存在 XMP 含評分與未知 namespace | 保留原有欄位，只合併我們的欄位；先備份原 XMP | I | #50 | v0.2 |

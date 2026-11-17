@@ -673,3 +673,11 @@ def test_srch_tok_043_snacks_and_breakfasts_offer_food():
     )
     for q in foods:
         assert "食物" in tok.related(q), (q, tok.related(q))
+
+
+@pytest.mark.tc("SRCH-TOK-045")
+def test_srch_tok_045_an_english_word_falls_back_to_its_chinese_names_pairs():
+    """回歸 (audit round 128): 公園 found 3 photos and park 2. A caption 「背景是公園運動場」, one word to the
+    segmenter, is found by 公園 through its character pairs; park had no pairs at all."""
+    tok = Tokenizer()
+    assert tok.bigram_query("park") == tok.bigram_query("公園") != ""

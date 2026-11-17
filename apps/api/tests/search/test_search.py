@@ -1658,3 +1658,18 @@ def test_srch_cnc_027_a_swing_finds_swings_not_every_playground(s):
     assert res["suggest"] and res["suggest"][0]["q"] == "遊樂場"
     assert s.search(q="蹺蹺板", semantic=False)["total"] == 0
     assert s.search(q="遊樂場", semantic=False)["total"] == 2
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-TOK-044")
+def test_srch_tok_044_a_place_word_is_not_found_inside_a_thing_named_after_it(s):
+    """回歸 (audit round 128): 海邊 showed a sports field for ten rounds: its tag 沙灘鞋 (beach shoes) gave the pair 沙灘
+    to the character-pair fallback. And 公園 found a caption 「背景是公園運動場」 that park did not (3 vs 2)."""
+    beach = s.add(1, caption="沙灘上放風箏", tags=("海灘",))
+    s.add(2, caption="在操場跑步", tags=("沙灘鞋", "球衣"))
+    park = s.add(3, caption="站在足球門前，背景是公園運動場。", tags=("足球門",))
+    s.index()
+    assert [h["asset_id"] for h in s.search(q="海邊", semantic=False)["items"]] == [beach]
+    zh = {h["asset_id"] for h in s.search(q="公園", semantic=False)["items"]}
+    en = {h["asset_id"] for h in s.search(q="park", semantic=False)["items"]}
+    assert zh == en == {park}
