@@ -7,11 +7,15 @@ beforeAll(async () => {
   await i18n.changeLanguage("zh-TW");
 });
 
-const s = vi.hoisted(() => ({ themes: [] as unknown[] }));
+const s = vi.hoisted(() => ({ themes: [] as unknown[], sent: [] as unknown[], removed: [] as string[] }));
 vi.mock("../../lib/api", async (orig) => ({
   ...(await orig<typeof import("../../lib/api")>()),
   mediaUrl: (id: string) => `/m/${id}`,
-  api: { memoryThemes: async () => ({ themes: s.themes }) },
+  api: {
+    memoryThemes: async () => ({ themes: s.themes }),
+    memoryFeedback: async (kind: string, ref: string) => (s.sent.push({ kind, ref }), { id: `f${s.sent.length}`, kind, ref }),
+    memoryFeedbackRemove: async (id: string) => void s.removed.push(id),
+  },
 }));
 vi.mock("@tanstack/react-router", async (orig) => ({
   ...(await orig<typeof import("@tanstack/react-router")>()),
@@ -59,5 +63,25 @@ describe("a theme plays as a story (audit round 109)", () => {
       n: 120,
       search: { q: "", tag: "activity.soccer", year: "2025", name: "足球" },
     });
+  });
+
+  it("[MEM-042] 回歸：卡片的「⋯」可以隱藏這個回憶或少一點這個主題，隱藏後可以復原（驗證第 138 輪：沒有隱藏也沒有「少一點」）", async () => {
+    s.themes = [{ year: 2025, key: "activity.soccer", name: "足球", count: 120, photos: [{ asset_id: "a", ch: null, taken_at: null }] }];
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Themes onOpen={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    const more = await screen.findByRole("button", { name: "更多：2025 的足球" });
+    expect(more.getAttribute("aria-haspopup")).toBe("menu");
+    fireEvent.click(more);
+    fireEvent.click(screen.getByRole("menuitem", { name: "隱藏這個回憶" }));
+    await screen.findByText("已隱藏「2025 的足球」");
+    expect(s.sent).toEqual([{ kind: "hide", ref: "theme:2025:activity.soccer" }]);
+    fireEvent.click(screen.getByRole("button", { name: "復原" }));
+    await vi.waitFor(() => expect(s.removed).toEqual(["f1"]));
+    fireEvent.click(screen.getByRole("button", { name: "更多：2025 的足球" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "少一點「足球」" }));
+    await vi.waitFor(() => expect(s.sent[1]).toEqual({ kind: "fewer", ref: "tag:activity.soccer" }));
   });
 });

@@ -1196,6 +1196,12 @@
   "memories": {
     "onThisDay": "On this day",
     "thisMonth": "This month, years ago",
+    "moreFor": "More: {title}",
+    "hide": "Hide this memory",
+    "fewer": "Fewer of “{name}”",
+    "hidden": "Hid “{title}”",
+    "fewerDone": "Fewer of “{name}” from now on",
+    "undo": "Undo",
     "monthsAgo_one": "{count} year ago this month",
     "monthsAgo_other": "{count} years ago this month",
     "notToday": "Not today",

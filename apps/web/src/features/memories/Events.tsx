@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
+import { MemoryMenu, useMemoryFeedback } from "./MemoryMenu";
 import { api, mediaUrl } from "../../lib/api";
 import { turnStyle } from "../../lib/turn";
 import type { MemoryPhoto } from "./OnThisDay";
@@ -16,7 +17,8 @@ export function Events({ onOpen }: { onOpen: (photos: MemoryPhoto[], start: numb
   const { t, i18n } = useTranslation();
   const q = useQuery({ queryKey: ["memory-events", i18n.language], queryFn: () => api.memoryEvents(i18n.language), staleTime: 10 * 60 * 1000 });
   const list = q.data?.events ?? [];
-  if (!list.length) return null;
+  const fb = useMemoryFeedback();
+  if (!list.length) return fb.toast;
   return (
     <section aria-labelledby="events-h" className="space-y-2">
       <h2 id="events-h" className="font-semibold">{t("memories.events")}</h2>
@@ -61,11 +63,13 @@ export function Events({ onOpen }: { onOpen: (photos: MemoryPhoto[], start: numb
                 <Link to="/search" search={{ q: ask }} className="underline">
                   {t("memories.themeAll")}
                 </Link>
+                <MemoryMenu title={title} hideRef={`event:${ev.day}`} fewer={ev.key && ev.name ? { key: ev.key, name: ev.name } : undefined} send={fb.send} />
               </p>
             </li>
           );
         })}
       </ul>
+      {fb.toast}
     </section>
   );
 }

@@ -217,3 +217,42 @@ def test_mem_037_a_theme_that_is_mostly_one_event_is_not_shown_twice():
     assert [t.key for t in themes(rows, max_overlap=0.5)] == ["activity.soccer", "scene.beach"]
     wide = frozenset(f"s{i}" for i in range(8))  # 40% of them: kept
     assert [t.key for t in themes(rows, max_overlap=0.5, claimed=[wide])] == ["activity.soccer", "scene.beach"]
+
+
+@pytest.mark.unit
+@pytest.mark.tc("MEM-039")
+def test_mem_039_a_hidden_memory_is_left_out_and_the_next_one_shows():
+    """回歸 (audit round 138; ADR-0049 addendum 8): a memory could not be hidden. A hidden theme (year, tag) is left out
+    before the slots are filled, so the next one shows; another year's same tag still shows. An event is hidden by any
+    of its days, so a two-day outing goes whichever day was hidden."""
+    rows = [(f"s{i}", 2025, ["activity.soccer"]) for i in range(30)]
+    rows += [(f"d{i}", 2025, ["activity.dance"]) for i in range(12)]
+    rows += [(f"o{i}", 2025, []) for i in range(30)]
+    rows += [(f"t{i}", 2024, ["activity.soccer"]) for i in range(10)] + [(f"p{i}", 2024, []) for i in range(10)]
+    got = [(t.year, t.key) for t in themes(rows, hide={(2025, "activity.soccer")})]
+    assert got == [(2025, "activity.dance"), (2024, "activity.soccer")]
+    from datetime import date as D
+
+    from opagent_core.memories import events
+
+    day_rows = [(f"a{i}", D(2025, 4, 8), ["object.craft"]) for i in range(15)]
+    day_rows += [(f"b{i}", D(2025, 4, 9), ["object.craft"]) for i in range(15)]
+    day_rows += [(f"c{i}", D(2025, 5, 1), ["activity.soccer"]) for i in range(15)]
+    assert len(events(day_rows, named_only=True)) == 2  # 4/8-4/9 is one outing
+    left = events(day_rows, named_only=True, hidden_days={D(2025, 4, 9)})
+    assert [e.day for e in left] == [D(2025, 5, 1)]
+
+
+@pytest.mark.unit
+@pytest.mark.tc("MEM-040")
+def test_mem_040_fewer_like_this_puts_a_subject_last():
+    """「少一點「足球」」 (ADR-0049 addendum 8): a demoted subject is tried only after every other candidate and shown
+    after them; with room for it, it still shows."""
+    rows = [(f"s{i}", 2025, ["activity.soccer"]) for i in range(30)]
+    rows += [(f"d{i}", 2025, ["activity.dance"]) for i in range(12)]
+    rows += [(f"f{i}", 2025, ["food.meal"]) for i in range(9)]
+    rows += [(f"a{i}", 2025, ["activity.art"]) for i in range(8)]
+    rows += [(f"o{i}", 2025, []) for i in range(40)]
+    assert [t.key for t in themes(rows, demote={"activity.soccer"})] == ["activity.dance", "food.meal", "activity.art"]
+    few = [r for r in rows if r[2] in (["activity.soccer"], ["activity.dance"], [])]
+    assert [t.key for t in themes(few, demote={"activity.soccer"})] == ["activity.dance", "activity.soccer"]

@@ -707,6 +707,21 @@ collection_member = Table(
 )
 
 
+# 隱藏這個回憶 and 少一點「X」 (ADR-0049 addendum 8, MEM-041): one person's choices about memories. Its own table, not
+# workspace.settings, which the face switch also writes; no biometric data, so a face purge leaves it alone.
+memory_feedback = Table(
+    "memory_feedback",
+    metadata,
+    Column("id", Text, primary_key=True),
+    Column("workspace_id", Text, nullable=False),
+    Column("user_id", Text, nullable=False, server_default="local"),
+    Column("kind", Text, nullable=False),  # hide | fewer
+    Column("ref", Text, nullable=False),  # event:YYYY-MM-DD | theme:YYYY:group.name | tag:group.name
+    _ts("at", server_default=func.now()),
+    UniqueConstraint("workspace_id", "user_id", "kind", "ref", name="memory_feedback_once"),
+)
+
+
 # 05 §5: automations. v0.3 has one kind — a watch folder per source (debounce, polling, an optional organize rule
 # that only ever produces a plan unless the policy allows non-destructive auto-apply; move always needs a person).
 automation = Table(

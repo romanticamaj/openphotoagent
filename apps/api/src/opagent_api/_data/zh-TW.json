@@ -1196,6 +1196,12 @@
   "memories": {
     "onThisDay": "那年今日",
     "thisMonth": "那年這個月",
+    "moreFor": "更多：{title}",
+    "hide": "隱藏這個回憶",
+    "fewer": "少一點「{name}」",
+    "hidden": "已隱藏「{title}」",
+    "fewerDone": "之後少一點「{name}」",
+    "undo": "復原",
     "monthsAgo_one": "{count} 年前的這個月",
     "monthsAgo_other": "{count} 年前的這個月",
     "notToday": "今天先不看",

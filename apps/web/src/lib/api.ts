@@ -392,6 +392,9 @@ export const api = {
     req<{ thumbnail_b64: string }>("GET", `/fs/thumb?root=${encodeURIComponent(root)}&path=${encodeURIComponent(path)}`),
   memoryEvents: (lang: string) =>
     req<{ events: Array<{ day: string; last?: string | null; key: string | null; name: string | null; count: number; photos: Array<{ asset_id: string; ch: string | null; rot?: number; taken_at?: string | null }> }> }>("GET", `/memories/events?lang=${encodeURIComponent(lang)}`),
+  /** 隱藏這個回憶 / 少一點「X」 (MEM-041) */
+  memoryFeedback: (kind: "hide" | "fewer", ref: string) => req<{ id: string; kind: string; ref: string }>("POST", "/memories/feedback", { kind, ref }),
+  memoryFeedbackRemove: (id: string) => req<void>("DELETE", `/memories/feedback/${encodeURIComponent(id)}`),
   memoryThemes: (lang: string) =>
     req<{ themes: Array<{ year: number; key: string; name: string; count: number; photos: Array<{ asset_id: string; ch: string | null; taken_at: string | null; rot?: number }> }> }>("GET", `/memories/themes?lang=${encodeURIComponent(lang)}`),
   onThisDay: () => req<{ today: string; scope?: "days" | "month"; groups: Array<{ year: number; years_ago: number; total?: number; photos: Array<{ asset_id: string; ch: string | null; taken_at: string | null; rot?: number }> }> }>("GET", "/memories/on-this-day"),

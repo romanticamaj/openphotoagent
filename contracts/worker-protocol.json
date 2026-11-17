@@ -745,6 +745,29 @@
         "title": "FacesIn",
         "type": "object"
       },
+      "FeedbackIn": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "hide",
+              "fewer"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "ref": {
+            "maxLength": 120,
+            "title": "Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "ref"
+        ],
+        "title": "FeedbackIn",
+        "type": "object"
+      },
       "Filters": {
         "properties": {
           "categories": {

@@ -6,13 +6,15 @@ import { useTranslation } from "react-i18next";
 import { api, mediaUrl } from "../../lib/api";
 import { turnStyle } from "../../lib/turn";
 import type { StoryAll } from "./Events";
+import { MemoryMenu, useMemoryFeedback } from "./MemoryMenu";
 import type { MemoryPhoto } from "./OnThisDay";
 
 export function Themes({ onOpen }: { onOpen: (photos: MemoryPhoto[], start: number, play?: boolean, title?: string, all?: StoryAll) => void }) {
   const { t, i18n } = useTranslation();
   const q = useQuery({ queryKey: ["memory-themes", i18n.language], queryFn: () => api.memoryThemes(i18n.language), staleTime: 10 * 60 * 1000 });
   const list = q.data?.themes ?? [];
-  if (!list.length) return null;
+  const fb = useMemoryFeedback();
+  if (!list.length) return fb.toast;
   return (
     <section aria-labelledby="themes-h" className="space-y-2">
       <h2 id="themes-h" className="font-semibold">{t("memories.themes")}</h2>
@@ -52,11 +54,13 @@ export function Themes({ onOpen }: { onOpen: (photos: MemoryPhoto[], start: numb
                 <Link to="/search" search={{ q: "", tag: th.key, year: String(th.year), name: th.name }} className="underline">
                   {t("memories.themeAll")}
                 </Link>
+                <MemoryMenu title={title} hideRef={`theme:${th.year}:${th.key}`} fewer={{ key: th.key, name: th.name }} send={fb.send} />
               </p>
             </li>
           );
         })}
       </ul>
+      {fb.toast}
     </section>
   );
 }

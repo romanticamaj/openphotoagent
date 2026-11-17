@@ -37,6 +37,8 @@ def themes(
     hidden: set[str] | frozenset[str] = frozenset(),
     place_or_thing: Callable[[str], bool] | None = None,
     claimed: Sequence[frozenset[str] | set[str]] = (),
+    hide: set[tuple[int, str]] | frozenset[tuple[int, str]] = frozenset(),
+    demote: set[str] | frozenset[str] = frozenset(),
 ) -> list[Theme]:
     """主題 (10 §2.8, MEM-009): per year, newest first, the vocabulary tags on at least ``min_count`` photos, most
     first, at most ``per_year``. A tag on more than ``common_share`` of the year's photos (a child, outdoors) says
@@ -48,7 +50,9 @@ def themes(
     ``per_year - 1`` themes have no place or thing gives its last slot to the strongest one that qualifies; with none,
     the slot is filled as before (MEM-028, ADR-0049 addendum 7: the 6 themes were all about people). ``claimed`` are
     the photos of the events listed beside the themes: a theme more than ``max_overlap`` one of them repeats it and is
-    skipped (MEM-037, ADR-0049 addendum 8)."""
+    skipped (MEM-037, ADR-0049 addendum 8). ``hide`` are (year, tag) themes the person hid, left out before the slots
+    are filled (MEM-039); ``demote`` are subjects they want fewer of, tried after every other candidate and shown
+    after them (MEM-040)."""
     by_year: dict[int, list[tuple[str, list[str]]]] = {}
     for aid, year, tags in rows:
         by_year.setdefault(year, []).append((aid, tags))
@@ -58,7 +62,10 @@ def themes(
         counts = Counter(k for _, tags in photos for k in set(tags) if "." in k and k not in skip)
         taken: list[set[str]] = []
         picked: list[Theme] = []
-        ranked = sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
+        ranked = sorted(
+            ((k, n) for k, n in counts.items() if (year, k) not in hide),
+            key=lambda kv: (kv[0] in demote, -kv[1], kv[0]),
+        )
 
         def take(
             k: str,
@@ -97,7 +104,7 @@ def themes(
                 for k, n in ranked:
                     if k not in {t.key for t in picked} and take(k, n):
                         break
-        out.extend(sorted(picked, key=lambda t: (-t.count, t.key)))
+        out.extend(sorted(picked, key=lambda t: (t.key in demote, -t.count, t.key)))
     return out
 
 
@@ -120,10 +127,14 @@ def events(
     share: float = 0.4,
     named_only: bool = False,
     prefer: Callable[[str, str | None], bool] | None = None,
+    hidden_days: set[date] | frozenset[date] = frozenset(),
+    demote: set[str] | frozenset[str] = frozenset(),
 ) -> list[Event]:
     """活動 (MEM-015, ADR-0049 addendum 2): a day with at least ``min_photos`` photos is an event, newest first. It
     is named by the vocabulary tag on the most of its photos, at least ``share`` of them, leaving out ``skip`` (terms
-    true of any day); with none, by its date alone. ``rows`` are (asset_id, local day, tags) in date order."""
+    true of any day); with none, by its date alone. ``rows`` are (asset_id, local day, tags) in date order. An outing
+    with any day in ``hidden_days`` is left out (MEM-039); one named by a ``demote`` subject goes after the rest
+    (MEM-040)."""
     by_day: dict[date, list[tuple[str, list[str]]]] = {}
     for aid, day, tags in rows:
         by_day.setdefault(day, []).append((aid, tags))
@@ -166,6 +177,13 @@ def events(
             return tuple(_spread(ids, shown))
         return (lead, *_spread([a for a in ids if a != lead], shown - 1))
 
+    from datetime import timedelta
+
+    def hid(first: date, last: date) -> bool:
+        return any(first + timedelta(days=i) in hidden_days for i in range((last - first).days + 1))
+
+    kept = [f for f in found if not hid(f[0], f[1])]
+    kept.sort(key=lambda f: f[2] in demote)  # stable: newest first within each
     return [
         Event(
             day=first,
@@ -175,5 +193,5 @@ def events(
             last=last if last != first else None,
             all_ids=tuple(ids),
         )
-        for first, last, key, ids in found
+        for first, last, key, ids in kept
     ]

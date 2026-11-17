@@ -14,7 +14,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import FileResponse, Response
 from opagent_core.ids import uuid7
 from opagent_db.schema import asset, job, job_item, result, source, worker_task
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import func, insert, select, text, true
 
 from .state import DEFAULT_WS, AppState
@@ -291,6 +291,90 @@ def _by_day(picked: list[Any]) -> list[Any]:
     return out
 
 
+FEEDBACK_REF = re.compile(r"(event:\d{4}-\d{2}-\d{2}|theme:\d{4}:[a-z_]+\.[a-z_]+|tag:[a-z_]+\.[a-z_]+)")
+
+
+class FeedbackIn(BaseModel):
+    kind: Literal["hide", "fewer"]
+    ref: str = Field(max_length=120)
+
+
+def _who(req: Request) -> str:
+    st = _st(req)
+    return str(req.state.opa_user["id"]) if getattr(st, "multi_user", False) else "local"
+
+
+@router.get("/memories/feedback")
+def memory_feedback_list(req: Request) -> dict[str, Any]:
+    """The memories this person hid and the subjects they want fewer of (MEM-041), newest first."""
+    from opagent_db.schema import memory_feedback as mf
+
+    with _st(req).engine.connect() as c:
+        rows = c.execute(
+            select(mf.c.id, mf.c.kind, mf.c.ref, mf.c.at)
+            .where(mf.c.workspace_id == DEFAULT_WS, mf.c.user_id == _who(req))
+            .order_by(mf.c.at.desc(), mf.c.id)
+        ).all()
+    return {
+        "items": [{"id": r.id, "kind": r.kind, "ref": r.ref, "at": r.at.isoformat() if r.at else None} for r in rows]
+    }
+
+
+@router.post("/memories/feedback")
+def memory_feedback_add(body: FeedbackIn, req: Request) -> dict[str, Any]:
+    """隱藏這個回憶 (an event or a theme) or 少一點「X」 (a subject), once each (ADR-0049 addendum 8, MEM-041)."""
+    from opagent_db.schema import memory_feedback as mf
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+    ok = FEEDBACK_REF.fullmatch(body.ref) and (body.ref.startswith("tag:") == (body.kind == "fewer"))
+    if not ok:
+        raise HTTPException(422, detail={"code": "VALIDATION", "field": "ref"})
+    st = _st(req)
+    who = _who(req)
+    with st.engine.begin() as c:
+        c.execute(
+            pg_insert(mf)
+            .values(id=uuid7(st.clock), workspace_id=DEFAULT_WS, user_id=who, kind=body.kind, ref=body.ref)
+            .on_conflict_do_nothing(constraint="memory_feedback_once")
+        )
+        fid = c.execute(
+            select(mf.c.id).where(
+                mf.c.workspace_id == DEFAULT_WS, mf.c.user_id == who, mf.c.kind == body.kind, mf.c.ref == body.ref
+            )
+        ).scalar_one()
+    return {"id": fid, "kind": body.kind, "ref": body.ref}
+
+
+@router.delete("/memories/feedback/{fid}", status_code=204)
+def memory_feedback_remove(fid: str, req: Request) -> Response:
+    """還原: the memory or subject comes back (MEM-041)."""
+    from opagent_db.schema import memory_feedback as mf
+
+    with _st(req).engine.begin() as c:
+        c.execute(mf.delete().where(mf.c.id == fid, mf.c.workspace_id == DEFAULT_WS, mf.c.user_id == _who(req)))
+    return Response(status_code=204)
+
+
+def _feedback(c: Any, req: Request) -> tuple[set[date], set[tuple[int, str]], set[str]]:
+    """Hidden days, hidden (year, tag) themes and subjects wanted fewer, for this person."""
+    from opagent_db.schema import memory_feedback as mf
+
+    days: set[date] = set()
+    hide: set[tuple[int, str]] = set()
+    fewer: set[str] = set()
+    for kind, ref in c.execute(
+        select(mf.c.kind, mf.c.ref).where(mf.c.workspace_id == DEFAULT_WS, mf.c.user_id == _who(req))
+    ).all():
+        part = ref.split(":")
+        if kind == "hide" and part[0] == "event":
+            days.add(date.fromisoformat(part[1]))
+        elif kind == "hide" and part[0] == "theme":
+            hide.add((int(part[1]), part[2]))
+        elif kind == "fewer" and part[0] == "tag":
+            fewer.add(part[1])
+    return days, hide, fewer
+
+
 @router.get("/memories/on-this-day")
 def on_this_day(req: Request, today: str | None = None) -> dict[str, Any]:
     """那年今日 (10 §2.8, MEM-001): photos taken within ±3 days of today's date in each earlier year, newest year
@@ -410,6 +494,8 @@ def memory_themes(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
     from .labels import LOCAL_TZ, tokenizer
 
     tz = ZoneInfo(LOCAL_TZ)
+    with _st(req).engine.connect() as c:
+        hidden_days, hide, fewer = _feedback(c, req)
     listed = events(
         [
             (r.id, r.at.astimezone(tz).date() if r.at.tzinfo else r.at.date(), list(r.tags or []))
@@ -419,6 +505,8 @@ def memory_themes(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
         skip=EVENT_SKIP,
         named_only=True,
         share=EVENT_SHARE,
+        hidden_days=hidden_days,
+        demote=fewer,
     )[:EVENTS_MAX]
     # the count is what 「看全部」 finds, duplicates too; a theme mostly another's is not shown twice (MEM-013)
     found = themes(
@@ -428,6 +516,8 @@ def memory_themes(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
         hidden=dup,
         place_or_thing=place_or_thing,
         claimed=[frozenset(e.all_ids) for e in listed],
+        hide=hide,
+        demote=fewer,
     )
     names = tag_names([t.key for t in found], lang)
 
@@ -510,12 +600,16 @@ def memory_events(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
             forms[key] = [f for f in tokenizer()._forms_of(key) if f and not f.isascii()]
         return any(f in (info[a].caption or "") for f in forms[key])
 
+    with _st(req).engine.connect() as c:
+        hidden_days, _, fewer = _feedback(c, req)
     found = events(
         [(r.id, r.at.astimezone(tz).date() if r.at.tzinfo else r.at.date(), list(r.tags or [])) for r in rows],
         skip=EVENT_SKIP,
         named_only=True,  # an import day of unrelated photos is no outing (MEM-018)
         share=EVENT_SHARE,
         prefer=lambda a, key: names_subject(key, a),
+        hidden_days=hidden_days,  # 隱藏這個回憶, 少一點「X」 (MEM-041)
+        demote=fewer,
     )[:EVENTS_MAX]
 
     names = tag_names([e.key for e in found if e.key], lang)

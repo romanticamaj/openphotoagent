@@ -57,6 +57,8 @@ ROUTES: dict[tuple[str, str], str] = {
     # favourites and albums: database sets, never files (ADR-0041). The same permission as MCP's collections:write,
     # so the app and an AI client need the same role to change an album; ★ is a review-level mark
     ("PUT", "/api/v1/assets/{asset_id}/rotation"): RV,  # a view setting (ROT-001)
+    ("POST", "/api/v1/memories/feedback"): RV,  # 隱藏這個回憶, 少一點「X」: a view choice (MEM-041)
+    ("DELETE", "/api/v1/memories/feedback/{fid}"): RV,
     ("PUT", "/api/v1/assets/{asset_id}/favorite"): RV,
     ("DELETE", "/api/v1/assets/{asset_id}/favorite"): RV,
     ("POST", "/api/v1/selections/{sid}/album"): J,

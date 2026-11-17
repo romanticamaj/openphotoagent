@@ -745,6 +745,29 @@
         "title": "FacesIn",
         "type": "object"
       },
+      "FeedbackIn": {
+        "properties": {
+          "kind": {
+            "enum": [
+              "hide",
+              "fewer"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "ref": {
+            "maxLength": 120,
+            "title": "Ref",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "ref"
+        ],
+        "title": "FeedbackIn",
+        "type": "object"
+      },
       "Filters": {
         "properties": {
           "categories": {
@@ -6837,6 +6860,99 @@
           }
         },
         "summary": "Memory Events"
+      }
+    },
+    "/api/v1/memories/feedback": {
+      "get": {
+        "description": "The memories this person hid and the subjects they want fewer of (MEM-041), newest first.",
+        "operationId": "memory_feedback_list_api_v1_memories_feedback_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Memory Feedback List Api V1 Memories Feedback Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Memory Feedback List"
+      },
+      "post": {
+        "description": "隱藏這個回憶 (an event or a theme) or 少一點「X」 (a subject), once each (ADR-0049 addendum 8, MEM-041).",
+        "operationId": "memory_feedback_add_api_v1_memories_feedback_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Memory Feedback Add Api V1 Memories Feedback Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Memory Feedback Add"
+      }
+    },
+    "/api/v1/memories/feedback/{fid}": {
+      "delete": {
+        "description": "還原: the memory or subject comes back (MEM-041).",
+        "operationId": "memory_feedback_remove_api_v1_memories_feedback__fid__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "fid",
+            "required": true,
+            "schema": {
+              "title": "Fid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Memory Feedback Remove"
       }
     },
     "/api/v1/memories/on-this-day": {

@@ -267,3 +267,37 @@ def test_mem_038_themes_leave_out_what_an_event_already_shows(embedded_pg, tmp_p
     x.eng.dispose()
     assert [e["key"] for e in ev] == ["activity.soccer"]  # the outing is listed
     assert [t["key"] for t in th if t["year"] == 2025] == ["scene.beach"]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("MEM-041")
+def test_mem_041_hide_and_fewer_are_kept_and_undone(embedded_pg, tmp_path):
+    """回歸 (audit round 138; ADR-0049 addendum 8): 隱藏這個回憶 and 少一點「X」, kept in `memory_feedback` (not the
+    workspace settings the face switch shares): idempotent, listed, undone by deleting; a bad ref is refused."""
+    x = M(embedded_pg.dsn, tmp_path)
+    for tag, n in (("足球", 12), ("跳舞", 10)):
+        for i in range(n):
+            x.add(f"{tag}{i}.jpg", tags=(tag,), taken=datetime(2025, 3, 1 + i, 9, tzinfo=UTC))
+    for i in range(20):
+        x.add(f"o{i}.jpg", taken=datetime(2025, 9, 1 + i, 9, tzinfo=UTC))
+    x.index()
+    keys = lambda: [t["key"] for t in x.client.get("/api/v1/memories/themes", headers=x.ui).json()["themes"]]
+    assert keys() == ["activity.soccer", "activity.dance"]
+    ref = {"kind": "hide", "ref": "theme:2025:activity.soccer"}
+    a = x.client.post("/api/v1/memories/feedback", json=ref, headers=x.ui)
+    b = x.client.post("/api/v1/memories/feedback", json=ref, headers=x.ui)
+    assert a.status_code == b.status_code == 200 and a.json()["id"] == b.json()["id"]
+    assert keys() == ["activity.dance"]
+    listed = x.client.get("/api/v1/memories/feedback", headers=x.ui).json()["items"]
+    assert [(i["kind"], i["ref"]) for i in listed] == [("hide", "theme:2025:activity.soccer")]
+    assert x.client.delete(f"/api/v1/memories/feedback/{a.json()['id']}", headers=x.ui).status_code == 204
+    assert keys() == ["activity.soccer", "activity.dance"]
+    x.client.post("/api/v1/memories/feedback", json={"kind": "fewer", "ref": "tag:activity.soccer"}, headers=x.ui)
+    assert keys() == ["activity.dance", "activity.soccer"]
+    for bad in (
+        {"kind": "hide", "ref": "x"},
+        {"kind": "fewer", "ref": "event:2025-03-01"},
+        {"kind": "pin", "ref": "tag:a.b"},
+    ):
+        assert x.client.post("/api/v1/memories/feedback", json=bad, headers=x.ui).status_code == 422, bad
+    x.eng.dispose()
