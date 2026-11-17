@@ -39,6 +39,35 @@ export function tilesFor(width: number | undefined, years: number): number {
   return Math.max(2, Math.min(most, n));
 }
 
+const HEAD = 150; // a year's two-line heading (MEM-043)
+
+/** A year's width with ``n`` of its ``count`` photos shown, and 「+N」 when some are not. */
+export function yearWidth(n: number, count: number): number {
+  return Math.max(HEAD, n * TILE + (count > n ? YEAR_EXTRA : 0));
+}
+
+/** Photos a year, the room left given to the year with the most still unshown (round 140, MEM-049): the latest year
+ *  showed 2-3 while 230-410 px stayed empty. A year shows at least 1 (2 when it has them), at most 8. */
+export function allocate(width: number | undefined, counts: number[]): number[] {
+  if (!width) return counts.map((c) => Math.min(c, shownFor(counts.length)));
+  const per = counts.map((c) => Math.min(c, 2));
+  const total = () => per.reduce((a, n, i) => a + yearWidth(n, counts[i]!), 0) + (per.length - 1) * YEAR_GAP;
+  for (;;) {
+    const room = (i: number) => counts[i]! - per[i]!;
+    const order = per.map((_, i) => i).filter((i) => per[i]! < Math.min(counts[i]!, SHOWN)).sort((a, b) => room(b) - room(a));
+    let grew = false;
+    for (const i of order) {
+      per[i]! += 1;
+      if (total() <= width) {
+        grew = true;
+        break;
+      }
+      per[i]! -= 1;
+    }
+    if (!grew) return per;
+  }
+}
+
 function hiddenToday(day: string): boolean {
   try {
     return window.localStorage.getItem(KEY) === day;
@@ -74,7 +103,7 @@ export function OnThisDay({ onOpen, away = false }: { onOpen: (photos: MemoryPho
     ro.observe(el);
     return () => ro.disconnect();
   });
-  const per = tilesFor(width, q.data?.groups.length ?? 1);
+  const perYear = allocate(width, (q.data?.groups ?? []).map((g) => g.photos.length));
   // `away`: the timeline has been scrolled down; the card steps aside and comes back at the top (MEM-009)
   if (!q.data?.groups.length || hidden || away || hiddenToday(day)) return null;
   return (
@@ -104,7 +133,9 @@ export function OnThisDay({ onOpen, away = false }: { onOpen: (photos: MemoryPho
         </button>
       </div>
       <div className="on-this-day-years">
-        {q.data.groups.map((g) => (
+        {q.data.groups.map((g, gi) => {
+          const per = perYear[gi] ?? SHOWN;
+          return (
           <div key={g.year} className="on-this-day-year">
             {/* two lines: on one, 247 px a year and three did not fit at 1024 px (round 139, MEM-043) */}
             <p className="on-this-day-year-head text-sm">
@@ -145,7 +176,8 @@ export function OnThisDay({ onOpen, away = false }: { onOpen: (photos: MemoryPho
               ) : null}
             </ul>
           </div>
-        ))}
+          );
+        })}
       </div>
     </section>
   );

@@ -14,7 +14,7 @@ vi.mock("../../lib/api", async (orig) => ({
   api: { onThisDay: async () => (s.asked++, { today: "2026-11-12", groups: s.groups, scope: s.scope }) },
 }));
 
-import { memoryGrid, OnThisDay, tilesFor } from "./OnThisDay";
+import { allocate, memoryGrid, OnThisDay, tilesFor, yearWidth } from "./OnThisDay";
 
 const wrap = (onOpen = vi.fn()) =>
   render(
@@ -169,5 +169,17 @@ describe("那年今日 (10 §2.8)", () => {
     expect(css).toMatch(/\.on-this-day-year-head \{[^}]*flex-direction: column/);
     expect(3 * Math.max(150, tilesFor(758, 3) * 76 + 52) + 2 * 24).toBeLessThanOrEqual(758);
     s.scope = undefined;
+  });
+
+  it("[MEM-049] 回歸：空著的寬度給照片多的那一年（驗證第 140 輪：最新一年只有 2～3 張，右邊空 230～410 px）", () => {
+    const fits = (w: number, counts: number[], per: number[]) => per.reduce((a, n, i) => a + yearWidth(n, counts[i]!), 0) + (per.length - 1) * 24 <= w;
+    const a = allocate(758, [24, 1, 1]);
+    expect(a.slice(1)).toEqual([1, 1]); // a year with one photo shows it
+    expect(a[0]).toBeGreaterThanOrEqual(4); // the room goes to the year with 24
+    expect(fits(758, [24, 1, 1], a)).toBe(true);
+    expect(fits(758, [24, 1, 1], [a[0]! + 1, 1, 1])).toBe(false); // as many as fit
+    expect(allocate(1000, [24, 10, 10]).every((n) => n >= 2)).toBe(true);
+    expect(allocate(undefined, [24, 10, 10])).toEqual([4, 4, 4]); // not measured: MEM-031
+    expect(Math.max(...allocate(5000, [24]))).toBe(8); // never more than 8 a year
   });
 });

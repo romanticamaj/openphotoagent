@@ -752,6 +752,7 @@
 | ACT-024 | 打開活動時焦點進到抽屜，Tab 一下到第一列；Esc 關閉後焦點回到「活動」（回歸，驗證第 132 輪：15 次 Tab，Esc 落到頁面） | 焦點在「活動」→ 開抽屜 → Esc | 焦點在抽屜內；第一個可聚焦的是計畫列；關閉後焦點回到「活動」 | U | #98 |
 | ACT-025 | 「活動」按鈕帶 aria-expanded（回歸，驗證第 132 輪） | 抽屜關／開 | false／true | U | #98 |
 | ACT-026 | 計畫那一列寫出計畫種類（回歸，驗證第 132～134 輪：複製到資料夾與依日期看起來一樣） | 選取列的複製計畫；列帶 plan_kind selection／by-date／trash | 工作的 subject.plan_kind 為 selection；列上分別寫「複製到資料夾」「依日期」「移到垃圾桶」 | I＋U | #98 |
+| API-UI-001 | 沒有內容的成功回應（204）不當成錯誤（回歸，驗證第 140 輪：回憶的「復原」每次都失敗，Unexpected end of JSON input） | fetch 回 204、沒有內容 | memoryFeedbackRemove 正常完成，回傳 undefined | U | #98 |
 | ACT-020 | 不使用 AI 的整理在進度卡寫「整理」（回歸，驗證第 72 輪） | job.label、uses_ai false／true／沒有 | job.organize「整理」＋準備中…；其餘 job.label | C | #— |
 
 ## 10. ORG、REV — 整理流程與待確認（killer ①；03 §10、04 §3.7、08 §8.1）

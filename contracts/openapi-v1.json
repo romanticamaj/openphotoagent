@@ -6922,8 +6922,20 @@
     },
     "/api/v1/memories/feedback": {
       "get": {
-        "description": "The memories this person hid and the subjects they want fewer of (MEM-041), newest first.",
+        "description": "The memories this person hid and the subjects they want fewer of (MEM-041), newest first; a theme's or a\nsubject's name in ``lang``, for the list on 分類 (MEM-046).",
         "operationId": "memory_feedback_list_api_v1_memories_feedback_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "lang",
+            "required": false,
+            "schema": {
+              "default": "zh-TW",
+              "title": "Lang",
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
@@ -6936,6 +6948,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "summary": "Memory Feedback List"

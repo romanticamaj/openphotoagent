@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../../components/Button";
 import { api, mediaUrl, type SearchBody } from "../../lib/api";
+import { HiddenMemories } from "../memories/HiddenMemories";
 import { memoryGrid } from "../memories/OnThisDay";
 import { Events, type StoryAll } from "../memories/Events";
 import { Themes } from "../memories/Themes";
@@ -119,6 +120,7 @@ export function ExplorePage({ initial = null, onPick }: { initial?: Pick; onPick
       {/* a year's frequent subjects, before the counts (MEM-011) */}
       {!pick ? <Events onOpen={(photos, start, play, title, all) => setMemory({ start, grid: memoryGrid(photos), play, title, all })} /> : null}
       {!pick ? <Themes onOpen={(photos, start, play, title, all) => setMemory({ start, grid: memoryGrid(photos), play, title, all })} /> : null}
+      {!pick ? <HiddenMemories /> : null}
       {/* each row says what it is: 類別 (one per photo) and 標籤 (any number) were two unlabelled rows (IMP-038) */}
       <section aria-labelledby="explore-cat-h" className="explore-row">
         <h2 id="explore-cat-h" className="explore-row-h">{t("explore.categoryRow")}</h2>

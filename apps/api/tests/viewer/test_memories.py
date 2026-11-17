@@ -329,3 +329,42 @@ def test_mem_044_a_theme_does_not_reuse_an_events_cover(embedded_pg, tmp_path):
     assert ev[0] in covers  # the outing's cover is its first photo
     smile = next(t for t in th if t["key"] == "mood.smile")
     assert smile["photos"][0]["asset_id"] not in covers
+
+
+@pytest.mark.integration
+@pytest.mark.tc("MEM-045")
+def test_mem_045_hiding_an_outing_does_not_bring_back_its_theme(embedded_pg, tmp_path):
+    """回歸 (audit round 140): hiding 「2026/6/22 運動場」 brought 「2026 的運動場」 back as a theme, the same photos
+    the person had just hidden. A hidden outing still counts as shown when themes leave out repeats (MEM-038)."""
+    x = M(embedded_pg.dsn, tmp_path)
+    for i in range(16):
+        x.add(f"s{i}.jpg", tags=("足球",), taken=datetime(2025, 5, 3, 1 + i % 10, i, tzinfo=UTC))
+    for i in range(4):
+        x.add(f"t{i}.jpg", tags=("足球",), taken=datetime(2025, 6, 1 + i, 9, tzinfo=UTC))
+    for i in range(10):
+        x.add(f"b{i}.jpg", tags=("海灘",), taken=datetime(2025, 7, 1 + i % 3, 9, i, tzinfo=UTC))
+    for i in range(30):
+        x.add(f"o{i}.jpg", taken=datetime(2025, 9, 1 + i % 28, 9, tzinfo=UTC))
+    x.index()
+    x.client.post("/api/v1/memories/feedback", json={"kind": "hide", "ref": "event:2025-05-03"}, headers=x.ui)
+    ev = x.client.get("/api/v1/memories/events", headers=x.ui).json()["events"]
+    th = x.client.get("/api/v1/memories/themes", headers=x.ui).json()["themes"]
+    x.eng.dispose()
+    assert ev == []
+    assert [t["key"] for t in th if t["year"] == 2025] == ["scene.beach"]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("MEM-046")
+def test_mem_046_the_hidden_list_names_its_subjects(embedded_pg, tmp_path):
+    """The hidden list on 分類 (MEM-048) shows 「2025 的足球」 and 「少一點「笑容」」, not vocabulary ids: each item
+    named by a theme or a subject carries the subject's name in the asked language."""
+    x = M(embedded_pg.dsn, tmp_path)
+    x.index()
+    for body in ({"kind": "hide", "ref": "theme:2025:activity.soccer"}, {"kind": "fewer", "ref": "tag:mood.smile"}):
+        x.client.post("/api/v1/memories/feedback", json=body, headers=x.ui)
+    x.client.post("/api/v1/memories/feedback", json={"kind": "hide", "ref": "event:2026-06-22"}, headers=x.ui)
+    items = x.client.get("/api/v1/memories/feedback", params={"lang": "zh-TW"}, headers=x.ui).json()["items"]
+    x.eng.dispose()
+    names = {i["ref"]: i["name"] for i in items}
+    assert names == {"theme:2025:activity.soccer": "足球", "tag:mood.smile": "笑容", "event:2026-06-22": None}

@@ -79,3 +79,11 @@ describe("the answer first", () => {
     expect(answer.compareDocumentPosition(screen.getByTestId("ask-photos")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
+
+describe("nothing found, said once", () => {
+  it("[ASK-UI-025] 回歸：找不到時不在最後再寫「找到 0 張」（驗證第 140 輪：建議之後又一行「找到 0 張」）", () => {
+    render(<TurnView turn={turn({ photos: { total: 0, items: [], role: "candidates" }, text: "找不到符合條件的照片。", suggest: [{ q: "遊樂場", n: 14 }] })} onRerun={() => {}} />);
+    expect(screen.queryByTestId("ask-photos-total")).toBeNull();
+    expect(screen.getByText("遊樂場（14 張以上）")).toBeTruthy();
+  });
+});

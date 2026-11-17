@@ -144,7 +144,8 @@ export function TurnView({ turn, onRerun }: { turn: Turn; onRerun: (filters: Rec
           ))}
         </p>
       ) : null}
-      {turn.photos && turn.photos.role === "candidates" ? (
+      {/* nothing found is said by the answer: 「找到 0 張」 after it said it again (round 140, ASK-UI-025) */}
+      {turn.photos && turn.photos.role === "candidates" && turn.photos.total > 0 ? (
         <p data-testid="ask-photos-total" className="text-sm text-[var(--text-muted)]">
           {t("ask.found", { n: turn.photos.total.toLocaleString() })}
         </p>

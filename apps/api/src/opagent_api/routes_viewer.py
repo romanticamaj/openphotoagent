@@ -305,9 +305,12 @@ def _who(req: Request) -> str:
 
 
 @router.get("/memories/feedback")
-def memory_feedback_list(req: Request) -> dict[str, Any]:
-    """The memories this person hid and the subjects they want fewer of (MEM-041), newest first."""
+def memory_feedback_list(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
+    """The memories this person hid and the subjects they want fewer of (MEM-041), newest first; a theme's or a
+    subject's name in ``lang``, for the list on 分類 (MEM-046)."""
     from opagent_db.schema import memory_feedback as mf
+
+    from .search import tag_names
 
     with _st(req).engine.connect() as c:
         rows = c.execute(
@@ -315,8 +318,19 @@ def memory_feedback_list(req: Request) -> dict[str, Any]:
             .where(mf.c.workspace_id == DEFAULT_WS, mf.c.user_id == _who(req))
             .order_by(mf.c.at.desc(), mf.c.id)
         ).all()
+    key: dict[str, str] = {r.id: r.ref.split(":")[-1] for r in rows if r.ref.split(":")[0] in ("theme", "tag")}
+    names = tag_names([k for k in key.values() if k], lang)
     return {
-        "items": [{"id": r.id, "kind": r.kind, "ref": r.ref, "at": r.at.isoformat() if r.at else None} for r in rows]
+        "items": [
+            {
+                "id": r.id,
+                "kind": r.kind,
+                "ref": r.ref,
+                "name": names.get(key[r.id], key[r.id]) if r.id in key else None,
+                "at": r.at.isoformat() if r.at else None,
+            }
+            for r in rows
+        ]
     }
 
 
@@ -514,11 +528,20 @@ def memory_themes(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
         skip=EVENT_SKIP,
         named_only=True,
         share=EVENT_SHARE,
-        hidden_days=hidden_days,
-        demote=fewer,
         prefer=lambda a, key: _names_subject(info[a].caption, key),  # their covers as /memories/events gives them
-    )[:EVENTS_MAX]
-    event_covers = {e.asset_ids[0] for e in listed if e.asset_ids}
+    )
+
+    # a hidden outing still counts as shown: hiding 「6/22 運動場」 brought 「2026 的運動場」 back (round 140, MEM-045)
+    def hid(e: Any) -> bool:
+        from datetime import timedelta
+
+        last = e.last or e.day
+        return any(e.day + timedelta(days=i) in hidden_days for i in range((last - e.day).days + 1))
+
+    shown = [e for e in listed if not hid(e)]
+    shown = sorted(shown, key=lambda e: e.key in fewer)[:EVENTS_MAX]
+    listed = shown + [e for e in listed if hid(e)]
+    event_covers = {e.asset_ids[0] for e in shown if e.asset_ids}
     # the count is what 「看全部」 finds, duplicates too; a theme mostly another's is not shown twice (MEM-013)
     found = themes(
         [(r.id, r.at.year, list(r.tags or [])) for r in rows],

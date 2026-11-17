@@ -41,6 +41,8 @@ async function req<T>(method: string, path: string, body?: unknown): Promise<T> 
     }
     throw new ApiError(r.status, problem);
   }
+  // no content is a success too: 復原 (a 204) threw 「Unexpected end of JSON input」 (round 140, API-UI-001)
+  if (r.status === 204) return undefined as T;
   return (await r.json()) as T;
 }
 
@@ -396,6 +398,7 @@ export const api = {
   facesPresent: (ids: string[]) => req<{ enabled: boolean; with_faces?: string[] }>("POST", "/faces/present", { asset_ids: ids.slice(0, 200) }),
   /** 隱藏這個回憶 / 少一點「X」 (MEM-041) */
   memoryFeedback: (kind: "hide" | "fewer", ref: string) => req<{ id: string; kind: string; ref: string }>("POST", "/memories/feedback", { kind, ref }),
+  memoryFeedbackList: () => req<{ items: Array<{ id: string; kind: string; ref: string; name?: string | null; at: string | null }> }>("GET", `/memories/feedback?lang=${encodeURIComponent(document.documentElement.lang || "zh-TW")}`),
   memoryFeedbackRemove: (id: string) => req<void>("DELETE", `/memories/feedback/${encodeURIComponent(id)}`),
   memoryThemes: (lang: string) =>
     req<{ themes: Array<{ year: number; key: string; name: string; count: number; photos: Array<{ asset_id: string; ch: string | null; taken_at: string | null; rot?: number }> }> }>("GET", `/memories/themes?lang=${encodeURIComponent(lang)}`),

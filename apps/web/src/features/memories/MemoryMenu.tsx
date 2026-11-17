@@ -12,9 +12,15 @@ export function useMemoryFeedback() {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [done, setDone] = useState<Done>(null);
+  // the card is gone: the keyboard goes to 復原, not the page (round 140, MEM-047)
+  const undoRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (done) undoRef.current?.focus();
+  }, [done]);
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: ["memory-themes"] });
     void qc.invalidateQueries({ queryKey: ["memory-events"] });
+    void qc.invalidateQueries({ queryKey: ["memory-feedback"] });
   };
   const send = async (kind: "hide" | "fewer", ref: string, text: string) => {
     const r = await api.memoryFeedback(kind, ref);
@@ -25,6 +31,7 @@ export function useMemoryFeedback() {
     <p role="status" className="toast flex items-center gap-2 text-sm">
       <span>{done.text}</span>
       <button
+        ref={undoRef}
         type="button"
         className="chip"
         onClick={async () => {
@@ -73,7 +80,14 @@ export function MemoryMenu({ title, hideRef, fewer, send }: { title: string; hid
             if (e.key === "Escape") {
               e.stopPropagation();
               close();
+              return;
             }
+            // ↓ ↑ between the items, round (MEM-047)
+            if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+            e.preventDefault();
+            const items = [...(menu.current?.querySelectorAll<HTMLElement>("[role=menuitem]") ?? [])];
+            const at = items.indexOf(document.activeElement as HTMLElement);
+            items[(at + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus();
           }}
           onBlur={(e) => {
             if (!e.currentTarget.contains(e.relatedTarget as Node | null) && e.relatedTarget !== btn.current) setOpen(false);

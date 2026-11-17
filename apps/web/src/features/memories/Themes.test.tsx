@@ -84,4 +84,23 @@ describe("a theme plays as a story (audit round 109)", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "少一點「足球」" }));
     await vi.waitFor(() => expect(s.sent[1]).toEqual({ kind: "fewer", ref: "tag:activity.soccer" }));
   });
+
+  it("[MEM-047] 回歸：選單可以用 ↓ ↑ 移動；隱藏後焦點到「復原」（驗證第 140 輪：↓ 沒有作用、焦點掉到頁面）", async () => {
+    s.themes = [{ year: 2025, key: "activity.soccer", name: "足球", count: 120, photos: [{ asset_id: "a", ch: null, taken_at: null }] }];
+    s.sent = [];
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Themes onOpen={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "更多：2025 的足球" }));
+    const [hide, fewer] = screen.getAllByRole("menuitem");
+    await vi.waitFor(() => expect(document.activeElement).toBe(hide));
+    fireEvent.keyDown(hide!, { key: "ArrowDown" });
+    expect(document.activeElement).toBe(fewer);
+    fireEvent.keyDown(fewer!, { key: "ArrowUp" });
+    expect(document.activeElement).toBe(hide);
+    fireEvent.click(hide!);
+    await vi.waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "復原" })));
+  });
 });
