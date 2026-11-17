@@ -521,5 +521,24 @@ describe("Esc from the selection bar keeps focus (audit round 127)", () => {
     await waitFor(() => expect(document.activeElement?.getAttribute("data-testid")).toBe("search-result"));
     s.result = null;
   });
+  it("[SRCH-UI-057] 回歸：選取列是一條工具列：每個控制項同一高度（2rem），間距與左右留白收緊（驗證第 129 輪：1024 px 仍兩行，按鈕高 28／30／38 px 混用）", async () => {
+    const hit = (id: string) => ({ asset_id: id, ch: null, score: 1, matched_by: ["fulltext"], category: null, tags: [], caption: "花", taken_at: null });
+    s.result = { items: [hit("a1"), hit("a2"), hit("a3")], facets: {}, total: 3, next_cursor: null, degraded: [] };
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SearchPage q="花" />
+      </QueryClientProvider>,
+    );
+    const tiles = await screen.findAllByTestId("search-result");
+    fireEvent.click(tiles[0]!, { ctrlKey: true });
+    const bar = await screen.findByTestId("batch-bar");
+    expect(bar.className).toContain("toolbar");
+    const { readFileSync } = await import("node:fs");
+    const css = readFileSync(`${process.cwd()}/src/styles.css`, "utf-8").replace(/\s+/g, " ");
+    const rule = css.match(/\.toolbar :is\(button, input, select\)[^{]*\{([^}]*)\}/);
+    expect(rule?.[1]).toContain("height: 2rem");
+    expect(css).toMatch(/\.toolbar \.icon-button \{[^}]*width: 2rem/);
+    s.result = null;
+  });
 });
 

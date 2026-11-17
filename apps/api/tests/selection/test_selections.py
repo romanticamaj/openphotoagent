@@ -84,3 +84,23 @@ def test_col_021_everything_but_the_photos_taken_back_out(lib):
     alb = client.post("/api/v1/albums", json={"name": "全部"}).json()["id"]
     added = client.post(f"/api/v1/selections/{sid}/album", json={"album_id": alb}).json()["added"]
     assert len(added) == 4 and not set(ids[:2]) & set(added)
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ACT-020")
+def test_act_020_a_plan_from_the_selection_bar_is_in_activity(lib):
+    """回歸 (audit rounds 128–129): a 複製到資料夾 plan made from the selection bar never showed in 活動's 最近完成; the
+    依日期 plan made a minute later did. Both kinds of plan are listed, and so is the job, by its outcome."""
+    client, _, _ = lib
+    ids = [a["asset_id"] for a in client.post("/api/v1/search", json={}).json()["items"]][:2]
+    sel = client.post("/api/v1/selections", json={"asset_ids": ids}).json()
+    r = client.post(
+        f"/api/v1/selections/{sel['id']}/organize", json={"target": {"root_alias": "sorted", "sub_path": "picked"}}
+    ).json()
+    ops = client.get("/api/v1/operations", params={"status": "all"}).json()
+    plan_ops = [o for o in ops if o["type"] == "output.plan" and o["subject"]["id"] == r["plan_id"]]
+    job_ops = [o for o in ops if (o.get("subject") or {}).get("id") == r["job_id"]]
+    assert plan_ops and plan_ops[0]["status"] == "succeeded"
+    assert (
+        job_ops and job_ops[0]["status"] == "succeeded" and job_ops[0]["subject"]["job_status"] == "awaiting_approval"
+    )

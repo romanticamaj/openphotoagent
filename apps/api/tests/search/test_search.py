@@ -1673,3 +1673,18 @@ def test_srch_tok_044_a_place_word_is_not_found_inside_a_thing_named_after_it(s)
     zh = {h["asset_id"] for h in s.search(q="公園", semantic=False)["items"]}
     en = {h["asset_id"] for h in s.search(q="park", semantic=False)["items"]}
     assert zh == en == {park}
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-TOK-046")
+def test_srch_tok_046_marks_around_a_query_change_nothing(s):
+    """回歸 (audit round 129): 「## swing」 lost the 遊樂場 suggestion and its 可能相關 group went 16 → 126. Punctuation
+    and symbols at either end of a query are not part of it."""
+    s.add(1, caption="小朋友在溜滑梯", tags=("溜滑梯",))
+    s.add(2, caption="遊樂場的溜滑梯", tags=("遊樂場",))
+    s.index()
+    plain = s.search(q="swing", semantic=False)
+    for q in ("## swing", "「swing」", "swing!!", "#swing #"):
+        res = s.search(q=q, semantic=False)
+        assert res["total"] == plain["total"] and res["suggest"] == plain["suggest"], q
+    assert plain["suggest"] and plain["suggest"][0]["q"] == "遊樂場"

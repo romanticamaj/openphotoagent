@@ -373,3 +373,15 @@ def export_calibration(conn: Any) -> list[dict[str, Any]]:
         }
         for r in conn.execute(select(e).where(e.c.predicted_p10.is_not(None)).order_by(e.c.id))
     ]
+
+
+def plan_made(conn: Any, clock: Any, job_id: str, plan_id: str, job_kind: str) -> None:
+    """A plan made at once, with no scan or analysis before it (複製到資料夾, 移到垃圾桶 from a selection): listed in
+    活動 like a 依日期 plan, its job named by how it ended. Missing from 最近完成 before (audit round 129, ACT-020)."""
+    for op, kind, subject in (
+        (f"{plan_id}:plan", "output.plan", {"kind": "plan", "id": plan_id}),
+        (job_id, "job.label", {"kind": "job", "id": job_id, "job_kind": job_kind, "uses_ai": False}),
+    ):
+        ensure_operation(conn, clock, op, kind, subject)
+        set_op_status(conn, clock, op, "running")
+        set_op_status(conn, clock, op, "succeeded")

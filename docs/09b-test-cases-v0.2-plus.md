@@ -130,6 +130,7 @@
 | SRCH-UI-054 | 搜尋選取列的標籤與類別以 placeholder 與無障礙名稱表示，不在上方疊標題，按鈕置中（回歸，驗證第 126 輪：1280 px 寬仍兩行） | 選 3 張 | 「標籤…」「類別…」；無 label；items-center | C | #— |
 | SRCH-UI-055 | 焦點在選取列時按 Esc 取消選取，焦點回到結果的照片（回歸，驗證第 127 輪：焦點掉到 BODY） | 選 2 張、焦點在分享 | 選取列消失、焦點在 search-result | C | #— |
 | SRCH-UI-056 | 選取列的「標籤…」欄按 Esc：有字先清字，空的就取消選取、焦點回到照片（回歸，驗證第 128 輪：按兩次都沒反應） | 選 2 張、焦點在標籤欄 | 第一次 Esc 清字、選取仍在；第二次選取列消失、焦點在 search-result | C | #— |
+| SRCH-UI-057 | 選取列是一條工具列：控制項同高 2rem、間距與留白收緊（回歸，驗證第 129 輪：1024 px 仍兩行；按鈕高 28／30／38 px）ADR-0056 | 選 1 張 | batch-bar 有 toolbar；styles.css 的 .toolbar 規則 height: 2rem、icon-button width: 2rem | C | #— |
 | SHARE-001 | 有系統分享時分享一個 JPEG：由衍生預覽轉成並套用旋轉，不讀原檔（ADR-0050，驗證第 109 輪：沒有分享） | canShare 為真、旋轉 90° | 分享 1 個 `photo-2025-11-11-a1.jpg`，預覽來自 p2048，未存檔 | C | #— |
 | SHARE-002 | 沒有系統分享、或不能分享檔案時存成 JPEG 檔 | 無 share；canShare 為假 | 存成 `photo-<id 前 8 碼>.jpg` | C | #— |
 | SHARE-003 | 取消分享不算失敗也不改存檔；其他錯誤往外拋 | share 拋 AbortError；預覽缺少 | 回傳 cancelled、未存檔；THUMB_MISSING 往外拋 | C | #— |

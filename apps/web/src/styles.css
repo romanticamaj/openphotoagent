@@ -1004,6 +1004,13 @@ body {
 .icon-button:hover { background: var(--surface-2); color: var(--text); }
 .icon-button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
+/* a selection bar is one toolbar: every control one height, tighter gaps and sides, so the search bar is one row at
+   1024 px (audit round 129, ADR-0056, SRCH-UI-057). Not the menus, cards and toasts that open from it. */
+.toolbar { gap: 0.375rem; }
+.toolbar :is(button, input, select):not(:is(.trash-popover, [role="menu"], [role="dialog"], [role="listbox"], .toast) *) { height: 2rem; padding-block: 0; }
+.toolbar :is(button):not(.icon-button):not(:is(.trash-popover, [role="menu"], [role="dialog"], [role="listbox"], .toast) *) { padding-inline: 0.75rem; }
+.toolbar .icon-button { width: 2rem; }
+
 /* search facets: one sideways-scrolling row of soft chips (audit round 26) */
 .facet-row { display: flex; gap: 1.25rem; overflow-x: auto; scrollbar-width: none; mask-image: linear-gradient(to right, #000 92%, transparent); }
 .facet-row::-webkit-scrollbar { display: none; } /* a grey bar under the chips (audit round 27); wheel, touch and Tab still scroll */

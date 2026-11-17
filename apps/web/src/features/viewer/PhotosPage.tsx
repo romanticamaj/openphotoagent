@@ -102,7 +102,7 @@ function TimelineBatch({ sel, onClear }: { sel: Selection; onClear: () => void }
       : api.createSelection({ asset_ids: [...sel.ids] });
   const put = async (albumId: string) => api.selectionAlbum((await select()).id, albumId);
   return (
-    <div data-testid="timeline-batch" className="timeline-batch">
+    <div data-testid="timeline-batch" className="timeline-batch toolbar">
       <strong className="tnum">{t("batch.selected", { n: n.toLocaleString(i18n.language) })}</strong>
       <FavoriteSelection put={put} />
       <AddToAlbum put={put} />

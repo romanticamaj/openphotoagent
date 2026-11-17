@@ -13,6 +13,7 @@ import json
 import re
 import secrets
 import time
+import unicodedata
 from datetime import datetime
 from typing import Any
 
@@ -447,6 +448,16 @@ def _ft_cond(tsq: str, en: str, tag: str) -> Any:
 
 
 _CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
+
+
+def _tidy(q: str) -> str:
+    """Control characters out (SRCH-TOK-009), and the marks at either end: 「## swing」 lost the 遊樂場 suggestion
+    and its group grew 16 → 126 (audit round 129, SRCH-TOK-046). Marks inside a query stay."""
+    q = _CONTROL.sub("", q).strip()
+    keep = [i for i, ch in enumerate(q) if unicodedata.category(ch)[0] not in "PSZ"]
+    return q[keep[0] : keep[-1] + 1] if keep else q
+
+
 UNINDEXED = ("place", "camera_make")  # planner filters the search index cannot apply yet
 
 
@@ -520,7 +531,7 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
     from .labels import tokenizer
 
     # control characters carry no meaning in a query, and PostgreSQL cannot store NUL in text/JSON (SRCH-TOK-009)
-    body = body.model_copy(update={"q": _CONTROL.sub("", body.q)}) if body.q else body
+    body = body.model_copy(update={"q": _tidy(body.q)}) if body.q else body
     f0 = body.filters
     if f0.persons_all or f0.persons_any or f0.persons_none:
         from .faces import fsettings

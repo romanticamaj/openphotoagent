@@ -185,6 +185,9 @@ def batch_organize(sid: str, body: BatchOrganize, req: Request) -> dict[str, Any
                 for i, a in enumerate(planned)
             ],
         )
+        from .operations import plan_made
+
+        plan_made(c, st.clock, jid, pid, "organize")  # in 活動 (ACT-020)
     return {"job_id": jid, "plan_id": pid, "count": len(planned)}
 
 
@@ -230,4 +233,8 @@ def batch_trash(sid: str, req: Request) -> dict[str, Any]:
                 .order_by(asset_location.c.asset_id, asset_location.c.rel_path)
             )
         ]
-        return trash_plan(st, c, srcs, modes, drops, "trash", {"selection": sid})
+        out = trash_plan(st, c, srcs, modes, drops, "trash", {"selection": sid})
+        from .operations import plan_made
+
+        plan_made(c, st.clock, out["job_id"], out["plan_id"], "trash")  # in 活動 (ACT-020)
+        return out
