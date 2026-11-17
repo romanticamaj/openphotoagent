@@ -206,3 +206,22 @@ def test_mem_029_a_years_themes_keep_a_place_or_a_thing(embedded_pg, tmp_path):
     th = x.client.get("/api/v1/memories/themes", headers=x.ui).json()["themes"]
     assert [t["key"] for t in th if t["year"] == 2025] == ["activity.dance", "activity.soccer", "scene.beach"]
     x.eng.dispose()
+
+
+@pytest.mark.integration
+@pytest.mark.tc("MEM-030")
+def test_mem_030_the_months_photos_are_picked_across_it(embedded_pg, tmp_path, monkeypatch):
+    """回歸 (audit round 136): 那年這個月's 24 photos were the first 24 by time, all from one morning of a month of 424.
+    They are picked evenly over the month, first and last included, as a theme's are (MEM-013); the count is all."""
+    import opagent_api.routes_viewer as V
+
+    monkeypatch.setattr(V, "MEMORY_MAX", 4)
+    x = M(embedded_pg.dsn, tmp_path)
+    ids = [x.add(f"m{i}.jpg", taken=datetime(2025, 11, 10 + i, 9, tzinfo=UTC)) for i in range(20)]
+    x.index()
+    body = x.client.get("/api/v1/memories/on-this-day", params={"today": "2026-11-05"}, headers=x.ui).json()
+    x.eng.dispose()
+    assert body["scope"] == "month"
+    g = body["groups"][0]
+    assert g["total"] == 20
+    assert [p["asset_id"] for p in g["photos"]] == [ids[0], ids[6], ids[13], ids[19]]

@@ -498,3 +498,19 @@ def test_ask_date_003_a_day_in_every_year_is_a_chip(m):
     ev = ask(m, "11月10日拍了什麼", FakeLLM())
     f = next(d for e, d in ev if e == "filters")
     assert f["applied_filters"].get("month_day") == "11-10"
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ASK-RET-004")
+def test_ask_ret_004_nothing_found_offers_a_related_word(m):
+    """回歸 (audit rounds 135–136): 問 AI 「沙坑」 and 「鞦韆」 answered 0 and stopped, while the search page offers
+    「遊樂場（14 張以上）」 (SRCH-TOK-048, SRCH-SUG-001). A 0 answer names the related words that find photos, counted."""
+    for i in range(2):
+        m.add(f"2025/play{i}.jpg", caption="溜滑梯", tags=("scene.playground",))
+    m.index()
+    ev = ask(m, "有沒有沙坑的照片？", FakeLLM())
+    text = "".join(d["text"] for e, d in ev if e == "token")
+    assert text.startswith("找不到"), text
+    assert "「遊樂場」" in text and "2 張" in text, text
+    sug = next((d for e, d in ev if e == "suggest"), None)
+    assert sug == {"items": [{"q": "遊樂場", "n": 2}]}, sug

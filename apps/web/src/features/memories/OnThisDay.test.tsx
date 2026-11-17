@@ -7,11 +7,11 @@ beforeAll(async () => {
   await i18n.changeLanguage("zh-TW");
 });
 
-const s = vi.hoisted(() => ({ groups: [] as unknown[], scope: undefined as string | undefined }));
+const s = vi.hoisted(() => ({ groups: [] as unknown[], scope: undefined as string | undefined, asked: 0 }));
 vi.mock("../../lib/api", async (orig) => ({
   ...(await orig<typeof import("../../lib/api")>()),
   mediaUrl: (id: string) => `/m/${id}`,
-  api: { onThisDay: async () => ({ today: "2026-11-12", groups: s.groups, scope: s.scope }) },
+  api: { onThisDay: async () => (s.asked++, { today: "2026-11-12", groups: s.groups, scope: s.scope }) },
 }));
 
 import { memoryGrid, OnThisDay } from "./OnThisDay";
@@ -99,5 +99,26 @@ describe("那年今日 (10 §2.8)", () => {
     expect(await screen.findByRole("heading", { name: "那年這個月" })).toBeTruthy();
     expect(screen.getByText("1 年前的這個月")).toBeTruthy();
     s.scope = undefined;
+  });
+
+  it("[MEM-031] 回歸：三年時每一年少放幾張，三年都看得到；其餘從「+N」開（驗證第 136 輪：1280 px 第三年被切掉、沒有捲動提示）", async () => {
+    const year = (y: number, n: number) => ({ year: y, years_ago: 2026 - y, photos: Array.from({ length: n }, (_, i) => ({ asset_id: `${y}-${i}`, ch: null, taken_at: null })) });
+    s.groups = [year(2025, 24), year(2024, 10), year(2023, 10)];
+    const open = vi.fn();
+    wrap(open);
+    await screen.findByRole("heading", { name: "那年今日" });
+    for (const y of [2025, 2024, 2023]) expect(screen.getAllByRole("button", { name: new RegExp(`^${y}`) })).toHaveLength(4);
+    fireEvent.click(screen.getByRole("button", { name: /2025.*20/ })); // 「+20」 opens where the row stops
+    expect(open.mock.calls[0]![1]).toBe(4);
+    s.groups = [year(2025, 24)];
+  });
+
+  it("[MEM-032] 回歸：卡片等時間軸的第一批照片之後才去拿（驗證第 136 輪：有卡片時第一張照片 266 ms、沒有時 196 ms）", async () => {
+    s.groups = [{ year: 2025, years_ago: 1, photos: [{ asset_id: "a", ch: null, taken_at: null }] }];
+    const before = s.asked;
+    wrap();
+    expect(s.asked).toBe(before); // not asked while the timeline's first photos load
+    expect(await screen.findByRole("heading", { name: "那年今日" })).toBeTruthy();
+    expect(s.asked).toBe(before + 1);
   });
 });

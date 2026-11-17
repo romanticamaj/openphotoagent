@@ -913,8 +913,24 @@ def _turn(st: AppState, body: AskIn, turn: str) -> Iterator[tuple[str, dict[str,
                     if n == 0
                     else f"有，找到 {total:,} 張，其中 {n:,} 張看得出「{sw['word']}」，排在前面。"
                 )
+        tried: list[dict[str, Any]] = []
+        if total == 0 and answer:
+            # nothing found: the related words that find photos, as the search page offers them; 沙坑 answered 0 and
+            # stopped where search offered 遊樂場 (audit rounds 135-136, ASK-RET-004)
+            from .labels import tokenizer
+
+            for w in tokenizer().related(text_q or body.message)[:4]:
+                n = int(H.count_photos(ctx, {"query": w})["count"])
+                if n:
+                    tried.append({"q": w, "n": n})
+            if tried:
+                answer = (
+                    answer.rstrip() + "可以試試" + "、".join(f"「{x['q']}」（{x['n']:,} 張）" for x in tried) + "。"
+                )
         for chunk in re.findall(r".{1,24}", answer, re.S):
             yield "token", {"text": chunk}
+        if tried:
+            yield "suggest", {"items": tried}
         for i, m in enumerate(G.CITE.finditer(answer)):
             yield "citation", {"marker": m.group(0), "kind": "photo", "id": m.group(1), "ordinal": i}
         yield "step.completed", completed(sid, t0, "ok", "")

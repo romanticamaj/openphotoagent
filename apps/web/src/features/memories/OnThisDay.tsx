@@ -1,7 +1,7 @@
 // 那年今日 (10 §2.8): the same day in earlier years, a row per year at the top of 照片. Read-only; 「今天先不看」 hides it
 // until tomorrow, on this computer only.
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api, mediaUrl } from "../../lib/api";
 import { turnStyle } from "../../lib/turn";
@@ -24,6 +24,8 @@ export function memoryGrid(photos: MemoryPhoto[]): GridApi {
 
 const KEY = "opa.memories.hidden";
 const SHOWN = 8; // photos per year in the row; the rest open in the Lightbox
+// fewer each when there are more years, so all fit: at 1280 px the third was cut off (round 136, MEM-031)
+const shownFor = (years: number) => Math.min(SHOWN, Math.max(4, Math.floor(12 / Math.max(1, years))));
 
 function hiddenToday(day: string): boolean {
   try {
@@ -35,10 +37,23 @@ function hiddenToday(day: string): boolean {
 
 export function OnThisDay({ onOpen, away = false }: { onOpen: (photos: MemoryPhoto[], start: number) => void; away?: boolean }) {
   const { t, i18n } = useTranslation();
-  const q = useQuery({ queryKey: ["on-this-day"], queryFn: () => api.onThisDay(), staleTime: 60 * 60 * 1000 });
+  // asked once the page is idle, after the timeline's first photos: with the card asked at once, the first photo
+  // came at 266 ms against 196 ms (round 136, MEM-032)
+  const [idle, setIdle] = useState(false);
+  useEffect(() => {
+    const w = window as Window & { requestIdleCallback?: (f: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void };
+    if (w.requestIdleCallback) {
+      const id = w.requestIdleCallback(() => setIdle(true), { timeout: 1500 });
+      return () => w.cancelIdleCallback?.(id);
+    }
+    const id = window.setTimeout(() => setIdle(true), 300);
+    return () => window.clearTimeout(id);
+  }, []);
+  const q = useQuery({ queryKey: ["on-this-day"], queryFn: () => api.onThisDay(), staleTime: 60 * 60 * 1000, enabled: idle });
   const [hidden, setHidden] = useState(false);
   const day = q.data?.today ?? "";
   const month = q.data?.scope === "month";
+  const per = shownFor(q.data?.groups.length ?? 1);
   // `away`: the timeline has been scrolled down; the card steps aside and comes back at the top (MEM-009)
   if (!q.data?.groups.length || hidden || away || hiddenToday(day)) return null;
   return (
@@ -73,7 +88,7 @@ export function OnThisDay({ onOpen, away = false }: { onOpen: (photos: MemoryPho
               ) : null}
             </p>
             <ul className="flex gap-1">
-              {g.photos.slice(0, SHOWN).map((p, i) => (
+              {g.photos.slice(0, per).map((p, i) => (
                 <li key={p.asset_id}>
                   <button
                     type="button"
@@ -85,16 +100,16 @@ export function OnThisDay({ onOpen, away = false }: { onOpen: (photos: MemoryPho
                   </button>
                 </li>
               ))}
-              {g.photos.length > SHOWN ? (
+              {g.photos.length > per ? (
                 <li className="self-center">
                   {/* the rest open where the row stops (audit round 49: 「+16」 was only text) */}
                   <button
                     type="button"
                     className="on-this-day-more tnum"
-                    aria-label={t("memories.more", { n: (g.photos.length - SHOWN).toLocaleString(i18n.language), year: g.year })}
-                    onClick={() => onOpen(g.photos.map((x) => ({ id: x.asset_id, ch: x.ch ?? undefined, rot: x.rot })), SHOWN)}
+                    aria-label={t("memories.more", { n: (g.photos.length - per).toLocaleString(i18n.language), year: g.year })}
+                    onClick={() => onOpen(g.photos.map((x) => ({ id: x.asset_id, ch: x.ch ?? undefined, rot: x.rot })), per)}
                   >
-                    +{(g.photos.length - SHOWN).toLocaleString(i18n.language)}
+                    +{(g.photos.length - per).toLocaleString(i18n.language)}
                   </button>
                 </li>
               ) : null}

@@ -265,13 +265,16 @@ def _memory_months(c: Any, oldest: int, now: date) -> dict[int, tuple[list[Any],
         )
         .order_by(when, asset.c.id)
     ).all()
-    out: dict[int, tuple[list[Any], int]] = {}
+    from opagent_core.memories import _spread
+
+    kept: dict[int, list[Any]] = {}
+    counts: dict[int, int] = {}
     for r in rows:
-        shown, n = out.get(r.at.year, ([], 0))
-        if not r.dup and len(shown) < MEMORY_MAX:
-            shown.append(r)
-        out[r.at.year] = (shown, n + 1)
-    return out
+        counts[r.at.year] = counts.get(r.at.year, 0) + 1
+        if not r.dup:
+            kept.setdefault(r.at.year, []).append(r)
+    # picked evenly over the month: the first 24 by time were one morning of 424 (round 136, MEM-030)
+    return {y: (_spread(kept.get(y, []), MEMORY_MAX), n) for y, n in counts.items()}
 
 
 @router.get("/memories/on-this-day")

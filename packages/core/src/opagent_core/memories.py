@@ -17,7 +17,7 @@ class Theme:
     asset_ids: tuple[str, ...]  # at most ``shown``, spread over the theme in the given order
 
 
-def _spread(ids: list[str], n: int) -> list[str]:
+def _spread[T](ids: list[T], n: int) -> list[T]:
     """``n`` of ``ids`` evenly over the list, first and last included."""
     if len(ids) <= n:
         return list(ids)
