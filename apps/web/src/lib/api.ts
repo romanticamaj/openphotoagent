@@ -416,6 +416,9 @@ export const api = {
   removeManyFromAlbum: (id: string, asset_ids: string[]) => req<{ count: number }>("POST", `/albums/${encodeURIComponent(id)}/photos/remove`, { asset_ids }),
   removeFromAlbum: (id: string, assetId: string) => req<{ count: number }>("DELETE", `/albums/${encodeURIComponent(id)}/photos/${encodeURIComponent(assetId)}`),
   setRotation: (assetId: string, degrees: number) => req<{ rotation: number }>("PUT", `/assets/${encodeURIComponent(assetId)}/rotation`, { degrees }),
+  /** an edit kept in the library, never written to the file (ADR-0057) */
+  setEdit: (assetId: string, edit: Edit) => req<{ edit: Edit }>("PUT", `/assets/${encodeURIComponent(assetId)}/edit`, edit),
+  revertEdit: (assetId: string) => req<{ edit: null }>("DELETE", `/assets/${encodeURIComponent(assetId)}/edit`),
   setFavorite: (assetId: string, on: boolean) => req<{ favorite: boolean }>(on ? "PUT" : "DELETE", `/assets/${encodeURIComponent(assetId)}/favorite`),
   analysisStatus: (lang: string) => req<AnalysisStatus>("GET", `/analysis/status?lang=${encodeURIComponent(lang)}`),
   analyzeSource: (id: string) => req<{ job_id: string }>("POST", `/sources/${encodeURIComponent(id)}/analyze`),

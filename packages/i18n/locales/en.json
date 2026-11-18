@@ -1242,5 +1242,32 @@
     "close": "Close",
     "readOnlyShort": "read-only",
     "allReadOnly": "Every folder in the library is read-only, so photos cannot go to the trash."
+  },
+  "edit": {
+    "title": "Edit",
+    "adjust": "Adjust",
+    "exposure": "Exposure",
+    "contrast": "Contrast",
+    "highlights": "Highlights",
+    "shadows": "Shadows",
+    "saturation": "Saturation",
+    "warmth": "Warmth",
+    "straighten": "Straighten",
+    "crop": "Crop",
+    "aspect": "Crop aspect",
+    "original": "Original",
+    "filters": "Filters",
+    "filter": {
+      "vivid": "Vivid",
+      "warm": "Warm",
+      "cool": "Cool",
+      "fade": "Fade",
+      "mono": "Mono",
+      "noir": "Noir"
+    },
+    "done": "Done",
+    "cancel": "Cancel",
+    "revert": "Revert to original",
+    "open": "Edit"
   }
 }

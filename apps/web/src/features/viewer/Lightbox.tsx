@@ -17,6 +17,9 @@ import { platform } from "../../lib/platform";
 import { placeholder } from "../../lib/thumbhash";
 import type { GridApi } from "./PhotoGrid";
 import { memoryGrid } from "../memories/OnThisDay";
+import { Edited, editFilter } from "../../lib/editView";
+import type { Edit } from "../../lib/editMath";
+import { EditPanel } from "./EditPanel";
 
 // 「問這張」 loads with the ask chunk, not with the photos route (PERF-003)
 const AskPhoto = lazy(() => import("../ask/AskPanel").then((m) => ({ default: m.AskPhoto })));
@@ -119,6 +122,30 @@ export function Lightbox({
       void qcr.invalidateQueries({ queryKey: ["asset", asset.id] }); // 尺寸 follows the turn (ROT-005)
     });
   }, [asset, rot, qcr]);
+  // edited in the app (ADR-0057): shown at once, kept in the library on 完成, the file is not touched
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<Edit | null>(null);
+  const [edits, setEdits] = useState<Record<string, Edit | null>>({});
+  const full = useQuery({ queryKey: ["asset-edit", asset?.id], queryFn: () => api.asset(asset!.id), enabled: Boolean(asset), staleTime: 60_000 });
+  const saved: Edit | null = asset ? (asset.id in edits ? edits[asset.id]! : ((full.data as { edit?: Edit | null } | undefined)?.edit ?? (asset as { ed?: Edit | null }).ed ?? null)) : null;
+  const shown = editing ? draft : saved;
+  const editDone = (e: Edit | null) => {
+    if (!asset) return;
+    setEdits((m) => ({ ...m, [asset.id]: e }));
+    setEditing(false);
+    setDraft(null);
+    const done = () => {
+      for (const k of ["timeline", "search", "on-this-day", "album", "asset-edit"]) void qcr.invalidateQueries({ queryKey: [k] });
+    };
+    void (e ? api.setEdit(asset.id, e) : api.revertEdit(asset.id)).then(done);
+    requestAnimationFrame(() => dialog.current?.querySelector<HTMLButtonElement>("[data-edit-open]")?.focus());
+  };
+  const openEdit = useCallback(() => {
+    if (!asset) return;
+    setDraft(saved);
+    setShowInfo(false);
+    setEditing(true);
+  }, [asset, saved]);
   const stageRef = useRef<HTMLDivElement>(null);
   const [stageBox, setStageBox] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
   useEffect(() => {
@@ -141,6 +168,24 @@ export function Lightbox({
         transform: `translate(-50%, -50%) ${view} rotate(${rot}deg)`,
       }
     : { transform: `${view}${rot ? ` rotate(${rot}deg)` : ""}`, width: "100%", height: "100%" };
+  // the edit's light and colour on the photo itself; a crop or straighten draws it in a frame of the crop's shape
+  const toneFilter = editFilter(shown);
+  // inside the frame, a quarter turn fills the whole photo's box (before its crop), as in the grid (EDIT-002)
+  const frameStyle = (box: { fullW: number; fullH: number } | null): React.CSSProperties =>
+    quarter && box ? turnStyle(rot, box.fullW, box.fullH) : { width: "100%", height: "100%", transform: rot ? `rotate(${rot}deg)` : undefined };
+  if (toneFilter) imgStyle.filter = toneFilter;
+  const cropFrame = (() => {
+    const c = shown?.crop;
+    if (!(c || shown?.straighten) || !natural || !stageBox.w) return null;
+    const fw = quarter ? natural.h : natural.w;
+    const fh = quarter ? natural.w : natural.h;
+    const cw = c?.w ?? 1;
+    const ch = c?.h ?? 1;
+    const ratio = (fw * cw) / (fh * ch);
+    const bw = Math.min(stageBox.w, stageBox.h * ratio);
+    const bh = bw / ratio;
+    return { bw, bh, fullW: bw / cw, fullH: bh / ch };
+  })();
 
   // zoomed in: have the 2048 px preview made, then show it over the 1024 one (VIEW-035, 10 §3.4)
   useEffect(() => {
@@ -269,6 +314,8 @@ export function Lightbox({
       I: () => setShowInfo((s) => !s),
       r: rotate,
       R: rotate,
+      e: openEdit, // 編輯 (ADR-0057)
+      E: openEdit,
       f: () => setFavWanted(ord), // carried out once this photo and its ★ state are in, not dropped
       F: () => setFavWanted(ord),
       "+": () => setScale((s) => Math.min(8, s * 1.5)),
@@ -453,6 +500,15 @@ export function Lightbox({
             </svg>
           </button>
         ) : null}
+        {asset ? (
+          <button type="button" data-edit-open="" aria-pressed={editing} onClick={() => (editing ? (setEditing(false), setDraft(null)) : openEdit())} aria-label={t("edit.open")} title={`${t("edit.open")} (E)`} className="icon-button">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M4 7h10M18 7h2M4 17h4M12 17h8" />
+              <circle cx="16" cy="7" r="2" />
+              <circle cx="10" cy="17" r="2" />
+            </svg>
+          </button>
+        ) : null}
         <button
           type="button"
           aria-pressed={playing}
@@ -502,7 +558,48 @@ export function Lightbox({
             style={{ scale: "1.05", ...(prev.rot ? { transform: `rotate(${prev.rot}deg)` } : {}) }}
           />
         ) : null}
-        {asset && (
+        {asset && cropFrame ? (
+          // cropped or straightened: the photo in a frame of the crop's shape, fitted to the stage (ADR-0057)
+          <div className="lb-crop" style={{ width: `${cropFrame.bw}px`, height: `${cropFrame.bh}px`, transform: `translate(-50%, -50%) ${view}` }}>
+            <Edited edit={shown}>
+              <>
+            <img
+              key={`${asset.id}-t512`}
+              src={mediaUrl(asset.id, "t512", asset.ch)}
+              alt=""
+              data-variant="t512"
+              onLoad={(e) => {
+                setStage((s) => s ?? "t512");
+                setNatural({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight });
+              }}
+              style={frameStyle(cropFrame)}
+            />
+            {stage !== null && (
+              <img
+                key={`${asset.id}-p1024`}
+                src={mediaUrl(asset.id, "p1024", asset.ch)}
+                alt={asset.taken_at ? t("viewer.photoAlt", { date: asset.taken_at.slice(0, 10) }) : ""}
+                data-variant="p1024"
+                onLoad={() => setStage((s) => (s === "p2048" ? s : "p1024"))}
+                style={frameStyle(cropFrame)}
+              />
+            )}
+            {sharp ? (
+              // zoomed in: the 2048 px preview, made on first request (10 §3.4); the 1024 one stays under it until then
+              <img
+                key={`${asset.id}-p2048`}
+                src={mediaUrl(asset.id, "p2048", asset.ch)}
+                alt=""
+                data-variant="p2048"
+                onLoad={() => setStage("p2048")}
+                onError={(e) => (e.currentTarget.style.visibility = "hidden")}
+                style={frameStyle(cropFrame)}
+              />
+            ) : null}
+</>
+            </Edited>
+          </div>
+        ) : asset ? (
           <>
             <img
               key={`${asset.id}-t512`}
@@ -537,8 +634,8 @@ export function Lightbox({
                 style={imgStyle}
               />
             ) : null}
-          </>
-        )}
+</>
+        ) : null}
         {asset && showInfo && natural && scale === 1 && !rot ? <PhotoFaces id={asset.id} photo={natural} /> : null}
         {grid.total > 1 && !ended ? (
           <>
@@ -562,7 +659,22 @@ export function Lightbox({
           />
         ))}
       </nav>
-      {showInfo && asset && <InfoPanel id={asset.id} onSaved={() => setToast(t("lightbox.correctionSaved"))} />}
+      {showInfo && asset && !editing && <InfoPanel id={asset.id} onSaved={() => setToast(t("lightbox.correctionSaved"))} />}
+      {editing && asset ? (
+        <EditPanel
+          initial={saved}
+          w={(rot === 90 || rot === 270 ? asset.h : asset.w) ?? 0}
+          h={(rot === 90 || rot === 270 ? asset.w : asset.h) ?? 0}
+          onChange={setDraft}
+          onSave={(e) => editDone(Object.keys(e).length > 1 ? e : null)}
+          onRevert={() => editDone(null)}
+          onCancel={() => {
+            setEditing(false);
+            setDraft(null);
+            requestAnimationFrame(() => dialog.current?.querySelector<HTMLButtonElement>("[data-edit-open]")?.focus());
+          }}
+        />
+      ) : null}
       {toast && <Toast text={toast} onDone={() => setToast(null)} />}
     </div>
   );

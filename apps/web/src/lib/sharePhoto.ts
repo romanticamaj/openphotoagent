@@ -1,4 +1,5 @@
 import { previewBlob } from "./api";
+import { applyEdit, coverScale, isIdentity, type Edit } from "./editMath";
 import { platform } from "./platform";
 
 /**
@@ -51,18 +52,37 @@ export async function copyPhoto(p: SharedPhoto, d: ShareDeps = browserDeps()): P
   return "copied";
 }
 
-export async function encodeTurned(b: Blob, type: string, rot: number): Promise<Blob> {
+export async function encodeTurned(b: Blob, type: string, rot: number, edit?: Edit | null): Promise<Blob> {
   const img = await createImageBitmap(b);
   const quarter = rot === 90 || rot === 270;
+  const W = quarter ? img.height : img.width; // the photo after its quarter turn
+  const H = quarter ? img.width : img.height;
+  // an edit as the app shows it (ADR-0057, EDIT-013): only the crop leaves, straightened, with its light and colour
+  const crop = edit?.crop ?? { x: 0, y: 0, w: 1, h: 1 };
+  const cx = Math.round(crop.x * W);
+  const cy = Math.round(crop.y * H);
   const c = document.createElement("canvas");
-  c.width = quarter ? img.height : img.width;
-  c.height = quarter ? img.width : img.height;
+  c.width = Math.max(1, Math.round(crop.w * W));
+  c.height = Math.max(1, Math.round(crop.h * H));
   const g = c.getContext("2d");
   if (!g) throw new Error("CANVAS_UNAVAILABLE");
-  g.translate(c.width / 2, c.height / 2);
+  if (edit?.straighten) {
+    const s = coverScale(edit.straighten, c.width, c.height);
+    g.translate(c.width / 2, c.height / 2);
+    g.rotate((edit.straighten * Math.PI) / 180);
+    g.scale(s, s);
+    g.translate(-c.width / 2, -c.height / 2);
+  }
+  g.translate(-cx, -cy);
+  g.translate(W / 2, H / 2);
   g.rotate((rot * Math.PI) / 180);
   g.drawImage(img, -img.width / 2, -img.height / 2);
   img.close();
+  if (edit && !isIdentity({ ...edit, crop: undefined, straighten: undefined })) {
+    const data = g.getImageData(0, 0, c.width, c.height);
+    applyEdit(data.data, edit);
+    g.putImageData(data, 0, 0);
+  }
   // toDataURL, not toBlob: in WebView2 toBlob took about 1 s a photo, even for a blank canvas (round 141, SHARE-039)
   const url = c.toDataURL(type, 0.92);
   const comma = url.indexOf(",");

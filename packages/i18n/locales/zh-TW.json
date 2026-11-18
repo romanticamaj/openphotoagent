@@ -1242,5 +1242,32 @@
     "close": "關閉",
     "readOnlyShort": "唯讀",
     "allReadOnly": "圖庫的資料夾都是唯讀的，照片不能移到垃圾桶。"
+  },
+  "edit": {
+    "title": "編輯",
+    "adjust": "調整",
+    "exposure": "曝光",
+    "contrast": "對比",
+    "highlights": "亮部",
+    "shadows": "暗部",
+    "saturation": "飽和度",
+    "warmth": "色溫",
+    "straighten": "拉直",
+    "crop": "裁切",
+    "aspect": "裁切比例",
+    "original": "原始比例",
+    "filters": "濾鏡",
+    "filter": {
+      "vivid": "鮮明",
+      "warm": "暖色",
+      "cool": "冷色",
+      "fade": "褪色",
+      "mono": "黑白",
+      "noir": "黑白強烈"
+    },
+    "done": "完成",
+    "cancel": "取消",
+    "revert": "還原原圖",
+    "open": "編輯"
   }
 }

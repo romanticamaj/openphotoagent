@@ -1,4 +1,5 @@
 import { api, previewBlob } from "./api";
+import type { Edit } from "./editMath";
 import { platform } from "./platform";
 import { encodeTurned, photoFileName, saveFile } from "./sharePhoto";
 
@@ -10,9 +11,9 @@ import { encodeTurned, photoFileName, saveFile } from "./sharePhoto";
  * about by the browser.
  */
 export type ManyDeps = {
-  info: (id: string) => Promise<{ rot: number; takenAt: string | null }>;
+  info: (id: string) => Promise<{ rot: number; takenAt: string | null; edit?: Edit | null }>;
   preview: (id: string) => Promise<Blob>;
-  encode: (b: Blob, type: string, rot: number) => Promise<Blob>;
+  encode: (b: Blob, type: string, rot: number, edit?: Edit | null) => Promise<Blob>;
   /** desktop: the OS folder dialog, a new folder in it, the files written and the folder opened; null when cancelled */
   saveShared: ((day: string, files: Array<{ name: string; bytes: Uint8Array }>) => Promise<{ handle: string; dir: string; n: number } | null>) | undefined;
   /** desktop: the OS folder dialog alone, before any photo is made (SHARE-031); null when cancelled */
@@ -59,8 +60,8 @@ export async function shareMany(
     for (let k = i; k < i + AHEAD; k++) ask(k);
     let one: { name: string; bytes: Uint8Array; blob: Blob };
     try {
-      const { rot, takenAt } = await d.info(id);
-      const blob = await d.encode(await asked[i]!, "image/jpeg", rot);
+      const { rot, takenAt, edit } = await d.info(id);
+      const blob = await d.encode(await asked[i]!, "image/jpeg", rot, edit ?? null); // as edited in the app (EDIT-014)
       one = { name: photoFileName({ id, takenAt }, "jpg"), bytes: new Uint8Array(await blob.arrayBuffer()), blob };
     } catch (e) {
       failed += 1; // one photo whose preview is missing does not stop the rest; the result says so (SHARE-018)
@@ -169,7 +170,7 @@ export function browserManyDeps(nav: Navigator | undefined = typeof navigator ==
   return {
     info: async (id) => {
       const a = await api.asset(id);
-      return { rot: a.rotation ?? 0, takenAt: a.taken_at ?? null };
+      return { rot: a.rotation ?? 0, takenAt: a.taken_at ?? null, edit: (a as { edit?: Edit | null }).edit ?? null };
     },
     preview: previewBlob,
     encode: encodeTurned,

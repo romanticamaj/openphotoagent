@@ -145,3 +145,16 @@ describe("sharing several photos (ADR-0054; audit round 124: one at a time only)
     expect(e!.crc).toBe(crc32(new TextEncoder().encode("hello")));
   });
 });
+
+describe("sharing edited photos (ADR-0057)", () => {
+  it("[EDIT-014] 分享多張時，每張照它的編輯做出來", async () => {
+    const edit = { v: 1 as const, exposure: 0.5 };
+    const seen: unknown[] = [];
+    const d = deps({
+      info: vi.fn(async (id: string) => ({ rot: 0, takenAt: null, edit: id === "a1" ? edit : null })),
+      encode: vi.fn(async (b: Blob, _t: string, _r: number, e?: unknown) => (seen.push([await b.text(), e]), jpeg("x"))),
+    });
+    await shareMany(["a1", "b2"], d, "2026-11-18");
+    expect(seen).toEqual([["a1", edit], ["b2", null]]);
+  });
+});
