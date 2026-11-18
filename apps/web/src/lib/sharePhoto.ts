@@ -7,11 +7,11 @@ import { platform } from "./platform";
  * in the page: the original is never opened (invariant 1), nothing is written in a library folder (invariant 3), and
  * re-encoding drops its metadata — where it was taken stays home unless the person sends the original themselves.
  */
-export type SharedPhoto = { id: string; rot: number; takenAt: string | null };
+export type SharedPhoto = { id: string; rot: number; takenAt: string | null; /** as edited in the app (EDIT-015) */ edit?: Edit | null };
 export type ShareDeps = {
   preview: (id: string) => Promise<Blob>;
   /** draw the preview turned by `rot` degrees and encode it as `type` */
-  encode: (b: Blob, type: string, rot: number) => Promise<Blob>;
+  encode: (b: Blob, type: string, rot: number, edit?: Edit | null) => Promise<Blob>;
   save: (b: Blob, name: string) => void;
   share: ((d: { files: File[] }) => Promise<void>) | undefined;
   canShare: ((d: { files: File[] }) => boolean) | undefined;
@@ -29,7 +29,7 @@ export function photoFileName(p: { id: string; takenAt: string | null }, ext: st
 
 /** The system share sheet when it takes files; otherwise the photo is saved as a file. A cancelled sheet is no error. */
 export async function sharePhoto(p: SharedPhoto, d: ShareDeps = browserDeps()): Promise<"shared" | "saved" | "cancelled"> {
-  const jpeg = await d.encode(await d.preview(p.id), "image/jpeg", p.rot);
+  const jpeg = await d.encode(await d.preview(p.id), "image/jpeg", p.rot, p.edit ?? null);
   const name = photoFileName(p, "jpg");
   const file = new File([jpeg], name, { type: "image/jpeg" });
   if (d.share && d.canShare?.({ files: [file] })) {
@@ -48,7 +48,7 @@ export async function sharePhoto(p: SharedPhoto, d: ShareDeps = browserDeps()): 
 /** The photo on the clipboard, as a PNG (the one image type clipboards take), to paste into a chat. */
 export async function copyPhoto(p: SharedPhoto, d: ShareDeps = browserDeps()): Promise<"copied"> {
   if (!d.writeClipboard) throw new Error("CLIPBOARD_UNSUPPORTED");
-  await d.writeClipboard(await d.encode(await d.preview(p.id), "image/png", p.rot));
+  await d.writeClipboard(await d.encode(await d.preview(p.id), "image/png", p.rot, p.edit ?? null));
   return "copied";
 }
 

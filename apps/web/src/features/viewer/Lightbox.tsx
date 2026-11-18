@@ -463,7 +463,7 @@ export function Lightbox({
               title={t("lightbox.share")}
               className="icon-button"
               onClick={() => {
-                sharePhoto({ id: asset.id, rot, takenAt: asset.taken_at ?? null }).then(
+                sharePhoto({ id: asset.id, rot, takenAt: asset.taken_at ?? null, ...(saved ? { edit: saved } : {}) }).then(
                   (r) => (r === "saved" ? setToast(t("lightbox.shareSaved", { name: photoFileName({ id: asset.id, takenAt: asset.taken_at ?? null }, "jpg") })) : undefined),
                   () => setToast(t("lightbox.shareFailed")),
                 );
@@ -479,7 +479,7 @@ export function Lightbox({
               title={t("lightbox.copyImage")}
               className="icon-button"
               onClick={() => {
-                copyPhoto({ id: asset.id, rot, takenAt: asset.taken_at ?? null }).then(
+                copyPhoto({ id: asset.id, rot, takenAt: asset.taken_at ?? null, ...(saved ? { edit: saved } : {}) }).then(
                   () => setToast(t("lightbox.copied")),
                   () => setToast(t("lightbox.copyFailed")),
                 );

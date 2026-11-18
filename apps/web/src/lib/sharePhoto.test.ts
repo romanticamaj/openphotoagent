@@ -94,3 +94,14 @@ describe("ids that share their start (audit round 112)", () => {
     expect(a).toBe("photo-2026-11-05-0c1e2a11.jpg"); // the id's random end, not its time-stamped start
   });
 });
+
+describe("one edited photo (ADR-0057)", () => {
+  it("[EDIT-015] 燈箱裡單張的分享與複製也照編輯做出來", async () => {
+    const edit = { v: 1 as const, crop: { x: 0, y: 0, w: 0.5, h: 1 } };
+    const got: unknown[] = [];
+    const d = deps({ encode: vi.fn(async (_b: Blob, type: string, _r: number, e?: unknown) => (got.push([type, e]), type === "image/png" ? png : jpeg)), writeClipboard: async () => undefined });
+    await sharePhoto({ id: "a", rot: 0, takenAt: null, edit }, d);
+    await copyPhoto({ id: "a", rot: 0, takenAt: null, edit }, d);
+    expect(got).toEqual([["image/jpeg", edit], ["image/png", edit]]);
+  });
+});
