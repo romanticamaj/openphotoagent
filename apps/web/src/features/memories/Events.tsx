@@ -60,7 +60,7 @@ export function Events({ onOpen }: { onOpen: (photos: MemoryPhoto[], start: numb
                   </svg>
                   {t("memories.playShort")}
                 </button>
-                <Link to="/search" search={{ q: ask }} className="underline">
+                <Link to="/search" search={{ q: ask, title }} className="underline">
                   {t("memories.themeAll")}
                 </Link>
                 <MemoryMenu title={title} hideRef={`event:${ev.day}`} fewer={ev.key && ev.name ? { key: ev.key, name: ev.name } : undefined} send={fb.send} />

@@ -209,6 +209,19 @@ describe("edited photos", () => {
   });
 });
 
+describe("an event's page", () => {
+  it("[SRCH-UI-065] 回歸：活動的「看全部」頁標題用卡片的名稱（驗證第 144～145 輪：「「2026年6月22日」的搜尋結果」）", async () => {
+    s.result = { items: [], facets: {}, total: 0, next_cursor: null, degraded: [], possible_total: 0, possible: [] };
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SearchPage q="2026年6月22日" title="6/22 · 運動場" />
+      </QueryClientProvider>,
+    );
+    await vi.waitFor(() => expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("6/22 · 運動場"));
+    s.result = null;
+  });
+});
+
 describe("one title a memory", () => {
   it("[SRCH-UI-064] 回歸：主題的「看全部」頁標題和卡片一樣（驗證第 143 輪：卡片「今年的白板」，打開的頁面寫「2026 的白板」）", async () => {
     s.result = { items: [], facets: {}, total: 0, next_cursor: null, degraded: [], possible_total: 0, possible: [], tag_names: { "object.whiteboard": "白板" }, today: "2026-11-18" } as never;

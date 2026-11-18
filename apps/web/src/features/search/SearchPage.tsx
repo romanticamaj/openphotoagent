@@ -25,7 +25,7 @@ const sameChips = (a: Chip[], b: Chip[]) => a.length === b.length && a.every((c,
 /** tries for a search page beyond the first: the page says it failed instead of waiting through three (SRCH-UI-047) */
 export const searchRetry = 1;
 
-export function SearchPage({ q: asked, tag, year, name }: { q: string; tag?: string; year?: string; name?: string }) {
+export function SearchPage({ q: asked, tag, year, name, title }: { q: string; tag?: string; year?: string; name?: string; /** a memory's own name, from its card (SRCH-UI-065) */ title?: string }) {
   // blanks alone are no query: a URL of 「　」 was titled 「「　」的搜尋結果」 over the whole library (SRCH-UI-061)
   const q = asked.trim();
   const { t, i18n } = useTranslation();
@@ -210,7 +210,7 @@ export function SearchPage({ q: asked, tag, year, name }: { q: string; tag?: str
       <div className="flex items-baseline gap-3">
         <h1 id="search-h" className="text-lg font-semibold">
           {/* a memory theme's photos are titled with the theme (audit round 83) */}
-          {tag && year && !q && chips.some((c) => c.kind === "tag" && c.value === tag) && chips.some((c) => c.kind === "year" && c.value === year) ? themeTitle(t, Number(year), { ...tagNames, ...first?.tag_names }[tag] ?? name ?? tag, first?.today) : first?.no_words ? t("search.noWordsTitle") : q ? t("search.resultsFor", { q }) : t("search.results")}
+          {tag && year && !q && chips.some((c) => c.kind === "tag" && c.value === tag) && chips.some((c) => c.kind === "year" && c.value === year) ? themeTitle(t, Number(year), { ...tagNames, ...first?.tag_names }[tag] ?? name ?? tag, first?.today) : first?.no_words ? t("search.noWordsTitle") : q && title ? title : q ? t("search.resultsFor", { q }) : t("search.results")}
         </h1>
         {/* nothing found with words set aside: 「找不到」 says it once below (SRCH-UI-052), the count reads 「0 張」 as on
             every page that finds nothing (SRCH-UI-053, audit round 124) */}

@@ -37,7 +37,7 @@ describe("活動 (ADR-0049 addendum 2)", () => {
     expect(screen.getByText("2026/3/2")).toBeTruthy(); // no subject: the date alone
     fireEvent.click(screen.getByRole("button", { name: "2025/11/13 · 足球，16 張" }));
     expect(open).toHaveBeenCalledWith([{ id: "a", rot: undefined }, { id: "b", rot: undefined }], 0);
-    expect(JSON.parse(screen.getAllByText("看全部")[0].closest("a")?.getAttribute("data-search") ?? "{}")).toEqual({ q: "2025年11月13日" });
+    expect(JSON.parse(screen.getAllByText("看全部")[0].closest("a")?.getAttribute("data-search") ?? "{}")).toEqual({ q: "2025年11月13日", title: "2025/11/13 · 足球" }); // its page named as the card (revised, SRCH-UI-065)
   });
 });
 
@@ -50,7 +50,7 @@ describe("an outing over days (audit round 99)", () => {
       </QueryClientProvider>,
     );
     expect(await screen.findByText("2026/4/8–4/9 · 手工")).toBeTruthy();
-    expect(JSON.parse(screen.getByText("看全部").closest("a")?.getAttribute("data-search") ?? "{}")).toEqual({ q: "2026年4月8日到4月9日" });
+    expect(JSON.parse(screen.getByText("看全部").closest("a")?.getAttribute("data-search") ?? "{}")).toEqual({ q: "2026年4月8日到4月9日", title: "2026/4/8–4/9 · 手工" }); // as the card (revised, SRCH-UI-065)
   });
 });
 
