@@ -192,6 +192,23 @@ describe("a theme's photos (audit round 80)", () => {
   });
 });
 
+describe("edited photos", () => {
+  it("[EDIT-009] 編輯過的照片在搜尋結果裡照編輯畫出（裁切與濾鏡）", async () => {
+    const hit = { asset_id: "e1", ch: null, score: 1, matched_by: ["fulltext"], category: null, tags: [], caption: "花", taken_at: null, ed: { v: 1, exposure: 0.5, crop: { x: 0, y: 0, w: 0.5, h: 1 } } };
+    s.result = { items: [hit], facets: {}, total: 1, next_cursor: null, degraded: [] };
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SearchPage q="花" />
+      </QueryClientProvider>,
+    );
+    const tile = (await screen.findAllByTestId("search-result"))[0]!;
+    const inner = tile.querySelector<HTMLElement>("[data-edit-inner]");
+    expect(inner?.style.width).toBe("200%");
+    expect(inner?.style.filter).toMatch(/#opa-e-/);
+    s.result = null;
+  });
+});
+
 describe("one title a memory", () => {
   it("[SRCH-UI-064] 回歸：主題的「看全部」頁標題和卡片一樣（驗證第 143 輪：卡片「今年的白板」，打開的頁面寫「2026 的白板」）", async () => {
     s.result = { items: [], facets: {}, total: 0, next_cursor: null, degraded: [], possible_total: 0, possible: [], tag_names: { "object.whiteboard": "白板" }, today: "2026-11-18" } as never;

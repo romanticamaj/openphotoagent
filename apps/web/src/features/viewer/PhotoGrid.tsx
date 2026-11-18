@@ -1,6 +1,7 @@
 // <PhotoGrid> (10 §2.2): month buckets with known counts are stacked by TimelineModel (estimated heights until
 // laid out); TanStack Virtual decides which buckets mount, and inside a bucket only the rows near the viewport
 // render (≤ ~400 tiles on a 4K screen). Layout runs in a Web Worker. ThumbHash paints every tile before its image.
+import { Edited } from "../../lib/editView";
 import { Link } from "@tanstack/react-router";
 import { useQueries, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
@@ -429,9 +430,11 @@ export function PhotoGrid({
                             }}
                           >
                             {!fast && (
+                              <Edited edit={a.ed}>
                               <img
                                 src={mediaUrl(a.id, thumbVariant(x.w, r.height, window.devicePixelRatio || 1), a.ch)}
-                                style={turnStyle(a.rot, x.w, r.height)}
+                                // the turn fills the whole photo's box, before its crop (EDIT-002)
+                                style={turnStyle(a.rot, x.w / (a.ed?.crop?.w ?? 1), r.height / (a.ed?.crop?.h ?? 1))}
                                 alt=""
                                 decoding="async"
                                 loading="lazy"
@@ -439,6 +442,7 @@ export function PhotoGrid({
                                 onLoad={firstPhoto}
                                 onError={(e) => (e.currentTarget.style.visibility = "hidden")}
                               />
+                              </Edited>
                             )}
                             {onPick ? (
                               <span data-check="" className="tile-check" aria-hidden="true">

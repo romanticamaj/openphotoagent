@@ -1,4 +1,5 @@
 import { endpoint, platform } from "./platform";
+import type { Edit } from "./editMath";
 // Thin REST client for /api/v1 (replaced by the OpenAPI-generated ts-client in slice 9/10).
 export type AnalysisStatus = {
   jobs: Array<{ job_id: string; folder: string; state: "queued" | "scanning" | "analysing"; done: number; total: number; failed: number }>;
@@ -77,7 +78,7 @@ export type PersonRow = { id: string; name: string | null; status: string; face_
 export type FaceCandidate = { face_id: string; asset_id: string; ch: string | null; bbox: number[]; score: number; tier?: number; clear?: boolean; sure?: boolean; faint?: boolean; group: string | null };
 export type FaceSuggestion = { face_id: string; person_id: string; person: string | null; score: number | null; asset_id: string };
 export type PurgeReport = { faces: number; embeddings: number; prototypes: number; persons: number; worker_pending: boolean };
-export type TimelineAsset = { id: string; ch?: string | null; w: number | null; h: number | null; thumbhash: string | null; taken_at: string | null; flags: string[]; rot?: number };
+export type TimelineAsset = { id: string; ch?: string | null; w: number | null; h: number | null; thumbhash: string | null; taken_at: string | null; flags: string[]; rot?: number; /** edited in the app (ADR-0057) */ ed?: Edit | null };
 export type Label = {
   result_id: string;
   category: string | null;
@@ -186,7 +187,7 @@ export type SearchBody = {
 };
 /** 「可能相關」 (ADR-0047): found by vectors only, unlike the photos the words found; never counted */
 export type PossibleHit = { asset_id: string; ch?: string | null; caption: string | null; taken_at: string | null; matched_by: string[] };
-export type SearchHit = { asset_id: string; ch?: string | null; rot?: number; score: number; matched_by: string[]; category: string | null; tags: string[]; caption: string | null; taken_at: string | null; /** copies folded into this one (05 §2.1) */ duplicates?: number };
+export type SearchHit = { asset_id: string; ch?: string | null; rot?: number; ed?: Edit | null; score: number; matched_by: string[]; category: string | null; tags: string[]; caption: string | null; taken_at: string | null; /** copies folded into this one (05 §2.1) */ duplicates?: number };
 export type Planner = {
   source: string;
   confidence: number;

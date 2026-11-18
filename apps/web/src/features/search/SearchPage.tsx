@@ -4,6 +4,7 @@ import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Edited } from "../../lib/editView";
 import { themeTitle } from "../memories/titles";
 import { Button } from "../../components/Button";
 import { COMPARE_MAX, CompareView } from "./CompareView";
@@ -378,7 +379,9 @@ export function SearchPage({ q: asked, tag, year, name }: { q: string; tag?: str
               onFocus={() => setActive(i)}
               onClick={(e) => clickHit(i, h.asset_id, e.shiftKey, e.ctrlKey || e.metaKey)}
             >
-              <img src={mediaUrl(h.asset_id, "t256", h.ch)} alt="" loading="lazy" style={turnStyle(h.rot)} onError={(e) => (e.currentTarget.style.visibility = "hidden")} />
+              <Edited edit={h.ed}>
+                <img src={mediaUrl(h.asset_id, "t256", h.ch)} alt="" loading="lazy" style={turnStyle(h.rot)} onError={(e) => (e.currentTarget.style.visibility = "hidden")} />
+              </Edited>
               {h.duplicates ? (
                 // copies of this photo, folded into it (SRCH-UI-024): they were hidden without a word
                 <span className="tile-copies tnum" aria-hidden="true" title={t("search.copies", { n: h.duplicates })}>

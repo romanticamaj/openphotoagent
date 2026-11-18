@@ -1432,3 +1432,8 @@ body {
 /* the faces dialog's risky choice (SHARE-040) */
 .share-risky { color: var(--danger, #e5484d); }
 .share-risky:hover { background: color-mix(in srgb, var(--danger, #e5484d) 12%, transparent); }
+
+/* an edited photo (ADR-0057): the crop shows the photo enlarged and moved inside its box */
+.edit-frame { position: absolute; inset: 0; overflow: hidden; display: block; }
+.edit-inner { position: absolute; display: block; }
+.edit-inner > img { width: 100%; height: 100%; object-fit: cover; }
