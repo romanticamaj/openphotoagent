@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "../../lib/i18n";
 
@@ -192,5 +192,18 @@ describe("那年今日 (10 §2.8)", () => {
     const img = document.querySelector(".on-this-day-tile img");
     expect(img?.getAttribute("fetchpriority")).toBe("low");
     expect(img?.getAttribute("decoding")).toBe("async");
+  });
+
+  it("[MEM-056] 回歸：卡片的縮圖等時間軸第一張照片出現才載入（驗證第 142 輪：低優先沒有用，本機伺服器照樣同時送，第一張照片 253 ms）", async () => {
+    window.localStorage.clear();
+    s.scope = undefined;
+    s.groups = [{ year: 2025, years_ago: 1, photos: [{ asset_id: "a", ch: null, taken_at: null }] }];
+    wrap();
+    await screen.findByRole("heading", { name: "那年今日" });
+    expect(document.querySelector(".on-this-day-tile img")?.getAttribute("src")).toBeNull(); // not asked for yet
+    act(() => {
+      window.dispatchEvent(new Event("opa:first-photo"));
+    });
+    expect(document.querySelector(".on-this-day-tile img")?.getAttribute("src")).toBe("/m/a");
   });
 });

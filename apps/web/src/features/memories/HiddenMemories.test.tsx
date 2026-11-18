@@ -49,4 +49,22 @@ describe("hidden memories", () => {
     fireEvent.click(screen.getByRole("button", { name: /還原/ }));
     await vi.waitFor(() => expect(document.activeElement).toBe(summary));
   });
+
+  it("[MEM-057] 回歸：最後一筆還原後清單消失，焦點到「回憶主題」標題（驗證第 142 輪：焦點掉到頁面）", async () => {
+    s.items = [{ id: "f7", kind: "hide", ref: "theme:2025:activity.soccer", name: "足球" }];
+    const h = document.createElement("h2");
+    h.id = "themes-h";
+    h.tabIndex = -1;
+    document.body.appendChild(h);
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <HiddenMemories />
+      </QueryClientProvider>,
+    );
+    await screen.findByText("已隱藏與少一點的回憶（1）");
+    s.items = [];
+    fireEvent.click(screen.getByRole("button", { name: /還原/ }));
+    await vi.waitFor(() => expect(document.activeElement).toBe(h));
+    h.remove();
+  });
 });

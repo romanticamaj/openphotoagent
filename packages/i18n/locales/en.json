@@ -1210,7 +1210,7 @@
     "hide": "Hide this memory",
     "fewer": "Fewer of “{name}”",
     "hidden": "Hid “{title}”",
-    "fewerDone": "Fewer of “{name}” in every year from now on",
+    "fewerDone": "“{name}” goes last from now on, and is left out when there is no room",
     "undo": "Undo",
     "monthsAgo_one": "{count} year ago this month",
     "monthsAgo_other": "{count} years ago this month",

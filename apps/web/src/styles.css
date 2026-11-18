@@ -1428,3 +1428,7 @@ body {
 .memory-menu { position: absolute; right: 0; bottom: calc(100% + 0.25rem); z-index: 30; display: flex; flex-direction: column; min-width: 10rem; padding: 0.25rem; border: 1px solid var(--border); border-radius: var(--radius-md); background: var(--surface); box-shadow: var(--shadow-md, 0 8px 24px rgb(0 0 0 / 0.25)); white-space: nowrap; }
 .memory-menu [role="menuitem"] { padding: 0.375rem 0.625rem; border-radius: var(--radius-sm); text-align: left; font-size: 0.8125rem; }
 .memory-menu [role="menuitem"]:hover, .memory-menu [role="menuitem"]:focus-visible { background: var(--surface-2); outline: none; }
+
+/* the faces dialog's risky choice (SHARE-040) */
+.share-risky { color: var(--danger, #e5484d); }
+.share-risky:hover { background: color-mix(in srgb, var(--danger, #e5484d) 12%, transparent); }

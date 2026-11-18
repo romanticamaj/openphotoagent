@@ -37,8 +37,12 @@ export function HiddenMemories() {
               aria-label={t("memories.restoreOne", { what: label(t, x) })}
               onClick={async () => {
                 await api.memoryFeedbackRemove(x.id);
-                for (const k of ["memory-feedback", "memory-themes", "memory-events"]) void qc.invalidateQueries({ queryKey: [k] });
-                summary.current?.focus(); // its row is gone: the list's heading, not the page (round 141, MEM-053)
+                const last = items.length === 1;
+                await Promise.all(["memory-feedback", "memory-themes", "memory-events"].map((k) => qc.invalidateQueries({ queryKey: [k] })));
+                // its row is gone: the list's heading (MEM-053); the last one takes the list too, so the themes'
+                // heading (round 142, MEM-057)
+                const heading = last ? document.getElementById("themes-h") : null;
+                (heading ?? summary.current)?.focus();
               }}
             >
               {t("memories.restore")}

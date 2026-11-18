@@ -176,3 +176,15 @@ describe("faces before a share, safe by default", () => {
     await vi.waitFor(() => expect(run2).toHaveBeenCalledWith(["a", "b"]));
   });
 });
+
+describe("faces before a share, the risky choice last", () => {
+  it("[SHARE-040] 回歸：「全部分享」排在最後並標成警示（驗證第 142 輪：排在第一個、看起來和其他一樣）", async () => {
+    const run = vi.fn(async (): Promise<ManyResult> => ({ kind: "cancelled" }));
+    render(<ShareSelection ids={["a", "b", "c"]} run={run} open={async () => ""} check={async () => ({ enabled: true, with_faces: ["a"] })} />);
+    fireEvent.click(screen.getByRole("button", { name: "分享 3 張…" }));
+    const dlg = await screen.findByRole("alertdialog");
+    const names = [...dlg.querySelectorAll("button")].map((b) => b.textContent);
+    expect(names[names.length - 1]).toBe("全部分享");
+    expect(screen.getByRole("button", { name: "全部分享" }).className).toContain("danger");
+  });
+});

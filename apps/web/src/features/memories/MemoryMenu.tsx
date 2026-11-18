@@ -84,12 +84,13 @@ export function MemoryMenu({ title, hideRef, fewer, send }: { title: string; hid
               close();
               return;
             }
-            // ↓ ↑ between the items, round (MEM-047)
-            if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+            // ↓ ↑ between the items, round (MEM-047); Home and End to the first and last (round 142, MEM-057)
+            if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) return;
             e.preventDefault();
             const items = [...(menu.current?.querySelectorAll<HTMLElement>("[role=menuitem]") ?? [])];
             const at = items.indexOf(document.activeElement as HTMLElement);
-            items[(at + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length]?.focus();
+            const to = e.key === "Home" ? 0 : e.key === "End" ? items.length - 1 : (at + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
+            items[to]?.focus();
           }}
           onBlur={(e) => {
             if (!e.currentTarget.contains(e.relatedTarget as Node | null) && e.relatedTarget !== btn.current) setOpen(false);

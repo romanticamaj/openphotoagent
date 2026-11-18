@@ -175,9 +175,6 @@ export function ShareSelection({
                 </h2>
                 <p className="text-sm text-[var(--text-muted)]">{t("share.facesNote")}</p>
                 <div className="flex flex-wrap gap-2">
-                  <Button variant="ghost" onClick={() => (shut(false), void go(ids))}>
-                    {t(faced ? "share.facesAll" : "share.facesAnyway")}
-                  </Button>
                   {faced && ids.length > faced.length ? (
                     <Button data-safe="" onClick={() => (shut(false), void go(ids.filter((x) => !faced.includes(x))))}>
                       {t("share.facesOthers", { n: fmt(ids.length - faced.length) })}
@@ -185,6 +182,10 @@ export function ShareSelection({
                   ) : null}
                   <Button variant="ghost" {...(faced && ids.length > faced.length ? {} : { "data-safe": "" })} onClick={() => shut()}>
                     {t("batch.cancel")}
+                  </Button>
+                  {/* the risky choice last, marked so: it came first and looked like the others (round 142, SHARE-040) */}
+                  <Button variant="ghost" className="share-risky danger" onClick={() => (shut(false), void go(ids))}>
+                    {t(faced ? "share.facesAll" : "share.facesAnyway")}
                   </Button>
                 </div>
               </div>

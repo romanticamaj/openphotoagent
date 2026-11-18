@@ -116,4 +116,20 @@ describe("a theme plays as a story (audit round 109)", () => {
     fireEvent.click(await screen.findByRole("button", { name: "復原" }));
     await vi.waitFor(() => expect(document.activeElement).toBe(screen.getByRole("heading", { name: "回憶主題" })));
   });
+
+  it("[MEM-057] 回歸：選單的 Home／End 到第一項、最後一項（驗證第 142 輪：End 沒有作用）", async () => {
+    s.themes = [{ year: 2025, key: "activity.soccer", name: "足球", count: 120, photos: [{ asset_id: "a", ch: null, taken_at: null }] }];
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Themes onOpen={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "更多：2025 的足球" }));
+    const [first, last] = screen.getAllByRole("menuitem");
+    await vi.waitFor(() => expect(document.activeElement).toBe(first));
+    fireEvent.keyDown(first!, { key: "End" });
+    expect(document.activeElement).toBe(last);
+    fireEvent.keyDown(last!, { key: "Home" });
+    expect(document.activeElement).toBe(first);
+  });
 });

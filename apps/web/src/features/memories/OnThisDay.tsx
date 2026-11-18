@@ -92,6 +92,19 @@ export function OnThisDay({ onOpen, away = false }: { onOpen: (photos: MemoryPho
   }, []);
   const q = useQuery({ queryKey: ["on-this-day"], queryFn: () => api.onThisDay(), staleTime: 60 * 60 * 1000, enabled: idle });
   const [hidden, setHidden] = useState(false);
+  // its images after the timeline's first photo: low priority did nothing against a local server, and the first
+  // photo came at 253 ms against 164 (round 142, MEM-056); 1.5 s at most when the grid shows nothing
+  const [imgs, setImgs] = useState(() => Boolean((window as Window & { __opaFirstPhoto?: boolean }).__opaFirstPhoto));
+  useEffect(() => {
+    if (imgs) return;
+    const go = () => setImgs(true);
+    window.addEventListener("opa:first-photo", go);
+    const id = window.setTimeout(go, 1500);
+    return () => {
+      window.removeEventListener("opa:first-photo", go);
+      window.clearTimeout(id);
+    };
+  }, [imgs]);
   const day = q.data?.today ?? "";
   const month = q.data?.scope === "month";
   const [width, setWidth] = useState<number | undefined>(undefined);
@@ -157,7 +170,7 @@ export function OnThisDay({ onOpen, away = false }: { onOpen: (photos: MemoryPho
                     aria-label={t("memories.open", { year: g.year, n: (i + 1).toLocaleString(i18n.language) })}
                     onClick={() => onOpen(g.photos.map((x) => ({ id: x.asset_id, ch: x.ch ?? undefined, rot: x.rot })), i)}
                   >
-                    <img src={mediaUrl(p.asset_id, "t256", p.ch)} alt="" loading="lazy" decoding="async" fetchPriority="low" style={turnStyle(p.rot)} />
+                    <img src={imgs ? mediaUrl(p.asset_id, "t256", p.ch) : undefined} alt="" loading="lazy" decoding="async" fetchPriority="low" style={turnStyle(p.rot)} />
                   </button>
                 </li>
               ))}

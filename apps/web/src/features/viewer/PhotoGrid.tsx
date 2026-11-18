@@ -16,6 +16,15 @@ import { layoutAsync } from "./layoutClient";
 import { Scrubber } from "./Scrubber";
 import { HEADER_H, TimelineModel, monthLabel, type Bucket } from "./timeline";
 
+
+/** The first grid photo has come: the memory card's thumbnails may load now (round 142, MEM-056). Once a page. */
+function firstPhoto(): void {
+  const w = window as Window & { __opaFirstPhoto?: boolean };
+  if (w.__opaFirstPhoto) return;
+  w.__opaFirstPhoto = true;
+  window.dispatchEvent(new Event("opa:first-photo"));
+}
+
 export type GridPos = { bucket: number; index: number };
 /** Its own component: the activity query ticks every second, and the grid must not render with it. */
 function EmptyLibrary() {
@@ -427,6 +436,7 @@ export function PhotoGrid({
                                 decoding="async"
                                 loading="lazy"
                                 draggable={false}
+                                onLoad={firstPhoto}
                                 onError={(e) => (e.currentTarget.style.visibility = "hidden")}
                               />
                             )}
