@@ -23,6 +23,10 @@ const ASPECTS: Array<{ label: string; ratio: number | null }> = [
   { label: "4:3", ratio: 4 / 3 },
   { label: "3:2", ratio: 3 / 2 },
   { label: "16:9", ratio: 16 / 9 },
+  // upright too: a turned photo had no crop to match (round 146, EDIT-025)
+  { label: "3:4", ratio: 3 / 4 },
+  { label: "2:3", ratio: 2 / 3 },
+  { label: "9:16", ratio: 9 / 16 },
 ];
 
 /** The largest centred crop of this aspect in a w×h photo (after its quarter turn); none for the original. */

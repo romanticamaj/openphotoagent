@@ -695,6 +695,7 @@
     "preparingN": "準備中 {done}/{total}…",
     "facesTitle": "{n} 張中有 {k} 張有人臉",
     "facesNote": "分享前請確認照片裡的人同意。",
+    "faceOne": "這張照片有人臉",
     "facesUnknown": "無法確認照片裡有沒有人臉",
     "facesAnyway": "仍要分享",
     "facesAll": "全部分享",

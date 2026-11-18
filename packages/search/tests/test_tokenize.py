@@ -702,3 +702,14 @@ def test_srch_tok_049_cooking_offers_food():
     tok = Tokenizer()
     for q in ("煮飯", "做菜", "cooking"):
         assert "食物" in tok.related(q), (q, tok.related(q))
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-050")
+def test_srch_tok_050_hopscotch_is_one_word():
+    """回歸 (audit round 146): 跳房子 found 32 photos of buildings and streets: it was cut into 跳 + 房子. It is one
+    word, a game played at playgrounds, and suggests 遊樂場."""
+    tok = Tokenizer()
+    assert tok.tag_key("跳房子") == tok.tag_key("hopscotch") == "activity.hopscotch"
+    assert "房子" not in tok.words("跳房子")
+    assert tok.related("跳房子") == ["遊樂場"]

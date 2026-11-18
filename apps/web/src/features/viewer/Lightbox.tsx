@@ -2,6 +2,7 @@
 // panel with EXIF and every AI label's model and decision layer, inline correction (→ review), reveal in file
 // manager on desktop only. role="dialog" aria-modal; position is announced through aria-live.
 import { copyPhoto, photoFileName, sharePhoto } from "../../lib/sharePhoto";
+import { Button } from "../../components/Button";
 import { AddToAlbum, FavoriteButton, typingIn, useFavorite } from "../albums/AlbumButtons";
 import { TrashButton } from "../../components/TrashButton";
 import { ShareSelection } from "../../components/ShareSelection";
@@ -142,6 +143,15 @@ export function Lightbox({
   const photoDims = { w: info?.width ?? null, h: info?.height ?? null };
   // 完成 and 還原原圖 say so, with 復原 to the edit before (round 145, EDIT-023)
   const [editUndo, setEditUndo] = useState<{ id: string; prev: Edit | null; text: string } | null>(null);
+  // the toast goes by itself after 8 s, and alone: it stacked under the share toasts (round 146)
+  useEffect(() => {
+    if (!editUndo) return;
+    setToast(null);
+    const id = window.setTimeout(() => setEditUndo(null), 8000);
+    return () => window.clearTimeout(id);
+  }, [editUndo]);
+  // its buttons gone, the keyboard back on 編輯: focus fell to the page and no key worked (round 146, EDIT-024)
+  const backToEdit = () => requestAnimationFrame(() => dialog.current?.querySelector<HTMLButtonElement>("[data-edit-open]")?.focus());
   const editDone = (e: Edit | null, undoable = true) => {
     if (!asset) return;
     if (undoable) setEditUndo({ id: asset.id, prev: saved, text: t(e ? "edit.saved" : "edit.reverted") });
@@ -160,6 +170,16 @@ export function Lightbox({
     setShowInfo(false);
     setEditing(true);
   }, [asset, saved]);
+  // one photo out of the app asks about faces first, as several do (round 146, SHARE-044); never who
+  const [faceAsk, setFaceAsk] = useState<(() => unknown) | null>(null);
+  const facesFirst = (go: () => unknown) => {
+    const check = (api as { facesPresent?: typeof api.facesPresent }).facesPresent;
+    if (!asset || !check) return void go();
+    void check([asset.id]).then(
+      (r) => (r.enabled && r.with_faces?.length ? setFaceAsk(() => go) : go()),
+      () => setFaceAsk(() => go), // could not tell: asked, not sent unseen
+    );
+  };
   const stageRef = useRef<HTMLDivElement>(null);
   const [stageBox, setStageBox] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
   useEffect(() => {
@@ -487,12 +507,19 @@ export function Lightbox({
               aria-label={t("lightbox.share")}
               title={t("lightbox.share")}
               className="icon-button"
-              onClick={() => {
-                sharePhoto({ id: asset.id, rot, takenAt: asset.taken_at ?? null, ...(saved ? { edit: saved } : {}) }).then(
-                  (r) => (r === "saved" ? setToast(t("lightbox.shareSaved", { name: photoFileName({ id: asset.id, takenAt: asset.taken_at ?? null }, "jpg") })) : undefined),
-                  () => setToast(t("lightbox.shareFailed")),
-                );
-              }}
+              onClick={() =>
+                facesFirst(() =>
+                  sharePhoto({ id: asset.id, rot, takenAt: asset.taken_at ?? null, ...(saved ? { edit: saved } : {}) }).then(
+                    (r) =>
+                      r === "saved"
+                        ? setToast(t("lightbox.shareSaved", { name: photoFileName({ id: asset.id, takenAt: asset.taken_at ?? null }, "jpg") }))
+                        : typeof r === "object"
+                          ? setToast(t("share.savedTo", { n: "1", dir: r.dir.split(/[\\/]/).filter(Boolean).pop() ?? r.dir }))
+                          : undefined,
+                    () => setToast(t("lightbox.shareFailed")),
+                  ),
+                )
+              }
             >
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M12 15V3M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" />
@@ -503,12 +530,14 @@ export function Lightbox({
               aria-label={t("lightbox.copyImage")}
               title={t("lightbox.copyImage")}
               className="icon-button"
-              onClick={() => {
-                copyPhoto({ id: asset.id, rot, takenAt: asset.taken_at ?? null, ...(saved ? { edit: saved } : {}) }).then(
-                  () => setToast(t("lightbox.copied")),
-                  () => setToast(t("lightbox.copyFailed")),
-                );
-              }}
+              onClick={() =>
+                facesFirst(() =>
+                  copyPhoto({ id: asset.id, rot, takenAt: asset.taken_at ?? null, ...(saved ? { edit: saved } : {}) }).then(
+                    () => setToast(t("lightbox.copied")),
+                    () => setToast(t("lightbox.copyFailed")),
+                  ),
+                )
+              }
             >
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <rect x="8" y="8" width="13" height="13" rx="2" />
@@ -714,6 +743,43 @@ export function Lightbox({
           }}
         />
       ) : null}
+      {faceAsk ? (
+        <div className="fixed inset-0 z-40 grid place-items-center bg-black/50">
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="lb-faces-h"
+            className="max-w-sm space-y-3 rounded-[var(--radius-lg)] bg-[var(--surface)] p-5"
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                e.stopPropagation();
+                setFaceAsk(null);
+              }
+            }}
+          >
+            <h2 id="lb-faces-h" className="font-semibold">
+              {t("share.faceOne")}
+            </h2>
+            <p className="text-sm text-[var(--text-muted)]">{t("share.facesNote")}</p>
+            <div className="flex flex-wrap gap-2">
+              <Button autoFocus variant="ghost" onClick={() => setFaceAsk(null)}>
+                {t("batch.cancel")}
+              </Button>
+              <Button
+                variant="ghost"
+                className="share-risky danger"
+                onClick={() => {
+                  const go = faceAsk;
+                  setFaceAsk(null);
+                  go();
+                }}
+              >
+                {t("share.facesAnyway")}
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {toast && <Toast text={toast} onDone={() => setToast(null)} />}
       {editUndo ? (
         <p role="status" className="toast flex items-center gap-2 text-sm">
@@ -724,6 +790,7 @@ export function Lightbox({
             onClick={() => {
               const u = editUndo;
               setEditUndo(null);
+              backToEdit();
               setEdits((m) => ({ ...m, [u.id]: u.prev }));
               void (u.prev ? api.setEdit(u.id, u.prev) : api.revertEdit(u.id)).then(() => {
                 for (const q of ["timeline", "search", "on-this-day", "album", "asset-edit"]) void qcr.invalidateQueries({ queryKey: [q] });
@@ -732,7 +799,7 @@ export function Lightbox({
           >
             {t("edit.undo")}
           </button>
-          <button type="button" className="underline" aria-label={t("share.dismiss")} onClick={() => setEditUndo(null)}>
+          <button type="button" className="underline" aria-label={t("share.dismiss")} onClick={() => (setEditUndo(null), backToEdit())}>
             ×
           </button>
         </p>

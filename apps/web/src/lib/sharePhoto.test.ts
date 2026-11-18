@@ -105,3 +105,15 @@ describe("one edited photo (ADR-0057)", () => {
     expect(got).toEqual([["image/jpeg", edit], ["image/png", edit]]);
   });
 });
+
+describe("one photo into a folder on the desktop", () => {
+  it("[SHARE-043] 回歸：桌面版單張分享寫進選的資料夾，說出存在哪裡；取消就是取消（驗證第 146 輪：說「已存到下載」卻什麼都沒存）", async () => {
+    const saveToFolder = vi.fn(async (...a: [string, Uint8Array]) => (void a, { dir: "D:\\out\\分享 2026-11-18（1 張）", handle: "h" }));
+    const d = deps({ saveToFolder });
+    const r = await sharePhoto({ id: "abcdef123456", rot: 0, takenAt: null }, d);
+    expect(r).toEqual({ kind: "folder", dir: "D:\\out\\分享 2026-11-18（1 張）", handle: "h" });
+    expect(saveToFolder.mock.calls[0]![0]).toBe("photo-ef123456.jpg");
+    expect(d.saved).toEqual([]); // no download
+    expect(await sharePhoto({ id: "a", rot: 0, takenAt: null }, deps({ saveToFolder: async () => null }))).toBe("cancelled");
+  });
+});

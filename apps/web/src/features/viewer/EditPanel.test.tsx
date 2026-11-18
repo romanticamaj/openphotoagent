@@ -55,4 +55,11 @@ describe("the editor (ADR-0057)", () => {
     expect(screen.getByRole("radio", { name: "原始比例" }).getAttribute("aria-checked")).toBe("false");
     expect(document.activeElement).toBe(screen.getByRole("slider", { name: "曝光" }));
   });
+
+  it("[EDIT-025] 回歸：有直式的裁切比例；轉 90° 後再打開時，轉過的 3:4 是選取狀態（驗證第 146 輪：沒有直式比例，90° 時什麼都沒選）", () => {
+    // a square photo with a centred 3:4 crop
+    render(<EditPanel initial={{ v: 1, crop: { x: 0.125, y: 0, w: 0.75, h: 1 } }} w={4000} h={4000} onChange={() => {}} onSave={() => {}} onRevert={() => {}} onCancel={() => {}} />);
+    for (const r of ["3:4", "2:3", "9:16"]) expect(screen.getByRole("radio", { name: r })).toBeTruthy();
+    expect(screen.getByRole("radio", { name: "3:4" }).getAttribute("aria-checked")).toBe("true");
+  });
 });

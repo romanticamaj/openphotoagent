@@ -1784,3 +1784,17 @@ def test_srch_tok_047_a_query_of_marks_alone_finds_nothing_and_says_so(s):
         assert res["total"] == 0 and not res["items"] and not res.get("possible"), q
         assert res.get("no_words") is True, q
     assert not s.search(q="貓").get("no_words")
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-TOK-051")
+def test_srch_tok_051_hopscotch_does_not_find_houses(s):
+    """回歸 (audit round 146): 跳房子 found 32 photos of buildings, by 房子 in their captions. A game is not a house:
+    no photo shows it, and the page offers 遊樂場."""
+    for i in range(6):
+        s.add(i, caption=f"街上的房子{i}", tags=())
+    s.add(9, caption="遊樂場的溜滑梯", tags=("遊樂場",))
+    s.index()
+    res = s.search(q="跳房子", semantic=False)
+    assert res["total"] == 0, [x["caption"] for x in res["items"]]
+    assert res["suggest"] and res["suggest"][0]["q"] == "遊樂場"

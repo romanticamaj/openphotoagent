@@ -77,6 +77,8 @@ terms:
   - { id: activity.bbq, zh: 烤肉, en: barbecue, group: 活動, synonyms: [燒烤, bbq], suggest: [food.meal] }
   - { id: activity.picnic, zh: 野餐, en: picnic, group: 活動, synonyms: [野餐墊], suggest: [scene.grass, scene.park] }
   - { id: scene.sandbox, zh: 沙坑, en: sandbox, group: 場景, synonyms: [沙池, sandpit], suggest: [scene.playground] }
+  # a game, one word: cut into 跳 + 房子 it found 32 photos of buildings (SRCH-TOK-050, audit round 146)
+  - { id: activity.hopscotch, zh: 跳房子, en: hopscotch, group: 活動, synonyms: [跳格子], suggest: [scene.playground], unrelated: [object.building] }
   # found at playgrounds, not all of one: suggested, as 鞦韆 is (SRCH-TOK-048, audit round 134)
   - { id: activity.bath, zh: 洗澡, en: bath, group: 活動, synonyms: [泡澡, 澡盆] }
   - { id: activity.jump_rope, zh: 跳繩, en: jump rope, group: 活動, synonyms: [跳繩子] }

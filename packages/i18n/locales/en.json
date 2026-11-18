@@ -695,6 +695,7 @@
     "preparingN": "Preparing {done}/{total}…",
     "facesTitle": "{k} of {n} photos have faces",
     "facesNote": "Check that the people in them are happy for them to be shared.",
+    "faceOne": "This photo has faces",
     "facesUnknown": "Could not check the photos for faces",
     "facesAnyway": "Share anyway",
     "facesAll": "Share all",

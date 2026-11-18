@@ -135,9 +135,13 @@ export function autoEdit(px: Uint8ClampedArray): Edit {
   const median = Math.max(at(0.5), 1 / 255);
   const ev = Math.round(Math.min(1.5, Math.max(-1.5, Math.log2(0.5 / median))) * 10) / 10;
   if (Math.abs(ev) >= 0.1) out.exposure = ev;
+  // gentle: a normal photo got +42 and flat ones the +60 maximum, highlights clipped (round 146, EDIT-026)
   const spread = Math.max(at(0.98) - at(0.02), 1 / 255);
-  const contrast = Math.round(Math.min(60, Math.max(0, (0.85 / spread - 1) * 100)));
+  const contrast = spread < 0.7 ? Math.round(Math.min(30, Math.max(0, (0.75 / spread - 1) * 40))) : 0;
   if (contrast >= 5) out.contrast = contrast;
+  // a dark photo: its shadows lifted, and its bright part held back as the exposure goes up
+  if (median < 0.35) out.shadows = Math.round(Math.min(40, (0.35 - median) * 150));
+  if (ev > 0) out.highlights = -Math.round(Math.min(30, ev * 15));
   return out;
 }
 

@@ -16,6 +16,8 @@ export type ShareDeps = {
   share: ((d: { files: File[] }) => Promise<void>) | undefined;
   canShare: ((d: { files: File[] }) => boolean) | undefined;
   writeClipboard: ((png: Blob) => Promise<void>) | undefined;
+  /** desktop: the photo into a new folder inside one picked in the OS dialog; null when cancelled (SHARE-043) */
+  saveToFolder?: ((name: string, bytes: Uint8Array) => Promise<{ dir: string; handle: string } | null>) | undefined;
 };
 
 /** photo-2025-11-11-0c1e2a11.jpg: the day it was taken and the last 8 of its id, so two photos of one day are two
@@ -28,9 +30,17 @@ export function photoFileName(p: { id: string; takenAt: string | null }, ext: st
 }
 
 /** The system share sheet when it takes files; otherwise the photo is saved as a file. A cancelled sheet is no error. */
-export async function sharePhoto(p: SharedPhoto, d: ShareDeps = browserDeps()): Promise<"shared" | "saved" | "cancelled"> {
+export async function sharePhoto(
+  p: SharedPhoto,
+  d: ShareDeps = browserDeps(),
+): Promise<"shared" | "saved" | "cancelled" | { kind: "folder"; dir: string; handle: string }> {
   const jpeg = await d.encode(await d.preview(p.id), "image/jpeg", p.rot, p.edit ?? null);
   const name = photoFileName(p, "jpg");
+  // the desktop: into a folder, said where; a download there was cancelled and still said 「已存」 (round 146, SHARE-043)
+  if (d.saveToFolder) {
+    const r = await d.saveToFolder(name, new Uint8Array(await jpeg.arrayBuffer()));
+    return r ? { kind: "folder", ...r } : "cancelled";
+  }
   const file = new File([jpeg], name, { type: "image/jpeg" });
   if (d.share && d.canShare?.({ files: [file] })) {
     try {
@@ -118,5 +128,21 @@ export function browserDeps(kind: string = platform().kind, nav: Navigator | und
       nav?.clipboard?.write && typeof ClipboardItem !== "undefined"
         ? (png) => nav.clipboard.write([new ClipboardItem({ "image/png": png })])
         : undefined,
+    saveToFolder: desktopFolder(),
+  };
+}
+
+function desktopFolder(): ShareDeps["saveToFolder"] {
+  const p = platform();
+  if (!p.pickShared || !p.writeShared) return undefined;
+  const pick = p.pickShared;
+  const write = p.writeShared;
+  return async (name, bytes) => {
+    const d = new Date();
+    const day = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const picked = await pick(day, 1);
+    if (!picked) return null;
+    await write(picked.handle, { name, bytes });
+    return picked;
   };
 }

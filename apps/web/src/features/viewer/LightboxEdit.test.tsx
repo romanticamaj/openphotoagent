@@ -130,4 +130,24 @@ describe("editing in the Lightbox (ADR-0057)", () => {
     fireEvent.click(screen.getByRole("button", { name: "復原" }));
     await waitFor(() => expect(s.revertEdit).toHaveBeenCalledWith("p0")); // back to as shot, as it was
   });
+
+  it("[EDIT-024] 回歸：編輯提示按「復原」或 × 之後焦點回到燈箱，按鍵照常（驗證第 146 輪：焦點掉到頁面、E 和 Esc 都沒反應）", async () => {
+    s.edit = null;
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Lightbox start={0} grid={grid} onClose={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "編輯" }));
+    fireEvent.change(await screen.findByRole("slider", { name: "對比" }), { target: { value: "30" } });
+    fireEvent.click(screen.getByRole("button", { name: "完成" }));
+    const undo = await screen.findByRole("button", { name: "復原" });
+    await new Promise((r) => setTimeout(r, 50)); // 完成's own focus move has run, as it has before a person presses 復原
+    undo.focus(); // pressed from the keyboard: the button had focus, and then it was gone
+    fireEvent.click(undo);
+    const lb = screen.getByTestId("lightbox");
+    await waitFor(() => expect(lb.contains(document.activeElement)).toBe(true));
+    fireEvent.keyDown(document.activeElement!, { key: "e" });
+    expect(await screen.findByRole("slider", { name: "曝光" })).toBeTruthy(); // the keys work again
+  });
 });

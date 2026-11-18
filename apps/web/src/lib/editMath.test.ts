@@ -86,3 +86,25 @@ describe("a crop and a turn (ADR-0057)", () => {
     expect(r.h).toBeCloseTo(0.4, 9); // four quarter turns: where it began
   });
 });
+
+describe("自動, gentler (round 146)", () => {
+  const img = (f: (i: number) => number, n = 1000) => {
+    const px = new Uint8ClampedArray(n * 4);
+    for (let i = 0; i < n; i++) {
+      const v = f(i);
+      px.set([v, v, v, 255], i * 4);
+    }
+    return px;
+  };
+  it("[EDIT-026] 回歸：「自動」的對比溫和（一般照片 ≤ 15、灰濛濛的 ≤ 30），暗的照片也提亮暗部（驗證第 146 輪：一般照片 +42、兩張到 +60 上限，亮部爆掉）", async () => {
+    const { autoEdit } = await import("./editMath");
+    const normal = autoEdit(img((i) => 50 + Math.round((i / 999) * 155))); // 2-98 % spread about 0.6
+    expect(normal.contrast ?? 0).toBeLessThanOrEqual(15);
+    const flat = autoEdit(img((i) => 110 + (i % 40)));
+    expect(flat.contrast!).toBeGreaterThan(20);
+    expect(flat.contrast!).toBeLessThanOrEqual(30);
+    const dark = autoEdit(img((i) => 10 + (i % 60)));
+    expect(dark.shadows!).toBeGreaterThan(0);
+    expect(dark.highlights ?? 0).toBeLessThanOrEqual(0); // lifted, the bright part held back
+  });
+});
