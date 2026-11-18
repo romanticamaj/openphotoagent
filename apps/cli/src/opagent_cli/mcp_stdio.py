@@ -10,6 +10,7 @@ Local options can only narrow what the token allows: ``--readonly`` hides every 
 
 from __future__ import annotations
 
+import io
 import json
 import os
 import sys
@@ -29,7 +30,7 @@ def _server(home: Path, explicit: str | None) -> str | None:
         return env.rstrip("/")
     run = home / "run" / "api.json"
     try:
-        info = json.loads(run.read_text())
+        info = json.loads(run.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return None
     return f"http://127.0.0.1:{int(info['port'])}"
@@ -93,6 +94,13 @@ class Relay:
             if self.readonly:
                 out["result"]["tools"] = [t for t in tools if t["name"] in self.readonly_tools]
         return dict(out)
+
+
+def utf8_stdio() -> None:
+    """JSON-RPC over stdio is UTF-8 whatever the console's code page: cp1252 could not print a Chinese caption."""
+    for stream in (sys.stdin, sys.stdout):
+        if isinstance(stream, io.TextIOWrapper):  # a test can swap in a StringIO
+            stream.reconfigure(encoding="utf-8", newline="\n")
 
 
 def serve(relay: Relay, stdin: IO[str] = sys.stdin, stdout: IO[str] = sys.stdout) -> None:

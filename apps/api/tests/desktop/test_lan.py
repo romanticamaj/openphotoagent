@@ -68,5 +68,6 @@ def test_desk_015_login_is_rate_limited(embedded_pg):
 @pytest.mark.unit
 @pytest.mark.tc("DESK-015")
 def test_desk_015_password_hash_is_argon2id():
-    h = hash_password("pw")
-    assert h.startswith("$argon2id$") and "pw" not in h
+    secret = "correct-horse-battery-staple"  # long enough never to appear in the salt or digest by chance
+    h = hash_password(secret)
+    assert h.startswith("$argon2id$") and secret not in h

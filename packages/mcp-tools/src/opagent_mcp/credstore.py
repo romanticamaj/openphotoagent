@@ -1,6 +1,6 @@
 """Where the local MCP token lives (05 §3.2.1, MCP-PAT-001): the OS keyring (Keychain, Credential Manager,
-Secret Service). Without a usable keyring (headless Linux) it falls back to a 0600 file in the data folder and
-says so, so the UI can warn. Client config files never contain the token."""
+Secret Service). Without a usable keyring (headless Linux) it falls back to an owner-only file (0600, ADR-0024) in the
+data folder and says so, so the UI can warn. Client config files never contain the token."""
 
 from __future__ import annotations
 
@@ -8,6 +8,8 @@ import contextlib
 import os
 from pathlib import Path
 from typing import Any
+
+from opagent_secure import private_dir, write_private
 
 SERVICE = "openphotoagent"
 
@@ -43,11 +45,8 @@ def save(token: str, home: Path, profile: str = "default", kind: str = "mcp-pat"
                 f.unlink()
             return {"store": "keyring", "warning": None}
     f = _file(home, profile, kind)
-    f.parent.mkdir(parents=True, exist_ok=True)
-    fd = os.open(f, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w") as fh:
-        fh.write(token)
-    os.chmod(f, 0o600)
+    private_dir(f.parent)
+    write_private(f, token.encode())
     return {"store": "file", "warning": "KEYRING_UNAVAILABLE", "path": str(f)}
 
 
@@ -62,7 +61,7 @@ def load(home: Path, profile: str = "default", kind: str = "mcp-pat") -> str | N
             if v:
                 return str(v)
     f = _file(home, profile, kind)
-    return f.read_text().strip() if f.exists() else None
+    return f.read_text(encoding="utf-8").strip() if f.exists() else None
 
 
 def delete(home: Path, profile: str = "default", kind: str = "mcp-pat") -> None:

@@ -17,7 +17,7 @@ def _copy_builtin(tmp_path: Path) -> Path:
 
 
 def _lock(d: Path, pins: list) -> None:
-    (d / "pins.lock").write_text(json.dumps({"schema_version": 1, "pins": pins}))
+    (d / "pins.lock").write_text(json.dumps({"schema_version": 1, "pins": pins}), encoding="utf-8")
 
 
 def _pin(model: str, variant: str, files: list[str], sha: str = "a" * 64) -> dict:
@@ -51,7 +51,10 @@ def test_inf_reg_001_builtin_registry_valid():
 def test_inf_reg_001_catalog_with_hash_rejected(tmp_path):
     d = _copy_builtin(tmp_path)
     p = d / "models" / "qwen3-vl-4b-instruct.yaml"
-    p.write_text(p.read_text().replace("role: weights }", 'role: weights, sha256: "' + "b" * 64 + '" }', 1))
+    p.write_text(
+        p.read_text(encoding="utf-8").replace("role: weights }", 'role: weights, sha256: "' + "b" * 64 + '" }', 1),
+        encoding="utf-8",
+    )
     with pytest.raises(RegistryLoadError, match="sha256"):
         load_registry(d)
 
@@ -116,8 +119,10 @@ variants:
 def test_inf_reg_002_user_file_without_sha_is_invalid_only(tmp_path):
     user = tmp_path / "custom"
     user.mkdir()
-    (user / "ok.yaml").write_text(USER_OK)
-    (user / "nosha.yaml").write_text(USER_OK.replace("my-gguf", "no-sha").replace(', sha256: "' + "c" * 64 + '"', ""))
+    (user / "ok.yaml").write_text(USER_OK, encoding="utf-8")
+    (user / "nosha.yaml").write_text(
+        USER_OK.replace("my-gguf", "no-sha").replace(', sha256: "' + "c" * 64 + '"', ""), encoding="utf-8"
+    )
     reg = load_registry(user_dirs=[user])
     assert reg.models["my-gguf"].status == "valid" and reg.models["my-gguf"].source == "user"
     bad = reg.models["no-sha"]
@@ -130,8 +135,10 @@ def test_inf_reg_002_user_file_without_sha_is_invalid_only(tmp_path):
 def test_inf_reg_004_broken_user_yaml_reports_file_and_line(tmp_path):
     user = tmp_path / "custom"
     user.mkdir()
-    (user / "syntax.yaml").write_text("id: x\nkind: vlm\nvariants: [\n  - id: a\n")
-    (user / "field.yaml").write_text(USER_OK.replace("my-gguf", "bad-field").replace("kind: vlm", "kind: spaceship"))
+    (user / "syntax.yaml").write_text("id: x\nkind: vlm\nvariants: [\n  - id: a\n", encoding="utf-8")
+    (user / "field.yaml").write_text(
+        USER_OK.replace("my-gguf", "bad-field").replace("kind: vlm", "kind: spaceship"), encoding="utf-8"
+    )
     reg = load_registry(user_dirs=[user])
     errs = {Path(e.file).name: e for e in reg.errors}
     assert errs["syntax.yaml"].line >= 3
@@ -182,3 +189,22 @@ def test_inf_reg_013_release_requires_all_pinned():
         if not r.builtin:
             for p in r.platforms:
                 assert p.sha256 and HEX64.match(p.sha256), f"{r.id} {p.os}-{p.arch} has no sha256"
+
+
+@pytest.mark.unit
+@pytest.mark.tc("MDL-019")
+def test_mdl_019_every_kind_has_a_name_people_read():
+    """回歸 (audit round 41): the text model's row read 「text_embedder」: the label was keyed text_embedding."""
+    import json
+    from pathlib import Path
+
+    import yaml
+
+    root = Path(__file__).resolve().parents[3]
+    kinds = {
+        yaml.safe_load(p.read_text(encoding="utf-8"))["kind"]
+        for p in (root / "packages/registry/src/opagent_registry/builtin/models").glob("*.yaml")
+    }
+    for lang in ("zh-TW", "en"):
+        names = json.loads((root / f"packages/i18n/locales/{lang}.json").read_text(encoding="utf-8"))["models"]["kinds"]
+        assert kinds <= set(names), (lang, sorted(kinds - set(names)))

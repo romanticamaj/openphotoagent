@@ -156,6 +156,7 @@ def test_out_exe_011_move_goes_to_trash(sandbox_tree, tmp_path):
 
 
 @pytest.mark.integration
+@pytest.mark.os_linux  # 09a: two tmpfs mounts on Linux CI; the Windows (VHD/subst) variant is pending M0
 @pytest.mark.tc("OUT-EXE-013")
 def test_out_exe_013_cross_device_move_never_renames_across(tmp_path):
     shm = Path(tempfile.mkdtemp(dir="/dev/shm", prefix="opagent-x-"))

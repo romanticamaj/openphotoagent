@@ -360,3 +360,20 @@ def test_mcp_trn_007_http_transport_host_origin(cp_app, hosts, as_role):
     # and the grant revoked in the app ends the HTTP session at the next call
     user_grants = as_role("ws_viewer")  # another member cannot revoke it
     assert user_grants.get("/api/v1/oauth/grants").json() == []
+
+
+@pytest.mark.integration
+@pytest.mark.security
+@pytest.mark.tc("PF-060")
+def test_pf_060_disabled_mcp_also_closes_the_oauth_endpoint(cp_app, hosts, as_role):
+    """`mcp.enabled=false` turns off every MCP transport, not only the local PAT one (05 §3)."""
+    admin = as_role("ws_admin")
+    t = tokens(cp_app, admin)
+    assert call(cp_app, t["access_token"]).status_code == 200
+    r = admin.put("/api/v1/mcp/settings", json={"enabled": False}, headers={"x-opa-ui": "1"})
+    assert r.status_code == 200, r.text
+    off = call(cp_app, t["access_token"])
+    assert off.status_code == 403 and off.json()["code"] == "MCP_DISABLED"
+    assert call(cp_app, None).json()["code"] == "MCP_DISABLED"
+    admin.put("/api/v1/mcp/settings", json={"enabled": True}, headers={"x-opa-ui": "1"})
+    assert call(cp_app, t["access_token"]).status_code == 200

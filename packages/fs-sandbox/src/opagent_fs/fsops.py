@@ -99,7 +99,8 @@ class RealFs:
         return tmp
 
     def fsync_file(self, p: Path) -> None:
-        fd = os.open(p, os.O_RDONLY)
+        # Windows' fsync (_commit) needs write access; a read-only handle fails with EBADF (FS-029)
+        fd = os.open(p, os.O_RDWR | getattr(os, "O_BINARY", 0)) if sys.platform == "win32" else os.open(p, os.O_RDONLY)
         try:
             os.fsync(fd)
         finally:

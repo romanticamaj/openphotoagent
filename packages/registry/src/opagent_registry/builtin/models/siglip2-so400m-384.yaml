@@ -1,0 +1,42 @@
+# Public ONNX export, verified by M0-S4 (fp16 cosine >= 0.9998). Its int8 files failed parity (0.26), ADR-0026.
+schema_version: 1
+id: siglip2-so400m-384
+display_name: "SigLIP2 so400m/14 384"
+family: siglip2
+kind: embedding
+capabilities: [embed, classify]
+languages: [en, zh-Hant, zh-Hans, ja]
+license: { spdx: Apache-2.0, weights: Apache-2.0, commercial_use: true, redistributable: true, requires_acceptance: false, url: "https://huggingface.co/google/siglip2-so400m-patch14-384" }
+source: { hf_repo: google/siglip2-so400m-patch14-384, revision: main }
+structured_output: none
+embedding: { min_cosine: 0.07, min_cosine_alone: 0.082, dim: 1152, normalize: true, similarity: sigmoid, text_template: "This is a photo of {label}.", multilingual: true }
+tasks_default_rank: { embed: 1, classify_embed: 1 }
+tiers: [all]
+variants:
+  - id: onnx-fp16
+    runtime: onnx
+    quant: fp16
+    revision: main
+    files:
+      - { repo: onnx-community/siglip2-so400m-patch14-384-ONNX, path: "onnx/vision_model_fp16.onnx", role: vision }
+      - { repo: onnx-community/siglip2-so400m-patch14-384-ONNX, path: "onnx/text_model_fp16.onnx", role: text }
+      - { repo: onnx-community/siglip2-so400m-patch14-384-ONNX, path: "tokenizer.json", role: tokenizer }
+    vram_gb: { weights: 1.0, runtime_overhead: 0.5 }
+    recommended_batch: 32
+    requires: { runtime_pack: ["ort-*"], os: [windows, macos, linux], min_ram_gb: 4, accel_any: [cuda, directml, coreml, cpu] }
+    perf_prior: { ref_gpu: rtx-5070-ti, items_per_s: { embed: [40, 120] }, load_s: [1, 4], bound: compute }
+  - id: onnx-fp16-cpu
+    runtime: onnx
+    quant: fp16
+    device: cpu
+    revision: main
+    files:
+      - { repo: onnx-community/siglip2-so400m-patch14-384-ONNX, path: "onnx/vision_model_fp16.onnx", role: vision }
+      - { repo: onnx-community/siglip2-so400m-patch14-384-ONNX, path: "onnx/text_model_fp16.onnx", role: text }
+      - { repo: onnx-community/siglip2-so400m-patch14-384-ONNX, path: "tokenizer.json", role: tokenizer }
+    vram_gb: { weights: 0 }
+    ram_gb: 3
+    recommended_batch: 8
+    requires: { runtime_pack: ["ort-cpu"], os: [windows, macos, linux], min_ram_gb: 8, accel_any: [cpu] }
+    perf_prior: { ref_gpu: cpu-12core, items_per_s: { embed: [0.4, 0.8] }, load_s: [5, 15], bound: compute }  # measured 0.78/s, Ryzen 9 9900X
+notes: "預設 embedding：zero-shot、prototype、去重、以文搜圖；小模型常駐 small slot。"

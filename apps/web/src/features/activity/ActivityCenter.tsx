@@ -1,6 +1,6 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import { groupOps, type Op } from "./model";
+import { groupOps, type Op, opStatusKey, opTypeKey } from "./model";
 import { OperationProgress } from "./OperationProgress";
 
 /** 06 §6.1 Activity Center drawer: operations grouped by worker × lane; failed rows show the problem's fixes. */
@@ -11,15 +11,19 @@ export function ActivityCenter({
   onToggle,
   onFix,
   actions,
+  onOpenPlan,
+  recent = [],
 }: {
   open: boolean;
   ops: Op[];
+  recent?: Array<Pick<Op, "id" | "type" | "status"> & { subject?: unknown; finished_at?: string | null }>;
   onClose: () => void;
   onToggle?: () => void;
   onFix?: (op: Op, fixId: string) => void;
   actions?: (op: Op) => ReactNode;
+  onOpenPlan?: (planId: string) => void;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "j") {
@@ -31,18 +35,30 @@ export function ActivityCenter({
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, [open, onClose, onToggle]);
+  // the keyboard goes in as it opens and back to 「活動」 as it closes: 15 Tabs to the first row, and Esc dropped
+  // focus on the page (audit round 132, ACT-024)
+  const box = useRef<HTMLElement>(null);
+  const was = useRef(false);
+  useEffect(() => {
+    if (open && !was.current) box.current?.focus();
+    if (!open && was.current) {
+      const a = document.activeElement;
+      if (!a || a === document.body || !document.contains(a)) document.querySelector<HTMLElement>('[data-testid="activity-button"]')?.focus();
+    }
+    was.current = open;
+  }, [open]);
   if (!open) return null;
   return (
-    <aside role="dialog" aria-modal="false" aria-label={t("activity.title")} className="activity-center">
+    <aside ref={box} tabIndex={-1} role="dialog" aria-modal="false" aria-label={t("activity.title")} className="activity-center">
       <h2 className="text-base font-semibold">{t("activity.title")}</h2>
       {ops.length === 0 ? <p className="text-[var(--text-muted)]">{t("activity.empty")}</p> : null}
       {groupOps(ops).map((g) => (
         <section key={g.key} aria-label={g.key}>
-          <h3 className="text-xs text-[var(--text-muted)]">{g.key}</h3>
+          <h3 className="text-xs text-[var(--text-muted)]">{t(`activity.group.${g.key}`, { defaultValue: g.key })}</h3>
           <ul>
             {g.ops.map((op) => (
               <li key={op.id} data-op={op.id}>
-                <span>{t(`activity.type.${op.type}`, { defaultValue: op.type })}</span>
+                <span>{t(`activity.type.${opTypeKey(op)}`, { defaultValue: op.type })}</span>
                 <OperationProgress op={op} variant="compact" />
                 {op.auto_resumed ? <span className="text-xs text-[var(--text-muted)]">{t("activity.autoResumed")}</span> : null}
                 {actions?.(op)}
@@ -61,6 +77,51 @@ export function ActivityCenter({
           </ul>
         </section>
       ))}
+      {recent.length > 0 ? (
+        // what just finished stays visible: the drawer went blank the moment a job ended (ACT-008)
+        <section aria-labelledby="recent-h" className="space-y-1">
+          <h3 id="recent-h" className="text-xs text-[var(--text-muted)]">{t("activity.recent")}</h3>
+          <ul aria-labelledby="recent-h" className="space-y-1 text-sm">
+            {oneRowPerPlan(recent).map((op) => {
+              const sub = (op.subject ?? {}) as { plan_id?: string; photos?: number; target?: string; plan_kind?: string };
+              // what kind of plan (ACT-026): a copy and a 依日期 plan read alike
+              const kind = sub.plan_kind ? t(`activity.planKind.${sub.plan_kind}`, { defaultValue: "" }) : "";
+              const name = t(`activity.type.${opTypeKey(op)}`, { defaultValue: op.type });
+              // which plan, how many and where to, and a way back to it (ACT-022)
+              const detail = `${kind ? ` · ${kind}` : ""}${sub.photos != null ? ` · ${t(sub.target ? "activity.planTo" : "activity.planN", { n: sub.photos, target: sub.target })}` : ""}`;
+              const when = (
+                <span className="tnum text-xs text-[var(--text-muted)]">
+                  {t(`activity.status.${opStatusKey(op)}`, { defaultValue: op.status })}
+                  {op.finished_at ? ` · ${new Date(op.finished_at).toLocaleTimeString(i18n.language, { hour: "2-digit", minute: "2-digit" })}` : ""}
+                </span>
+              );
+              return (
+                <li key={op.id}>
+                  {sub.plan_id && onOpenPlan ? (
+                    <button type="button" className="recent-row" onClick={() => onOpenPlan(sub.plan_id!)}>
+                      <span>{name}{detail}</span>
+                      {when}
+                    </button>
+                  ) : (
+                    <span className="flex justify-between gap-2">
+                      <span>{name}{detail}</span>
+                      {when}
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
     </aside>
   );
+}
+
+type Recent = Pick<Op, "type"> & { subject?: unknown };
+
+/** A plan and the job that made it were two rows (ACT-023): the job's row names the plan, so the plan's goes. */
+export function oneRowPerPlan<T extends Recent>(ops: T[]): T[] {
+  const named = new Set(ops.map((o) => (o.subject as { plan_id?: string } | undefined)?.plan_id).filter(Boolean));
+  return ops.filter((o) => !(o.type === "output.plan" && named.has((o.subject as { id?: string } | undefined)?.id)));
 }

@@ -2,7 +2,7 @@
 name = "opagent-inference-adapters"
 version = "0.0.1"
 requires-python = ">=3.12"
-dependencies = ["opagent-core", "opagent-inference-sdk", "httpx", "numpy", "pillow", "onnxruntime>=1.18"]
+dependencies = ["opagent-core", "opagent-inference-sdk", "httpx", "numpy", "pillow", "tokenizers>=0.20", "onnxruntime>=1.18; sys_platform != 'win32'", "onnxruntime-directml>=1.18; sys_platform == 'win32'"]
 
 [build-system]
 requires = ["hatchling"]

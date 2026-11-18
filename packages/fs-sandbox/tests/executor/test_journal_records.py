@@ -163,11 +163,11 @@ def test_out_exe_020_sidecar_bytes_and_journal_records(lab):
 @pytest.mark.tc("OUT-UNDO-009")
 def test_out_undo_009_user_sidecar_backed_up_under_trash(lab):
     (lab.t.sorted / "o").mkdir()
-    (lab.t.sorted / "o/a.opagent.json").write_text('{"user": "kept"}')
+    (lab.t.sorted / "o/a.opagent.json").write_text('{"user": "kept"}', encoding="utf-8")
     s = Action("s", "sidecar_json", "photos", "a.jpg", "sorted", "o/a.opagent.json", "", payload={"x": 1})
     assert lab.ex.apply("p", [s]).results[0].status == "done"
     backup = ".opagent-trash/p/sidecar-backup/o/a.opagent.json"
-    assert (lab.t.sorted / backup).read_text() == '{"user": "kept"}'
+    assert (lab.t.sorted / backup).read_text(encoding="utf-8") == '{"user": "kept"}'
     assert lab.j.entries("p")[-1]["post_state"]["backup_rel"] == backup
 
 
@@ -175,7 +175,7 @@ def test_out_undo_009_user_sidecar_backed_up_under_trash(lab):
 @pytest.mark.tc("OUT-UNDO-009")
 def test_out_undo_009_missing_backup_does_not_break_undo(lab):
     (lab.t.sorted / "o").mkdir()
-    (lab.t.sorted / "o/a.opagent.json").write_text('{"user": "kept"}')
+    (lab.t.sorted / "o/a.opagent.json").write_text('{"user": "kept"}', encoding="utf-8")
     s = Action("s", "sidecar_json", "photos", "a.jpg", "sorted", "o/a.opagent.json", "", payload={"x": 1})
     lab.ex.apply("p", [s])
     os.unlink(lab.t.sorted / ".opagent-trash/p/sidecar-backup/o/a.opagent.json")

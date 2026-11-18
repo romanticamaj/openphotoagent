@@ -8,6 +8,7 @@ candidate list contains that class (Q-025).
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import inspect
 import json
@@ -42,6 +43,7 @@ class Taxonomy:
     rules: list[dict[str, Any]] = field(default_factory=list)  # [{"if": "<when DSL>", "then": class_id}]
     temperature: float = 0.05
     top_k: int = 3
+    vlm_max_candidates: int = 16  # ADR-0030: provisional, not measured above 12 classes
 
     @property
     def ids(self) -> list[str]:
@@ -64,6 +66,7 @@ class ClassifyResult:
     caption: str | None = None
     tags: list[str] | None = None
     error: str | None = None
+    retryable: bool = False  # the VLM failed for a passing reason (timeout, OOM): ask again, keep nothing (INF-CAS-018)
 
 
 @dataclass
@@ -147,7 +150,7 @@ class Cascade:
         self.on_event = on_event
         self.image_cache: dict[str, np.ndarray] = {}
         self.text_cache: dict[str, np.ndarray] = {}
-        self.vlm_cache: dict[tuple[str, str], tuple[str, float, str | None, list[str] | None]] = {}
+        self.vlm_cache: dict[tuple[str, str], tuple[str, float, str | None, list[str] | None, str | None]] = {}
 
     def _ev(self, kind: str, what: str) -> None:
         self.events.append((kind, what))
@@ -232,13 +235,21 @@ class Cascade:
             sc = _scores(self.image_cache[it.image.content_hash], tax, text_vecs)
             r = route_embedding(Stage(sc), n_examples, self.policy)
             k = max(3, min(5, tax.top_k))
-            hints = [c for c, _ in sorted(sc.items(), key=lambda kv: (-kv[1], kv[0]))[:k]]
-            routes[it.image.item_id] = (sc, r, hints)
+            ranked = [c for c, _ in sorted(sc.items(), key=lambda kv: (-kv[1], kv[0]))]
+            hints = ranked[:k]
+            # the VLM chooses from every class: a shortlist built from these scores hid the right answer (ADR-0030)
+            real = [c for c in tax.ids if c != "other"]
+            cut = len(real) > tax.vlm_max_candidates
+            keep = {c for c in ranked if c != "other"}
+            if cut:
+                keep = set([c for c in ranked if c != "other"][: tax.vlm_max_candidates])
+            routes[it.image.item_id] = (sc, r, hints, [c for c in real if c in keep], cut)
 
         # 2. VLM review for low-confidence items only
         to_vlm = [it for it in pending if routes[it.image.item_id][1].route == "vlm"] if self.vlm else []
-        vlm_out: dict[str, tuple[str, float, str | None, list[str] | None]] = {}
+        vlm_out: dict[str, tuple[str, float, str | None, list[str] | None, str | None]] = {}
         errors: dict[str, str] = {}
+        transient: set[str] = set()
         vlm_fp = ""
         if to_vlm and self.vlm is not None:
             self.on_stage("vlm")
@@ -247,28 +258,39 @@ class Cascade:
             await self.vlm.load(LoadOptions())
             need: dict[str, list[Item]] = {}
             for it in to_vlm:
-                hints = routes[it.image.item_id][2]
-                key = (it.image.content_hash, self._prompt_key(tax, hints))
+                _, _, hints, cand, _ = routes[it.image.item_id]
+                key = (it.image.content_hash, self._prompt_key(tax, cand))
                 if key in self.vlm_cache:
                     vlm_out[it.image.item_id] = self.vlm_cache[key]
                 else:
-                    need.setdefault(json.dumps(hints), []).append(it)
+                    need.setdefault(json.dumps([hints, cand]), []).append(it)
             asked = sum(len(v) for v in need.values())
             if asked:
                 self._ev("vlm", str(asked))
-            for hints_json, group in need.items():
-                hints = json.loads(hints_json)
+            slots = asyncio.Semaphore(max(1, self.vlm.describe().max_batch))
+            vlm = self.vlm
+
+            async def ask(hints_json: str, group: list[Item]) -> None:
+                hints, cand = json.loads(hints_json)
                 req = BatchRequest(
                     task_type="classify",
                     items=[g.image for g in group],
-                    variables={"categories": [*hints, "other"], "hints": hints},
+                    # hints are not shown to the model (they would anchor it); only test doubles read them
+                    variables={
+                        "categories": [*cand, "other"],
+                        "hints": hints,
+                        "descriptions": {c.id: c.prompt for c in tax.classes if c.id in cand},
+                    },
                 )
                 try:
-                    outs = await self.vlm.run_batch(req)
+                    async with slots:  # nearly every image has its own hints: groups must fill the runtime's slots
+                        outs = await vlm.run_batch(req)
                 except InferenceError as e:
                     for g in group:
                         errors[g.image.item_id] = e.error_code
-                    continue
+                        if e.retryable:
+                            transient.add(g.image.item_id)
+                    return
                 by_id = {o.item_id: o for o in outs}
                 for g in group:
                     o = by_id[g.image.item_id]
@@ -277,14 +299,17 @@ class Cascade:
                         float(o.confidence or 0.0),
                         o.caption,
                         [t for t, _ in (o.tags or [])],
+                        o.raw.get("confidence_source"),
                     )
                     vlm_out[g.image.item_id] = val
-                    self.vlm_cache[(g.image.content_hash, self._prompt_key(tax, hints))] = val
+                    self.vlm_cache[(g.image.content_hash, self._prompt_key(tax, cand))] = val
+
+            await asyncio.gather(*(ask(h, g) for h, g in need.items()))
 
         # 3. decision (stages are stored so thresholds can be re-applied without inference)
         for it in pending:
             iid = it.image.item_id
-            sc, r, hints = routes[iid]
+            sc, r, hints, cand, cut = routes[iid]
             v = vlm_out.get(iid)
             stages: dict[str, Any] = {
                 "emb": sc,
@@ -292,10 +317,17 @@ class Cascade:
                 "n_examples": n_examples,
                 "route": r.route,
                 "hints": hints,
+                "candidates": cand,
+                "truncated": cut,
                 "vlm": {"category": v[0], "p": v[1]} if v else None,
+                "confidence_source": v[4] if v else None,
             }
             out = decide(
-                emb=Stage(sc), vlm=VlmResult(v[0], v[1]) if v else None, n_examples=n_examples, policy=self.policy
+                emb=Stage(sc),
+                vlm=VlmResult(v[0], v[1]) if v else None,
+                n_examples=n_examples,
+                policy=self.policy,
+                truncated=cut,
             )
             prov = [{"stage": "embedding", "model_fingerprint": emb_fp}]
             if v:
@@ -309,5 +341,6 @@ class Cascade:
                 caption=v[2] if v else None,
                 tags=v[3] if v else None,
                 error=errors.get(iid),
+                retryable=iid in transient and v is None,
             )
         return [results[it.image.item_id] for it in items]

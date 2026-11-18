@@ -17,6 +17,7 @@ from opagent_db.schema import (
     job,
     job_item,
     license_acceptance,
+    mcp_token,
     operation,
     output_action,
     output_plan,
@@ -656,8 +657,23 @@ class Pre:
         if mode in ("edge-thumbs", "results-only"):
             self.add("EGRESS_POLICY_BLOCKS", {"mode": mode, "endpoint": urlsplit(ep).hostname}, "privacy")
 
+    def mcp_connect(self) -> None:
+        """06 §4.2 `mcp.connect` (Integrations "test connection"): the switch and the token, no worker needed."""
+        from .mcp_server import mcp_settings
+
+        if not mcp_settings(self.c).enabled:
+            self.add("MCP_DISABLED", {}, "mcp")
+        tid = self.p.get("token_id")
+        if tid is not None:
+            row = self.c.execute(select(mcp_token.c.revoked_at).where(mcp_token.c.id == str(tid))).first()
+            if row is None or row.revoked_at is not None:
+                self.add("MCP_TOKEN_INVALID", {}, "mcp")
+
     def run(self) -> dict[str, Any]:
         self.permission_gate()
+        if self.action == "mcp.connect":
+            self.mcp_connect()
+            return self._response()
         if self.action == "job.start":
             self.egress_gate()
         if self.action == "job.start" and self.p.get("kind") == "label" and self.p.get("rerun_of"):

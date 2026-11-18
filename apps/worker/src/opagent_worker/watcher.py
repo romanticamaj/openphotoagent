@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import queue
+import sys
 import threading
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -34,10 +35,23 @@ class _Watch:
     last_poll: float | None = None
 
 
+def _windows_drive_types() -> dict[str, int]:
+    if sys.platform != "win32":
+        return {}
+    import ctypes
+    import string
+
+    k32 = ctypes.windll.kernel32
+    present = k32.GetLogicalDrives()
+    return {d: k32.GetDriveTypeW(f"{d}:\\") for i, d in enumerate(string.ascii_uppercase) if present >> i & 1}
+
+
 def _read_mounts() -> str:
+    if sys.platform == "win32":  # mapped network drives; a UNC path is recognised from the path itself
+        return W.windows_mount_table(_windows_drive_types())
     try:
         return Path("/proc/mounts").read_text(encoding="utf-8")
-    except OSError:  # macOS / Windows: FSEvents and ReadDirectoryChangesW cover local volumes; shares are polled
+    except OSError:  # macOS: FSEvents covers local volumes
         return ""
 
 
@@ -67,7 +81,7 @@ class WatchManager:
         sp = self.agent.sb.resolve(w["root_alias"], w.get("sub_path") or "")
         folder = Path(sp.real)
         mounts = self._mounts if self._mounts is not None else _read_mounts()
-        fstype = W.fstype_of(str(folder), mounts) if mounts else ""
+        fstype = W.fstype_of(str(folder), mounts)
         mode = W.mode_for(fstype)
         wt = _Watch(
             source_id=w["source_id"],

@@ -160,3 +160,15 @@ def test_inf_json_012_contains_image_text():
     r = parse_fused(json.dumps({**GOOD, "contains_image_text": True}, ensure_ascii=False), CATS)
     assert r.contains_image_text is True and "contains_image_text" not in r.extra_dropped
     assert "contains_image_text" in fused_schema(CATS)["properties"]
+
+
+@pytest.mark.unit
+@pytest.mark.tc("INF-JSON-013")
+def test_inf_json_013_confidence_is_asked_for_and_required():
+    """回歸: the schema allowed confidence and the prompt never mentioned it, so Qwen3-VL left it out: every photo came
+    back at confidence 0 and went to review."""
+    from opagent_inference.prompts import CaptionConfig, render_fused_prompt
+
+    assert "confidence" in fused_schema(CATS)["required"]
+    assert "confidence" not in fused_schema(CATS, with_confidence=False)["required"]
+    assert "confidence" in render_fused_prompt(CATS, CaptionConfig()).user

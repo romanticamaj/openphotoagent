@@ -1,10 +1,49 @@
 {
   "id": "M0-S4",
-  "status": "pending-hardware",
+  "status": "measured",
   "machine": {
-    "hostname_label": "not-run"
+    "hostname_label": "rtx5070ti-win11",
+    "os": "Windows",
+    "os_release": "11",
+    "arch": "AMD64",
+    "python": "3.12.13",
+    "cpu_count": 24
   },
-  "metrics": {},
-  "pass": null,
-  "notes": "Real SigLIP2 so400m weights unavailable in cloud (huggingface.co 403). Export/compare pipeline validated on a random-init tiny model: see M0-S4-pipeline.json."
+  "metrics": {
+    "model": "D:\\models\\siglip2-so400m-patch14-384",
+    "n_images": 500,
+    "n_texts": 200,
+    "onnxruntime": "1.24.4",
+    "available_providers": [
+      "DmlExecutionProvider",
+      "CPUExecutionProvider"
+    ],
+    "torch_img_s": 1.071517376109749,
+    "torch_version": "2.15.0+cpu",
+    "CPU": {
+      "image_cos_min": 0.9999997615814209,
+      "image_cos_mean": 1.0,
+      "text_cos_min": 0.9999997615814209,
+      "text_cos_mean": 1.0,
+      "images_per_s": 1.3095269532616423,
+      "batch": 8,
+      "session_providers": [
+        "CPUExecutionProvider"
+      ]
+    },
+    "DML": {
+      "image_cos_min": 0.9999997615814209,
+      "image_cos_mean": 1.0,
+      "text_cos_min": 0.9999998807907104,
+      "text_cos_mean": 1.0,
+      "images_per_s": 2.115738672696753,
+      "batch": 8,
+      "session_providers": [
+        "DmlExecutionProvider",
+        "CPUExecutionProvider"
+      ]
+    }
+  },
+  "pass": true,
+  "notes": "real weights. COCO val2017 subset of 500 images, 200 texts in zh-Hant and English."
 }

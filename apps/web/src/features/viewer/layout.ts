@@ -3,7 +3,8 @@
 
 export type Tile = { index: number; x: number; w: number };
 export type Row = { y: number; height: number; count: number; tiles: Tile[] };
-export type Layout = { rows: Row[]; height: number; width: number };
+export type Head = { y: number; first: number };
+export type Layout = { rows: Row[]; height: number; width: number; heads?: Head[] };
 
 export function justify(aspects: ArrayLike<number>, width: number, target: number, gap = 2): Layout {
   const rows: Row[] = [];
@@ -57,6 +58,30 @@ export function justify(aspects: ArrayLike<number>, width: number, target: numbe
   return { rows, height: Math.max(0, y - gap), width };
 }
 
+export const DAY_H = 28;
+
+/** A month laid out day by day (VIEW-023): ``groups`` are the photo counts of consecutive days; each day starts on a
+ * new row under its own label (``heads``), so no row mixes two days. */
+export function justifyDays(aspects: ArrayLike<number>, groups: ArrayLike<number>, width: number, target: number, gap = 2, dayH = DAY_H): Layout {
+  const rows: Row[] = [];
+  const heads: Head[] = [];
+  let y = 0;
+  let start = 0;
+  for (let g = 0; g < groups.length; g++) {
+    const n = groups[g];
+    if (n <= 0) continue;
+    heads.push({ y, first: start });
+    const part = justify(Array.prototype.slice.call(aspects, start, start + n) as number[], width, target, gap);
+    for (const r of part.rows) {
+      rows.push({ ...r, y: y + dayH + r.y, tiles: r.tiles.map((t) => ({ ...t, index: t.index + start })) });
+    }
+    y += dayH + part.height + gap * 4;
+    start += n;
+  }
+  const height = rows.length ? Math.max(...rows.map((r) => r.y + r.height)) : 0;
+  return { rows, height, width, heads };
+}
+
 function sumAspect(a: ArrayLike<number>, from: number, to: number): number {
   let s = 0;
   for (let i = from; i < to; i++) s += a[i];
@@ -80,4 +105,10 @@ export function visibleTiles(layout: Layout, top: number, viewport: number, over
   const out: Tile[] = [];
   for (let r = first; r <= last; r++) out.push(...rows[r].tiles);
   return out;
+}
+
+/** The smallest thumbnail whose long side covers the tile on this screen, at most 512 so decoded images stay in
+ * the memory budget (VIEW-022, VIEW-010). */
+export function thumbVariant(w: number, h: number, dpr: number): "t256" | "t512" {
+  return Math.max(w, h) * dpr <= 256 ? "t256" : "t512";
 }

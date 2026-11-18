@@ -1,13 +1,14 @@
 // Activity Center wiring (06 §6.1): top-bar indicator, ⌘J drawer, row actions (resume / cancel with modes),
 // and the recovery card after a restart (OP-006).
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../../components/Button";
 import { ApiError, api } from "../../lib/api";
 import { formatDuration } from "../../lib/format";
 import { ActivityCenter } from "./ActivityCenter";
-import { fromApi, indicatorState, type Op } from "./model";
+import { fromApi, indicatorState, type Op, opTypeKey } from "./model";
 
 export function useActivity() {
   return useQuery({
@@ -17,12 +18,12 @@ export function useActivity() {
   });
 }
 
-export function ActivityButton({ onToggle }: { onToggle: () => void }) {
+export function ActivityButton({ onToggle, expanded = false }: { onToggle: () => void; expanded?: boolean }) {
   const { t } = useTranslation();
   const ops = useActivity().data ?? [];
   const ind = indicatorState(ops);
   return (
-    <button type="button" onClick={onToggle} aria-label={`${t("activity.open")}：${t(ind.labelKey)}`} className="ml-auto flex items-center gap-1 rounded-[var(--radius-sm)] px-2 py-1 text-sm hover:bg-[var(--surface-2)]">
+    <button data-testid="activity-button" type="button" aria-expanded={expanded} onClick={onToggle} aria-label={`${t("activity.open")}：${t(ind.labelKey)}`} className="ml-auto flex items-center gap-1 rounded-[var(--radius-sm)] px-2 py-1 text-sm hover:bg-[var(--surface-2)]">
       <span aria-hidden="true" style={{ color: `var(${ind.token})` }}>
         {{ check: "✓", spinner: "◌", pause: "⏸", alert: "⚠", "plug-off": "⏏" }[ind.icon] ?? "•"}
       </span>
@@ -34,18 +35,37 @@ export function ActivityButton({ onToggle }: { onToggle: () => void }) {
 export function ActivityDrawer({ open, setOpen }: { open: boolean; setOpen: (v: boolean) => void }) {
   const { t } = useTranslation();
   const qc = useQueryClient();
+  const nav = useNavigate();
   const ops = useActivity().data ?? [];
   const [cancelling, setCancelling] = useState<Op | null>(null);
   const refresh = () => void qc.invalidateQueries({ queryKey: ["operations"] });
   const resume = useMutation({ mutationFn: (id: string) => api.resumeOp(id), onSuccess: refresh });
   const cancel = useMutation({ mutationFn: (id: string) => api.cancelOp(id), onSuccess: refresh });
+  const DAY_MS = 24 * 3600 * 1000;
+  const recent = useQuery({
+    queryKey: ["operations", "recent"],
+    queryFn: async () =>
+      (await api.operations("status=all&limit=40"))
+        .filter((o) => ["succeeded", "failed", "cancelled"].includes(String(o.status)))
+        .filter((o) => {
+          const f = (o as { finished_at?: string | null }).finished_at;
+          return f && Date.now() - new Date(f).getTime() < DAY_MS;
+        })
+        .slice(0, 10),
+    enabled: open,
+  });
   return (
     <>
       <ActivityCenter
         open={open}
         ops={ops}
+        recent={(recent.data ?? []) as never}
         onClose={() => setOpen(false)}
         onToggle={() => setOpen(!open)}
+        onOpenPlan={(planId) => {
+          setOpen(false);
+          void nav({ to: "/plans/$planId", params: { planId } });
+        }}
         actions={(op) => (
           <span className="flex gap-2">
             {["paused", "interrupted"].includes(op.status) && (
@@ -123,6 +143,15 @@ export function RecoveryCard({ onReview }: { onReview: () => void }) {
   const qc = useQueryClient();
   const [dismissed, setDismissed] = useState(false);
   const ops = (useActivity().data ?? []).filter((o) => o.status === "interrupted" || o.auto_resumed);
+  const drop = useMutation({
+    mutationFn: async () => {
+      for (const o of ops.filter((x) => x.status === "interrupted")) await api.cancelOp(o.id);
+    },
+    onSuccess: () => {
+      setDismissed(true);
+      void qc.invalidateQueries({ queryKey: ["operations"] });
+    },
+  });
   const resumeAll = useMutation({
     mutationFn: async () => {
       for (const o of ops.filter((x) => x.status === "interrupted")) await api.resumeOp(o.id);
@@ -137,11 +166,20 @@ export function RecoveryCard({ onReview }: { onReview: () => void }) {
     <section data-testid="recovery-card" aria-labelledby="recovery-h" className="m-4 space-y-2 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-4">
       <h2 id="recovery-h" className="font-semibold">{t("activity.recoveryTitle", { n: ops.length })}</h2>
       <ul className="text-sm">
-        {ops.map((o) => (
-          <li key={o.id}>
-            {t(`activity.type.${o.type}`, { defaultValue: o.type })} · {o.auto_resumed ? t("activity.autoResumed") : t(`activity.status.${o.status}`)}
-          </li>
-        ))}
+        {ops.map((o) => {
+          // what it was and where, and what 「全部繼續」 does to it (ACT-009)
+          const key = opTypeKey(o);
+          const folder = (o.subject as { folder?: string } | undefined)?.folder;
+          const name = t(`activity.type.${key}`, { defaultValue: o.type });
+          return (
+            <li key={o.id}>
+              {folder ? t("activity.inFolder", { name, folder }) : name} · {o.auto_resumed ? t("activity.autoResumed") : t(`activity.status.${o.status}`)}
+              {o.status === "interrupted" ? (
+                <span className="block text-xs text-[var(--text-muted)]">{t(`activity.resumeMeans.${key}`, { defaultValue: t("activity.resumeMeans.default") })}</span>
+              ) : null}
+            </li>
+          );
+        })}
       </ul>
       <div className="flex gap-2">
         <Button disabledReason={resumeAll.isPending ? { code: "BUSY", message: t("common.working") } : null} onClick={() => resumeAll.mutate()}>
@@ -149,6 +187,9 @@ export function RecoveryCard({ onReview }: { onReview: () => void }) {
         </Button>
         <Button variant="ghost" onClick={onReview}>
           {t("activity.review")}
+        </Button>
+        <Button variant="ghost" onClick={() => drop.mutate()}>
+          {t("activity.noThanks")}
         </Button>
       </div>
     </section>

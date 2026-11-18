@@ -113,7 +113,7 @@ def test_out_exe_020_sidecar_json(mk, sandbox_tree):
     side = Action("s0", "sidecar_json", "photos", "0.jpg", "sorted", "out/0.opagent.json", before, payload=payload)
     rep = ex.apply("p", [acts[0], side])
     assert [r.status for r in rep.results] == ["done", "done"]
-    doc = json.loads((sandbox_tree.sorted / "out/0.opagent.json").read_text())
+    doc = json.loads((sandbox_tree.sorted / "out/0.opagent.json").read_text(encoding="utf-8"))
     assert SidecarV1.model_validate(doc).category == "food"
     assert b3(src) == before
 

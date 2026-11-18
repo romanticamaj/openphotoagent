@@ -11,9 +11,11 @@ from __future__ import annotations
 
 import re
 import subprocess
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import psycopg
 import psycopg.conninfo
@@ -23,7 +25,7 @@ from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
 from alembic.script import ScriptDirectory
 from alembic.util.exc import CommandError
-from opagent_core.clock import Clock
+from opagent_core.clock import Clock, SystemClock
 
 from .schema import engine_for
 
@@ -139,12 +141,24 @@ class Backups:
             toc.unlink(missing_ok=True)
 
 
-def ensure_database(dsn: str) -> None:
+def _connect_when_ready(conninfo: str, wait_s: float, clock: Clock) -> psycopg.Connection[Any]:
+    """The shell starts postgres and the api back to back, and crash recovery can take a while (08 §1.4)."""
+    deadline = clock.monotonic() + wait_s
+    while True:
+        try:
+            return psycopg.connect(conninfo, autocommit=True, connect_timeout=5)
+        except psycopg.OperationalError:
+            if clock.monotonic() >= deadline:
+                raise
+            threading.Event().wait(0.1)  # sync code; Clock.sleep is a coroutine
+
+
+def ensure_database(dsn: str, wait_s: float = 0, clock: Clock | None = None) -> None:
     """Create the app database named in ``dsn`` when missing (connecting through the ``postgres`` database)."""
     info = psycopg.conninfo.conninfo_to_dict(dsn)
     name = str(info.get("dbname") or "")
     admin = psycopg.conninfo.make_conninfo(dsn, dbname="postgres")
-    with psycopg.connect(admin, autocommit=True) as c:
+    with _connect_when_ready(admin, wait_s, clock or SystemClock()) as c:
         if c.execute("SELECT 1 FROM pg_database WHERE datname = %s", (name,)).fetchone() is None:
             c.execute(psycopg.sql.SQL("CREATE DATABASE {}").format(psycopg.sql.Identifier(name)))
 

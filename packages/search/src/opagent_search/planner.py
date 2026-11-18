@@ -19,6 +19,15 @@ from zoneinfo import ZoneInfo
 
 from opagent_core.lunar import lunar_new_year
 
+# how a question is worded, not what it asks about: the words around the subject in 「我有幾張滑雪的照片？」
+QUESTION_FRAME = re.compile(
+    # 「拍了什麼」 「有哪些」 ask about what is in the range: the question, not a word to find (SRCH-PLAN-025)
+    r"拍了些?什麼|拍了哪些|拍了啥|有哪些|有什麼|是什麼|"
+    r"我有|我的|有沒有|有幾張|有多少張?|多少張|幾張|幫我找|幫我|請列出|請問|請|列出|找出|所有|全部|"
+    r"的?照片|的?相片|的?圖片|how many|do i have|show me|find me|find all|[？?！!。，,]+",
+    re.IGNORECASE,
+)
+
 STOP_WORDS = {
     "的",
     "照片",
@@ -84,8 +93,12 @@ class _Text:
             self.s = self.s[: m.start()] + " " + self.s[m.end() :]
         return m
 
-    def take_word(self, word: str) -> bool:
-        i = self.s.lower().find(word.lower())
+    def take_word(self, word: str, unless: tuple[str, ...] = ()) -> bool:
+        """Take ``word`` out of the text; not where it begins one of ``unless`` (聖誕 in 聖誕樹, SRCH-PLAN-031)."""
+        low = self.s.lower()
+        i = low.find(word.lower())
+        while i >= 0 and any(low.startswith(u.lower(), i) for u in unless):
+            i = low.find(word.lower(), i + 1)
         if i < 0:
             return False
         self.s = self.s[:i] + " " + self.s[i + len(word) :]
@@ -108,7 +121,8 @@ def _year(t: _Text, today: date, explain: list[str]) -> int | None:
         y = 1911 + int(m.group(1))
         explain.append(f"「{m.group(0).replace(' ', '')}」→ {y} 年")
         return y
-    m = t.take(r"(?<!\d)(1[89]\d\d|20\d\d|2100)\s*年?(?!\d)")
+    # 「2025年」 takes its 年 even before a month: 「2025年11月」 left 「年」 behind as a word (SRCH-PLAN-023)
+    m = t.take(r"(?<!\d)(1[89]\d\d|20\d\d|2100)(?:\s*年|(?!\d))")
     if m:
         return int(m.group(1))
     for word, delta in (("前年", 2), ("去年", 1), ("今年", 0)):
@@ -116,6 +130,65 @@ def _year(t: _Text, today: date, explain: list[str]) -> int | None:
             explain.append(f"「{word}」→ {today.year - delta} 年")
             return today.year - delta
     return None
+
+
+def _christmas(y: int) -> tuple[date, date]:
+    return date(y, 12, 24), date(y, 12, 27)  # Christmas Eve to Boxing Day
+
+
+def _mid_autumn(y: int) -> tuple[date, date] | None:
+    from opagent_core.lunar import mid_autumn
+
+    d = mid_autumn(y)
+    return (d - timedelta(days=3), d + timedelta(days=4)) if d else None  # three days either side, as 過年
+
+
+def _mothers_day(y: int) -> tuple[date, date]:
+    first = date(y, 5, 1)
+    sunday = first + timedelta(days=(6 - first.weekday()) % 7 + 7)  # the second Sunday of May
+    return sunday, sunday + timedelta(days=1)
+
+
+def _lunar_day(fn_name: str, before: int, after: int) -> Any:
+    def span(y: int) -> tuple[date, date] | None:
+        from opagent_core import lunar
+
+        d = getattr(lunar, fn_name)(y)
+        return (d - timedelta(days=before), d + timedelta(days=after + 1)) if d else None
+
+    return span
+
+
+def _day(month: int, day: int, days: int = 1) -> Any:
+    return lambda y: (date(y, month, day), date(y, month, day) + timedelta(days=days))
+
+
+# longest first, so 「中秋節」 is taken before 「中秋」
+HOLIDAYS: dict[str, Any] = {
+    "聖誕節": _christmas,
+    "耶誕節": _christmas,
+    "聖誕": _christmas,
+    "耶誕": _christmas,
+    "中秋節": _mid_autumn,
+    "中秋": _mid_autumn,
+    "母親節": _mothers_day,
+    # SRCH-PLAN-030
+    "端午節": _lunar_day("dragon_boat", 1, 1),
+    "端午": _lunar_day("dragon_boat", 1, 1),
+    "元宵節": _lunar_day("lantern", 1, 1),
+    "元宵": _lunar_day("lantern", 1, 1),
+    "七夕": _lunar_day("qixi", 0, 0),
+    "兒童節": _day(4, 4),
+    "清明節": _day(4, 4, 3),
+    "清明": _day(4, 4, 3),
+    "國慶日": _day(10, 10),
+    "國慶": _day(10, 10),
+    "雙十節": _day(10, 10),  # not a bare 雙十: 雙十一 is November 11
+    "情人節": _day(2, 14),
+    "跨年": lambda y: (date(y, 12, 31), date(y + 1, 1, 2)),
+}
+# things named after a holiday, seen any day of the year: 聖誕樹 is a tree, not the Christmas dates (SRCH-PLAN-031)
+HOLIDAY_THINGS = ("聖誕樹", "聖誕老人", "聖誕帽", "聖誕燈", "耶誕樹")
 
 
 def _lunar_new_year_range(y: int) -> tuple[date, date] | None:
@@ -134,8 +207,48 @@ def _dates(t: _Text, today: date, tz: str, explain: list[str]) -> dict[str, str]
         first = date(today.year, today.month, 1)
         explain.append(f"「這個月」→ {first:%Y-%m}")
         return _range(first, _next_month(first.year, first.month))
+    # a range of days, 「2026年6月16日到6月22日」 「2026/6/16~6/22」: both days, the last one included; its parts are
+    # not words (SRCH-PLAN-029: only the first day was used and 「到、6、月、22、日」 became things to find)
+    m = t.take(
+        r"(?<!\d)(1[89]\d\d|20\d\d)\s*[年/.-]\s*(1[0-2]|0?[1-9])\s*[月/.-]\s*(3[01]|[12]\d|0?[1-9])\s*[日號]?\s*"
+        r"(?:到|至|~|～|－|–|—|-)\s*"
+        r"(?:(1[89]\d\d|20\d\d)\s*[年/.-]\s*)?(?:(1[0-2]|0?[1-9])\s*[月/.-]\s*)?(3[01]|[12]\d|0?[1-9])\s*[日號]?"
+    )
+    if m:
+        first_day: date | None
+        last_day: date | None
+        try:
+            first_day = date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+            last_day = date(int(m.group(4) or m.group(1)), int(m.group(5) or m.group(2)), int(m.group(6)))
+        except ValueError:
+            first_day = last_day = None
+        if first_day is not None and last_day is not None:
+            lo, hi = min(first_day, last_day), max(first_day, last_day)
+            explain.append(f"「{m.group(0).strip()}」→ {_iso(lo)} – {_iso(hi)}")
+            return _range(lo, hi + timedelta(days=1))
+    # a whole date, 「2025年11月10日」 「2025/11/10」: that day (SRCH-PLAN-023)
+    m = t.take(r"(?<!\d)(1[89]\d\d|20\d\d)\s*[年/.-]\s*(1[0-2]|0?[1-9])\s*[月/.-]\s*(3[01]|[12]\d|0?[1-9])\s*[日號]?")
+    if m:
+        try:
+            d = date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+        except ValueError:
+            d = None
+        if d is not None:
+            explain.append(f"「{m.group(0).strip()}」→ {_iso(d)}")
+            return _range(d, d + timedelta(days=1))
     n_explain = len(explain)
     year = _year(t, today, explain)
+    # 「去年今天」 「去年這個時候」: around today's date in that year (SRCH-PLAN-024)
+    for words, days in ((("今天", "今日", "這天"), 3), (("這個時候", "這時候", "此時", "同一時間"), 15)):
+        if year is not None and any(t.take_word(w) for w in words):
+            try:
+                mid = today.replace(year=year)
+            except ValueError:  # 29 February
+                mid = today.replace(year=year, day=28)
+            del explain[n_explain:]
+            lo, hi = mid - timedelta(days=days), mid + timedelta(days=days)
+            explain.append(f"「{year} 年的今天前後 {days} 天」→ {_iso(lo)} – {_iso(hi)}")
+            return _range(lo, hi + timedelta(days=1))
     for word in LUNAR_NEW_YEAR:
         if t.take_word(word):
             y = year
@@ -151,6 +264,23 @@ def _dates(t: _Text, today: date, tz: str, explain: list[str]) -> dict[str, str]
                 return None
             last = r[1] - timedelta(days=1)
             explain.append(f"「{word}」→ {y} 過年：{_iso(r[0])} – {_iso(last)}（除夕前 3 天至初五）")
+            return _range(*r)
+    # holidays (SRCH-PLAN-028): 「去年聖誕節」 found nothing
+    for word, span in HOLIDAYS.items():
+        if t.take_word(word, HOLIDAY_THINGS):
+            y = year
+            if y is None:  # the most recent one that has started, as for 過年 (ADR-0008)
+                y = today.year
+                r = span(y)
+                if r is None or r[0] > today:
+                    y -= 1
+            r = span(y)
+            del explain[n_explain:]
+            if r is None:
+                explain.append(f"「{word}」：{y} 年超出對照範圍，未加日期條件")
+                return None
+            last = r[1] - timedelta(days=1)
+            explain.append(f"「{word}」→ {_iso(r[0])} – {_iso(last)}" if last != r[0] else f"「{word}」→ {_iso(r[0])}")
             return _range(*r)
     if "新年" in t.s and year is None:
         explain.append("「新年」可能是元旦或過年：請寫「元旦」或「過年」")
@@ -171,6 +301,36 @@ def _dates(t: _Text, today: date, tz: str, explain: list[str]) -> dict[str, str]
             del explain[n_explain:]
             explain.append(f"「{word}」→ {y}-12 – {y + 1}-02")
             return _range(date(y, 12, 1), date(y + 1, 3, 1))
+    # 「11/10」 with no year: that day in every year, like 「11月10日」 (SRCH-PLAN-027)
+    m = t.take(r"(?<![\d/])(1[0-2]|0?[1-9])/(3[01]|[12]\d|0?[1-9])(?![\d/])")
+    if m and year is None:
+        mo, dd = int(m.group(1)), int(m.group(2))
+        try:
+            date(2024, mo, dd)
+        except ValueError:
+            return None
+        del explain[n_explain:]
+        explain.append(f"「{m.group(0)}」→ 每年的 {mo:02d}-{dd:02d}")
+        return {"month_day": f"{mo:02d}-{dd:02d}"}
+    # a month and a day, 「11月10日」: that day of the named year, or of every year when none is named, as Google
+    # Photos reads it (SRCH-PLAN-023, SRCH-PLAN-026)
+    m = t.take(r"(?<!\d)(1[0-2]|0?[1-9])\s*月\s*(3[01]|[12]\d|0?[1-9])\s*[日號]")
+    if m:
+        mo, dd = int(m.group(1)), int(m.group(2))
+        try:
+            date(2024, mo, dd)  # a leap year: 2月29日 is a day
+        except ValueError:
+            return None
+        del explain[n_explain:]
+        if year is None:
+            explain.append(f"「{m.group(0).strip()}」→ 每年的 {mo:02d}-{dd:02d}")
+            return {"month_day": f"{mo:02d}-{dd:02d}"}
+        try:
+            d = date(year, mo, dd)
+        except ValueError:
+            return None
+        explain.append(f"「{m.group(0).strip()}」→ {_iso(d)}")
+        return _range(d, d + timedelta(days=1))
     m = t.take(r"(?<!\d)(1[0-2]|0?[1-9])\s*月(?!份?\d)")
     if m:
         mo = int(m.group(1))
@@ -222,12 +382,15 @@ def _camera(t: _Text, explain: list[str]) -> str | None:
 
 def _tags(t: _Text, vocabulary: dict[str, str], explain: list[str]) -> list[str]:
     found: list[str] = []
+    free = t.s.lower()  # what no longer word has claimed yet: 海 inside 海邊 is not the sea
     for word in sorted(vocabulary, key=len, reverse=True):
-        if word and word in t.s.lower() and vocabulary[word] not in found:
-            if word.isascii() and not re.search(rf"(?<![a-z]){re.escape(word)}(?![a-z])", t.s.lower()):
+        if word and word in free and vocabulary[word] not in found:
+            if word.isascii() and not re.search(rf"(?<![a-z]){re.escape(word)}(?![a-z])", free):
                 continue
             found.append(vocabulary[word])  # the word stays in text too: full text (R3) still sees it (05 §2.3)
             explain.append(f"「{word}」→ 標籤 {vocabulary[word]}")
+        if word and word in free:
+            free = free.replace(word, " " * len(word))
     return found
 
 
@@ -236,10 +399,10 @@ def _persons(t: _Text, persons: dict[str, str], scopes: set[str] | None, explain
         return []  # without faces:read names stay plain text (SRCH-PLAN-010)
     out: list[str] = []
     for alias in sorted(persons, key=len, reverse=True):
-        if alias in t.s and persons[alias] not in out:
+        if alias.casefold() in t.s.casefold() and persons[alias] not in out:  # 測試a finds 測試A
             t.take_word(alias)
             out.append(persons[alias])
-            explain.append(f"「{alias}」→ 人物 {persons[alias]}")
+            explain.append(f"「{alias}」→ 人物")  # the chip shows the name, never an id
     return out
 
 
@@ -278,12 +441,14 @@ def plan(
             if _VOCAB is None:
                 _VOCAB = _default_vocabulary()
             vocabulary = _VOCAB
-        t = _Text(q or "")
+        t = _Text(QUESTION_FRAME.sub(" ", q or ""))
         explain: list[str] = []
         filters: dict[str, Any] = {}
         people = _persons(t, persons or {}, scopes, explain)
         span = _dates(t, today, tzname, explain)
-        if span:
+        if span and "month_day" in span:
+            filters["month_day"] = span["month_day"]  # every year's (SRCH-PLAN-026)
+        elif span:
             filters["taken_at"] = span
         place = _place(t, gazetteer, explain)
         if place:

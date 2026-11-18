@@ -38,7 +38,7 @@ def test_pack_001_install(srv, tmp_path):
     r = i.install("llamacpp-cpu")
     assert r.status == "installed"
     assert (tmp_path / "packs/llamacpp-cpu/b7001-1/bin/llama-server").read_bytes().startswith(b"#!/bin/sh")
-    assert json.loads((tmp_path / "packs/active.json").read_text()) == {"llamacpp-cpu": "b7001-1"}
+    assert json.loads((tmp_path / "packs/active.json").read_text(encoding="utf-8")) == {"llamacpp-cpu": "b7001-1"}
     assert not any((tmp_path / "packs/.staging").iterdir())
 
 
@@ -124,7 +124,7 @@ def test_pack_007_self_test_failure_keeps_previous(srv, tmp_path):
     srv.publish()
     r = inst(srv, tmp_path, self_test=lambda d: False).install("llamacpp-cpu")
     assert r.status == "broken" and r.code == "RUNTIME_PACK_BROKEN"
-    assert json.loads((tmp_path / "packs/active.json").read_text())["llamacpp-cpu"] == "b7001-1"
+    assert json.loads((tmp_path / "packs/active.json").read_text(encoding="utf-8"))["llamacpp-cpu"] == "b7001-1"
 
 
 @pytest.mark.integration
@@ -138,7 +138,7 @@ def test_pack_008_lock_change_updates_on_idle_keeps_one_old(srv, tmp_path):
         staged = i.sync_lock(idle=False)  # background download, not yet switched
         assert staged == ["llamacpp-cpu"] or v == "b7001-1"
         i.sync_lock(idle=True)
-        assert json.loads((tmp_path / "packs/active.json").read_text())["llamacpp-cpu"] == v
+        assert json.loads((tmp_path / "packs/active.json").read_text(encoding="utf-8"))["llamacpp-cpu"] == v
     kept = sorted(p.name for p in (tmp_path / "packs/llamacpp-cpu").iterdir())
     assert kept == ["b7002-1", "b7003-1"]  # one previous version kept for rollback
 

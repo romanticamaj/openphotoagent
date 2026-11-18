@@ -9,10 +9,11 @@ dependencies = []
 package = false
 
 [tool.uv.workspace]
-members = ["packages/core", "packages/fs-sandbox", "packages/inference-sdk", "packages/inference-adapters", "packages/testing", "packages/schemas", "packages/db", "packages/registry", "packages/doctor", "packages/search", "packages/geo", "packages/mcp-tools", "packages/assistant", "apps/api", "apps/worker", "apps/cli", "tools/pytest_tc"]
+members = ["packages/core", "packages/secure-file", "packages/fs-sandbox", "packages/inference-sdk", "packages/inference-adapters", "packages/testing", "packages/schemas", "packages/db", "packages/registry", "packages/doctor", "packages/search", "packages/geo", "packages/mcp-tools", "packages/assistant", "apps/api", "apps/worker", "apps/cli", "tools/pytest_tc"]
 
 [tool.uv.sources]
 opagent-core = { workspace = true }
+opagent-secure-file = { workspace = true }
 opagent-fs-sandbox = { workspace = true }
 opagent-inference-sdk = { workspace = true }
 opagent-inference-adapters = { workspace = true }
@@ -32,10 +33,39 @@ pytest-opagent-tc = { workspace = true }
 
 [dependency-groups]
 dev = [
-  "opagent-core", "opagent-fs-sandbox", "opagent-inference-sdk", "opagent-inference-adapters", "opagent-testing", "opagent-registry", "opagent-doctor", "opagent-search", "opagent-geo", "opagent-mcp-tools", "opagent-assistant",
-  "opagent-schemas", "opagent-db", "opagent-api", "opagent-worker", "opagent-cli", "pytest-opagent-tc",
-  "pytest>=8", "pytest-cov", "pytest-randomly", "pytest-socket", "pytest-asyncio", "hypothesis",
-  "ruff", "mypy", "import-linter", "httpx", "mutmut", "diff-cover", "onnx", "hypothesis-jsonschema",
+  "opagent-core",
+  "opagent-secure-file",
+  "opagent-fs-sandbox",
+  "opagent-inference-sdk",
+  "opagent-inference-adapters",
+  "opagent-testing",
+  "opagent-registry",
+  "opagent-doctor",
+  "opagent-search",
+  "opagent-geo",
+  "opagent-mcp-tools",
+  "opagent-assistant",
+  "opagent-schemas",
+  "opagent-db",
+  "opagent-api",
+  "opagent-worker",
+  "opagent-cli",
+  "pytest-opagent-tc",
+  "pytest>=8",
+  "pytest-cov",
+  "pytest-randomly",
+  "pytest-socket",
+  "pytest-asyncio",
+  "hypothesis",
+  "ruff",
+  "mypy",
+  "import-linter",
+  "httpx",
+  "mutmut",
+  "diff-cover",
+  "onnx",
+  "hypothesis-jsonschema",
+  "pytest-timeout>=2.4.0",
 ]
 
 [tool.pytest.ini_options]
@@ -61,6 +91,10 @@ extend-exclude = ["spikes", "apps/web", "node_modules", "docs", "*.md"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "S", "DTZ", "TID", "SIM", "RUF"]
+# Windows decodes text as cp1252 unless told otherwise (CI os-matrix found it); preview rules only when named
+preview = true
+explicit-preview-rules = true
+extend-select = ["PLW1514"]
 ignore = ["S101", "RUF001", "RUF002", "RUF003", "S603", "S607"]
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
@@ -90,7 +124,7 @@ warn_unused_ignores = true
 explicit_package_bases = true
 
 [[tool.mypy.overrides]]
-module = ["opagent_core.*", "opagent_fs.*", "opagent_schemas.*"]
+module = ["opagent_core.*", "opagent_fs.*", "opagent_schemas.*", "opagent_secure.*"]
 strict = true
 
 [tool.coverage.run]
@@ -99,7 +133,7 @@ patch = ["subprocess"]
 source = ["opagent_core", "opagent_fs", "opagent_inference", "opagent_api", "opagent_worker", "opagent_db"]
 
 [tool.importlinter]
-root_packages = ["opagent_api", "opagent_worker", "opagent_db", "opagent_core", "opagent_fs", "opagent_inference", "opagent_adapters", "opagent_schemas", "opagent_registry", "opagent_doctor", "opagent_search"]
+root_packages = ["opagent_api", "opagent_worker", "opagent_db", "opagent_core", "opagent_secure", "opagent_fs", "opagent_inference", "opagent_adapters", "opagent_schemas", "opagent_registry", "opagent_doctor", "opagent_search"]
 
 [[tool.importlinter.contracts]]
 id = "api-no-files-no-gpu"
@@ -107,6 +141,13 @@ name = "FS-026: apps/api and packages/db must not import fs-sandbox or inference
 type = "forbidden"
 source_modules = ["opagent_api", "opagent_db", "opagent_registry", "opagent_doctor"]
 forbidden_modules = ["opagent_fs", "opagent_inference", "opagent_adapters"]
+
+[[tool.importlinter.contracts]]
+id = "secure-leaf"
+name = "opagent_secure is a leaf: everything may use it, so it uses nothing (ADR-0024)"
+type = "forbidden"
+source_modules = ["opagent_secure"]
+forbidden_modules = ["opagent_api", "opagent_worker", "opagent_db", "opagent_core", "opagent_fs", "opagent_inference", "opagent_adapters", "opagent_schemas", "opagent_registry", "opagent_doctor", "opagent_search"]
 
 [[tool.importlinter.contracts]]
 id = "core-pure"

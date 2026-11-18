@@ -8,6 +8,7 @@ from sqlalchemy import (
     DDL,
     BigInteger,
     Boolean,
+    CheckConstraint,
     Column,
     Computed,
     DateTime,
@@ -16,6 +17,7 @@ from sqlalchemy import (
     Index,
     Integer,
     MetaData,
+    SmallInteger,
     Table,
     Text,
     UniqueConstraint,
@@ -84,11 +86,17 @@ asset = Table(
     Column("phash", Text),
     Column("dhash", Text),
     Column("exif", JSONB, nullable=False, server_default="{}"),  # display summary (10 §3.5); untrusted data
+    # turned in the app, never in the file (ROT-001, invariant 4)
+    Column("rotation", SmallInteger, nullable=False, server_default="0"),
+    # edited in the app, never in the file (ADR-0057, EDIT-001): only the values off their default; NULL is as shot
+    Column("edit", JSONB),
+    Column("edit_rev", Integer, nullable=False, server_default="0"),
     # wall-clock time the photo belongs to (capture time, else file mtime) and its month: the timeline axis (10 §2)
     Column("local_at", DateTime(timezone=False)),
     Column("month_at", DateTime(timezone=False), Computed("date_trunc('month', local_at)", persisted=True)),
     _ts("created_at", server_default=func.now()),
     UniqueConstraint("workspace_id", "content_hash"),
+    CheckConstraint("rotation IN (0, 90, 180, 270)", name="asset_rotation_quarter"),
 )
 Index("asset_timeline", asset.c.workspace_id, asset.c.month_at, asset.c.local_at.desc())
 asset_location = Table(
@@ -699,6 +707,21 @@ collection_member = Table(
     Column("collection_id", Text, ForeignKey("collection.id", ondelete="CASCADE"), primary_key=True),
     Column("asset_id", Text, ForeignKey("asset.id", ondelete="CASCADE"), primary_key=True),
     _ts("added_at", server_default=func.now()),
+)
+
+
+# 隱藏這個回憶 and 少一點「X」 (ADR-0049 addendum 8, MEM-041): one person's choices about memories. Its own table, not
+# workspace.settings, which the face switch also writes; no biometric data, so a face purge leaves it alone.
+memory_feedback = Table(
+    "memory_feedback",
+    metadata,
+    Column("id", Text, primary_key=True),
+    Column("workspace_id", Text, nullable=False),
+    Column("user_id", Text, nullable=False, server_default="local"),
+    Column("kind", Text, nullable=False),  # hide | fewer
+    Column("ref", Text, nullable=False),  # event:YYYY-MM-DD | theme:YYYY:group.name | tag:group.name
+    _ts("at", server_default=func.now()),
+    UniqueConstraint("workspace_id", "user_id", "kind", "ref", name="memory_feedback_once"),
 )
 
 

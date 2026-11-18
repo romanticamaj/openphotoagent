@@ -8,11 +8,11 @@ from opagent_worker.power import SysfsPower
 def _supply(root, name, typ, online=None, status=None):
     d = root / name
     d.mkdir(parents=True)
-    (d / "type").write_text(typ + "\n")
+    (d / "type").write_text(typ + "\n", encoding="utf-8")
     if online is not None:
-        (d / "online").write_text(f"{online}\n")
+        (d / "online").write_text(f"{online}\n", encoding="utf-8")
     if status is not None:
-        (d / "status").write_text(status + "\n")
+        (d / "status").write_text(status + "\n", encoding="utf-8")
 
 
 @pytest.mark.unit
@@ -23,10 +23,10 @@ def test_desk_023_unplugging_pauses_and_replugging_resumes(tmp_path):
     power = SysfsPower(tmp_path)
     pol = ResourcePolicy(power=power)
     assert power.on_ac and pol.paused_reason() is None
-    (tmp_path / "AC" / "online").write_text("0\n")  # unplugged: read live on every check
-    (tmp_path / "BAT0" / "status").write_text("Discharging\n")
+    (tmp_path / "AC" / "online").write_text("0\n", encoding="utf-8")  # unplugged: read live on every check
+    (tmp_path / "BAT0" / "status").write_text("Discharging\n", encoding="utf-8")
     assert not power.on_ac and pol.paused_reason() == "PAUSED_ON_BATTERY"
-    (tmp_path / "AC" / "online").write_text("1\n")
+    (tmp_path / "AC" / "online").write_text("1\n", encoding="utf-8")
     assert power.on_ac and pol.paused_reason() is None
 
 

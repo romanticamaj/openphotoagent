@@ -8,8 +8,14 @@ import pytest
 import yaml
 
 ROOT = Path(__file__).resolve().parents[4]
-GOLDEN = {r["id"]: r for r in yaml.safe_load((ROOT / "fixtures/golden/preflight_catalog.yaml").read_text())["rows"]}
-I18N = {lang: json.loads((ROOT / f"packages/i18n/errors.{lang}.json").read_text()) for lang in ("zh-TW", "en")}
+GOLDEN = {
+    r["id"]: r
+    for r in yaml.safe_load((ROOT / "fixtures/golden/preflight_catalog.yaml").read_text(encoding="utf-8"))["rows"]
+}
+I18N = {
+    lang: json.loads((ROOT / f"packages/i18n/errors.{lang}.json").read_text(encoding="utf-8"))
+    for lang in ("zh-TW", "en")
+}
 
 
 def check(pf, pid):

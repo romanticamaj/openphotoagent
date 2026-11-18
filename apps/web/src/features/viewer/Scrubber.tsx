@@ -91,7 +91,7 @@ export function Scrubber({ model, current, onJump }: { model: TimelineModel; cur
         }}
       >
         {yearLabels.map((y) => (
-          <span key={y.year} aria-hidden="true" className="tnum absolute right-2 text-xs text-[var(--text-muted)]" style={{ top: `${y.f * 100}%` }}>
+          <span key={y.year} aria-hidden="true" className="tnum absolute right-2 text-xs text-[var(--text-muted)]" style={{ top: `max(6px, ${y.f * 100}%)` }}>
             {y.year}
           </span>
         ))}

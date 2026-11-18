@@ -25,12 +25,23 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from opagent_secure import write_private
+
 PROTOCOL_VERSION = "1.0"
 MODES = ("full", "thumbs", "edge-thumbs", "results-only")  # loosest → strictest
 THUMB_LIMIT = {"full": 1024, "thumbs": 512, "edge-thumbs": 0, "results-only": 0}
 VARIANTS = {"t256": 256, "t512": 512, "p1024": 1024}
 # task kinds whose output is an image or a vector: never run under results-only (02 §1.4)
-RESULTS_ONLY_DENIED = {"embed_assets", "embed_text", "embed_captions", "embed_image", "face_embed_query", "thumb_fetch"}
+RESULTS_ONLY_DENIED = {
+    "embed_assets",
+    "embed_text",
+    "embed_captions",
+    "embed_image",
+    "face_embed_query",
+    "thumb_fetch",
+    "folder_preview",
+    "folder_thumb",
+}
 EDGE_DENIED: set[str] = set()
 HASHED = "~h/"
 _log = logging.getLogger("opagent.worker.egress")
@@ -53,12 +64,11 @@ class Credentials:
 
     def save(self, home: Path) -> None:
         p = self.path(home)
-        p.write_text(json.dumps(asdict(self)))
-        os.chmod(p, 0o600)
+        write_private(p, json.dumps(asdict(self)).encode())
 
     @classmethod
     def load(cls, home: Path) -> Credentials:
-        return cls(**json.loads(cls.path(home).read_text()))
+        return cls(**json.loads(cls.path(home).read_text(encoding="utf-8")))
 
 
 def _key_path(home: Path) -> Path:
@@ -82,9 +92,7 @@ def enroll(server: str, code: str, home: Path, name: str, http: Any = None) -> C
     sk = Ed25519PrivateKey.generate()
     raw = sk.private_bytes(ser.Encoding.Raw, ser.PrivateFormat.Raw, ser.NoEncryption())
     kp = _key_path(home)
-    fd = os.open(kp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "wb") as f:
-        f.write(raw)
+    write_private(kp, raw)
     pub = base64.b64encode(sk.public_key().public_bytes(ser.Encoding.Raw, ser.PublicFormat.Raw)).decode()
     own = http is None
     http = http or httpx.Client(base_url=server, timeout=30)
@@ -102,7 +110,7 @@ def enroll(server: str, code: str, home: Path, name: str, http: Any = None) -> C
     b = r.json()
     cred = Credentials(server, b["worker_id"], b["refresh_token"], b["server_pubkey_pin"], name)
     cred.save(home)
-    (home / "worker_id").write_text(cred.worker_id)
+    (home / "worker_id").write_text(cred.worker_id, encoding="utf-8")
     return cred
 
 
@@ -133,7 +141,7 @@ class EgressFilter:
         self.path_map: dict[str, str] = {}
         self.map_path = log_path.parent / "pathmap.jsonl" if log_path is not None else None
         if self.map_path is not None and self.map_path.exists():  # hashed paths must survive restarts
-            for line in self.map_path.read_text().splitlines():
+            for line in self.map_path.read_text(encoding="utf-8").splitlines():
                 if line.strip():
                     k, v = json.loads(line)
                     self.path_map[k] = v
@@ -147,7 +155,7 @@ class EgressFilter:
     def deny(self, what: str) -> None:
         _log.warning("EGRESS_POLICY_DENIED: %s (mode %s)", what, self.mode)
         if self.log_path is not None:
-            with open(self.log_path, "a") as f:
+            with open(self.log_path, "a", encoding="utf-8") as f:
                 f.write(json.dumps({"at": self.clock.now().isoformat(), "mode": self.mode, "denied": what}) + "\n")
         raise EgressDenied(what)
 
@@ -167,7 +175,7 @@ class EgressFilter:
         if h not in self.path_map:
             self.path_map[h] = rel
             if self.map_path is not None:
-                with open(self.map_path, "a") as f:
+                with open(self.map_path, "a", encoding="utf-8") as f:
                     f.write(json.dumps([h, rel]) + "\n")
         return h
 

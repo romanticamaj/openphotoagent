@@ -19,18 +19,19 @@ def test_gate_005_bundled_face_weights_are_redistributable_and_local():
             assert m.spec.license.redistributable, m.spec.id
     ins = reg.models["insightface-buffalo-l"].spec
     assert not ins.license.redistributable and ins.license.requires_acceptance and not ins.defaults.get("bundled")
-    assert {m.spec.id for m in faces if m.spec.defaults.get("bundled")} == {"yunet-2023mar", "auraface-v1"}
+    # AuraFace is 249 MiB, over the installer budget: it comes with the person's opt-in (ADR-0026)
+    assert {m.spec.id for m in faces if m.spec.defaults.get("bundled")} == {"yunet-2023mar"}
 
 
 @pytest.mark.contract
 @pytest.mark.tc("FACE-GATE-005")
 def test_gate_005_remote_runtime_refused_for_face_models(tmp_path):
-    spec = yaml.safe_load((BUILTIN_DIR / "models/auraface-v1.yaml").read_text())
+    spec = yaml.safe_load((BUILTIN_DIR / "models/auraface-v1.yaml").read_text(encoding="utf-8"))
     spec["id"] = "my-remote-face"
     spec["variants"][0]["runtime"] = "openai-compatible"
     for f in spec["variants"][0]["files"]:  # a well-formed user model, so the runtime rule is what refuses it
         f.update(size=1000, sha256="a" * 64)
-    (tmp_path / "my-remote-face.yaml").write_text(yaml.safe_dump(spec))
+    (tmp_path / "my-remote-face.yaml").write_text(yaml.safe_dump(spec), encoding="utf-8")
     reg = load_registry(user_dirs=[tmp_path])
     m = reg.models["my-remote-face"]
     assert m.status != "valid" and "FACE_REMOTE_RUNTIME" in str(m.errors)
@@ -39,7 +40,7 @@ def test_gate_005_remote_runtime_refused_for_face_models(tmp_path):
 @pytest.mark.contract
 @pytest.mark.tc("FACE-PRV-004")
 def test_prv_004_no_attribute_models_anywhere():
-    text = "\n".join(p.read_text() for p in (BUILTIN_DIR / "models").glob("*.yaml")).lower()
+    text = "\n".join(p.read_text(encoding="utf-8") for p in (BUILTIN_DIR / "models").glob("*.yaml")).lower()
     for word in ("genderage", "gender", "emotion", "ethnicity", "age_estimation"):
         assert word not in text
     reg = load_registry()

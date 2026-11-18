@@ -8,6 +8,7 @@ RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json apps/web/
 COPY packages/ packages/
+COPY tools/tc-reporters/ tools/tc-reporters/
 RUN pnpm install --frozen-lockfile --filter web...
 COPY apps/web/ apps/web/
 RUN pnpm --filter web build && find apps/web/dist -type f -print0 | sort -z | xargs -0 sha256sum > /web-dist.sha256
@@ -23,6 +24,10 @@ COPY packages/ packages/
 COPY apps/api apps/api
 COPY apps/worker apps/worker
 COPY apps/cli apps/cli
+# data the app reads at runtime from the repo root (DOCK-004): model catalog, built-in presets, hw probe
+# profiles, and the FakeBackend vectors used by `opagent dev` until real adapters arrive with packs
+COPY fixtures/hw/ fixtures/hw/
+COPY fixtures/fake_vectors.yaml fixtures/fake_vectors.yaml
 RUN uv sync --frozen --no-dev --package opagent-cli && rm -rf /root/.cache
 COPY --from=web /src/apps/web/dist /app/web
 COPY --from=web /web-dist.sha256 /app/web-dist.sha256

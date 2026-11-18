@@ -1,7 +1,7 @@
 // Top-bar search (05 §2): usable as soon as the embedding model is ready; until then it says why (invariant 8).
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useLocation, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "../../lib/api";
 
@@ -10,7 +10,11 @@ const MODEL_GATES = new Set(["MODEL_NOT_INSTALLED", "MODEL_DOWNLOADING"]);
 export function SearchBar() {
   const { t } = useTranslation();
   const nav = useNavigate();
-  const [q, setQ] = useState("");
+  const loc = useLocation();
+  const current = loc.pathname === "/search" && typeof (loc.search as { q?: unknown }).q === "string" ? String((loc.search as { q: string }).q) : "";
+  const [q, setQ] = useState(current);
+  // the box shows the search on screen: the current query on the results page, empty everywhere else (SRCH-UI-010)
+  useEffect(() => setQ(current), [current, loc.pathname]);
   const pf = useQuery({
     queryKey: ["preflight", "search"],
     queryFn: () => api.preflight("search"),

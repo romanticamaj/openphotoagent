@@ -20,9 +20,9 @@ def test_search_is_gated_until_the_embedding_model_is_ready(env):
     c, w = env["client"], env["worker"]
     codes, r = _codes(c)
     assert codes == ["MODEL_NOT_INSTALLED"] and r["blockers"][0]["params"]["model"] == "embed"
-    op = c.post("/api/v1/workers/w1/installs", json={"variant": "siglip2-so400m-384@onnx-int8"}).json()
+    op = c.post("/api/v1/workers/w1/installs", json={"variant": "siglip2-so400m-384@onnx-fp16"}).json()
     codes, r = _codes(c)
-    assert codes == ["MODEL_DOWNLOADING"] and r["blockers"][0]["params"]["model"] == "siglip2-so400m-384@onnx-int8"
+    assert codes == ["MODEL_DOWNLOADING"] and r["blockers"][0]["params"]["model"] == "siglip2-so400m-384@onnx-fp16"
     _drain(w)
     assert c.get(f"/api/v1/operations/{op['operation_id']}").json()["status"] == "succeeded"
     w.embedder = FakeBackend(scores="mixed")  # the worker loads the installed model and reports it

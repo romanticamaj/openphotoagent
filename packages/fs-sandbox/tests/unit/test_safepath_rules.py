@@ -6,7 +6,7 @@ from opagent_fs.safepath import PathViolation, RootConfig, Sandbox
 
 @pytest.fixture
 def sb(sandbox_tree):
-    (sandbox_tree.outside / "secret.txt").write_text("secret")
+    (sandbox_tree.outside / "secret.txt").write_text("secret", encoding="utf-8")
     return Sandbox([RootConfig(**r) for r in sandbox_tree.roots])
 
 

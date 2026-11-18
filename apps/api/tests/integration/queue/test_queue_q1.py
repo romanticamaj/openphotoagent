@@ -220,3 +220,20 @@ def test_q_021_counters_invariant(events):
         m.apply(ev, f"i{idx}")
         counts = m.counters()
         assert sum(counts[k] for k in COUNTED) == counts["total"] == 10
+
+
+@pytest.mark.integration
+@pytest.mark.tc("Q-030")
+def test_q_030_a_caption_in_simplified_characters_is_kept_in_traditional(q):
+    """回歸 (audit round 55): a caption read 「开心」: the model slips into Simplified characters now and then. What the
+    app keeps is Traditional (zh-TW, OpenCC s2twp); English is left as it is."""
+    q.seed(2)
+    a, b = q.lease("w1", 2)
+    items = [
+        {**ok(a), "output": {**ok(a).get("output", {}), "caption": "两个小孩很开心地玩积木"}},
+        {**ok(b), "output": {**ok(b).get("output", {}), "caption": "Two kids play with blocks."}},
+    ]
+    assert q.client.post("/worker-api/v1/results", json={"worker_id": "w1", "items": items}).status_code == 200
+    with q.eng.begin() as c:
+        caps = set(c.execute(select(result.c.caption)).scalars())
+    assert caps == {"兩個小孩很開心地玩積木", "Two kids play with blocks."}

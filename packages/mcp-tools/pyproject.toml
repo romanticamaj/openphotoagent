@@ -3,7 +3,7 @@ name = "opagent-mcp-tools"
 version = "0.0.1"
 requires-python = ">=3.12"
 description = "MCP tool registry, scopes, sanitising, handles and the local credential store (05 §3)"
-dependencies = ["opagent-core", "jsonschema>=4.23"]
+dependencies = ["opagent-core", "opagent-secure-file", "jsonschema>=4.23"]
 
 [build-system]
 requires = ["hatchling"]

@@ -130,9 +130,12 @@ def apply_correction(
 
 
 @router.get("/assets/{asset_id}")
-def get_asset(asset_id: str, req: Request) -> dict[str, Any]:
+def get_asset(asset_id: str, req: Request, lang: str = "zh-TW") -> dict[str, Any]:
     """Lightbox info panel: every label with its decision layer and model fingerprint (INF-CAS-005)."""
     from opagent_core.decide import Policy
+
+    from .routes_albums import asset_albums
+    from .search import tag_names
 
     with _st(req).engine.begin() as c:
         a = c.execute(select(asset).where(asset.c.id == asset_id)).first()
@@ -155,6 +158,7 @@ def get_asset(asset_id: str, req: Request) -> dict[str, Any]:
                     "stage_fingerprint": raw_out.get("stage_fingerprint"),
                     "caption": r.caption,
                     "tags": r.tags,
+                    "tag_names": tag_names([str(t) for t in r.tags or []], lang),
                     "stages": raw_out.get("stages"),
                     "provenance": (r.raw or {}).get("provenance"),
                 }
@@ -167,4 +171,79 @@ def get_asset(asset_id: str, req: Request) -> dict[str, Any]:
             .order_by(asset_location.c.rel_path)
         ).all()
         d = {k: (v.isoformat() if hasattr(v, "isoformat") else v) for k, v in a._mapping.items()}
-        return {**d, "labels": out, "human_label": human, "locations": [dict(r._mapping) for r in locs]}
+        return {
+            **d,
+            "labels": out,
+            "human_label": human,
+            "locations": [dict(r._mapping) for r in locs],
+            **dict(zip(("people", "people_faces"), _people_in(c, asset_id), strict=True)),
+            "faces_state": _faces_state(c, [r.source_id for r in locs]),
+            "faces_found": _faces_found(c, asset_id),
+            "unknown_faces": _unknown_faces(c, asset_id),
+            **dict(zip(("favorite", "albums"), asset_albums(c, asset_id), strict=True)),  # ADR-0041
+        }
+
+
+def _faces_found(c: Any, asset_id: str) -> dict[str, int]:
+    """Faces in this photo that belong to no one shown: too small to recognise (tier 0), or of someone seen too
+    rarely to form a person (VIEW-028)."""
+    from opagent_db.schema import face, person
+
+    rows = c.execute(
+        select(face.c.quality_tier)
+        .select_from(face.outerjoin(person, person.c.id == face.c.person_id))
+        .where(face.c.asset_id == asset_id, (face.c.person_id.is_(None)) | (person.c.status == "ignored"))
+    ).all()
+    return {"total": len(rows), "small": sum(1 for (t,) in rows if t == 0)}
+
+
+def _unknown_faces(c: Any, asset_id: str) -> list[dict[str, Any]]:
+    """Where those faces are, so the photo can mark them (VIEW-029)."""
+    from opagent_db.schema import face, person
+
+    rows = c.execute(
+        select(face.c.id, face.c.bbox, face.c.quality_tier)
+        .select_from(face.outerjoin(person, person.c.id == face.c.person_id))
+        .where(face.c.asset_id == asset_id, (face.c.person_id.is_(None)) | (person.c.status == "ignored"))
+        .order_by(face.c.id)
+    ).all()
+    ch = c.execute(select(asset.c.content_hash).where(asset.c.id == asset_id)).scalar() if rows else None
+    # ch: the desktop app builds the face crop from the content hash (like people_faces)
+    return [{"id": r.id, "bbox": list(r.bbox), "small": r.quality_tier == 0, "ch": ch} for r in rows]
+
+
+def _faces_state(c: Any, sources: list[str]) -> str:
+    """off: faces are off; folder_off: on, but not for this photo's folder; on (VIEW-027)."""
+    from .faces import enabled_for, fsettings
+
+    if not fsettings(c).get("enabled"):
+        return "off"
+    return "on" if any(enabled_for(c, sid) for sid in sources) else "folder_off"
+
+
+def _people_in(c: Any, asset_id: str) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
+    """Who is in the photo (VIEW-021); nothing while faces are off, never someone the person chose to ignore."""
+    from opagent_db.schema import face, person
+
+    from .faces import fsettings
+
+    if not fsettings(c).get("enabled"):
+        return [], {}
+    ch = c.execute(select(asset.c.content_hash).where(asset.c.id == asset_id)).scalar()
+    rows = c.execute(
+        select(person.c.id, person.c.display_name, face.c.bbox)
+        .join(face, face.c.person_id == person.c.id)
+        .where(
+            face.c.asset_id == asset_id,
+            face.c.state.in_(("auto", "confirmed")),
+            person.c.status != "ignored",
+            person.c.merged_into.is_(None),
+        )
+        .distinct(person.c.id)
+        .order_by(person.c.id)
+    ).all()
+    rows = sorted(rows, key=lambda r: (r.display_name is None, r.display_name or "", r.id))
+    return [{"id": r.id, "name": r.display_name} for r in rows], {
+        r.id: {"bbox": list(r.bbox), "ch": ch}
+        for r in rows  # the face in this photo, for 「未命名」 (VIEW-025)
+    }

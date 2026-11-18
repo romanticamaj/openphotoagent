@@ -2,13 +2,12 @@
   "id": "M0-S5",
   "status": "partial",
   "machine": {
-    "hostname_label": "unlabeled",
-    "os": "Linux",
-    "os_release": "6.18.44-fc-v185",
-    "arch": "x86_64",
-    "python": "3.13.18",
-    "cpu_count": 4,
-    "mem_total_kb": 16477352
+    "hostname_label": "rtx5070ti-win11",
+    "os": "Windows",
+    "os_release": "10",
+    "arch": "AMD64",
+    "python": "3.10.11",
+    "cpu_count": 24
   },
   "metrics": {
     "yunet": {
@@ -30,11 +29,39 @@
       "redistributable": true
     },
     "auraface_v1": {
-      "license": "unverified (huggingface.co blocked in cloud session)",
-      "redistributable": null
+      "source": "huggingface.co/fal/AuraFace-v1@af6d057c9b0ec4071d4c49c80e3539258798b609",
+      "license_file": "LICENSE.md (sha256 609e2cb5...a338): unmodified Apache-2.0 template, copyright line left as '[yyyy] [name of copyright owner]'",
+      "model_card": "license: apache-2.0; 'trained on commercially and publicly available data sources to enable its usage in commercial setting'; training data not itemised",
+      "glintr100.onnx": {
+        "sha256": "a7933ea5330113b01c9b60351d8f4c33003f145d8470ac5f0e52ee2effe25c60",
+        "bytes": 260694151,
+        "dtype": "float32",
+        "opset": 11,
+        "producer": "pytorch 2.3.0",
+        "input": "data [N,3,112,112]",
+        "output": "1333 [1,512] (batch 4 ran and returned [4,512], ORT warns about the declared shape)",
+        "compared_to_insightface_antelopev2_glintr100": {
+          "insightface_sha256": "4ab1d6435d639628a6f3e5008dd4f929edf4c4124b1a7169e1048f9fef534cdf",
+          "tensor_best_correlation_mean": 0.0157,
+          "tensor_best_correlation_max": 0.1004,
+          "embedding_cosine_same_input": "-0.038..0.025 (8 random inputs)",
+          "verdict": "different weights; no sign of a fine-tune of the InsightFace model"
+        }
+      },
+      "other_files_byte_identical_to_insightface_packs": {
+        "scrfd_10g_bnkps.onnx": "5838f7fe053675b1c7a08b633df49e7af5495cee0493c7dcf6697200b85b5b91 = buffalo_l/det_10g.onnx",
+        "genderage.onnx": "4fde69b1c810857b88c64a335084f1c3fe8f01246c9a191b48c7bb756d6652fb",
+        "2d106det.onnx": "f001b856447c413801ef5c42091ed0cd516fcd21f2d6b79635b1e733a7109dbf",
+        "1k3d68.onnx": "df5c06b8a0c12e422b2ed8947b8869faa4105387f199c477af038aa01f9a45cc"
+      },
+      "redistributable": "glintr100.onnx only, on the repo's stated licence; the four InsightFace files must not be used or shipped",
+      "catalog_mismatches": [
+        "variant says quant fp16, file is float32",
+        "defaults.bundled true, file is 248.6 MiB against the 200 MB installer limit"
+      ]
     },
     "tar_at_far_0.1pct": null
   },
   "pass": null,
-  "notes": "Upstream LICENSE files read via git on 2026-11-01. AuraFace and TAR@FAR pending; training-data licensing needs legal review (BLOCKERS)."
+  "notes": "Upstream LICENSE files read via git on 2026-11-01; AuraFace repo read on Hugging Face and weights hashed on 2026-11-05. TAR@FAR pending; training-data licensing needs legal review (BLOCKERS)."
 }

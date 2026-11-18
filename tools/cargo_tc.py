@@ -51,7 +51,7 @@ def main() -> int:
     results = parse(r.stdout)
     dest = ROOT / ".tc" / "rust.json"
     dest.parent.mkdir(exist_ok=True)
-    dest.write_text(json.dumps(results, indent=1, sort_keys=True))
+    dest.write_text(json.dumps(results, indent=1, sort_keys=True), encoding="utf-8")
     return r.returncode
 
 

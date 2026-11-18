@@ -32,7 +32,7 @@ case "$(uname -s)" in
 esac
 
 # smoke test before packing
-"$PREFIX/bin/initdb$EXE" -D "$WORK/smoke" -U opagent -A trust -E UTF8 --locale-provider=builtin --locale=C.UTF-8 >/dev/null
+"$PREFIX/bin/initdb$EXE" -D "$WORK/smoke" -U opagent -A trust -E UTF8 --locale-provider=builtin --builtin-locale=C.UTF-8 --locale=C >/dev/null
 "$PREFIX/bin/pg_ctl$EXE" -D "$WORK/smoke" -o "-p 54329 -c listen_addresses=127.0.0.1" -l "$WORK/smoke.log" -w start >/dev/null
 "$PREFIX/bin/psql$EXE" -h 127.0.0.1 -p 54329 -U opagent -d postgres -v ON_ERROR_STOP=1 -q -c \
   "CREATE EXTENSION vector; CREATE TABLE v(id int, e vector(3)); INSERT INTO v VALUES (1,'[1,0,0]'),(2,'[0,1,0]'),(3,'[0.9,0.1,0]'); CREATE INDEX ON v USING hnsw (e vector_cosine_ops);" \
@@ -45,6 +45,8 @@ for b in postgres initdb pg_ctl pg_dump pg_restore pg_upgrade; do cp "$PREFIX/bi
 [ -z "$EXE" ] || cp "$PREFIX"/bin/*.dll "$OUT/bin/"
 cp -R "$PREFIX/lib" "$OUT/lib"
 rm -rf "$OUT/lib/pgxs" "$OUT/lib/pkgconfig" "$OUT"/lib/*.a
+# embedded-SQL (ecpg) client libraries: never used, and linuxdeploy cannot resolve their libpgtypes dependency
+rm -f "$OUT"/lib/libecpg* "$OUT"/lib/libpgtypes* "$OUT"/bin/ecpg*
 cp -R "$PREFIX/share" "$OUT/share"
 rm -rf "$OUT/share/doc" "$OUT/share/man"
 [ -n "$EXE" ] || find "$OUT/bin" "$OUT/lib" -type f \( -perm -u+x -o -name '*.so*' -o -name '*.dylib' \) -exec strip -S {} + 2>/dev/null || true

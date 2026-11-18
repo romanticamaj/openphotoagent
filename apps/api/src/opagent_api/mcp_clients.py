@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import shutil
 import sys
 from pathlib import Path
@@ -18,10 +19,15 @@ CLIENTS = ("claude-desktop", "claude-code", "cursor")
 SERVER_KEY = "openphotoagent"
 
 
-def cli_path() -> str:
-    """Absolute path of the ``opagent`` the app ships (the desktop shell passes it); never a bare command name."""
-    p = os.environ.get("OPAGENT_CLI_PATH") or shutil.which("opagent") or sys.argv[0]
-    return str(Path(p).resolve())
+def entry(data_home: Path | None = None) -> dict[str, Any]:
+    """How an AI client starts ``opagent mcp``: an absolute path, never a bare command name. The installer ships no
+    ``opagent`` executable and leaves PATH alone, so there it is the app's own interpreter (MCP-PAT-007). The data
+    folder goes along: the client's working directory and environment say nothing about where the app keeps run/."""
+    args = ["mcp", *(["--home", str(data_home)] if data_home else [])]
+    cli = os.environ.get("OPAGENT_CLI_PATH") or shutil.which("opagent")
+    if cli:
+        return {"command": str(Path(cli).resolve()), "args": args}
+    return {"command": sys.executable, "args": ["-I", "-m", "opagent_cli", *args]}
 
 
 def _home() -> Path:
@@ -43,15 +49,12 @@ def config_path(client: str, platform: str = sys.platform) -> Path:
     raise KeyError(client)
 
 
-def entry() -> dict[str, Any]:
-    return {"command": cli_path(), "args": ["mcp"]}
-
-
-def proposal(client: str) -> dict[str, Any]:
+def proposal(client: str, data_home: Path | None = None) -> dict[str, Any]:
     path = config_path(client)
     before = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
     after = json.loads(json.dumps(before))
-    after.setdefault("mcpServers", {})[SERVER_KEY] = entry()
+    wanted = entry(data_home)
+    after.setdefault("mcpServers", {})[SERVER_KEY] = wanted
     return {
         "client": client,
         "path": str(path),
@@ -59,12 +62,14 @@ def proposal(client: str) -> dict[str, Any]:
         "before": before.get("mcpServers", {}).get(SERVER_KEY),
         "after": after["mcpServers"][SERVER_KEY],
         "content": after,
-        "command_line": f"claude mcp add {SERVER_KEY} -- {cli_path()} mcp" if client == "claude-code" else None,
+        "command_line": shlex.join(["claude", "mcp", "add", SERVER_KEY, "--", wanted["command"], *wanted["args"]])
+        if client == "claude-code"
+        else None,
     }
 
 
-def install(client: str) -> dict[str, Any]:
-    p = proposal(client)
+def install(client: str, data_home: Path | None = None) -> dict[str, Any]:
+    p = proposal(client, data_home)
     path = Path(p["path"])
     backup = None
     if path.exists():

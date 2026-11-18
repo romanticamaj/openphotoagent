@@ -9,9 +9,11 @@
 from __future__ import annotations
 
 import posixpath
+import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 
+DRIVE_REMOTE = 4  # GetDriveTypeW
 LARGE_BATCH = 500  # more than this many new files in one go → priority low (05 §5)
 MAX_BATCH = 10_000
 NETWORK_FS = frozenset(
@@ -25,19 +27,31 @@ def mode_for(fstype: str) -> str:
     return "poll" if t in NETWORK_FS or t.startswith(("fuse.sshfs", "nfs", "smb", "cifs")) else "native"
 
 
+def _comparable(path: str) -> str:
+    """Windows paths compare like POSIX ones: forward slashes, lower case. A POSIX path is left alone."""
+    return path.replace("\\", "/").lower() if re.match(r"[A-Za-z]:([\\/]|$)", path) else path
+
+
 def fstype_of(path: str, mounts: str) -> str:
     """File system type of ``path`` from a ``/proc/mounts``-style table (the longest matching mount point)."""
+    if path.startswith("\\\\"):  # \\\\server\\share has no drive and no mount table entry
+        return "cifs"
     best, kind = "", ""
-    p = path.rstrip("/") or "/"
+    p = _comparable(path).rstrip("/") or "/"
     for line in mounts.splitlines():
         parts = line.split()
         if len(parts) < 3:
             continue
-        mp = parts[1].replace("\\040", " ").rstrip("/") or "/"
+        mp = _comparable(parts[1].replace("\\040", " ")).rstrip("/") or "/"
         inside = mp == "/" or p == mp or p.startswith(mp + "/")
         if inside and len(mp) >= len(best):
             best, kind = mp, parts[2]
     return kind
+
+
+def windows_mount_table(drive_types: dict[str, int]) -> str:
+    """A ``/proc/mounts``-style table from ``GetDriveTypeW`` results, so ``fstype_of`` needs no second code path."""
+    return "".join(f"{d}: {d}:/ cifs rw 0 0\n" for d, t in sorted(drive_types.items()) if t == DRIVE_REMOTE)
 
 
 @dataclass(frozen=True)

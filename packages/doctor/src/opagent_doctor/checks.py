@@ -118,7 +118,7 @@ def skip(why: str = "not applicable") -> Out:
 def fx(ftype: str, fid: str, **payload: Any) -> dict[str, Any]:
     d: dict[str, Any] = {"id": fid, "fix_id": fid, "type": ftype, "kind": ftype, "label_key": f"fix.{fid}"}
     if ftype == "choose_alternative":
-        d["consequence"] = {"key": f"fix.{fid}.consequence"}
+        d["consequence"] = {"key": f"fix_consequence.{fid}"}
     if payload:
         d["payload"] = payload
     return d
@@ -228,10 +228,37 @@ def _gpu_vram(c: Ctx) -> Out:
         return Out(
             "warn",
             "GPU_BUSY_EXTERNAL",
-            {"gb": round(g.vram_used_external_gb, 1), "process": ", ".join(g.processes)},
+            {"gb": round(g.vram_used_external_gb, 1), "process": busy_names(g.processes) or "Windows"},
             {**obs, "processes": list(g.processes)},
         )
     return Out("ok", observed=obs)
+
+
+# always on a Windows desktop with a GPU: naming them tells the person nothing they can close
+SHELL = {
+    "explorer.exe",
+    "msedgewebview2.exe",
+    "searchhost.exe",
+    "startmenuexperiencehost.exe",
+    "shellexperiencehost.exe",
+    "textinputhost.exe",
+    "lockapp.exe",
+    "crossdeviceresume.exe",
+    "dwm.exe",
+    "applicationframehost.exe",
+    "systemsettings.exe",
+    "widgets.exe",
+    "phoneexperiencehost.exe",
+    "snippingtool.exe",
+}
+BUSY_SHOWN = 5
+
+
+def busy_names(procs: Any, limit: int = BUSY_SHOWN) -> str:
+    """The programs worth closing, each once, at most ``limit`` (DOC-024): about 30 names was a wall of text."""
+    names = [n for n in dict.fromkeys(procs) if n.lower() not in SHELL]
+    more = f" 等 {len(names)} 個程式" if len(names) > limit else ""  # 「等 N 個」 counts all of them
+    return ", ".join(names[:limit]) + more
 
 
 def _nvidia(c: Ctx) -> Any:

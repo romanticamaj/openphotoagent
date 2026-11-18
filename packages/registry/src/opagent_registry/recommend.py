@@ -22,7 +22,7 @@ CUDA_PACKS = ("llamacpp-cuda13", "llamacpp-cuda12")
 
 Q8B5, Q8B4, Q8B8 = "qwen3-vl-8b-instruct@q5_k_m", "qwen3-vl-8b-instruct@q4_k_m", "qwen3-vl-8b-instruct@q8_0"
 Q4B4, Q2B4 = "qwen3-vl-4b-instruct@q4_k_m", "qwen3-vl-2b-instruct@q4_k_m"
-EMBED_GPU, EMBED_CPU = "siglip2-so400m-384@onnx-fp16", "siglip2-so400m-384@onnx-int8"
+EMBED_GPU, EMBED_CPU = "siglip2-so400m-384@onnx-fp16", "siglip2-so400m-384@onnx-fp16-cpu"
 
 # (min usable VRAM GB = total × 0.92, preference list) — 08 §3.3
 GPU_TIERS: list[tuple[float, list[str]]] = [
@@ -194,11 +194,15 @@ def recommend(reg: Registry, hw: HwSummary, pin_states: dict[str, str] | None = 
     # download size and time (exact when pinned, else estimated from the catalog)
     total, estimated = 0, False
     for pid in r.packs:
-        total += reg.runtimes[pid].size_est or 0
+        if pid in reg.runtimes:  # a catalog without the pack (INF-REG-014): unknown size, not a crash
+            total += reg.runtimes[pid].size_est or 0
         estimated = True
     for key in filter(None, [r.vlm, r.embed]):
         mid, _, vid = key.partition("@")
-        m = reg.models[mid]
+        m = reg.models.get(mid)
+        if m is None:  # not in this catalog: download preflight reports MODEL_NOT_PINNED
+            estimated = True
+            continue
         files = m.pinned_files(vid)
         exact = sum(f.size or 0 for f in files)
         if exact and all(f.size for f in files):

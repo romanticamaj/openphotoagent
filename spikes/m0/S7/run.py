@@ -53,23 +53,30 @@ def main() -> None:
     ap.add_argument("--server", default="http://127.0.0.1:8080")
     ap.add_argument("--runs", type=int, default=20)
     ap.add_argument("--id", default="M0-S7")
+    ap.add_argument("--notes", default="", help="run conditions to keep with the result")
     a = ap.parse_args()
     parsed = correct = args_ok = 0
     failures: list[str] = []
     for i in range(a.runs):
         q, expect = QUESTIONS[i % len(QUESTIONS)]
-        r = post(f"{a.server}/v1/chat/completions", {
-            "messages": [{"role": "system", "content": "You are a photo assistant. Use tools to answer; never invent ids or numbers."},
-                         {"role": "user", "content": q}],
-            "tools": TOOLS, "tool_choice": "auto", "temperature": 0.2,
-        })
+        try:
+            r = post(f"{a.server}/v1/chat/completions", {
+                "messages": [{"role": "system", "content": "You are a photo assistant. Use tools to answer; never invent ids or numbers."},
+                             {"role": "user", "content": q}],
+                "tools": TOOLS, "tool_choice": "auto", "temperature": 0.2,
+            })
+        except Exception as e:  # noqa: BLE001 - a server error is a failed run, not the end of the experiment
+            failures.append(f"{i}: {type(e).__name__}: {getattr(e, 'reason', e)}"[:200])
+            continue
         calls = r["choices"][0]["message"].get("tool_calls") or []
         if not calls:
-            failures.append(f"{i}: no tool call")
+            failures.append(f"{i}: no tool call for {q!r}: {str(r['choices'][0]['message'].get('content'))[:120]!r}")
             continue
         parsed += 1
         fn = calls[0]["function"]
         correct += fn["name"] == expect
+        if fn["name"] != expect:
+            failures.append(f"{i}: {q!r} expected {expect}, got {fn['name']}")
         try:
             json.loads(fn.get("arguments") or "{}")
             args_ok += 1
@@ -77,7 +84,7 @@ def main() -> None:
             failures.append(f"{i}: bad args")
     m = {"runs": a.runs, "parse_success_rate": parsed / a.runs, "tool_choice_accuracy": correct / a.runs,
          "args_json_valid_rate": args_ok / a.runs, "failure_samples": failures[:10]}
-    write_result(a.id, status="measured", metrics=m, passed=m["parse_success_rate"] >= 0.95, notes=f"server={a.server}")
+    write_result(a.id, status="measured", metrics=m, passed=m["parse_success_rate"] >= 0.95, notes=f"server={a.server}. {a.notes}".strip())
     print(json.dumps(m, indent=2, ensure_ascii=False))
 
 

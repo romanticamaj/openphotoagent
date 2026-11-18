@@ -4,7 +4,7 @@ name: registry-pin
 on:
   push:
     branches: [main]
-    paths: ["registry/models/**"]
+    paths: ["packages/registry/src/opagent_registry/builtin/models/**"]
   workflow_dispatch:
   schedule:
     - cron: "17 3 * * 1"
@@ -30,7 +30,7 @@ jobs:
           commit-message: "chore(registry): pin built-in model variants"
           title: "chore(registry): pin built-in model variants"
           body: "Automated by registry-pin.yml (ADR-0002). Review the diff: revisions must be commit shas; sizes/sha256 come from the Hugging Face API at pin time."
-          add-paths: registry/pins.lock
+          add-paths: packages/registry/src/opagent_registry/builtin/pins.lock
   check:
     if: github.event_name == 'schedule'
     runs-on: ubuntu-latest

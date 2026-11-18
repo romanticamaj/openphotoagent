@@ -105,9 +105,9 @@ def test_fs_022_missing_root_is_unavailable_not_violation(sandbox_tree, sb):
 @pytest.mark.tc("FS-023")
 def test_fs_023_refuse_overwriting_hardlinked_target(sandbox_tree, sb):
     victim = sandbox_tree.outside / "victim.txt"
-    victim.write_text("keep me")
+    victim.write_text("keep me", encoding="utf-8")
     os.link(victim, sandbox_tree.sorted / "dst.jpg")
     with pytest.raises(PathViolation) as e:
         sb.check_overwrite(sb.open_write("sorted", "dst.jpg"))
     assert e.value.reason == "hardlink"
-    assert victim.read_text() == "keep me"
+    assert victim.read_text(encoding="utf-8") == "keep me"

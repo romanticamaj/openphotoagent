@@ -24,7 +24,8 @@ def pins(reg, sha):
                 "schema_version": 1,
                 "pins": [{"model": "fixture-remote-code", "variant": "fp16", "revision": rev, "files": files}],
             }
-        )
+        ),
+        encoding="utf-8",
     )
 
 

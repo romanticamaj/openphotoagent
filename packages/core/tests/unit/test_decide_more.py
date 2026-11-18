@@ -29,7 +29,7 @@ def test_core_thr_011_rule_first():
 @pytest.mark.unit
 @pytest.mark.tc("CORE-THR-012")
 def test_core_thr_012_temperature_softmax_golden():
-    g = json.loads(GOLDEN.read_text())
+    g = json.loads(GOLDEN.read_text(encoding="utf-8"))
     for case in g:
         got = temperature_softmax(case["sims"], case["T"])
         assert len(got) == len(case["expected"])
@@ -110,3 +110,35 @@ def test_core_thr_019_conflict_below_floor_still_reviewed():
     o = decide(emb=Stage({"food": 0.9, "pets": 0.1}), vlm=VlmResult("pets", 0.6), n_examples=3)
     assert o.confidence == pytest.approx(0.48)
     assert (o.decision, o.reason, o.category) == ("needs_review", "conflict", "pets")
+
+
+@pytest.mark.unit
+@pytest.mark.tc("CORE-THR-020")
+def test_core_thr_020_a_near_uniform_embedding_is_no_opinion():
+    """ADR-0030: top-1 of 0.17 over 12 classes is noise; it cannot send a confident VLM answer to a person."""
+    o = decide(emb=Stage({"pets": 0.17, "food": 0.12}), vlm=VlmResult("food", 0.97))
+    assert (o.decision, o.category, o.source, o.reason) == ("accepted", "food", "vlm", None)
+    assert o.confidence == pytest.approx(0.97)
+
+
+@pytest.mark.unit
+@pytest.mark.tc("CORE-THR-020")
+def test_core_thr_020_an_unsure_vlm_still_asks_a_person():
+    o = decide(emb=Stage({"pets": 0.17, "food": 0.12}), vlm=VlmResult("people", 0.6))
+    assert (o.decision, o.category) == ("needs_review", "people")
+
+
+@pytest.mark.unit
+@pytest.mark.tc("CORE-THR-021")
+def test_core_thr_021_other_from_a_shortened_list_is_not_final():
+    """ADR-0030: with too many classes the VLM sees a shortlist, so "other" may only mean the answer was left out."""
+    o = decide(emb=Stage({"food": 0.2, "pets": 0.1}), vlm=VlmResult("other", 0.9), truncated=True)
+    assert (o.decision, o.category, o.reason) == ("needs_review", "food", "shortlist")
+    assert decide(emb=Stage({"food": 0.2}), vlm=VlmResult("other", 0.9)).decision == "other"
+
+
+@pytest.mark.unit
+@pytest.mark.tc("CORE-THR-021")
+def test_core_thr_021_stored_stages_give_the_same_answer():
+    st = {"emb": {"food": 0.2, "pets": 0.1}, "vlm": {"category": "other", "p": 0.9}, "truncated": True}
+    assert redecide(st, Policy()).reason == "shortlist"

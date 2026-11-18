@@ -33,21 +33,51 @@ def _state_file() -> Path | None:
     return Path(p) if p else None
 
 
+_STATE_LOCK = threading.Lock()
+
+
+def _write_state(f: Path, d: dict[str, Any]) -> None:
+    """Atomic replace: a SIGKILL from a concurrent request must never leave the file half-written (INF-OOM-004)."""
+    tmp = f.with_name(f"{f.name}.{os.getpid()}.{threading.get_ident()}.tmp")
+    with tmp.open("w", encoding="utf-8") as fh:
+        fh.write(json.dumps(d))
+        fh.flush()
+        os.fsync(fh.fileno())
+    os.replace(tmp, f)
+
+
 def _bump_persistent(key: str) -> int:
     f = _state_file()
     if f is None:
         return 0
-    d = json.loads(f.read_text()) if f.exists() else {}
-    d[key] = int(d.get(key, 0)) + 1
-    f.write_text(json.dumps(d))
-    return int(d[key])
+    with _STATE_LOCK:
+        d = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+        d[key] = int(d.get(key, 0)) + 1
+        _write_state(f, d)
+        return int(d[key])
 
 
 def _persistent(key: str, default: int = 0) -> int:
     f = _state_file()
     if f is None or not f.exists():
         return default
-    return int(json.loads(f.read_text()).get(key, default))
+    return int(json.loads(f.read_text(encoding="utf-8")).get(key, default))
+
+
+def _claim_crash() -> bool:
+    """One of the first ``--crash-first-n`` requests across restarts claims a crash: check and count together, so
+    concurrent requests cannot all see "not crashed yet" (INF-OOM-004)."""
+    f = _state_file()
+    n = int(STATE["args"].get("crash_first_n") or 0)
+    if f is None or n <= 0:
+        return False
+    with _STATE_LOCK:
+        d = json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
+        if int(d.get("crashes", 0)) >= n:
+            return False
+        d["crashes"] = int(d.get("crashes", 0)) + 1
+        _write_state(f, d)
+        return True
 
 
 def _content(body: dict[str, Any]) -> str:
@@ -133,11 +163,13 @@ class H(BaseHTTPRequestHandler):
             if fault:
                 f[fault] -= 1
             latency = float(f.get("latency_s", 0))
-        if fault is None and _persistent("crashes") < int(STATE["args"].get("crash_first_n") or 0):
+        if fault is None and _claim_crash():
             fault = "RUNTIME"
-        if fault == "RUNTIME":
+        elif fault == "RUNTIME":
             _bump_persistent("crashes")
-            os.kill(os.getpid(), signal.SIGKILL)
+        if fault == "RUNTIME":
+            # no SIGKILL on Windows: os.kill with any other signal there is TerminateProcess, equally uncatchable
+            os.kill(os.getpid(), getattr(signal, "SIGKILL", signal.SIGTERM))
         if fault == "OOM":
             self._json(
                 500, {"error": {"code": 500, "message": "CUDA error: out of memory (failed to allocate buffer)"}}

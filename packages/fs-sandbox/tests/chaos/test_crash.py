@@ -76,7 +76,8 @@ class Lab:
                     "plan_id": "plan",
                     "actions": self.actions,
                 }
-            )
+            ),
+            encoding="utf-8",
         )
         self.src_contents = {
             a["src_rel"]: (a["src_hash"], (self.photos / a["src_rel"]).stat().st_mtime_ns)

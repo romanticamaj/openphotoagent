@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { initialTurn, parseSse, reduce, renderAnswer, seconds } from "./stream";
+import { initialTurn, parseSse, photoStatus, reduce, renderAnswer, seconds } from "./stream";
 
 const sse = (ev: string, data: unknown) => `event: ${ev}\ndata: ${JSON.stringify(data)}\n\n`;
 
@@ -52,3 +52,16 @@ describe("ask stream", () => {
     expect(s.status).toBe("cancelled");
   });
 });
+
+describe("「問這張」 while it works (ASK-ONE-003)", () => {
+  it("[ASK-ONE-003] 回歸：問了之後顯示正在做什麼；沒有回答或失敗時說出來（驗證第 29 輪：什麼都沒出現）", () => {
+    const t = { ...initialTurn("這張照片裡有什麼？"), status: "streaming" as const };
+    t.steps = [{ id: "s3", kind: "tool", label: "看照片", tool: "describe_photo", status: "running" }];
+    expect(photoStatus(t, "zh-TW")).toBe("看照片…");
+    expect(photoStatus({ ...t, status: "completed", text: "" }, "zh-TW")).toBe("沒有得到回答，請再問一次。");
+    expect(photoStatus({ ...t, status: "failed", text: "" }, "zh-TW")).toBe("出了點問題，請再問一次。");
+    expect(photoStatus({ ...t, status: "completed", text: "一頭小象" }, "zh-TW")).toBeNull();
+    expect(photoStatus(undefined, "zh-TW")).toBeNull();
+  });
+});
+

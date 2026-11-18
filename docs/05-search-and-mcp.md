@@ -115,7 +115,7 @@ CREATE INDEX search_doc_ws_country ON search_doc (workspace_id, country_code, ad
 | 地點 | GPS → **離線反向地理編碼**（GeoNames kd-tree，最近 city + admin1 + country） | `full/thumbs`：CP 端做；`results-only`：Worker 端做，依 `place_level: none/country/admin1/city` 上傳（不上傳座標） |
 | 相機 / 鏡頭 | EXIF Make/Model/LensModel | 正規化品牌名 |
 | 資料夾 | `scope_keys` | 支援「在 2024/日本 這個資料夾底下」 |
-| 重複 | `duplicate_group_id`、`is_dup_representative` | 02 定義：同 hash / pHash ≤6 / cosine ≥0.97 |
+| 重複 | `duplicate_group_id`、`is_dup_representative` | 同 content_hash，或 pHash ≤ 6 且（任一張沒有向量，或 cosine ≥ 0.90）；以代表張為中心分組，每張都直接與代表張相近；**embedding 相似不算重複**（ADR-0043，取代「cosine ≥0.97」） |
 | 覆核狀態 / 信心 | `review_state`, `confidence` | agent 可找「低信心需確認」 |
 | 人物 | （審查補充）**v0.2**（07）：`person_ids`、`face_count`，facet `person:`；取代原本的 `face_cluster_ids`。只有擁有 `face:read` 權限（MCP 為 `faces:read` scope）時才回傳或計數；未命名的臉群不暴露給 MCP | 預設關閉，需 workspace opt-in（07 §0） |
 
@@ -195,9 +195,9 @@ flowchart TB
   PL -->|只有 NL 文字| RB[規則式解析<br/>日期・地名・tag 詞典] --> F
   RB -. 可選 .-> LLM[本地 LLM 解析<br/>Worker interactive lane] --> F
   F --> AUTH[權限 filter<br/>workspace ∩ token 範圍 ∩ scope_keys]
-  AUTH --> R1[R1 影像向量<br/>SigLIP2 text→image]
+  AUTH --> R1[R1 影像向量<br/>SigLIP2 text→image<br/>中文經詞彙表轉英文（ADR-0031）]
   AUTH --> R2[R2 caption 文字向量（v1）]
-  AUTH --> R3[R3 全文 tsvector<br/>詞 → bigram 降級]
+  AUTH --> R3[R3 全文 tsvector<br/>詞（含詞彙表同義詞）→ bigram 降級]
   AUTH --> R4[R4 tag/category 精確命中]
   R1 & R2 & R3 & R4 --> RRF[加權 RRF<br/>k=60, top-200/路]
   RRF --> DD[重複折疊<br/>同 duplicate_group 取代表]
@@ -249,6 +249,8 @@ SELECT * FROM fused ORDER BY score DESC LIMIT :limit OFFSET :offset;
 
 > 實作備註：`base` 很大時改為讓 r1 走 HNSW + `iterative_scan` 並把 filter 直接寫在 r1 的 WHERE（而不是 JOIN 物化集合）；Repository 依 `base` 預估列數二選一（§1.5）。
 
+**多個概念（ADR-0032）**：兩個以上的概念時，結果集合是「每個概念都符合」（全文含同義詞、標籤 id，或中文字對），向量只排序；整句都送進影像模型時，向量命中代表整句。對不到任何照片的詞彙外字詞會被略過，回應帶 `relaxed`。
+
 ### 2.2 以圖搜圖、相似、重複
 
 | 功能 | 輸入 | 做法 |
@@ -256,8 +258,16 @@ SELECT * FROM fused ORDER BY score DESC LIMIT :limit OFFSET :offset;
 | 相似照片 `find_similar` | `asset_id` | 直接取該 asset 在 active space 的向量 → kNN（不需推論）；可加 filter；排除同 `duplicate_group_id`（可選） |
 | 以圖搜圖（上傳） | 圖片 bytes | 圖片送到 Worker 的 `embed.image` RPC（互動 lane）→ 向量 → kNN。上傳圖只存在記憶體，不落地 CP（control plane 與 Worker 分離時圖片經 CP 中繼，UI 明示） |
 | 以文 + 圖組合 | text + asset_id | 向量 = normalize(α·v_text + (1-α)·v_img)，α 預設 0.5 |
-| 重複 `find_duplicates` | scope / filter | exact：同 content_hash（asset 已去重，看 `asset_location` 多處）；near：`duplicate_group_id`（scan 時的 pHash/embedding 判定）；可觸發 `dedup` 背景任務重新聚類：對每張 HNSW kNN k=10、cosine ≥ 閾值 → union-find |
+| 重複 `find_duplicates` | scope / filter | exact：同 content_hash（asset 已去重，看 `asset_location` 多處）；near：`duplicate_group_id`（scan 時的 pHash/embedding 判定）；分析完成時與 `dedup` 背景任務重新分組：pHash 多索引找候選，向量只用來否決雜湊碰撞（cosine < 0.90），以代表張為中心分組（ADR-0043）；同場景的相似照片（連拍）不算重複，保留給之後的「相似」檢視 |
 | 代表張 | group | 解析度最高 → 檔案最大 → 最早 taken_at；`is_dup_representative` |
+
+> **（ADR-0027 補充）** 向量路徑有每個 embedding 空間的 cosine 下限（模型目錄的 `embedding.min_cosine`）。低於下限的照片不屬於結果集合，只放在回應的 `related`（最多 24 張，不計數、不進 facet 與 selection）；向量路徑達到 K 時 `total_capped` 為 true。
+
+> **（ADR-0042 補充）** 只有影像路徑命中（全文、標籤、說明向量都沒有命中）時，影像路徑的最高分要達到 `embedding.min_cosine_alone`，否則視為沒有結果（`image_only_weak: true`、`total: 0`）。最高分過了這道門檻，其餘照片仍以 `min_cosine` 判斷。目錄沒有這個值的模型不受影響。
+
+> **（ADR-0047 補充）** 單一概念的查詢：文字或標籤找到 ≥ 3 張時，只靠向量的照片影像分數要達到它們的中位數才算；少於 3 張時每張都要過單獨門檻（影像 0.082、說明語意 0.58）。其餘高於下限的照片在 `possible` 裡，不計入張數、facet、全選，畫面收在「可能相關」。
+
+> **（ADR-0032 補充，includes）** 詞彙表的 `includes` 只用於嚴格的上下位：查「車子」也找汽車、公車、火車、腳踏車（全文替代詞與標籤），這些照片計入張數；影像路徑只問上位詞。聯想（吃飯 → 飯）不展開。
 
 ### 2.3 Query planner（自然語言 → 結構化）
 
@@ -437,6 +447,8 @@ sequenceDiagram
 | `faces:media`（審查補充，07 §5.1，v0.2） | face:read + media | 人臉裁切縮圖（`person://{id}/cover`、`face://{id}/thumb`） | 否；受 `mcp_face_media_policy` 限制（預設 `none`） |
 
 > （ADR-0009）tool registry 以 `available_from` 標註每個 tool 的上市版本；尚未上市的 tool 視同不存在。token 已有 scope、只是 workspace 開關（`mcp.allow_apply_requests`、`mcp.faces_enabled`）沒開時，tool 不出現在清單，呼叫時回 tool error 說明要在 app 哪裡開啟。
+
+> （ADR-0039，2026-11-11）`mcp.faces_enabled` 只管 MCP 呼叫端。內建「問 AI」的人物資料規則見 10 §8.9：本機模型只要啟用人臉辨識即可；雲端模型需 `assistant.cloud_people`。
 >
 > （回寫 W-3，09 §9，已採納）**`tools/list` 一律依 token scope 過濾**：token 不具備某 tool 所需 scope 時，該 tool 不出現在 `tools/list`，直接呼叫回 `-32601`（Method not found 語意的 tool not found），不洩漏 tool 的存在；適用全部 tools，不只 faces 類（MCP-SCOPE-001）。
 >
@@ -1059,3 +1071,5 @@ packages/
 | Ask | `count_photos`、`verify_photos`、`compare_photos`；`PhotoFilters` 擴充；`/search` 可回傳 `PhotoSummaryLite`（thumbhash、w/h）；`mcp_call_log` 增加 `actor_kind(builtin-assistant)`、`conversation_id`、`turn_id` | 10 §C | v0.3 | §3.3.1、§3.8、§4 |
 | Operation | `run_labeling_job` 與 `propose_organize` 回傳 06 §5.9 的 `estimate`（開始前預估時間、張數、磁碟用量），讓 agent 先告訴使用者要多久；`get_job_status` 附 `eta.state/p50`、`waiting_reason`、`elapsed_ms`；MCP 錯誤帶 06 錯誤碼；「連接 AI 助手」的測試連線用 `mcp.connect` preflight | 06 §7.4 | v0.2 | §3.3.1 |
 | 協定版本 | 桌面只用 stdio，降低對 2026-07-28 HTTP 傳輸細節的依賴；HTTP 相關未驗證項目移到 v0.5 | 08 C-33 | v0.5 | §10 |
+| 多概念查詢 | 每個概念都要符合（ADR-0032），三個例外：詞彙外且沒有照片的詞放寬並列在 `relaxed`；表情詞（`mood.smile`）與活動隱含的場景（詞彙表 `implies`，例如衝浪 → 海、海灘）只排序，列在 `soft`（`implied_by` 說明由哪個詞隱含）；「只看…」按鈕以 `soft_only` 改回嚴格 | DECISIONS ADR-0032 補充 | v1.0 | §2 |
+| 日期 | 「2025年11月10日」「2025/11/10」是那一天；沒寫年份的「11月10日」是每年的那一天（`month_day`，本地時間，SRCH-PLAN-026）；只寫月份的「11月」仍是今年；「去年今天」前後 3 天、「去年這個時候」前後 15 天 | 驗證第 45～48 輪 | v1.0 | §2.3 |

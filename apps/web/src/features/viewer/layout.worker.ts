@@ -1,12 +1,12 @@
 // Layout Web Worker (10 §2.2): justified rows are computed off the main thread and sent back as a Float32Array
 // [y, h, firstIndex, count, x0, w0, x1, w1, …] per row, so a 10 000-photo month never blocks scrolling.
-import { justify } from "./layout";
+import { justify, justifyDays } from "./layout";
 
-export type LayoutRequest = { id: number; aspects: Float32Array; width: number; target: number };
+export type LayoutRequest = { id: number; aspects: Float32Array; width: number; target: number; groups?: Int32Array };
 
 self.onmessage = (e: MessageEvent<LayoutRequest>) => {
-  const { id, aspects, width, target } = e.data;
-  const l = justify(aspects, width, target);
+  const { id, aspects, width, target, groups } = e.data;
+  const l = groups ? justifyDays(aspects, groups, width, target) : justify(aspects, width, target);
   const out = new Float32Array(l.rows.reduce((n, r) => n + 4 + 2 * r.count, 0));
   let k = 0;
   for (const r of l.rows) {
@@ -19,5 +19,6 @@ self.onmessage = (e: MessageEvent<LayoutRequest>) => {
       out[k++] = t.w;
     }
   }
-  (self as unknown as Worker).postMessage({ id, rows: out, height: l.height }, [out.buffer]);
+  const heads = new Float32Array((l.heads ?? []).flatMap((h) => [h.y, h.first]));
+  (self as unknown as Worker).postMessage({ id, rows: out, height: l.height, heads }, [out.buffer, heads.buffer]);
 };

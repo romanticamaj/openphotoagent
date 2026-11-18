@@ -1,10 +1,66 @@
 {
   "id": "M0-S4b",
-  "status": "pending-hardware",
+  "status": "partial",
   "machine": {
-    "hostname_label": "not-run"
+    "hostname_label": "rtx5070ti-win11",
+    "os": "Windows",
+    "os_release": "11",
+    "arch": "AMD64",
+    "python": "3.12.13",
+    "cpu_count": 24
   },
-  "metrics": {},
+  "metrics": {
+    "n": 600,
+    "zh": {
+      "top1": 0.505,
+      "ece": 0.33499327485760055,
+      "recall_per_class": {
+        "people": 0.5352112676056338,
+        "pets": 0.8873239436619719,
+        "food": 0.4027777777777778,
+        "landscape": 0.09722222222222222,
+        "city": 0.3888888888888889,
+        "events": 0.8275862068965517,
+        "nature": 0.7464788732394366,
+        "vehicles": 0.23943661971830985,
+        "objects": 0.6197183098591549
+      }
+    },
+    "en": {
+      "top1": 0.595,
+      "ece": 0.366791853569448,
+      "recall_per_class": {
+        "people": 0.7183098591549296,
+        "pets": 0.8309859154929577,
+        "food": 0.5138888888888888,
+        "landscape": 0.125,
+        "city": 0.6111111111111112,
+        "events": 0.7586206896551724,
+        "nature": 0.2535211267605634,
+        "vehicles": 0.9154929577464789,
+        "objects": 0.7323943661971831
+      }
+    },
+    "ensemble": {
+      "top1": 0.605,
+      "ece": 0.407767098111411,
+      "recall_per_class": {
+        "people": 0.7464788732394366,
+        "pets": 0.8732394366197183,
+        "food": 0.5,
+        "landscape": 0.1388888888888889,
+        "city": 0.5277777777777778,
+        "events": 0.8275862068965517,
+        "nature": 0.5070422535211268,
+        "vehicles": 0.676056338028169,
+        "objects": 0.7887323943661971
+      }
+    },
+    "criterion_on_this_set": {
+      "ensemble_ge_0_80": false,
+      "ensemble_within_3pp_of_en": true
+    }
+  },
   "pass": null,
-  "notes": "Needs SigLIP2 weights and img:by-content-12-large (600 CC0 images)."
+  "notes": "threshold 0.80 is the initial to-be-confirmed value (09 §6). PROXY dataset, not img:by-content-12-large: 600 COCO val2017 images, labels derived from COCO annotations and captions, 9 of 12 classes present (no travel, documents, screenshots) while the classifier still sees all 12 prompts. torch CPU fp32."
 }

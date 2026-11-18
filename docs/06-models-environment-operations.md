@@ -83,8 +83,8 @@ variants:
     files:                        # Artifact 清單：catalog 只寫 repo 與 path；size／sha256 不得寫在這裡（schema 拒絕）
       - { repo: Qwen/Qwen3-VL-8B-Instruct-GGUF, path: "Qwen3-VL-8B-Instruct-Q4_K_M.gguf" }
       - { repo: Qwen/Qwen3-VL-8B-Instruct-GGUF, path: "mmproj-F16.gguf" }
-    revision: main                # 人寫的 ref；實際釘選的 40-hex commit 在 registry/pins.lock（ADR-0002）
-    # registry/pins.lock（CI 的 registry-pin.yml 產生）：{model, variant, revision: <commit>, files: [{path, size, sha256, lfs_oid}]}
+    revision: main                # 人寫的 ref；實際釘選的 40-hex commit 在 opagent_registry/builtin/pins.lock（ADR-0002）
+    # opagent_registry/builtin/pins.lock（CI 的 registry-pin.yml 產生）：{model, variant, revision: <commit>, files: [{path, size, sha256, lfs_oid}]}
     # 載入時合併，variant 得到 pin_state ∈ {pinned, unpinned}；部分釘選＝載入錯誤；unpinned 不會被推薦，下載時 MODEL_NOT_PINNED
     perf_prior:                   # 冷啟動 ETA 用的先驗（03 §5.3），以參考 GPU 表示
       ref_gpu: rtx-5070-ti
@@ -318,7 +318,7 @@ flowchart LR
 
 | 階段 | 權重（預設，§5.4 會依位元數動態調整） | 內容 |
 |------|------|------|
-| `resolve` | 1% | 內建模型一律使用 `registry/pins.lock` 的釘選值（未釘選 → preflight blocker `MODEL_NOT_PINNED`，ADR-0002）；使用者自訂 YAML 使用其自帶的 sha256，大小可呼叫 `HfApi().model_info(repo, revision, files_metadata=True)` 補齊。只挑 variant 需要的檔案（03 §7.1 的 allow_patterns）。**一開始就知道精確總量**，因此不需要 VB 的 indeterminate／1 MB 門檻 hack。 |
+| `resolve` | 1% | 內建模型一律使用 `opagent_registry/builtin/pins.lock` 的釘選值（未釘選 → preflight blocker `MODEL_NOT_PINNED`，ADR-0002）；使用者自訂 YAML 使用其自帶的 sha256，大小可呼叫 `HfApi().model_info(repo, revision, files_metadata=True)` 補齊。只挑 variant 需要的檔案（03 §7.1 的 allow_patterns）。**一開始就知道精確總量**，因此不需要 VB 的 indeterminate／1 MB 門檻 hack。 |
 | `precheck` | 1% | §2.5 磁碟、§1.9 授權、HF token、網路／鏡像連通。任何失敗都轉為 blocker 並附上 fix。 |
 | `fetch` | 88%（依 bytes） | §2.2 引擎。 |
 | `verify` | 8% | 逐檔 sha256（續傳的檔案需要重算整檔；未中斷的檔案邊下載邊 hash，所以這階段幾乎是 0）。 |
@@ -918,6 +918,9 @@ Fix 共有欄位：`fix_id`、`type`、`label`、`primary`、`requires_permissio
 | 107 | `MODEL_REMOTE_CODE_UNCONFIRMED` | B | 這個模型會在你的電腦上執行它自帶的程式碼（{files}），需要你先檢視並確認 | 檢視並確認程式碼 | Review and confirm the code |
 | 108 | `IMMICH_UNREACHABLE` | B | 連不到 Immich 伺服器 | 檢查 Immich 網址 | Check the Immich URL |
 | 109 | `IMMICH_AUTH_FAILED` | B | Immich 拒絕了 API key | 重新輸入 API key | Enter the API key again |
+| 110 | `DATA_LAYOUT_TOO_NEW` | B | 資料夾由較新版本的 app 建立（layout {found}），此版本無法使用；資料未被更動 | 用備份還原 · 安裝新版 | Restore from a backup · Install the newer version |
+| 112 | `FACE_IGNORED` | W | 這張臉屬於已忽略的人物，不能用來確認 | 到人物頁取消忽略 | Unignore them on People |
+| 111 | `DESK_WEBVIEW_MISSING` | B | 系統缺少 WebKitGTK 4.1（{lib}），Linux 桌面版無法開啟視窗；資料未被更動 | 安裝 WebKitGTK 4.1 | Install WebKitGTK 4.1 |
 | 100 | `CONFIRM_TEXT_MISMATCH` | B | 確認文字不正確（應為「{expected}」） | 重新輸入 | Type it again |
 
 > （回寫 W-1，09 §9）#63–#68 由 09 的 PF-063～PF-066 與 OUT-EXE-016 提出；08 §10 的 `PACK_MISSING`、`DRIVER_TOO_OLD` 分別對應本表的 `RUNTIME_PACK_MISSING`、`GPU_DRIVER_TOO_OLD`。
@@ -1083,7 +1086,7 @@ est(queue wait)     = 前方 Operation 的 ETA 總和（同一 Worker 的 GPU la
 
 #### 5.5.5 信心區間
 
-- 相對標準差 `cv = sqrt(var_obs) / rate`。每個 item 的時間大致獨立，所以剩餘 N 個 item 的總時間相對誤差約為 `cv / sqrt(N_batches_remaining)`，再加上一項「漂移」項 δ（rate 在長時間內的變化，取 0.1）。先驗來源再加上其本身的寬度（registry 的 p10–p90 約 ±50%）。
+- 相對標準差 `cv = sqrt(var_obs) / rate`。每個 item 的時間大致獨立，所以剩餘 N 個 item 的總時間相對誤差約為 `cv / sqrt(N_batches_remaining)`，再加上速率本身的估計誤差與「漂移」項（ADR-0028）：`σ_rel = cv·√(1/N_rem + 1/N_eff) + δ(T)`，`N_eff = min(已完成 batch 數, (2−a)/a)`，`a = 1 − exp(−dt/τ)`；`δ(T) = clamp(0.1·√(T/3600), 0.04, 0.1)`，T 為 p50 秒數（漂移只能在剩餘時間內發生）。先驗來源再加上其本身的寬度（registry 的 p10–p90 約 ±50%）。
 - `p10 / p90 = p50 × (1 ∓ 1.28 · σ_rel)`，σ_rel 的上限為 0.9。
 - 以上公式是工程近似，不追求統計嚴格；目標是「顯示的區間在事後回看時有 80% 涵蓋真值」。實作時以 `eta_calibration` 統計（完成時記錄 `actual / predicted_p50` 的分佈）持續校正 δ 與 n0【需實測調整】。
 
@@ -1171,7 +1174,7 @@ data: {"v":1,"id":"op_…","seq":812,"type":"model.download","status":"running",
 | 孤兒偵測 | `owner` 每 15 秒更新一次心跳（Worker heartbeat 夾帶 active op ids）。CP sweeper 發現心跳超過 60 秒未更新、且狀態為 running 時，改為 `interrupted`；`operation_event` 記錄原因 `OWNER_LOST`（借鏡 VB `_force_fail_if_active`，但改成可恢復的 interrupted，而不是直接標 failed）。 |
 | 重啟後 | 桌面版啟動時，Activity Center 顯示提示卡片「上次有 2 個操作被中斷：下載 Qwen3-VL（3.2/10.6 GB）、任務『2025 手機』（68%）」，附「全部繼續」與個別按鈕。`resumable_after_restart=true` 且設定為自動續跑的（下載預設開啟）會直接繼續，並在卡片中說明「已自動繼續」。 |
 | 保留 | 成功完成的 Operation 保留 30 天或最近 500 筆（可設定）；失敗的保留 90 天；`operation_event` 隨母表一起刪除。Job 投影的 Operation 跟隨 Job 保留。 |
-| 觀測回寫 | Operation 完成時寫入 `perf_observation`（吞吐、載入時間、頻寬）與 `eta_calibration`。 |
+| 觀測回寫 | Operation 成功時寫入 `perf_observation`（吞吐、載入時間、頻寬）與 `eta_calibration`。校準比對的是**第一次顯示給使用者的預估**（換算成總時長），actual 不含暫停與等待時間。 |
 
 ### 5.9 開始前預估（`estimate`）
 

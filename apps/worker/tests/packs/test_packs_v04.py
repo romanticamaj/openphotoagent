@@ -97,7 +97,7 @@ def _build_pack_module():
 def test_rt_pack_014_ci_builds_the_new_packs():
     import yaml
 
-    wf = yaml.safe_load((ROOT / ".github/workflows/packs.yml").read_text())
+    wf = yaml.safe_load((ROOT / ".github/workflows/packs.yml").read_text(encoding="utf-8"))
     ids = {row["pack"] for row in wf["jobs"]["build"]["strategy"]["matrix"]["include"]}
     assert {"mlx", "vllm-cu128", "torch-cu128", "torch-mps", "torch-cpu"} <= ids
     runs = " ".join(str(s.get("run", "")) for s in wf["jobs"]["build"]["steps"])
@@ -115,7 +115,7 @@ def test_rt_pack_014_reproducible_build(tmp_path):
     (src / "bin").mkdir(parents=True)
     (src / "bin/run").write_bytes(b"#!/bin/sh\n")
     os.chmod(src / "bin/run", 0o755)
-    (src / "LICENSE").write_text("MIT")
+    (src / "LICENSE").write_text("MIT", encoding="utf-8")
     a = build_pack(src, tmp_path / "a.tar.zst")
     os.utime(src / "LICENSE", (1, 1))  # timestamps and order must not matter
     b = build_pack(src, tmp_path / "b.tar.zst")

@@ -103,3 +103,56 @@ def test_r2_003_blue_green_reindex(env):
     assert m.sql("select status from embedding_space where id = :s", s=old["id"]).scalar() == "retired"
     op = m.sql("select type, status from operation where type = 'search.reindex' order by created_at desc").first()
     assert op.type == "search.reindex" and op.status == "succeeded"
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-R2-005")
+def test_r2_005_caption_vectors_have_a_floor_too(env, monkeypatch):
+    """The caption route added its 200 nearest photos to every result with no floor (flagged in ADR-0027, ADR-0031):
+    turning the index on would have brought back "every query matches the library". It reads its model's floor."""
+    import opagent_api.search as S
+
+    m = env
+    m.http.post("/api/v1/search/caption-index", json={"model_key": QWEN})
+    wait_index(m, lambda s: (s.get("active") or {}).get("model_key") == QWEN)
+    monkeypatch.setattr(S, "caption_floor", lambda _st, _space: 1.01)  # nothing is that close
+    res = m.http.post("/api/v1/search", json={"q": "海邊的貓", "limit": 10, "semantic": True}).json()
+    assert not any("caption_vector" in x["matched_by"] for x in res["items"])
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-R2-007")
+def test_r2_007_a_failed_index_build_says_so(env):
+    """回歸 (audit round 4): a build whose worker tasks all failed stayed 「建立搜尋索引 進行中 1 秒」 forever, the
+    activity icon spinning; a replaced build's operation was never closed either."""
+    m = env
+    first = m.http.post("/api/v1/search/caption-index", json={"model_key": "no-such-model"}).json()
+    s = wait_index(m, lambda s: s.get("building") is None)
+    assert s["active"] is None
+    op = m.http.get(f"/api/v1/operations/{first['operation_id']}").json()
+    assert op["status"] == "failed" and op["error"]
+    # a build replaced before it finished is closed, not left running
+    a = m.http.post("/api/v1/search/caption-index", json={"model_key": QWEN}).json()
+    b = m.http.post("/api/v1/search/caption-index", json={"model_key": E5}).json()
+    assert m.http.get(f"/api/v1/operations/{a['operation_id']}").json()["status"] in ("cancelled", "succeeded")
+    assert b["operation_id"] != a["operation_id"]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-R2-013")
+def test_r2_013_photos_analysed_later_join_the_index(env):
+    """回歸 (audit round 41): the index said 645 of 845: the 200 photos analysed after it was built were never added,
+    and nothing said so. The status counts what is missing, and a top-up adds only those, to the index in use."""
+    m = env
+    m.http.post("/api/v1/search/caption-index", json={"model_key": QWEN})
+    wait_index(m, lambda s: (s.get("active") or {}).get("count") == 5)
+    for i in range(2):
+        m.add(f"t/bird{i}.jpg", caption=f"a bird in the sky {i}")
+    m.index()
+    s = m.http.get("/api/v1/search/caption-index").json()
+    assert s["active"]["missing"] == 2 and s["building"] is None
+    r = m.http.post("/api/v1/search/caption-index/topup")
+    assert r.status_code == 202 and r.json()["queued"] == 2
+    assert m.http.post("/api/v1/search/caption-index/topup").json()["queued"] == 0  # once
+    s = wait_index(m, lambda s: s["active"]["count"] == 7)
+    assert s["active"]["missing"] == 0 and s["active"]["model_key"] == QWEN

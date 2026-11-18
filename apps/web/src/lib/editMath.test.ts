@@ -1,0 +1,110 @@
+import { describe, expect, it } from "vitest";
+import { applyEdit, colorMatrix, coverScale, isIdentity, toneLut, type Edit } from "./editMath";
+
+const ID_MATRIX = [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0];
+
+describe("edit maths (ADR-0057)", () => {
+  it("[EDIT-004] 沒有調整時是恆等：查表 x→x、矩陣是單位矩陣", () => {
+    const e: Edit = { v: 1 };
+    expect(isIdentity(e)).toBe(true);
+    const lut = toneLut(e);
+    expect(lut.every((v, i) => v === i)).toBe(true);
+    expect(colorMatrix(e)).toEqual(ID_MATRIX);
+    expect(isIdentity({ v: 1, crop: { x: 0, y: 0, w: 1, h: 1 } })).toBe(true);
+    expect(isIdentity({ v: 1, exposure: 0.3 })).toBe(false);
+  });
+
+  it("[EDIT-005] 曝光 +1 EV 讓中間調加倍（上限 255）；對比加大讓暗的更暗、亮的更亮；黑白濾鏡 R=G=B", () => {
+    const up = toneLut({ v: 1, exposure: 1 });
+    expect(up[64]).toBe(128);
+    expect(up[200]).toBe(255);
+    const c = toneLut({ v: 1, contrast: 50 });
+    expect(c[64]!).toBeLessThan(64);
+    expect(c[192]!).toBeGreaterThan(192);
+    expect(c[128]).toBe(128); // the middle stays
+    const px = new Uint8ClampedArray([200, 80, 30, 255]);
+    applyEdit(px, { v: 1, filter: { name: "mono", strength: 100 } });
+    expect(px[0]).toBe(px[1]);
+    expect(px[1]).toBe(px[2]);
+    expect(px[3]).toBe(255); // alpha untouched
+    const warm = new Uint8ClampedArray([100, 100, 100, 255]);
+    applyEdit(warm, { v: 1, warmth: 60 });
+    expect(warm[0]!).toBeGreaterThan(warm[2]!); // warmer: more red than blue
+  });
+
+  it("[EDIT-006] 拉直時放大到剛好沒有空白角（任何角度）", () => {
+    for (const deg of [0, 1, 5, 10, 25, 45, -10]) {
+      for (const [w, h] of [[4000, 3000], [3000, 4000], [1000, 1000]] as const) {
+        const s = coverScale(deg, w, h);
+        const a = (Math.abs(deg) * Math.PI) / 180;
+        // the frame turned into the photo's axes must fit inside the scaled photo
+        expect(s * w + 1e-6).toBeGreaterThanOrEqual(w * Math.cos(a) + h * Math.sin(a));
+        expect(s * h + 1e-6).toBeGreaterThanOrEqual(w * Math.sin(a) + h * Math.cos(a));
+        expect(s).toBeGreaterThanOrEqual(1);
+        if (deg === 0) expect(s).toBe(1);
+      }
+    }
+    // a known case: a square turned 45° needs √2
+    expect(coverScale(45, 1000, 1000)).toBeCloseTo(Math.SQRT2, 6);
+  });
+});
+
+describe("自動 (ADR-0057)", () => {
+  const img = (f: (i: number) => number, n = 1000) => {
+    const px = new Uint8ClampedArray(n * 4);
+    for (let i = 0; i < n; i++) {
+      const v = f(i);
+      px.set([v, v, v, 255], i * 4);
+    }
+    return px;
+  };
+  it("[EDIT-016] 「自動」只依預覽的亮度分佈填入滑桿：太暗就提亮、灰濛濛就加對比、正常的幾乎不動；同一張每次一樣", async () => {
+    const { autoEdit } = await import("./editMath");
+    const dark = autoEdit(img((i) => 10 + (i % 60)));
+    expect(dark.exposure!).toBeGreaterThan(0.3);
+    const flat = autoEdit(img((i) => 110 + (i % 40)));
+    expect(flat.contrast!).toBeGreaterThan(20);
+    const fine = autoEdit(img((i) => Math.round((i / 999) * 255)));
+    expect(Math.abs(fine.exposure ?? 0)).toBeLessThan(0.15);
+    expect(Math.abs(fine.contrast ?? 0)).toBeLessThan(10);
+    expect(autoEdit(img((i) => 10 + (i % 60)))).toEqual(dark);
+    expect(dark.v).toBe(1);
+  });
+});
+
+describe("a crop and a turn (ADR-0057)", () => {
+  it("[EDIT-019] 回歸：裁切後再按 R 轉 90°，裁切跟著轉，形狀不變形（驗證第 145 輪：4:3 變成 0.40 的細條）", async () => {
+    const { turnCrop } = await import("./editMath");
+    // the left half of a landscape photo, turned 90° clockwise, is its top half
+    expect(turnCrop({ x: 0, y: 0, w: 0.5, h: 1 }, 90)).toEqual({ x: 0, y: 0, w: 1, h: 0.5 });
+    // a 4:3 crop centred in 4000×3000 (x .125, w .75) turned is centred in 3000×4000, 3:4
+    const c = turnCrop({ x: 0.125, y: 0, w: 0.75, h: 1 }, 90);
+    expect(c).toEqual({ x: 0, y: 0.125, w: 1, h: 0.75 });
+    expect(turnCrop({ x: 0.1, y: 0.2, w: 0.3, h: 0.4 }, 360)).toEqual({ x: 0.1, y: 0.2, w: 0.3, h: 0.4 });
+    const r = turnCrop(turnCrop(turnCrop(turnCrop({ x: 0.1, y: 0.2, w: 0.3, h: 0.4 }, 90), 90), 90), 90);
+    expect(r.x).toBeCloseTo(0.1, 9);
+    expect(r.h).toBeCloseTo(0.4, 9); // four quarter turns: where it began
+  });
+});
+
+describe("自動, gentler (round 146)", () => {
+  const img = (f: (i: number) => number, n = 1000) => {
+    const px = new Uint8ClampedArray(n * 4);
+    for (let i = 0; i < n; i++) {
+      const v = f(i);
+      px.set([v, v, v, 255], i * 4);
+    }
+    return px;
+  };
+  it("[EDIT-026] 回歸：「自動」的對比溫和（一般照片 ≤ 15、灰濛濛的 ≤ 30），暗的照片也提亮暗部（驗證第 146 輪：一般照片 +42、兩張到 +60 上限，亮部爆掉）", async () => {
+    const { autoEdit } = await import("./editMath");
+    const normal = autoEdit(img((i) => 50 + Math.round((i / 999) * 155))); // 2-98 % spread about 0.6
+    expect(normal.contrast ?? 0).toBeLessThanOrEqual(15);
+    const flat = autoEdit(img((i) => 110 + (i % 40)));
+    expect(flat.contrast!).toBeGreaterThan(20);
+    expect(flat.contrast!).toBeLessThanOrEqual(30);
+    const dark = autoEdit(img((i) => 10 + (i % 60)));
+    expect(dark.shadows!).toBeGreaterThan(0);
+    expect(dark.highlights ?? 0).toBeLessThanOrEqual(0); // lifted, the bright part held back
+  });
+});

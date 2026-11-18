@@ -15,14 +15,14 @@
 |---|---|---|
 | M0-S1a | `S1a/` | Linux 實測（partial） |
 | M0-S1b | `S1b/` | Linux postgres-only 實測（partial） |
-| M0-S1c | `S1c/` | pending-hardware（Windows） |
+| M0-S1c | `S1c/` | Windows 實測 |
 | M0-S2 | `S2/` | Linux 組件實測 + 標明的估算（partial） |
-| M0-S3／S3b | `S3/`、`S3b/` | pending-hardware（GPU） |
-| M0-S4 | `S4/` | 流程以隨機權重 tiny 模型驗證（`M0-S4-pipeline`）；真權重 pending |
-| M0-S4b | `S4b/` | pending-hardware |
+| M0-S3／S3b | `S3/`、`S3b/` | 5070 Ti 實測；其他 GPU pending |
+| M0-S4 | `S4/` | 真權重 CPU／DirectML 實測（`M0-S4`、`M0-S4-variants`）；CoreML pending |
+| M0-S4b | `S4b/` | 代理資料實測（partial） |
 | M0-S5 | `S5/` | 文件審查（partial；AuraFace 與 TAR 待驗證） |
 | M0-S6 | `S6/` | blocked（使用者帳號與憑證） |
-| M0-S7 | `S7/` | pending-hardware |
+| M0-S7 | `S7/` | 8B 實測；35B pending |
 | M0-V7 | `V7/` | pending-hardware（需切片 6） |
 | M0-V8 | `V8/` | 實測（Ubuntu 24.04 WebKitGTK 2.52） |
 | M0-V9 | `V9/` | pending（需切片 11 + Windows） |

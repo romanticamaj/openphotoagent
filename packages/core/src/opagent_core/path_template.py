@@ -25,7 +25,7 @@ _REPLACE = set('/\\:*?"<>|') | {"／", "∕", "⁄", "＼"}
 # invisible / direction-changing characters (ZWJ U+200D is kept: it is part of emoji sequences)
 _REMOVE = (
     {chr(c) for c in range(0x20)}
-    | {"\x7f", "​", "‎", "‏", "﻿"}
+    | {"\x7f", "\u200b", "\u200e", "\u200f", "\ufeff"}
     | {chr(c) for c in (*range(0x202A, 0x202F), *range(0x2066, 0x206A))}
 )
 _RESERVED = {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)), *(f"LPT{i}" for i in range(1, 10))}
@@ -84,13 +84,13 @@ def _graphemes(s: str) -> list[str]:
             or 0xFE00 <= cp <= 0xFE0F
             or 0x1F3FB <= cp <= 0x1F3FF
             or 0xE0020 <= cp <= 0xE007F
-            or ch == "‍"
+            or ch == "\u200d"
         )
         if out and (extend or join_next):
             out[-1] += ch
         else:
             out.append(ch)
-        join_next = ch == "‍"
+        join_next = ch == "\u200d"
     return out
 
 

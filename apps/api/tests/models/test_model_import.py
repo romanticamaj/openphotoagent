@@ -41,7 +41,8 @@ def ollama_store(root: Path) -> Path:
                     {"mediaType": "application/vnd.ollama.image.template", "digest": "sha256:" + "0" * 64, "size": 3},
                 ],
             }
-        )
+        ),
+        encoding="utf-8",
     )
     return root
 
@@ -61,7 +62,8 @@ def env(embedded_pg, sandbox_tree, tmp_path):
                 "schema_version": 1,
                 "pins": [{"model": "qwen3-vl-2b-instruct", "variant": "q4_k_m", "revision": rev, "files": files}],
             }
-        )
+        ),
+        encoding="utf-8",
     )
     c = TestClient(create_app(dsn=embedded_pg.dsn, registry_dir=reg), headers={"X-OPA-UI": "1"})
     w = WorkerAgent(

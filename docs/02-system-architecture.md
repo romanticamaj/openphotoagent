@@ -347,7 +347,7 @@ stateDiagram-v2
   planning --> awaiting_approval: dry-run 計畫完成
   awaiting_approval --> applying: 核准 (output:apply)
   applying --> completed
-  awaiting_approval --> completed: 只要標註不輸出
+  awaiting_approval --> completed: 只要標註不輸出／捨棄計畫（ADR-0045）
   running --> failed: 錯誤率超過門檻
   queued --> cancelled
   running --> cancelling: 取消

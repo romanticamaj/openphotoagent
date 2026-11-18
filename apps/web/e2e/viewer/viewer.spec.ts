@@ -200,10 +200,10 @@ test("[E2E-L-002] 就地修正：Lightbox 改類別 → toast「已記錄修正�
   await open(page);
   await page.keyboard.press("i");
   const info = page.getByTestId("info-panel");
-  await info.getByLabel("修正類別").selectOption({ label: "寵物" });
+  await info.getByLabel("修正類別").selectOption({ label: "動物" });
   await info.getByRole("button", { name: "儲存修正" }).click();
   await expect(page.getByRole("status").filter({ hasText: "已記錄修正" })).toBeVisible();
-  await expect(info.getByTestId("human-label")).toContainText("寵物");
+  await expect(info.getByTestId("human-label")).toContainText("動物");
   // the next organize plan uses the correction
   const job = await (
     await request.post("/api/v1/jobs", {
@@ -216,7 +216,7 @@ test("[E2E-L-002] 就地修正：Lightbox 改類別 → toast「已記錄修正�
     .toBe("awaiting_approval");
   const plan = await (await request.get(`/api/v1/output-plans/${j.plan_id}`)).json();
   const act = plan.actions.find((a: { asset_id: string }) => a.asset_id === id);
-  expect(act.dst_rel).toMatch(/^寵物\//);
+  expect(act.dst_rel).toMatch(/^動物\//);
 });
 
 test("[E2E-L-003] 在檔案總管顯示：desktop build 呼叫 platform.revealInFileManager；web build 隱藏", async ({ page }) => {
@@ -240,4 +240,80 @@ test("[E2E-L-003] 在檔案總管顯示：desktop build 呼叫 platform.revealIn
   const rel = (await page.getByTestId("info-panel").getByText(/^photos\//).first().textContent())!.replace(/^photos\//, "");
   await page.getByRole("button", { name: "在檔案總管中顯示" }).first().click();
   expect(await page.evaluate(() => (window as unknown as { __reveal: unknown }).__reveal)).toEqual([["photos", rel]]);
+});
+
+test("[VIEW-043] 回歸：Ctrl+A 選取整個圖庫、不反白頁面文字；Shift+方向鍵延伸選取（驗證第 52 輪）", async ({ page }) => {
+  await page.goto("/");
+  await firstTile(page).focus();
+  await page.keyboard.press("ControlOrMeta+a");
+  const bar = page.getByTestId("timeline-batch");
+  await expect(bar).toContainText("已選 30 張"); // 20 dated + 10 without EXIF: the whole library, not the months on screen
+  expect(await page.evaluate(() => window.getSelection()?.toString() ?? "")).toBe("");
+  await grid(page).getByRole("gridcell").nth(1).click(); // taken back out
+  await expect(bar).toContainText("已選 29 張");
+  await page.keyboard.press("Escape");
+  await expect(bar).toHaveCount(0);
+  await firstTile(page).click({ modifiers: ["ControlOrMeta"] });
+  await page.keyboard.press("Shift+ArrowRight");
+  await page.keyboard.press("Shift+ArrowRight");
+  await expect(bar).toContainText("已選 3 張");
+  await expect(grid(page).getByRole("gridcell").nth(2)).toBeFocused();
+});
+
+test("[VIEW-044] 回歸：在照片頁任何地方按 Ctrl+A 都是全選；Shift+← 縮回選取（驗證第 53 輪）", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("link", { name: "照片", exact: true }).first().click(); // focus on the nav, not on the grid
+  await page.keyboard.press("ControlOrMeta+a");
+  const bar = page.getByTestId("timeline-batch");
+  await expect(bar).toContainText("已選 30 張");
+  expect(await page.evaluate(() => window.getSelection()?.toString() ?? "")).toBe("");
+  await page.keyboard.press("Escape");
+  await firstTile(page).click({ modifiers: ["ControlOrMeta"] });
+  await page.keyboard.press("Shift+ArrowRight");
+  await page.keyboard.press("Shift+ArrowRight");
+  await expect(bar).toContainText("已選 3 張");
+  await page.keyboard.press("Shift+ArrowLeft");
+  await expect(bar).toContainText("已選 2 張");
+  await expect(grid(page).getByRole("gridcell").nth(1)).toBeFocused();
+  await expect(grid(page).getByRole("gridcell").nth(2)).toHaveAttribute("aria-selected", "false");
+});
+
+test("[VIEW-046] 回歸：Shift 範圍越過起點往回時，另一邊會放掉；燈箱裡 Ctrl+A 不反白頁面（驗證第 54 輪）", async ({ page }) => {
+  await page.goto("/");
+  const cells = grid(page).getByRole("gridcell");
+  await cells.nth(3).click({ modifiers: ["ControlOrMeta"] });
+  await page.keyboard.press("Shift+ArrowRight"); // 3, 4
+  await page.keyboard.press("Shift+ArrowLeft"); // 3
+  await page.keyboard.press("Shift+ArrowLeft"); // 2, 3
+  const bar = page.getByTestId("timeline-batch");
+  await expect(bar).toContainText("已選 2 張");
+  await expect(cells.nth(4)).toHaveAttribute("aria-selected", "false");
+  await expect(cells.nth(2)).toHaveAttribute("aria-selected", "true");
+  await page.keyboard.press("Escape");
+  await open(page);
+  await page.keyboard.press("ControlOrMeta+a");
+  expect(await page.evaluate(() => window.getSelection()?.toString() ?? "")).toBe("");
+});
+
+test("[A11Y-013] 回歸：第一次按 Tab 出現「跳到主要內容」，按下去焦點到第一張照片（驗證第 54～55 輪：要按 12～15 次 Tab）", async ({ page }) => {
+  await page.goto("/");
+  await expect(firstTile(page)).toBeVisible();
+  await page.keyboard.press("Tab");
+  const skip = page.getByRole("link", { name: "跳到主要內容" });
+  await expect(skip).toBeFocused();
+  await expect(skip).toBeInViewport();
+  await page.keyboard.press("Enter");
+  await expect(firstTile(page)).toBeFocused();
+});
+
+test("[VIEW-048] 回歸：時間軸的多選列也能「複製到資料夾…」，建立計畫給你核准（驗證第 61～63 輪：只有搜尋有）", async ({ page }) => {
+  await page.goto("/");
+  await firstTile(page).click({ modifiers: ["ControlOrMeta"] });
+  const bar = page.getByTestId("timeline-batch");
+  await bar.getByRole("button", { name: "複製到資料夾…" }).click();
+  const dlg = page.getByRole("dialog", { name: "複製到資料夾" });
+  await expect(dlg).toContainText("原檔不動");
+  await dlg.getByRole("button", { name: "建立計畫" }).click();
+  await expect(page.getByTestId("plan-summary")).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("button", { name: "核准並開始" })).toBeVisible();
 });

@@ -12,8 +12,26 @@ export default defineConfig({
   retries: 0,
   reporter: [["list"], ["../../tools/tc-reporters/playwright.js"]],
   use: { baseURL: external ?? `http://127.0.0.1:${port}`, trace: "retain-on-failure" },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"], locale: "zh-TW" } }],
-  // pinned fonts + Linux Chromium only: visual baselines are compared at 0.1 % (VIS-001/002, ADR-0003)
+  // `visual` holds the pixel baselines (VIS-001/002/003, ACT-006). Pinned font files fix the glyphs, not the
+  // rasterizer, so CI renders them only in the official Playwright image (ADR-0019, VIS-004); PR CI runs `chromium`.
+  projects:
+    external || process.env.OPAGENT_E2E_PERF
+      ? [{ name: "chromium", use: { ...devices["Desktop Chrome"], locale: "zh-TW" } }]
+      : [
+          {
+            name: "chromium",
+            testIgnore: ["docker/**", "perf/**", "visual/**"],
+            use: { ...devices["Desktop Chrome"], locale: "zh-TW" },
+          },
+          {
+            name: "visual",
+            testMatch: "visual/**/*.spec.ts",
+            // the baselines keep their names from before the split (one browser: Chromium)
+            snapshotPathTemplate: "{snapshotDir}/{testFileDir}/{testFileName}-snapshots/{arg}-chromium{-snapshotSuffix}{ext}",
+            use: { ...devices["Desktop Chrome"], locale: "zh-TW" },
+          },
+        ],
+  // compared at 0.1 % (VIS-001/002, ADR-0003); unchanged by ADR-0019
   expect: { toHaveScreenshot: { maxDiffPixelRatio: 0.001, animations: "disabled" } },
   webServer: external ? [] : [
     {

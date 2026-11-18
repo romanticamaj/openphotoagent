@@ -69,3 +69,74 @@ def test_batch_move_to_folder_produces_a_plan_for_approval(lib):
     while w.run_once():
         pass
     assert len(list((tree.sorted / "picked").iterdir())) == 3
+
+
+@pytest.mark.integration
+@pytest.mark.tc("COL-021")
+def test_col_021_everything_but_the_photos_taken_back_out(lib):
+    """Ctrl+A on the timeline (audit round 52): the whole library as a query, minus the photos un-ticked after it."""
+    client, _, _ = lib
+    ids = [a["asset_id"] for a in client.post("/api/v1/search", json={"limit": 10}).json()["items"]]
+    r = client.post("/api/v1/selections", json={"query": {"collapse_duplicates": False}, "exclude": ids[:2]})
+    assert r.status_code == 201, r.text
+    assert r.json()["count"] == 4
+    sid = r.json()["id"]
+    alb = client.post("/api/v1/albums", json={"name": "全部"}).json()["id"]
+    added = client.post(f"/api/v1/selections/{sid}/album", json={"album_id": alb}).json()["added"]
+    assert len(added) == 4 and not set(ids[:2]) & set(added)
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ACT-021")
+def test_act_021_a_plan_from_the_selection_bar_is_in_activity(lib):
+    """回歸 (audit rounds 128–129): a 複製到資料夾 plan made from the selection bar never showed in 活動's 最近完成; the
+    依日期 plan made a minute later did. Both kinds of plan are listed, and so is the job, by its outcome."""
+    client, _, _ = lib
+    ids = [a["asset_id"] for a in client.post("/api/v1/search", json={}).json()["items"]][:2]
+    sel = client.post("/api/v1/selections", json={"asset_ids": ids}).json()
+    r = client.post(
+        f"/api/v1/selections/{sel['id']}/organize", json={"target": {"root_alias": "sorted", "sub_path": "picked"}}
+    ).json()
+    ops = client.get("/api/v1/operations", params={"status": "all"}).json()
+    plan_ops = [o for o in ops if o["type"] == "output.plan" and o["subject"]["id"] == r["plan_id"]]
+    job_ops = [o for o in ops if (o.get("subject") or {}).get("id") == r["job_id"]]
+    assert plan_ops and plan_ops[0]["status"] == "succeeded"
+    assert (
+        job_ops and job_ops[0]["status"] == "succeeded" and job_ops[0]["subject"]["job_status"] == "awaiting_approval"
+    )
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ACT-022")
+def test_act_022_a_plan_row_says_which_plan(lib):
+    """回歸 (audit round 131): 活動 rows read only 「建立整理計畫 · 完成」, so two plans could not be told apart or
+    opened. A plan job's row carries its plan, how many photos and where to."""
+    client, _, _ = lib
+    ids = [a["asset_id"] for a in client.post("/api/v1/search", json={}).json()["items"]][:2]
+    sel = client.post("/api/v1/selections", json={"asset_ids": ids}).json()
+    r = client.post(
+        f"/api/v1/selections/{sel['id']}/organize", json={"target": {"root_alias": "sorted", "sub_path": "picked"}}
+    ).json()
+    ops = client.get("/api/v1/operations", params={"status": "all"}).json()
+    sub = next(o["subject"] for o in ops if (o.get("subject") or {}).get("id") == r["job_id"])
+    assert sub["plan_id"] == r["plan_id"]
+    assert sub["photos"] == 2
+    assert sub["target"] == "sorted/picked"
+
+
+@pytest.mark.integration
+@pytest.mark.tc("ACT-026")
+def test_act_026_a_plan_row_says_what_kind_of_plan(lib):
+    """回歸 (audit rounds 132–134): a 複製到資料夾 plan and a 依日期 plan read alike in 活動. A plan job's row says which
+    kind it is: the preset it came from (a trash plan says trash; the fixture's roots are read-only)."""
+    client, _, _ = lib
+    ids = [a["asset_id"] for a in client.post("/api/v1/search", json={}).json()["items"]][:2]
+    sel = client.post("/api/v1/selections", json={"asset_ids": ids}).json()
+    r = client.post(
+        f"/api/v1/selections/{sel['id']}/organize", json={"target": {"root_alias": "sorted", "sub_path": "picked"}}
+    ).json()
+    ops = client.get("/api/v1/operations", params={"status": "all"}).json()
+    kind = {
+        o["subject"]["id"]: o["subject"].get("plan_kind") for o in ops if (o.get("subject") or {}).get("kind") == "job"
+    }
+    assert kind[r["job_id"]] == "selection"

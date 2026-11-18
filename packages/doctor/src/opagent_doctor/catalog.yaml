@@ -26,6 +26,20 @@ DECODE_RAW_MISSING:
     type: download
   severity: warning
   transient: false
+DATA_LAYOUT_TOO_NEW:
+  fixes:
+  - target: data-backups
+    type: open_settings
+  - target: update
+    type: open_docs
+  severity: blocker
+  transient: false
+DESK_WEBVIEW_MISSING:
+  fixes:
+  - target: install_webkitgtk
+    type: copy_command
+  severity: blocker
+  transient: false
 DB_SCHEMA_TOO_NEW:
   fixes:
   - target: data-backups
@@ -659,6 +673,12 @@ FACE_CONSENT_REQUIRED:
   - target: faces
     type: open_settings
   severity: blocker
+  transient: false
+FACE_IGNORED:
+  fixes:
+  - target: people
+    type: open_settings
+  severity: warning
   transient: false
 PERSON_NAME_TAKEN:
   fixes:

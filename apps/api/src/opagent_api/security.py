@@ -16,9 +16,9 @@ from typing import Any
 from urllib.parse import urlsplit
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from pydantic import BaseModel
-from starlette.types import ASGIApp, Receive, Scope, Send
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "[::1]", "::1"}
 APP_ORIGINS = {"tauri://localhost", "http://tauri.localhost", "https://tauri.localhost"}
@@ -65,6 +65,11 @@ class DesktopGuard:
         host = headers.get("host", "")
         if not (lan or _host_ok(host)) or ("origin" in headers and not _origin_ok(headers["origin"], host, lan)):
             return await _deny(scope, receive, send, 403, "HOST_NOT_ALLOWED")
+        origin = headers.get("origin", "")
+        if origin in APP_ORIGINS:  # the window is the one cross-origin caller: http://tauri.localhost -> 127.0.0.1
+            if scope["type"] == "http" and scope["method"] == "OPTIONS" and "access-control-request-method" in headers:
+                return await _preflight(origin, headers, scope, receive, send)
+            send = _with_cors(send, origin)
         path = scope.get("path", "")
         if lan and path == LOGIN_PATH:
             return await self.app(scope, receive, send)  # the one unauthenticated call in LAN mode
@@ -82,6 +87,29 @@ class DesktopGuard:
                 if k == COOKIE and v in self.state.sessions:
                     return True
         return False
+
+
+def _with_cors(send: Send, origin: str) -> Send:
+    """No credentials: the window authenticates with the launch token, which a page on another origin does not have."""
+
+    async def wrapped(message: Message) -> None:
+        if message["type"] == "http.response.start":
+            extra = [(b"access-control-allow-origin", origin.encode()), (b"vary", b"Origin")]
+            message = {**message, "headers": [*message.get("headers", []), *extra]}
+        await send(message)
+
+    return wrapped
+
+
+async def _preflight(origin: str, headers: dict[str, str], scope: Scope, receive: Receive, send: Send) -> None:
+    allow = {
+        "Access-Control-Allow-Origin": origin,
+        "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+        "Access-Control-Allow-Headers": headers.get("access-control-request-headers", ""),
+        "Access-Control-Max-Age": "600",
+        "Vary": "Origin",
+    }
+    await Response(status_code=204, headers=allow)(scope, receive, send)
 
 
 async def _deny(scope: Scope, receive: Receive, send: Send, status: int, code: str) -> None:

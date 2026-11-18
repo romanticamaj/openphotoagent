@@ -23,6 +23,22 @@ test.describe("map", () => {
     expect(external).toEqual([]);
   });
 
+  test("[MAP-011] 回歸：地圖填滿區域，聚類真的看得到（安裝版是一個空的暗框）", async ({ page, request }) => {
+    // maplibre-gl.css sets .maplibregl-map { position: relative } after Tailwind, so the container lost its size and
+    // everything was clipped; Playwright's toBeVisible ignores clipping by an ancestor, hence this check.
+    await request.post("/__e2e/gps-library");
+    await page.goto("/map");
+    const region = page.getByRole("region", { name: "地圖" }).first(); // the page section; MapLibre adds another
+    await expect(region.getByRole("button", { name: /張照片/ }).first()).toBeVisible();
+    const r = await region.locator(".maplibregl-map").locator("..").boundingBox(); // the box the map should fill
+    await expect.poll(async () => (await region.locator(".maplibregl-canvas").boundingBox())!.height).toBeGreaterThan(r!.height * 0.9);
+    const onTop = await region.getByRole("button", { name: /張照片/ }).first().evaluate((el) => {
+      const b = el.getBoundingClientRect();
+      return document.elementFromPoint(b.x + b.width / 2, b.y + b.height / 2) === el;
+    });
+    expect(onTop).toBe(true);
+  });
+
   test("[MAP-002] 點聚類 → 網格只剩該範圍的照片；沒有位置的照片另外計數", async ({ page, request }) => {
     await request.post("/__e2e/gps-library");
     await page.goto("/map");

@@ -34,7 +34,7 @@ jobs:
       - run: uv sync
       - run: OPAGENT_TC_RESULTS=.tc/py-fast.json uv run pytest -q -m "not integration and not e2e and not chaos and not perf and not release_gate and not nightly" --cov --cov-branch --cov-report=xml
       - uses: actions/upload-artifact@v4
-        with: { name: tc-py-fast, path: .tc/ }
+        with: { name: tc-py-fast, path: .tc/, include-hidden-files: true }
 
   unit-ts:
     runs-on: ubuntu-24.04
@@ -45,7 +45,7 @@ jobs:
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile && pnpm -r --if-present test
       - uses: actions/upload-artifact@v4
-        with: { name: tc-ts, path: .tc/ }
+        with: { name: tc-ts, path: .tc/, include-hidden-files: true }
 
   unit-rust:
     runs-on: ubuntu-24.04
@@ -55,10 +55,11 @@ jobs:
       - uses: astral-sh/setup-uv@v6
       - run: uv run --no-project python tools/cargo_tc.py
       - uses: actions/upload-artifact@v4
-        with: { name: tc-rust, path: .tc/ }
+        with: { name: tc-rust, path: .tc/, include-hidden-files: true }
 
   integration-linux:
     runs-on: ubuntu-24.04
+    timeout-minutes: 45  # a full run takes ~10 min; without this a hung test burns GitHub's 6 h default
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v6
@@ -68,16 +69,21 @@ jobs:
           sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
           sudo apt-get install -y postgresql-17 postgresql-17-pgvector
           echo "OPAGENT_PG_BIN=/usr/lib/postgresql/17/bin" >> $GITHUB_ENV
+      - run: uv python install 3.12  # DESK-042 needs a uv-managed interpreter; the runner's venv sits on the system one
       - run: uv sync
-      - run: OPAGENT_TC_RESULTS=.tc/py-int.json uv run pytest -q -m "(integration or chaos) and not nightly and not release_gate"
+      # --timeout: a hung test fails with every thread's stack instead of stalling the job
+      - run: OPAGENT_TC_RESULTS=.tc/py-int.json uv run pytest -q --timeout=900 --timeout-method=thread -m "(integration or chaos) and not perf and not nightly and not release_gate"
+      - name: Python perf budgets in their own process (ADR-0018)
+        run: OPAGENT_TC_RESULTS=.tc/py-perf.json uv run pytest -q -p no:randomly -m "perf and not nightly and not gpu and not real_model"
       - uses: actions/upload-artifact@v4
-        with: { name: tc-py-int, path: .tc/ }
+        if: always()  # a red test must not also erase the evidence of the green ones (tc-status)
+        with: { name: tc-py-int, path: .tc/, include-hidden-files: true }
 
   os-matrix:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-14, ubuntu-22.04]
+        os: [windows-latest, macos-15, ubuntu-22.04]
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -85,12 +91,68 @@ jobs:
       - name: PostgreSQL 17 (macOS)
         if: runner.os == 'macOS'
         run: brew install postgresql@17 pgvector && echo "OPAGENT_PG_BIN=$(brew --prefix postgresql@17)/bin" >> $GITHUB_ENV
+      - name: PostgreSQL 17 + pgvector (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update && sudo apt-get install -y postgresql-common
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-17 postgresql-17-pgvector
+          echo "OPAGENT_PG_BIN=/usr/lib/postgresql/17/bin" >> $GITHUB_ENV
       - name: PostgreSQL (Windows preinstalled)
         if: runner.os == 'Windows'
         shell: bash
         run: echo "OPAGENT_PG_BIN=$PGBIN" >> $GITHUB_ENV
+      - name: Test temp dir on the work drive, outside Defender's real-time scan (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # C:'s %TEMP% plus real-time scanning made each PG-013 template clone 270 ms+ (budget 200 ms)
+          $t = Join-Path $env:RUNNER_TEMP "t"; New-Item -ItemType Directory -Force $t | Out-Null
+          Add-MpPreference -ExclusionPath $t, $env:GITHUB_WORKSPACE
+          "TEMP=$t" >> $env:GITHUB_ENV; "TMP=$t" >> $env:GITHUB_ENV
+      - uses: ilammy/msvc-dev-cmd@v1
+        if: runner.os == 'Windows'
+      - name: pgvector for the preinstalled PostgreSQL (Windows; pgvector's documented nmake build)
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: |
+          set "PGROOT=%PGROOT%"
+          git clone --depth 1 --branch v0.8.0 https://github.com/pgvector/pgvector.git "%RUNNER_TEMP%\pgvector"
+          cd /d "%RUNNER_TEMP%\pgvector"
+          nmake /NOLOGO /F Makefile.win
+          nmake /NOLOGO /F Makefile.win install
       - run: uv sync
-      - run: uv run pytest -q packages/core packages/fs-sandbox packages/testing
+      # a hang must name its test, not eat the job (windows-latest once stalled for 20 min)
+      - run: uv run pytest -q --timeout=300 packages/core packages/fs-sandbox packages/testing
+        env: { OPAGENT_TC_RESULTS: ".tc/py-os-${{ matrix.os }}.json" }
+      # the apps fail differently on Windows (ADR-0024, SCAN-027, INF-OOM-005) and nothing else would notice;
+      # GitHub's Windows runners are admin, so the symlink cases of invariant 2 really run here
+      - name: Everything else on Windows
+        if: "!cancelled() && runner.os == 'Windows'"
+        timeout-minutes: 120
+        run: uv run pytest -v --tb=line --timeout=600 -m "not e2e and not perf and not nightly and not release_gate and not real_model and not gpu" apps packages/secure-file packages/db packages/doctor packages/registry packages/mcp-tools packages/search packages/assistant packages/inference-sdk packages/inference-adapters tools
+        env: { OPAGENT_TC_RESULTS: ".tc/py-os-apps-${{ matrix.os }}.json" }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with: { name: "tc-os-${{ matrix.os }}", path: .tc/, include-hidden-files: true }
+
+  # every tc-linked test and its tier, for tc-status --verify (ADR-0021)
+  tc-inventory:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: uv sync && pnpm install --frozen-lockfile
+      - run: OPAGENT_TC_INVENTORY=.tc/inventory-py.json uv run pytest --collect-only -q -p no:randomly -m ""
+      - run: |
+          cd apps/web
+          pnpm exec playwright test --list --reporter=json | python3 ../../tools/tc_inventory_e2e.py > ../../.tc/inventory-e2e.json
+          OPAGENT_E2E_PERF=1 pnpm exec playwright test --list --reporter=json | python3 ../../tools/tc_inventory_e2e.py --tier perf > ../../.tc/inventory-perf.json
+      - uses: actions/upload-artifact@v4
+        with: { name: tc-inventory, path: .tc/, include-hidden-files: true }
 
   e2e-smoke:
     runs-on: ubuntu-24.04
@@ -108,10 +170,10 @@ jobs:
           echo "OPAGENT_PG_BIN=/usr/lib/postgresql/17/bin" >> $GITHUB_ENV
       - run: uv sync && pnpm install --frozen-lockfile
       - run: pnpm --filter web exec playwright install --with-deps chromium
-      - run: uv tool install rust-just && just e2e
+      - run: uv tool install rust-just && just e2e-pr
       - uses: actions/upload-artifact@v4
         if: always()
-        with: { name: tc-e2e, path: .tc/ }
+        with: { name: tc-e2e, path: .tc/, include-hidden-files: true }
 
   test-integrity:
     if: github.event_name == 'pull_request'
@@ -123,15 +185,19 @@ jobs:
       - run: python3 tools/check_test_integrity.py --base origin/${{ github.base_ref }}
         env:
           TEST_CHANGE_APPROVED: ${{ contains(github.event.pull_request.labels.*.name, 'test-change-approved') && '1' || '0' }}
+      # MIG-003: a breaking commit (`!` or BREAKING CHANGE:) must carry a `Migration:` note
+      - run: python3 tools/check_changelog.py --commits origin/${{ github.base_ref }}..HEAD
 
   tc-status:
-    needs: [unit-py, unit-ts, unit-rust, integration-linux, e2e-smoke]
+    needs: [unit-py, unit-ts, unit-rust, integration-linux, e2e-smoke, os-matrix, tc-inventory]
+    if: always()  # a red job's results are evidence too
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
-        with: { path: dl }
-      - run: mkdir -p .tc && cp dl/tc-*/*.json .tc/ && python3 tools/tc_status.py --check
+        with: { path: dl, pattern: "tc-*" }
+      # consistency with this run's evidence, not byte-equality (ADR-0021, TCS-001..006)
+      - run: python3 tools/tc_status.py --verify --pr-results dl --inventory dl
 
   mutation-diff:
     if: github.event_name == 'pull_request'

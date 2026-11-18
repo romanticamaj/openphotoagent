@@ -1,0 +1,239 @@
+import { describe, expect, it } from "vitest";
+import i18n from "../../lib/i18n";
+import { bodyFor, cappedNote, chipLabel, chipsFrom, countText, gridAssetOf, headerCount, loadMoreText, onlyByMeaning, relaxedText, softView, weakNeedsMore, weakTail, tileLabel, withoutPerson, withoutWords } from "./searchPlan";
+
+const planner = (filters: Record<string, unknown>, explain: string[], text = "") => ({
+  source: "rules",
+  confidence: 0.6,
+  explain,
+  text,
+  filters,
+  unapplied: [],
+});
+
+describe("the search a planned query becomes", () => {
+  it("[SRCH-UI-012] 回歸：輸入人名後，人物條件留在搜尋裡並成為可移除的標籤（驗證第 14 輪：「測試A」顯示整個圖庫）", () => {
+    const chips = chipsFrom(planner({ persons_all: ["p1"] }, ["「測試A」→ 人物"], ""));
+    expect(chips).toEqual([{ kind: "person", value: "測試A", id: "p1" }]);
+    expect(bodyFor("測試A", chips, { text: "" })).toEqual({ q: null, filters: { persons_all: ["p1"] } });
+    const withWords = chipsFrom(planner({ persons_all: ["p1"] }, ["「測試A」→ 人物"], "足球"));
+    expect(bodyFor("測試A 足球", withWords, { text: "足球" })).toEqual({ q: "足球", filters: { persons_all: ["p1"] } });
+    expect(bodyFor("測試A", [], { text: "" })).toEqual({ q: null, filters: {} }); // the chip removed: the filter goes too
+  });
+
+  it("[SRCH-UI-013] 回歸：拿掉人物標籤時，搜尋框也拿掉那個名字（驗證第 15 輪：框裡還寫著「測試A 足球」）", () => {
+    expect(withoutPerson("測試A 足球", "測試A")).toBe("足球");
+    expect(withoutPerson("測試a的照片", "測試A")).toBe("的照片");
+    expect(withoutPerson("測試A", "測試A")).toBe("");
+  });
+
+  it("[SRCH-UI-012] 日期標籤照舊；還沒規劃時先請伺服器規劃", () => {
+    const chips = chipsFrom(planner({ taken_at: { from: "2025-01-01", to: "2025-12-31" } }, ["「去年」→ 2025"], "海邊"));
+    expect(chips[0]).toMatchObject({ kind: "range", from: "2025-01-01", to: "2025-12-31" });
+    expect(bodyFor("去年 海邊", [], null)).toEqual({ q: "去年 海邊", plan: true, filters: {} });
+  });
+
+  it("[SRCH-UI-014] 回歸：結果被截在前 250 張時，說是「最相關的 250 張」（驗證第 18 輪：看起來像剛好 250 張）", async () => {
+    await i18n.changeLanguage("zh-TW");
+    const t = i18n.t.bind(i18n);
+    expect(countText(t, 250, true, "zh-TW")).toBe("250 張以上 · 依相關度排序"); // wording as of SRCH-UI-016
+    expect(countText(t, 17, false, "zh-TW")).toBe("17 張");
+  });
+
+  it("[SRCH-UI-015] 回歸：「以文搜圖」只標在只靠影像意思找到的照片（驗證第 22 輪：每張都有）", () => {
+    expect(onlyByMeaning(["image_vector"])).toBe(true);
+    expect(onlyByMeaning(["image_vector", "caption_vector"])).toBe(true);
+    expect(onlyByMeaning(["image_vector", "tag"])).toBe(false); // the word matched: nothing to explain
+    expect(onlyByMeaning(["fulltext", "image_vector"])).toBe(false);
+    expect(onlyByMeaning(["tag"])).toBe(false);
+  });
+});
+
+describe("an expression that ranks (ADR-0032 addendum)", () => {
+  const t = i18n.getFixedT("zh-TW");
+  it("[SRCH-CNC-010] 有看得出的照片：分隔線在第 shown 張之後，按鈕加上表情標籤篩選", () => {
+    const v = softView(t, [{ word: "開心", key: "mood.smile", shown: 2 }], 175, []);
+    expect(v?.at).toBe(2);
+    expect(v?.divider).toBe("以下 173 張沒看出「開心」，仍符合其他條件");
+    expect(v?.only).toBe("只看開心（2 張）");
+    expect(v?.chip).toEqual({ kind: "soft", value: "mood.smile", word: "開心" });
+  });
+
+  it("[SRCH-CNC-010] 沒有看得出的照片：一句說明、沒有分隔線也沒有按鈕", () => {
+    const v = softView(t, [{ word: "開心", key: "mood.smile", shown: 0 }], 175, []);
+    expect(v?.at).toBeNull();
+    expect(v?.note).toBe("沒有看得出「開心」的照片，下面是符合其他條件的照片。");
+    expect(v?.only).toBeNull();
+  });
+
+  it("[SRCH-CNC-010] 已經只看開心，或全部都看得出：不再分隔", () => {
+    expect(softView(t, [{ word: "開心", key: "mood.smile", shown: 2 }], 2, [])).toBeNull();
+    expect(softView(t, [{ word: "開心", key: "mood.smile", shown: 2 }], 175, [{ kind: "soft", value: "mood.smile", word: "開心" }])).toBeNull();
+    expect(softView(t, [], 175, [])).toBeNull();
+  });
+});
+
+describe("only the expression (SRCH-CNC-012)", () => {
+  it("[SRCH-CNC-012] 回歸：「只看開心」仍是同一個查詢，只留看得出的照片（驗證第 24 輪：23 張變 19 張）", () => {
+    const chips = [{ kind: "soft" as const, value: "mood.smile", word: "開心" }];
+    expect(bodyFor("小孩踢球很開心", chips, { text: "小孩踢球很開心" })).toEqual({ q: "小孩踢球很開心", soft_only: true, filters: {} });
+  });
+});
+
+describe("results cut at a route's limit (SRCH-UI-016)", () => {
+  const t = i18n.getFixedT("zh-TW");
+  it("[SRCH-UI-016] 回歸：被截斷時說「N 張以上」，看到最後時說其餘相似度較低（驗證第 25 輪：「最相關的 233 張」看不出還有更多）", () => {
+    expect(countText(t, 233, true, "zh-TW")).toBe("233 張以上 · 依相關度排序");
+    expect(cappedNote(t, 233, true, false)).toBe("只列出最相關的 233 張，其餘照片相似度較低。");
+    expect(cappedNote(t, 233, true, true)).toBeNull(); // more pages still to load
+    expect(cappedNote(t, 17, false, false)).toBeNull();
+  });
+
+  it("[SRCH-UI-017] 回歸：標籤的移除按鈕念出名稱，不念內部代號（驗證第 25 輪：「移除 mood.smile」）", () => {
+    expect(chipLabel(t, { kind: "soft", value: "mood.smile", word: "開心" }, {})).toBe("只看開心");
+    expect(chipLabel(t, { kind: "tag", value: "animal.dog" }, { "animal.dog": "狗" })).toBe("狗");
+    expect(chipLabel(t, { kind: "person", value: "測試A", id: "p1" }, {})).toBe("人物：測試A");
+  });
+});
+
+describe("weak look-alikes (SRCH-SEM-007)", () => {
+  const t = i18n.getFixedT("zh-TW");
+  it("[SRCH-SEM-007] 回歸：較不相關的照片先收起，按一下才顯示（驗證第 26 輪：最後 35 張大多不是踢球）", () => {
+    expect(weakTail(t, 160, 73, false, 233)).toEqual({ from: 160, more: "顯示較不相關的 73 張", fetch: false });
+    expect(weakTail(t, 160, 73, true, 233)).toBeNull(); // shown
+    expect(weakTail(t, undefined, 0, false, 233)).toBeNull();
+    expect(weakTail(t, 0, 5, false, 5)).toBeNull(); // nothing strong: show them, the list is not hidden whole
+  });
+});
+
+describe("weak look-alikes across pages (SRCH-SEM-008)", () => {
+  const t = i18n.getFixedT("zh-TW");
+  it("[SRCH-SEM-008] 回歸：較不相關的照片還沒載入前不收起，照常「載入更多」（驗證第 27 輪：第 2 頁的好照片被收進按鈕）", () => {
+    expect(weakTail(t, 186, 14, false, 100)).toBeNull(); // the strong ones are still coming
+    expect(weakTail(t, 186, 14, false, 186)).toEqual({ from: 186, more: "顯示較不相關的 14 張", fetch: true }); // next page is them
+    expect(weakTail(t, 186, 14, false, 200)).toEqual({ from: 186, more: "顯示較不相關的 14 張", fetch: false });
+  });
+});
+
+describe("showing the weak look-alikes (SRCH-SEM-009)", () => {
+  it("[SRCH-SEM-009] 回歸：按「顯示較不相關的 27 張」就載完 27 張，不必再按「載入更多」（驗證第 28 輪：只出現 13 張）", () => {
+    expect(weakNeedsMore(true, 213, 227, true, false)).toBe(true);
+    expect(weakNeedsMore(true, 213, 227, true, true)).toBe(false); // one page at a time
+    expect(weakNeedsMore(true, 227, 227, false, false)).toBe(false);
+    expect(weakNeedsMore(false, 100, 227, true, false)).toBe(false); // not asked: 「載入更多」 as usual
+  });
+});
+
+describe("a scene the activity implies (SRCH-CNC-013)", () => {
+  const t = i18n.getFixedT("zh-TW");
+  it("[SRCH-CNC-013] 分隔線說明是因為「衝浪」而保留", () => {
+    const v = softView(t, [{ word: "海邊", key: "scene.beach", shown: 2, implied_by: "衝浪" }], 5, []);
+    expect(v?.divider).toBe("以下 3 張沒看出「海邊」，但都在「衝浪」");
+    expect(v?.only).toBe("只看海邊（2 張）");
+  });
+});
+
+describe("the header counts what is shown (audit round 38)", () => {
+  const t = i18n.getFixedT("zh-TW");
+  it("[SRCH-UI-018] 回歸：較不相關的照片收起時，標題的張數與問 AI 一致（175 對 164）", () => {
+    expect(headerCount(t, 175, 11, false, "zh-TW")).toBe("164 張 · 另有 11 張較不相關");
+    expect(headerCount(t, 17, 0, false, "zh-TW")).toBe("17 張");
+    expect(headerCount(t, 233, 8, true, "zh-TW")).toBe("225 張以上 · 依相關度排序 · 另有 8 張較不相關");
+  });
+});
+
+describe("the divider counts what is under it (audit round 40)", () => {
+  const t = i18n.getFixedT("zh-TW");
+  it("[SRCH-UI-019] 回歸：分隔線不算收起的照片（「以下 164 張」實際只有 154 張）", () => {
+    const v = softView(t, [{ word: "開心", key: "mood.smile", shown: 11 }], 175, [], 10);
+    expect(v?.divider).toBe("以下 154 張沒看出「開心」，仍符合其他條件");
+  });
+});
+
+describe("words no photo shows (SRCH-CNC-016)", () => {
+  const t = i18n.getFixedT("zh-TW");
+  it("[SRCH-CNC-016] 每個詞都沒有照片寫到時，說下面是意思相近的照片", () => {
+    expect(relaxedText(t, ["彩色", "方塊"], true)).toBe("沒有照片直接寫到「彩色、方塊」，下面是意思相近的照片。");
+    expect(relaxedText(t, ["量子"], false)).toBe("沒有照片拍到「量子」，下面是符合其他條件的照片。");
+    expect(relaxedText(t, [], false)).toBeNull();
+  });
+});
+
+
+describe("search opens the Lightbox at the saved angle (ROT-005)", () => {
+  it("[ROT-005] 回歸：搜尋結果交給 Lightbox 的照片帶著角度", () => {
+    expect(gridAssetOf({ asset_id: "a", ch: "h", rot: 90, taken_at: null } as never)).toMatchObject({ id: "a", rot: 90 });
+  });
+});
+
+describe("a day in every year (SRCH-PLAN-026)", () => {
+  it("[SRCH-PLAN-026] 「11月10日」成為可移除的標籤，搜尋帶著 month_day", () => {
+    const chips = chipsFrom(planner({ month_day: "11-10" }, ["「11月10日」→ 每年的 11-10"], "貓"));
+    expect(chips).toEqual([{ kind: "day", value: "每年的 11-10", monthDay: "11-10" }]);
+    expect(bodyFor("11月10日的貓", chips, { text: "貓" })).toEqual({ q: "貓", filters: { month_day: "11-10" } });
+  });
+});
+
+describe("removing a date chip takes the date out of the box (audit round 49)", () => {
+  it("[SRCH-UI-021] 回歸：移除日期標籤時，搜尋框與網址也拿掉那段日期（重新整理時又出現）", () => {
+    expect(withoutWords("11月10日的貓", ["11月10日"])).toBe("的貓");
+    expect(withoutWords("去年 海邊", ["去年"])).toBe("海邊");
+    expect(withoutWords("海邊", [])).toBe("海邊");
+  });
+});
+
+describe("search tiles say what they are (audit round 49)", () => {
+  const t = ((k: string, o?: Record<string, unknown>) => (k === "viewer.photoAlt" ? `照片，${o?.date}` : k === "viewer.unknownDate" ? "日期不明" : k)) as never;
+  it("[SRCH-UI-022] 回歸：搜尋結果的照片有名稱（驗證第 49 輪：螢幕閱讀器只念「按鈕」）", () => {
+    expect(tileLabel(t, { caption: "海邊的小孩", taken_at: "2024-07-01T10:00:00Z" })).toBe("海邊的小孩，2024-07-01");
+    expect(tileLabel(t, { caption: null, taken_at: "2024-07-01T10:00:00Z" })).toBe("照片，2024-07-01");
+    expect(tileLabel(t, { caption: "", taken_at: null })).toBe("照片，日期不明");
+  });
+});
+
+describe("a caption and its day read as one phrase (audit round 50)", () => {
+  const t = ((k: string, o?: Record<string, unknown>) => (k === "viewer.photoAlt" ? `照片，${o?.date}` : k)) as never;
+  it("[SRCH-UI-023] 回歸：說明結尾的句號不會變成「。，」", () => {
+    expect(tileLabel(t, { caption: "海邊的小孩。", taken_at: "2024-07-01T10:00:00Z" })).toBe("海邊的小孩，2024-07-01");
+    expect(tileLabel(t, { caption: "A child at the beach. ", taken_at: "2024-07-01T10:00:00Z" })).toBe("A child at the beach，2024-07-01");
+  });
+});
+
+describe("copies folded into one tile (audit round 52)", () => {
+  const t = ((k: string, o?: Record<string, unknown>) => (k === "viewer.photoAlt" ? `照片，${o?.date}` : k === "search.copies" ? `另有 ${o?.n} 張相同的照片` : k)) as never;
+  it("[SRCH-UI-024] 回歸：收起的重複照片在名稱裡說出另有幾張（驗證第 52 輪：沒有「+N」）", () => {
+    expect(tileLabel(t, { caption: "拼貼", taken_at: "2024-07-01T00:00:00Z", duplicates: 9 })).toBe("拼貼，2024-07-01，另有 9 張相同的照片");
+    expect(tileLabel(t, { caption: "拼貼", taken_at: "2024-07-01T00:00:00Z" })).toBe("拼貼，2024-07-01");
+  });
+});
+
+describe("the count when a word was set aside (audit round 54)", () => {
+  const t = ((k: string, o?: Record<string, unknown>) =>
+    k === "search.count" ? `${o?.n} 張` : k === "search.countCapped" ? `${o?.n} 張以上 · 依相關度排序` : k === "search.partialCount" ? `沒有完全符合的照片 · 符合其他條件的有 ${o?.count}` : k) as never;
+  it("[SRCH-UI-025] 回歸：「小孩在玩水」沒有照片拍到玩水時，標題不說「561 張以上」而是說只符合其他條件（驗證第 54 輪）", () => {
+    expect(headerCount(t, 561, 0, true, "zh-TW", ["玩水"])).toBe("沒有完全符合的照片 · 符合其他條件的有 561 張以上 · 依相關度排序");
+    expect(headerCount(t, 6, 0, false, "zh-TW", [])).toBe("6 張");
+    expect(headerCount(t, 6, 0, false, "zh-TW")).toBe("6 張");
+  });
+});
+
+
+describe("no 「下面是」 over nothing (audit round 66)", () => {
+  const t = ((k: string, o?: Record<string, unknown>) =>
+    k === "search.relaxed" ? `沒有照片拍到「${o?.words}」，下面是符合其他條件的照片。` : k === "search.relaxedNone" ? `沒有照片拍到「${o?.words}」。` : k) as never;
+  it("[SRCH-UI-028] 回歸：放寬後也沒有照片時，不說「下面是…」", () => {
+    expect(relaxedText(t, ["玩水"], false, 0)).toBe("沒有照片拍到「玩水」。");
+    expect(relaxedText(t, ["玩水"], false, 12)).toBe("沒有照片拍到「玩水」，下面是符合其他條件的照片。");
+  });
+});
+
+describe("headers that do not contradict the page (audit round 73)", () => {
+  it("[SRCH-UI-032] 回歸：部分符合但沒有照片時不寫「符合其他條件的有 0 張」；載入更多說還有幾張（驗證第 73 輪）", async () => {
+    await i18n.changeLanguage("zh-TW");
+    const t = i18n.getFixedT("zh-TW");
+    expect(headerCount(t, 0, 0, false, "zh-TW", ["沙堡"])).toBe("沒有完全符合的照片");
+    expect(headerCount(t, 12, 0, false, "zh-TW", ["沙堡"])).toBe("沒有完全符合的照片 · 符合其他條件的有 12 張");
+    expect(loadMoreText(t, 120, 50, false, "zh-TW")).toBe("載入更多（還有 70 張）");
+    expect(loadMoreText(t, 250, 100, true, "zh-TW")).toBe("載入更多"); // a lower bound: no count left to promise
+  });
+});

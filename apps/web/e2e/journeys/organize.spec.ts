@@ -6,6 +6,7 @@ import { snapshot, tree } from "../fsutil";
 
 async function pickTrip(page: Page) {
   await page.goto("/organize");
+  await page.getByText("圖庫以外的資料夾…").click(); // the folder tree is folded on 整理 (ADR-0044)
   await page.getByRole("button", { name: "photos" }).click();
   await page.getByRole("button", { name: "trip", exact: true }).click();
   await page.getByRole("button", { name: "選擇此資料夾" }).click();
@@ -134,6 +135,7 @@ test("[E2E-B-005] 移動需二次確認；> 10,000 move 時要求輸入確認字
   const t = tree();
   await request.post("/__e2e/move-into-sorted");
   await page.goto("/organize");
+  await page.getByText("圖庫以外的資料夾…").click(); // the folder tree is folded on 整理 (ADR-0044)
   await page.getByRole("button", { name: "sorted" }).first().click();
   await page.getByRole("button", { name: "inbox", exact: true }).click();
   await page.getByRole("button", { name: "選擇此資料夾" }).click();
@@ -262,6 +264,11 @@ test("[E2E-B-010] 全鍵盤完成旅程 B", async ({ page }) => {
     await expect(target.first()).toBeFocused();
     await page.keyboard.press("Enter");
   };
+  // the folder tree is folded on 整理 (ADR-0044): Tab reaches its summary and Enter opens it
+  const fold = page.locator("summary", { hasText: "圖庫以外的資料夾…" });
+  for (let i = 0; i < 60 && !(await fold.evaluate((el) => el === document.activeElement).catch(() => false)); i++) await page.keyboard.press("Tab");
+  await expect(fold).toBeFocused();
+  await page.keyboard.press("Enter");
   await press("photos");
   await press("trip");
   await press("選擇此資料夾");

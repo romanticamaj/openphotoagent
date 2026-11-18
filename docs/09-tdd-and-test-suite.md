@@ -53,7 +53,7 @@ flowchart LR
 | 3. 紅 | 寫測試並執行，確認它失敗，**而且失敗在預期的斷言上**（不是 `ImportError`、fixture 錯誤或語法錯誤）。AI agent 必須在 PR 描述貼出紅燈時的失敗摘要（測試名稱 + 斷言訊息一行）。 |
 | 4. 綠 | 寫讓測試通過的最小實作；不要順便實作還沒有測試的行為。 |
 | 5. 重構 | 在全綠狀態下整理程式碼；重構 commit 不得修改測試的斷言。`packages/fs-sandbox` 與 `packages/core/path_template` 的變更要在本機跑一次 `just mutate-diff`。 |
-| 6. 狀態 | 執行 `tools/tc_status.py`，重新產生 `docs/generated/coverage-status.md`（每個 11 能力 → 測試 ID → 狀態：`未開始／紅／綠／部分`）。CI 會重新產生並比對，未更新就失敗。11 §1 矩陣的「驗收標準」欄因此有可追蹤的測試狀態。 |
+| 6. 狀態 | 執行 `tools/tc_status.py`，重新產生 `docs/generated/coverage-status.md`（每個 11 能力 → 測試 ID → 狀態：`未開始／紅／綠／部分`）。CI 的 `tc-status` job 以 `--verify` 檢查一致性（ADR-0021）：(1) ID、版本、層、能力、標題與 09a／09b 完全一致，摘要表必須能由明細重新產生；(2) 不得出現 09a／09b 沒有的 ID；(3) PR CI 跑過的 ID，提交的狀態不得比 CI 結果更綠，CI 為紅或部分時不得標成綠或未開始（比 CI 保守只給警告）；(4) PR CI 沒跑的 ID，只有在 CI 的測試清單（inventory）中確實有屬於 nightly／visual／perf／OS／release-gate 層的測試時，才可以標成未開始以外的狀態，PR 層的測試沒有 CI 結果則失敗。release gate（`--gate`）只採用 CI 產物，不讀提交的檔案。11 §1 矩陣的「驗收標準」欄因此有可追蹤的測試狀態。 |
 
 ### 1.2 測試 ID 標註與追蹤
 
@@ -129,9 +129,9 @@ flowchart LR
 | Integration | I | pytest + **真 PostgreSQL 17**（`embedded_pg` fixture；Linux 另跑 testcontainers `pgvector/pgvector:pg17` 一致性）、真檔案系統（tmpfs、ext4、NTFS、APFS）、錄製 HF 伺服器 | queue／lease、executor、scanner、download、preflight、search SQL | `apps/*/tests/integration/`、`packages/*/tests/integration/` | `test_<feature>_it.py` | Linux PR < 8 min；OS 矩陣每 OS < 12 min |
 | E2E | E | Playwright（Chromium + WebKit）對 **web build**；同一份 spec 以 mock `backend_info()` 跑 **desktop build**；後端 all-in-one + FakeBackend | 使用者旅程 A／B、搜尋、Lightbox、整理、待確認 | `apps/web/e2e/` | `<journey>.spec.ts` | PR 煙霧子集 < 12 min；nightly 全套 < 60 min |
 | 桌面煙霧 | D | `tauri-driver` + WebdriverIO（Windows、Linux）；macOS 手動清單（WKWebView 沒有 WebDriver，11 V-9） | 殼監管、單一實例、IPC、asset protocol、通知、更新 | `apps/desktop/smoke/`、Rust `apps/desktop/src-tauri/tests/` | `desk_*.e2e.ts` | nightly < 30 min／OS |
-| Visual regression | V | Playwright `toHaveScreenshot`（對建置後的 Storybook `iframe.html?id=…` 與實際路由）+ Storybook `addon-vitest`（Vitest browser mode 執行 `play`；ADR-0003）（只在 Linux Chromium、字型釘選、動態區域遮罩） | 元件 light/dark、每個錯誤碼 ProblemCard、主要路由 | `apps/web/e2e/visual/`、`*.stories.tsx` | — | nightly < 15 min；PR 只跑變更元件的 story |
+| Visual regression | V | Playwright `toHaveScreenshot`（對建置後的 Storybook `iframe.html?id=…` 與實際路由）+ Storybook `addon-vitest`（Vitest browser mode 執行 `play`；ADR-0003）（只在 Linux Chromium、字型釘選、動態區域遮罩；CI 一律在釘選的官方映像 `mcr.microsoft.com/playwright:v<@playwright/test 版本>-noble` 算繪與比對，基準由 `visual-baselines.yml` 產生後人工審閱，ADR-0019、VIS-004） | 元件 light/dark、每個錯誤碼 ProblemCard、主要路由 | `apps/web/e2e/visual/`、`*.stories.tsx` | — | nightly < 15 min；PR 只跑變更元件的 story |
 | a11y | A | `@axe-core/playwright`、Storybook a11y addon、鍵盤腳本 | 全路由 0 serious/critical、grid／dialog 語意、鍵盤旅程 | `apps/web/e2e/a11y/` | — | PR 3 路由；nightly 全部 |
-| Performance | F | Playwright + CDP tracing、`size-limit`、pytest-benchmark、`k6`（API） | 10 萬張捲動、首屏、bundle、API 延遲、吞吐基準 | `tests/perf/` | `perf_<area>.py/.ts` | nightly < 30 min；回歸 > 10% 警示、> 20% 失敗（個別案例另有門檻） |
+| Performance | F | Playwright + CDP tracing、`size-limit`、pytest-benchmark、`k6`（API） | 10 萬張捲動、首屏、bundle、API 延遲、吞吐基準 | `tests/perf/` | `perf_<area>.py/.ts` | nightly < 30 min；回歸 > 10% 警示、> 20% 失敗（個別案例另有門檻）。Python 效能測試（`perf` marker）一律在自己的 pytest 行程執行（`just perf-api`），不與整合測試共用行程（ADR-0018、PERF-009） |
 | Security | S | Hypothesis fuzz、紅隊集、`bandit`、`semgrep`、`pip-audit`、`pnpm audit`、`cargo audit`、`gitleaks` | 路徑沙箱、pack 驗證、loopback 認證、MCP scope／injection、redaction | `tests/security/`、各套件 `tests/**` 標 `security` marker | — | PR 確定性部分 < 5 min；nightly fuzz 1M 例 |
 | Chaos | X | 子程序 + `OPAGENT_CRASH_AT` hook、`kill -9`、tmpfs 容量限制、toxiproxy（網路斷線／延遲）、FakeDisk | 當機注入、斷線、磁碟滿、來源離線 | `tests/chaos/`、`packages/fs-sandbox/tests/chaos/` | `chaos_<area>.py` | PR 子集（OUT-CRASH-001–011 各 1 次）< 4 min；nightly 全套 < 45 min |
 | Nightly 真模型 | N | self-hosted GPU runner（§5.4） | 一致性、JSON 遵循率、校準、吞吐、ETA 涵蓋率、Ask 評估集 | `bench/`、`packages/inference-adapters/tests/real/` | marker `real_model`、`gpu` | < 3 h |
@@ -412,11 +412,11 @@ Doctor 的所有探針（NVML、`nvidia-smi -q -x`、DXGI、Vulkan、Metal／`sy
 | `unit-ts` | Vitest + coverage + fast-check | ubuntu | 4 min |
 | `contract` | `oasdiff` 對 base 分支（破壞性變更需 `api-breaking` 標籤與 VERSIONING 說明）；schemathesis（PF-082）；Worker 協定、preflight 目錄、registry、MCP tools（v0.2 起）JSON Schema 快照；INF-CONF 一致性（FakeBackend、tiny ORT、tiny llama.cpp CPU）；path_template Python↔TS golden（CORE-TPL-025） | ubuntu | 6 min |
 | `integration-linux` | 嵌入式 PG pack（`embedded_pg`）跑 Q、OUT、SCAN、DL、PF、SRCH、OP 整合測試；另跑一次 testcontainers `pgvector/pgvector:pg17` 一致性（PG-014）；tmpfs 磁碟滿與 loop device 跨裝置 | ubuntu | 8 min |
-| `os-matrix` | **windows-latest、macos-14、ubuntu-22.04**：core 全部、fs-sandbox 全部（含 `os` 案例）、executor + OUT-CRASH-001–011、scanner 的 OS 相關案例（SCAN-015、016、023）、嵌入式 PG（PG-001–006、PG-013）、Rust 殼單元測試 | 3 OS | 每 OS 12 min |
+| `os-matrix` | **windows-latest、macos-15、ubuntu-22.04**：core 全部、fs-sandbox 全部（含 `os` 案例）、executor + OUT-CRASH-001–011、scanner 的 OS 相關案例（SCAN-015、016、023）、嵌入式 PG（PG-001–006、PG-013）、Rust 殼單元測試 | 3 OS | 每 OS 12 min |
 | `chaos-smoke` | OUT-CRASH-001–011 各 1 次、Q-022、DL-004 | ubuntu | 4 min |
 | `e2e-smoke` | Playwright web build（Chromium）：E2E-A-001、E2E-B-001、E2E-B-002、E2E-L-001、E2E-S-001；axe 3 個路由；desktop build（mock backend_info）跑 E2E-B-001 | ubuntu | 12 min |
 | `size` | `size-limit`（PERF-003）；packaging 路徑變更時建置 Linux AppImage 並檢查 ≤ 200 MB | ubuntu | 3 min（打包時 15 min） |
-| `test-integrity` | 刪除測試、新增 skip、放寬門檻、golden 變更偵測（§1.5）；`tdd-order`（§1.3）；`tc_status.py` 產物是否最新 | ubuntu | 1 min |
+| `test-integrity` | 刪除測試、新增 skip、放寬門檻、golden 變更偵測（§1.5）；`tdd-order`（§1.3）；`tc_status.py --verify` 一致性（ADR-0021，在 `tc-status` job） | ubuntu | 1 min |
 | `mutation-diff` | 只在 `packages/fs-sandbox/**`、`packages/core/path_template*`、`packages/ts-path-template/**` 變更時：mutmut／Stryker 只對變更檔案 | ubuntu | ≤ 15 min |
 | `audit` | `pip-audit`、`pnpm audit --prod`、`cargo audit`、`bandit`、`semgrep`（自訂規則：路徑操作必經 SafePath、禁止 `shell=True`） | ubuntu | 3 min |
 
@@ -449,7 +449,7 @@ PR 總牆鐘時間目標 ≤ 15 分鐘（job 並行）。Required checks：上�
 3. 最近 3 次 nightly 與 nightly-gpu 全綠；不可隔離清單（§1.6）中沒有任何 quarantine。
 4. 覆蓋率與 mutation 門檻（§5.6）達標。
 5. 安裝包 ≤ 200 MB；SBOM 與 sha256 產生；四台參考機效能紀錄已附上。
-6. INF-REG-013：所有內建模型 variant 都已在 `registry/pins.lock` 釘選（ADR-0002），`registry-pin.yml` 最近一次 nightly 驗證仍可解析。
+6. INF-REG-013：所有內建模型 variant 都已在 `opagent_registry/builtin/pins.lock` 釘選（ADR-0002），`registry-pin.yml` 最近一次 nightly 驗證仍可解析。
 
 ### 5.6 覆蓋率與 mutation testing
 

@@ -5,7 +5,9 @@ from pathlib import Path
 import pytest
 from opagent_core.path_template import RenderValues, TemplateError, compile_template, render, sanitize_segment
 
-GOLDEN = json.loads((Path(__file__).resolve().parents[4] / "fixtures/golden/path_template/cases.json").read_text())
+GOLDEN = json.loads(
+    (Path(__file__).resolve().parents[4] / "fixtures/golden/path_template/cases.json").read_text(encoding="utf-8")
+)
 
 
 @pytest.mark.contract

@@ -585,8 +585,8 @@ taxonomy:
       examples: [asset_123, asset_456, asset_789]     # 範例圖（建議 3–10 張）
       negative_examples: [asset_999]                  # 可選：容易混淆的反例
     - id: pets
-      name: 寵物
-      description: 主角是貓、狗或其他寵物。
+      name: 動物
+      description: 貓狗等寵物與野生動物。
       examples: [...]
     - id: documents
       name: 文件與截圖
@@ -601,7 +601,7 @@ taxonomy:
 |---|---|---|---|---|
 | **E：Embedding zero-shot / prototype** | SigLIP2 影像向量 vs（類別文字向量 ⊕ 範例圖 prototype）| 相似度、top1-top2 margin | 數百張/秒 | 類別視覺上明確（美食/風景/文件）、超大量 |
 | **V：VLM enum structured output** | VLM 看圖 + 類別名稱與描述 → `category ∈ enum` | category token logprob；自我一致性 | 3–8 張/秒（Qwen3-VL-8B FP8 vLLM，短輸出）| 語義型類別（「旅行 vs 日常」、「工作相關」）|
-| **C：Cascade（預設）** | E 先分 → 高信心直接採用；低信心（或 margin 小）送 V 複核，V 可看到 E 的 top-3 作提示 | 綜合 | 依送審比例（通常 20–40%）| 大多數使用者 |
+| **C：Cascade（預設）** | E 先分 → 高信心直接採用；低信心（或 margin 小）送 V 複核，V 看到全部類別與說明（ADR-0030） | 綜合 | 依送審比例（通常 20–40%）| 大多數使用者 |
 
 **C：Cascade 詳細流程**
 
@@ -619,7 +619,7 @@ taxonomy:
       p_top1 ≥ τ_high 且 margin ≥ m ?  ──是──► 採用（source=embedding）
              │否
    ┌─────────▼──────────┐
-   │ 2. VLM 複核          │  enum = top-k(3–5) 候選 + other；附描述
+   │ 2. VLM 複核          │  enum = 全部類別 + other（超過 16 類取分數最高 16 類）；附描述（ADR-0030）
    │   取 logprob → p_vlm │
    └─────────┬──────────┘
       p_vlm ≥ other_policy.min_confidence ? ──是──► 採用（source=vlm）
@@ -660,7 +660,7 @@ def class_scores(img_vec, txt_vecs, protos, alpha):
 請將照片分到下列其中一類：
 {% for c in classes %}- {{ c.id }}：{{ c.name }}。{{ c.description }}
 {% endfor %}- other：以上皆不符合，或無法確定。
-{% if hints %}（輔助資訊：快速模型的候選為 {{ hints | join(", ") }}，僅供參考。）{% endif %}
+（ADR-0030：不再把快速模型的候選寫進 prompt，以免誤導 VLM。）
 {% if exif.date %}拍攝時間：{{ exif.date }}{% endif %}
 先用一句話說明判斷依據（reason），再給出 category。只輸出 JSON。
 ```
@@ -914,7 +914,7 @@ UI 選模型 → 檢查 license.requires_acceptance
    - 支援 HF_ENDPOINT 鏡像、hf_transfer / Xet 加速、續傳
 → 驗證：
    - LFS 檔以 HF API 提供的 sha256 比對（snapshot 下載後再算一次）
-   - 內建模型的 `revision: <commit>` 與 size／sha256 清單一律放在 CI 產生的 `registry/pins.lock`（ADR-0002）；未釘選的 variant 不推薦、不可下載（`MODEL_NOT_PINNED`）
+   - 內建模型的 `revision: <commit>` 與 size／sha256 清單一律放在 CI 產生的 `opagent_registry/builtin/pins.lock`（ADR-0002）；未釘選的 variant 不推薦、不可下載（`MODEL_NOT_PINNED`）
 → 註冊為 installed，寫入 ~/.opagent/models/installed.json（路徑、大小、sha、revision、下載時間）
 → 自動跑 smoke test（1 張內建測試圖）
 ```
@@ -978,7 +978,7 @@ UI 選模型 → 檢查 license.requires_acceptance
 
 | 主題 | 變更 | 來源 | 版本 |
 |------|------|------|------|
-| 內建整理方式（審查補充，08 §8.1） | `presets/builtin/`：**`by-date`**（不跑模型，只用 EXIF／mtime，樣板 `{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}`，選完資料夾就能用）；**`by-content-12`**（內建類別集：人物、風景、美食、寵物、文件與截圖、旅行、活動、建築、植物、交通、藝術、其他；每類附 zh-Hant／en 名稱與一句描述，供 SigLIP2 zero-shot 與 VLM enum 使用；「其他」為 fallback）；**`custom`**（使用者類別 = 名稱 + 描述 + 範例照片 prototype，§3.3.1）。三者都是一般 Pipeline preset，可在進階模式檢視 YAML | 08 §8.1 | v0.1 |
+| 內建整理方式（審查補充，08 §8.1） | `opagent_api/presets/builtin/`：**`by-date`**（不跑模型，只用 EXIF／mtime，樣板 `{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}`，選完資料夾就能用）；**`by-content-12`**（內建類別集：人物、風景、美食、寵物、文件與截圖、旅行、活動、建築、植物、交通、藝術、其他；每類附 zh-Hant／en 名稱與一句描述，供 SigLIP2 zero-shot 與 VLM enum 使用；「其他」為 fallback）；**`custom`**（使用者類別 = 名稱 + 描述 + 範例照片 prototype，§3.3.1）。三者都是一般 Pipeline preset，可在進階模式檢視 YAML | 08 §8.1 | v0.1 |
 | Runtime 主軸 | llama.cpp（CPU／Metal 內建，`llamacpp-cuda13`、`llamacpp-vulkan` pack）+ ONNX Runtime（DirectML／CoreML／CPU，CUDA EP 為 pack）；vLLM（僅 Linux）、MLX（僅 Mac）、torch 為 v0.4 選用 pack | 08 §3、D5 | v0.1／v0.4 |
 | 小模型路徑 | SigLIP2、tagger、人臉改走 ORT；新增 SigLIP2 patch14-384 ONNX 匯出與數值對齊測試（與 PyTorch cosine ≥ 0.999） | 08 C-12 | v0.1 |
 | Registry 欄位 | `variants[].requires`、`variants[].files[]`（size + sha256 釘選）、`perf_prior`、`tasks_default_rank`；`kind` 增加 `face_detector`／`face_embedder`／`face_quality`；`license` 拆成 `code`／`weights`，新增 `redistributable`、`biometric`、`training_data`、`remote_allowed` | 06 §1.1、07 §11 | v0.1／v0.2 |

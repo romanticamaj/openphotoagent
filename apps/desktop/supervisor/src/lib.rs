@@ -6,7 +6,11 @@ pub mod backoff;
 pub mod children;
 pub mod exit;
 pub mod lock;
+pub mod logs;
+pub mod paths;
 pub mod remote;
+pub mod roots;
+pub mod share;
 pub mod tc;
 pub mod updater;
 

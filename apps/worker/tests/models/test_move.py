@@ -31,10 +31,13 @@ def make_store(tmp_path, size, n=3):
                 h.update(chunk)
         sha = h.hexdigest()
         tmp.rename(blobs / sha)
-        os.symlink(f"../../blobs/{sha}", snap / f"f{i}.gguf")
+        try:
+            os.symlink(os.path.join("..", "..", "blobs", sha), snap / f"f{i}.gguf")  # as the downloader writes it
+        except OSError:  # no symlink privilege: what the downloader itself falls back to (DL-018)
+            os.link(blobs / sha, snap / f"f{i}.gguf")
         shas.append(sha)
     cfg = tmp_path / "worker.json"
-    cfg.write_text(json.dumps({"models_root": str(root)}))
+    cfg.write_text(json.dumps({"models_root": str(root)}), encoding="utf-8")
     return ModelStore(cfg), root, shas
 
 
@@ -54,9 +57,12 @@ def test_mdl_008_move_phases_and_switch(tmp_path, size):
     assert [p for i, p in enumerate(phases) if i == 0 or phases[i - 1] != p] == ["prepare", "copy", "verify", "switch"]
     fracs = [e["fraction"] for e in events]
     assert fracs == sorted(fracs) and fracs[-1] == 1.0 and any(e.get("eta_s") is not None for e in events)
-    assert store.models_root == dst and json.loads((tmp_path / "worker.json").read_text())["models_root"] == str(dst)
+    assert store.models_root == dst and json.loads((tmp_path / "worker.json").read_text(encoding="utf-8"))[
+        "models_root"
+    ] == str(dst)
     for i, sha in enumerate(shas):
-        assert (dst / "hf/models--org--m/snapshots/main" / f"f{i}.gguf").resolve().name == sha
+        repo = dst / "hf/models--org--m"
+        assert os.path.samefile(repo / "snapshots/main" / f"f{i}.gguf", repo / "blobs" / sha)
     assert root.exists()  # old copy kept (deleted later after confirmation / 24 h)
 
 

@@ -36,7 +36,42 @@ def list_operations(
         q = q.where(operation.c.status == "failed")
     with _st(req).engine.begin() as c:
         rows = c.execute(q.order_by(operation.c.created_at.desc(), operation.c.id).limit(limit)).all()
-    return [op_dict(r) for r in rows]
+        out = [op_dict(r) for r in rows]
+        _with_job_state(c, out)
+    return out
+
+
+def _with_job_state(c: Any, ops: list[dict[str, Any]]) -> None:
+    """A job's row carries where the job is and how it ended (ACT-016): a 依日期 preview is an organize job waiting
+    for approval, and its row said 「整理 完成」. The page names it from `job_status` and `outcome`."""
+    from opagent_db.schema import job, output_plan
+
+    ids = [o["subject"]["id"] for o in ops if (o.get("subject") or {}).get("kind") == "job" and o["subject"].get("id")]
+    if not ids:
+        return
+    rows = c.execute(
+        select(job.c.id, job.c.status, job.c.params, job.c.plan_id, output_plan.c.summary)
+        .select_from(job.outerjoin(output_plan, output_plan.c.id == job.c.plan_id))
+        .where(job.c.id.in_(ids))
+    ).all()
+    state = {}
+    for r in rows:
+        p = r.params or {}
+        extra: dict[str, Any] = {"outcome": p.get("outcome")}
+        if r.plan_id:  # which plan, how many and where to (ACT-022): rows read only 「建立整理計畫 · 完成」
+            tgt: dict[str, Any] = p["target"] if isinstance(p.get("target"), dict) else {}
+            where = "/".join(x for x in (tgt.get("root_alias"), (tgt.get("sub_path") or "").strip("/")) if x)
+            sm = r.summary or {}
+            # what kind of plan (ACT-026): a 複製到資料夾 plan and a 依日期 plan read alike in 活動
+            kind = "trash" if sm.get("trash") else p.get("preset")
+            extra |= {"plan_id": r.plan_id, "photos": sm.get("total") or sm.get("trash"), "target": where or None}
+            extra |= {"plan_kind": kind}
+        state[r.id] = (r.status, {k: v for k, v in extra.items() if v is not None})
+    for o in ops:
+        sub = o.get("subject") or {}
+        if sub.get("kind") == "job" and sub.get("id") in state:
+            status, extra = state[sub["id"]]
+            o["subject"] = {**sub, "job_status": status, **extra}
 
 
 @router.get("/operations/{op_id}")

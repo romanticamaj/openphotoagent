@@ -14,6 +14,7 @@ import hashlib
 import io
 import json
 import posixpath
+from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any
@@ -294,6 +295,7 @@ def _search_body(ctx: Ctx, c: Any, args: dict[str, Any]) -> dict[str, Any]:
     return {
         "q": query,
         "plan": bool(args.get("parse_query", True)) and bool(query),
+        "plan_persons": "faces:read" in ctx.tok.scopes and bool(ctx.settings.faces_enabled),  # MCP-SCOPE-010
         "filters": {
             "tags_all": tag_keys(f.get("tags_all")),
             "tags_any": tag_keys(f.get("tags_any")),
@@ -301,6 +303,7 @@ def _search_body(ctx: Ctx, c: Any, args: dict[str, Any]) -> dict[str, Any]:
             "categories": cats or None,
             "taken_from": taken.get("from"),
             "taken_to": taken.get("to"),
+            "month_day": f.get("month_day"),  # every year's (SRCH-PLAN-026)
             "scope": folders or ([{"source_id": "-", "path": ""}] if f.get("folders") else None),
             "within": within_scopes(ctx, c),
             **{k: f[k] for k in ("persons_all", "persons_any", "persons_none") if f.get(k)},
@@ -314,6 +317,18 @@ def _unindexed(args: dict[str, Any]) -> list[str]:
     f = args.get("filters") or {}
     keys = ("place", "camera", "min_confidence", "rating_min", "favorite", "orientation", "min_megapixels")
     return [k for k in keys if f.get(k) not in (None, {}, [])]
+
+
+def _regate(ctx: Ctx, body: dict[str, Any]) -> dict[str, Any]:
+    """A stored search (cursor, selection) replayed under today's token and settings (MCP-SCOPE-011): person
+    filters need faces:read on a workspace that opened faces to AI assistants, and names resolve only then."""
+    allowed = "faces:read" in ctx.tok.scopes and bool(ctx.settings.faces_enabled)
+    f = body.get("filters") or {}
+    if not allowed and any(f.get(k) for k in ("persons_all", "persons_any", "persons_none")):
+        raise ToolError(
+            "MCP_INSUFFICIENT_SCOPE", "人物條件需要 faces:read，且人臉功能需在 app 內開啟", scope="faces:read"
+        )
+    return {**body, "plan_persons": allowed}
 
 
 def search_photos(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
@@ -331,7 +346,7 @@ def search_photos(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
             )
         except HandleError as e:
             raise ToolError("CURSOR_INVALID", str(e)) from None
-        body, inner = data["b"], data["c"]
+        body, inner = _regate(ctx, data["b"]), data["c"]
     sort = args.get("sort") or "relevance"
     req = SearchIn(**{**body, "limit": int(args.get("limit") or 20), "cursor": inner})
     r = run_search(st, req)
@@ -361,6 +376,9 @@ def search_photos(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
     return {
         "results": results,
         "total_estimate": int(r["total"]),
+        "weak": int(r.get("weak") or 0),  # the folded look-alikes at the end (ADR-0040)
+        # words that only ranked, and how many photos show them (ADR-0032 addendum): a yes must not over-claim them
+        "soft": [{"word": x["word"], "shown": int(x["shown"])} for x in r.get("soft") or []],
         "next_cursor": nxt,
         "selection_id": sel,
         "applied_filters": {k: v for k, v in (body["filters"] or {}).items() if v and k not in ("within", "scope")},
@@ -379,7 +397,7 @@ def resolve_selection(ctx: Ctx, sel: str, limit: int) -> list[str]:
         data = ctx.signer().open("sel", sel, token_id=ctx.tok.id, scope_key=ctx.tok.scope_key, now=ctx.st.clock.now())
     except HandleError as e:
         raise ToolError("SELECTION_INVALID", str(e)) from None
-    body = data["q"]
+    body = _regate(ctx, data["q"])
     with ctx.st.engine.begin() as c:
         body = {**body, "filters": {**body["filters"], "within": within_scopes(ctx, c)}}
     ids: list[str] = []
@@ -1337,6 +1355,8 @@ def list_collections(ctx: Ctx, args: dict[str, Any]) -> dict[str, Any]:
 
 
 VLM_WAIT_S = 5.0
+# how long a caller waits for the VLM; 問 AI waits longer than an MCP client, which can poll the job (ASK-ONE-001)
+VLM_WAIT: ContextVar[float | None] = ContextVar("vlm_wait", default=None)
 
 
 def _vlm(ctx: Ctx, mode: str, ids: list[str], text_: str) -> dict[str, Any] | None:
@@ -1369,7 +1389,7 @@ def _vlm(ctx: Ctx, mode: str, ids: list[str], text_: str) -> dict[str, Any] | No
             )
         )
     self_tid = tid
-    wait = float(getattr(ctx.st, "vlm_wait_s", VLM_WAIT_S))
+    wait = VLM_WAIT.get() or float(getattr(ctx.st, "vlm_wait_s", VLM_WAIT_S))
     deadline = time.monotonic() + wait  # noqa: TID251 - waits on a real worker over the wire
     while time.monotonic() < deadline:  # noqa: TID251
         with ctx.st.engine.begin() as c:

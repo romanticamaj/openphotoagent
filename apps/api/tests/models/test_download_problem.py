@@ -22,7 +22,7 @@ def test_unreachable_network_shows_waiting_with_fixes_and_cancels_fast(env):
     reason; cancelling during the backoff still ends within 2 s (backs E2E-A-004, ACT-003)."""
     c, w = env["client"], env["worker"]
     w.download_sources = ["http://127.0.0.1:9"]  # connection refused
-    r = c.post("/api/v1/workers/w1/installs", json={"variant": "siglip2-so400m-384@onnx-int8"})
+    r = c.post("/api/v1/workers/w1/installs", json={"variant": "siglip2-so400m-384@onnx-fp16"})
     assert r.status_code == 202, r.text
     op_id = r.json()["operation_id"]
     th = threading.Thread(target=w.run_once, daemon=True)
@@ -56,7 +56,7 @@ def test_op_018_pause_and_cancel_from_waiting(env, action):
     eng = engine_for(env["dsn"])
 
     def make_waiting(leased: bool) -> str:
-        op_id = c.post("/api/v1/workers/w1/installs", json={"variant": "siglip2-so400m-384@onnx-int8"}).json()[
+        op_id = c.post("/api/v1/workers/w1/installs", json={"variant": "siglip2-so400m-384@onnx-fp16"}).json()[
             "operation_id"
         ]
         with eng.begin() as x:
@@ -98,7 +98,7 @@ def test_a_running_download_does_not_block_other_worker_tasks(env):
     th = threading.Thread(target=w.run_forever, args=(stop,), daemon=True)
     th.start()
     try:
-        a = c.post("/api/v1/workers/w1/installs", json={"variant": "siglip2-so400m-384@onnx-int8"}).json()
+        a = c.post("/api/v1/workers/w1/installs", json={"variant": "siglip2-so400m-384@onnx-fp16"}).json()
         _poll(lambda: c.get(f"/api/v1/operations/{a['operation_id']}").json()["status"] == "waiting")
         t0 = time.monotonic()  # noqa: TID251
         r = c.get("/api/v1/fs/browse", params={"root": "photos", "path": ""})

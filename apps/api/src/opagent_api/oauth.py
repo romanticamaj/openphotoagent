@@ -808,6 +808,8 @@ async def mcp(req: Request) -> Any:
     st = _st(req)
     if not _same_site(st, req):  # MCP Streamable HTTP: validate Origin and Host (DNS rebinding, MCP-TRN-007)
         return JSONResponse({"error": "origin_not_allowed"}, status_code=403)
+    if not await run_in_threadpool(mcp_server.mcp_enabled, st):  # every transport honours mcp.enabled (PF-060)
+        return mcp_server.disabled_response()
     auth = req.headers.get("authorization", "")
     claims = await run_in_threadpool(verify_access, st, auth[7:]) if auth.startswith("Bearer ") else None
     if claims is None or claims["ws"] != st.ws_id:

@@ -7,6 +7,7 @@ or raises :class:`OutputParseError` — never anything else.
 from __future__ import annotations
 
 import json
+import math
 import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -79,7 +80,7 @@ def fused_schema(cats: CategoryMap, with_confidence: bool = True) -> dict[str, A
         "$id": "opagent.fused.v1",
         "type": "object",
         "properties": props,
-        "required": ["caption", "tags", "category"],
+        "required": ["caption", "tags", "category", *(["confidence"] if with_confidence else [])],
         "additionalProperties": False,
     }
 
@@ -178,3 +179,52 @@ def parse_fused(
         res.retried = True
         return res
     raise OutputParseError(raw)
+
+
+_CATEGORY_VALUE = re.compile(r'(?<!\\)"category"\s*:\s*"$')
+MIN_PROB = 1e-6  # a candidate absent from top_logprobs (CORE-THR-013)
+
+
+def category_probability(tokens: list[dict[str, Any]] | None, chosen: str, candidates: list[str]) -> float | None:
+    """P(chosen) from the tokens of the ``category`` value, normalised over the offered classes (03 §3.3.3).
+    Classes can share leading tokens ("pe" for people and pets): the reading follows the generated tokens until they
+    part, each class scoring the path probability up to where it leaves. None when the runtime gave no logprobs, or
+    the field cannot be found: the caller falls back to the self-report."""
+    acc = ""
+    toks = list(tokens or [])
+    for i, t in enumerate(toks):
+        if _CATEGORY_VALUE.search(acc):
+            return _walk(toks[i:], chosen, candidates)
+        acc += str(t.get("token", ""))
+    return None
+
+
+def _p_of(rest: str, tops: list[tuple[str, float]]) -> float:
+    """The best top token that can begin what is left of a class name."""
+    return max((math.exp(v) for k, v in tops if k and rest.startswith(k)), default=MIN_PROB)
+
+
+def _walk(toks: list[dict[str, Any]], chosen: str, candidates: list[str]) -> float | None:
+    if chosen not in candidates or not toks or not toks[0].get("top_logprobs"):
+        return None
+    score: dict[str, float] = {}
+    alive, prefix, path = list(candidates), "", 1.0
+    for t in toks:
+        # a list, not a dict: "food" and " food" are different tokens with very different probabilities
+        tops = [(str(x["token"]).strip(), float(x["logprob"])) for x in t.get("top_logprobs") or []]
+        gen = str(t.get("token", "")).strip()
+        if not tops or not gen:
+            break
+        p_gen = max((math.exp(v) for k, v in tops if k == gen), default=_p_of(chosen[len(prefix) :], tops))
+        for c in list(alive):
+            if not c[len(prefix) :].startswith(gen):
+                score[c] = path * _p_of(c[len(prefix) :], tops)  # leaves the generated path here
+                alive.remove(c)
+        path *= p_gen
+        prefix += gen
+        if len(alive) <= 1 or not any(len(c) > len(prefix) for c in alive):
+            break
+    for c in alive:
+        score[c] = path
+    total = sum(score.get(c, MIN_PROB) for c in candidates)
+    return score.get(chosen, MIN_PROB) / total if total else None

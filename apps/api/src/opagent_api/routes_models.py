@@ -20,7 +20,7 @@ from pydantic import BaseModel
 from sqlalchemy import delete, insert, select
 
 from .labels import emit
-from .operations import ensure_operation
+from .operations import ensure_operation, set_op_status
 from .state import DEFAULT_WS, AppState
 
 router = APIRouter()
@@ -195,7 +195,7 @@ def install_blockers(m: LoadedModel, vid: str, ctx: dict[str, Any]) -> list[dict
                         "other_variant",
                         "choose_alternative",
                         payload={"variants": alts},
-                        consequence={"key": "fix.other_variant.consequence"},
+                        consequence={"key": "fix_consequence.other_variant"},
                     ),
                 ],
                 variant=f"{m.spec.id}@{vid}",
@@ -401,6 +401,20 @@ def on_download_complete(st: AppState, c: Any, t: Any, result: dict[str, Any]) -
     if p.get("kind") == "embedding":  # semantic search becomes available before the VLM finishes (DL-020)
         rid = f"reindex:{t.worker_id}:{p['variant']}"
         ensure_operation(c, st.clock, rid, "search.reindex", {"kind": "variant", "id": p["variant"]})
+        from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+        from .search import missing_vectors
+
+        items = missing_vectors(c).get(t.worker_id)
+        if items:  # the operation is this task: the worker's completion ends it
+            c.execute(
+                pg_insert(worker_task)
+                .values(id=rid, kind="embed_assets", worker_id=t.worker_id, payload={"items": items})
+                .on_conflict_do_nothing()
+            )
+        else:
+            set_op_status(c, st.clock, rid, "running")
+            set_op_status(c, st.clock, rid, "succeeded")
 
 
 def on_remove_complete(st: AppState, c: Any, t: Any, result: dict[str, Any]) -> None:
@@ -441,6 +455,9 @@ def onboarding_recommendation(req: Request, worker_id: str) -> dict[str, Any]:
         rate = rates.get("fused") or rates.get("classify") or rates.get("embed")
         if rate:
             per_1000 = [round(1000 / max(rate) / 60, 2), round(1000 / min(rate) / 60, 2)]
+    have = [k for k in variants if k in ctx["inst"] and ctx["inst"][k].status == "installed"]
+    left = 0 if len(have) == len(variants) else max(0, r.download_bytes - sum(_size_of(reg, k) for k in have))
+    minutes = round(r.download_minutes * left / r.download_bytes, 1) if r.download_bytes else 0.0
     return {
         "mode": mode,
         "hardware": {
@@ -452,8 +469,9 @@ def onboarding_recommendation(req: Request, worker_id: str) -> dict[str, Any]:
         "combo": {
             "variants": variants,
             "packs": r.packs,
-            "download_bytes": r.download_bytes,
-            "download_minutes": r.download_minutes,
+            "runtime": _runtime(hw),
+            "download_bytes": left,
+            "download_minutes": minutes,
             "estimated": r.download_estimated,
         },
         "per_1000_minutes": per_1000,
@@ -465,6 +483,20 @@ def onboarding_recommendation(req: Request, worker_id: str) -> dict[str, Any]:
         "unsupported_reason": r.unsupported_reason,
         "docs_url": r.docs_url,
     }
+
+
+def _runtime(hw: HwSummary) -> str:
+    """What will run the VLM today: an installed pack, else the build inside the installer (ADR-0025)."""
+    packs = " ".join(str(p[0]) for p in hw.installed_packs)
+    for accel in ("cuda", "rocm", "vulkan"):
+        if f"llamacpp-{accel}" in packs:
+            return accel
+    return {"windows": "vulkan", "macos": "metal"}.get(hw.os, "cpu")
+
+
+def _size_of(reg: Registry, key: str) -> int:
+    mid, _, vid = key.partition("@")
+    return sum(f.size or 0 for f in reg.models[mid].pinned_files(vid))
 
 
 def _catalog_params(code: str, p: dict[str, Any]) -> dict[str, Any]:

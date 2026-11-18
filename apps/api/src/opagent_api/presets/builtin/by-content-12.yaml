@@ -1,0 +1,37 @@
+# Built-in organize preset: by content, 12 classes (03 §10). Used for SigLIP2 zero-shot prompts and the VLM enum.
+schema_version: 1
+key: by-content-12
+name: { zh-TW: 依內容（內建 12 類）, en: By content (12 built-in categories) }
+task_configs:
+  - task_type: classify
+    prompt_template_ref: builtin:fused_v4  # v2/v3 stored wrong confidence (ADR-0030; INF-CAS-015, 017): never reused
+    label_set: builtin-12@2
+    vlm_max_candidates: 16
+    strategy: cascade            # rules → SigLIP2 → VLM → review (03 §3.3)
+    rules:
+      - { if: "exif.is_screenshot == true", then: documents }
+categories:
+  - { key: people, zh-TW: 人物, en: People, description: { zh-TW: 以人物為主角的照片，包含自拍與合照, en: Photos where people are the main subject, including selfies and group shots } }
+  - { key: landscape, zh-TW: 風景, en: Landscape, description: { zh-TW: 山、海、天空、田野等自然景觀, en: "Natural scenery: mountains, sea, sky, fields" } }
+  - { key: food, zh-TW: 美食, en: Food, description: { zh-TW: 餐點、飲料、甜點與食材, en: "Meals, drinks, desserts and ingredients" } }
+  - { key: pets, zh-TW: 動物, en: Animals, description: { zh-TW: 貓狗等寵物與野生動物, en: "Pets, wildlife and other animals" } }
+  - { key: documents, zh-TW: 文件與截圖, en: Documents & screenshots, description: { zh-TW: 收據、文件、白板與螢幕截圖, en: "Receipts, documents, whiteboards and screenshots" } }
+  - { key: travel, zh-TW: 旅行, en: Travel, description: { zh-TW: 景點、地標與旅途中的照片, en: Sightseeing spots, landmarks and trips } }
+  - { key: events, zh-TW: 活動, en: Events, description: { zh-TW: 生日、婚禮、聚會、演唱會與典禮, en: "Birthdays, weddings, parties, concerts and ceremonies" } }
+  - { key: architecture, zh-TW: 建築, en: Architecture, description: { zh-TW: 建築物、街景與室內空間, en: "Buildings, streets and interiors" } }
+  - { key: plants, zh-TW: 植物, en: Plants, description: { zh-TW: 花、樹與各種植物, en: "Flowers, trees and plants" } }
+  - { key: transport, zh-TW: 交通, en: Transport, description: { zh-TW: 汽車、機車、火車、飛機與船, en: "Cars, motorcycles, trains, planes and boats" } }
+  - { key: art, zh-TW: 藝術, en: Art, description: { zh-TW: 畫作、展覽、手作與藝術品, en: "Paintings, exhibitions, crafts and artworks" } }
+  - { key: other, zh-TW: 其他, en: Other, description: { zh-TW: 以上皆不符合或無法判斷, en: None of the above or uncertain }, fallback: true }
+output_rules:
+  - priority: 1
+    when: "decision == 'accepted'"
+    action: copy
+    path_template: "{category}/{taken_at:%Y}/{stem}{ext}"
+    conflict_policy: rename
+  - priority: 100
+    when: "true"
+    action: copy
+    path_template: "{category}/{stem}{ext}"
+    conflict_policy: rename
+    fallback_category: other

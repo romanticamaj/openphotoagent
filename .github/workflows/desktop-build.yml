@@ -20,7 +20,7 @@ jobs:
   supervisor:
     strategy:
       fail-fast: false
-      matrix: { os: [windows-latest, macos-14, ubuntu-22.04] }
+      matrix: { os: [windows-latest, macos-15, ubuntu-22.04] }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -31,7 +31,7 @@ jobs:
       - working-directory: apps/desktop/supervisor
         run: cargo fmt --check && cargo clippy --all-targets -- -D warnings
       - uses: actions/upload-artifact@v4
-        with: { name: "tc-rust-${{ matrix.os }}", path: .tc/rust.json }
+        with: { name: "tc-rust-${{ matrix.os }}", path: .tc/rust.json, include-hidden-files: true }
 
   bundle:
     needs: supervisor
@@ -40,8 +40,8 @@ jobs:
       matrix:
         include:
           - { os: windows-latest, target: x86_64-pc-windows-msvc, bundles: nsis, artefact: "bundle/nsis/*-setup.exe" }
-          - { os: macos-14, target: aarch64-apple-darwin, bundles: "app,dmg", artefact: "bundle/dmg/*.dmg" }
-          - { os: ubuntu-22.04, target: x86_64-unknown-linux-gnu, bundles: "appimage,deb", artefact: "bundle/appimage/*.AppImage" }
+          - { os: macos-15, target: aarch64-apple-darwin, bundles: "app,dmg", artefact: "bundle/dmg/*.dmg" }
+          - { os: ubuntu-22.04, target: x86_64-unknown-linux-gnu, bundles: "appimage,deb", artefact: "bundle/appimage/*.AppImage bundle/deb/*.deb" }
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -52,7 +52,7 @@ jobs:
         with: { node-version: 22, cache: pnpm }
       - name: Linux WebView headers
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf squashfs-tools
       - run: pnpm install --frozen-lockfile && pnpm --filter web build
       - name: MSVC dev shell (pgvector nmake)
         if: runner.os == 'Windows'
@@ -60,22 +60,85 @@ jobs:
       - name: pg pack (PG 17 + pgvector, built per platform; 08 §2.3)
         shell: bash
         run: bash tools/build_desktop_pg.sh build/desktop/pg
-      - name: Python runtime (python-build-standalone + relocatable venv; 08 D3)
+      - name: Python runtime (python-build-standalone copied whole, then packages; 08 D3, ADR-0022)
         shell: bash
         run: uv run --no-project python tools/build_desktop_python.py build/desktop/python
+      - name: llama-server (official release, pinned; 08 §4.1, ADR-0025)
+        shell: bash
+        run: uv run --no-project python tools/build_desktop_llama.py build/desktop/llama
       - name: Tauri bundle
         working-directory: apps/desktop/src-tauri
-        shell: bash
+        # not bash: on Windows, Git's /usr/bin/link.exe shadows MSVC's link.exe and every Rust link fails
+        shell: pwsh
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # linuxdeploy is itself an AppImage: without FUSE on the runner it must extract itself; and its bundled
+          # strip predates the runner's binutils, so leave the binaries unstripped (first desktop-build run failed)
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+          NO_STRIP: "true"
+          # the pg pack is built without rpath; linuxdeploy resolves its libraries (libpq for pg_dump) from here
+          LD_LIBRARY_PATH: ${{ github.workspace }}/build/desktop/pg/lib
+          # Python wheels already carry their own libraries (auditwheel: lib<name>-<8 hex>.so, loaded via $ORIGIN
+          # rpaths); linuxdeploy copied them a second time into usr/lib (~100 MB uncompressed, DESK-030)
+          LINUXDEPLOY_EXCLUDED_LIBRARIES: "*-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f].so*"
         run: |
           cargo install tauri-cli --version "^2" --locked
-          cargo tauri build --target ${{ matrix.target }} --bundles ${{ matrix.bundles }}
-      - name: Size gate (≤ 200 MB, DESK-030)
+          # updater artifacts are signed releases only (B-5); PR and branch builds check the installers and size
+          $extra = @()
+          if ("${{ github.ref }}" -notlike "refs/tags/v*" -and "${{ inputs.tag }}" -eq "") { $extra = @("--config", "tauri.ci.json") }
+          cargo tauri build --verbose --target ${{ matrix.target }} --bundles ${{ matrix.bundles }} @extra
+      - name: AppImage on the system WebKitGTK (08 §4.1, ADR-0022, DESK-037)
+        if: runner.os == 'Linux'
         shell: bash
-        run: uv run --no-project python tools/check_bundle_size.py apps/desktop/src-tauri/target/${{ matrix.target }}/release/${{ matrix.artefact }}
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          A=$(ls apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/appimage/*.AppImage)
+          uv run --no-project python tools/slim_appimage.py "$A"
+          uv run --no-project python tools/slim_appimage.py --verify "$A"
+          # the updater signs the AppImage itself: the signature must cover the slimmed file (release tags only)
+          if [ -f "$A.sig" ]; then (cd apps/desktop/src-tauri && cargo tauri signer sign "$A"); fi
+      - name: Size breakdown (what the installer is made of)
+        if: always()
+        shell: bash
+        run: |
+          B=apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle
+          ls -la $B/*/ 2>/dev/null | grep -E "\.(AppImage|deb|dmg|exe|msi)$" || true
+          for d in build/desktop/python build/desktop/pg apps/web/dist $B/appimage/*.AppDir/usr/lib $B/macos/*.app; do
+            if [ -e "$d" ]; then du -sh "$d"; fi
+          done
+          AD=$(ls -d $B/appimage/*.AppDir 2>/dev/null | head -1 || true)
+          if [ -n "$AD" ]; then du -sh "$AD"/usr/lib/* 2>/dev/null | sort -rh | head -25 || true; fi
+          if [ -d build/desktop/python/lib ]; then du -sh build/desktop/python/lib/python3*/site-packages/* 2>/dev/null | sort -rh | head -15 || true; fi
+      - name: Bundled Python runtime starts on its own (DESK-039)
+        shell: bash
+        run: |
+          PY=build/desktop/python/bin/python3; KEEP=()
+          # Windows CPython needs SYSTEMROOT to seed its RNG; everything else from the build machine is withheld
+          if [ "$RUNNER_OS" = Windows ]; then PY=build/desktop/python/python.exe; KEEP=("SYSTEMROOT=$SYSTEMROOT"); fi
+          env -i "${KEEP[@]}" "$PY" -I -c "import encodings, ssl, sqlite3, json, opagent_cli, opagent_api, numpy, scipy.integrate, sklearn.cluster, onnxruntime, PIL.Image, pillow_heif, psycopg; print('runtime ok')"
+      - name: Install and launch the real thing (Windows, DESK-054)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $setup = (Get-ChildItem "apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/nsis/*-setup.exe")[0].FullName
+          Start-Process $setup -ArgumentList '/S' -Wait
+          uv run --no-project python tools/desktop_smoke.py "$env:LOCALAPPDATA\Programs\OpenPhotoAgent\openphotoagent.exe"
+      - name: Recompress the .deb with xz (Tauri uses gzip; ADR-0022's limit is 200 MB)
+        if: runner.os == 'Linux'
+        working-directory: apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/deb
+        run: |
+          D=$(ls *.deb); dpkg-deb -R "$D" repack && rm "$D"
+          dpkg-deb -Zxz -z6 --root-owner-group -b repack "$D" && rm -rf repack
+      - name: Size gate (every installer ≤ 200 MB, DESK-030)
+        shell: bash
+        working-directory: apps/desktop/src-tauri/target/${{ matrix.target }}/release
+        run: uv run --no-project python "$GITHUB_WORKSPACE/tools/check_bundle_size.py" ${{ matrix.artefact }}
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: desktop-${{ matrix.target }}
           path: apps/desktop/src-tauri/target/${{ matrix.target }}/release/bundle/
@@ -96,8 +159,8 @@ jobs:
       - name: latest.json / beta.json
         run: |
           mkdir -p upd && find dl \( -name '*.nsis.zip*' -o -name '*.app.tar.gz*' -o -name '*.AppImage.tar.gz*' -o -name '*-setup.exe*' \) -exec cp {} upd/ \;
-          case "$TAG" in *-*) OUT=beta.json ;; *) OUT=latest.json ;; esac
-          python3 tools/gen_updater_manifest.py --version "$TAG" --dir upd \
+          case "$TAG" in *-*) OUT=beta.json CH=beta ;; *) OUT=latest.json CH=stable ;; esac
+          python3 tools/gen_updater_manifest.py --version "$TAG" --channel "$CH" --dir upd \
             --base-url "https://github.com/${{ github.repository }}/releases/download/$TAG" \
             --notes "See CHANGELOG.md" --pub-date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --out "upd/$OUT"
       - name: Attach installers and the manifest to the release

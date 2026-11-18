@@ -5,7 +5,7 @@ import re
 import zipfile
 
 import pytest
-from hypothesis import given, settings
+from hypothesis import example, given, settings
 from hypothesis import strategies as st
 from opagent_doctor.diagnostics import build_bundle, markdown_report, redact
 
@@ -61,6 +61,7 @@ plain = st.sampled_from(["scan finished", "lease renewed", "job 42 done", "plan 
 @pytest.mark.tc("DIAG-002")
 @settings(max_examples=300, deadline=None)
 @given(prefix=plain, secret=st.one_of(ipv4, ipv6, path, token, bearer), suffix=plain)
+@example(prefix="scan finished", secret="/Users/ren/x", suffix="lease renewed")  # CI: "ren" inside "renewed"
 def test_diag_002_redactor_property(prefix, secret, suffix):
     out = redact(f"{prefix} {secret} {suffix}")
     core = (
@@ -70,8 +71,11 @@ def test_diag_002_redactor_property(prefix, secret, suffix):
         if secret.startswith("C:")
         else secret
     )
-    assert core not in out
+    # 09a DIAG-002: the original value is gone *and* non-sensitive text is kept — so a user name that is also part
+    # of an ordinary word around it ("ren" in "renewed") stays in that word, and only there
     assert out.startswith(prefix) and out.endswith(suffix)
+    assert core not in out[len(prefix) : len(out) - len(suffix)]
+    assert out.count(core) == prefix.count(core) + suffix.count(core)
 
 
 @pytest.mark.unit

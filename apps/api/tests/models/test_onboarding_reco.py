@@ -28,11 +28,20 @@ def client(embedded_pg, sandbox_tree, tmp_path):
     reg = tmp_path / "registry"
     shutil.copytree(BUILTIN_DIR, reg)
     sig = enumerate(
-        [("vision_model_int8.onnx", 300_000_000), ("text_model_int8.onnx", 300_000_000), ("tokenizer.json", 1)]
+        [
+            ("onnx/vision_model_fp16.onnx", 300_000_000),
+            ("onnx/text_model_fp16.onnx", 300_000_000),
+            ("tokenizer.json", 1),
+        ]
     )
     qw = enumerate([("Qwen3VL-8B-Instruct-Q4_K_M.gguf", 4_000_000_000), ("mmproj-Qwen3VL-8B-Instruct-F16.gguf", 1)], 5)
-    pins = [_pin("siglip2-so400m-384", "onnx-int8", sig), _pin("qwen3-vl-8b-instruct", "q4_k_m", qw)]
-    (reg / "pins.lock").write_text(json.dumps({"schema_version": 1, "pins": pins}))
+    sig = list(sig)
+    pins = [
+        _pin("siglip2-so400m-384", "onnx-fp16", sig),
+        _pin("siglip2-so400m-384", "onnx-fp16-cpu", sig),
+        _pin("qwen3-vl-8b-instruct", "q4_k_m", qw),
+    ]
+    (reg / "pins.lock").write_text(json.dumps({"schema_version": 1, "pins": pins}), encoding="utf-8")
     c = TestClient(create_app(dsn=embedded_pg.dsn, registry_dir=reg))
 
     def worker(hw: str, wid: str) -> str:
@@ -55,7 +64,7 @@ def test_standard_mode_one_combination_with_size_time_and_licence(client):
     r = _reco(client, "rtx5070ti-win11")
     assert r["mode"] == "standard"
     assert r["hardware"]["gpu"] and r["hardware"]["vram_gb"] == pytest.approx(16, abs=0.5)
-    assert r["combo"]["variants"] == ["siglip2-so400m-384@onnx-int8", "qwen3-vl-8b-instruct@q4_k_m"]  # embed first
+    assert r["combo"]["variants"] == ["siglip2-so400m-384@onnx-fp16", "qwen3-vl-8b-instruct@q4_k_m"]  # embed first
     assert r["combo"]["download_bytes"] >= 4_600_000_000 and r["combo"]["download_minutes"] > 0
     assert r["licenses"] == ["Apache-2.0"] and r["requires_acceptance"] is False
     assert [w["code"] for w in r["warnings"]] == []
@@ -74,8 +83,8 @@ def test_old_driver_offers_driver_page_and_vulkan(client):
 def test_no_gpu_recommends_fast_mode_with_explicit_time(client):
     r = _reco(client, "no-gpu-linux")
     assert r["mode"] == "fast"
-    assert r["combo"]["variants"] == ["siglip2-so400m-384@onnx-int8"]
+    assert r["combo"]["variants"] == ["siglip2-so400m-384@onnx-fp16-cpu"]
     assert "GPU_NOT_FOUND" in [w["code"] for w in r["warnings"]]
     lo, hi = r["per_1000_minutes"]
-    assert 0 < lo <= hi  # from the CPU perf prior (2–8 photos/s) → about 2–8 minutes per 1,000 photos
-    assert lo == pytest.approx(1000 / 8 / 60, rel=0.01) and hi == pytest.approx(1000 / 2 / 60, rel=0.01)
+    assert 0 < lo <= hi  # from the measured CPU prior (0.4–0.8 photos/s, ADR-0026) → about 21–42 minutes per 1,000
+    assert lo == pytest.approx(1000 / 0.8 / 60, rel=0.01) and hi == pytest.approx(1000 / 0.4 / 60, rel=0.01)

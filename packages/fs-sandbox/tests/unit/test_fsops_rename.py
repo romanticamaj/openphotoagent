@@ -14,13 +14,13 @@ def test_out_exe_008_linux_uses_atomic_renameat2_with_relative_paths(tmp_path, m
     if sys.platform.startswith("linux"):
         assert fsops._LIBC is not None and hasattr(fsops._LIBC, "renameat2")
     monkeypatch.chdir(tmp_path)
-    (tmp_path / "a").write_text("a")
-    (tmp_path / "taken").write_text("keep")
+    (tmp_path / "a").write_text("a", encoding="utf-8")
+    (tmp_path / "taken").write_text("keep", encoding="utf-8")
     RealFs().rename_noreplace(fsops.Path("a"), fsops.Path("b"))  # relative to the cwd (AT_FDCWD)
-    assert (tmp_path / "b").read_text() == "a" and not (tmp_path / "a").exists()
+    assert (tmp_path / "b").read_text(encoding="utf-8") == "a" and not (tmp_path / "a").exists()
     with pytest.raises(FileExistsError):
         RealFs().rename_noreplace(fsops.Path("b"), fsops.Path("taken"))
-    assert (tmp_path / "taken").read_text() == "keep" and (tmp_path / "b").exists()
+    assert (tmp_path / "taken").read_text(encoding="utf-8") == "keep" and (tmp_path / "b").exists()
 
 
 class Renameat2Only:
@@ -37,13 +37,13 @@ def test_out_exe_008_linux_fallback_when_renameat2_unsupported(tmp_path, monkeyp
     monkeypatch.setattr(fsops, "_LIBC", Renameat2Only())
     monkeypatch.setattr(fsops.ctypes, "get_errno", lambda: errno.EINVAL)
     a, b = tmp_path / "a", tmp_path / "b"
-    a.write_text("a")
+    a.write_text("a", encoding="utf-8")
     RealFs().rename_noreplace(a, b)
-    assert b.read_text() == "a" and not a.exists()
-    a.write_text("new")
+    assert b.read_text(encoding="utf-8") == "a" and not a.exists()
+    a.write_text("new", encoding="utf-8")
     with pytest.raises(FileExistsError):
         RealFs().rename_noreplace(a, b)
-    assert b.read_text() == "a"
+    assert b.read_text(encoding="utf-8") == "a"
 
 
 @pytest.mark.unit

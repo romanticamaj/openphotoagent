@@ -1,0 +1,21 @@
+{
+  "id": "M0-S7-ext",
+  "status": "measured",
+  "machine": {
+    "hostname_label": "rtx5070ti-win11",
+    "os": "Windows",
+    "os_release": "11",
+    "arch": "AMD64",
+    "python": "3.12.13",
+    "cpu_count": 24
+  },
+  "metrics": {
+    "runs": 100,
+    "parse_success_rate": 1.0,
+    "tool_choice_accuracy": 1.0,
+    "args_json_valid_rate": 1.0,
+    "failure_samples": []
+  },
+  "pass": true,
+  "notes": "server=http://127.0.0.1:8080. llama.cpp b12121 CUDA 13.4, Qwen3VL-8B-Instruct Q4_K_M, --jinja -c 16384 -ngl 99, temperature 0.2, 10 scripted questions cycled, 4 tools."
+}

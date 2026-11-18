@@ -24,7 +24,11 @@ FX = ROOT / "fixtures/photos/basic"
 JOB = {"kind": "organize", "preset": "by-content-12", "target": {"root_alias": "sorted", "sub_path": ""}}
 EMB = "siglip2-so400m-384"
 GB = 1024 * 1024 * 1024
-FILES = [("vision_model_int8.onnx", GB, 1), ("text_model_int8.onnx", 200_000, 2), ("tokenizer.json", 1_000, 3)]
+FILES = [
+    ("onnx/vision_model_fp16.onnx", GB, 1),
+    ("onnx/text_model_fp16.onnx", 200_000, 2),
+    ("tokenizer.json", 1_000, 3),
+]
 
 
 def _photos(root: Path, sub: str, n: int) -> None:
@@ -58,7 +62,7 @@ def test_dl_019_download_does_not_slow_a_running_job(embedded_pg, sandbox_tree, 
     parent, child = ctx.Pipe()
     host = ctx.Process(
         target=serve_in_child,
-        args=(child, "openphotoagent/siglip2-so400m-patch14-384-onnx", FILES, 100 * 1024 * 1024),
+        args=(child, "onnx-community/siglip2-so400m-patch14-384-ONNX", FILES, 100 * 1024 * 1024),
         daemon=True,
     )
     host.start()
@@ -70,12 +74,12 @@ def test_dl_019_download_does_not_slow_a_running_job(embedded_pg, sandbox_tree, 
         pins = [
             {
                 "model": EMB,
-                "variant": "onnx-int8",
+                "variant": "onnx-fp16",
                 "revision": "0123456789abcdef0123456789abcdef01234567",
                 "files": [{"path": p, "size": n, "sha256": h, "lfs_oid": h} for p, n, h in served],
             }
         ]
-        (reg / "pins.lock").write_text(json.dumps({"schema_version": 1, "pins": pins}))
+        (reg / "pins.lock").write_text(json.dumps({"schema_version": 1, "pins": pins}), encoding="utf-8")
         client = TestClient(create_app(dsn=embedded_pg.dsn, registry_dir=reg))
         w = WorkerAgent(
             client,
@@ -98,7 +102,7 @@ def test_dl_019_download_does_not_slow_a_running_job(embedded_pg, sandbox_tree, 
         for s in ("b0", "b1", "c0", "c1"):
             _photos(sandbox_tree.photos, s, nb)
         alone = [_timed_job(client, w, "b0", nb)[0]]
-        op = client.post("/api/v1/workers/w1/installs", json={"variant": f"{EMB}@onnx-int8"}).json()["operation_id"]
+        op = client.post("/api/v1/workers/w1/installs", json={"variant": f"{EMB}@onnx-fp16"}).json()["operation_id"]
         while client.get(f"/api/v1/operations/{op}").json()["status"] in ("queued",):  # leased by the loop
             _loop_once(w)
         with_dl = [_timed_job(client, w, "b1", nb)[0]]

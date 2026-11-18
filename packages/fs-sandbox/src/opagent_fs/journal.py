@@ -42,6 +42,9 @@ class Journal:
         self._db.execute("PRAGMA synchronous=FULL")
         self._db.executescript(SCHEMA)
 
+    def close(self) -> None:
+        self._db.close()
+
     def _emit(self, ev: str) -> None:
         if self.on_event:
             self.on_event(ev)

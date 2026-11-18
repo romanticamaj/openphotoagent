@@ -21,6 +21,8 @@ INFERENCE_FIELDS = (
     "prompt_template_ref",
     "generation_params",
     "label_set",
+    "classes",  # names and descriptions reach the model (ADR-0030)
+    "vlm_max_candidates",
     "structured_output_schema",
     "run_if",
     "preprocess",

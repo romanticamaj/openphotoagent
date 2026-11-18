@@ -13,8 +13,8 @@ from typing import Any
 
 import httpx
 from opagent_core.operation import NullReporter, OperationReporter
-from opagent_inference.fused import CategoryMap, OutputParseError, fused_schema, parse_fused
-from opagent_inference.prompts import CaptionConfig, render_fused_prompt
+from opagent_inference.fused import CategoryMap, OutputParseError, category_probability, fused_schema, parse_fused
+from opagent_inference.prompts import CaptionConfig, render_answer_prompt, render_fused_prompt
 from opagent_inference.types import (
     BackendInfo,
     BatchRequest,
@@ -51,7 +51,8 @@ def check_items(items: list[Any]) -> list[ImageInput]:
 
 class OpenAICompatAdapter:
     adapter_key = "openai-compatible"
-    confidence_source = "self_report"  # the model states high/medium/low in its JSON; no logprobs are used
+    # the model's high/medium/low said "high" for 135 photos out of 135: the fallback when a runtime has no logprobs
+    confidence_source = "self_report"
 
     def __init__(
         self,
@@ -113,7 +114,12 @@ class OpenAICompatAdapter:
 
     # ---- inference ----
     def _payload(self, req: BatchRequest, item: ImageInput, cats: CategoryMap, retry: bool) -> dict[str, Any]:
-        prompt = render_fused_prompt(cats, self.caption)
+        prompt = render_fused_prompt(
+            cats,
+            self.caption,
+            descriptions=req.variables.get("descriptions"),
+            question=req.variables.get("question") if req.task_type == "classify" else None,
+        )
         url = "data:image/jpeg;base64," + base64.b64encode(item.data).decode()
         gp = dict(req.generation_params)
         body: dict[str, Any] = {
@@ -131,6 +137,8 @@ class OpenAICompatAdapter:
             "temperature": 0 if retry else gp.get("temperature", 0.2),
             "seed": gp.get("seed", 0),
             "max_tokens": gp.get("max_tokens", 384),
+            "logprobs": True,
+            "top_logprobs": 20,
         }
         if retry:
             body["messages"].append({"role": "user", "content": "只輸出 JSON。"})
@@ -143,7 +151,7 @@ class OpenAICompatAdapter:
             body["guided_json"] = schema
         return body
 
-    async def _post(self, client: httpx.AsyncClient, body: dict[str, Any]) -> str:
+    async def _post(self, client: httpx.AsyncClient, body: dict[str, Any]) -> tuple[str, list[dict[str, Any]] | None]:
         try:
             r = await client.post(self.base_url + "/v1/chat/completions", json=body)
         except (httpx.ConnectError, httpx.RemoteProtocolError, httpx.ReadError) as e:
@@ -155,10 +163,32 @@ class OpenAICompatAdapter:
             except ValueError:
                 msg = r.text
             raise map_http_error(r.status_code, msg)
-        return str(r.json()["choices"][0]["message"]["content"])
+        choice = r.json()["choices"][0]
+        return str(choice["message"]["content"]), (choice.get("logprobs") or {}).get("content")
 
     def _on_connection_lost(self) -> None:
         return None
+
+    def _answer_payload(self, req: BatchRequest, item: ImageInput) -> dict[str, Any]:
+        prompt = render_answer_prompt(str(req.variables["question"]))
+        url = "data:image/jpeg;base64," + base64.b64encode(item.data).decode()
+        gp = dict(req.generation_params)
+        return {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": prompt.system},
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "image_url", "image_url": {"url": url}},
+                        {"type": "text", "text": prompt.user},
+                    ],
+                },
+            ],
+            "temperature": gp.get("temperature", 0.2),
+            "seed": gp.get("seed", 0),
+            "max_tokens": gp.get("max_tokens", 256),
+        }
 
     async def run_batch(self, req: BatchRequest) -> list[ItemOutput]:
         items = check_items(list(req.items))
@@ -166,6 +196,14 @@ class OpenAICompatAdapter:
             return []
         if not self.loaded:
             raise ModelUnavailable(f"{self.adapter_key} not loaded")
+        if req.task_type == "caption" and req.variables.get("question"):
+            # a question about the photo: answered in words, not the caption JSON (INF-ASK-001)
+            async with httpx.AsyncClient(timeout=httpx.Timeout(req.deadline_s + 5)) as client:
+                outs = []
+                for it in items:
+                    text, _ = await self._post(client, self._answer_payload(req, it))
+                    outs.append(ItemOutput(item_id=it.item_id, caption=text.strip(), raw={"content": text}, usage={}))
+                return outs
         cats = CategoryMap(keys=list(req.variables.get("categories") or self.categories))
         if "other" not in cats.keys:
             cats.keys.append("other")
@@ -175,7 +213,7 @@ class OpenAICompatAdapter:
 
             async def one(it: ImageInput) -> ItemOutput:
                 async with sem:
-                    raw = await self._post(client, self._payload(req, it, cats, retry=False))
+                    raw, logprobs = await self._post(client, self._payload(req, it, cats, retry=False))
                     retry_raw: list[str] = []
 
                     def retry() -> str:
@@ -184,25 +222,27 @@ class OpenAICompatAdapter:
                     try:
                         res = parse_fused(raw, cats, retry=retry)
                     except _NeedRetry:
-                        retry_raw.append(await self._post(client, self._payload(req, it, cats, retry=True)))
+                        again, logprobs = await self._post(client, self._payload(req, it, cats, retry=True))
+                        retry_raw.append(again)
                         try:
                             res = parse_fused(retry_raw[0], cats)
                             res.retried = True
                         except OutputParseError as e:
                             raise InferenceError("BAD_INPUT", False, f"OutputParseError: {e}") from None
+                    measured = category_probability(logprobs, res.category or "", cats.keys)
                     return ItemOutput(
                         item_id=it.item_id,
                         caption=res.caption,
                         tags=[(t, 1.0) for t in res.tags],
                         category=res.category,
-                        confidence=CONF.get(res.confidence or ""),
+                        confidence=measured if measured is not None else CONF.get(res.confidence or ""),
                         raw={
                             "content": raw,
                             "repaired": res.repaired,
                             "retried": res.retried,
                             "flags": res.flags,
                             "contains_image_text": res.contains_image_text,
-                            "confidence_source": self.confidence_source,
+                            "confidence_source": "logprobs" if measured is not None else self.confidence_source,
                         },
                         usage={},
                     )

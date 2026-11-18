@@ -115,7 +115,7 @@ flowchart LR
 | 前處理 | 重用 02 §4.1 第 3 步的解碼結果。同一個 Job 若同時有 VLM 與 `face` step，**只解碼一次**，在記憶體中分送 | 偵測輸入長邊 1280px（團體照）；手機自拍類可降到 640 |
 | 偵測 | YuNet `score_threshold=0.7`、NMS 0.3；最小臉 20px（偵測空間） | 每張最多 50 張臉（大合照會截斷並標示 `truncated`） |
 | 對齊 | 5 點相似變換 → 112×112 RGB；模板由模型 YAML 的 `align.template` 提供 | — |
-| 品質閘 | 計算 `quality_score ∈ [0,1]`，分四級：0 reject（不做 embedding）、1 low（可被搜尋，但不會自動指派，也不會成為 prototype 或群組核心）、2 ok、3 good | reject：最短邊 < 32px，或 yaw > 75°，或 Laplacian < 20；good：最短邊 ≥ 80px、yaw < 30°、FIQA ≥ 0.6 |
+| 品質閘 | 計算 `quality_score ∈ [0,1]`，分四級：0 reject（不做 embedding）、1 low（可被搜尋，但不會自動指派，也不會成為 prototype 或群組核心）、2 ok、3 good | reject：最短邊 < 24px，或 yaw > 75°，或 Laplacian < 20；good：最短邊 ≥ 80px、yaw < 30°、FIQA ≥ 0.6。**小臉 24～31 px（ADR-0036）**：做 embedding（tier 1），只對已命名的人提出建議、候選門檻 0.55、在「找這個人」只進「可能」，不參與分群、質心與合併建議 |
 | embedding | 批次 64、fp16（GPU）／fp32（CPU）；輸出做 L2 正規化 | — |
 | 人臉縮圖 | 以 bbox 外擴 30% 裁切，160px webp，給 People 頁與確認 UI 使用 | 依 egress 上傳（§6.4） |
 | 跳過條件 | `run_if`：category ≠ `screenshot`、media_kind ≠ `document`；使用者也可以排除某些資料夾 | — |
@@ -158,7 +158,7 @@ flowchart LR
 | 不是此人 | 寫入 `face_assignment(kind=rejected)`，形成 **cannot-link 約束**，之後線上指派與分群都會排除 | ✓ |
 | 排除 / 忽略 | `status=ignored`（路人、雕像、海報、螢幕裡的人）；這些臉不會出現在 People 牆與搜尋中。兩個選項：**「忽略（保留 embedding，避免同一張臉再次被分群出來）」**或**「忽略並刪除生物特徵（之後可能再出現）」**，UI 會說明兩者的取捨 | ✓／刪除後無法復原 |
 | 隱藏小群組 | 少於 3 張臉的群組預設摺疊到「其他臉孔」 | — |
-| 合併建議 | 每次分群後，計算 person 之間 prototype 的最大相似度，≥ `τ_merge`（0.55）就列入建議，**從不自動合併** | — |
+| 合併建議 | 每次分群後重算：兩組 centroid ≥ `τ_merge`（0.55），**且** cross-mean ÷ min(兩組 intra-mean) ≥ 0.92、兩組都 ≥ 3 張，才列入建議，依此比值排序（ADR-0033）；**從不自動合併** | — |
 | 封面 | 預設選 quality 最高的臉；使用者可以改 | ✓ |
 
 ### 2.5 以臉找人（Find this person）
@@ -192,7 +192,7 @@ sequenceDiagram
 | **雙胞胎、長相相近的親屬** | 兩個 person 之間互相誤判 | `person_link(kind=confusable)`：只要一張臉對兩人的分數差距小於 0.12，一律送 Review；使用者可以手動標記「這兩人容易混淆」；Immich 文件也建議遇到雙胞胎時降低距離門檻（[docs](https://docs.immich.app/features/facial-recognition)） |
 | **口罩、墨鏡、遮擋、側臉** | embedding 不可靠 | 品質閘把這類臉判為 `quality_tier=1`：可以出現在「可能」結果中，但不會自動指派，也不會成為 prototype 或群組核心；UI 標示「低品質」 |
 | **非真人臉**（海報、雕像、螢幕、畫作、娃娃） | 形成假人物 | 「忽略」的 person；可以用 VLM tag（如 `poster`、`statue`）在分群時降權【未驗證】 |
-| **大合照的小臉** | 偵測不到，或 embedding 很差 | 偵測長邊 1280；最短邊 < 32px 的臉不做 embedding |
+| **大合照的小臉** | 偵測不到，或 embedding 很差 | 偵測長邊 1280；最短邊 < 24px 的臉不做 embedding；24～31 px 走小臉通道（ADR-0036）；舊版存成 tier 0 的小臉由 Worker 補算一次 |
 | **陌生路人** | 人物牆被大量 1–2 張臉的群組淹沒 | `min_cluster_size=3`；少於 3 張的群組摺疊；「背景臉」（相對臉框面積 < 1% 且不在畫面中央）預設不列出 |
 | **跨模型** | 換模型後門檻失準 | 門檻跟著 `embedding_space` 走（§3.2），不是全域設定 |
 
@@ -765,7 +765,7 @@ class FaceOut(BaseModel):
 class FaceConfig(BaseModel):
     detector: str; embedder: str; quality: str | None = None
     det_max_side: int = 1280; det_score: float = 0.7; max_faces: int = 50
-    min_side_px_embed: int = 32; produce_thumbs: bool = True
+    min_side_px_embed: int = 24; min_side_px_cluster: int = 32; produce_thumbs: bool = True  # ADR-0036
 
 # opagent/inference/adapter.py（新增）
 class FaceDetectorAdapter(ModelAdapter, Protocol):

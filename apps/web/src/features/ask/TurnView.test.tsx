@@ -1,0 +1,89 @@
+import { render, screen } from "@testing-library/react";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import i18n from "../../lib/i18n";
+
+beforeAll(async () => {
+  await i18n.changeLanguage("zh-TW");
+});
+vi.mock("@tanstack/react-router", () => ({
+  Link: ({ children, search }: { children: React.ReactNode; search?: { q?: string } }) => <a data-q={search?.q}>{children}</a>,
+}));
+vi.mock("../../lib/api", async (orig) => ({ ...(await orig<typeof import("../../lib/api")>()), mediaUrl: (id: string) => `/m/${id}` }));
+
+import type { Turn } from "./stream";
+import { TurnView } from "./AskPanel";
+
+const turn = (over: Partial<Turn>): Turn => ({
+  question: "我有幾張在海邊拍的照片？",
+  turnId: "t1",
+  mode: "local",
+  intent: "count",
+  path: null,
+  steps: [],
+  filters: { applied: {}, text: "海邊", explain: [] },
+  photos: { total: 14, items: Array.from({ length: 14 }, (_, i) => `a${i}`), role: "candidates" },
+  text: "共有 14 張。",
+  cards: [],
+  notices: [],
+  status: "completed",
+  ...over,
+});
+
+describe("an answer shows its photos", () => {
+  it("[ASK-UI-010] 回歸：回答旁邊看得到找到的照片，可以到搜尋頁看全部（驗證第 1 輪：只有「共有 2 張」）", () => {
+    render(<TurnView turn={turn({})} onRerun={() => {}} />);
+    const strip = screen.getByTestId("ask-photos");
+    expect(strip.querySelectorAll("img")).toHaveLength(8);
+    const all = screen.getByText(/看全部 14 張/);
+    expect(all.closest("a")?.getAttribute("data-q")).toBe("海邊");
+  });
+});
+
+describe("ask chips", () => {
+  it("[ASK-UI-010] 標籤 chip 顯示名稱，不是 scene.beach", () => {
+    render(<TurnView turn={turn({ filters: { applied: { tags_any: ["scene.beach"] }, text: "海邊", explain: [], names: { "scene.beach": "海灘" } } })} onRerun={() => {}} />);
+    expect(screen.queryByText(/scene\.beach/)).toBeNull();
+    expect(screen.getByText(/標籤 海灘/)).toBeTruthy();
+  });
+
+  it("[ASK-UI-014] 回歸：人物 chip 顯示名字，不是 persons_all（驗證第 15 輪）", () => {
+    render(<TurnView turn={turn({ filters: { applied: { persons_all: ["p9"] }, text: "", explain: [], names: { p9: "測試B" } } })} onRerun={() => {}} />);
+    expect(screen.queryByText(/persons_all/)).toBeNull();
+    expect(screen.getByText(/人物：測試B/)).toBeTruthy();
+  });
+});
+
+describe("nothing found", () => {
+  it("[ASK-UI-022] 回歸：找不到時的相關詞是可以點的 chip，寫法和搜尋頁一樣（驗證第 137 輪：只是文字，且寫「14 張」不是「14 張以上」）", () => {
+    render(<TurnView turn={turn({ photos: null, text: "找不到符合條件的照片。", suggest: [{ q: "遊樂場", n: 14 }] })} onRerun={() => {}} />);
+    const chip = screen.getByText("遊樂場（14 張以上）");
+    expect(chip.closest("a")?.getAttribute("data-q")).toBe("遊樂場");
+  });
+});
+
+describe("nothing found, in order", () => {
+  it("[ASK-UI-023] 回歸：「試試：」在回答那句話之後（驗證第 138 輪：chip 列在回答上面）", () => {
+    render(<TurnView turn={turn({ photos: null, text: "找不到符合條件的照片。", suggest: [{ q: "遊樂場", n: 14 }] })} onRerun={() => {}} />);
+    const answer = screen.getByText(/找不到符合條件的照片/);
+    const chip = screen.getByText("遊樂場（14 張以上）");
+    expect(answer.compareDocumentPosition(chip) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
+describe("the answer first", () => {
+  it("[ASK-UI-024] 回歸：回答那句話在照片與「看全部」之前（驗證第 139 輪：先出現「在搜尋頁看全部 N 張」才是回答）", () => {
+    render(<TurnView turn={turn({})} onRerun={() => {}} />);
+    const answer = screen.getByText("共有 14 張。");
+    const all = screen.getByText(/看全部 14 張/);
+    expect(answer.compareDocumentPosition(all) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(answer.compareDocumentPosition(screen.getByTestId("ask-photos")) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
+describe("nothing found, said once", () => {
+  it("[ASK-UI-025] 回歸：找不到時不在最後再寫「找到 0 張」（驗證第 140 輪：建議之後又一行「找到 0 張」）", () => {
+    render(<TurnView turn={turn({ photos: { total: 0, items: [], role: "candidates" }, text: "找不到符合條件的照片。", suggest: [{ q: "遊樂場", n: 14 }] })} onRerun={() => {}} />);
+    expect(screen.queryByTestId("ask-photos-total")).toBeNull();
+    expect(screen.getByText("遊樂場（14 張以上）")).toBeTruthy();
+  });
+});

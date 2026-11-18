@@ -1,0 +1,11 @@
+# Built-in organize preset: by date (03 §10, 08 §8.1). No model needed.
+schema_version: 1
+key: by-date
+name: { zh-TW: 依日期, en: By date }
+task_configs: []
+output_rules:
+  - priority: 1
+    when: "true"
+    action: copy
+    path_template: "{taken_at:%Y}/{taken_at:%Y-%m}/{stem}{ext}"
+    conflict_policy: rename
