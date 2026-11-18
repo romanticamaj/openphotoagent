@@ -18,7 +18,7 @@ import { placeholder } from "../../lib/thumbhash";
 import type { GridApi } from "./PhotoGrid";
 import { memoryGrid } from "../memories/OnThisDay";
 import { Edited, editFilter } from "../../lib/editView";
-import { autoEdit, type Edit } from "../../lib/editMath";
+import { autoEdit, turnCrop, type Edit } from "../../lib/editMath";
 import { EditPanel } from "./EditPanel";
 
 // 「問這張」 loads with the ask chunk, not with the photos route (PERF-003)
@@ -109,11 +109,19 @@ export function Lightbox({
     staleTime: 60_000,
   });
   const [turns, setTurns] = useState<Record<string, number>>({});
+  const editsRef = useRef<Edit | null>(null);
   const rot = asset ? (turns[asset.id] ?? asset.rot ?? 0) : 0;
   const rotate = useCallback(() => {
     if (!asset) return;
     const next = (rot + 90) % 360;
     setTurns((m) => ({ ...m, [asset.id]: next }));
+    // a crop turns with the photo: a 4:3 crop became a 0.40 strip (round 145, EDIT-019)
+    const had = editsRef.current;
+    if (had?.crop) {
+      const turned = { ...had, crop: turnCrop(had.crop, 90) };
+      setEdits((m) => ({ ...m, [asset.id]: turned }));
+      void api.setEdit(asset.id, turned);
+    }
     void api.setRotation(asset.id, next).then(() => {
       void qcr.invalidateQueries({ queryKey: ["timeline"] });
       void qcr.invalidateQueries({ queryKey: ["search"] });
@@ -129,8 +137,14 @@ export function Lightbox({
   const full = useQuery({ queryKey: ["asset-edit", asset?.id], queryFn: () => api.asset(asset!.id), enabled: Boolean(asset), staleTime: 60_000 });
   const saved: Edit | null = asset ? (asset.id in edits ? edits[asset.id]! : ((full.data as { edit?: Edit | null } | undefined)?.edit ?? (asset as { ed?: Edit | null }).ed ?? null)) : null;
   const shown = editing ? draft : saved;
-  const editDone = (e: Edit | null) => {
+  editsRef.current = saved;
+  const info = full.data as { width?: number | null; height?: number | null } | undefined;
+  const photoDims = { w: info?.width ?? null, h: info?.height ?? null };
+  // 完成 and 還原原圖 say so, with 復原 to the edit before (round 145, EDIT-023)
+  const [editUndo, setEditUndo] = useState<{ id: string; prev: Edit | null; text: string } | null>(null);
+  const editDone = (e: Edit | null, undoable = true) => {
     if (!asset) return;
+    if (undoable) setEditUndo({ id: asset.id, prev: saved, text: t(e ? "edit.saved" : "edit.reverted") });
     setEdits((m) => ({ ...m, [asset.id]: e }));
     setEditing(false);
     setDraft(null);
@@ -300,6 +314,17 @@ export function Lightbox({
     if (e.key === " " && e.target instanceof Element && e.target !== e.currentTarget && e.target.closest("button, a, summary, select, [role='button']")) return;
     if ((e.key === "a" || e.key === "A") && (e.ctrlKey || e.metaKey)) {
       e.preventDefault(); // not the page's text behind the photo (audit round 54)
+      return;
+    }
+    if (editing) {
+      // the editor has the keys: Esc closed the whole view and → went to the next photo with the edit unsaved
+      // (round 145, EDIT-021)
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setEditing(false);
+        setDraft(null);
+      }
+      if (e.key === "Tab") trapFocus(e, dialog.current);
       return;
     }
     const k: Record<string, () => void> = {
@@ -561,7 +586,7 @@ export function Lightbox({
         {asset && cropFrame ? (
           // cropped or straightened: the photo in a frame of the crop's shape, fitted to the stage (ADR-0057)
           <div className="lb-crop" style={{ width: `${cropFrame.bw}px`, height: `${cropFrame.bh}px`, transform: `translate(-50%, -50%) ${view}` }}>
-            <Edited edit={shown}>
+            <Edited edit={shown} aspect={cropFrame.fullW / cropFrame.fullH}>
               <>
             <img
               key={`${asset.id}-t512`}
@@ -663,8 +688,9 @@ export function Lightbox({
       {editing && asset ? (
         <EditPanel
           initial={saved}
-          w={(rot === 90 || rot === 270 ? asset.h : asset.w) ?? 0}
-          h={(rot === 90 || rot === 270 ? asset.w : asset.h) ?? 0}
+          // the photo's own size, turned: search results carry none, and crops did nothing (round 145, EDIT-018)
+          w={(quarter ? photoDims.h : photoDims.w) ?? 0}
+          h={(quarter ? photoDims.w : photoDims.h) ?? 0}
           onChange={setDraft}
           onSave={(e) => editDone(Object.keys(e).length > 1 ? e : null)}
           onRevert={() => editDone(null)}
@@ -689,6 +715,28 @@ export function Lightbox({
         />
       ) : null}
       {toast && <Toast text={toast} onDone={() => setToast(null)} />}
+      {editUndo ? (
+        <p role="status" className="toast flex items-center gap-2 text-sm">
+          <span>{editUndo.text}</span>
+          <button
+            type="button"
+            className="chip"
+            onClick={() => {
+              const u = editUndo;
+              setEditUndo(null);
+              setEdits((m) => ({ ...m, [u.id]: u.prev }));
+              void (u.prev ? api.setEdit(u.id, u.prev) : api.revertEdit(u.id)).then(() => {
+                for (const q of ["timeline", "search", "on-this-day", "album", "asset-edit"]) void qcr.invalidateQueries({ queryKey: [q] });
+              });
+            }}
+          >
+            {t("edit.undo")}
+          </button>
+          <button type="button" className="underline" aria-label={t("share.dismiss")} onClick={() => setEditUndo(null)}>
+            ×
+          </button>
+        </p>
+      ) : null}
     </div>
   );
 }

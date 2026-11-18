@@ -48,4 +48,11 @@ describe("the editor (ADR-0057)", () => {
     await vi.waitFor(() => expect(change).toHaveBeenLastCalledWith({ v: 1, exposure: 0.6, contrast: 20, crop: { x: 0, y: 0, w: 0.5, h: 1 }, filter: { name: "warm", strength: 100 } }));
     expect(screen.getByRole("slider", { name: "曝光" }).getAttribute("aria-valuetext")).toBe("+0.6 EV");
   });
+
+  it("[EDIT-022] 回歸：再打開時已存的裁切比例是選取狀態；打開時焦點在第一個滑桿（驗證第 145 輪：顯示「原始比例」、要按 31 次 Tab）", () => {
+    render(<EditPanel initial={{ v: 1, crop: { x: 0.125, y: 0, w: 0.75, h: 1 } }} w={4000} h={3000} onChange={() => {}} onSave={() => {}} onRevert={() => {}} onCancel={() => {}} />);
+    expect(screen.getByRole("radio", { name: "1:1" }).getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByRole("radio", { name: "原始比例" }).getAttribute("aria-checked")).toBe("false");
+    expect(document.activeElement).toBe(screen.getByRole("slider", { name: "曝光" }));
+  });
 });

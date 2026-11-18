@@ -71,3 +71,18 @@ describe("自動 (ADR-0057)", () => {
     expect(dark.v).toBe(1);
   });
 });
+
+describe("a crop and a turn (ADR-0057)", () => {
+  it("[EDIT-019] 回歸：裁切後再按 R 轉 90°，裁切跟著轉，形狀不變形（驗證第 145 輪：4:3 變成 0.40 的細條）", async () => {
+    const { turnCrop } = await import("./editMath");
+    // the left half of a landscape photo, turned 90° clockwise, is its top half
+    expect(turnCrop({ x: 0, y: 0, w: 0.5, h: 1 }, 90)).toEqual({ x: 0, y: 0, w: 1, h: 0.5 });
+    // a 4:3 crop centred in 4000×3000 (x .125, w .75) turned is centred in 3000×4000, 3:4
+    const c = turnCrop({ x: 0.125, y: 0, w: 0.75, h: 1 }, 90);
+    expect(c).toEqual({ x: 0, y: 0.125, w: 1, h: 0.75 });
+    expect(turnCrop({ x: 0.1, y: 0.2, w: 0.3, h: 0.4 }, 360)).toEqual({ x: 0.1, y: 0.2, w: 0.3, h: 0.4 });
+    const r = turnCrop(turnCrop(turnCrop(turnCrop({ x: 0.1, y: 0.2, w: 0.3, h: 0.4 }, 90), 90), 90), 90);
+    expect(r.x).toBeCloseTo(0.1, 9);
+    expect(r.h).toBeCloseTo(0.4, 9); // four quarter turns: where it began
+  });
+});

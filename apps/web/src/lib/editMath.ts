@@ -140,3 +140,12 @@ export function autoEdit(px: Uint8ClampedArray): Edit {
   if (contrast >= 5) out.contrast = contrast;
   return out;
 }
+
+/** A crop after the photo turns by `deg` clockwise (a multiple of 90): the same part of the photo, in the turned
+ *  photo's terms. A 4:3 crop turned with R became a 0.40 strip (round 145, EDIT-019). */
+export function turnCrop(c: NonNullable<Edit["crop"]>, deg: number): NonNullable<Edit["crop"]> {
+  let r = c;
+  for (let q = (((deg % 360) + 360) % 360) / 90; q > 0; q--) r = { x: 1 - (r.y + r.h), y: r.x, w: r.h, h: r.w };
+  const tidy = (v: number) => Math.round(v * 1e9) / 1e9 + 0;
+  return { x: tidy(r.x), y: tidy(r.y), w: tidy(r.w), h: tidy(r.h) };
+}

@@ -64,10 +64,11 @@ export function editFilter(e: Edit | null | undefined): string | undefined {
 const pct = (v: number) => `${Math.round(v * 1e4) / 100}%`;
 
 /** A photo with its edit: the children (an img) drawn cropped, straightened and filtered inside the parent's box. */
-export function Edited({ edit, children }: { edit: Edit | null | undefined; children: ReactNode }) {
+export function Edited({ edit, aspect, children }: { edit: Edit | null | undefined; /** the whole photo's width ÷ height */ aspect?: number; children: ReactNode }) {
   if (!edit || isIdentity(edit)) return <>{children}</>;
   const c = edit.crop ?? { x: 0, y: 0, w: 1, h: 1 };
-  const s = coverScale(edit.straighten ?? 0, c.w, c.h);
+  // by the crop's real shape, not its fractions: a black wedge showed in the corner (round 145, EDIT-020)
+  const s = coverScale(edit.straighten ?? 0, c.w * (aspect ?? 1), c.h);
   return (
     <span className="edit-frame">
       <span

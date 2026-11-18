@@ -1,6 +1,6 @@
 // The editor (ADR-0057): light, colour, a filter, an aspect crop and straighten, shown at once on the photo and kept
 // in the library on 完成; the file is never written. Free crop handles and 自動 come in a later slice.
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Button } from "../../components/Button";
 import { FILTERS, type Edit, type FilterName } from "../../lib/editMath";
@@ -71,7 +71,18 @@ export function EditPanel({
 }) {
   const { t } = useTranslation();
   const [e, setE] = useState<Edit>(initial ?? { v: 1 });
-  const [aspect, setAspect] = useState<string>("original");
+  // the saved crop's aspect is the one chosen: it showed 原始比例 (round 145, EDIT-022)
+  const [aspect, setAspect] = useState<string>(() => {
+    const c = initial?.crop;
+    if (!c) return "original";
+    const hit = ASPECTS.find((a) => {
+      const k = aspectCrop(a.ratio, w, h);
+      return k && Math.abs(k.w - c.w) < 1e-3 && Math.abs(k.h - c.h) < 1e-3;
+    });
+    return hit?.label ?? "free";
+  });
+  const first = useRef<HTMLInputElement>(null);
+  useEffect(() => first.current?.focus(), []); // 31 Tabs to the first slider (round 145)
   const set = (next: Edit) => {
     const c = clean(next);
     setE(c);
@@ -96,6 +107,7 @@ export function EditPanel({
             <label key={s.key} className="edit-slider">
               <span>{t(`edit.${s.key}`)}</span>
               <input
+                ref={s.key === "exposure" ? first : undefined}
                 type="range"
                 min={s.min}
                 max={s.max}

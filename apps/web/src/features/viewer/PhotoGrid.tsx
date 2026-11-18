@@ -430,7 +430,7 @@ export function PhotoGrid({
                             }}
                           >
                             {!fast && (
-                              <Edited edit={a.ed}>
+                              <Edited edit={a.ed} aspect={a.w && a.h ? a.w / (a.ed?.crop?.w ?? 1) / (a.h / (a.ed?.crop?.h ?? 1)) : undefined}>
                               <img
                                 src={mediaUrl(a.id, thumbVariant(x.w, r.height, window.devicePixelRatio || 1), a.ch)}
                                 // the turn fills the whole photo's box, before its crop (EDIT-002)

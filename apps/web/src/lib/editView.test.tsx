@@ -1,5 +1,6 @@
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { coverScale } from "./editMath";
 import { Edited, editFilter } from "./editView";
 
 describe("an edited photo on screen (ADR-0057)", () => {
@@ -37,5 +38,18 @@ describe("an edited photo on screen (ADR-0057)", () => {
     );
     expect(container.querySelector("[data-edit-inner]")).toBeNull();
     expect(container.querySelector("img")).not.toBeNull();
+  });
+
+  it("[EDIT-020] 回歸：拉直的放大依照片實際的長寬，不是裁切的比例（驗證第 145 輪：角落露出黑色楔形）", () => {
+    const edit = { v: 1 as const, straighten: 10, crop: { x: 0, y: 0, w: 1, h: 1 } };
+    const { container } = render(
+      <Edited edit={edit} aspect={4 / 3}>
+        <img alt="" />
+      </Edited>,
+    );
+    const inner = container.querySelector<HTMLElement>("[data-edit-inner]")!;
+    const want = coverScale(10, 4, 3);
+    expect(inner.style.transform).toBe(`rotate(10deg) scale(${want})`);
+    expect(want).toBeGreaterThan(coverScale(10, 1, 1) - 1); // not the square's scale by accident
   });
 });

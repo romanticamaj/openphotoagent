@@ -1269,6 +1269,9 @@
     "done": "Done",
     "cancel": "Cancel",
     "revert": "Revert to original",
+    "saved": "Edit saved",
+    "reverted": "Back to the original",
+    "undo": "Undo",
     "open": "Edit"
   }
 }
