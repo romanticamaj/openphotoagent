@@ -188,3 +188,18 @@ describe("faces before a share, the risky choice last", () => {
     expect(screen.getByRole("button", { name: "全部分享" }).className).toContain("danger");
   });
 });
+
+describe("faces before a share, a second press for all", () => {
+  it("[SHARE-041] 回歸：「全部分享」要再按一次確認，一次 Shift+Tab＋Enter 不會分享有人臉的照片（驗證第 143 輪）", async () => {
+    const run = vi.fn(async (): Promise<ManyResult> => ({ kind: "cancelled" }));
+    render(<ShareSelection ids={["a", "b"]} run={run} open={async () => ""} check={async () => ({ enabled: true, with_faces: ["a"] })} />);
+    fireEvent.click(screen.getByRole("button", { name: "分享 2 張…" }));
+    await screen.findByRole("alertdialog");
+    fireEvent.click(screen.getByRole("button", { name: "全部分享" }));
+    expect(run).not.toHaveBeenCalled();
+    const sure = screen.getByRole("button", { name: "確定分享有人臉的照片" });
+    expect(document.activeElement).toBe(sure);
+    fireEvent.click(sure);
+    await vi.waitFor(() => expect(run).toHaveBeenCalledWith(["a", "b"]));
+  });
+});

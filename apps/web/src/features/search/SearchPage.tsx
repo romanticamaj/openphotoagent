@@ -4,6 +4,7 @@ import { useInfiniteQuery, useMutation, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { themeTitle } from "../memories/titles";
 import { Button } from "../../components/Button";
 import { COMPARE_MAX, CompareView } from "./CompareView";
 import { Lightbox } from "../viewer/Lightbox";
@@ -208,7 +209,7 @@ export function SearchPage({ q: asked, tag, year, name }: { q: string; tag?: str
       <div className="flex items-baseline gap-3">
         <h1 id="search-h" className="text-lg font-semibold">
           {/* a memory theme's photos are titled with the theme (audit round 83) */}
-          {tag && year && !q && chips.some((c) => c.kind === "tag" && c.value === tag) && chips.some((c) => c.kind === "year" && c.value === year) ? t("memories.themeTitle", { year, name: { ...tagNames, ...first?.tag_names }[tag] ?? name ?? tag }) : first?.no_words ? t("search.noWordsTitle") : q ? t("search.resultsFor", { q }) : t("search.results")}
+          {tag && year && !q && chips.some((c) => c.kind === "tag" && c.value === tag) && chips.some((c) => c.kind === "year" && c.value === year) ? themeTitle(t, Number(year), { ...tagNames, ...first?.tag_names }[tag] ?? name ?? tag, first?.today) : first?.no_words ? t("search.noWordsTitle") : q ? t("search.resultsFor", { q }) : t("search.results")}
         </h1>
         {/* nothing found with words set aside: 「找不到」 says it once below (SRCH-UI-052), the count reads 「0 張」 as on
             every page that finds nothing (SRCH-UI-053, audit round 124) */}

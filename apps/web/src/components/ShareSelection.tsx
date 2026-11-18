@@ -77,6 +77,12 @@ export function ShareSelection({
   const [faced, setFaced] = useState<string[] | null>(null);
   // the check could not answer: asked, not shared unseen (round 141, SHARE-038)
   const [unsure, setUnsure] = useState(false);
+  // 全部分享 with faces asks once more: one Shift+Tab and Enter shared them (round 143, SHARE-041)
+  const [sure, setSure] = useState(false);
+  const sureRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (sure) sureRef.current?.focus();
+  }, [sure]);
   const dialog = useRef<HTMLDivElement>(null);
   useEffect(() => {
     // the safer choice first: 只分享其他 N 張, else 取消 (round 141: focus was on 全部分享)
@@ -100,6 +106,7 @@ export function ShareSelection({
   const shut = (back = true) => {
     setFaced(null);
     setUnsure(false);
+    setSure(false);
     if (back) shareRef.current?.focus();
   };
   const go = async (ids: string[] | null) => {
@@ -184,9 +191,15 @@ export function ShareSelection({
                     {t("batch.cancel")}
                   </Button>
                   {/* the risky choice last, marked so: it came first and looked like the others (round 142, SHARE-040) */}
-                  <Button variant="ghost" className="share-risky danger" onClick={() => (shut(false), void go(ids))}>
-                    {t(faced ? "share.facesAll" : "share.facesAnyway")}
-                  </Button>
+                  {faced && sure ? (
+                    <Button ref={sureRef} variant="ghost" className="share-risky danger" onClick={() => (shut(false), void go(ids))}>
+                      {t("share.facesSure")}
+                    </Button>
+                  ) : (
+                    <Button variant="ghost" className="share-risky danger" onClick={() => (faced ? setSure(true) : (shut(false), void go(ids)))}>
+                      {t(faced ? "share.facesAll" : "share.facesAnyway")}
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>,

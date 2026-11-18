@@ -192,6 +192,19 @@ describe("a theme's photos (audit round 80)", () => {
   });
 });
 
+describe("one title a memory", () => {
+  it("[SRCH-UI-064] 回歸：主題的「看全部」頁標題和卡片一樣（驗證第 143 輪：卡片「今年的白板」，打開的頁面寫「2026 的白板」）", async () => {
+    s.result = { items: [], facets: {}, total: 0, next_cursor: null, degraded: [], possible_total: 0, possible: [], tag_names: { "object.whiteboard": "白板" }, today: "2026-11-18" } as never;
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SearchPage q="" tag="object.whiteboard" year="2026" />
+      </QueryClientProvider>,
+    );
+    await vi.waitFor(() => expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("今年的白板"));
+    s.result = null;
+  });
+});
+
 describe("a theme's chip is named (audit round 81)", () => {
   it("[SRCH-UI-038] 回歸：從主題來的標籤晶片顯示名稱「手工」，不是 activity.crafts", async () => {
     s.result = { items: [], facets: {}, total: 0, next_cursor: null, degraded: [], possible_total: 0, possible: [], tag_names: { "activity.crafts": "手工" } };

@@ -321,6 +321,7 @@ def memory_feedback_list(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
     key: dict[str, str] = {r.id: r.ref.split(":")[-1] for r in rows if r.ref.split(":")[0] in ("theme", "tag")}
     names = tag_names([k for k in key.values() if k], lang)
     return {
+        "today": _today(req),  # 「去年的球」 here as on its card (MEM-058)
         "items": [
             {
                 "id": r.id,
@@ -330,7 +331,7 @@ def memory_feedback_list(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
                 "at": r.at.isoformat() if r.at else None,
             }
             for r in rows
-        ]
+        ],
     }
 
 

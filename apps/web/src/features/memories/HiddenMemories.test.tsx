@@ -7,11 +7,11 @@ beforeAll(async () => {
   await i18n.changeLanguage("zh-TW");
 });
 
-const s = vi.hoisted(() => ({ items: [] as unknown[], removed: [] as string[] }));
+const s = vi.hoisted(() => ({ items: [] as unknown[], removed: [] as string[], today: undefined as string | undefined }));
 vi.mock("../../lib/api", async (orig) => ({
   ...(await orig<typeof import("../../lib/api")>()),
   api: {
-    memoryFeedbackList: async () => ({ items: s.items }),
+    memoryFeedbackList: async () => ({ items: s.items, today: s.today }),
     memoryFeedbackRemove: async (id: string) => void s.removed.push(id),
   },
 }));
@@ -66,5 +66,21 @@ describe("hidden memories", () => {
     fireEvent.click(screen.getByRole("button", { name: /還原/ }));
     await vi.waitFor(() => expect(document.activeElement).toBe(h));
     h.remove();
+  });
+
+  it("[MEM-059] 回歸：隱藏清單的名稱和卡片一樣（驗證第 143 輪：卡片「去年的球」，清單寫「2025 的球」）", async () => {
+    s.today = "2026-11-18";
+    s.items = [
+      { id: "f1", kind: "hide", ref: "theme:2025:object.ball", name: "球" },
+      { id: "f2", kind: "hide", ref: "event:2026-06-22", name: null },
+    ];
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <HiddenMemories />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText("去年的球")).toBeTruthy();
+    expect(screen.getByText("6/22 的活動")).toBeTruthy();
+    s.today = undefined;
   });
 });

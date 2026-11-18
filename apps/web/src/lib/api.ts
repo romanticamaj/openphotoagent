@@ -221,6 +221,8 @@ export type SearchResult = {
   suggest?: { q: string; n: number }[];
   /** a query of marks alone (「##」): the page asks for words (SRCH-TOK-047) */
   no_words?: boolean;
+  /** the library's today, for memory titles (SRCH-UI-064) */
+  today?: string;
   degraded: string[];
   planner?: Planner;
 };
@@ -398,7 +400,7 @@ export const api = {
   facesPresent: (ids: string[]) => req<{ enabled: boolean; with_faces?: string[] }>("POST", "/faces/present", { asset_ids: ids.slice(0, 200) }),
   /** 隱藏這個回憶 / 少一點「X」 (MEM-041) */
   memoryFeedback: (kind: "hide" | "fewer", ref: string) => req<{ id: string; kind: string; ref: string }>("POST", "/memories/feedback", { kind, ref }),
-  memoryFeedbackList: () => req<{ items: Array<{ id: string; kind: string; ref: string; name?: string | null; at: string | null }> }>("GET", `/memories/feedback?lang=${encodeURIComponent(document.documentElement.lang || "zh-TW")}`),
+  memoryFeedbackList: () => req<{ today?: string; items: Array<{ id: string; kind: string; ref: string; name?: string | null; at: string | null }> }>("GET", `/memories/feedback?lang=${encodeURIComponent(document.documentElement.lang || "zh-TW")}`),
   memoryFeedbackRemove: (id: string) => req<void>("DELETE", `/memories/feedback/${encodeURIComponent(id)}`),
   memoryThemes: (lang: string) =>
     req<{ today?: string; themes: Array<{ year: number; key: string; name: string; count: number; photos: Array<{ asset_id: string; ch: string | null; taken_at: string | null; rot?: number }> }> }>("GET", `/memories/themes?lang=${encodeURIComponent(lang)}`),

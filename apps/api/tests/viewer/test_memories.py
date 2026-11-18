@@ -414,3 +414,17 @@ def test_mem_054_memory_lists_say_todays_date(embedded_pg, tmp_path):
         body = x.client.get(path, headers=x.ui).json()
         assert body.get("today") == "2026-11-12", path
     x.eng.dispose()
+
+
+@pytest.mark.integration
+@pytest.mark.tc("MEM-058")
+def test_mem_058_the_search_says_todays_date_and_so_does_the_hidden_list(embedded_pg, tmp_path):
+    """回歸 (audit round 143): 「今年的白板」 opened a page headed 「2026 的白板」, and the hidden list said 「2025 的球」.
+    The search and the hidden list carry the library's today too, so every place names a memory the same way."""
+    from opagent_testing.clock import FakeClock
+
+    x = M(embedded_pg.dsn, tmp_path, clock=FakeClock(datetime(2026, 11, 11, 20, 0, tzinfo=UTC)))
+    x.index()
+    assert x.client.post("/api/v1/search", json={}, headers=x.ui).json().get("today") == "2026-11-12"
+    assert x.client.get("/api/v1/memories/feedback", headers=x.ui).json().get("today") == "2026-11-12"
+    x.eng.dispose()

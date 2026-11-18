@@ -342,6 +342,15 @@ def _without_soft(q: str) -> str:
     return q
 
 
+def _local_today(st: Any) -> str:
+    """The library's local day, from the app's clock (invariant 11)."""
+    from zoneinfo import ZoneInfo
+
+    from .labels import LOCAL_TZ
+
+    return str(st.clock.now().astimezone(ZoneInfo(LOCAL_TZ)).date().isoformat())
+
+
 SUGGEST_MAX = 4
 
 
@@ -1027,6 +1036,8 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
         "collapsed": int(collapsed),  # near-duplicates folded into their group's photo, when browsing (SRCH-DUP-010)
         "suggest": suggest,  # nothing found: words inside the query that find photos (SRCH-SUG-001)
         "no_words": no_words,  # a query of marks alone: the page asks for words (SRCH-TOK-047)
+        # the library's today, so a theme's page is named as its card is: 「今年的白板」 (MEM-058, SRCH-UI-064)
+        "today": _local_today(st),
         "possible": [
             {
                 "asset_id": a,
