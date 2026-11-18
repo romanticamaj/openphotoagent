@@ -506,6 +506,15 @@ def _lead(ids: list[str] | tuple[str, ...], key: str | None, info: dict[str, Any
     return cover(list(ids), vecs, prefer=lambda a: _names_subject(info[a].caption, key)) or ids[0]
 
 
+def _today(req: Request) -> str:
+    """The library's today, from the app's clock (invariant 11), for 「今年」「去年」 in memory titles (MEM-054)."""
+    from zoneinfo import ZoneInfo
+
+    from .labels import LOCAL_TZ
+
+    return str(_st(req).clock.now().astimezone(ZoneInfo(LOCAL_TZ)).date().isoformat())
+
+
 THEME_OVERLAP = 0.5  # 「2025 的運動場」 shared 28 of 64 photos with 「2025 的足球」 (audit round 80)
 
 
@@ -594,6 +603,7 @@ def memory_themes(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
         return [lead, *(a for a in ids if a != lead)]
 
     return {
+        "today": _today(req),
         "themes": [
             {
                 "year": t.year,
@@ -611,7 +621,7 @@ def memory_themes(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
                 ],
             }
             for t in found
-        ]
+        ],
     }
 
 
@@ -690,6 +700,7 @@ def memory_events(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
         return [lead, *(a for a in e.asset_ids if a != lead)]
 
     return {
+        "today": _today(req),
         "events": [
             {
                 "day": e.day.isoformat(),
@@ -708,7 +719,7 @@ def memory_events(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
                 ],
             }
             for e in found
-        ]
+        ],
     }
 
 

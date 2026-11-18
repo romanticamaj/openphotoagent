@@ -7,6 +7,7 @@ import { api, mediaUrl } from "../../lib/api";
 import { turnStyle } from "../../lib/turn";
 import type { StoryAll } from "./Events";
 import { MemoryMenu, useMemoryFeedback } from "./MemoryMenu";
+import { themeTitle } from "./titles";
 import type { MemoryPhoto } from "./OnThisDay";
 
 export function Themes({ onOpen }: { onOpen: (photos: MemoryPhoto[], start: number, play?: boolean, title?: string, all?: StoryAll) => void }) {
@@ -20,7 +21,7 @@ export function Themes({ onOpen }: { onOpen: (photos: MemoryPhoto[], start: numb
       <h2 id="themes-h" tabIndex={-1} className="font-semibold">{t("memories.themes")}</h2>
       <ul className="memory-themes">
         {list.map((th) => {
-          const title = t("memories.themeTitle", { year: th.year, name: th.name });
+          const title = themeTitle(t, th.year, th.name, q.data?.today); // 「今年的足球」 (MEM-055)
           const cover = th.photos[0];
           return (
             <li key={`${th.year}-${th.key}`} className="memory-theme">

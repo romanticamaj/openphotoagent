@@ -1222,6 +1222,8 @@
     "picked": "{n} picked of {total}",
     "themes": "Themes",
     "themeTitle": "{name} in {year}",
+    "themeThisYear": "{name} this year",
+    "themeLastYear": "{name} last year",
     "themeOpen": "{title}, {n} photos",
     "themeCount": "{n} photos · {k} picked",
     "themeAll": "See all",

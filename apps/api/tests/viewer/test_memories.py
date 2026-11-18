@@ -400,3 +400,17 @@ def test_mem_051_a_themes_cover_is_its_most_typical_photo(embedded_pg, tmp_path)
     cover = th[0]["photos"][0]["asset_id"]
     assert cover != ids[0]  # the outlier, first by date
     assert cover in ids[1:]
+
+
+@pytest.mark.integration
+@pytest.mark.tc("MEM-054")
+def test_mem_054_memory_lists_say_todays_date(embedded_pg, tmp_path):
+    """Title templates (ADR-0049 addendum 8): 「今年的足球」, 「去年的足球」 and no year on this year's outings need the
+    library's today, from the app's clock (invariant 11), not the page's; the local day (UTC 20:00 is the next day)."""
+    from opagent_testing.clock import FakeClock
+
+    x = M(embedded_pg.dsn, tmp_path, clock=FakeClock(datetime(2026, 11, 11, 20, 0, tzinfo=UTC)))
+    for path in ("/api/v1/memories/themes", "/api/v1/memories/events"):
+        body = x.client.get(path, headers=x.ui).json()
+        assert body.get("today") == "2026-11-12", path
+    x.eng.dispose()

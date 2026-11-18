@@ -1222,6 +1222,8 @@
     "picked": "精選 {n} 張 · 共 {total} 張",
     "themes": "回憶主題",
     "themeTitle": "{year} 的{name}",
+    "themeThisYear": "今年的{name}",
+    "themeLastYear": "去年的{name}",
     "themeOpen": "{title}，{n} 張",
     "themeCount": "{n} 張 · 精選 {k} 張",
     "themeAll": "看全部",

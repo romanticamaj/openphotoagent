@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { MemoryMenu, useMemoryFeedback } from "./MemoryMenu";
+import { eventTitle } from "./titles";
 import { api, mediaUrl } from "../../lib/api";
 import { turnStyle } from "../../lib/turn";
 import type { MemoryPhoto } from "./OnThisDay";
@@ -27,9 +28,8 @@ export function Events({ onOpen }: { onOpen: (photos: MemoryPhoto[], start: numb
           const [y, m, d] = parts(ev.day);
           // an outing over days next to each other is one card (MEM-020)
           const [, m2, d2] = ev.last ? parts(ev.last) : [y, m, d];
-          const day = ev.last ? `${y}/${m}/${d}–${m2}/${d2}` : `${y}/${m}/${d}`;
           const ask = ev.last ? `${y}年${m}月${d}日到${m2}月${d2}日` : `${y}年${m}月${d}日`;
-          const title = ev.name ? `${day} · ${ev.name}` : day;
+          const title = eventTitle(t, ev.day, ev.last, ev.name, q.data?.today); // this year's without the year (MEM-055)
           const cover = ev.photos[0];
           return (
             <li key={ev.day} className="memory-theme">
