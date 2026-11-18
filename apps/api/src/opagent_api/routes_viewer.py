@@ -368,7 +368,10 @@ def _by_day(picked: list[Any]) -> list[Any]:
     return out
 
 
-FEEDBACK_REF = re.compile(r"(event:\d{4}-\d{2}-\d{2}|theme:\d{4}:[a-z_]+\.[a-z_]+|tag:[a-z_]+\.[a-z_]+)")
+# an outing may carry its subject, for its name in the hidden list (MEM-060); it hides by its day
+FEEDBACK_REF = re.compile(
+    r"(event:\d{4}-\d{2}-\d{2}(:[a-z_]+\.[a-z_]+)?|theme:\d{4}:[a-z_]+\.[a-z_]+|tag:[a-z_]+\.[a-z_]+)"
+)
 
 
 class FeedbackIn(BaseModel):
@@ -395,7 +398,11 @@ def memory_feedback_list(req: Request, lang: str = "zh-TW") -> dict[str, Any]:
             .where(mf.c.workspace_id == DEFAULT_WS, mf.c.user_id == _who(req))
             .order_by(mf.c.at.desc(), mf.c.id)
         ).all()
-    key: dict[str, str] = {r.id: r.ref.split(":")[-1] for r in rows if r.ref.split(":")[0] in ("theme", "tag")}
+    key: dict[str, str] = {
+        r.id: r.ref.split(":")[-1]
+        for r in rows
+        if r.ref.split(":")[0] in ("theme", "tag") or (r.ref.startswith("event:") and r.ref.count(":") == 2)
+    }
     names = tag_names([k for k in key.values() if k], lang)
     return {
         "today": _today(req),  # 「去年的球」 here as on its card (MEM-058)

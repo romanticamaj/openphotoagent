@@ -150,4 +150,21 @@ describe("editing in the Lightbox (ADR-0057)", () => {
     fireEvent.keyDown(document.activeElement!, { key: "e" });
     expect(await screen.findByRole("slider", { name: "曝光" })).toBeTruthy(); // the keys work again
   });
+
+  it("[EDIT-027] 回歸：編輯時照片讓出面板的位置，不被面板蓋住（驗證第 146～147 輪：面板蓋住照片約 104 px）", async () => {
+    s.edit = null;
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Lightbox start={0} grid={grid} onClose={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    const lb = screen.getByTestId("lightbox");
+    expect(lb.hasAttribute("data-editing")).toBe(false);
+    fireEvent.click(await screen.findByRole("button", { name: "編輯" }));
+    await screen.findByRole("slider", { name: "曝光" });
+    expect(lb.hasAttribute("data-editing")).toBe(true);
+    const { readFileSync } = await import("node:fs");
+    const css = readFileSync(`${process.cwd()}/src/styles.css`, "utf-8").replace(/\s+/g, " ");
+    expect(css).toMatch(/\.lightbox\[data-editing\] \.stage \{[^}]*margin-right: 300px/);
+  });
 });

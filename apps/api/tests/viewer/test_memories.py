@@ -428,3 +428,19 @@ def test_mem_058_the_search_says_todays_date_and_so_does_the_hidden_list(embedde
     assert x.client.post("/api/v1/search", json={}, headers=x.ui).json().get("today") == "2026-11-12"
     assert x.client.get("/api/v1/memories/feedback", headers=x.ui).json().get("today") == "2026-11-12"
     x.eng.dispose()
+
+
+@pytest.mark.integration
+@pytest.mark.tc("MEM-060")
+def test_mem_060_a_hidden_outing_keeps_its_subject_for_its_name(embedded_pg, tmp_path):
+    """回歸 (audit rounds 144–147): the hidden list said 「6/22 的活動」 for 「6/22 · 運動場」. An outing's ref may carry
+    its subject (event:YYYY-MM-DD:group.name); it still hides by its day, and the list names its subject."""
+    x = M(embedded_pg.dsn, tmp_path)
+    x.index()
+    r = x.client.post(
+        "/api/v1/memories/feedback", json={"kind": "hide", "ref": "event:2026-06-22:scene.sports_field"}, headers=x.ui
+    )
+    assert r.status_code == 200, r.text
+    items = x.client.get("/api/v1/memories/feedback", params={"lang": "zh-TW"}, headers=x.ui).json()["items"]
+    x.eng.dispose()
+    assert [(i["ref"], i["name"]) for i in items] == [("event:2026-06-22:scene.sports_field", "運動場")]

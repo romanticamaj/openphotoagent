@@ -713,3 +713,12 @@ def test_srch_tok_050_hopscotch_is_one_word():
     assert tok.tag_key("跳房子") == tok.tag_key("hopscotch") == "activity.hopscotch"
     assert "房子" not in tok.words("跳房子")
     assert tok.related("跳房子") == ["遊樂場"]
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-052")
+def test_srch_tok_052_cooking_a_dish_offers_the_dish():
+    """回歸 (audit rounds 146–147): 煮麵 found 0 and offered nothing while 麵 has photos. 煮 is a light verb on its
+    object, as 看海 offers 海 (SRCH-TOK-024)."""
+    tok = Tokenizer()
+    assert "麵" in tok.related("煮麵"), tok.related("煮麵")

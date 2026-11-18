@@ -410,6 +410,7 @@ export function Lightbox({
       onKeyDown={onKey}
       onMouseMove={playing ? wake : undefined}
       data-testid="lightbox"
+      data-editing={editing || undefined}
     >
       {playing && title && ord === start ? (
         <div className="story-title" data-testid="story-title" aria-hidden="true">

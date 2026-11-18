@@ -34,7 +34,7 @@ _ZW = re.compile("[​‌‍⁠﻿­]")
 _CJK = re.compile(r"[぀-ヿ㐀-䶿一-鿿豈-﫿]+")
 _WORD = re.compile(r"[0-9a-z]+(?:['._-][0-9a-z]+)*|[぀-ヿ㐀-䶿一-鿿豈-﫿]+")
 # verbs that only say what one does with the thing named next (SRCH-TOK-024): 去爬山, 搭飛機, 堆沙堡, 看海
-LIGHT_VERBS = {"去", "搭", "坐", "堆", "跳", "騎", "看", "玩", "放", "做"}
+LIGHT_VERBS = {"去", "搭", "坐", "堆", "跳", "騎", "看", "玩", "放", "做", "煮"}  # 煮麵 offers 麵 (SRCH-TOK-052)
 # after a single character, a place: 河邊, 山上 relate to 河 and 山 (ADR-0051)
 PLACE_WORDS = {"邊", "旁", "畔", "裡", "上", "下"}
 # a verb on its object, not part of a compound: 戴口罩, 抱寶寶 (ADR-0052)

@@ -1443,3 +1443,6 @@ body {
 .edit-slider { display: grid; grid-template-columns: 4.5rem 1fr 3.5rem; align-items: center; gap: 0.5rem; font-size: 0.8125rem; }
 .edit-slider input[type="range"] { width: 100%; accent-color: var(--accent); }
 .lb-crop { position: absolute; left: 50%; top: 50%; overflow: hidden; }
+
+/* while editing, the photo gives the panel its room: the panel covered about 104 px of it (round 147, EDIT-027) */
+.lightbox[data-editing] .stage { margin-right: 300px; }

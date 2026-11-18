@@ -83,4 +83,16 @@ describe("hidden memories", () => {
     expect(screen.getByText("6/22 的活動")).toBeTruthy();
     s.today = undefined;
   });
+
+  it("[MEM-061] 回歸：隱藏的活動用卡片的名稱「6/22 · 運動場」（驗證第 144～147 輪：「6/22 的活動」）", async () => {
+    s.today = "2026-11-18";
+    s.items = [{ id: "f5", kind: "hide", ref: "event:2026-06-22:scene.sports_field", name: "運動場" }];
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <HiddenMemories />
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText("6/22 · 運動場")).toBeTruthy();
+    s.today = undefined;
+  });
 });

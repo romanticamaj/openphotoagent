@@ -12,7 +12,8 @@ type Item = { id: string; kind: string; ref: string; name?: string | null };
 function label(t: (k: string, o?: Record<string, unknown>) => string, x: Item, today?: string): string {
   const p = x.ref.split(":");
   if (p[0] === "theme") return themeTitle(t, Number(p[1]), x.name ?? p[2] ?? "", today);
-  if (p[0] === "event") return t("memories.hiddenEvent", { day: eventTitle(t, p[1] ?? "", null, null, today) });
+  // named as its card when its subject came with it: 「6/22 · 運動場」 (round 147, MEM-061)
+  if (p[0] === "event") return x.name ? eventTitle(t, p[1] ?? "", null, x.name, today) : t("memories.hiddenEvent", { day: eventTitle(t, p[1] ?? "", null, null, today) });
   return t("memories.fewer", { name: x.name ?? p[1] });
 }
 
