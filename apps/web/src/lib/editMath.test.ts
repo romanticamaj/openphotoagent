@@ -48,3 +48,26 @@ describe("edit maths (ADR-0057)", () => {
     expect(coverScale(45, 1000, 1000)).toBeCloseTo(Math.SQRT2, 6);
   });
 });
+
+describe("自動 (ADR-0057)", () => {
+  const img = (f: (i: number) => number, n = 1000) => {
+    const px = new Uint8ClampedArray(n * 4);
+    for (let i = 0; i < n; i++) {
+      const v = f(i);
+      px.set([v, v, v, 255], i * 4);
+    }
+    return px;
+  };
+  it("[EDIT-016] 「自動」只依預覽的亮度分佈填入滑桿：太暗就提亮、灰濛濛就加對比、正常的幾乎不動；同一張每次一樣", async () => {
+    const { autoEdit } = await import("./editMath");
+    const dark = autoEdit(img((i) => 10 + (i % 60)));
+    expect(dark.exposure!).toBeGreaterThan(0.3);
+    const flat = autoEdit(img((i) => 110 + (i % 40)));
+    expect(flat.contrast!).toBeGreaterThan(20);
+    const fine = autoEdit(img((i) => Math.round((i / 999) * 255)));
+    expect(Math.abs(fine.exposure ?? 0)).toBeLessThan(0.15);
+    expect(Math.abs(fine.contrast ?? 0)).toBeLessThan(10);
+    expect(autoEdit(img((i) => 10 + (i % 60)))).toEqual(dark);
+    expect(dark.v).toBe(1);
+  });
+});

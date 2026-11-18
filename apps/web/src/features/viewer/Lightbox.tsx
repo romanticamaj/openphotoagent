@@ -12,13 +12,13 @@ import { FaceBoxes } from "./faceBoxes";
 import { Suspense, lazy, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { turnStyle } from "../../lib/turn";
-import { api, mediaUrl, preparePreview, type AssetInfo, type TimelineAsset } from "../../lib/api";
+import { api, mediaUrl, preparePreview, previewBlob, type AssetInfo, type TimelineAsset } from "../../lib/api";
 import { platform } from "../../lib/platform";
 import { placeholder } from "../../lib/thumbhash";
 import type { GridApi } from "./PhotoGrid";
 import { memoryGrid } from "../memories/OnThisDay";
 import { Edited, editFilter } from "../../lib/editView";
-import type { Edit } from "../../lib/editMath";
+import { autoEdit, type Edit } from "../../lib/editMath";
 import { EditPanel } from "./EditPanel";
 
 // 「問這張」 loads with the ask chunk, not with the photos route (PERF-003)
@@ -668,6 +668,19 @@ export function Lightbox({
           onChange={setDraft}
           onSave={(e) => editDone(Object.keys(e).length > 1 ? e : null)}
           onRevert={() => editDone(null)}
+          auto={async () => {
+            // the 1024 px preview's brightness, drawn small; no model (EDIT-016)
+            const bmp = await createImageBitmap(await previewBlob(asset.id));
+            const c = document.createElement("canvas");
+            const k = Math.min(1, 256 / Math.max(bmp.width, bmp.height));
+            c.width = Math.max(1, Math.round(bmp.width * k));
+            c.height = Math.max(1, Math.round(bmp.height * k));
+            const g = c.getContext("2d");
+            if (!g) return { v: 1 };
+            g.drawImage(bmp, 0, 0, c.width, c.height);
+            bmp.close();
+            return autoEdit(g.getImageData(0, 0, c.width, c.height).data);
+          }}
           onCancel={() => {
             setEditing(false);
             setDraft(null);

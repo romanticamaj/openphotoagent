@@ -56,6 +56,7 @@ export function EditPanel({
   onSave,
   onRevert,
   onCancel,
+  auto,
 }: {
   initial: Edit | null | undefined;
   /** the photo's size after its quarter turn, for aspect crops */
@@ -65,6 +66,8 @@ export function EditPanel({
   onSave: (e: Edit) => void;
   onRevert: () => void;
   onCancel: () => void;
+  /** 自動: light from the preview's brightness (EDIT-016/017) */
+  auto?: () => Promise<Edit>;
 }) {
   const { t } = useTranslation();
   const [e, setE] = useState<Edit>(initial ?? { v: 1 });
@@ -149,6 +152,18 @@ export function EditPanel({
         </div>
       </section>
       <div className="flex flex-wrap gap-2">
+        {auto ? (
+          <Button
+            variant="ghost"
+            onClick={async () => {
+              const a = await auto();
+              // the light only: the crop and filter chosen stay (EDIT-017)
+              set({ ...e, exposure: a.exposure, contrast: a.contrast, highlights: a.highlights, shadows: a.shadows });
+            }}
+          >
+            {t("edit.auto")}
+          </Button>
+        ) : null}
         <Button onClick={() => onSave(clean(e))}>{t("edit.done")}</Button>
         <Button variant="ghost" onClick={onCancel}>
           {t("edit.cancel")}

@@ -112,3 +112,31 @@ export function applyEdit(px: Uint8ClampedArray, e: Edit): void {
     px[i + 2] = Math.round((m[10]! * r + m[11]! * g + m[12]! * b + m[14]!) * 255);
   }
 }
+
+/** 自動 (ADR-0057, EDIT-016): exposure and contrast from the preview's brightness alone, no model; it only fills the
+ *  sliders, which the person can move. Median brought to the middle; the 2-98 % spread widened when it is narrow. */
+export function autoEdit(px: Uint8ClampedArray): Edit {
+  const hist = new Array<number>(256).fill(0);
+  let n = 0;
+  for (let i = 0; i < px.length; i += 4) {
+    hist[Math.round(0.2126 * px[i]! + 0.7152 * px[i + 1]! + 0.0722 * px[i + 2]!)]! += 1;
+    n++;
+  }
+  const at = (q: number) => {
+    let acc = 0;
+    for (let v = 0; v < 256; v++) {
+      acc += hist[v]!;
+      if (acc >= q * n) return v / 255;
+    }
+    return 1;
+  };
+  const out: Edit = { v: 1 };
+  if (!n) return out;
+  const median = Math.max(at(0.5), 1 / 255);
+  const ev = Math.round(Math.min(1.5, Math.max(-1.5, Math.log2(0.5 / median))) * 10) / 10;
+  if (Math.abs(ev) >= 0.1) out.exposure = ev;
+  const spread = Math.max(at(0.98) - at(0.02), 1 / 255);
+  const contrast = Math.round(Math.min(60, Math.max(0, (0.85 / spread - 1) * 100)));
+  if (contrast >= 5) out.contrast = contrast;
+  return out;
+}

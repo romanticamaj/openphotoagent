@@ -39,4 +39,13 @@ describe("the editor (ADR-0057)", () => {
     fireEvent.click(screen.getByRole("button", { name: "完成" }));
     expect(save).toHaveBeenCalledWith({ v: 1, crop: { x: 0.125, y: 0, w: 0.75, h: 1 } });
   });
+
+  it("[EDIT-017] 「自動」填入光線的建議值，保留裁切與濾鏡，之後仍可再調", async () => {
+    const change = vi.fn();
+    const auto = vi.fn(async () => ({ v: 1 as const, exposure: 0.6, contrast: 20 }));
+    render(<EditPanel initial={{ v: 1, crop: { x: 0, y: 0, w: 0.5, h: 1 }, filter: { name: "warm", strength: 100 } }} w={4000} h={3000} onChange={change} onSave={() => {}} onRevert={() => {}} onCancel={() => {}} auto={auto} />);
+    fireEvent.click(screen.getByRole("button", { name: "自動" }));
+    await vi.waitFor(() => expect(change).toHaveBeenLastCalledWith({ v: 1, exposure: 0.6, contrast: 20, crop: { x: 0, y: 0, w: 0.5, h: 1 }, filter: { name: "warm", strength: 100 } }));
+    expect(screen.getByRole("slider", { name: "曝光" }).getAttribute("aria-valuetext")).toBe("+0.6 EV");
+  });
 });

@@ -1265,6 +1265,7 @@
       "mono": "Mono",
       "noir": "Noir"
     },
+    "auto": "Auto",
     "done": "Done",
     "cancel": "Cancel",
     "revert": "Revert to original",
