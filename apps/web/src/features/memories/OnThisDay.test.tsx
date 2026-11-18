@@ -182,4 +182,15 @@ describe("那年今日 (10 §2.8)", () => {
     expect(allocate(undefined, [24, 10, 10])).toEqual([4, 4, 4]); // not measured: MEM-031
     expect(Math.max(...allocate(5000, [24]))).toBe(8); // never more than 8 a year
   });
+
+  it("[MEM-052] 回歸：卡片的縮圖排在時間軸照片之後（低優先）（驗證第 141 輪：卡片放 10 張後，第一張照片 164 → 283 ms）", async () => {
+    window.localStorage.clear();
+    s.scope = undefined;
+    s.groups = [{ year: 2025, years_ago: 1, photos: [{ asset_id: "a", ch: null, taken_at: null }] }];
+    wrap();
+    await screen.findByRole("heading", { name: "那年今日" });
+    const img = document.querySelector(".on-this-day-tile img");
+    expect(img?.getAttribute("fetchpriority")).toBe("low");
+    expect(img?.getAttribute("decoding")).toBe("async");
+  });
 });

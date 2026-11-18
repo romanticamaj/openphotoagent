@@ -37,4 +37,16 @@ describe("hidden memories", () => {
     fireEvent.click(screen.getAllByRole("button", { name: /還原/ })[0]!);
     await vi.waitFor(() => expect(s.removed).toEqual(["f1"]));
   });
+
+  it("[MEM-053] 回歸：「還原」之後焦點到清單的標題（驗證第 141 輪：焦點掉到頁面）", async () => {
+    s.items = [{ id: "f9", kind: "hide", ref: "theme:2025:activity.soccer", name: "足球" }];
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <HiddenMemories />
+      </QueryClientProvider>,
+    );
+    const summary = await screen.findByText("已隱藏與少一點的回憶（1）");
+    fireEvent.click(screen.getByRole("button", { name: /還原/ }));
+    await vi.waitFor(() => expect(document.activeElement).toBe(summary));
+  });
 });

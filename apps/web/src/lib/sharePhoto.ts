@@ -63,7 +63,14 @@ export async function encodeTurned(b: Blob, type: string, rot: number): Promise<
   g.rotate((rot * Math.PI) / 180);
   g.drawImage(img, -img.width / 2, -img.height / 2);
   img.close();
-  return new Promise((ok, no) => c.toBlob((out) => (out ? ok(out) : no(new Error("ENCODE_FAILED"))), type, 0.92));
+  // toDataURL, not toBlob: in WebView2 toBlob took about 1 s a photo, even for a blank canvas (round 141, SHARE-039)
+  const url = c.toDataURL(type, 0.92);
+  const comma = url.indexOf(",");
+  if (!url.startsWith(`data:${type}`) || comma < 0) throw new Error("ENCODE_FAILED");
+  const bin = atob(url.slice(comma + 1));
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type });
 }
 
 export function saveFile(b: Blob, name: string): void {

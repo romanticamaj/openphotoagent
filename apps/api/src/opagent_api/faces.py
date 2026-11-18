@@ -135,8 +135,9 @@ class PresentIn(BaseModel):
 @router.post("/faces/present")
 def faces_present(body: PresentIn, req: Request) -> dict[str, Any]:
     """Which of the chosen photos have a face, before a share (ADR-0049 addendum 8, FACE-SHR-001): faces were on 13 of
-    14 memory covers and went out with no word. Only when faces are on, from sources faces are on for; an ignored or
-    reject-tier face does not count. Never who: no person, name or count per person. Off, nothing is said or guessed."""
+    14 memory covers and went out with no word. Only when faces are on, from sources faces are on for; an ignored face
+    does not count, a small reject-tier one does. Never who: no person, name or count per person. Off, nothing is said
+    or guessed."""
     ui_only(req)  # the app's own question, not an AI client's
     with _st(req).engine.begin() as c:
         s = fsettings(c)
@@ -149,8 +150,7 @@ def faces_present(body: PresentIn, req: Request) -> dict[str, Any]:
             .where(
                 face.c.workspace_id == DEFAULT_WS,
                 face.c.asset_id.in_(body.asset_ids or ["-"]),
-                face.c.state != "ignored",
-                face.c.quality_tier >= 1,
+                face.c.state != "ignored",  # a small, reject-tier face counts: two photos with 5 went unsaid (r141)
             )
         )
         if s.get("sources") is not None:

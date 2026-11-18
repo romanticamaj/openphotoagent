@@ -1104,8 +1104,8 @@ def test_ask_prv_011_a_name_in_another_case_or_width_never_reaches_a_cloud_model
 @pytest.mark.tc("FACE-SHR-001")
 def test_face_shr_001_which_photos_have_faces_before_a_share(f):
     """ADR-0049 addendum 8 (audit rounds 138–139: faces on 13 of 14 memory covers, shared with no warning): before a
-    share, which of the chosen photos have a face, only when faces are on, never who. An ignored face and a reject-tier
-    face do not count; with faces turned off (rows kept) nothing is said and nothing is inferred."""
+    share, which of the chosen photos have a face, only when faces are on, never who. An ignored face does not count (a
+    person said it is no face); a reject-tier one does. With faces turned off (rows kept) nothing is said or inferred."""
     from opagent_db.schema import face, workspace
     from sqlalchemy import select, update
 
@@ -1119,7 +1119,9 @@ def test_face_shr_001_which_photos_have_faces_before_a_share(f):
         c.execute(update(face).where(face.c.id.in_(low_faces)).values(quality_tier=0))
     ids = [*with_face, ignored, low, plain]
     r = f.post("/faces/present", {"asset_ids": ids})
-    assert r == {"enabled": True, "with_faces": sorted(with_face)}
+    # a small, reject-tier face counts too: a warning too many is safer than a share with faces unsaid (round 141:
+    # two 車子 photos with 5 small faces shared with no warning; revised, ADR-0049 addendum 8)
+    assert r == {"enabled": True, "with_faces": sorted([*with_face, low])}
     assert set(r) == {"enabled", "with_faces"}  # no person, name or count per person
     assert f.client.post("/api/v1/faces/present", json={"asset_ids": ["a"] * 201}, headers=f.ui).status_code == 422
     with f.eng.begin() as c:  # turned off, the rows kept

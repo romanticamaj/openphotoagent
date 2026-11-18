@@ -157,7 +157,7 @@ export function OnThisDay({ onOpen, away = false }: { onOpen: (photos: MemoryPho
                     aria-label={t("memories.open", { year: g.year, n: (i + 1).toLocaleString(i18n.language) })}
                     onClick={() => onOpen(g.photos.map((x) => ({ id: x.asset_id, ch: x.ch ?? undefined, rot: x.rot })), i)}
                   >
-                    <img src={mediaUrl(p.asset_id, "t256", p.ch)} alt="" loading="lazy" style={turnStyle(p.rot)} />
+                    <img src={mediaUrl(p.asset_id, "t256", p.ch)} alt="" loading="lazy" decoding="async" fetchPriority="low" style={turnStyle(p.rot)} />
                   </button>
                 </li>
               ))}

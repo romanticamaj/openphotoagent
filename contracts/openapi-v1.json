@@ -4998,7 +4998,7 @@
     },
     "/api/v1/faces/present": {
       "post": {
-        "description": "Which of the chosen photos have a face, before a share (ADR-0049 addendum 8, FACE-SHR-001): faces were on 13 of\n14 memory covers and went out with no word. Only when faces are on, from sources faces are on for; an ignored or\nreject-tier face does not count. Never who: no person, name or count per person. Off, nothing is said or guessed.",
+        "description": "Which of the chosen photos have a face, before a share (ADR-0049 addendum 8, FACE-SHR-001): faces were on 13 of\n14 memory covers and went out with no word. Only when faces are on, from sources faces are on for; an ignored face\ndoes not count, a small reject-tier one does. Never who: no person, name or count per person. Off, nothing is said\nor guessed.",
         "operationId": "faces_present_api_v1_faces_present_post",
         "requestBody": {
           "content": {

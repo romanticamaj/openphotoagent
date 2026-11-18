@@ -75,16 +75,32 @@ export function ShareSelection({
   // faces in the chosen photos, said before they leave (ADR-0049 addendum 8, SHARE-037): 13 of 14 memory covers had
   // faces and went with no word. Only when faces are on; nothing is guessed when they are off
   const [faced, setFaced] = useState<string[] | null>(null);
+  // the check could not answer: asked, not shared unseen (round 141, SHARE-038)
+  const [unsure, setUnsure] = useState(false);
+  const dialog = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    // the safer choice first: 只分享其他 N 張, else 取消 (round 141: focus was on 全部分享)
+    if (faced || unsure) dialog.current?.querySelector<HTMLElement>("[data-safe]")?.focus();
+  }, [faced, unsure]);
   const start = async () => {
     if (!ids || busy) return;
     if (check) {
-      const r = await check(ids).catch(() => ({ enabled: false }) as { enabled: boolean; with_faces?: string[] });
+      const r = await check(ids).catch(() => null);
+      if (r === null) {
+        setUnsure(true);
+        return;
+      }
       if (r.enabled && r.with_faces?.length) {
         setFaced(r.with_faces);
         return;
       }
     }
     void go(ids);
+  };
+  const shut = (back = true) => {
+    setFaced(null);
+    setUnsure(false);
+    if (back) shareRef.current?.focus();
   };
   const go = async (ids: string[] | null) => {
     if (!ids || busy) return;
@@ -131,10 +147,11 @@ export function ShareSelection({
           </span>
         )}
       </Button>
-      {faced && ids
+      {(faced || unsure) && ids
         ? createPortal(
             <div className="fixed inset-0 z-40 grid place-items-center bg-black/50">
               <div
+                ref={dialog}
                 role="alertdialog"
                 aria-modal="true"
                 aria-labelledby="share-faces-h"
@@ -142,25 +159,31 @@ export function ShareSelection({
                 onKeyDown={(e) => {
                   if (e.key === "Escape") {
                     e.stopPropagation();
-                    setFaced(null);
-                    shareRef.current?.focus();
+                    shut();
+                    return;
                   }
+                  // Tab goes round its buttons: it left the dialog, which says it is modal (round 141, SHARE-038)
+                  if (e.key !== "Tab") return;
+                  const bs = [...(dialog.current?.querySelectorAll<HTMLElement>("button") ?? [])];
+                  const at = bs.indexOf(document.activeElement as HTMLElement);
+                  e.preventDefault();
+                  bs[(at + (e.shiftKey ? -1 : 1) + bs.length) % bs.length]?.focus();
                 }}
               >
                 <h2 id="share-faces-h" className="font-semibold">
-                  {t("share.facesTitle", { n: fmt(ids.length), k: fmt(faced.length) })}
+                  {faced ? t("share.facesTitle", { n: fmt(ids.length), k: fmt(faced.length) }) : t("share.facesUnknown")}
                 </h2>
                 <p className="text-sm text-[var(--text-muted)]">{t("share.facesNote")}</p>
                 <div className="flex flex-wrap gap-2">
-                  <Button autoFocus onClick={() => (setFaced(null), void go(ids))}>
-                    {t("share.facesAll")}
+                  <Button variant="ghost" onClick={() => (shut(false), void go(ids))}>
+                    {t(faced ? "share.facesAll" : "share.facesAnyway")}
                   </Button>
-                  {ids.length > faced.length ? (
-                    <Button variant="ghost" onClick={() => (setFaced(null), void go(ids.filter((x) => !faced.includes(x))))}>
+                  {faced && ids.length > faced.length ? (
+                    <Button data-safe="" onClick={() => (shut(false), void go(ids.filter((x) => !faced.includes(x))))}>
                       {t("share.facesOthers", { n: fmt(ids.length - faced.length) })}
                     </Button>
                   ) : null}
-                  <Button variant="ghost" onClick={() => (setFaced(null), shareRef.current?.focus())}>
+                  <Button variant="ghost" {...(faced && ids.length > faced.length ? {} : { "data-safe": "" })} onClick={() => shut()}>
                     {t("batch.cancel")}
                   </Button>
                 </div>

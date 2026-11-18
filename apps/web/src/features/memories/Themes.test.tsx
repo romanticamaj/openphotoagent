@@ -103,4 +103,17 @@ describe("a theme plays as a story (audit round 109)", () => {
     fireEvent.click(hide!);
     await vi.waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "復原" })));
   });
+
+  it("[MEM-053] 回歸：「復原」之後焦點到這一區的標題，不落到頁面（驗證第 141 輪）", async () => {
+    s.themes = [{ year: 2025, key: "activity.soccer", name: "足球", count: 120, photos: [{ asset_id: "a", ch: null, taken_at: null }] }];
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Themes onOpen={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "更多：2025 的足球" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "隱藏這個回憶" }));
+    fireEvent.click(await screen.findByRole("button", { name: "復原" }));
+    await vi.waitFor(() => expect(document.activeElement).toBe(screen.getByRole("heading", { name: "回憶主題" })));
+  });
 });

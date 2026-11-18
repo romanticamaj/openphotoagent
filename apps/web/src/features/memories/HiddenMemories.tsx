@@ -1,6 +1,7 @@
 // The memories a person hid and the subjects they want fewer of, at the end of 分類, each with 還原 (MEM-048): after a
 // reload a hidden memory could never come back (audit round 140).
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "../../lib/api";
 
@@ -21,10 +22,11 @@ export function HiddenMemories() {
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["memory-feedback"], queryFn: () => api.memoryFeedbackList() });
   const items = (q.data?.items ?? []) as Item[];
+  const summary = useRef<HTMLElement>(null);
   if (!items.length) return null;
   return (
     <details className="hidden-memories text-sm">
-      <summary className="cursor-pointer text-[var(--text-muted)]">{t("memories.hiddenList", { n: items.length })}</summary>
+      <summary ref={summary} className="cursor-pointer text-[var(--text-muted)]">{t("memories.hiddenList", { n: items.length })}</summary>
       <ul className="mt-2 space-y-1">
         {items.map((x) => (
           <li key={x.id} className="flex items-center gap-3">
@@ -36,6 +38,7 @@ export function HiddenMemories() {
               onClick={async () => {
                 await api.memoryFeedbackRemove(x.id);
                 for (const k of ["memory-feedback", "memory-themes", "memory-events"]) void qc.invalidateQueries({ queryKey: [k] });
+                summary.current?.focus(); // its row is gone: the list's heading, not the page (round 141, MEM-053)
               }}
             >
               {t("memories.restore")}

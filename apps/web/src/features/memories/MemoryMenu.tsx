@@ -8,7 +8,7 @@ import { api } from "../../lib/api";
 type Done = { id: string; text: string } | null;
 
 /** The section's toast, kept above the cards: a hidden card is gone before its toast could show. */
-export function useMemoryFeedback() {
+export function useMemoryFeedback(headingId?: string) {
   const { t } = useTranslation();
   const qc = useQueryClient();
   const [done, setDone] = useState<Done>(null);
@@ -38,6 +38,8 @@ export function useMemoryFeedback() {
           await api.memoryFeedbackRemove(done.id);
           setDone(null);
           refresh();
+          // the toast goes: the keyboard to the section's heading, not the page (round 141, MEM-053)
+          if (headingId) document.getElementById(headingId)?.focus();
         }}
       >
         {t("memories.undo")}

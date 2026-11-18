@@ -151,3 +151,28 @@ describe("faces before a share (ADR-0049 addendum 8)", () => {
     expect(screen.queryByRole("alertdialog")).toBeNull();
   });
 });
+
+describe("faces before a share, safe by default", () => {
+  it("[SHARE-038] 回歸：焦點先在較安全的選項，Tab 留在對話框裡；查不出來時先問，不直接分享（驗證第 141 輪：焦點在「全部分享」、Tab 跑出去、檢查失敗就直接分享）", async () => {
+    const run = vi.fn(async (): Promise<ManyResult> => ({ kind: "cancelled" }));
+    const { unmount } = render(<ShareSelection ids={["a", "b", "c"]} run={run} open={async () => ""} check={async () => ({ enabled: true, with_faces: ["a"] })} />);
+    fireEvent.click(screen.getByRole("button", { name: "分享 3 張…" }));
+    await screen.findByRole("alertdialog");
+    const others = screen.getByRole("button", { name: "只分享其他 2 張" });
+    await vi.waitFor(() => expect(document.activeElement).toBe(others));
+    const cancel = screen.getByRole("button", { name: "取消" });
+    cancel.focus();
+    fireEvent.keyDown(cancel, { key: "Tab" });
+    expect(screen.getByRole("alertdialog").contains(document.activeElement)).toBe(true); // round, not out
+    unmount();
+    const run2 = vi.fn(async (): Promise<ManyResult> => ({ kind: "cancelled" }));
+    render(<ShareSelection ids={["a", "b"]} run={run2} open={async () => ""} check={async () => Promise.reject(new Error("down"))} />);
+    fireEvent.click(screen.getByRole("button", { name: "分享 2 張…" }));
+    const ask = await screen.findByRole("alertdialog");
+    expect(ask.textContent).toContain("無法確認照片裡有沒有人臉");
+    expect(run2).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(document.activeElement).toBe(screen.getByRole("button", { name: "取消" })));
+    fireEvent.click(screen.getByRole("button", { name: "仍要分享" }));
+    await vi.waitFor(() => expect(run2).toHaveBeenCalledWith(["a", "b"]));
+  });
+});

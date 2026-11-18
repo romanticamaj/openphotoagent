@@ -13,11 +13,11 @@ export function Themes({ onOpen }: { onOpen: (photos: MemoryPhoto[], start: numb
   const { t, i18n } = useTranslation();
   const q = useQuery({ queryKey: ["memory-themes", i18n.language], queryFn: () => api.memoryThemes(i18n.language), staleTime: 10 * 60 * 1000 });
   const list = q.data?.themes ?? [];
-  const fb = useMemoryFeedback();
+  const fb = useMemoryFeedback("themes-h");
   if (!list.length) return fb.toast;
   return (
     <section aria-labelledby="themes-h" className="space-y-2">
-      <h2 id="themes-h" className="font-semibold">{t("memories.themes")}</h2>
+      <h2 id="themes-h" tabIndex={-1} className="font-semibold">{t("memories.themes")}</h2>
       <ul className="memory-themes">
         {list.map((th) => {
           const title = t("memories.themeTitle", { year: th.year, name: th.name });

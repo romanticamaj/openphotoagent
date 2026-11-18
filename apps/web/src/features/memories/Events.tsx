@@ -17,11 +17,11 @@ export function Events({ onOpen }: { onOpen: (photos: MemoryPhoto[], start: numb
   const { t, i18n } = useTranslation();
   const q = useQuery({ queryKey: ["memory-events", i18n.language], queryFn: () => api.memoryEvents(i18n.language), staleTime: 10 * 60 * 1000 });
   const list = q.data?.events ?? [];
-  const fb = useMemoryFeedback();
+  const fb = useMemoryFeedback("events-h");
   if (!list.length) return fb.toast;
   return (
     <section aria-labelledby="events-h" className="space-y-2">
-      <h2 id="events-h" className="font-semibold">{t("memories.events")}</h2>
+      <h2 id="events-h" tabIndex={-1} className="font-semibold">{t("memories.events")}</h2>
       <ul className="memory-themes">
         {list.map((ev) => {
           const [y, m, d] = parts(ev.day);
