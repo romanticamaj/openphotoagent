@@ -698,6 +698,7 @@
     "faceOne": "This photo has faces",
     "facesUnknown": "Could not check the photos for faces",
     "facesAnyway": "Share anyway",
+    "copyAnyway": "Copy anyway",
     "facesAll": "Share all",
     "facesSure": "Yes, share the photos with faces",
     "facesOthers": "Share only the other {n}",

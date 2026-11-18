@@ -698,6 +698,7 @@
     "faceOne": "這張照片有人臉",
     "facesUnknown": "無法確認照片裡有沒有人臉",
     "facesAnyway": "仍要分享",
+    "copyAnyway": "仍要複製",
     "facesAll": "全部分享",
     "facesSure": "確定分享有人臉的照片",
     "facesOthers": "只分享其他 {n} 張",

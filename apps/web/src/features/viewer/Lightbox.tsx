@@ -171,15 +171,29 @@ export function Lightbox({
     setEditing(true);
   }, [asset, saved]);
   // one photo out of the app asks about faces first, as several do (round 146, SHARE-044); never who
-  const [faceAsk, setFaceAsk] = useState<(() => unknown) | null>(null);
-  const facesFirst = (go: () => unknown) => {
+  const [faceAsk, setFaceAsk] = useState<{ go: () => unknown; copy: boolean; from: HTMLElement | null } | null>(null);
+  const facesFirst = (go: () => unknown, copy = false) => {
     const check = (api as { facesPresent?: typeof api.facesPresent }).facesPresent;
+    const from = document.activeElement as HTMLElement | null;
     if (!asset || !check) return void go();
+    const ask = () => setFaceAsk({ go, copy, from });
     void check([asset.id]).then(
-      (r) => (r.enabled && r.with_faces?.length ? setFaceAsk(() => go) : go()),
-      () => setFaceAsk(() => go), // could not tell: asked, not sent unseen
+      (r) => (r.enabled && r.with_faces?.length ? ask() : go()),
+      ask, // could not tell: asked, not sent unseen
     );
   };
+  // closed without sending: back to the button pressed; focus fell to the page and no key worked (round 147, SHARE-045)
+  const faceNo = () => {
+    const from = faceAsk?.from;
+    setFaceAsk(null);
+    requestAnimationFrame(() => (from && document.contains(from) ? from : dialog.current)?.focus());
+  };
+  // one photo into a folder: said where, with 開啟資料夾 (round 147, SHARE-046)
+  const [folderDone, setFolderDone] = useState<{ dir: string; handle: string } | null>(null);
+  // one toast at a time: a copy toast was drawn under the edit toast (round 147)
+  useEffect(() => {
+    if (toast || folderDone) setEditUndo(null);
+  }, [toast, folderDone]);
   const stageRef = useRef<HTMLDivElement>(null);
   const [stageBox, setStageBox] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
   useEffect(() => {
@@ -514,7 +528,7 @@ export function Lightbox({
                       r === "saved"
                         ? setToast(t("lightbox.shareSaved", { name: photoFileName({ id: asset.id, takenAt: asset.taken_at ?? null }, "jpg") }))
                         : typeof r === "object"
-                          ? setToast(t("share.savedTo", { n: "1", dir: r.dir.split(/[\\/]/).filter(Boolean).pop() ?? r.dir }))
+                          ? (setToast(null), setFolderDone({ dir: r.dir, handle: r.handle }))
                           : undefined,
                     () => setToast(t("lightbox.shareFailed")),
                   ),
@@ -531,11 +545,13 @@ export function Lightbox({
               title={t("lightbox.copyImage")}
               className="icon-button"
               onClick={() =>
-                facesFirst(() =>
-                  copyPhoto({ id: asset.id, rot, takenAt: asset.taken_at ?? null, ...(saved ? { edit: saved } : {}) }).then(
-                    () => setToast(t("lightbox.copied")),
-                    () => setToast(t("lightbox.copyFailed")),
-                  ),
+                facesFirst(
+                  () =>
+                    copyPhoto({ id: asset.id, rot, takenAt: asset.taken_at ?? null, ...(saved ? { edit: saved } : {}) }).then(
+                      () => setToast(t("lightbox.copied")),
+                      () => setToast(t("lightbox.copyFailed")),
+                    ),
+                  true,
                 )
               }
             >
@@ -753,7 +769,7 @@ export function Lightbox({
             onKeyDown={(e) => {
               if (e.key === "Escape") {
                 e.stopPropagation();
-                setFaceAsk(null);
+                faceNo();
               }
             }}
           >
@@ -762,25 +778,38 @@ export function Lightbox({
             </h2>
             <p className="text-sm text-[var(--text-muted)]">{t("share.facesNote")}</p>
             <div className="flex flex-wrap gap-2">
-              <Button autoFocus variant="ghost" onClick={() => setFaceAsk(null)}>
+              <Button autoFocus variant="ghost" onClick={faceNo}>
                 {t("batch.cancel")}
               </Button>
               <Button
                 variant="ghost"
                 className="share-risky danger"
                 onClick={() => {
-                  const go = faceAsk;
+                  const { go } = faceAsk;
                   setFaceAsk(null);
                   go();
                 }}
               >
-                {t("share.facesAnyway")}
+                {t(faceAsk.copy ? "share.copyAnyway" : "share.facesAnyway")}
               </Button>
             </div>
           </div>
         </div>
       ) : null}
       {toast && <Toast text={toast} onDone={() => setToast(null)} />}
+      {folderDone ? (
+        <p role="status" className="toast flex items-center gap-2 text-sm">
+          <span>{t("share.savedTo", { n: "1", dir: folderDone.dir.split(/[\\/]/).filter(Boolean).pop() ?? folderDone.dir })}</span>
+          {platform().openShared ? (
+            <button type="button" className="chip" onClick={() => void platform().openShared!(folderDone.handle)}>
+              {t("share.openFolder")}
+            </button>
+          ) : null}
+          <button type="button" className="underline" aria-label={t("share.dismiss")} onClick={() => setFolderDone(null)}>
+            ×
+          </button>
+        </p>
+      ) : null}
       {editUndo ? (
         <p role="status" className="toast flex items-center gap-2 text-sm">
           <span>{editUndo.text}</span>

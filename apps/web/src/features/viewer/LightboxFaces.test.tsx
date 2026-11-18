@@ -26,6 +26,11 @@ vi.mock("../../lib/sharePhoto", async (orig) => ({
   sharePhoto: sh.share,
   copyPhoto: sh.copy,
 }));
+const pl = vi.hoisted(() => ({ openShared: vi.fn(async () => "D:/x") }));
+vi.mock("../../lib/platform", async (orig) => ({
+  ...(await orig<typeof import("../../lib/platform")>()),
+  platform: () => ({ kind: "desktop", openShared: pl.openShared }),
+}));
 vi.mock("@tanstack/react-router", async (orig) => ({
   ...(await orig<typeof import("@tanstack/react-router")>()),
   Link: ({ children }: { children: React.ReactNode }) => <a>{children}</a>,
@@ -62,5 +67,40 @@ describe("one photo with faces (ADR-0049 addendum 8)", () => {
     fireEvent.click(screen.getByRole("button", { name: "分享" }));
     await waitFor(() => expect(sh.share).toHaveBeenCalled());
     expect(screen.queryByRole("alertdialog")).toBeNull();
+  });
+
+  it("[SHARE-045] 回歸：人臉提醒取消後焦點回到按下的按鈕，按鍵照常；複製的提醒寫「仍要複製」（驗證第 147 輪：焦點掉到頁面、→ 和 Esc 沒反應；複製也寫「仍要分享」）", async () => {
+    s.faces = ["p0"];
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Lightbox start={0} grid={grid} onClose={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    const share = await screen.findByRole("button", { name: "分享" });
+    share.focus();
+    fireEvent.click(share);
+    await screen.findByRole("alertdialog");
+    fireEvent.click(screen.getByRole("button", { name: "取消" }));
+    await waitFor(() => expect(document.activeElement).toBe(share));
+    const copy = screen.getByRole("button", { name: "複製圖片" });
+    copy.focus(); // pressed from the keyboard
+    fireEvent.click(copy);
+    await screen.findByRole("alertdialog");
+    expect(screen.getByRole("button", { name: "仍要複製" })).toBeTruthy();
+    fireEvent.keyDown(screen.getByRole("alertdialog"), { key: "Escape" });
+    await waitFor(() => expect(document.activeElement).toBe(copy));
+  });
+
+  it("[SHARE-046] 回歸：單張存進資料夾後的提示有「開啟資料夾」（驗證第 147 輪：只有一句話）", async () => {
+    s.faces = [];
+    sh.share.mockResolvedValueOnce({ kind: "folder", dir: "D:/out/分享 2026-11-18（1 張）", handle: "h1" } as never);
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Lightbox start={0} grid={grid} onClose={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "分享" }));
+    fireEvent.click(await screen.findByRole("button", { name: "開啟資料夾" }));
+    await waitFor(() => expect(pl.openShared).toHaveBeenCalledWith("h1"));
   });
 });
