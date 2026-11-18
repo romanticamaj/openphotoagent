@@ -323,6 +323,17 @@ export function SearchPage({ q: asked, tag, year, name, title }: { q: string; ta
           </div>
         </>
       ) : null}
+      {res.isSuccess && hits.length > 0 && first?.suggest?.length ? (
+        // one or two found: the related words too, 跳房子 had 1 doubtful photo and no next step (round 148, SRCH-UI-066)
+        <p data-testid="suggest-more" className="flex flex-wrap items-center gap-2 text-sm text-[var(--text-muted)]">
+          <span>{t("search.tryAlso")}</span>
+          {first.suggest.map((x) => (
+            <button key={x.q} type="button" className="chip" onClick={() => void nav({ to: "/search", search: { q: x.q } })}>
+              {t("search.tryWord", { q: x.q, n: x.n })}
+            </button>
+          ))}
+        </p>
+      ) : null}
       {res.isSuccess && hits.length === 0 && <p>{t(first?.no_words ? "search.noWords" : first?.possible_total ? "search.noneSure" : "search.none")}</p>}
       {res.isSuccess && hits.length === 0 ? (
         // nothing found: the words inside the query that do find photos (SRCH-UI-030), and the same words for 問 AI

@@ -1798,3 +1798,19 @@ def test_srch_tok_051_hopscotch_does_not_find_houses(s):
     res = s.search(q="跳房子", semantic=False)
     assert res["total"] == 0, [x["caption"] for x in res["items"]]
     assert res["suggest"] and res["suggest"][0]["q"] == "遊樂場"
+
+
+@pytest.mark.integration
+@pytest.mark.tc("SRCH-SUG-003")
+def test_srch_sug_003_a_word_with_few_hits_offers_its_related_word_too(s):
+    """回歸 (audit rounds 147–148; ADR-0048 addendum 8): 跳房子 found 1 doubtful photo and offered nothing, while
+    遊樂場 has many. With one or two hits, the related words that find photos are offered as well."""
+    s.add(1, caption="小朋友在地上跳房子", tags=())
+    for i in range(3):
+        s.add(10 + i, caption="遊樂場的溜滑梯", tags=("遊樂場",))
+    s.index()
+    res = s.search(q="跳房子", semantic=False)
+    assert res["total"] == 1
+    assert [x["q"] for x in res["suggest"]] == ["遊樂場"]
+    many = s.search(q="遊樂場", semantic=False)
+    assert many["total"] == 3 and many["suggest"] == []  # enough found: nothing to add

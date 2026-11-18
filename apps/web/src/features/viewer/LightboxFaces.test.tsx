@@ -103,4 +103,24 @@ describe("one photo with faces (ADR-0049 addendum 8)", () => {
     fireEvent.click(await screen.findByRole("button", { name: "開啟資料夾" }));
     await waitFor(() => expect(pl.openShared).toHaveBeenCalledWith("h1"));
   });
+
+  it("[SHARE-047] 回歸：人臉提醒裡 Tab 留在對話框；複製的說明寫「複製前…」（驗證第 148 輪：Tab 跑到燈箱後面的按鈕，Esc 連燈箱一起關）", async () => {
+    s.faces = ["p0"];
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <Lightbox start={0} grid={grid} onClose={vi.fn()} />
+      </QueryClientProvider>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: "複製圖片" }));
+    const dlg = await screen.findByRole("alertdialog");
+    expect(dlg.textContent).toContain("複製前請確認");
+    const last = screen.getByRole("button", { name: "仍要複製" });
+    last.focus();
+    fireEvent.keyDown(last, { key: "Tab" });
+    expect(dlg.contains(document.activeElement)).toBe(true);
+    const first = screen.getByRole("button", { name: "取消" });
+    first.focus();
+    fireEvent.keyDown(first, { key: "Tab", shiftKey: true });
+    expect(dlg.contains(document.activeElement)).toBe(true);
+  });
 });

@@ -771,13 +771,21 @@ export function Lightbox({
               if (e.key === "Escape") {
                 e.stopPropagation();
                 faceNo();
+                return;
               }
+              // Tab goes round its buttons: it reached the Lightbox behind, where Esc closed both (round 148, SHARE-047)
+              if (e.key !== "Tab") return;
+              e.preventDefault();
+              e.stopPropagation();
+              const bs = [...e.currentTarget.querySelectorAll<HTMLElement>("button")];
+              const at = bs.indexOf(document.activeElement as HTMLElement);
+              bs[(at + (e.shiftKey ? -1 : 1) + bs.length) % bs.length]?.focus();
             }}
           >
             <h2 id="lb-faces-h" className="font-semibold">
               {t("share.faceOne")}
             </h2>
-            <p className="text-sm text-[var(--text-muted)]">{t("share.facesNote")}</p>
+            <p className="text-sm text-[var(--text-muted)]">{t(faceAsk.copy ? "share.facesNoteCopy" : "share.facesNote")}</p>
             <div className="flex flex-wrap gap-2">
               <Button autoFocus variant="ghost" onClick={faceNo}>
                 {t("batch.cancel")}

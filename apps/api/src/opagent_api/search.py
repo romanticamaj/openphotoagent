@@ -352,6 +352,7 @@ def _local_today(st: Any) -> str:
 
 
 SUGGEST_MAX = 4
+FEW_HITS = 2  # a query with this many hits or fewer is also offered its related words (SRCH-SUG-003)
 
 
 def _suggest(c: Any, where: list[Any], q: str) -> list[dict[str, Any]]:
@@ -956,7 +957,9 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
             if near_ids
             else {}
         )
-        suggest = _suggest(c, where, q) if q and total == 0 and off == 0 else []  # with 可能相關 too (SRCH-SUG-002)
+        # with 可能相關 too (SRCH-SUG-002); and beside one or two hits: 跳房子 found 1 doubtful photo and offered
+        # nothing while 遊樂場 had many (round 148, ADR-0048 addendum 8, SRCH-SUG-003)
+        suggest = _suggest(c, where, q) if q and total <= FEW_HITS and off == 0 else []
         maybe = possible[:POSSIBLE_SHOWN] if off == 0 else []
         maybe_rows = (
             {r.asset_id: r for r in c.execute(select(search_doc).where(search_doc.c.asset_id.in_(maybe)))}

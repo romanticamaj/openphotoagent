@@ -222,6 +222,22 @@ describe("an event's page", () => {
   });
 });
 
+describe("few hits", () => {
+  it("[SRCH-UI-066] 回歸：只找到一兩張時，也在結果上方列出「也可以試試」的相關詞（驗證第 147～148 輪：跳房子 1 張、沒有下一步）", async () => {
+    const hit = { asset_id: "h1", ch: null, score: 1, matched_by: ["fulltext"], category: null, tags: [], caption: "跳房子", taken_at: null };
+    s.result = { items: [hit], facets: {}, total: 1, next_cursor: null, degraded: [], suggest: [{ q: "遊樂場", n: 14 }] } as never;
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <SearchPage q="跳房子" />
+      </QueryClientProvider>,
+    );
+    const chip = await screen.findByRole("button", { name: "遊樂場（14 張以上）" });
+    expect(screen.getByText("也可以試試：")).toBeTruthy();
+    expect(chip.closest("[data-testid='suggest-more']")).toBeTruthy(); // above the results, not the 0 page's
+    s.result = null;
+  });
+});
+
 describe("one title a memory", () => {
   it("[SRCH-UI-064] 回歸：主題的「看全部」頁標題和卡片一樣（驗證第 143 輪：卡片「今年的白板」，打開的頁面寫「2026 的白板」）", async () => {
     s.result = { items: [], facets: {}, total: 0, next_cursor: null, degraded: [], possible_total: 0, possible: [], tag_names: { "object.whiteboard": "白板" }, today: "2026-11-18" } as never;
