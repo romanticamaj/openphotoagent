@@ -199,7 +199,31 @@ describe("faces before a share, a second press for all", () => {
     expect(run).not.toHaveBeenCalled();
     const sure = screen.getByRole("button", { name: "確定分享有人臉的照片" });
     expect(document.activeElement).toBe(sure);
+    // a moment later, as a person presses it (revised in round 144: a press within 600 ms is ignored, SHARE-042)
+    const later = performance.now() + 1000;
+    vi.spyOn(performance, "now").mockReturnValue(later);
     fireEvent.click(sure);
     await vi.waitFor(() => expect(run).toHaveBeenCalledWith(["a", "b"]));
+    vi.restoreAllMocks();
+  });
+});
+
+describe("faces before a share, not by a held key", () => {
+  it("[SHARE-042] 回歸：「確定分享有人臉的照片」剛出現時不接受按鍵，連按兩次 Enter 不會分享（驗證第 144 輪）", async () => {
+    let now = 1000;
+    vi.spyOn(performance, "now").mockImplementation(() => now);
+    const run = vi.fn(async (): Promise<ManyResult> => ({ kind: "cancelled" }));
+    render(<ShareSelection ids={["a", "b"]} run={run} open={async () => ""} check={async () => ({ enabled: true, with_faces: ["a"] })} />);
+    fireEvent.click(screen.getByRole("button", { name: "分享 2 張…" }));
+    await screen.findByRole("alertdialog");
+    fireEvent.click(screen.getByRole("button", { name: "全部分享" }));
+    const sure = screen.getByRole("button", { name: "確定分享有人臉的照片" });
+    now += 100; // the second Enter of a double press
+    fireEvent.click(sure);
+    expect(run).not.toHaveBeenCalled();
+    now += 700;
+    fireEvent.click(sure);
+    await vi.waitFor(() => expect(run).toHaveBeenCalledWith(["a", "b"]));
+    vi.restoreAllMocks();
   });
 });

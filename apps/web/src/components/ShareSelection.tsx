@@ -79,6 +79,7 @@ export function ShareSelection({
   const [unsure, setUnsure] = useState(false);
   // 全部分享 with faces asks once more: one Shift+Tab and Enter shared them (round 143, SHARE-041)
   const [sure, setSure] = useState(false);
+  const sureAt = useRef(0); // when the confirm came: a held or doubled Enter does not press it (round 144, SHARE-042)
   const sureRef = useRef<HTMLButtonElement>(null);
   useEffect(() => {
     if (sure) sureRef.current?.focus();
@@ -192,11 +193,20 @@ export function ShareSelection({
                   </Button>
                   {/* the risky choice last, marked so: it came first and looked like the others (round 142, SHARE-040) */}
                   {faced && sure ? (
-                    <Button ref={sureRef} variant="ghost" className="share-risky danger" onClick={() => (shut(false), void go(ids))}>
+                    <Button
+                      ref={sureRef}
+                      variant="ghost"
+                      className="share-risky danger"
+                      onClick={() => {
+                        if (performance.now() - sureAt.current < 600) return;
+                        shut(false);
+                        void go(ids);
+                      }}
+                    >
                       {t("share.facesSure")}
                     </Button>
                   ) : (
-                    <Button variant="ghost" className="share-risky danger" onClick={() => (faced ? setSure(true) : (shut(false), void go(ids)))}>
+                    <Button variant="ghost" className="share-risky danger" onClick={() => (faced ? ((sureAt.current = performance.now()), setSure(true)) : (shut(false), void go(ids)))}>
                       {t(faced ? "share.facesAll" : "share.facesAnyway")}
                     </Button>
                   )}

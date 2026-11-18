@@ -692,3 +692,13 @@ def test_srch_tok_048_sandbox_and_trampoline_offer_the_playground():
     for q in ("沙坑", "sandbox", "彈跳床", "trampoline", "跳床"):
         assert tok.related(q) == ["遊樂場"], (q, tok.related(q))
     assert tok.tag_key("跳床") == tok.tag_key("trampoline") == "object.trampoline"
+
+
+@pytest.mark.unit
+@pytest.mark.tc("SRCH-TOK-049")
+def test_srch_tok_049_cooking_offers_food():
+    """回歸 (audit round 144): 煮飯 found 0 and offered nothing while 食物 has 16 photos. Cooking suggests food, as the
+    food words do."""
+    tok = Tokenizer()
+    for q in ("煮飯", "做菜", "cooking"):
+        assert "食物" in tok.related(q), (q, tok.related(q))
