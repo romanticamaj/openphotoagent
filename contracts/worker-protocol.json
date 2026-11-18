@@ -386,6 +386,42 @@
         "title": "ConnectIn",
         "type": "object"
       },
+      "CropIn": {
+        "properties": {
+          "h": {
+            "maximum": 1.0,
+            "minimum": 0.02,
+            "title": "H",
+            "type": "number"
+          },
+          "w": {
+            "maximum": 1.0,
+            "minimum": 0.02,
+            "title": "W",
+            "type": "number"
+          },
+          "x": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "X",
+            "type": "number"
+          },
+          "y": {
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Y",
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y",
+          "w",
+          "h"
+        ],
+        "title": "CropIn",
+        "type": "object"
+      },
       "DecisionIn": {
         "properties": {
           "confirm_text": {
@@ -435,6 +471,133 @@
           }
         },
         "title": "DisableIn",
+        "type": "object"
+      },
+      "EditIn": {
+        "additionalProperties": false,
+        "description": "An edit (ADR-0057): light, colour, crop and a filter; values off their default only.",
+        "properties": {
+          "contrast": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": -100.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Contrast"
+          },
+          "crop": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CropIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "exposure": {
+            "anyOf": [
+              {
+                "maximum": 2.0,
+                "minimum": -2.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exposure"
+          },
+          "filter": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/FilterIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "highlights": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": -100.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Highlights"
+          },
+          "saturation": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": -100.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Saturation"
+          },
+          "shadows": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": -100.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shadows"
+          },
+          "straighten": {
+            "anyOf": [
+              {
+                "maximum": 45.0,
+                "minimum": -45.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Straighten"
+          },
+          "v": {
+            "const": 1,
+            "title": "V",
+            "type": "integer"
+          },
+          "warmth": {
+            "anyOf": [
+              {
+                "maximum": 100.0,
+                "minimum": -100.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warmth"
+          }
+        },
+        "required": [
+          "v"
+        ],
+        "title": "EditIn",
         "type": "object"
       },
       "EgressIn": {
@@ -766,6 +929,34 @@
           "ref"
         ],
         "title": "FeedbackIn",
+        "type": "object"
+      },
+      "FilterIn": {
+        "properties": {
+          "name": {
+            "enum": [
+              "vivid",
+              "warm",
+              "cool",
+              "fade",
+              "mono",
+              "noir"
+            ],
+            "title": "Name",
+            "type": "string"
+          },
+          "strength": {
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Strength",
+            "type": "number"
+          }
+        },
+        "required": [
+          "name",
+          "strength"
+        ],
+        "title": "FilterIn",
         "type": "object"
       },
       "Filters": {

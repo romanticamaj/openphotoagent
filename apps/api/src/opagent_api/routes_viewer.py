@@ -197,6 +197,83 @@ def set_rotation(asset_id: str, body: RotationIn, req: Request) -> dict[str, Any
     return {"asset_id": asset_id, "rotation": body.degrees}
 
 
+FILTERS = ("vivid", "warm", "cool", "fade", "mono", "noir")
+
+
+class CropIn(BaseModel):
+    x: float = Field(ge=0, le=1)
+    y: float = Field(ge=0, le=1)
+    w: float = Field(ge=0.02, le=1)
+    h: float = Field(ge=0.02, le=1)
+
+
+class FilterIn(BaseModel):
+    name: Literal["vivid", "warm", "cool", "fade", "mono", "noir"]
+    strength: float = Field(ge=0, le=100)
+
+
+class EditIn(BaseModel):
+    """An edit (ADR-0057): light, colour, crop and a filter; values off their default only."""
+
+    model_config = {"extra": "forbid"}
+    v: Literal[1]
+    exposure: float | None = Field(default=None, ge=-2, le=2)
+    contrast: float | None = Field(default=None, ge=-100, le=100)
+    highlights: float | None = Field(default=None, ge=-100, le=100)
+    shadows: float | None = Field(default=None, ge=-100, le=100)
+    saturation: float | None = Field(default=None, ge=-100, le=100)
+    warmth: float | None = Field(default=None, ge=-100, le=100)
+    straighten: float | None = Field(default=None, ge=-45, le=45)
+    crop: CropIn | None = None
+    filter: FilterIn | None = None
+
+
+def _edit_json(body: EditIn) -> dict[str, Any]:
+    if body.crop and (body.crop.x + body.crop.w > 1.000001 or body.crop.y + body.crop.h > 1.000001):
+        raise HTTPException(422, detail={"code": "VALIDATION", "field": "crop"})
+    return body.model_dump(exclude_none=True)
+
+
+@router.put("/assets/{asset_id}/edit")
+def set_edit(asset_id: str, body: EditIn, req: Request) -> dict[str, Any]:
+    """Edit a photo in the app (EDIT-001, ADR-0057): a view setting kept in the library, drawn by the page. The file
+    is not touched, no derived file is made again and no model is asked (invariants 1, 4, 7)."""
+    from sqlalchemy import update
+
+    edit = _edit_json(body)
+    with _st(req).engine.begin() as c:
+        n = c.execute(
+            update(asset).where(asset.c.id == asset_id).values(edit=edit, edit_rev=asset.c.edit_rev + 1)
+        ).rowcount
+    if not n:
+        raise HTTPException(404, detail={"code": "NOT_FOUND"})
+    return {"asset_id": asset_id, "edit": edit}
+
+
+@router.delete("/assets/{asset_id}/edit")
+def revert_edit(asset_id: str, req: Request) -> dict[str, Any]:
+    """還原原圖 (EDIT-001): the photo as shot."""
+    from sqlalchemy import update
+
+    with _st(req).engine.begin() as c:
+        n = c.execute(
+            update(asset).where(asset.c.id == asset_id).values(edit=None, edit_rev=asset.c.edit_rev + 1)
+        ).rowcount
+    if not n:
+        raise HTTPException(404, detail={"code": "NOT_FOUND"})
+    return {"asset_id": asset_id, "edit": None}
+
+
+def shape(w: int | None, h: int | None, rot: int, edit: dict[str, Any] | None) -> tuple[int | None, int | None]:
+    """A photo's laid-out size: a quarter turn first (ROT-001), then its crop (EDIT-002)."""
+    if rot in (90, 270):
+        w, h = h, w
+    crop = (edit or {}).get("crop")
+    if crop and w and h:
+        w, h = round(w * crop["w"]), round(h * crop["h"])
+    return w, h
+
+
 MEMORY_DAYS = 3  # 10 §2.8: the same day ±3, in earlier years
 MEMORY_MAX = 24  # photos per year shown (10 §2.8: 12-30)
 MEMORY_YEARS = 30  # years looked back at most (security review: one query per year)
@@ -752,6 +829,7 @@ def bucket(month: str, req: Request) -> dict[str, Any]:
         asset.c.date_source,
         asset.c.content_hash,
         asset.c.rotation,
+        asset.c.edit,
     ).where(asset.c.workspace_id == DEFAULT_WS)
     if month == UNKNOWN:
         q = q.where(asset.c.month_at.is_(None)).order_by(asset.c.id)
@@ -766,10 +844,11 @@ def bucket(month: str, req: Request) -> dict[str, Any]:
         "assets": [
             {
                 "id": r.id,
-                # a quarter turn lays the photo out in its new shape (ROT-001)
-                "w": r.height if r.rotation in (90, 270) else r.width,
-                "h": r.width if r.rotation in (90, 270) else r.height,
+                # a quarter turn and then a crop lay the photo out in its new shape (ROT-001, EDIT-002)
+                "w": shape(r.width, r.height, r.rotation, r.edit)[0],
+                "h": shape(r.width, r.height, r.rotation, r.edit)[1],
                 "rot": r.rotation,
+                "ed": r.edit,
                 "thumbhash": r.thumbhash,
                 "ch": r.content_hash,  # desktop: thumbnail path in the local cache (10 §5.4)
                 "taken_at": r.local_at.isoformat() if r.local_at else None,

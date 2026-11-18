@@ -979,11 +979,19 @@ def run_search(st: AppState, body: SearchIn) -> dict[str, Any]:
             if page
             else {}
         )
+        edits = (
+            dict(
+                c.execute(select(asset.c.id, asset.c.edit).where(asset.c.id.in_(page), asset.c.edit.is_not(None))).all()
+            )
+            if page
+            else {}
+        )
     items = [
         {
             "asset_id": a,
             "ch": hashes.get(a),  # desktop thumbnails by content hash (10 §5.4)
             "rot": turns.get(a, 0),  # turned in the app (ROT-001)
+            "ed": edits.get(a),  # edited in the app (EDIT-002)
             "score": round(scores.get(a, 0.0), 6),
             "matched_by": matched.get(a, []),
             "category": rows[a].category,

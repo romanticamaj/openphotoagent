@@ -88,6 +88,9 @@ asset = Table(
     Column("exif", JSONB, nullable=False, server_default="{}"),  # display summary (10 §3.5); untrusted data
     # turned in the app, never in the file (ROT-001, invariant 4)
     Column("rotation", SmallInteger, nullable=False, server_default="0"),
+    # edited in the app, never in the file (ADR-0057, EDIT-001): only the values off their default; NULL is as shot
+    Column("edit", JSONB),
+    Column("edit_rev", Integer, nullable=False, server_default="0"),
     # wall-clock time the photo belongs to (capture time, else file mtime) and its month: the timeline axis (10 §2)
     Column("local_at", DateTime(timezone=False)),
     Column("month_at", DateTime(timezone=False), Computed("date_trunc('month', local_at)", persisted=True)),
